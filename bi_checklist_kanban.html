@@ -48,7 +48,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
 .project-btn.active{background:var(--surface2);color:var(--text);font-weight:500}
 .project-btn .icon{font-size:12px;opacity:.6;width:14px;text-align:center;flex-shrink:0}
 
-.client-item{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:var(--radius);font-size:13px;color:var(--text-muted);transition:background .15s;position:relative;group:hover}
+.client-item{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:var(--radius);font-size:13px;color:var(--text-muted);transition:background .15s;position:relative}
 .client-item:hover{background:var(--surface2)}
 .client-item:hover .client-actions{opacity:1}
 .client-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
@@ -100,6 +100,8 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
 .toolbar .spacer{flex:1}
 .toolbar select{padding:5px 10px;font-size:12px;background:var(--surface);border:0.5px solid var(--border-strong);border-radius:var(--radius);color:var(--text);cursor:pointer;font-family:inherit;outline:none}
 .toolbar select:hover{border-color:var(--text)}
+.search-input{padding:5px 10px;font-size:12px;background:var(--surface);border:0.5px solid var(--border-strong);border-radius:var(--radius);color:var(--text);font-family:inherit;outline:none;min-width:160px}
+.search-input:focus{border-color:var(--text)}
 
 /* Kanban board */
 .board{flex:1;overflow-x:auto;overflow-y:hidden;padding:16px 20px;display:flex;gap:12px;align-items:flex-start}
@@ -127,9 +129,11 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
 .cat-items{display:flex;flex-direction:column;gap:6px}
 
 /* Cards */
-.card{background:var(--surface);border-radius:var(--radius-md);padding:12px 13px;cursor:grab;transition:all .15s;position:relative;border-left:3px solid var(--text-hint);min-height:90px;display:flex;flex-direction:column}
+.card{background:var(--surface);border-radius:var(--radius-md);padding:12px 13px;cursor:grab;transition:box-shadow .15s,transform .15s;position:relative;border-left:3px solid var(--text-hint);min-height:90px;display:flex;flex-direction:column}
 .card:hover{transform:translateY(-1px);box-shadow:0 2px 6px rgba(0,0,0,0.06)}
 .card.dragging{opacity:.4;cursor:grabbing}
+.card.drag-above{box-shadow:0 -3px 0 var(--accent)!important;transform:none}
+.card.drag-below{box-shadow:0 3px 0 var(--accent)!important;transform:none}
 .card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:6px}
 .card-title{font-size:13px;color:var(--text);line-height:1.4;word-wrap:break-word;flex:1;min-width:0}
 .client-badge{font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;flex-shrink:0;white-space:nowrap;max-width:100px;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
@@ -161,10 +165,15 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
 .modal-footer{display:flex;gap:6px;justify-content:space-between;margin-top:1rem}
 .modal-footer-left{display:flex;gap:6px}
 .modal-footer-right{display:flex;gap:6px}
-.tag-pill-input{display:flex;gap:4px;flex-wrap:wrap}
-.tag-pill-input .tag-chip{font-size:11px;padding:2px 8px;border-radius:10px;background:var(--surface2);color:var(--text-muted);display:inline-flex;align-items:center;gap:4px}
-.tag-pill-input .tag-chip button{background:transparent;border:none;color:currentColor;cursor:pointer;padding:0;font-size:11px;opacity:.6}
-.tag-pill-input input{flex:1;min-width:100px;border:none!important;padding:3px!important;background:transparent!important;font-size:12px!important}
+
+/* Tag chips */
+.tag-chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px;min-height:20px}
+.tag-chip-opt{font-size:11px;padding:3px 9px;border-radius:10px;background:var(--surface2);color:var(--text-muted);cursor:pointer;border:1px solid transparent;transition:all .12s;user-select:none}
+.tag-chip-opt:hover{border-color:var(--border-strong);color:var(--text)}
+.tag-chip-opt.selected{background:var(--accent);color:#fff;border-color:var(--accent)}
+.tag-add-row{display:flex;gap:5px}
+.tag-add-row input{flex:1;padding:4px 8px;font-size:12px;border:0.5px solid var(--border-strong);border-radius:var(--radius);background:var(--surface2);color:var(--text);outline:none;font-family:inherit}
+.tag-add-row input:focus{border-color:var(--text)}
 
 /* Setup */
 .setup-screen{display:flex;flex-direction:column;gap:14px;padding:1.5rem;background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-lg);max-width:520px;margin:2rem auto}
@@ -179,6 +188,20 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
 .loading{display:flex;align-items:center;gap:10px;padding:3rem;color:var(--text-muted);font-size:13px;justify-content:center}
 .spinner{width:16px;height:16px;border:2px solid var(--border-strong);border-top-color:var(--text-muted);border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+
+/* Project context menu */
+.proj-menu{position:fixed;background:var(--surface);border:0.5px solid var(--border-strong);border-radius:8px;padding:4px;box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:400;min-width:160px;display:none;flex-direction:column;gap:1px}
+.proj-menu.open{display:flex}
+.proj-menu-item{background:transparent;border:none;text-align:left;padding:6px 10px;font-size:12px;color:var(--text);cursor:pointer;border-radius:5px;font-family:inherit;display:flex;align-items:center;gap:8px;width:100%}
+.proj-menu-item:hover{background:var(--surface2)}
+.proj-menu-item.danger{color:var(--danger)}
+.proj-menu-divider{border-top:0.5px solid var(--border);margin:2px 0}
+
+/* Undo toast */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:12px;display:flex;align-items:center;gap:10px;z-index:500;box-shadow:0 4px 16px rgba(0,0,0,.2)}
+.toast.hidden{display:none}
+.toast-btn{background:transparent;border:1px solid rgba(128,128,128,.4);color:inherit;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px;font-family:inherit}
+.toast-btn:hover{background:rgba(128,128,128,.15)}
 
 @media(max-width:680px){
   .layout{grid-template-columns:1fr}
@@ -282,6 +305,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
     </div>
 
     <div class="toolbar">
+      <input class="search-input" type="text" id="searchInput" placeholder="🔍 Zoeken..." oninput="setSearch(this.value)"/>
       <select id="filterClient" onchange="setClientFilter(this.value)">
         <option value="">Alle klanten</option>
       </select>
@@ -289,7 +313,6 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
         <option value="">Alle categorieën</option>
       </select>
       <div class="spacer"></div>
-      <button class="btn btn-sm btn-danger" onclick="resetProject()">↺ Reset project</button>
     </div>
 
     <div id="board" class="board">
@@ -319,8 +342,16 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
       <textarea id="itemContext" placeholder="Extra informatie, links, context..."></textarea>
     </div>
     <div class="modal-field">
-      <label>Tags (komma-gescheiden)</label>
-      <input type="text" id="itemTags" placeholder="urgent, review, blocker..."/>
+      <label>Tags</label>
+      <div class="tag-chips" id="itemTagChips"></div>
+      <div class="tag-add-row">
+        <input type="text" id="itemTagNew" placeholder="Nieuwe tag toevoegen..." onkeydown="if(event.key==='Enter'){event.preventDefault();addNewTag()}"/>
+        <button class="btn btn-xs" onclick="addNewTag()">+</button>
+      </div>
+    </div>
+    <div class="modal-field" id="itemDatesField" style="display:none">
+      <label>Tijdlijn</label>
+      <div id="itemDates" style="font-size:12px;color:var(--text-muted);line-height:1.7"></div>
     </div>
     <div class="modal-footer">
       <div class="modal-footer-left">
@@ -354,6 +385,21 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
       </div>
     </div>
   </div>
+</div>
+
+<!-- Project context menu -->
+<div class="proj-menu" id="projMenu">
+  <button class="proj-menu-item" onclick="projMenuAction('rename')">✎ Hernoemen</button>
+  <div class="proj-menu-divider"></div>
+  <button class="proj-menu-item danger" onclick="projMenuAction('reset')">↺ Reset (items wissen)</button>
+  <button class="proj-menu-item danger" onclick="projMenuAction('delete')">✕ Verwijderen</button>
+</div>
+
+<!-- Undo toast -->
+<div class="toast hidden" id="undoToast">
+  <span id="undoToastMsg">Item verwijderd</span>
+  <button class="toast-btn" onclick="undoDelete()">↩ Ongedaan maken</button>
+  <button class="toast-btn" onclick="hideToast()" style="padding:3px 6px;opacity:.6">✕</button>
 </div>
 
 <script>
@@ -397,16 +443,26 @@ function buildFreshProject(){
 let state={
   projects:{},activeProject:null,
   clients:[],
+  tags:[],
   sidebarCollapsed:{},
   categoryGrouping:'grouped'
 };
 let activeClientFilter='';
 let activeCategoryFilter='';
+let searchQuery='';
 let ghToken=null, gistId=null, saveTimer=null;
 let rawGistWrapper=null;
 
 let editingItem=null;
 let draggedItem=null;
+let dragOverTarget=null;
+
+/* undo */
+let deletedItemBuffer=null;
+let toastTimer=null;
+
+/* project menu */
+let projMenuTarget=null;
 
 /* ───────── Token / storage ───────── */
 function loadToken(){
@@ -451,9 +507,8 @@ async function gistRequest(method,path,body){
 }
 
 function migrateOldState(loaded){
-  /* Migrate v2 checklist format to kanban format */
   if(loaded && loaded.projects && !loaded.clients){
-    const migrated={projects:{},activeProject:loaded.active||Object.keys(loaded.projects)[0],clients:[],sidebarCollapsed:{},categoryGrouping:'grouped'};
+    const migrated={projects:{},activeProject:loaded.active||Object.keys(loaded.projects)[0],clients:[],tags:[],sidebarCollapsed:{},categoryGrouping:'grouped'};
     for(const [pname,sections] of Object.entries(loaded.projects)){
       const newProj=buildFreshProject();
       const newCol=newProj.columns[0];
@@ -464,7 +519,8 @@ function migrateOldState(loaded){
             const item={
               id:uid(),title:it.label||it.title||'Onbekend',
               clientId:null,category:sec.title,
-              context:it.context||'',tags:Array.isArray(it.tags)?[...it.tags]:[]
+              context:it.context||'',tags:Array.isArray(it.tags)?[...it.tags]:[],
+              createdAt:Date.now(),updatedAt:Date.now()
             };
             (it.checked?doneCol:newCol).items.push(item);
           });
@@ -503,19 +559,17 @@ async function loadFromGist(){
     }
 
     if(loaded){
-      /* Detect if this is a dashboard-wrapped file (has tasks/notes keys) or legacy flat file */
       if(loaded.tasks&&(loaded.tasks.projects||loaded.tasks.activeProject!==undefined)){
-        /* Dashboard wrapper: extract tasks portion */
         rawGistWrapper=loaded;
         state=migrateOldState(loaded.tasks);
       } else {
-        /* Legacy flat: no wrapper */
         rawGistWrapper=null;
         state=migrateOldState(loaded);
       }
       if(!state.projects||!Object.keys(state.projects).length) initDefault();
       if(!state.activeProject||!state.projects[state.activeProject]) state.activeProject=Object.keys(state.projects)[0];
       if(!state.clients) state.clients=[];
+      if(!state.tags) state.tags=[];
       if(!state.sidebarCollapsed) state.sidebarCollapsed={};
       if(!state.categoryGrouping) state.categoryGrouping='grouped';
       setSyncState('saved','Geladen · '+new Date().toLocaleTimeString('nl-NL'));
@@ -540,6 +594,7 @@ function initDefault(){
     projects:{'Demo project':buildFreshProject()},
     activeProject:'Demo project',
     clients:[{id:uid(),name:'Klant A',colorIdx:0},{id:uid(),name:'Klant B',colorIdx:1}],
+    tags:['urgent','review','blocker','wacht op klant'],
     sidebarCollapsed:{},
     categoryGrouping:'grouped'
   };
@@ -548,7 +603,6 @@ function initDefault(){
 async function saveToGist(){
   if(!ghToken){setSyncState('error','Geen token');return;}
   setSyncState('saving','Opslaan...');
-  /* If the gist uses the dashboard wrapper, preserve notes/settings; otherwise keep flat */
   let payload;
   if(rawGistWrapper){
     rawGistWrapper.tasks=state;
@@ -576,13 +630,9 @@ async function forceSave(){clearTimeout(saveTimer);await saveToGist();}
 /* ───────── Helpers ───────── */
 function currentProject(){return state.projects[state.activeProject];}
 function clientById(id){return state.clients.find(c=>c.id===id);}
-function clientColor(client,isDark=false){
-  if(!client) return {bg:'var(--surface2)',tx:'var(--text-muted)',dark:'var(--text-hint)'};
+function clientColor(client){
+  if(!client) return {bg:'var(--surface2)',tx:'var(--text-muted)'};
   return CLIENT_COLORS[client.colorIdx%CLIENT_COLORS.length];
-}
-function allItems(){
-  const p=currentProject();if(!p)return [];
-  return p.columns.flatMap(c=>c.items.map(i=>({...i,_col:c})));
 }
 
 /* ───────── Sidebar sections ───────── */
@@ -603,18 +653,42 @@ function createProject(){
   hideAddProject();scheduleSave();render();
 }
 function selectProject(n){state.activeProject=n;render();}
-function resetProject(){
-  if(!confirm('Project "'+state.activeProject+'" resetten (alle items verwijderen)?'))return;
-  state.projects[state.activeProject]=buildFreshProject();scheduleSave();render();
-}
-function deleteProject(n,e){
+
+/* Project context menu */
+function showProjMenu(n,e){
   e.stopPropagation();
-  if(!confirm('Project "'+n+'" verwijderen?'))return;
-  delete state.projects[n];
-  if(state.activeProject===n) state.activeProject=Object.keys(state.projects)[0]||null;
-  if(!state.activeProject){state.projects['Nieuw project']=buildFreshProject();state.activeProject='Nieuw project';}
-  scheduleSave();render();
+  projMenuTarget=n;
+  const menu=document.getElementById('projMenu');
+  menu.style.left=Math.min(e.clientX,window.innerWidth-170)+'px';
+  menu.style.top=Math.min(e.clientY,window.innerHeight-130)+'px';
+  menu.classList.add('open');
 }
+function closeProjMenu(){document.getElementById('projMenu').classList.remove('open');}
+function projMenuAction(action){
+  closeProjMenu();
+  const n=projMenuTarget;
+  if(!n)return;
+  if(action==='rename'){
+    const newName=prompt('Nieuwe projectnaam:',n);
+    if(!newName||!newName.trim())return;
+    const trimmed=newName.trim();
+    if(state.projects[trimmed]){alert('Naam bestaat al');return;}
+    state.projects[trimmed]=state.projects[n];
+    delete state.projects[n];
+    if(state.activeProject===n) state.activeProject=trimmed;
+    scheduleSave();render();
+  } else if(action==='reset'){
+    if(!confirm('Project "'+n+'" resetten? Alle items worden verwijderd.'))return;
+    state.projects[n]=buildFreshProject();scheduleSave();render();
+  } else if(action==='delete'){
+    if(!confirm('Project "'+n+'" verwijderen?'))return;
+    delete state.projects[n];
+    if(state.activeProject===n) state.activeProject=Object.keys(state.projects)[0]||null;
+    if(!state.activeProject){state.projects['Nieuw project']=buildFreshProject();state.activeProject='Nieuw project';}
+    scheduleSave();render();
+  }
+}
+document.addEventListener('click',closeProjMenu);
 
 /* ───────── Clients ───────── */
 let newClientColorIdx=0;
@@ -670,7 +744,7 @@ function deleteColumn(colId){
   const col=currentProject().columns.find(c=>c.id===colId);
   if(!col)return;
   if(col.items.length>0){
-    if(!confirm('Kolom "'+col.title+'" heeft '+col.items.length+' items. Wil je de kolom verwijderen? Items gaan naar "New task".'))return;
+    if(!confirm('Kolom "'+col.title+'" heeft '+col.items.length+' items. Verwijderen? Items gaan naar "New task".'))return;
     const first=currentProject().columns[0];
     first.items.push(...col.items);
   } else {
@@ -734,6 +808,39 @@ function toggleCatCollapsed(colId,cat){
 }
 function setCategoryGrouping(v){state.categoryGrouping=v;scheduleSave();renderBoard();}
 
+/* ───────── Tags ───────── */
+function renderTagChips(selectedTags){
+  const container=document.getElementById('itemTagChips');
+  container.innerHTML='';
+  if(!state.tags||!state.tags.length){
+    container.innerHTML='<span style="font-size:11px;color:var(--text-hint)">Geen tags aangemaakt — voeg er hieronder een toe</span>';
+    return;
+  }
+  state.tags.forEach(tag=>{
+    const chip=document.createElement('span');
+    chip.className='tag-chip-opt'+(selectedTags.includes(tag)?' selected':'');
+    chip.textContent=tag;
+    chip.onclick=()=>chip.classList.toggle('selected');
+    container.appendChild(chip);
+  });
+}
+function getSelectedTags(){
+  return Array.from(document.querySelectorAll('.tag-chip-opt.selected')).map(c=>c.textContent);
+}
+function addNewTag(){
+  const input=document.getElementById('itemTagNew');
+  const tag=input.value.trim();
+  if(!tag)return;
+  if(!state.tags) state.tags=[];
+  if(!state.tags.includes(tag)){
+    state.tags.push(tag);
+    scheduleSave();
+  }
+  const currentSelected=getSelectedTags();
+  renderTagChips(currentSelected.includes(tag)?currentSelected:[...currentSelected,tag]);
+  input.value='';
+}
+
 /* ───────── Items ───────── */
 function openItemModal(colId,itemId){
   const p=currentProject();const col=p.columns.find(c=>c.id===colId);
@@ -743,13 +850,27 @@ function openItemModal(colId,itemId){
   document.getElementById('itemModalTitle').textContent=item?'Item bewerken':'Nieuw item';
   document.getElementById('itemTitle').value=item?.title||'';
   document.getElementById('itemContext').value=item?.context||'';
-  document.getElementById('itemTags').value=(item?.tags||[]).join(', ');
 
   const clientSel=document.getElementById('itemClient');
   clientSel.innerHTML='<option value="">— geen klant —</option>'+state.clients.map(c=>`<option value="${c.id}" ${item?.clientId===c.id?'selected':''}>${c.name}</option>`).join('');
 
   const catSel=document.getElementById('itemCategory');
   catSel.innerHTML='<option value="">— geen categorie —</option>'+p.categories.map(c=>`<option value="${c}" ${item?.category===c?'selected':''}>${c}</option>`).join('');
+
+  /* Tags */
+  renderTagChips(item?.tags||[]);
+
+  /* Dates */
+  const datesField=document.getElementById('itemDatesField');
+  const datesEl=document.getElementById('itemDates');
+  if(item&&item.createdAt){
+    datesField.style.display='';
+    const created=new Date(item.createdAt).toLocaleString('nl-NL');
+    const updated=item.updatedAt?new Date(item.updatedAt).toLocaleString('nl-NL'):created;
+    datesEl.innerHTML='Aangemaakt: '+created+'<br>Gewijzigd: '+updated;
+  } else {
+    datesField.style.display='none';
+  }
 
   document.getElementById('itemDeleteBtn').style.display=item?'inline-flex':'none';
   document.getElementById('itemModal').classList.add('open');
@@ -763,13 +884,13 @@ function saveItem(){
   const clientId=document.getElementById('itemClient').value||null;
   const category=document.getElementById('itemCategory').value||'';
   const context=document.getElementById('itemContext').value.trim();
-  const tags=document.getElementById('itemTags').value.split(',').map(t=>t.trim()).filter(Boolean);
+  const tags=getSelectedTags();
   const col=currentProject().columns.find(c=>c.id===editingItem.colId);
   if(editingItem.isNew){
-    col.items.push({id:uid(),title,clientId,category,context,tags});
+    col.items.push({id:uid(),title,clientId,category,context,tags,createdAt:Date.now(),updatedAt:Date.now()});
   } else {
     const item=col.items.find(i=>i.id===editingItem.itemId);
-    Object.assign(item,{title,clientId,category,context,tags});
+    Object.assign(item,{title,clientId,category,context,tags,updatedAt:Date.now()});
   }
   closeItemModal();scheduleSave();render();
 }
@@ -777,8 +898,31 @@ function deleteCurrentItem(){
   if(!editingItem||editingItem.isNew)return;
   if(!confirm('Item verwijderen?'))return;
   const col=currentProject().columns.find(c=>c.id===editingItem.colId);
+  const item=col.items.find(i=>i.id===editingItem.itemId);
+  /* Store for undo */
+  deletedItemBuffer={item:{...item,tags:[...(item.tags||[])]},colId:editingItem.colId};
   col.items=col.items.filter(i=>i.id!==editingItem.itemId);
   closeItemModal();scheduleSave();render();
+  showUndoToast('"'+item.title+'" verwijderd');
+}
+
+/* ───────── Undo toast ───────── */
+function showUndoToast(msg){
+  document.getElementById('undoToastMsg').textContent=msg;
+  document.getElementById('undoToast').classList.remove('hidden');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(hideToast,5000);
+}
+function hideToast(){
+  document.getElementById('undoToast').classList.add('hidden');
+  deletedItemBuffer=null;
+}
+function undoDelete(){
+  if(!deletedItemBuffer)return;
+  const {item,colId}=deletedItemBuffer;
+  const col=currentProject().columns.find(c=>c.id===colId);
+  if(col){col.items.push(item);scheduleSave();render();}
+  hideToast();
 }
 
 /* ───────── Drag & drop ───────── */
@@ -787,25 +931,84 @@ function onDragStart(e,colId,itemId){
   e.dataTransfer.effectAllowed='move';
   e.target.classList.add('dragging');
 }
-function onDragEnd(e){e.target.classList.remove('dragging');draggedItem=null;document.querySelectorAll('.col-body').forEach(c=>c.classList.remove('drag-over'));}
+function onDragEnd(e){
+  e.target.classList.remove('dragging');
+  draggedItem=null;
+  dragOverTarget=null;
+  document.querySelectorAll('.col-body').forEach(c=>c.classList.remove('drag-over'));
+  document.querySelectorAll('.card').forEach(c=>c.classList.remove('drag-above','drag-below'));
+}
+/* Col-body: cross-column drop to end (only fires when not over a card) */
 function onDragOver(e){e.preventDefault();e.dataTransfer.dropEffect='move';e.currentTarget.classList.add('drag-over');}
 function onDragLeave(e){if(e.currentTarget===e.target)e.currentTarget.classList.remove('drag-over');}
 function onDrop(e,targetColId){
   e.preventDefault();e.currentTarget.classList.remove('drag-over');
-  if(!draggedItem||draggedItem.colId===targetColId)return;
+  if(!draggedItem)return;
+  if(dragOverTarget){return;} /* handled by card drop */
+  if(draggedItem.colId===targetColId)return;
   const p=currentProject();
   const srcCol=p.columns.find(c=>c.id===draggedItem.colId);
   const tgtCol=p.columns.find(c=>c.id===targetColId);
   const idx=srcCol.items.findIndex(i=>i.id===draggedItem.itemId);
   if(idx>=0){const [it]=srcCol.items.splice(idx,1);tgtCol.items.push(it);scheduleSave();render();}
 }
+/* Card-level drag: enables within-column reordering and precise cross-column drops */
+function onCardDragOver(e,colId,itemId){
+  if(!draggedItem||draggedItem.itemId===itemId)return;
+  e.preventDefault();
+  e.stopPropagation();
+  e.dataTransfer.dropEffect='move';
+  document.querySelectorAll('.card.drag-above,.card.drag-below').forEach(c=>c.classList.remove('drag-above','drag-below'));
+  document.querySelectorAll('.col-body').forEach(c=>c.classList.remove('drag-over'));
+  const rect=e.currentTarget.getBoundingClientRect();
+  const pos=e.clientY<rect.top+rect.height/2?'before':'after';
+  dragOverTarget={colId,itemId,pos};
+  e.currentTarget.classList.add(pos==='before'?'drag-above':'drag-below');
+}
+function onCardDragLeave(e){
+  if(!e.relatedTarget||!e.currentTarget.contains(e.relatedTarget)){
+    e.currentTarget.classList.remove('drag-above','drag-below');
+    if(dragOverTarget&&dragOverTarget.itemId===e.currentTarget.dataset.itemId) dragOverTarget=null;
+  }
+}
+function onCardDrop(e,colId,itemId){
+  e.preventDefault();
+  e.stopPropagation();
+  e.currentTarget.classList.remove('drag-above','drag-below');
+  if(!draggedItem)return;
+  const rect=e.currentTarget.getBoundingClientRect();
+  const pos=e.clientY<rect.top+rect.height/2?'before':'after';
+  const p=currentProject();
+  const srcCol=p.columns.find(c=>c.id===draggedItem.colId);
+  const tgtCol=p.columns.find(c=>c.id===colId);
+  const srcIdx=srcCol.items.findIndex(i=>i.id===draggedItem.itemId);
+  if(srcIdx<0)return;
+  const [movedItem]=srcCol.items.splice(srcIdx,1);
+  const tgtIdx=tgtCol.items.findIndex(i=>i.id===itemId);
+  if(tgtIdx<0){
+    tgtCol.items.push(movedItem);
+  } else {
+    const insertAt=pos==='before'?tgtIdx:tgtIdx+1;
+    tgtCol.items.splice(insertAt,0,movedItem);
+  }
+  dragOverTarget=null;
+  scheduleSave();render();
+}
 
 /* ───────── Filters ───────── */
 function setClientFilter(v){activeClientFilter=v;renderBoard();updateStats();}
 function setCategoryFilter(v){activeCategoryFilter=v;renderBoard();updateStats();}
+function setSearch(v){searchQuery=v;renderBoard();updateStats();}
 function itemPassesFilter(item){
   if(activeClientFilter&&item.clientId!==activeClientFilter) return false;
   if(activeCategoryFilter&&item.category!==activeCategoryFilter) return false;
+  if(searchQuery){
+    const q=searchQuery.toLowerCase();
+    const inTitle=(item.title||'').toLowerCase().includes(q);
+    const inContext=(item.context||'').toLowerCase().includes(q);
+    const inTags=(item.tags||[]).some(t=>t.toLowerCase().includes(q));
+    if(!inTitle&&!inContext&&!inTags) return false;
+  }
   return true;
 }
 
@@ -816,9 +1019,9 @@ function renderProjectList(){
     const row=document.createElement('div');
     row.className='client-item';
     row.innerHTML=`
-      <span class="icon" style="font-size:12px;opacity:.6;width:14px;text-align:center;flex-shrink:0">▣</span>
-      <span class="client-name" style="font-size:13px;color:${n===state.activeProject?'var(--text)':'var(--text-muted)'};font-weight:${n===state.activeProject?'500':'400'}">${n}</span>
-      <span class="client-actions"><button onclick="deleteProject('${n}',event)" title="Verwijder">✕</button></span>`;
+      <span style="font-size:12px;opacity:.6;width:14px;text-align:center;flex-shrink:0">▣</span>
+      <span class="client-name" style="font-size:13px;color:${n===state.activeProject?'var(--text)':'var(--text-muted)'};font-weight:${n===state.activeProject?'500':'400'}">${escapeHtml(n)}</span>
+      <span class="client-actions"><button onclick="showProjMenu('${escapeHtml(n)}',event)" title="Opties">···</button></span>`;
     row.onclick=(e)=>{if(!e.target.closest('.client-actions'))selectProject(n);};
     el.appendChild(row);
   });
@@ -831,7 +1034,7 @@ function renderClientList(){
     row.className='client-item';
     row.innerHTML=`
       <span class="client-dot" style="background:${color.bg};border:1px solid ${color.tx}"></span>
-      <span class="client-name">${c.name}</span>
+      <span class="client-name">${escapeHtml(c.name)}</span>
       <span class="client-actions">
         <button onclick="editClient('${c.id}',event)" title="Bewerk">✎</button>
         <button onclick="deleteClient('${c.id}',event)" title="Verwijder">✕</button>
@@ -840,12 +1043,12 @@ function renderClientList(){
   });
 
   const sel=document.getElementById('filterClient');
-  sel.innerHTML='<option value="">Alle klanten</option>'+state.clients.map(c=>`<option value="${c.id}" ${activeClientFilter===c.id?'selected':''}>${c.name}</option>`).join('');
+  sel.innerHTML='<option value="">Alle klanten</option>'+state.clients.map(c=>`<option value="${c.id}" ${activeClientFilter===c.id?'selected':''}>${escapeHtml(c.name)}</option>`).join('');
 }
 function renderCategoryFilter(){
   const sel=document.getElementById('filterCategory');
   const p=currentProject();if(!p)return;
-  sel.innerHTML='<option value="">Alle categorieën</option>'+p.categories.map(c=>`<option value="${c}" ${activeCategoryFilter===c?'selected':''}>${c}</option>`).join('')+'<option value="__manage__">⚙ Categorieën beheren...</option>';
+  sel.innerHTML='<option value="">Alle categorieën</option>'+p.categories.map(c=>`<option value="${c}" ${activeCategoryFilter===c?'selected':''}>${escapeHtml(c)}</option>`).join('')+'<option value="__manage__">⚙ Categorieën beheren...</option>';
   sel.onchange=function(){
     if(this.value==='__manage__'){this.value=activeCategoryFilter;openCatModal();}
     else{setCategoryFilter(this.value);}
@@ -861,13 +1064,16 @@ function renderCardHTML(item,colId){
   const tagsHTML=(item.tags||[]).map(t=>`<span class="card-tag">${escapeHtml(t)}</span>`).join('');
   const hasContext=!!(item.context&&item.context.trim());
   const ctxText=hasContext?escapeHtml(item.context):'<span class="card-context-empty">Geen context — klik op kaart om toe te voegen</span>';
-  return `<div class="card" draggable="true" style="${clientBgStyle}"
+  return `<div class="card" draggable="true" style="${clientBgStyle}" data-item-id="${item.id}"
       ondragstart="onDragStart(event,'${colId}','${item.id}')"
       ondragend="onDragEnd(event)"
+      ondragover="onCardDragOver(event,'${colId}','${item.id}')"
+      ondragleave="onCardDragLeave(event)"
+      ondrop="onCardDrop(event,'${colId}','${item.id}')"
       onclick="handleCardClick(event,'${colId}','${item.id}')">
     <div class="card-top">
       <div class="card-title">${escapeHtml(item.title)}</div>
-      <span class="client-badge" style="${badgeStyle}" title="${clientName}">${escapeHtml(clientName)}</span>
+      <span class="client-badge" style="${badgeStyle}" title="${escapeHtml(clientName)}">${escapeHtml(clientName)}</span>
     </div>
     <div class="card-meta">
       ${tagsHTML}
@@ -878,7 +1084,6 @@ function renderCardHTML(item,colId){
 }
 
 function handleCardClick(e,colId,itemId){
-  /* Don't open modal when clicking expand button or text inside context */
   if(e.target.closest('.card-expand')||e.target.closest('.card-context'))return;
   openItemModal(colId,itemId);
 }
@@ -905,6 +1110,12 @@ function renderBoard(){
     const visibleItems=col.items.filter(itemPassesFilter);
     const colEl=document.createElement('div');
     colEl.className='column';
+
+    const completedLabel=col.isCompleted
+      ?'Telt als afgerond in statistieken (klik om uit te schakelen)'
+      :'Telt niet als afgerond — klik om deze kolom mee te laten tellen';
+    const completedColor=col.isCompleted?'color:var(--success)':'';
+
     colEl.innerHTML=`
       <div class="col-hdr">
         <div class="col-hdr-left">
@@ -912,7 +1123,7 @@ function renderBoard(){
           <span class="col-count">${visibleItems.length}</span>
         </div>
         <div class="col-actions">
-          <button onclick="toggleColCompleted('${col.id}')" title="${col.isCompleted?'Deze kolom telt als afgerond':'Kolom als afgerond markeren'}">${col.isCompleted?'✓':'○'}</button>
+          <button onclick="toggleColCompleted('${col.id}')" title="${completedLabel}" style="${completedColor}">${col.isCompleted?'✓ Afgerond':'○ Open'}</button>
           <button onclick="deleteColumn('${col.id}')" title="Kolom verwijderen">✕</button>
         </div>
       </div>
@@ -925,7 +1136,6 @@ function renderBoard(){
     const body=colEl.querySelector('.col-body');
 
     if(state.categoryGrouping==='grouped'){
-      /* Group by category */
       const grouped={};
       const order=[];
       visibleItems.forEach(it=>{
@@ -933,7 +1143,6 @@ function renderBoard(){
         if(!grouped[cat]){grouped[cat]=[];order.push(cat);}
         grouped[cat].push(it);
       });
-      /* Order by project categories first, then others */
       const orderedCats=[...p.categories.filter(c=>grouped[c]),...order.filter(c=>!p.categories.includes(c))];
       orderedCats.forEach(cat=>{
         const items=grouped[cat];if(!items||!items.length)return;
@@ -957,7 +1166,6 @@ function renderBoard(){
     }
   });
 
-  /* Add column button */
   const addColBtn=document.createElement('button');
   addColBtn.className='add-col-btn';
   addColBtn.textContent='+ Fase toevoegen';
@@ -979,7 +1187,6 @@ function updateStats(){
 }
 
 function render(){
-  /* Apply sidebar collapsed state */
   ['projectsSection','clientsSection'].forEach(id=>{
     const el=document.getElementById(id);
     if(state.sidebarCollapsed[id]) el.classList.add('collapsed');
@@ -1001,10 +1208,8 @@ if(ghToken){
   document.getElementById('setupScreen').style.display='block';
 }
 
-/* Close modal on background click */
 document.getElementById('itemModal').addEventListener('click',e=>{if(e.target.id==='itemModal')closeItemModal();});
 document.getElementById('catModal').addEventListener('click',e=>{if(e.target.id==='catModal')closeCatModal();});
-/* Esc to close modals */
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){
     if(document.getElementById('itemModal').classList.contains('open'))closeItemModal();
