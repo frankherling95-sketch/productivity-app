@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Herling Analytics</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+  :root{
+    --bg:#f7f6f3;--surface:#fff;--surface2:#f1f0ec;--surface3:#e8e6df;
+    --border:rgba(0,0,0,0.08);--border-strong:rgba(0,0,0,0.15);
+    --text:#1a1a1a;--text-muted:#6b6b6b;--text-hint:#999;
+    --success:#2d6a4f;--success-bg:#e8f5ee;
+    --danger:#8b1a1a;--danger-bg:#fbeaea;
+    --info:#1a4a8b;--info-bg:#e6f0fb;
+    --accent:#3b5bdb;--accent-hover:#304ac8;
+  }
+  @media(prefers-color-scheme:dark){:root{
+    --bg:#0f0f10;--surface:#1a1a1c;--surface2:#242427;--surface3:#2f2f33;
+    --border:rgba(255,255,255,0.08);--border-strong:rgba(255,255,255,0.15);
+    --text:#e8e8e8;--text-muted:#999;--text-hint:#666;
+    --success:#5daa7f;--success-bg:#0d2e1e;
+    --danger:#e07070;--danger-bg:#2e0d0d;
+    --info:#6aabf7;--info-bg:#0d1e2e;
+    --accent:#6b8aff;--accent-hover:#8aa5ff;
+  }}
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:13px;min-height:100vh;margin:0}
+
+  .card{background:var(--surface);border:0.5px solid var(--border);border-radius:12px;display:flex;flex-direction:column;overflow:hidden}
+  .card-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:0.5px solid var(--border);flex-shrink:0}
+  .card-hdr h2{font-size:13px;font-weight:600;margin:0;letter-spacing:.02em}
+  .card-body{flex:1;overflow:auto;padding:12px 16px;min-height:0}
+
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:6px 12px;font-size:12px;border:0.5px solid var(--border-strong);border-radius:6px;background:transparent;color:var(--text-muted);cursor:pointer;transition:background .15s,color .15s,border-color .15s;font-family:inherit}
+  .btn:hover{background:var(--surface2);color:var(--text)}
+  .btn-sm{padding:3px 8px;font-size:11px}
+  .btn-xs{padding:2px 6px;font-size:11px}
+  .btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .btn-primary:hover{background:var(--accent-hover);color:#fff;border-color:var(--accent-hover)}
+  .btn-success{color:var(--success);border-color:var(--success)}
+  .btn-success:hover{background:var(--success-bg)}
+  .btn-danger{color:var(--danger);border-color:var(--danger)}
+  .btn-danger:hover{background:var(--danger-bg)}
+  .btn-ghost{border-color:transparent;color:var(--text-hint)}
+  .btn-ghost:hover{background:var(--surface2);color:var(--text)}
+
+  input[type=text],input[type=password],textarea{font-family:inherit;color:var(--text);background:var(--surface2);border:0.5px solid var(--border-strong);border-radius:6px;outline:none;padding:7px 9px;font-size:13px;width:100%}
+  input:focus,textarea:focus{border-color:var(--text)}
+
+  .sync-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:6px;font-size:11px}
+  .sync-pill.idle{background:var(--surface2);color:var(--text-muted)}
+  .sync-pill.saving{background:var(--info-bg);color:var(--info)}
+  .sync-pill.saved{background:var(--success-bg);color:var(--success)}
+  .sync-pill.error{background:var(--danger-bg);color:var(--danger)}
+  .sync-dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+  .sync-dot.pulse{animation:pulse 1s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+  /* Project stats card */
+  .proj-row{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface2);border-radius:8px;margin-bottom:8px}
+  .proj-name{font-size:13px;font-weight:500;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .proj-nums{font-size:11px;color:var(--text-muted);white-space:nowrap}
+  .proj-bar{width:60px;height:4px;background:var(--surface3);border-radius:2px;overflow:hidden;flex-shrink:0}
+  .proj-bar-fill{height:100%;background:var(--success);transition:width .3s}
+  .proj-pct{font-size:11px;font-weight:600;color:var(--text);min-width:32px;text-align:right}
+
+  /* Todo summary big stats */
+  .big-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+  .big-stat{background:var(--surface2);border-radius:8px;padding:12px}
+  .big-stat-val{font-size:22px;font-weight:700;line-height:1}
+  .big-stat-lbl{font-size:10px;color:var(--text-muted);margin-top:4px;text-transform:uppercase;letter-spacing:.04em}
+
+  /* Calendar placeholder */
+  .placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;min-height:180px;color:var(--text-hint);text-align:center;gap:10px;padding:30px 14px}
+  .placeholder-icon{width:40px;height:40px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:18px}
+  .placeholder p{font-size:12px;line-height:1.5;margin:0}
+  .placeholder small{font-size:11px;color:var(--text-hint)}
+
+  /* Notes */
+  .notes-layout{display:grid;grid-template-columns:180px 1fr;height:100%;gap:0;overflow:hidden}
+  .notes-sidebar{border-right:0.5px solid var(--border);overflow-y:auto;padding:6px 4px;background:var(--surface);display:flex;flex-direction:column;gap:2px}
+  .notes-sidebar-hdr{display:flex;align-items:center;justify-content:space-between;padding:4px 8px 8px;gap:4px}
+  .notes-sidebar-hdr span{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em}
+  .notes-tree{display:flex;flex-direction:column;gap:1px;flex:1;overflow-y:auto}
+  .note-node{display:flex;align-items:center;gap:4px;padding:4px 6px;border-radius:5px;cursor:pointer;font-size:12px;color:var(--text-muted);transition:background .12s,color .12s;user-select:none;min-width:0;position:relative}
+  .note-node:hover{background:var(--surface2);color:var(--text)}
+  .note-node.active{background:var(--surface2);color:var(--text);font-weight:500}
+  .note-node.drag-over{background:var(--info-bg);color:var(--info)}
+  .note-node.drag-over-top{box-shadow:inset 0 2px 0 var(--accent)}
+  .note-node.drag-over-bottom{box-shadow:inset 0 -2px 0 var(--accent)}
+  .note-chev{font-size:8px;color:var(--text-hint);width:10px;text-align:center;cursor:pointer;flex-shrink:0}
+  .note-chev.collapsed{transform:rotate(-90deg)}
+  .note-icon{font-size:11px;color:var(--text-hint);flex-shrink:0}
+  .note-label{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .note-actions{display:none;gap:1px}
+  .note-node:hover .note-actions{display:flex}
+  .note-actions button{background:transparent;border:none;color:var(--text-hint);cursor:pointer;padding:1px 3px;font-size:10px;border-radius:3px;font-family:inherit}
+  .note-actions button:hover{background:var(--surface3);color:var(--text)}
+  .note-children{margin-left:14px;display:flex;flex-direction:column;gap:1px}
+  .note-node.collapsed + .note-children{display:none}
+
+  .notes-editor{display:flex;flex-direction:column;overflow:hidden;min-width:0}
+  .notes-editor-hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:0.5px solid var(--border);gap:8px;flex-shrink:0}
+  .notes-title-input{background:transparent;border:none;outline:none;font-size:14px;font-weight:600;color:var(--text);padding:2px 4px;border-radius:4px;width:100%;font-family:inherit}
+  .notes-title-input:focus{background:var(--surface2)}
+  .notes-editor-body{flex:1;overflow-y:auto;padding:12px 16px;min-width:0}
+  .notes-textarea{width:100%;min-height:100%;border:none;background:transparent;padding:0;resize:none;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:1.6;color:var(--text);outline:none}
+  .notes-preview{font-size:13px;line-height:1.6;color:var(--text);word-wrap:break-word}
+  .notes-preview h1{font-size:20px;font-weight:700;margin:0 0 12px;letter-spacing:-0.01em}
+  .notes-preview h2{font-size:16px;font-weight:700;margin:16px 0 8px}
+  .notes-preview h3{font-size:14px;font-weight:600;margin:14px 0 6px}
+  .notes-preview p{margin:0 0 10px}
+  .notes-preview ul,.notes-preview ol{margin:0 0 10px;padding-left:22px}
+  .notes-preview li{margin:2px 0}
+  .notes-preview code{background:var(--surface2);padding:1px 5px;border-radius:3px;font-size:12px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .notes-preview pre{background:var(--surface2);padding:10px 12px;border-radius:6px;overflow-x:auto;margin:10px 0}
+  .notes-preview pre code{background:transparent;padding:0}
+  .notes-preview blockquote{border-left:3px solid var(--border-strong);padding:0 12px;color:var(--text-muted);margin:10px 0}
+  .notes-preview a{color:var(--accent);text-decoration:none}
+  .notes-preview a:hover{text-decoration:underline}
+  .notes-preview hr{border:none;border-top:0.5px solid var(--border);margin:14px 0}
+  .notes-preview table{border-collapse:collapse;margin:10px 0}
+  .notes-preview th,.notes-preview td{border:0.5px solid var(--border);padding:4px 8px;font-size:12px}
+
+  .notes-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text-hint);gap:8px;text-align:center;padding:30px 20px}
+
+  /* Setup */
+  .setup-bg{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px;z-index:100}
+  .setup-card{background:var(--surface);border:0.5px solid var(--border);border-radius:12px;padding:24px;max-width:500px;width:100%;display:flex;flex-direction:column;gap:14px}
+  .setup-card h2{font-size:16px;font-weight:600;margin:0}
+  .setup-card p,.setup-card ol{font-size:13px;color:var(--text-muted);line-height:1.6;margin:0}
+  .setup-card ol{padding-left:20px}
+  .setup-card a{color:var(--info)}
+
+  /* Modal */
+  .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(2px)}
+  .modal-bg.open{display:flex}
+  .modal{background:var(--surface);border-radius:12px;max-width:420px;width:100%;padding:20px;display:flex;flex-direction:column;gap:10px}
+  .modal h3{font-size:14px;font-weight:600;margin:0}
+  .modal-footer{display:flex;gap:6px;justify-content:flex-end;margin-top:8px}
+
+  /* Context menu */
+  .ctx-menu{position:fixed;background:var(--surface);border:0.5px solid var(--border-strong);border-radius:8px;padding:4px;box-shadow:0 4px 16px rgba(0,0,0,0.12);z-index:300;min-width:180px;display:none;flex-direction:column;gap:1px}
+  .ctx-menu.open{display:flex}
+  .ctx-item{background:transparent;border:none;text-align:left;padding:6px 10px;font-size:12px;color:var(--text);cursor:pointer;border-radius:5px;font-family:inherit;display:flex;align-items:center;gap:8px}
+  .ctx-item:hover{background:var(--surface2)}
+  .ctx-item.danger{color:var(--danger)}
+  .ctx-divider{border-top:0.5px solid var(--border);margin:2px 0}
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- Setup screen -->
+<div id="setupScreen" class="setup-bg" style="display:none">
+  <div class="setup-card">
+    <h2>Herling Analytics Dashboard</h2>
+    <p>Koppel je GitHub-account zodat je data op elk apparaat beschikbaar is. Er wordt een private Gist aangemaakt waarin To-Do's en notities worden opgeslagen.</p>
+    <ol>
+      <li>Ga naar <a href="https://github.com/settings/tokens/new" target="_blank" rel="noopener">github.com/settings/tokens/new</a></li>
+      <li>Naam: bijv. <em>herling-dashboard</em></li>
+      <li>Scope: <strong>gist</strong></li>
+      <li>Klik <strong>Generate token</strong>, kopieer en plak hier:</li>
+    </ol>
+    <input type="password" id="tokenInput" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"/>
+    <div class="flex justify-end">
+      <button class="btn btn-primary" onclick="saveToken()">Verbinden</button>
+    </div>
+    <p style="font-size:11px;color:var(--text-hint)">Token wordt alleen lokaal opgeslagen (localStorage).</p>
+  </div>
+</div>
+
+<!-- App screen -->
+<div id="appScreen" style="display:none">
+  <!-- Top bar -->
+  <header style="background:var(--surface);border-bottom:0.5px solid var(--border);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px">
+    <div>
+      <h1 style="font-size:18px;font-weight:700;margin:0;letter-spacing:-0.01em">Herling Analytics</h1>
+      <p style="font-size:11px;color:var(--text-muted);margin:0" id="todayStr"></p>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="sync-pill idle" id="syncBar"><div class="sync-dot" id="syncDot"></div><span id="syncMsg">—</span></div>
+      <button class="btn btn-sm" onclick="forceSave()">↑ Opslaan</button>
+      <button class="btn btn-sm btn-ghost" onclick="showTokenSettings()" title="Token instellen">⚙</button>
+    </div>
+  </header>
+
+  <!-- Dashboard grid -->
+  <main class="grid grid-cols-1 md:grid-cols-3 gap-4 p-6" style="height:calc(100vh - 62px)">
+
+    <!-- Column 1: Calendar placeholder -->
+    <div class="card">
+      <div class="card-hdr">
+        <h2>📅 Agenda</h2>
+        <span class="text-xs" style="color:var(--text-hint)">Binnenkort</span>
+      </div>
+      <div class="card-body">
+        <div class="placeholder">
+          <div class="placeholder-icon">📅</div>
+          <p>Google Calendar-integratie komt binnenkort. Hier verschijnen straks je afspraken van vandaag en morgen.</p>
+          <small>Vereist Google Cloud OAuth setup</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Column 2: To-Do preview -->
+    <div class="card">
+      <div class="card-hdr">
+        <h2>✓ To-Do overzicht</h2>
+        <button class="btn btn-xs btn-primary" onclick="openTodoApp()">Open app ↗</button>
+      </div>
+      <div class="card-body" id="todoBody">
+        <div style="color:var(--text-hint);font-size:12px;padding:20px 0;text-align:center">Taken laden...</div>
+      </div>
+    </div>
+
+    <!-- Column 3: Notes -->
+    <div class="card">
+      <div class="card-hdr">
+        <h2>📝 Notities</h2>
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-xs" id="noteEditToggle" onclick="toggleNoteEdit()" style="display:none">✎ Bewerken</button>
+          <button class="btn btn-xs" onclick="createNote(null)">+ Nieuw</button>
+        </div>
+      </div>
+      <div class="card-body" style="padding:0">
+        <div class="notes-layout">
+          <div class="notes-sidebar">
+            <div class="notes-sidebar-hdr">
+              <span>Pagina's</span>
+              <button class="btn btn-xs btn-ghost" onclick="createFolder(null)" title="Nieuwe groep">📁+</button>
+            </div>
+            <div class="notes-tree" id="notesTree"></div>
+          </div>
+          <div class="notes-editor">
+            <div id="noteContent">
+              <div class="notes-empty">
+                <div style="font-size:24px">📝</div>
+                <p>Geen notitie geselecteerd</p>
+                <button class="btn btn-sm btn-primary" onclick="createNote(null)">+ Eerste notitie maken</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Rename modal -->
+<div class="modal-bg" id="renameModal">
+  <div class="modal">
+    <h3 id="renameModalTitle">Hernoemen</h3>
+    <input type="text" id="renameInput"/>
+    <div class="modal-footer">
+      <button class="btn btn-sm" onclick="closeRenameModal()">Annuleer</button>
+      <button class="btn btn-sm btn-primary" onclick="confirmRename()">Opslaan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Context menu -->
+<div class="ctx-menu" id="noteCtxMenu"></div>
+
+<script>
+/* ─────────────────────────────────────────────────────────────────
+   CONFIG
+   ───────────────────────────────────────────────────────────────── */
+const GIST_FILENAME='bi_checklist_kanban.json';
+const LS_TOKEN_KEY='bi_checklist_gh_token';
+const LS_GIST_KEY='bi_checklist_gist_id_kanban';
+const TODO_APP_URL='bi_checklist_kanban.html';
+
+/* ─────────────────────────────────────────────────────────────────
+   STATE
+   ───────────────────────────────────────────────────────────────── */
+let ghToken=null, gistId=null, saveTimer=null;
+let rawState={};           // entire loaded gist content (includes tasks + notes + settings)
+let notesState={tree:[],activeId:null,collapsed:{}};
+let tasksState={projects:{},activeProject:null,clients:[]};
+let editMode=false;
+let renameTarget=null;
+
+/* Drag & drop state for notes */
+let noteDrag={id:null};
+
+/* ─────────────────────────────────────────────────────────────────
+   UTILS
+   ───────────────────────────────────────────────────────────────── */
+function uid(){return 'nt_'+Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-4);}
+function escapeHtml(s){return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function debounce(fn,ms){let t;return function(){clearTimeout(t);t=setTimeout(()=>fn.apply(this,arguments),ms);};}
+function setSync(type,msg){
+  const bar=document.getElementById('syncBar');
+  const dot=document.getElementById('syncDot');
+  bar.className='sync-pill '+type;
+  dot.className='sync-dot'+(type==='saving'?' pulse':'');
+  document.getElementById('syncMsg').textContent=msg;
+}
+function formatToday(){
+  const d=new Date();
+  return d.toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   TOKEN
+   ───────────────────────────────────────────────────────────────── */
+function loadToken(){
+  ghToken=localStorage.getItem(LS_TOKEN_KEY)||null;
+  gistId=localStorage.getItem(LS_GIST_KEY)||null;
+}
+function saveToken(){
+  const v=document.getElementById('tokenInput').value.trim();
+  if(!v||!v.startsWith('gh')){alert('Ongeldig token');return;}
+  localStorage.setItem(LS_TOKEN_KEY,v);
+  ghToken=v;
+  document.getElementById('setupScreen').style.display='none';
+  document.getElementById('appScreen').style.display='block';
+  boot();
+}
+function showTokenSettings(){
+  document.getElementById('appScreen').style.display='none';
+  document.getElementById('setupScreen').style.display='flex';
+  document.getElementById('tokenInput').value=ghToken||'';
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   GITHUB API
+   ───────────────────────────────────────────────────────────────── */
+async function gistRequest(method,path,body){
+  const res=await fetch('https://api.github.com'+path,{
+    method,
+    headers:{
+      'Authorization':'Bearer '+ghToken,
+      'Accept':'application/vnd.github+json',
+      'X-GitHub-Api-Version':'2022-11-28',
+      ...(body?{'Content-Type':'application/json'}:{})
+    },
+    ...(body?{body:JSON.stringify(body)}:{})
+  });
+  if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.message||'GitHub API error '+res.status);}
+  return res.status===204?null:res.json();
+}
+
+async function loadGist(){
+  setSync('saving','Verbinden met GitHub...');
+  try{
+    let content=null;
+    if(gistId){
+      try{
+        const g=await gistRequest('GET','/gists/'+gistId);
+        const f=g.files[GIST_FILENAME];
+        if(f) content=f.content;
+      }catch(e){gistId=null;localStorage.removeItem(LS_GIST_KEY);}
+    }
+    if(!content){
+      const gists=await gistRequest('GET','/gists?per_page=100');
+      const found=gists.find(g=>g.files&&g.files[GIST_FILENAME]);
+      if(found){
+        gistId=found.id;localStorage.setItem(LS_GIST_KEY,gistId);
+        const g=await gistRequest('GET','/gists/'+gistId);
+        content=g.files[GIST_FILENAME]?.content;
+      }
+    }
+    if(content){
+      const parsed=JSON.parse(content);
+      /* Detect legacy shape: old files stored task data at top level */
+      if(parsed.projects||parsed.activeProject){
+        /* Legacy: migrate to new wrapper */
+        rawState={
+          tasks:parsed,
+          notes:parsed.notes||{tree:[],activeId:null,collapsed:{}},
+          settings:parsed.settings||{}
+        };
+      } else {
+        rawState=parsed;
+      }
+      tasksState=rawState.tasks||{projects:{},activeProject:null,clients:[]};
+      notesState=rawState.notes||{tree:[],activeId:null,collapsed:{}};
+      setSync('saved','Geladen · '+new Date().toLocaleTimeString('nl-NL'));
+    } else {
+      rawState={tasks:{projects:{},activeProject:null,clients:[]},notes:{tree:[],activeId:null,collapsed:{}},settings:{}};
+      tasksState=rawState.tasks;
+      notesState=rawState.notes;
+      setSync('idle','Nieuw — eerste opslag wacht op wijziging');
+    }
+  }catch(e){
+    console.error(e);
+    if(e.message&&e.message.includes('Bad credentials')) setSync('error','Ongeldig token — klik ⚙');
+    else setSync('error','Fout: '+e.message);
+    rawState={tasks:{projects:{},activeProject:null,clients:[]},notes:{tree:[],activeId:null,collapsed:{}},settings:{}};
+    tasksState=rawState.tasks;
+    notesState=rawState.notes;
+  }
+  render();
+}
+
+async function saveGist(){
+  if(!ghToken){setSync('error','Geen token');return;}
+  setSync('saving','Opslaan...');
+  /* Sync notes/state back into rawState before writing */
+  rawState.notes=notesState;
+  /* Keep tasks data intact (only the to-do app modifies it) — we reread tasks from current rawState */
+  const content=JSON.stringify(rawState,null,2);
+  try{
+    if(gistId){
+      await gistRequest('PATCH','/gists/'+gistId,{files:{[GIST_FILENAME]:{content}}});
+    } else {
+      const g=await gistRequest('POST','/gists',{
+        description:'Herling Analytics — Dashboard data',
+        public:false,
+        files:{[GIST_FILENAME]:{content}}
+      });
+      gistId=g.id;localStorage.setItem(LS_GIST_KEY,gistId);
+    }
+    setSync('saved','Opgeslagen · '+new Date().toLocaleTimeString('nl-NL'));
+  }catch(e){console.error(e);setSync('error','Opslaan mislukt: '+e.message);}
+}
+function scheduleSave(){clearTimeout(saveTimer);setSync('saving','Wijzigingen...');saveTimer=setTimeout(saveGist,1500);}
+async function forceSave(){clearTimeout(saveTimer);await saveGist();}
+
+/* Refetch tasks when user returns to dashboard (to-do app may have updated the gist) */
+async function refetchTasks(){
+  if(!gistId) return;
+  try{
+    const g=await gistRequest('GET','/gists/'+gistId);
+    const c=g.files[GIST_FILENAME]?.content;
+    if(!c) return;
+    const parsed=JSON.parse(c);
+    if(parsed.projects||parsed.activeProject){
+      rawState.tasks=parsed;
+      /* Merge our local notes into the loaded file so we don't lose in-memory edits */
+      if(parsed.notes) rawState.notes={...parsed.notes,...notesState};
+    } else {
+      rawState=parsed;
+      tasksState=rawState.tasks||tasksState;
+      /* If server had newer notes, merge on top of local */
+      if(rawState.notes&&rawState.notes.tree&&rawState.notes.tree.length>0&&notesState.tree.length===0){
+        notesState=rawState.notes;
+      }
+    }
+    tasksState=rawState.tasks||{projects:{},activeProject:null,clients:[]};
+    renderTodoStats();
+  }catch(e){console.warn('Refetch failed',e);}
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   TO-DO PREVIEW
+   ───────────────────────────────────────────────────────────────── */
+function openTodoApp(){
+  /* Save first, then open */
+  forceSave().then(()=>{
+    window.open(TODO_APP_URL,'_blank');
+  });
+}
+
+function computeProjectStats(projectData){
+  if(!projectData||!projectData.columns)return{total:0,done:0,pct:0};
+  const total=projectData.columns.reduce((a,c)=>a+(c.items?.length||0),0);
+  const done=projectData.columns.filter(c=>c.isCompleted).reduce((a,c)=>a+(c.items?.length||0),0);
+  const pct=total?Math.round(done/total*100):0;
+  return{total,done,pct};
+}
+
+function renderTodoStats(){
+  const body=document.getElementById('todoBody');
+  const projects=tasksState.projects||{};
+  const names=Object.keys(projects);
+
+  if(names.length===0){
+    body.innerHTML=`
+      <div style="color:var(--text-hint);font-size:12px;padding:20px 0;text-align:center">
+        <p style="margin-bottom:10px">Nog geen projecten aangemaakt</p>
+        <button class="btn btn-sm btn-primary" onclick="openTodoApp()">Open To-Do App ↗</button>
+      </div>`;
+    return;
+  }
+
+  /* Overall stats */
+  let totalAll=0,doneAll=0;
+  const rows=names.map(n=>{
+    const s=computeProjectStats(projects[n]);
+    totalAll+=s.total;doneAll+=s.done;
+    return{name:n,...s};
+  });
+  const pctAll=totalAll?Math.round(doneAll/totalAll*100):0;
+  const openAll=totalAll-doneAll;
+
+  let html=`
+    <div class="big-stats">
+      <div class="big-stat"><div class="big-stat-val">${openAll}</div><div class="big-stat-lbl">Open</div></div>
+      <div class="big-stat"><div class="big-stat-val">${doneAll}</div><div class="big-stat-lbl">Afgerond</div></div>
+      <div class="big-stat"><div class="big-stat-val">${pctAll}%</div><div class="big-stat-lbl">Voortgang</div></div>
+    </div>
+    <div style="font-size:10px;font-weight:600;color:var(--text-hint);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Per project</div>`;
+
+  rows.forEach(r=>{
+    html+=`
+      <div class="proj-row" title="${escapeHtml(r.name)}">
+        <div class="proj-name">${escapeHtml(r.name)}</div>
+        <div class="proj-nums">${r.done}/${r.total}</div>
+        <div class="proj-bar"><div class="proj-bar-fill" style="width:${r.pct}%"></div></div>
+        <div class="proj-pct">${r.pct}%</div>
+      </div>`;
+  });
+
+  html+=`<div style="margin-top:14px;display:flex;justify-content:center"><button class="btn btn-primary btn-sm" onclick="openTodoApp()">Open To-Do App ↗</button></div>`;
+  body.innerHTML=html;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   NOTES MODULE
+   ───────────────────────────────────────────────────────────────── */
+function findNode(tree,id,path=[]){
+  for(let i=0;i<tree.length;i++){
+    const n=tree[i];
+    if(n.id===id) return {node:n,parent:path.length?path[path.length-1]:null,parentArr:tree,index:i,path};
+    if(n.children&&n.children.length){
+      const r=findNode(n.children,id,[...path,n]);
+      if(r) return r;
+    }
+  }
+  return null;
+}
+
+function createNote(parentId){
+  const newNote={id:uid(),type:'page',title:'Nieuwe notitie',content:'# Nieuwe notitie\n\nBegin hier met schrijven...',updatedAt:Date.now()};
+  if(parentId){
+    const r=findNode(notesState.tree,parentId);
+    if(r){
+      if(r.node.type!=='folder'){
+        /* Convert page to folder? Add to same parent instead */
+        const parentArr=r.parentArr;
+        parentArr.splice(r.index+1,0,newNote);
+      } else {
+        r.node.children=r.node.children||[];
+        r.node.children.push(newNote);
+        notesState.collapsed[parentId]=false;
+      }
+    }
+  } else {
+    notesState.tree.push(newNote);
+  }
+  notesState.activeId=newNote.id;
+  editMode=true;
+  scheduleSave();
+  renderNotes();
+}
+
+function createFolder(parentId){
+  const name=prompt('Naam van de groep:','Nieuwe groep');
+  if(!name||!name.trim())return;
+  const newFolder={id:uid(),type:'folder',title:name.trim(),children:[]};
+  if(parentId){
+    const r=findNode(notesState.tree,parentId);
+    if(r&&r.node.type==='folder'){
+      r.node.children=r.node.children||[];
+      r.node.children.push(newFolder);
+      notesState.collapsed[parentId]=false;
+    } else if(r){
+      r.parentArr.splice(r.index+1,0,newFolder);
+    }
+  } else {
+    notesState.tree.push(newFolder);
+  }
+  scheduleSave();
+  renderNotes();
+}
+
+function selectNote(id){
+  const r=findNode(notesState.tree,id);
+  if(!r)return;
+  if(r.node.type==='folder'){
+    notesState.collapsed[id]=!notesState.collapsed[id];
+    renderNotes();
+    return;
+  }
+  notesState.activeId=id;
+  editMode=false;
+  renderNotes();
+  renderEditor();
+}
+
+function toggleFolder(id,e){
+  if(e)e.stopPropagation();
+  notesState.collapsed[id]=!notesState.collapsed[id];
+  renderNotes();
+}
+
+function deleteNode(id){
+  const r=findNode(notesState.tree,id);
+  if(!r)return;
+  const label=r.node.type==='folder'?'groep "'+r.node.title+'" (inclusief inhoud)':'notitie "'+r.node.title+'"';
+  if(!confirm('Weet je zeker dat je '+label+' wilt verwijderen?'))return;
+  r.parentArr.splice(r.index,1);
+  if(notesState.activeId===id) notesState.activeId=null;
+  scheduleSave();
+  renderNotes();
+  renderEditor();
+}
+
+function renameNode(id){
+  const r=findNode(notesState.tree,id);
+  if(!r)return;
+  renameTarget=id;
+  document.getElementById('renameModalTitle').textContent=r.node.type==='folder'?'Groep hernoemen':'Notitie hernoemen';
+  document.getElementById('renameInput').value=r.node.title;
+  document.getElementById('renameModal').classList.add('open');
+  setTimeout(()=>{document.getElementById('renameInput').focus();document.getElementById('renameInput').select();},30);
+}
+
+function closeRenameModal(){
+  document.getElementById('renameModal').classList.remove('open');
+  renameTarget=null;
+}
+
+function confirmRename(){
+  if(!renameTarget) return;
+  const v=document.getElementById('renameInput').value.trim();
+  if(!v){closeRenameModal();return;}
+  const r=findNode(notesState.tree,renameTarget);
+  if(r){r.node.title=v;scheduleSave();renderNotes();renderEditor();}
+  closeRenameModal();
+}
+
+function updateNoteContent(content){
+  const id=notesState.activeId;if(!id)return;
+  const r=findNode(notesState.tree,id);
+  if(!r)return;
+  r.node.content=content;
+  r.node.updatedAt=Date.now();
+  /* Auto-derive title from first H1 line if present */
+  const firstLine=content.split('\n').find(l=>l.trim());
+  if(firstLine&&firstLine.startsWith('# ')){
+    const derived=firstLine.replace(/^#\s*/,'').trim();
+    if(derived&&derived.length<100) r.node.title=derived;
+  }
+  scheduleSave();
+  /* Update sidebar label without full re-render */
+  const el=document.querySelector(`.note-node[data-id="${id}"] .note-label`);
+  if(el) el.textContent=r.node.title;
+}
+const debouncedUpdateContent=debounce(updateNoteContent,400);
+
+function toggleNoteEdit(){
+  editMode=!editMode;
+  renderEditor();
+}
+
+/* ─ Drag & drop tree ───────────────────────────────────────────── */
+function onNoteDragStart(e,id){
+  noteDrag.id=id;
+  e.dataTransfer.effectAllowed='move';
+  e.dataTransfer.setData('text/plain',id);
+}
+function onNoteDragOver(e,id){
+  if(!noteDrag.id||noteDrag.id===id)return;
+  e.preventDefault();
+  const rect=e.currentTarget.getBoundingClientRect();
+  const y=e.clientY-rect.top;
+  const h=rect.height;
+  e.currentTarget.classList.remove('drag-over','drag-over-top','drag-over-bottom');
+  const target=findNode(notesState.tree,id);
+  if(!target)return;
+  if(target.node.type==='folder'&&y>h*0.25&&y<h*0.75){
+    e.currentTarget.classList.add('drag-over');
+  } else if(y<h*0.5){
+    e.currentTarget.classList.add('drag-over-top');
+  } else {
+    e.currentTarget.classList.add('drag-over-bottom');
+  }
+}
+function onNoteDragLeave(e){
+  e.currentTarget.classList.remove('drag-over','drag-over-top','drag-over-bottom');
+}
+function onNoteDrop(e,targetId){
+  e.preventDefault();e.stopPropagation();
+  e.currentTarget.classList.remove('drag-over','drag-over-top','drag-over-bottom');
+  if(!noteDrag.id||noteDrag.id===targetId)return;
+  /* Prevent dropping parent into its own child */
+  const isDescendant=(nodeId,ancestorId)=>{
+    const r=findNode(notesState.tree,ancestorId);
+    if(!r||!r.node.children)return false;
+    const walk=(arr)=>arr.some(n=>n.id===nodeId||(n.children&&walk(n.children)));
+    return walk(r.node.children);
+  };
+  if(isDescendant(targetId,noteDrag.id)){noteDrag.id=null;return;}
+
+  const src=findNode(notesState.tree,noteDrag.id);
+  const tgt=findNode(notesState.tree,targetId);
+  if(!src||!tgt)return;
+
+  const rect=e.currentTarget.getBoundingClientRect();
+  const y=e.clientY-rect.top;
+  const h=rect.height;
+
+  /* Remove src from its current position */
+  const [movedNode]=src.parentArr.splice(src.index,1);
+
+  /* Recompute target after removal (indices may have shifted in the same parent) */
+  const tgtAfter=findNode(notesState.tree,targetId);
+  if(!tgtAfter){src.parentArr.push(movedNode);noteDrag.id=null;return;}
+
+  if(tgtAfter.node.type==='folder'&&y>h*0.25&&y<h*0.75){
+    tgtAfter.node.children=tgtAfter.node.children||[];
+    tgtAfter.node.children.push(movedNode);
+    notesState.collapsed[targetId]=false;
+  } else if(y<h*0.5){
+    tgtAfter.parentArr.splice(tgtAfter.index,0,movedNode);
+  } else {
+    tgtAfter.parentArr.splice(tgtAfter.index+1,0,movedNode);
+  }
+
+  noteDrag.id=null;
+  scheduleSave();
+  renderNotes();
+}
+function onNoteDragEnd(){
+  noteDrag.id=null;
+  document.querySelectorAll('.note-node').forEach(n=>n.classList.remove('drag-over','drag-over-top','drag-over-bottom'));
+}
+
+/* ─ Context menu ───────────────────────────────────────────────── */
+function showNoteCtxMenu(e,id){
+  e.preventDefault();e.stopPropagation();
+  const menu=document.getElementById('noteCtxMenu');
+  const r=findNode(notesState.tree,id);
+  if(!r)return;
+  const isFolder=r.node.type==='folder';
+  menu.innerHTML=`
+    <button class="ctx-item" onclick="closeNoteCtxMenu();renameNode('${id}')">✎ Hernoemen</button>
+    <button class="ctx-item" onclick="closeNoteCtxMenu();createNote('${id}')">+ Nieuwe notitie ${isFolder?'in groep':'erna'}</button>
+    ${isFolder?`<button class="ctx-item" onclick="closeNoteCtxMenu();createFolder('${id}')">+ Sub-groep</button>`:''}
+    <div class="ctx-divider"></div>
+    <button class="ctx-item danger" onclick="closeNoteCtxMenu();deleteNode('${id}')">✕ Verwijderen</button>`;
+  menu.style.left=Math.min(e.clientX,window.innerWidth-200)+'px';
+  menu.style.top=Math.min(e.clientY,window.innerHeight-160)+'px';
+  menu.classList.add('open');
+}
+function closeNoteCtxMenu(){document.getElementById('noteCtxMenu').classList.remove('open');}
+document.addEventListener('click',closeNoteCtxMenu);
+
+/* ─ Renderers ──────────────────────────────────────────────────── */
+function renderNotes(){
+  const el=document.getElementById('notesTree');
+  if(notesState.tree.length===0){
+    el.innerHTML=`<div style="color:var(--text-hint);font-size:11px;padding:10px 8px;text-align:center">Geen pagina's</div>`;
+    return;
+  }
+  el.innerHTML=notesState.tree.map(n=>renderNoteNode(n,0)).join('');
+}
+
+function renderNoteNode(node,depth){
+  const isFolder=node.type==='folder';
+  const isActive=notesState.activeId===node.id;
+  const isCollapsed=!!notesState.collapsed[node.id];
+  const hasChildren=isFolder&&node.children&&node.children.length>0;
+  const indent=depth*12;
+
+  const chev=isFolder?
+    `<span class="note-chev${isCollapsed?' collapsed':''}" onclick="toggleFolder('${node.id}',event)">▾</span>`:
+    `<span class="note-chev" style="visibility:hidden">·</span>`;
+
+  const icon=isFolder?'📁':'📄';
+
+  const children=hasChildren&&!isCollapsed?
+    `<div class="note-children">${node.children.map(c=>renderNoteNode(c,depth+1)).join('')}</div>`:'';
+
+  return `
+    <div class="note-node${isActive?' active':''}"
+         data-id="${node.id}"
+         style="margin-left:${indent}px"
+         draggable="true"
+         onclick="selectNote('${node.id}')"
+         oncontextmenu="showNoteCtxMenu(event,'${node.id}')"
+         ondragstart="onNoteDragStart(event,'${node.id}')"
+         ondragover="onNoteDragOver(event,'${node.id}')"
+         ondragleave="onNoteDragLeave(event)"
+         ondrop="onNoteDrop(event,'${node.id}')"
+         ondragend="onNoteDragEnd(event)">
+      ${chev}
+      <span class="note-icon">${icon}</span>
+      <span class="note-label">${escapeHtml(node.title)}</span>
+      <span class="note-actions">
+        ${isFolder?`<button onclick="event.stopPropagation();createNote('${node.id}')" title="Nieuwe notitie">+</button>`:''}
+        <button onclick="event.stopPropagation();renameNode('${node.id}')" title="Hernoemen">✎</button>
+      </span>
+    </div>
+    ${children}`;
+}
+
+function renderEditor(){
+  const content=document.getElementById('noteContent');
+  const editToggleBtn=document.getElementById('noteEditToggle');
+
+  if(!notesState.activeId){
+    editToggleBtn.style.display='none';
+    content.innerHTML=`
+      <div class="notes-empty">
+        <div style="font-size:24px">📝</div>
+        <p>Geen notitie geselecteerd</p>
+        <button class="btn btn-sm btn-primary" onclick="createNote(null)">+ Nieuwe notitie</button>
+      </div>`;
+    return;
+  }
+  const r=findNode(notesState.tree,notesState.activeId);
+  if(!r||r.node.type==='folder'){
+    editToggleBtn.style.display='none';
+    notesState.activeId=null;
+    renderEditor();
+    return;
+  }
+  editToggleBtn.style.display='';
+  editToggleBtn.textContent=editMode?'👁 Bekijken':'✎ Bewerken';
+
+  const node=r.node;
+  if(editMode){
+    content.innerHTML=`
+      <div class="notes-editor-hdr">
+        <input class="notes-title-input" value="${escapeHtml(node.title)}" oninput="updateNoteTitle(this.value)"/>
+      </div>
+      <div class="notes-editor-body">
+        <textarea class="notes-textarea" id="noteTextArea" placeholder="Schrijf in markdown...">${escapeHtml(node.content)}</textarea>
+      </div>`;
+    const ta=document.getElementById('noteTextArea');
+    ta.addEventListener('input',e=>debouncedUpdateContent(e.target.value));
+    setTimeout(()=>ta.focus(),30);
+  } else {
+    const rendered=marked.parse(node.content||'');
+    content.innerHTML=`
+      <div class="notes-editor-hdr">
+        <div style="font-size:14px;font-weight:600">${escapeHtml(node.title)}</div>
+        <div style="font-size:11px;color:var(--text-hint)">${node.updatedAt?new Date(node.updatedAt).toLocaleString('nl-NL'):''}</div>
+      </div>
+      <div class="notes-editor-body">
+        <div class="notes-preview">${rendered||'<p style="color:var(--text-hint)">Lege notitie. Klik op Bewerken om te beginnen.</p>'}</div>
+      </div>`;
+  }
+}
+
+function updateNoteTitle(v){
+  const id=notesState.activeId;if(!id)return;
+  const r=findNode(notesState.tree,id);
+  if(r){r.node.title=v;r.node.updatedAt=Date.now();scheduleSave();
+    const el=document.querySelector(`.note-node[data-id="${id}"] .note-label`);
+    if(el) el.textContent=v;
+  }
+}
+
+function render(){
+  document.getElementById('todayStr').textContent=formatToday();
+  renderTodoStats();
+  renderNotes();
+  renderEditor();
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   BOOT
+   ───────────────────────────────────────────────────────────────── */
+async function boot(){
+  await loadGist();
+}
+
+loadToken();
+if(ghToken){
+  document.getElementById('appScreen').style.display='block';
+  boot();
+} else {
+  document.getElementById('setupScreen').style.display='flex';
+}
+
+/* Refresh task stats when window regains focus (to-do app might have updated the gist) */
+window.addEventListener('focus',()=>{
+  if(ghToken&&gistId)refetchTasks();
+});
+
+/* Modal: Enter submits, Escape closes */
+document.addEventListener('keydown',e=>{
+  if(document.getElementById('renameModal').classList.contains('open')){
+    if(e.key==='Enter')confirmRename();
+    if(e.key==='Escape')closeRenameModal();
+  }
+});
+document.getElementById('renameModal').addEventListener('click',e=>{if(e.target.id==='renameModal')closeRenameModal();});
+
+/* Configure marked for safe rendering */
+if(window.marked){
+  marked.setOptions({breaks:true,gfm:true});
+}
+</script>
+
+</body>
+</html>
