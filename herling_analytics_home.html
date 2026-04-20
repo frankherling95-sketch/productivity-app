@@ -77,6 +77,25 @@
   /* Calendar placeholder */
   .placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;min-height:180px;color:var(--text-hint);text-align:center;gap:10px;padding:30px 14px}
   .placeholder-icon{width:40px;height:40px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:18px}
+
+  /* Calendar */
+  .cal-setup{padding:14px 16px;display:flex;flex-direction:column;gap:10px;height:100%}
+  .cal-setup label{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em}
+  .cal-setup input{width:100%;padding:7px 9px;font-size:12px;border:0.5px solid var(--border-strong);border-radius:6px;background:var(--surface2);color:var(--text);outline:none;font-family:inherit}
+  .cal-setup input:focus{border-color:var(--text)}
+  .cal-setup-hint{font-size:11px;color:var(--text-hint);line-height:1.6}
+  .cal-setup-hint a{color:var(--info)}
+  .cal-events{display:flex;flex-direction:column;height:100%;overflow-y:auto}
+  .cal-day-hdr{padding:8px 14px 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-hint);background:var(--bg);position:sticky;top:0}
+  .cal-event{display:flex;align-items:flex-start;gap:10px;padding:8px 14px;border-bottom:0.5px solid var(--border);transition:background .12s}
+  .cal-event:hover{background:var(--surface2)}
+  .cal-event-time{font-size:11px;color:var(--text-muted);white-space:nowrap;min-width:44px;padding-top:1px}
+  .cal-event-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:4px}
+  .cal-event-title{font-size:12px;color:var(--text);line-height:1.4;word-break:break-word}
+  .cal-event-loc{font-size:11px;color:var(--text-hint);margin-top:1px}
+  .cal-empty{padding:24px 14px;font-size:12px;color:var(--text-hint);text-align:center}
+  .cal-error{padding:14px;font-size:12px;color:var(--danger);background:var(--danger-bg);border-radius:6px;margin:10px 14px}
+  .cal-loading{display:flex;align-items:center;gap:8px;padding:20px 14px;font-size:12px;color:var(--text-muted)}
   .placeholder p{font-size:12px;line-height:1.5;margin:0}
   .placeholder small{font-size:11px;color:var(--text-hint)}
 
@@ -205,17 +224,17 @@
         </div>
       </div>
 
-      <!-- Calendar placeholder -->
+      <!-- Calendar -->
       <div class="card">
         <div class="card-hdr">
           <h2>📅 Agenda</h2>
-          <span class="text-xs" style="color:var(--text-hint)">Binnenkort</span>
+          <button class="btn btn-xs" id="calSettingsBtn" onclick="toggleCalSettings()" style="display:none">⚙</button>
         </div>
-        <div class="card-body">
+        <div class="card-body" id="calBody" style="padding:0;overflow:hidden">
           <div class="placeholder">
             <div class="placeholder-icon">📅</div>
-            <p>Google Calendar-integratie komt binnenkort. Hier verschijnen straks je afspraken van vandaag en morgen.</p>
-            <small>Vereist Google Cloud OAuth setup</small>
+            <p style="margin-bottom:10px">Koppel een Google Agenda om je afspraken hier te zien.</p>
+            <button class="btn btn-sm btn-primary" onclick="showCalSetup()">Agenda koppelen</button>
           </div>
         </div>
       </div>
@@ -860,6 +879,7 @@ function render(){
   renderTodoStats();
   renderNotes();
   renderEditor();
+  loadCalendar();
 }
 
 /* ─────────────────────────────────────────────────────────────────
@@ -894,6 +914,221 @@ document.getElementById('renameModal').addEventListener('click',e=>{if(e.target.
 /* Configure marked for safe rendering */
 if(window.marked){
   marked.setOptions({breaks:true,gfm:true});
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   GOOGLE CALENDAR — iCal (public calendar)
+   ───────────────────────────────────────────────────────────────── */
+const CORS_PROXY='https://corsproxy.io/?';
+let calRefreshTimer=null;
+
+function getIcalUrl(){return rawState.settings?.icalUrl||null;}
+function saveIcalUrl(url){
+  if(!rawState.settings)rawState.settings={};
+  rawState.settings.icalUrl=url;
+  scheduleSave();
+}
+
+/* ── Setup UI ── */
+function showCalSetup(){
+  const body=document.getElementById('calBody');
+  const current=getIcalUrl()||'';
+  body.innerHTML=`
+    <div class="cal-setup">
+      <label>Google Agenda iCal-link</label>
+      <input type="text" id="icalInput" value="${escapeHtmlCal(current)}" placeholder="https://calendar.google.com/calendar/ical/.../basic.ics"/>
+      <div class="cal-setup-hint">
+        <strong>Zo maak je een aparte publieke agenda aan:</strong><br>
+        1. Open <a href="https://calendar.google.com" target="_blank" rel="noopener">Google Agenda</a><br>
+        2. Klik links op <strong>+ Andere agenda's → Nieuwe agenda maken</strong><br>
+        3. Geef hem een naam (bijv. <em>Herling Extern</em>)<br>
+        4. Open de agenda-instellingen → tabblad <strong>Toegangsmachtigingen</strong><br>
+        5. Vink aan: <em>Openbaar beschikbaar stellen</em><br>
+        6. Scroll naar <strong>Integreer agenda</strong> → kopieer de <strong>Geheim iCal-adres</strong><br>
+        7. Plak de link hierboven
+      </div>
+      <div style="display:flex;gap:6px;margin-top:auto">
+        ${current?'<button class="btn btn-sm btn-danger" onclick="removeIcal()">Ontkoppelen</button>':''}
+        <div style="flex:1"></div>
+        <button class="btn btn-sm" onclick="loadCalendar()">Annuleer</button>
+        <button class="btn btn-sm btn-primary" onclick="connectIcal()">Verbinden</button>
+      </div>
+    </div>`;
+}
+
+function escapeHtmlCal(s){return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+function connectIcal(){
+  const url=document.getElementById('icalInput')?.value.trim();
+  if(!url){alert('Vul een iCal-link in.');return;}
+  if(!url.includes('calendar.google.com')&&!url.endsWith('.ics')){
+    if(!confirm('De link ziet er ongebruikelijk uit. Toch doorgaan?'))return;
+  }
+  saveIcalUrl(url);
+  loadCalendar();
+}
+
+function removeIcal(){
+  if(!confirm('Agenda ontkoppelen?'))return;
+  if(rawState.settings)delete rawState.settings.icalUrl;
+  scheduleSave();loadCalendar();
+}
+
+function toggleCalSettings(){
+  if(getIcalUrl())showCalSetup();
+}
+
+/* ── Fetch & parse ── */
+async function loadCalendar(){
+  const body=document.getElementById('calBody');
+  const url=getIcalUrl();
+  document.getElementById('calSettingsBtn').style.display=url?'':'none';
+
+  if(!url){
+    body.innerHTML=`<div class="placeholder"><div class="placeholder-icon">📅</div><p style="margin-bottom:10px">Koppel een Google Agenda om je afspraken hier te zien.</p><button class="btn btn-sm btn-primary" onclick="showCalSetup()">Agenda koppelen</button></div>`;
+    return;
+  }
+
+  body.innerHTML='<div class="cal-loading"><div class="spinner"></div><span>Agenda laden...</span></div>';
+
+  try{
+    const proxyUrl=CORS_PROXY+encodeURIComponent(url);
+    const resp=await fetch(proxyUrl,{cache:'no-store'});
+    if(!resp.ok)throw new Error('HTTP '+resp.status);
+    const text=await resp.text();
+    if(!text.includes('BEGIN:VCALENDAR'))throw new Error('Geen geldige iCal-data ontvangen. Controleer of de agenda publiek staat.');
+    const events=parseICS(text);
+    renderCalendarEvents(events,body);
+  }catch(e){
+    body.innerHTML=`<div style="padding:12px"><div class="cal-error">${escapeHtmlCal(e.message)}</div><div style="padding:0 2px"><button class="btn btn-sm" onclick="showCalSetup()">Instellingen</button></div></div>`;
+  }
+
+  /* Auto-refresh elke 15 min */
+  clearTimeout(calRefreshTimer);
+  calRefreshTimer=setTimeout(loadCalendar,15*60*1000);
+}
+
+/* ── ICS parser ── */
+function parseICS(text){
+  /* Unfold continuation lines */
+  const unfolded=text.replace(/\r\n([ \t])/g,'$1').replace(/\n([ \t])/g,'$1');
+  const lines=unfolded.split(/\r\n|\n|\r/);
+  const events=[];let cur=null;
+
+  for(const line of lines){
+    if(line==='BEGIN:VEVENT'){cur={};}
+    else if(line==='END:VEVENT'&&cur){events.push(cur);cur=null;}
+    else if(cur){
+      const ci=line.indexOf(':');if(ci<0)continue;
+      const keyPart=line.slice(0,ci);
+      const val=line.slice(ci+1);
+      const key=keyPart.split(';')[0];
+      const params={};
+      keyPart.split(';').slice(1).forEach(p=>{const [k,v]=p.split('=');params[k]=v;});
+      if(key==='DTSTART'||key==='DTEND'){cur[key]=parseICSDate(val,params.TZID);}
+      else if(key==='SUMMARY')cur.title=val.replace(/\\n/g,' ').replace(/\\,/g,',').replace(/\\\\/g,'\\');
+      else if(key==='LOCATION')cur.location=val.replace(/\\n/g,' ').replace(/\\,/g,',');
+      else if(key==='RRULE')cur.rrule=val;
+      else if(key==='STATUS')cur.status=val;
+      else cur[key]=val;
+    }
+  }
+  return events;
+}
+
+function parseICSDate(val,tzid){
+  /* All-day: YYYYMMDD */
+  if(/^\d{8}$/.test(val)){
+    return {date:new Date(parseInt(val.slice(0,4)),parseInt(val.slice(4,6))-1,parseInt(val.slice(6,8))),allDay:true};
+  }
+  /* UTC: YYYYMMDDTHHmmssZ */
+  if(val.endsWith('Z')){
+    return {date:new Date(val.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/,'$1-$2-$3T$4:$5:$6Z')),allDay:false};
+  }
+  /* Floating/local: YYYYMMDDTHHmmss — treat as local */
+  const m=val.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/);
+  if(m)return {date:new Date(m[1],m[2]-1,m[3],m[4],m[5],m[6]),allDay:false};
+  return {date:new Date(val),allDay:false};
+}
+
+/* ── Expand recurring events (simple RRULE: FREQ=WEEKLY/DAILY) ── */
+function expandEvents(events,fromDate,toDate){
+  const result=[];
+  events.forEach(ev=>{
+    if(ev.status==='CANCELLED')return;
+    if(!ev.DTSTART)return;
+    const start=ev.DTSTART.date;
+    if(!ev.rrule){
+      if(start>=fromDate&&start<=toDate)result.push({...ev,occStart:ev.DTSTART,occEnd:ev.DTEND});
+      return;
+    }
+    /* Basic RRULE expansion */
+    const rr={};ev.rrule.split(';').forEach(p=>{const [k,v]=p.split('=');rr[k]=v;});
+    const freq=rr.FREQ;
+    const until=rr.UNTIL?parseICSDate(rr.UNTIL,null).date:toDate;
+    const count=rr.COUNT?parseInt(rr.COUNT):999;
+    const interval=parseInt(rr.INTERVAL||'1');
+    let cur=new Date(start);let n=0;
+    while(cur<=until&&cur<=toDate&&n<count){
+      if(cur>=fromDate){
+        const diff=cur-start;
+        const occEnd=ev.DTEND?{date:new Date(ev.DTEND.date.getTime()+diff),allDay:ev.DTEND.allDay}:null;
+        result.push({...ev,occStart:{date:new Date(cur),allDay:ev.DTSTART.allDay},occEnd});
+      }
+      if(freq==='DAILY')cur=new Date(cur.getTime()+interval*86400000);
+      else if(freq==='WEEKLY')cur=new Date(cur.getTime()+interval*7*86400000);
+      else break;
+      n++;
+    }
+  });
+  result.sort((a,b)=>a.occStart.date-b.occStart.date);
+  return result;
+}
+
+/* ── Render ── */
+function renderCalendarEvents(events,body){
+  const now=new Date();
+  const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  const windowEnd=new Date(today.getTime()+7*86400000);
+
+  const expanded=expandEvents(events,today,windowEnd);
+
+  if(!expanded.length){
+    body.innerHTML='<div class="cal-events"><div class="cal-empty">Geen afspraken de komende 7 dagen</div></div>';
+    return;
+  }
+
+  /* Group by day */
+  const byDay={};
+  expanded.forEach(ev=>{
+    const d=ev.occStart.date;
+    const key=d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
+    if(!byDay[key])byDay[key]=[];
+    byDay[key].push(ev);
+  });
+
+  const dayNames=['zondag','maandag','dinsdag','woensdag','donderdag','vrijdag','zaterdag'];
+  const monthNames=['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+
+  let html='<div class="cal-events">';
+  Object.keys(byDay).sort().forEach(key=>{
+    const [y,m,d]=key.split('-').map(Number);
+    const dayDate=new Date(y,m-1,d);
+    const diffDays=Math.round((dayDate-today)/86400000);
+    const label=diffDays===0?'Vandaag':diffDays===1?'Morgen':dayNames[dayDate.getDay()]+' '+d+' '+monthNames[m-1];
+    html+=`<div class="cal-day-hdr">${label}</div>`;
+    byDay[key].forEach(ev=>{
+      const timeStr=ev.occStart.allDay?'Hele dag':ev.occStart.date.toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});
+      const loc=ev.location?`<div class="cal-event-loc">📍 ${escapeHtmlCal(ev.location)}</div>`:'';
+      html+=`<div class="cal-event">
+        <div class="cal-event-time">${timeStr}</div>
+        <div class="cal-event-dot" style="background:var(--accent)"></div>
+        <div><div class="cal-event-title">${escapeHtmlCal(ev.title||'(geen titel)')}</div>${loc}</div>
+      </div>`;
+    });
+  });
+  html+='</div>';
+  body.innerHTML=html;
 }
 </script>
 
