@@ -6,6 +6,7 @@
 <title>Herling Analytics</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <style>
@@ -297,6 +298,8 @@
 const GIST_FILENAME='bi_checklist_kanban.json';
 const LS_TOKEN_KEY='bi_checklist_gh_token';
 const LS_GIST_KEY='bi_checklist_gist_id_kanban';
+const GOOGLE_CLIENT_ID='266043991273-men8tuo5nrksbav97o5p4ubmqmu92bt3.apps.googleusercontent.com';
+const GOOGLE_CAL_SCOPE='https://www.googleapis.com/auth/calendar.readonly';
 const TODO_APP_URL='bi_checklist_kanban.html';
 
 /* ─────────────────────────────────────────────────────────────────
@@ -308,6 +311,11 @@ let notesState={tree:[],activeId:null,collapsed:{}};
 let tasksState={projects:{},activeProject:null,clients:[]};
 let editMode=false;
 let renameTarget=null;
+
+/* Google Calendar OAuth */
+let gTokenClient=null;
+let gAccessToken=null;
+let gTokenRefreshTimer=null;
 
 /* Drag & drop state for notes */
 let noteDrag={id:null};
@@ -917,19 +925,240 @@ if(window.marked){
 }
 
 /* ─────────────────────────────────────────────────────────────────
-   GOOGLE CALENDAR — iCal (public calendar)
+   GOOGLE CALENDAR
    ───────────────────────────────────────────────────────────────── */
 const CORS_PROXY='https://corsproxy.io/?';
 let calRefreshTimer=null;
 
+function getCalMode(){return rawState.settings?.calMode||null;}
 function getIcalUrl(){return rawState.settings?.icalUrl||null;}
-function saveIcalUrl(url){
-  if(!rawState.settings)rawState.settings={};
-  rawState.settings.icalUrl=url;
-  scheduleSave();
+
+function escapeHtmlCal(s){return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+/* ── Shared load dispatcher ── */
+async function loadCalendar(){
+  const body=document.getElementById('calBody');
+  const mode=getCalMode();
+  const icalUrl=getIcalUrl();
+  const connected=mode==='oauth'||!!icalUrl;
+  document.getElementById('calSettingsBtn').style.display=connected?'':'none';
+
+  if(mode==='oauth'){
+    if(gAccessToken){
+      fetchGoogleCalEvents();
+    } else {
+      body.innerHTML=`
+        <div class="placeholder">
+          <div class="placeholder-icon">🔐</div>
+          <p style="margin-bottom:10px">Google Agenda is gekoppeld.<br>Klik opnieuw om te verbinden.</p>
+          <button class="btn btn-sm btn-primary" onclick="signInGoogle()">Verbinden met Google</button>
+          <button class="btn btn-xs btn-ghost" onclick="disconnectGoogle()" style="margin-top:6px">Ontkoppelen</button>
+        </div>`;
+    }
+    return;
+  }
+
+  if(!icalUrl){
+    body.innerHTML=`
+      <div class="placeholder">
+        <div class="placeholder-icon">📅</div>
+        <p style="margin-bottom:10px">Koppel je Google Agenda om je afspraken hier te zien.</p>
+        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+          <button class="btn btn-sm btn-primary" onclick="signInGoogle()">🔐 Inloggen met Google</button>
+          <button class="btn btn-sm" onclick="showCalSetup()">iCal-link koppelen</button>
+        </div>
+        <small>OAuth geeft toegang tot al je privé-agenda's</small>
+      </div>`;
+    return;
+  }
+
+  loadIcalCalendar(body,icalUrl);
 }
 
-/* ── Setup UI ── */
+function toggleCalSettings(){
+  const mode=getCalMode();
+  if(mode==='oauth'){showOAuthSettings();}
+  else if(getIcalUrl()){showCalSetup();}
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   OAUTH — Google Identity Services
+   ───────────────────────────────────────────────────────────────── */
+function ensureTokenClient(){
+  if(gTokenClient)return true;
+  if(!window.google?.accounts?.oauth2){return false;}
+  gTokenClient=google.accounts.oauth2.initTokenClient({
+    client_id:GOOGLE_CLIENT_ID,
+    scope:GOOGLE_CAL_SCOPE,
+    callback:(resp)=>{
+      if(resp.error){
+        const body=document.getElementById('calBody');
+        body.innerHTML=`<div style="padding:12px"><div class="cal-error">Google autorisatie mislukt: ${escapeHtmlCal(resp.error)}</div><button class="btn btn-sm" onclick="loadCalendar()">Terug</button></div>`;
+        return;
+      }
+      gAccessToken=resp.access_token;
+      /* Auto-invalidate token before it expires (default 3600s) */
+      clearTimeout(gTokenRefreshTimer);
+      gTokenRefreshTimer=setTimeout(()=>{
+        gAccessToken=null;
+        if(getCalMode()==='oauth')loadCalendar();
+      },(Math.max(resp.expires_in||3600,120)-90)*1000);
+      /* Persist mode */
+      if(!rawState.settings)rawState.settings={};
+      rawState.settings.calMode='oauth';
+      /* Clear any old iCal URL so it doesn't interfere */
+      delete rawState.settings.icalUrl;
+      scheduleSave();
+      document.getElementById('calSettingsBtn').style.display='';
+      fetchGoogleCalEvents();
+    }
+  });
+  return true;
+}
+
+function signInGoogle(){
+  if(!ensureTokenClient()){
+    alert('Google Identity Services wordt nog geladen. Probeer over een seconde opnieuw.');
+    return;
+  }
+  gTokenClient.requestAccessToken({prompt:gAccessToken?'':'select_account'});
+}
+
+function disconnectGoogle(){
+  if(!confirm('Google Agenda ontkoppelen?'))return;
+  if(gAccessToken&&window.google?.accounts?.oauth2){
+    google.accounts.oauth2.revoke(gAccessToken,()=>{});
+    gAccessToken=null;
+  }
+  clearTimeout(gTokenRefreshTimer);
+  if(rawState.settings)delete rawState.settings.calMode;
+  clearTimeout(calRefreshTimer);
+  scheduleSave();
+  loadCalendar();
+}
+
+function showOAuthSettings(){
+  const body=document.getElementById('calBody');
+  body.innerHTML=`
+    <div class="cal-setup">
+      <label>Google Agenda (OAuth)</label>
+      <div class="cal-setup-hint" style="background:var(--success-bg);color:var(--success);padding:8px 10px;border-radius:6px">
+        ✓ Verbonden via Google OAuth — alle privé-agenda's worden gesynchroniseerd.
+      </div>
+      <div style="display:flex;gap:6px;margin-top:auto">
+        <button class="btn btn-sm btn-danger" onclick="disconnectGoogle()">Ontkoppelen</button>
+        <div style="flex:1"></div>
+        <button class="btn btn-sm" onclick="loadCalendar()">Sluiten</button>
+        <button class="btn btn-sm btn-primary" onclick="signInGoogle()">Opnieuw verbinden</button>
+      </div>
+    </div>`;
+}
+
+/* ── Fetch events from Google Calendar API ── */
+async function fetchGoogleCalEvents(){
+  const body=document.getElementById('calBody');
+  body.innerHTML='<div class="cal-loading"><span>Agenda laden...</span></div>';
+  try{
+    const now=new Date();
+    const weekLater=new Date(now.getTime()+7*86400000);
+    const timeMin=now.toISOString();
+    const timeMax=weekLater.toISOString();
+    const hdrs={'Authorization':'Bearer '+gAccessToken};
+
+    /* Get all calendars the user has */
+    const listResp=await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=50',{headers:hdrs});
+    if(listResp.status===401){gAccessToken=null;loadCalendar();return;}
+    if(!listResp.ok)throw new Error('Agenda-lijst ophalen mislukt (HTTP '+listResp.status+')');
+    const calList=await listResp.json();
+
+    const COLORS=['#4285f4','#ea4335','#fbbc04','#34a853','#ff6d00','#46bdc6','#7986cb','#a79b8e'];
+    const allEvents=[];
+
+    await Promise.all(
+      (calList.items||[])
+        .filter(c=>c.selected!==false&&c.accessRole!=='freeBusyReader')
+        .map(async(cal,i)=>{
+          try{
+            const evResp=await fetch(
+              `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events`+
+              `?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}`+
+              `&singleEvents=true&orderBy=startTime&maxResults=50`,
+              {headers:hdrs}
+            );
+            if(!evResp.ok)return;
+            const data=await evResp.json();
+            const color=cal.backgroundColor||COLORS[i%COLORS.length];
+            (data.items||[]).forEach(ev=>{
+              if(ev.status==='cancelled')return;
+              allEvents.push({...ev,_calName:cal.summary,_calColor:color});
+            });
+          }catch(e){/* skip individual failing calendars */}
+        })
+    );
+
+    /* Sort by start time */
+    allEvents.sort((a,b)=>{
+      const at=a.start?.dateTime||a.start?.date||'';
+      const bt=b.start?.dateTime||b.start?.date||'';
+      return at<bt?-1:at>bt?1:0;
+    });
+
+    renderGoogleCalEvents(allEvents,body);
+  }catch(e){
+    body.innerHTML=`<div style="padding:12px"><div class="cal-error">${escapeHtmlCal(e.message)}</div>`+
+      `<button class="btn btn-sm" onclick="fetchGoogleCalEvents()" style="margin-top:8px">Opnieuw proberen</button></div>`;
+  }
+
+  /* Auto-refresh every 15 min */
+  clearTimeout(calRefreshTimer);
+  calRefreshTimer=setTimeout(()=>{if(gAccessToken)fetchGoogleCalEvents();},15*60*1000);
+}
+
+function renderGoogleCalEvents(events,body){
+  const dayNames=['zondag','maandag','dinsdag','woensdag','donderdag','vrijdag','zaterdag'];
+  const monthNames=['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+  const today=new Date();today.setHours(0,0,0,0);
+
+  if(!events.length){
+    body.innerHTML='<div class="cal-events"><div class="cal-empty">Geen afspraken de komende 7 dagen</div></div>';
+    return;
+  }
+
+  const byDay={};
+  events.forEach(ev=>{
+    const startStr=ev.start?.dateTime||ev.start?.date||'';
+    const d=new Date(startStr);
+    const key=d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
+    if(!byDay[key])byDay[key]=[];
+    byDay[key].push(ev);
+  });
+
+  let html='<div class="cal-events">';
+  Object.keys(byDay).sort().forEach(key=>{
+    const [y,m,d]=key.split('-').map(Number);
+    const dayDate=new Date(y,m-1,d);
+    const diffDays=Math.round((dayDate-today)/86400000);
+    const label=diffDays===0?'Vandaag':diffDays===1?'Morgen':dayNames[dayDate.getDay()]+' '+d+' '+monthNames[m-1];
+    html+=`<div class="cal-day-hdr">${label}</div>`;
+    byDay[key].forEach(ev=>{
+      const isAllDay=!!ev.start?.date&&!ev.start?.dateTime;
+      const timeStr=isAllDay?'Hele dag':new Date(ev.start.dateTime).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});
+      const loc=ev.location?`<div class="cal-event-loc">📍 ${escapeHtmlCal(ev.location)}</div>`:'';
+      const calLbl=ev._calName?`<div style="font-size:10px;color:var(--text-hint);margin-top:1px">${escapeHtmlCal(ev._calName)}</div>`:'';
+      html+=`<div class="cal-event">
+        <div class="cal-event-time">${timeStr}</div>
+        <div class="cal-event-dot" style="background:${ev._calColor}"></div>
+        <div><div class="cal-event-title">${escapeHtmlCal(ev.summary||'(geen titel)')}</div>${loc}${calLbl}</div>
+      </div>`;
+    });
+  });
+  html+='</div>';
+  body.innerHTML=html;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   iCal — public calendar fallback
+   ───────────────────────────────────────────────────────────────── */
 function showCalSetup(){
   const body=document.getElementById('calBody');
   const current=getIcalUrl()||'';
@@ -956,41 +1185,27 @@ function showCalSetup(){
     </div>`;
 }
 
-function escapeHtmlCal(s){return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-
 function connectIcal(){
   const url=document.getElementById('icalInput')?.value.trim();
   if(!url){alert('Vul een iCal-link in.');return;}
   if(!url.includes('calendar.google.com')&&!url.endsWith('.ics')){
     if(!confirm('De link ziet er ongebruikelijk uit. Toch doorgaan?'))return;
   }
-  saveIcalUrl(url);
+  if(!rawState.settings)rawState.settings={};
+  rawState.settings.icalUrl=url;
+  rawState.settings.calMode='ical';
+  scheduleSave();
   loadCalendar();
 }
 
 function removeIcal(){
   if(!confirm('Agenda ontkoppelen?'))return;
-  if(rawState.settings)delete rawState.settings.icalUrl;
+  if(rawState.settings){delete rawState.settings.icalUrl;delete rawState.settings.calMode;}
   scheduleSave();loadCalendar();
 }
 
-function toggleCalSettings(){
-  if(getIcalUrl())showCalSetup();
-}
-
-/* ── Fetch & parse ── */
-async function loadCalendar(){
-  const body=document.getElementById('calBody');
-  const url=getIcalUrl();
-  document.getElementById('calSettingsBtn').style.display=url?'':'none';
-
-  if(!url){
-    body.innerHTML=`<div class="placeholder"><div class="placeholder-icon">📅</div><p style="margin-bottom:10px">Koppel een Google Agenda om je afspraken hier te zien.</p><button class="btn btn-sm btn-primary" onclick="showCalSetup()">Agenda koppelen</button></div>`;
-    return;
-  }
-
-  body.innerHTML='<div class="cal-loading"><div class="spinner"></div><span>Agenda laden...</span></div>';
-
+async function loadIcalCalendar(body,url){
+  body.innerHTML='<div class="cal-loading"><span>Agenda laden...</span></div>';
   try{
     const proxyUrl=CORS_PROXY+encodeURIComponent(url);
     const resp=await fetch(proxyUrl,{cache:'no-store'});
@@ -1000,10 +1215,8 @@ async function loadCalendar(){
     const events=parseICS(text);
     renderCalendarEvents(events,body);
   }catch(e){
-    body.innerHTML=`<div style="padding:12px"><div class="cal-error">${escapeHtmlCal(e.message)}</div><div style="padding:0 2px"><button class="btn btn-sm" onclick="showCalSetup()">Instellingen</button></div></div>`;
+    body.innerHTML=`<div style="padding:12px"><div class="cal-error">${escapeHtmlCal(e.message)}</div><div style="padding:4px 0"><button class="btn btn-sm" onclick="showCalSetup()">Instellingen</button></div></div>`;
   }
-
-  /* Auto-refresh elke 15 min */
   clearTimeout(calRefreshTimer);
   calRefreshTimer=setTimeout(loadCalendar,15*60*1000);
 }
