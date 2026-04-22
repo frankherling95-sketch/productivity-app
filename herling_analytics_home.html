@@ -4,181 +4,527 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Herling Analytics</title>
-<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <style>
-  :root{
-    --bg:#f7f6f3;--surface:#fff;--surface2:#f1f0ec;--surface3:#e8e6df;
-    --border:rgba(0,0,0,0.08);--border-strong:rgba(0,0,0,0.15);
-    --text:#1a1a1a;--text-muted:#6b6b6b;--text-hint:#999;
-    --success:#2d6a4f;--success-bg:#e8f5ee;
-    --danger:#8b1a1a;--danger-bg:#fbeaea;
-    --info:#1a4a8b;--info-bg:#e6f0fb;
-    --accent:#3b5bdb;--accent-hover:#304ac8;
-  }
-  @media(prefers-color-scheme:dark){:root{
-    --bg:#0f0f10;--surface:#1a1a1c;--surface2:#242427;--surface3:#2f2f33;
-    --border:rgba(255,255,255,0.08);--border-strong:rgba(255,255,255,0.15);
-    --text:#e8e8e8;--text-muted:#999;--text-hint:#666;
-    --success:#5daa7f;--success-bg:#0d2e1e;
-    --danger:#e07070;--danger-bg:#2e0d0d;
-    --info:#6aabf7;--info-bg:#0d1e2e;
-    --accent:#6b8aff;--accent-hover:#8aa5ff;
-  }}
-  *{box-sizing:border-box}
-  body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:13px;min-height:100vh;margin:0}
+/* ── CSS variables ── */
+:root{
+  --bg:#f7f6f3;--surface:#fff;--surface2:#f1f0ec;--surface3:#e8e6df;
+  --border:rgba(0,0,0,0.08);--border-strong:rgba(0,0,0,0.15);
+  --text:#1a1a1a;--text-muted:#6b6b6b;--text-hint:#999;
+  --success:#2d6a4f;--success-bg:#e8f5ee;
+  --danger:#8b1a1a;--danger-bg:#fbeaea;
+  --info:#1a4a8b;--info-bg:#e6f0fb;
+  --accent:#3b5bdb;--accent-hover:#304ac8;
+  --sidebar-w:240px;
+  --radius:6px;--radius-md:8px;--radius-lg:12px;
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#0f0f10;--surface:#1a1a1c;--surface2:#242427;--surface3:#2f2f33;
+  --border:rgba(255,255,255,0.08);--border-strong:rgba(255,255,255,0.15);
+  --text:#e8e8e8;--text-muted:#999;--text-hint:#666;
+  --success:#5daa7f;--success-bg:#0d2e1e;
+  --danger:#e07070;--danger-bg:#2e0d0d;
+  --info:#6aabf7;--info-bg:#0d1e2e;
+  --accent:#6b8aff;--accent-hover:#8aa5ff;
+}}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:13px;min-height:100vh;overflow:hidden}
 
-  .card{background:var(--surface);border:0.5px solid var(--border);border-radius:12px;display:flex;flex-direction:column;overflow:hidden}
-  .card-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:0.5px solid var(--border);flex-shrink:0}
-  .card-hdr h2{font-size:13px;font-weight:600;margin:0;letter-spacing:.02em}
-  .card-body{flex:1;overflow:auto;padding:12px 16px;min-height:0}
+/* ── App layout ── */
+#appScreen{display:flex;height:100vh;overflow:hidden}
 
-  .btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:6px 12px;font-size:12px;border:0.5px solid var(--border-strong);border-radius:6px;background:transparent;color:var(--text-muted);cursor:pointer;transition:background .15s,color .15s,border-color .15s;font-family:inherit}
-  .btn:hover{background:var(--surface2);color:var(--text)}
-  .btn-sm{padding:3px 8px;font-size:11px}
-  .btn-xs{padding:2px 6px;font-size:11px}
-  .btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
-  .btn-primary:hover{background:var(--accent-hover);color:#fff;border-color:var(--accent-hover)}
-  .btn-success{color:var(--success);border-color:var(--success)}
-  .btn-success:hover{background:var(--success-bg)}
-  .btn-danger{color:var(--danger);border-color:var(--danger)}
-  .btn-danger:hover{background:var(--danger-bg)}
-  .btn-ghost{border-color:transparent;color:var(--text-hint)}
-  .btn-ghost:hover{background:var(--surface2);color:var(--text)}
+/* ── Sidebar ── */
+.sidebar{
+  width:var(--sidebar-w);flex-shrink:0;
+  background:var(--surface);border-right:0.5px solid var(--border);
+  display:flex;flex-direction:column;
+  transition:width 220ms ease;overflow:hidden;
+}
+.sidebar.collapsed{width:56px}
+.sidebar-logo{
+  display:flex;align-items:center;gap:10px;
+  padding:16px 14px 14px;white-space:nowrap;
+}
+.sidebar-logo-icon{
+  width:28px;height:28px;border-radius:8px;
+  background:var(--accent);color:#fff;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:700;letter-spacing:-.02em;
+}
+.sidebar-logo-text{font-size:14px;font-weight:700;color:var(--text);letter-spacing:-.01em;transition:opacity 150ms}
+.sidebar.collapsed .sidebar-logo-text{opacity:0;pointer-events:none}
 
-  input[type=text],input[type=password],textarea{font-family:inherit;color:var(--text);background:var(--surface2);border:0.5px solid var(--border-strong);border-radius:6px;outline:none;padding:7px 9px;font-size:13px;width:100%}
-  input:focus,textarea:focus{border-color:var(--text)}
+.sidebar-scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:0 8px 8px}
+.sidebar-sec-label{
+  font-size:10px;font-weight:600;color:var(--text-hint);
+  text-transform:uppercase;letter-spacing:.06em;
+  padding:10px 6px 3px;white-space:nowrap;
+  transition:opacity 150ms;
+}
+.sidebar.collapsed .sidebar-sec-label{opacity:0}
 
-  .sync-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:6px;font-size:11px}
-  .sync-pill.idle{background:var(--surface2);color:var(--text-muted)}
-  .sync-pill.saving{background:var(--info-bg);color:var(--info)}
-  .sync-pill.saved{background:var(--success-bg);color:var(--success)}
-  .sync-pill.error{background:var(--danger-bg);color:var(--danger)}
-  .sync-dot{width:6px;height:6px;border-radius:50%;background:currentColor}
-  .sync-dot.pulse{animation:pulse 1s infinite}
-  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+/* Nav items */
+.nav-item{
+  display:flex;align-items:center;gap:10px;
+  padding:7px 10px;border-radius:var(--radius);cursor:pointer;
+  color:var(--text-muted);font-size:13px;
+  transition:background .15s,color .15s;
+  white-space:nowrap;overflow:hidden;user-select:none;
+}
+.nav-item:hover{background:var(--surface2);color:var(--text)}
+.nav-item.active{background:var(--surface2);color:var(--text);font-weight:500}
+.nav-icon{width:18px;text-align:center;flex-shrink:0;font-size:14px;line-height:1}
+.nav-label{transition:opacity 150ms}
+.sidebar.collapsed .nav-label{opacity:0;pointer-events:none}
 
-  /* Project stats card */
-  .proj-row{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface2);border-radius:8px;margin-bottom:8px}
-  .proj-name{font-size:13px;font-weight:500;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .proj-nums{font-size:11px;color:var(--text-muted);white-space:nowrap}
-  .proj-bar{width:60px;height:4px;background:var(--surface3);border-radius:2px;overflow:hidden;flex-shrink:0}
-  .proj-bar-fill{height:100%;background:var(--success);transition:width .3s}
-  .proj-pct{font-size:11px;font-weight:600;color:var(--text);min-width:32px;text-align:right}
+/* Client items in sidebar */
+.sidebar-client{
+  display:flex;align-items:center;gap:8px;
+  padding:5px 10px;border-radius:var(--radius);cursor:pointer;
+  color:var(--text-muted);font-size:12px;
+  transition:background .15s,color .15s;
+  white-space:nowrap;overflow:hidden;
+  position:relative;user-select:none;
+}
+.sidebar-client:hover{background:var(--surface2);color:var(--text)}
+.sidebar-client.active-filter{background:var(--surface2);color:var(--text);font-weight:500}
+.client-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+.client-cname{flex:1;overflow:hidden;text-overflow:ellipsis;transition:opacity 150ms}
+.sidebar.collapsed .client-cname{opacity:0;pointer-events:none}
+.client-acts{opacity:0;display:flex;gap:2px;transition:opacity .15s;flex-shrink:0}
+.sidebar-client:hover .client-acts{opacity:1}
+.sidebar.collapsed .sidebar-client:hover .client-acts{opacity:0}
+.client-acts button{
+  background:transparent;border:none;color:var(--text-hint);
+  cursor:pointer;padding:2px 4px;font-size:11px;border-radius:3px;font-family:inherit;
+}
+.client-acts button:hover{background:var(--surface3);color:var(--text)}
+.sidebar-add-btn{
+  background:transparent;border:none;color:var(--text-hint);
+  cursor:pointer;padding:2px 6px;font-size:16px;line-height:1;
+  border-radius:4px;font-family:inherit;transition:opacity 150ms;
+}
+.sidebar.collapsed .sidebar-add-btn{opacity:0;pointer-events:none}
+.sidebar-add-btn:hover{background:var(--surface2);color:var(--text)}
 
-  /* Todo summary big stats */
-  .big-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
-  .big-stat{background:var(--surface2);border-radius:8px;padding:12px}
-  .big-stat-val{font-size:22px;font-weight:700;line-height:1}
-  .big-stat-lbl{font-size:10px;color:var(--text-muted);margin-top:4px;text-transform:uppercase;letter-spacing:.04em}
+/* Inline add-client form */
+.sidebar-inline-form{display:none;flex-direction:column;gap:5px;padding:4px 4px 6px}
+.sidebar-inline-form.open{display:flex}
+.sidebar-inline-form input{
+  width:100%;padding:5px 8px;font-size:12px;
+  border:0.5px solid var(--border-strong);border-radius:var(--radius);
+  background:var(--surface2);color:var(--text);outline:none;font-family:inherit;
+}
+.sidebar-inline-form input:focus{border-color:var(--text)}
+.color-swatches{display:flex;gap:3px;flex-wrap:wrap}
+.color-swatch{width:16px;height:16px;border-radius:4px;cursor:pointer;border:1.5px solid transparent}
+.color-swatch.active{border-color:var(--text)}
 
-  /* Calendar placeholder */
-  .placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;min-height:180px;color:var(--text-hint);text-align:center;gap:10px;padding:30px 14px}
-  .placeholder-icon{width:40px;height:40px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:18px}
+/* Sidebar footer */
+.sidebar-footer{
+  padding:8px;border-top:0.5px solid var(--border);
+  display:flex;flex-direction:column;gap:4px;flex-shrink:0;
+}
+.sidebar-sync{
+  display:flex;align-items:center;gap:6px;
+  padding:4px 8px;border-radius:var(--radius);font-size:11px;
+  background:var(--surface2);color:var(--text-muted);
+  overflow:hidden;white-space:nowrap;
+}
+.sync-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
+.sync-dot.pulse{animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.sync-msg{transition:opacity 150ms;overflow:hidden;text-overflow:ellipsis}
+.sidebar.collapsed .sync-msg{opacity:0}
+.sidebar-sync.saving{background:var(--info-bg);color:var(--info)}
+.sidebar-sync.saved{background:var(--success-bg);color:var(--success)}
+.sidebar-sync.error{background:var(--danger-bg);color:var(--danger)}
+.sidebar-collapse-btn{
+  display:flex;align-items:center;gap:8px;
+  padding:7px 10px;border-radius:var(--radius);cursor:pointer;
+  color:var(--text-hint);font-size:12px;
+  background:transparent;border:none;font-family:inherit;
+  transition:background .15s,color .15s;width:100%;text-align:left;
+  white-space:nowrap;overflow:hidden;
+}
+.sidebar-collapse-btn:hover{background:var(--surface2);color:var(--text)}
+.collapse-icon{font-size:12px;width:18px;text-align:center;flex-shrink:0;transition:transform 220ms}
+.sidebar.collapsed .collapse-icon{transform:rotate(180deg)}
+.collapse-lbl{transition:opacity 150ms}
+.sidebar.collapsed .collapse-lbl{opacity:0}
 
-  /* Calendar */
-  .cal-setup{padding:14px 16px;display:flex;flex-direction:column;gap:10px;height:100%}
-  .cal-setup label{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em}
-  .cal-setup input{width:100%;padding:7px 9px;font-size:12px;border:0.5px solid var(--border-strong);border-radius:6px;background:var(--surface2);color:var(--text);outline:none;font-family:inherit}
-  .cal-setup input:focus{border-color:var(--text)}
-  .cal-setup-hint{font-size:11px;color:var(--text-hint);line-height:1.6}
-  .cal-setup-hint a{color:var(--info)}
-  .cal-events{display:flex;flex-direction:column;height:100%;overflow-y:auto}
-  .cal-day-hdr{padding:8px 14px 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-hint);background:var(--bg);position:sticky;top:0}
-  .cal-event{display:flex;align-items:flex-start;gap:10px;padding:8px 14px;border-bottom:0.5px solid var(--border);transition:background .12s}
-  .cal-event:hover{background:var(--surface2)}
-  .cal-event-time{font-size:11px;color:var(--text-muted);white-space:nowrap;min-width:44px;padding-top:1px}
-  .cal-event-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:4px}
-  .cal-event-title{font-size:12px;color:var(--text);line-height:1.4;word-break:break-word}
-  .cal-event-loc{font-size:11px;color:var(--text-hint);margin-top:1px}
-  .cal-empty{padding:24px 14px;font-size:12px;color:var(--text-hint);text-align:center}
-  .cal-error{padding:14px;font-size:12px;color:var(--danger);background:var(--danger-bg);border-radius:6px;margin:10px 14px}
-  .cal-loading{display:flex;align-items:center;gap:8px;padding:20px 14px;font-size:12px;color:var(--text-muted)}
-  .placeholder p{font-size:12px;line-height:1.5;margin:0}
-  .placeholder small{font-size:11px;color:var(--text-hint)}
+/* ── Main area ── */
+.main-area{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden}
 
-  /* Notes */
-  .notes-layout{display:grid;grid-template-columns:180px 1fr;height:100%;gap:0;overflow:hidden}
-  .notes-sidebar{border-right:0.5px solid var(--border);overflow-y:auto;padding:6px 4px;background:var(--surface);display:flex;flex-direction:column;gap:2px}
-  .notes-sidebar-hdr{display:flex;align-items:center;justify-content:space-between;padding:4px 8px 8px;gap:4px}
-  .notes-sidebar-hdr span{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em}
-  .notes-tree{display:flex;flex-direction:column;gap:1px;flex:1;overflow-y:auto}
-  .note-node{display:flex;align-items:center;gap:4px;padding:4px 6px;border-radius:5px;cursor:pointer;font-size:12px;color:var(--text-muted);transition:background .12s,color .12s;user-select:none;min-width:0;position:relative}
-  .note-node:hover{background:var(--surface2);color:var(--text)}
-  .note-node.active{background:var(--surface2);color:var(--text);font-weight:500}
-  .note-node.drag-over{background:var(--info-bg);color:var(--info)}
-  .note-node.drag-over-top{box-shadow:inset 0 2px 0 var(--accent)}
-  .note-node.drag-over-bottom{box-shadow:inset 0 -2px 0 var(--accent)}
-  .note-chev{font-size:8px;color:var(--text-hint);width:10px;text-align:center;cursor:pointer;flex-shrink:0}
-  .note-chev.collapsed{transform:rotate(-90deg)}
-  .note-icon{font-size:11px;color:var(--text-hint);flex-shrink:0}
-  .note-label{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .note-actions{display:none;gap:1px}
-  .note-node:hover .note-actions{display:flex}
-  .note-actions button{background:transparent;border:none;color:var(--text-hint);cursor:pointer;padding:1px 3px;font-size:10px;border-radius:3px;font-family:inherit}
-  .note-actions button:hover{background:var(--surface3);color:var(--text)}
-  .note-children{margin-left:14px;display:flex;flex-direction:column;gap:1px}
-  .note-node.collapsed + .note-children{display:none}
+/* ── Module topbar ── */
+.module-topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:13px 20px;border-bottom:0.5px solid var(--border);
+  background:var(--surface);flex-shrink:0;gap:12px;
+}
+.module-title{font-size:16px;font-weight:600;color:var(--text)}
+.module-sub{font-size:11px;color:var(--text-muted);margin-top:1px}
 
-  .notes-editor{display:flex;flex-direction:column;overflow:hidden;min-width:0}
-  .notes-editor-hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:0.5px solid var(--border);gap:8px;flex-shrink:0}
-  .notes-title-input{background:transparent;border:none;outline:none;font-size:14px;font-weight:600;color:var(--text);padding:2px 4px;border-radius:4px;width:100%;font-family:inherit}
-  .notes-title-input:focus{background:var(--surface2)}
-  .notes-editor-body{flex:1;overflow-y:auto;padding:12px 16px;min-width:0}
-  .notes-textarea{width:100%;min-height:100%;border:none;background:transparent;padding:0;resize:none;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:1.6;color:var(--text);outline:none}
-  .notes-preview{font-size:13px;line-height:1.6;color:var(--text);word-wrap:break-word}
-  .notes-preview h1{font-size:20px;font-weight:700;margin:0 0 12px;letter-spacing:-0.01em}
-  .notes-preview h2{font-size:16px;font-weight:700;margin:16px 0 8px}
-  .notes-preview h3{font-size:14px;font-weight:600;margin:14px 0 6px}
-  .notes-preview p{margin:0 0 10px}
-  .notes-preview ul,.notes-preview ol{margin:0 0 10px;padding-left:22px}
-  .notes-preview li{margin:2px 0}
-  .notes-preview code{background:var(--surface2);padding:1px 5px;border-radius:3px;font-size:12px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-  .notes-preview pre{background:var(--surface2);padding:10px 12px;border-radius:6px;overflow-x:auto;margin:10px 0}
-  .notes-preview pre code{background:transparent;padding:0}
-  .notes-preview blockquote{border-left:3px solid var(--border-strong);padding:0 12px;color:var(--text-muted);margin:10px 0}
-  .notes-preview a{color:var(--accent);text-decoration:none}
-  .notes-preview a:hover{text-decoration:underline}
-  .notes-preview hr{border:none;border-top:0.5px solid var(--border);margin:14px 0}
-  .notes-preview table{border-collapse:collapse;margin:10px 0}
-  .notes-preview th,.notes-preview td{border:0.5px solid var(--border);padding:4px 8px;font-size:12px}
+/* ── Module containers ── */
+.module{display:none;flex:1;flex-direction:column;overflow:hidden;min-height:0}
+.module.active{display:flex}
 
-  .notes-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text-hint);gap:8px;text-align:center;padding:30px 20px}
+/* ── Buttons ── */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:5px;
+  padding:6px 12px;font-size:12px;border:0.5px solid var(--border-strong);
+  border-radius:var(--radius);background:transparent;color:var(--text-muted);
+  cursor:pointer;transition:background .15s,color .15s,border-color .15s;font-family:inherit;
+}
+.btn:hover{background:var(--surface2);color:var(--text)}
+.btn-sm{padding:4px 9px;font-size:11px}
+.btn-xs{padding:2px 7px;font-size:11px}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-primary:hover{background:var(--accent-hover);color:#fff;border-color:var(--accent-hover)}
+.btn-success{color:var(--success);border-color:var(--success)}
+.btn-success:hover{background:var(--success-bg)}
+.btn-danger{color:var(--danger);border-color:var(--danger)}
+.btn-danger:hover{background:var(--danger-bg)}
+.btn-ghost{border-color:transparent;color:var(--text-hint)}
+.btn-ghost:hover{background:var(--surface2);color:var(--text)}
 
-  /* Setup */
-  .setup-bg{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px;z-index:100}
-  .setup-card{background:var(--surface);border:0.5px solid var(--border);border-radius:12px;padding:24px;max-width:500px;width:100%;display:flex;flex-direction:column;gap:14px}
-  .setup-card h2{font-size:16px;font-weight:600;margin:0}
-  .setup-card p,.setup-card ol{font-size:13px;color:var(--text-muted);line-height:1.6;margin:0}
-  .setup-card ol{padding-left:20px}
-  .setup-card a{color:var(--info)}
+/* ── Inputs ── */
+input[type=text],input[type=password],textarea,select{
+  font-family:inherit;color:var(--text);background:var(--surface2);
+  border:0.5px solid var(--border-strong);border-radius:var(--radius);
+  outline:none;padding:7px 9px;font-size:13px;
+}
+input:focus,textarea:focus,select:focus{border-color:var(--text)}
 
-  /* Modal */
-  .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(2px)}
-  .modal-bg.open{display:flex}
-  .modal{background:var(--surface);border-radius:12px;max-width:420px;width:100%;padding:20px;display:flex;flex-direction:column;gap:10px}
-  .modal h3{font-size:14px;font-weight:600;margin:0}
-  .modal-footer{display:flex;gap:6px;justify-content:flex-end;margin-top:8px}
+/* ── Dashboard ── */
+.dash-topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:13px 20px;border-bottom:0.5px solid var(--border);
+  background:var(--surface);flex-shrink:0;gap:12px;
+}
+.dash-grid{
+  display:grid;grid-template-columns:1fr 1fr 1fr;
+  gap:16px;padding:20px;flex:1;overflow-y:auto;
+  align-content:start;
+}
+@media(max-width:960px){.dash-grid{grid-template-columns:1fr 1fr}}
+.card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-lg);display:flex;flex-direction:column;overflow:hidden;min-height:240px}
+.card-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:0.5px solid var(--border);flex-shrink:0}
+.card-hdr h2{font-size:13px;font-weight:600;margin:0;letter-spacing:.02em}
+.card-body{flex:1;overflow:auto;padding:12px 16px;min-height:0}
+.big-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.big-stat{background:var(--surface2);border-radius:var(--radius-md);padding:12px}
+.big-stat-val{font-size:22px;font-weight:700;line-height:1}
+.big-stat-lbl{font-size:10px;color:var(--text-muted);margin-top:4px;text-transform:uppercase;letter-spacing:.04em}
+.proj-row{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface2);border-radius:var(--radius-md);margin-bottom:8px}
+.proj-name{font-size:13px;font-weight:500;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.proj-nums{font-size:11px;color:var(--text-muted);white-space:nowrap}
+.proj-bar{width:60px;height:4px;background:var(--surface3);border-radius:2px;overflow:hidden;flex-shrink:0}
+.proj-bar-fill{height:100%;background:var(--success);transition:width .3s}
+.proj-pct{font-size:11px;font-weight:600;color:var(--text);min-width:32px;text-align:right}
 
-  /* Context menu */
-  .ctx-menu{position:fixed;background:var(--surface);border:0.5px solid var(--border-strong);border-radius:8px;padding:4px;box-shadow:0 4px 16px rgba(0,0,0,0.12);z-index:300;min-width:180px;display:none;flex-direction:column;gap:1px}
-  .ctx-menu.open{display:flex}
-  .ctx-item{background:transparent;border:none;text-align:left;padding:6px 10px;font-size:12px;color:var(--text);cursor:pointer;border-radius:5px;font-family:inherit;display:flex;align-items:center;gap:8px}
-  .ctx-item:hover{background:var(--surface2)}
-  .ctx-item.danger{color:var(--danger)}
-  .ctx-divider{border-top:0.5px solid var(--border);margin:2px 0}
+/* ── Kanban (Todo) module ── */
+.kanban-topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 20px;border-bottom:0.5px solid var(--border);
+  background:var(--surface);flex-shrink:0;gap:12px;
+}
+.page-title{font-size:16px;font-weight:600;color:var(--text);white-space:nowrap}
+.page-sub{font-size:11px;color:var(--text-muted)}
+.stat-pill{background:var(--surface2);border-radius:var(--radius-md);padding:5px 10px;display:flex;flex-direction:column;min-width:60px}
+.stat-val{font-size:14px;font-weight:600;color:var(--text);line-height:1.2}
+.stat-lbl{font-size:9px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-top:1px}
+.toolbar{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 20px;border-bottom:0.5px solid var(--border);background:var(--bg);
+  flex-shrink:0;
+}
+.toolbar .spacer{flex:1}
+.toolbar select{padding:5px 10px;font-size:12px;background:var(--surface);border:0.5px solid var(--border-strong);border-radius:var(--radius);color:var(--text);cursor:pointer;font-family:inherit;outline:none}
+.toolbar select:hover{border-color:var(--text)}
+.search-input{padding:5px 10px;font-size:12px;background:var(--surface);border:0.5px solid var(--border-strong);border-radius:var(--radius);color:var(--text);font-family:inherit;outline:none;min-width:160px}
+.search-input:focus{border-color:var(--text)}
+.board{flex:1;overflow-x:auto;overflow-y:hidden;padding:16px 20px;display:flex;gap:12px;align-items:flex-start}
+.column{background:var(--surface2);border-radius:var(--radius-lg);width:280px;flex-shrink:0;display:flex;flex-direction:column;max-height:calc(100vh - 220px)}
+.col-hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;gap:8px;flex-shrink:0}
+.col-hdr-left{display:flex;align-items:center;gap:8px;min-width:0;flex:1;cursor:text}
+.col-title{font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:transparent;border:none;outline:none;font-family:inherit;min-width:40px}
+.col-title:focus{background:var(--surface);padding:2px 4px;border-radius:4px;margin:-2px -4px}
+.col-count{font-size:11px;color:var(--text-hint);background:var(--surface);padding:1px 7px;border-radius:10px;flex-shrink:0}
+.col-actions{display:flex;gap:2px;opacity:.3;transition:opacity .15s}
+.column:hover .col-actions{opacity:1}
+.col-actions button{background:transparent;border:none;color:var(--text-hint);cursor:pointer;padding:3px 5px;font-size:12px;border-radius:3px;font-family:inherit}
+.col-actions button:hover{background:var(--surface);color:var(--text)}
+.col-body{padding:0 8px 8px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;flex:1;min-height:40px}
+.col-body.drag-over{background:var(--surface3);border-radius:var(--radius)}
+.cat-group{display:flex;flex-direction:column;gap:6px}
+.cat-hdr{display:flex;align-items:center;justify-content:space-between;padding:4px 4px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-hint);user-select:none;cursor:pointer}
+.cat-hdr-left{display:flex;align-items:center;gap:5px}
+.cat-hdr .cat-chev{font-size:8px;transition:transform .15s}
+.cat-group.collapsed .cat-chev{transform:rotate(-90deg)}
+.cat-group.collapsed .cat-items{display:none}
+.cat-count{background:var(--surface);color:var(--text-hint);padding:0 5px;border-radius:8px;font-weight:500;font-size:9px}
+.cat-items{display:flex;flex-direction:column;gap:6px}
+.card.kanban-card{background:var(--surface);border-radius:var(--radius-md);padding:12px 13px;cursor:grab;transition:box-shadow .15s,transform .15s;position:relative;border-left:3px solid var(--text-hint);min-height:72px;display:flex;flex-direction:column;min-height:0}
+.card.kanban-card:hover{transform:translateY(-1px);box-shadow:0 2px 6px rgba(0,0,0,0.06)}
+.card.kanban-card.dragging{opacity:.4;cursor:grabbing}
+.card.kanban-card.drag-above{box-shadow:0 -3px 0 var(--accent)!important;transform:none}
+.card.kanban-card.drag-below{box-shadow:0 3px 0 var(--accent)!important;transform:none}
+.card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:6px}
+.card-title{font-size:13px;color:var(--text);line-height:1.4;word-wrap:break-word;flex:1;min-width:0}
+.client-badge{font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;flex-shrink:0;white-space:nowrap;max-width:100px;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
+.card-meta{display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:auto;padding-top:6px}
+.card-tag{font-size:10px;padding:1px 6px;border-radius:8px;background:var(--surface2);color:var(--text-muted);font-weight:500}
+.card-expand{background:transparent;border:none;color:var(--text-hint);cursor:pointer;font-size:11px;padding:2px 4px;margin-left:auto;border-radius:3px;font-family:inherit;line-height:1;transition:transform .15s,background .15s}
+.card-expand:hover{background:var(--surface2);color:var(--text)}
+.card-expand.open{transform:rotate(180deg)}
+.card-context{display:none;font-size:12px;color:var(--text-muted);line-height:1.5;padding:8px 10px;margin-top:8px;background:var(--surface2);border-radius:var(--radius);white-space:pre-wrap;word-wrap:break-word}
+.card-context.open{display:block}
+.card-context-empty{font-style:italic;color:var(--text-hint);font-size:11px}
+.add-card-btn{background:transparent;border:1px dashed var(--border-strong);color:var(--text-hint);padding:7px;border-radius:var(--radius-md);cursor:pointer;font-size:11px;font-family:inherit;margin-top:4px;transition:all .15s}
+.add-card-btn:hover{background:var(--surface);color:var(--text);border-color:var(--text-hint)}
+.add-col-btn{background:var(--surface2);border:1px dashed var(--border-strong);color:var(--text-hint);padding:10px 14px;border-radius:var(--radius-lg);cursor:pointer;font-size:12px;font-family:inherit;flex-shrink:0;min-width:180px;align-self:flex-start;transition:all .15s}
+.add-col-btn:hover{background:var(--surface);color:var(--text);border-color:var(--text-hint)}
+
+/* Settings dropdown */
+.settings-wrap{position:relative}
+.settings-dropdown{position:absolute;right:0;top:calc(100%+6px);background:var(--surface);border:0.5px solid var(--border-strong);border-radius:var(--radius-md);padding:4px;box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:300;min-width:200px;display:none;flex-direction:column;gap:1px}
+.settings-dropdown.open{display:flex}
+.settings-item{background:transparent;border:none;text-align:left;padding:7px 11px;font-size:12px;color:var(--text);cursor:pointer;border-radius:5px;font-family:inherit;display:flex;align-items:center;gap:8px;width:100%}
+.settings-item:hover{background:var(--surface2)}
+.settings-item.danger{color:var(--danger)}
+.settings-divider{border-top:0.5px solid var(--border);margin:2px 0}
+
+/* ── Notes module ── */
+.notes-layout{display:grid;grid-template-columns:200px 1fr;flex:1;overflow:hidden}
+.notes-sidebar{border-right:0.5px solid var(--border);overflow-y:auto;padding:6px 4px;background:var(--surface);display:flex;flex-direction:column;gap:2px}
+.notes-sidebar-hdr{display:flex;align-items:center;justify-content:space-between;padding:4px 8px 8px;gap:4px}
+.notes-sidebar-hdr span{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em}
+.notes-tree{display:flex;flex-direction:column;gap:1px;flex:1;overflow-y:auto}
+.note-node{display:flex;align-items:center;gap:4px;padding:4px 6px;border-radius:5px;cursor:pointer;font-size:12px;color:var(--text-muted);transition:background .12s,color .12s;user-select:none;min-width:0;position:relative}
+.note-node:hover{background:var(--surface2);color:var(--text)}
+.note-node.active{background:var(--surface2);color:var(--text);font-weight:500}
+.note-node.drag-over{background:var(--info-bg);color:var(--info)}
+.note-node.drag-over-top{box-shadow:inset 0 2px 0 var(--accent)}
+.note-node.drag-over-bottom{box-shadow:inset 0 -2px 0 var(--accent)}
+.note-node.filtered-out{opacity:.35}
+.note-chev{font-size:8px;color:var(--text-hint);width:10px;text-align:center;cursor:pointer;flex-shrink:0}
+.note-chev.collapsed{transform:rotate(-90deg)}
+.note-icon{font-size:11px;color:var(--text-hint);flex-shrink:0}
+.note-label{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.note-client-dot{width:7px;height:7px;border-radius:2px;flex-shrink:0}
+.note-actions{display:none;gap:1px}
+.note-node:hover .note-actions{display:flex}
+.note-actions button{background:transparent;border:none;color:var(--text-hint);cursor:pointer;padding:1px 3px;font-size:10px;border-radius:3px;font-family:inherit}
+.note-actions button:hover{background:var(--surface3);color:var(--text)}
+.note-children{margin-left:14px;display:flex;flex-direction:column;gap:1px}
+.notes-editor{display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.notes-editor-hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:0.5px solid var(--border);gap:8px;flex-shrink:0;flex-wrap:wrap}
+.notes-title-input{background:transparent;border:none;outline:none;font-size:14px;font-weight:600;color:var(--text);padding:2px 4px;border-radius:4px;flex:1;min-width:0;font-family:inherit}
+.notes-title-input:focus{background:var(--surface2)}
+.notes-editor-body{flex:1;overflow-y:auto;padding:12px 16px;min-width:0}
+.notes-textarea{width:100%;min-height:100%;border:none;background:transparent;padding:0;resize:none;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:1.6;color:var(--text);outline:none}
+.notes-preview{font-size:13px;line-height:1.6;color:var(--text);word-wrap:break-word}
+.notes-preview h1{font-size:20px;font-weight:700;margin:0 0 12px}
+.notes-preview h2{font-size:16px;font-weight:700;margin:16px 0 8px}
+.notes-preview h3{font-size:14px;font-weight:600;margin:14px 0 6px}
+.notes-preview p{margin:0 0 10px}
+.notes-preview ul,.notes-preview ol{margin:0 0 10px;padding-left:22px}
+.notes-preview li{margin:2px 0}
+.notes-preview code{background:var(--surface2);padding:1px 5px;border-radius:3px;font-size:12px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.notes-preview pre{background:var(--surface2);padding:10px 12px;border-radius:6px;overflow-x:auto;margin:10px 0}
+.notes-preview pre code{background:transparent;padding:0}
+.notes-preview blockquote{border-left:3px solid var(--border-strong);padding:0 12px;color:var(--text-muted);margin:10px 0}
+.notes-preview a{color:var(--accent);text-decoration:none}
+.notes-preview a:hover{text-decoration:underline}
+.notes-preview hr{border:none;border-top:0.5px solid var(--border);margin:14px 0}
+.notes-preview table{border-collapse:collapse;margin:10px 0}
+.notes-preview th,.notes-preview td{border:0.5px solid var(--border);padding:4px 8px;font-size:12px}
+.notes-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text-hint);gap:8px;text-align:center;padding:30px 20px}
+.note-client-select{font-size:11px;padding:2px 6px;background:var(--surface2);border:0.5px solid var(--border-strong);border-radius:4px;color:var(--text-muted);cursor:pointer;font-family:inherit;outline:none}
+.note-client-select:focus{border-color:var(--text)}
+
+/* ── Agenda (weekly calendar) module ── */
+.agenda-wrap{display:flex;flex-direction:column;flex:1;overflow:hidden}
+.agenda-hdr{
+  display:flex;align-items:center;gap:10px;
+  padding:12px 20px;border-bottom:0.5px solid var(--border);
+  background:var(--surface);flex-shrink:0;
+}
+.week-nav-btn{background:transparent;border:0.5px solid var(--border-strong);border-radius:var(--radius);padding:5px 10px;font-size:12px;color:var(--text-muted);cursor:pointer;font-family:inherit;transition:background .15s}
+.week-nav-btn:hover{background:var(--surface2);color:var(--text)}
+.week-title{font-size:13px;font-weight:600;color:var(--text);min-width:180px;text-align:center}
+.cal-grid-outer{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.cal-allday-row{
+  display:grid;grid-template-columns:48px repeat(7,1fr);
+  border-bottom:0.5px solid var(--border);flex-shrink:0;
+  min-height:22px;
+}
+.cal-allday-label{font-size:9px;color:var(--text-hint);text-align:right;padding:4px 6px 0;text-transform:uppercase;letter-spacing:.04em}
+.cal-allday-cell{border-left:0.5px solid var(--border);padding:2px 3px;display:flex;flex-direction:column;gap:1px}
+.cal-allday-ev{font-size:10px;border-radius:3px;padding:1px 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#fff}
+.cal-grid-scroll{flex:1;overflow-y:auto;overflow-x:hidden}
+.cal-grid-inner{
+  display:grid;grid-template-columns:48px repeat(7,1fr);
+  min-height:780px; /* 13 hours × 60px */
+}
+.cal-time-col{display:flex;flex-direction:column}
+.cal-time-label{
+  height:60px;font-size:10px;color:var(--text-hint);
+  text-align:right;padding:0 8px;
+  display:flex;align-items:flex-start;justify-content:flex-end;
+  padding-top:0;position:relative;top:-6px;
+}
+.cal-day-col{position:relative;border-left:0.5px solid var(--border)}
+.cal-day-col.today{background:rgba(59,91,219,0.03)}
+.cal-hour-line{position:absolute;left:0;right:0;border-top:0.5px solid var(--border)}
+.cal-ev-block{
+  position:absolute;left:2px;right:2px;
+  border-radius:4px;padding:2px 5px;
+  font-size:10px;line-height:1.3;overflow:hidden;cursor:pointer;
+  border-left:3px solid;min-height:18px;
+}
+.cal-ev-block:hover{filter:brightness(.95)}
+.cal-time-now{position:absolute;left:0;right:0;height:2px;background:#e03131;z-index:10;pointer-events:none}
+.cal-time-now::before{content:'';position:absolute;left:-4px;top:-4px;width:10px;height:10px;border-radius:50%;background:#e03131}
+.cal-day-hdr-row{
+  display:grid;grid-template-columns:48px repeat(7,1fr);
+  border-bottom:0.5px solid var(--border);
+  background:var(--surface);flex-shrink:0;position:sticky;top:0;z-index:5;
+}
+.cal-day-hdr{padding:8px 4px;text-align:center;border-left:0.5px solid var(--border)}
+.cal-day-hdr:first-child{border-left:none}
+.cal-day-name{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em}
+.cal-day-num{font-size:18px;font-weight:400;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:2px auto 0}
+.cal-day-hdr.today .cal-day-num{background:var(--accent);color:#fff;font-weight:600}
+.cal-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:14px;padding:40px;text-align:center;color:var(--text-hint)}
+.cal-placeholder p{font-size:13px;line-height:1.6;margin:0;max-width:340px}
+.cal-placeholder small{font-size:11px}
+.cal-loading{display:flex;align-items:center;gap:8px;padding:20px;font-size:12px;color:var(--text-muted)}
+
+/* Cal list (dashboard mini) */
+.cal-events{display:flex;flex-direction:column;height:100%;overflow-y:auto}
+.cal-day-hdr-lbl{padding:8px 14px 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-hint);background:var(--bg);position:sticky;top:0}
+.cal-event{display:flex;align-items:flex-start;gap:10px;padding:8px 14px;border-bottom:0.5px solid var(--border);transition:background .12s}
+.cal-event:hover{background:var(--surface2)}
+.cal-event-time{font-size:11px;color:var(--text-muted);white-space:nowrap;min-width:44px;padding-top:1px}
+.cal-event-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.cal-event-title{font-size:12px;color:var(--text);line-height:1.4;word-break:break-word}
+.cal-event-loc{font-size:11px;color:var(--text-hint);margin-top:1px}
+.cal-empty{padding:24px 14px;font-size:12px;color:var(--text-hint);text-align:center}
+.cal-error{padding:14px;font-size:12px;color:var(--danger);background:var(--danger-bg);border-radius:var(--radius);margin:10px 14px}
+.cal-setup{padding:14px 16px;display:flex;flex-direction:column;gap:10px;height:100%}
+.cal-setup label{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em}
+.cal-setup-hint{font-size:11px;color:var(--text-hint);line-height:1.6}
+.cal-setup-hint a{color:var(--info)}
+.placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;min-height:160px;color:var(--text-hint);text-align:center;gap:10px;padding:20px 14px}
+.placeholder-icon{width:40px;height:40px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:18px}
+.placeholder p{font-size:12px;line-height:1.5;margin:0}
+
+/* ── Modals ── */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(2px)}
+.modal-bg.open{display:flex}
+.modal{background:var(--surface);border-radius:var(--radius-lg);max-width:460px;width:100%;max-height:90vh;overflow-y:auto;padding:1.25rem}
+.modal h3{font-size:14px;font-weight:600;margin-bottom:.75rem}
+.modal-field{display:flex;flex-direction:column;gap:4px;margin-bottom:.75rem}
+.modal-field label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;font-weight:500}
+.modal-field input,.modal-field textarea,.modal-field select{width:100%;padding:7px 9px;font-size:13px;border:0.5px solid var(--border-strong);border-radius:var(--radius);background:var(--surface2);color:var(--text);outline:none;font-family:inherit}
+.modal-field input:focus,.modal-field textarea:focus,.modal-field select:focus{border-color:var(--text)}
+.modal-field textarea{resize:vertical;min-height:64px}
+.modal-footer{display:flex;gap:6px;justify-content:space-between;margin-top:1rem}
+.modal-footer-left{display:flex;gap:6px}
+.modal-footer-right{display:flex;gap:6px}
+.tag-chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px;min-height:20px}
+.tag-chip-opt{font-size:11px;padding:3px 9px;border-radius:10px;background:var(--surface2);color:var(--text-muted);cursor:pointer;border:1px solid transparent;transition:all .12s;user-select:none}
+.tag-chip-opt:hover{border-color:var(--border-strong);color:var(--text)}
+.tag-chip-opt.selected{background:var(--accent);color:#fff;border-color:var(--accent)}
+.tag-add-row{display:flex;gap:5px}
+.tag-add-row input{flex:1;padding:4px 8px;font-size:12px;border:0.5px solid var(--border-strong);border-radius:var(--radius);background:var(--surface2);color:var(--text);outline:none;font-family:inherit}
+.tag-add-row input:focus{border-color:var(--text)}
+
+/* Import modal */
+.import-modal{max-width:900px;width:95vw;max-height:90vh;display:flex;flex-direction:column;padding:1.25rem;overflow:hidden}
+.import-modal h3{font-size:14px;font-weight:600;margin-bottom:.75rem;flex-shrink:0}
+.drop-zone{border:2px dashed var(--border-strong);border-radius:var(--radius-lg);padding:48px 24px;text-align:center;cursor:pointer;transition:all .15s;color:var(--text-muted);font-size:13px;line-height:1.9}
+.drop-zone:hover,.drop-zone.drag-active{border-color:var(--accent);background:var(--info-bg);color:var(--accent)}
+.drop-zone .drop-icon{font-size:28px;margin-bottom:8px}
+.bulk-bar{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border-radius:var(--radius-md);margin-bottom:10px;flex-wrap:wrap;flex-shrink:0}
+.bulk-bar label{font-size:11px;color:var(--text-muted);font-weight:500;white-space:nowrap}
+.bulk-bar select{padding:4px 8px;font-size:12px;border:0.5px solid var(--border-strong);border-radius:var(--radius);background:var(--surface);color:var(--text);font-family:inherit;outline:none}
+.import-table-wrap{flex:1;overflow:auto;border:0.5px solid var(--border);border-radius:var(--radius-md);min-height:0}
+.import-table{width:100%;border-collapse:collapse;font-size:12px}
+.import-table th{background:var(--surface2);padding:8px 10px;text-align:left;font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);position:sticky;top:0;z-index:2;border-bottom:0.5px solid var(--border)}
+.import-table td{padding:5px 8px;border-top:0.5px solid var(--border);vertical-align:middle}
+.import-table tr:hover td{background:var(--surface2)}
+.import-table tr.row-selected td{background:var(--info-bg)}
+.itbl-input{width:100%;padding:4px 6px;font-size:12px;border:0.5px solid var(--border-strong);border-radius:4px;background:var(--surface);color:var(--text);font-family:inherit;outline:none}
+.itbl-input:focus{border-color:var(--text)}
+.itbl-select{width:100%;padding:4px 6px;font-size:12px;border:0.5px solid var(--border-strong);border-radius:4px;background:var(--surface);color:var(--text);font-family:inherit;outline:none;cursor:pointer}
+.itbl-select:hover{border-color:var(--text)}
+.itag-cell{display:flex;flex-wrap:wrap;gap:3px;align-items:center;cursor:pointer;min-height:26px;padding:2px 4px;border-radius:4px;border:0.5px solid var(--border-strong);background:var(--surface);transition:border-color .12s}
+.itag-cell:hover{border-color:var(--text)}
+.itag-badge{font-size:10px;padding:1px 6px;border-radius:6px;background:var(--accent);color:#fff;font-weight:500;display:inline-flex;align-items:center;gap:3px}
+.itag-badge button{background:transparent;border:none;color:inherit;cursor:pointer;padding:0;font-size:10px;opacity:.7;line-height:1}
+.itag-add-btn{font-size:11px;color:var(--text-hint);padding:1px 4px;border-radius:3px;background:var(--surface2);border:none;cursor:pointer;font-family:inherit}
+.tag-picker-popup{position:fixed;background:var(--surface);border:0.5px solid var(--border-strong);border-radius:var(--radius-md);padding:10px;box-shadow:0 4px 16px rgba(0,0,0,.15);z-index:600;width:240px;display:none;flex-direction:column;gap:8px}
+.tag-picker-popup.open{display:flex}
+.tag-picker-chips{display:flex;flex-wrap:wrap;gap:4px}
+.tag-picker-chip{font-size:11px;padding:3px 9px;border-radius:10px;background:var(--surface2);color:var(--text-muted);cursor:pointer;border:1px solid transparent;transition:all .12s;user-select:none}
+.tag-picker-chip:hover{border-color:var(--border-strong);color:var(--text)}
+.tag-picker-chip.sel{background:var(--accent);color:#fff;border-color:var(--accent)}
+.tag-picker-input-row{display:flex;gap:4px}
+.tag-picker-input-row input{flex:1;padding:4px 7px;font-size:12px;border:0.5px solid var(--border-strong);border-radius:4px;background:var(--surface2);color:var(--text);outline:none;font-family:inherit}
+.tag-picker-input-row input:focus{border-color:var(--text)}
+.tag-picker-footer{display:flex;justify-content:flex-end}
+.add-new-option{font-style:italic;color:var(--accent)}
+
+/* Project context menu */
+.proj-menu{position:fixed;background:var(--surface);border:0.5px solid var(--border-strong);border-radius:8px;padding:4px;box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:400;min-width:160px;display:none;flex-direction:column;gap:1px}
+.proj-menu.open{display:flex}
+.proj-menu-item{background:transparent;border:none;text-align:left;padding:6px 10px;font-size:12px;color:var(--text);cursor:pointer;border-radius:5px;font-family:inherit;display:flex;align-items:center;gap:8px;width:100%}
+.proj-menu-item:hover{background:var(--surface2)}
+.proj-menu-item.danger{color:var(--danger)}
+.proj-menu-divider{border-top:0.5px solid var(--border);margin:2px 0}
+
+/* Note context menu */
+.ctx-menu{position:fixed;background:var(--surface);border:0.5px solid var(--border-strong);border-radius:8px;padding:4px;box-shadow:0 4px 16px rgba(0,0,0,0.12);z-index:300;min-width:180px;display:none;flex-direction:column;gap:1px}
+.ctx-menu.open{display:flex}
+.ctx-item{background:transparent;border:none;text-align:left;padding:6px 10px;font-size:12px;color:var(--text);cursor:pointer;border-radius:5px;font-family:inherit;display:flex;align-items:center;gap:8px}
+.ctx-item:hover{background:var(--surface2)}
+.ctx-item.danger{color:var(--danger)}
+.ctx-divider{border-top:0.5px solid var(--border);margin:2px 0}
+
+/* Undo toast */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:12px;display:flex;align-items:center;gap:10px;z-index:500;box-shadow:0 4px 16px rgba(0,0,0,.2)}
+.toast.hidden{display:none}
+.toast-btn{background:transparent;border:1px solid rgba(128,128,128,.4);color:inherit;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px;font-family:inherit}
+.toast-btn:hover{background:rgba(128,128,128,.15)}
+
+/* Setup */
+.setup-bg{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px;z-index:100}
+.setup-card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:24px;max-width:500px;width:100%;display:flex;flex-direction:column;gap:14px}
+.setup-card h2{font-size:16px;font-weight:600;margin:0}
+.setup-card p,.setup-card ol{font-size:13px;color:var(--text-muted);line-height:1.6;margin:0}
+.setup-card ol{padding-left:20px}
+.setup-card a{color:var(--info)}
+
+/* Spinner */
+.spinner{width:16px;height:16px;border:2px solid var(--border-strong);border-top-color:var(--text-muted);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-state{display:flex;align-items:center;gap:10px;padding:2rem;color:var(--text-muted);font-size:13px;justify-content:center}
 </style>
 </head>
-<body class="min-h-screen">
+<body>
 
-<!-- Setup screen -->
+<!-- ── Setup screen ── -->
 <div id="setupScreen" class="setup-bg" style="display:none">
   <div class="setup-card">
-    <h2>Herling Analytics Dashboard</h2>
-    <p>Koppel je GitHub-account zodat je data op elk apparaat beschikbaar is. Er wordt een private Gist aangemaakt waarin To-Do's en notities worden opgeslagen.</p>
+    <h2>Herling Analytics</h2>
+    <p>Koppel je GitHub-account zodat je data op elk apparaat beschikbaar is. Er wordt een private Gist aangemaakt voor To-Do's en notities.</p>
     <ol>
       <li>Ga naar <a href="https://github.com/settings/tokens/new" target="_blank" rel="noopener">github.com/settings/tokens/new</a></li>
       <li>Naam: bijv. <em>herling-dashboard</em></li>
@@ -186,161 +532,505 @@
       <li>Klik <strong>Generate token</strong>, kopieer en plak hier:</li>
     </ol>
     <input type="password" id="tokenInput" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"/>
-    <div class="flex justify-end">
+    <div style="display:flex;justify-content:flex-end">
       <button class="btn btn-primary" onclick="saveToken()">Verbinden</button>
     </div>
     <p style="font-size:11px;color:var(--text-hint)">Token wordt alleen lokaal opgeslagen (localStorage).</p>
   </div>
 </div>
 
-<!-- App screen -->
+<!-- ── App screen ── -->
 <div id="appScreen" style="display:none">
-  <!-- Top bar -->
-  <header style="background:var(--surface);border-bottom:0.5px solid var(--border);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px">
-    <div>
-      <h1 style="font-size:18px;font-weight:700;margin:0;letter-spacing:-0.01em">Herling Analytics</h1>
-      <p style="font-size:11px;color:var(--text-muted);margin:0" id="todayStr"></p>
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon">HA</div>
+      <span class="sidebar-logo-text">Herling Analytics</span>
     </div>
-    <div style="display:flex;align-items:center;gap:8px">
-      <div class="sync-pill idle" id="syncBar"><div class="sync-dot" id="syncDot"></div><span id="syncMsg">—</span></div>
-      <button class="btn btn-sm" onclick="forceSave()">↑ Opslaan</button>
-      <button class="btn btn-sm btn-ghost" onclick="showTokenSettings()" title="Token instellen">⚙</button>
-    </div>
-  </header>
 
-  <!-- Dashboard grid -->
-  <main style="display:grid;grid-template-columns:1fr 2fr;gap:16px;padding:24px;height:calc(100vh - 62px);box-sizing:border-box">
-
-    <!-- Left column: To-Do (top) + Agenda (bottom) -->
-    <div style="display:grid;grid-template-rows:1fr 1fr;gap:16px;min-height:0">
-
-      <!-- To-Do preview -->
-      <div class="card">
-        <div class="card-hdr">
-          <h2>✓ To-Do overzicht</h2>
-          <button class="btn btn-xs btn-primary" onclick="openTodoApp()">Open app ↗</button>
-        </div>
-        <div class="card-body" id="todoBody">
-          <div style="color:var(--text-hint);font-size:12px;padding:20px 0;text-align:center">Taken laden...</div>
-        </div>
+    <div class="sidebar-scroll">
+      <!-- Navigation -->
+      <div class="sidebar-sec-label">Navigatie</div>
+      <div class="nav-item active" data-mod="dashboard" onclick="switchModule('dashboard')">
+        <span class="nav-icon">⊞</span><span class="nav-label">Dashboard</span>
+      </div>
+      <div class="nav-item" data-mod="todo" onclick="switchModule('todo')">
+        <span class="nav-icon">✓</span><span class="nav-label">To Do</span>
+      </div>
+      <div class="nav-item" data-mod="notes" onclick="switchModule('notes')">
+        <span class="nav-icon">📝</span><span class="nav-label">Notities</span>
+      </div>
+      <div class="nav-item" data-mod="agenda" onclick="switchModule('agenda')">
+        <span class="nav-icon">📅</span><span class="nav-label">Agenda</span>
       </div>
 
-      <!-- Calendar -->
-      <div class="card">
-        <div class="card-hdr">
-          <h2>📅 Agenda</h2>
-          <button class="btn btn-xs" id="calSettingsBtn" onclick="toggleCalSettings()" style="display:none">⚙</button>
+      <!-- Clients / filter -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px">
+        <div class="sidebar-sec-label" style="margin:0;padding-top:10px">Klanten</div>
+        <button class="sidebar-add-btn" onclick="showAddClient()" title="Klant toevoegen" style="margin-top:8px">+</button>
+      </div>
+      <div id="sidebarClientList"></div>
+      <div class="sidebar-inline-form" id="addClientForm">
+        <input type="text" id="newClientName" placeholder="Klantnaam..."
+          onkeydown="if(event.key==='Enter')createClient();if(event.key==='Escape')hideAddClient()"/>
+        <div class="color-swatches" id="newClientColors"></div>
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-xs btn-success" onclick="createClient()">Toevoegen</button>
+          <button class="btn btn-xs" onclick="hideAddClient()">Annuleer</button>
         </div>
-        <div class="card-body" id="calBody" style="padding:0;overflow:hidden">
-          <div class="placeholder">
-            <div class="placeholder-icon">📅</div>
-            <p style="margin-bottom:10px">Koppel een Google Agenda om je afspraken hier te zien.</p>
-            <button class="btn btn-sm btn-primary" onclick="showCalSetup()">Agenda koppelen</button>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-sync idle" id="syncBar">
+        <div class="sync-dot" id="syncDot"></div>
+        <span class="sync-msg" id="syncMsg">—</span>
+      </div>
+      <button class="sidebar-collapse-btn" onclick="toggleSidebar()">
+        <span class="collapse-icon">◀</span>
+        <span class="collapse-lbl">Inklappen</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main area -->
+  <div class="main-area">
+
+    <!-- ══ Module: Dashboard ══ -->
+    <div id="mod-dashboard" class="module active">
+      <div class="dash-topbar">
+        <div>
+          <div class="module-title">Dashboard</div>
+          <div class="module-sub" id="todayStr"></div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn btn-sm" onclick="forceSave()">↑ Opslaan</button>
+          <button class="btn btn-sm btn-ghost" onclick="showTokenSettings()" title="Instellingen">⚙</button>
+        </div>
+      </div>
+      <div class="dash-grid">
+        <div class="card">
+          <div class="card-hdr">
+            <h2>✓ To-Do overzicht</h2>
+            <button class="btn btn-xs btn-primary" onclick="switchModule('todo')">Bekijk ↗</button>
+          </div>
+          <div class="card-body" id="dashTodoBody">
+            <div class="loading-state"><div class="spinner"></div><span>Laden...</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-hdr">
+            <h2>📝 Recente notities</h2>
+            <button class="btn btn-xs btn-primary" onclick="switchModule('notes')">Bekijk ↗</button>
+          </div>
+          <div class="card-body" id="dashNotesBody">
+            <div class="loading-state"><div class="spinner"></div><span>Laden...</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-hdr">
+            <h2>📅 Agenda</h2>
+            <div style="display:flex;gap:4px">
+              <button class="btn btn-xs" id="dashCalSettingsBtn" onclick="toggleDashCalSettings()" style="display:none">⚙</button>
+              <button class="btn btn-xs btn-primary" onclick="switchModule('agenda')">Bekijk ↗</button>
+            </div>
+          </div>
+          <div class="card-body" id="dashCalBody" style="padding:0;overflow:hidden">
+            <div class="placeholder">
+              <div class="placeholder-icon">📅</div>
+              <p>Koppel een Google Agenda om je afspraken te zien.</p>
+              <button class="btn btn-sm btn-primary" onclick="switchModule('agenda')">Agenda koppelen</button>
+            </div>
           </div>
         </div>
       </div>
-
     </div>
 
-    <!-- Right column: Notes (2/3) -->
-    <div class="card" style="min-height:0">
-      <div class="card-hdr">
-        <h2>📝 Notities</h2>
-        <div style="display:flex;gap:4px">
+    <!-- ══ Module: Todo (Kanban) ══ -->
+    <div id="mod-todo" class="module">
+      <!-- Kanban topbar -->
+      <div class="kanban-topbar">
+        <div style="min-width:0">
+          <div class="page-title" id="pageTitle">Laden...</div>
+          <div class="page-sub" id="pageSub"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+          <div class="stat-pill"><div class="stat-val" id="sDone">0</div><div class="stat-lbl">Afgerond</div></div>
+          <div class="stat-pill"><div class="stat-val" id="sTotal">0</div><div class="stat-lbl">Totaal</div></div>
+          <div class="stat-pill"><div class="stat-val" id="sPct">0%</div><div class="stat-lbl">Voltooid</div></div>
+          <button class="btn btn-sm btn-primary" onclick="openNewItemModal()">+ Nieuw</button>
+          <div class="settings-wrap">
+            <button class="btn btn-sm" id="settingsBtn" onclick="toggleSettings(event)">⚙ Instellingen</button>
+            <div class="settings-dropdown" id="settingsDropdown">
+              <div style="padding:4px 11px 2px;font-size:10px;font-weight:600;color:var(--text-hint);text-transform:uppercase;letter-spacing:.05em">Project</div>
+              <div id="projectMenuList"></div>
+              <div class="settings-divider"></div>
+              <button class="settings-item" onclick="closeSettings();showAddProject()">+ Nieuw project</button>
+              <div class="settings-divider"></div>
+              <button class="settings-item" onclick="closeSettings();openImport()">↑ Importeren (CSV / Excel)</button>
+              <button class="settings-item" onclick="closeSettings();exportData()">↓ Exporteren (CSV)</button>
+              <div class="settings-divider"></div>
+              <button class="settings-item" onclick="closeSettings();showTokenSettings()">⚙ Token instellen</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Toolbar -->
+      <div class="toolbar">
+        <input class="search-input" type="text" id="searchInput" placeholder="🔍 Zoeken..." oninput="setSearch(this.value)"/>
+        <select id="filterCategory" onchange="setCategoryFilter(this.value)">
+          <option value="">Alle categorieën</option>
+        </select>
+        <div class="spacer"></div>
+        <select id="categoryGroupingSelect" onchange="setCategoryGrouping(this.value)">
+          <option value="grouped">Groeperen per categorie</option>
+          <option value="flat">Geen groepering</option>
+        </select>
+      </div>
+      <!-- Board -->
+      <div id="board" class="board">
+        <div class="loading-state"><div class="spinner"></div><span>Laden uit GitHub Gist...</span></div>
+      </div>
+      <!-- Add project inline form (hidden) -->
+      <div id="addProjectFormWrap" style="display:none;position:fixed;inset:0;z-index:150;align-items:center;justify-content:center;background:rgba(0,0,0,.4);backdrop-filter:blur(2px)">
+        <div style="background:var(--surface);border-radius:var(--radius-lg);padding:20px;width:320px;display:flex;flex-direction:column;gap:10px">
+          <div style="font-size:14px;font-weight:600">Nieuw project aanmaken</div>
+          <input type="text" id="newProjectName" placeholder="Projectnaam..."
+            onkeydown="if(event.key==='Enter')createProject();if(event.key==='Escape')hideAddProject()"/>
+          <div style="display:flex;gap:6px;justify-content:flex-end">
+            <button class="btn btn-sm" onclick="hideAddProject()">Annuleer</button>
+            <button class="btn btn-sm btn-primary" onclick="createProject()">Aanmaken</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ Module: Notes ══ -->
+    <div id="mod-notes" class="module">
+      <div class="module-topbar">
+        <div style="font-size:16px;font-weight:600">Notities</div>
+        <div style="display:flex;gap:4px;align-items:center">
           <button class="btn btn-xs" id="noteEditToggle" onclick="toggleNoteEdit()" style="display:none">✎ Bewerken</button>
           <button class="btn btn-xs" onclick="createNote(null)">+ Nieuw</button>
+          <button class="btn btn-xs btn-ghost" onclick="createFolder(null)" title="Nieuwe groep">📁+</button>
         </div>
       </div>
-      <div class="card-body" style="padding:0">
-        <div class="notes-layout">
-          <div class="notes-sidebar">
-            <div class="notes-sidebar-hdr">
-              <span>Pagina's</span>
-              <button class="btn btn-xs btn-ghost" onclick="createFolder(null)" title="Nieuwe groep">📁+</button>
-            </div>
-            <div class="notes-tree" id="notesTree"></div>
-          </div>
-          <div class="notes-editor">
-            <div id="noteContent">
-              <div class="notes-empty">
-                <div style="font-size:24px">📝</div>
-                <p>Geen notitie geselecteerd</p>
-                <button class="btn btn-sm btn-primary" onclick="createNote(null)">+ Eerste notitie maken</button>
-              </div>
+      <div class="notes-layout">
+        <div class="notes-sidebar">
+          <div class="notes-tree" id="notesTree"></div>
+        </div>
+        <div class="notes-editor">
+          <div id="noteContent">
+            <div class="notes-empty">
+              <div style="font-size:24px">📝</div>
+              <p>Geen notitie geselecteerd</p>
+              <button class="btn btn-sm btn-primary" onclick="createNote(null)">+ Eerste notitie maken</button>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-  </main>
-</div>
+    <!-- ══ Module: Agenda ══ -->
+    <div id="mod-agenda" class="module">
+      <div class="agenda-wrap">
+        <div class="agenda-hdr">
+          <div style="font-size:16px;font-weight:600;margin-right:4px">Agenda</div>
+          <button class="week-nav-btn" onclick="changeWeek(-1)">← Vorige week</button>
+          <span class="week-title" id="weekTitle">Week van ...</span>
+          <button class="week-nav-btn" onclick="changeWeek(1)">Volgende week →</button>
+          <div style="flex:1"></div>
+          <button class="btn btn-xs" id="agendaSettingsBtn" onclick="toggleAgendaCalSettings()" style="display:none">⚙</button>
+          <button class="btn btn-sm btn-primary" id="agendaConnectBtn" onclick="signInGoogle()">Google Calendar koppelen</button>
+        </div>
+        <div id="agendaContent" style="flex:1;overflow:hidden;display:flex;flex-direction:column">
+          <div class="cal-placeholder">
+            <div style="font-size:32px">📅</div>
+            <p>Koppel je Google Agenda om je afspraken in de weekweergave te zien.</p>
+            <button class="btn btn-sm btn-primary" onclick="signInGoogle()">🔐 Inloggen met Google</button>
+            <button class="btn btn-sm" onclick="showAgendaIcalSetup()">iCal-link koppelen</button>
+            <small>OAuth geeft toegang tot al je privé-agenda's</small>
+          </div>
+        </div>
+      </div>
+    </div>
 
-<!-- Rename modal -->
-<div class="modal-bg" id="renameModal">
+  </div><!-- /main-area -->
+</div><!-- /appScreen -->
+
+<!-- ── Item modal (kanban) ── -->
+<div class="modal-bg" id="itemModal">
   <div class="modal">
-    <h3 id="renameModalTitle">Hernoemen</h3>
-    <input type="text" id="renameInput"/>
+    <h3 id="itemModalTitle">Nieuw item</h3>
+    <div class="modal-field">
+      <label>Titel</label>
+      <input type="text" id="itemTitle" placeholder="Titel van het item..."/>
+    </div>
+    <div class="modal-field" id="itemColumnField">
+      <label>Kolom</label>
+      <select id="itemColumn"></select>
+    </div>
+    <div class="modal-field">
+      <label>Klant</label>
+      <select id="itemClient"></select>
+    </div>
+    <div class="modal-field">
+      <label>Categorie</label>
+      <select id="itemCategory"></select>
+    </div>
+    <div class="modal-field">
+      <label>Context / notities</label>
+      <textarea id="itemContext" placeholder="Extra informatie, links, context..."></textarea>
+    </div>
+    <div class="modal-field">
+      <label>Tags</label>
+      <div class="tag-chips" id="itemTagChips"></div>
+      <div class="tag-add-row">
+        <input type="text" id="itemTagNew" placeholder="Nieuwe tag toevoegen..."
+          onkeydown="if(event.key==='Enter'){event.preventDefault();addNewTag()}"/>
+        <button class="btn btn-xs" onclick="addNewTag()">+</button>
+      </div>
+    </div>
+    <div class="modal-field" id="itemDatesField" style="display:none">
+      <label>Tijdlijn</label>
+      <div id="itemDates" style="font-size:12px;color:var(--text-muted);line-height:1.7"></div>
+    </div>
     <div class="modal-footer">
-      <button class="btn btn-sm" onclick="closeRenameModal()">Annuleer</button>
-      <button class="btn btn-sm btn-primary" onclick="confirmRename()">Opslaan</button>
+      <div class="modal-footer-left">
+        <button class="btn btn-sm btn-danger" id="itemDeleteBtn" onclick="deleteCurrentItem()" style="display:none">Verwijderen</button>
+      </div>
+      <div class="modal-footer-right">
+        <button class="btn btn-sm" onclick="closeItemModal()">Annuleer</button>
+        <button class="btn btn-sm btn-primary" onclick="saveItem()">Opslaan</button>
+      </div>
     </div>
   </div>
 </div>
 
-<!-- Context menu -->
+<!-- ── Category modal ── -->
+<div class="modal-bg" id="catModal">
+  <div class="modal">
+    <h3>Categorieën beheren</h3>
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:.75rem">Categorieën bepalen de groepering binnen elke kolom.</p>
+    <div id="catList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:1rem"></div>
+    <div class="modal-field">
+      <label>Nieuwe categorie toevoegen</label>
+      <div style="display:flex;gap:6px">
+        <input type="text" id="newCatName" placeholder="Categorienaam..."
+          onkeydown="if(event.key==='Enter')addCategory()"/>
+        <button class="btn btn-sm btn-success" onclick="addCategory()">+</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <div></div>
+      <div class="modal-footer-right"><button class="btn btn-sm" onclick="closeCatModal()">Sluiten</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Rename modal (notes) ── -->
+<div class="modal-bg" id="renameModal">
+  <div class="modal" style="max-width:360px">
+    <h3 id="renameModalTitle">Hernoemen</h3>
+    <input type="text" id="renameInput" style="width:100%"/>
+    <div class="modal-footer">
+      <div></div>
+      <div class="modal-footer-right">
+        <button class="btn btn-sm" onclick="closeRenameModal()">Annuleer</button>
+        <button class="btn btn-sm btn-primary" onclick="confirmRename()">Opslaan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Import modal ── -->
+<div class="modal-bg" id="importModal">
+  <div class="modal import-modal">
+    <div id="importStep1">
+      <h3>Importeren — Bestand kiezen</h3>
+      <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()"
+           ondragover="event.preventDefault();this.classList.add('drag-active')"
+           ondragleave="this.classList.remove('drag-active')"
+           ondrop="event.preventDefault();this.classList.remove('drag-active');handleImportFile(event.dataTransfer.files[0])">
+        <div class="drop-icon">📂</div>
+        <div><strong>Sleep een bestand hierheen</strong> of klik om te bladeren</div>
+        <div style="font-size:11px;color:var(--text-hint);margin-top:4px">CSV · XLSX · XLS</div>
+      </div>
+      <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" style="display:none"
+        onchange="handleImportFile(this.files[0])"/>
+      <div style="margin-top:14px;padding:10px 12px;background:var(--surface2);border-radius:var(--radius-md);font-size:12px;color:var(--text-muted);line-height:1.7">
+        <strong style="color:var(--text)">Herkende kolomnamen:</strong><br>
+        <span style="color:var(--text)">Titel</span> · titel, title, naam, name<br>
+        <span style="color:var(--text)">Klant</span> · klant, client, opdrachtgever<br>
+        <span style="color:var(--text)">Categorie</span> · categorie, category, fase<br>
+        <span style="color:var(--text)">Kolom</span> · kolom, column, status<br>
+        <span style="color:var(--text)">Tags</span> · tags, tag, labels
+      </div>
+      <div class="modal-footer" style="margin-top:1rem">
+        <div></div>
+        <button class="btn btn-sm" onclick="closeImportModal()">Annuleer</button>
+      </div>
+    </div>
+    <div id="importStep2" style="display:none;flex-direction:column;flex:1;min-height:0;gap:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+        <h3 style="margin:0">Items verrijken <span id="importCount" style="font-weight:400;color:var(--text-muted)"></span></h3>
+      </div>
+      <div class="bulk-bar">
+        <label>Bulk toewijzen:</label>
+        <select id="bulkColSel"><option value="">— Kolom —</option></select>
+        <select id="bulkClientSel"><option value="">— Klant —</option></select>
+        <select id="bulkCatSel"><option value="">— Categorie —</option></select>
+        <button class="btn btn-xs btn-primary" onclick="applyBulk()">Toepassen</button>
+        <div style="flex:1"></div>
+        <label style="display:flex;align-items:center;gap:5px;cursor:pointer">
+          <input type="checkbox" id="selectAllChk" onchange="toggleSelectAll(this.checked)"/> Alles
+        </label>
+      </div>
+      <div class="import-table-wrap">
+        <table class="import-table">
+          <thead>
+            <tr>
+              <th style="width:36px"></th>
+              <th style="min-width:180px">Titel</th>
+              <th style="width:130px">Kolom</th>
+              <th style="width:120px">Klant</th>
+              <th style="width:130px">Categorie</th>
+              <th style="width:150px">Tags</th>
+              <th style="width:32px"></th>
+            </tr>
+          </thead>
+          <tbody id="importTableBody"></tbody>
+        </table>
+      </div>
+      <div class="modal-footer" style="flex-shrink:0;margin-top:0">
+        <button class="btn btn-sm" onclick="showImportStep(1)">← Terug</button>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-sm" onclick="closeImportModal()">Annuleer</button>
+          <button class="btn btn-sm btn-primary" onclick="executeImport()">↑ Importeren</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Tag picker ── -->
+<div class="tag-picker-popup" id="tagPickerPopup">
+  <div style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em">Tags selecteren</div>
+  <div class="tag-picker-chips" id="tagPickerChips"></div>
+  <div class="tag-picker-input-row">
+    <input type="text" id="tagPickerInput" placeholder="Nieuwe tag..."
+      onkeydown="if(event.key==='Enter'){event.preventDefault();addTagFromPicker()}"/>
+    <button class="btn btn-xs" onclick="addTagFromPicker()">+</button>
+  </div>
+  <div class="tag-picker-footer">
+    <button class="btn btn-xs btn-primary" onclick="closeTagPicker()">Klaar</button>
+  </div>
+</div>
+
+<!-- ── Project context menu ── -->
+<div class="proj-menu" id="projMenu">
+  <button class="proj-menu-item" onclick="projMenuAction('rename')">✎ Hernoemen</button>
+  <div class="proj-menu-divider"></div>
+  <button class="proj-menu-item danger" onclick="projMenuAction('reset')">↺ Reset (items wissen)</button>
+  <button class="proj-menu-item danger" onclick="projMenuAction('delete')">✕ Verwijderen</button>
+</div>
+
+<!-- ── Note context menu ── -->
 <div class="ctx-menu" id="noteCtxMenu"></div>
 
+<!-- ── Undo toast ── -->
+<div class="toast hidden" id="undoToast">
+  <span id="undoToastMsg">Item verwijderd</span>
+  <button class="toast-btn" onclick="undoDelete()">↩ Ongedaan maken</button>
+  <button class="toast-btn" onclick="hideToast()" style="padding:3px 6px;opacity:.6">✕</button>
+</div>
+
 <script>
-/* ─────────────────────────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════
    CONFIG
-   ───────────────────────────────────────────────────────────────── */
+   ═══════════════════════════════════════════════════ */
 const GIST_FILENAME='bi_checklist_kanban.json';
 const LS_TOKEN_KEY='bi_checklist_gh_token';
 const LS_GIST_KEY='bi_checklist_gist_id_kanban';
 const GOOGLE_CLIENT_ID='266043991273-men8tuo5nrksbav97o5p4ubmqmu92bt3.apps.googleusercontent.com';
 const GOOGLE_CAL_SCOPE='https://www.googleapis.com/auth/calendar.readonly';
-const TODO_APP_URL='bi_checklist_kanban.html';
+const CORS_PROXY='https://corsproxy.io/?';
 
-/* ─────────────────────────────────────────────────────────────────
+const CLIENT_COLORS=[
+  {bg:'#ffd6cc',tx:'#7a2b15'},{bg:'#cce5ff',tx:'#0c4a7c'},
+  {bg:'#d1ecdf',tx:'#0e5a3f'},{bg:'#e3dcff',tx:'#3c3489'},
+  {bg:'#ffe8b8',tx:'#6e4400'},{bg:'#ffd0e0',tx:'#8a2b4d'},
+  {bg:'#d5ecff',tx:'#1a5a8b'},{bg:'#c9efd9',tx:'#2c6a3e'}
+];
+const DEFAULT_CATEGORIES=['Intake & scoping','Data engineering','Semantic model','Rapportage','Testing & validatie','Oplevering & documentatie'];
+const DEFAULT_COLUMNS=[
+  {id:'col_new',title:'New task',isCompleted:false},
+  {id:'col_sched',title:'Scheduled',isCompleted:false},
+  {id:'col_progress',title:'In progress',isCompleted:false},
+  {id:'col_done',title:'Completed',isCompleted:true}
+];
+
+/* ═══════════════════════════════════════════════════
    STATE
-   ───────────────────────────────────────────────────────────────── */
+   ═══════════════════════════════════════════════════ */
 let ghToken=null, gistId=null, saveTimer=null;
-let rawState={};           // entire loaded gist content (includes tasks + notes + settings)
+let rawState={tasks:{},notes:{},settings:{}};
+
+/* Kanban state */
+let kanbanState={projects:{},activeProject:null,clients:[],tags:[],categoryGrouping:'grouped'};
+
+/* Notes state */
 let notesState={tree:[],activeId:null,collapsed:{}};
-let tasksState={projects:{},activeProject:null,clients:[]};
-let editMode=false;
-let renameTarget=null;
 
-/* Google Calendar OAuth */
-let gTokenClient=null;
-let gAccessToken=null;
-let gTokenRefreshTimer=null;
+/* Navigation */
+let activeModule='dashboard';
+let sidebarCollapsed=false;
+let activeClientFilter=''; /* shared across todo + notes */
 
-/* Drag & drop state for notes */
+/* Kanban working state */
+let activeCategoryFilter='',searchQuery='';
+let editingItem=null,draggedItem=null,dragOverTarget=null;
+let deletedItemBuffer=null,toastTimer=null;
+let projMenuTarget=null;
+let importRows=[];
+
+/* Notes working state */
+let noteEditMode=false,renameTarget=null;
 let noteDrag={id:null};
 
-/* ─────────────────────────────────────────────────────────────────
+/* Calendar */
+let gTokenClient=null,gAccessToken=null,gTokenRefreshTimer=null;
+let agendaWeekOffset=0;
+let cachedWeekEvents=[];
+let calRefreshTimer=null;
+let newClientColorIdx=0;
+
+/* ═══════════════════════════════════════════════════
    UTILS
-   ───────────────────────────────────────────────────────────────── */
-function uid(){return 'nt_'+Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-4);}
+   ═══════════════════════════════════════════════════ */
+function uid(){return 'id_'+Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);}
+function ntuid(){return 'nt_'+Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-4);}
 function escapeHtml(s){return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function debounce(fn,ms){let t;return function(){clearTimeout(t);t=setTimeout(()=>fn.apply(this,arguments),ms);};}
+function buildFreshProject(){return{columns:DEFAULT_COLUMNS.map(c=>({...c,items:[]})),categories:[...DEFAULT_CATEGORIES],collapsedCats:{}};}
+function clientById(id){return kanbanState.clients.find(c=>c.id===id);}
+function currentProject(){return kanbanState.projects[kanbanState.activeProject];}
+function formatToday(){
+  return new Date().toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+}
+
+/* ── Sync bar ── */
 function setSync(type,msg){
-  const bar=document.getElementById('syncBar');
-  const dot=document.getElementById('syncDot');
-  bar.className='sync-pill '+type;
+  const bar=document.getElementById('syncBar'),dot=document.getElementById('syncDot');
+  bar.className='sidebar-sync '+type;
   dot.className='sync-dot'+(type==='saving'?' pulse':'');
   document.getElementById('syncMsg').textContent=msg;
 }
-function formatToday(){
-  const d=new Date();
-  return d.toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-}
 
-/* ─────────────────────────────────────────────────────────────────
-   TOKEN
-   ───────────────────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════
+   TOKEN / AUTH
+   ═══════════════════════════════════════════════════ */
 function loadToken(){
   ghToken=localStorage.getItem(LS_TOKEN_KEY)||null;
   gistId=localStorage.getItem(LS_GIST_KEY)||null;
@@ -348,10 +1038,9 @@ function loadToken(){
 function saveToken(){
   const v=document.getElementById('tokenInput').value.trim();
   if(!v||!v.startsWith('gh')){alert('Ongeldig token');return;}
-  localStorage.setItem(LS_TOKEN_KEY,v);
-  ghToken=v;
+  localStorage.setItem(LS_TOKEN_KEY,v);ghToken=v;
   document.getElementById('setupScreen').style.display='none';
-  document.getElementById('appScreen').style.display='block';
+  document.getElementById('appScreen').style.display='flex';
   boot();
 }
 function showTokenSettings(){
@@ -360,9 +1049,9 @@ function showTokenSettings(){
   document.getElementById('tokenInput').value=ghToken||'';
 }
 
-/* ─────────────────────────────────────────────────────────────────
-   GITHUB API
-   ───────────────────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════
+   GITHUB GIST API
+   ═══════════════════════════════════════════════════ */
 async function gistRequest(method,path,body){
   const res=await fetch('https://api.github.com'+path,{
     method,
@@ -378,15 +1067,40 @@ async function gistRequest(method,path,body){
   return res.status===204?null:res.json();
 }
 
+function migrateOldKanban(loaded){
+  /* If loaded is old flat format (no clients array), migrate it */
+  if(loaded&&loaded.projects&&!loaded.clients){
+    const migrated={projects:{},activeProject:loaded.active||Object.keys(loaded.projects)[0],
+      clients:[],tags:[],categoryGrouping:'grouped'};
+    for(const[pname,sections]of Object.entries(loaded.projects)){
+      const np=buildFreshProject();
+      if(Array.isArray(sections)){
+        sections.forEach(sec=>{
+          sec.items.forEach(it=>{
+            const item={id:uid(),title:it.label||it.title||'Onbekend',clientId:null,
+              category:sec.title,context:it.context||'',tags:Array.isArray(it.tags)?[...it.tags]:[],
+              createdAt:Date.now(),updatedAt:Date.now()};
+            (it.checked?np.columns[3]:np.columns[0]).items.push(item);
+          });
+          if(sec.title&&!np.categories.includes(sec.title))np.categories.push(sec.title);
+        });
+      }
+      migrated.projects[pname]=np;
+    }
+    return migrated;
+  }
+  return loaded;
+}
+
 async function loadGist(){
-  setSync('saving','Verbinden met GitHub...');
+  setSync('saving','Verbinden...');
   try{
     let content=null;
     if(gistId){
       try{
         const g=await gistRequest('GET','/gists/'+gistId);
         const f=g.files[GIST_FILENAME];
-        if(f) content=f.content;
+        if(f)content=f.content;
       }catch(e){gistId=null;localStorage.removeItem(LS_GIST_KEY);}
     }
     if(!content){
@@ -400,51 +1114,64 @@ async function loadGist(){
     }
     if(content){
       const parsed=JSON.parse(content);
-      /* Detect legacy shape: old files stored task data at top level */
-      if(parsed.projects||parsed.activeProject){
-        /* Legacy: migrate to new wrapper */
-        rawState={
-          tasks:parsed,
-          notes:parsed.notes||{tree:[],activeId:null,collapsed:{}},
-          settings:parsed.settings||{}
-        };
-      } else {
+      /* Detect wrapper vs flat format */
+      if(parsed.tasks||parsed.notes){
         rawState=parsed;
+      } else {
+        /* legacy flat kanban-only file */
+        rawState={tasks:parsed,notes:{tree:[],activeId:null,collapsed:{}},settings:{}};
       }
-      tasksState=rawState.tasks||{projects:{},activeProject:null,clients:[]};
+      /* Hydrate kanban state */
+      const ts=rawState.tasks||{};
+      kanbanState=migrateOldKanban(ts.projects?ts:{projects:{},activeProject:null,clients:[],tags:[],categoryGrouping:'grouped'});
+      if(!kanbanState.projects||!Object.keys(kanbanState.projects).length)initDefaultKanban();
+      if(!kanbanState.activeProject||!kanbanState.projects[kanbanState.activeProject])
+        kanbanState.activeProject=Object.keys(kanbanState.projects)[0];
+      if(!kanbanState.clients)kanbanState.clients=[];
+      if(!kanbanState.tags)kanbanState.tags=[];
+      if(!kanbanState.categoryGrouping)kanbanState.categoryGrouping='grouped';
+      /* Hydrate notes */
       notesState=rawState.notes||{tree:[],activeId:null,collapsed:{}};
+      if(!notesState.tree)notesState.tree=[];
       setSync('saved','Geladen · '+new Date().toLocaleTimeString('nl-NL'));
     } else {
-      rawState={tasks:{projects:{},activeProject:null,clients:[]},notes:{tree:[],activeId:null,collapsed:{}},settings:{}};
-      tasksState=rawState.tasks;
+      rawState={tasks:{},notes:{tree:[],activeId:null,collapsed:{}},settings:{}};
+      initDefaultKanban();
       notesState=rawState.notes;
-      setSync('idle','Nieuw — eerste opslag wacht op wijziging');
+      setSync('idle','Nieuw bestand');
     }
   }catch(e){
     console.error(e);
-    if(e.message&&e.message.includes('Bad credentials')) setSync('error','Ongeldig token — klik ⚙');
+    rawState={tasks:{},notes:{tree:[],activeId:null,collapsed:{}},settings:{}};
+    initDefaultKanban();notesState=rawState.notes;
+    if(e.message&&e.message.includes('Bad credentials'))setSync('error','Ongeldig token — klik ⚙');
     else setSync('error','Fout: '+e.message);
-    rawState={tasks:{projects:{},activeProject:null,clients:[]},notes:{tree:[],activeId:null,collapsed:{}},settings:{}};
-    tasksState=rawState.tasks;
-    notesState=rawState.notes;
   }
-  render();
+  renderAll();
+}
+
+function initDefaultKanban(){
+  kanbanState={
+    projects:{'Demo project':buildFreshProject()},
+    activeProject:'Demo project',
+    clients:[{id:uid(),name:'Klant A',colorIdx:0},{id:uid(),name:'Klant B',colorIdx:1}],
+    tags:['urgent','review','blocker','wacht op klant'],
+    categoryGrouping:'grouped'
+  };
 }
 
 async function saveGist(){
   if(!ghToken){setSync('error','Geen token');return;}
   setSync('saving','Opslaan...');
-  /* Sync notes/state back into rawState before writing */
+  rawState.tasks=kanbanState;
   rawState.notes=notesState;
-  /* Keep tasks data intact (only the to-do app modifies it) — we reread tasks from current rawState */
   const content=JSON.stringify(rawState,null,2);
   try{
     if(gistId){
       await gistRequest('PATCH','/gists/'+gistId,{files:{[GIST_FILENAME]:{content}}});
     } else {
       const g=await gistRequest('POST','/gists',{
-        description:'Herling Analytics — Dashboard data',
-        public:false,
+        description:'Herling Analytics — Dashboard data',public:false,
         files:{[GIST_FILENAME]:{content}}
       });
       gistId=g.id;localStorage.setItem(LS_GIST_KEY,gistId);
@@ -455,417 +1182,1251 @@ async function saveGist(){
 function scheduleSave(){clearTimeout(saveTimer);setSync('saving','Wijzigingen...');saveTimer=setTimeout(saveGist,1500);}
 async function forceSave(){clearTimeout(saveTimer);await saveGist();}
 
-/* Refetch tasks when user returns to dashboard (to-do app may have updated the gist) */
-async function refetchTasks(){
-  if(!gistId) return;
-  try{
-    const g=await gistRequest('GET','/gists/'+gistId);
-    const c=g.files[GIST_FILENAME]?.content;
-    if(!c) return;
-    const parsed=JSON.parse(c);
-    if(parsed.projects||parsed.activeProject){
-      rawState.tasks=parsed;
-      /* Merge our local notes into the loaded file so we don't lose in-memory edits */
-      if(parsed.notes) rawState.notes={...parsed.notes,...notesState};
-    } else {
-      rawState=parsed;
-      tasksState=rawState.tasks||tasksState;
-      /* If server had newer notes, merge on top of local */
-      if(rawState.notes&&rawState.notes.tree&&rawState.notes.tree.length>0&&notesState.tree.length===0){
-        notesState=rawState.notes;
-      }
-    }
-    tasksState=rawState.tasks||{projects:{},activeProject:null,clients:[]};
-    renderTodoStats();
-  }catch(e){console.warn('Refetch failed',e);}
+/* ═══════════════════════════════════════════════════
+   NAVIGATION
+   ═══════════════════════════════════════════════════ */
+function switchModule(mod){
+  activeModule=mod;
+  /* Update nav items */
+  document.querySelectorAll('.nav-item').forEach(el=>
+    el.classList.toggle('active',el.dataset.mod===mod));
+  /* Show/hide modules */
+  document.querySelectorAll('.module').forEach(el=>
+    el.classList.toggle('active',el.id==='mod-'+mod));
+  /* Update hash */
+  history.replaceState(null,'','#'+mod);
+  /* Module-specific init */
+  if(mod==='dashboard')renderDashboard();
+  else if(mod==='todo')renderTodoModule();
+  else if(mod==='notes')renderNotesModule();
+  else if(mod==='agenda')renderAgendaModule();
 }
 
-/* ─────────────────────────────────────────────────────────────────
-   TO-DO PREVIEW
-   ───────────────────────────────────────────────────────────────── */
-function openTodoApp(){
-  forceSave().then(()=>{
-    window.location.href=TODO_APP_URL;
-  });
+function toggleSidebar(){
+  sidebarCollapsed=!sidebarCollapsed;
+  document.getElementById('sidebar').classList.toggle('collapsed',sidebarCollapsed);
 }
 
-function computeProjectStats(projectData){
-  if(!projectData||!projectData.columns)return{total:0,done:0,pct:0};
-  const total=projectData.columns.reduce((a,c)=>a+(c.items?.length||0),0);
-  const done=projectData.columns.filter(c=>c.isCompleted).reduce((a,c)=>a+(c.items?.length||0),0);
-  const pct=total?Math.round(done/total*100):0;
-  return{total,done,pct};
+/* ═══════════════════════════════════════════════════
+   CLIENT MANAGEMENT (shared between todo + notes)
+   ═══════════════════════════════════════════════════ */
+function setClientFilter(id){
+  /* Toggle: clicking active filter deselects it */
+  activeClientFilter=(activeClientFilter===id)?'':id;
+  renderSidebarClients();
+  /* Apply to current module */
+  if(activeModule==='todo')renderBoard();
+  else if(activeModule==='notes')renderNotesTree();
+  else if(activeModule==='dashboard')renderDashboard();
 }
 
-function renderTodoStats(){
-  const body=document.getElementById('todoBody');
-  const projects=tasksState.projects||{};
-  const names=Object.keys(projects);
-
-  if(names.length===0){
-    body.innerHTML=`
-      <div style="color:var(--text-hint);font-size:12px;padding:20px 0;text-align:center">
-        <p style="margin-bottom:10px">Nog geen projecten aangemaakt</p>
-        <button class="btn btn-sm btn-primary" onclick="openTodoApp()">Open To-Do App ↗</button>
-      </div>`;
+function renderSidebarClients(){
+  const el=document.getElementById('sidebarClientList');
+  if(!kanbanState.clients.length){
+    el.innerHTML='<div style="font-size:11px;color:var(--text-hint);padding:4px 10px">Nog geen klanten</div>';
     return;
   }
+  el.innerHTML=kanbanState.clients.map(c=>{
+    const col=CLIENT_COLORS[c.colorIdx%CLIENT_COLORS.length];
+    const isActive=activeClientFilter===c.id;
+    return `<div class="sidebar-client${isActive?' active-filter':''}" onclick="setClientFilter('${c.id}')">
+      <span class="client-dot" style="background:${col.bg};border:1px solid ${col.tx}"></span>
+      <span class="client-cname">${escapeHtml(c.name)}</span>
+      <span class="client-acts">
+        <button onclick="event.stopPropagation();editClient('${c.id}',event)" title="Bewerken">✎</button>
+        <button onclick="event.stopPropagation();deleteClient('${c.id}',event)" title="Verwijderen">✕</button>
+      </span>
+    </div>`;
+  }).join('');
+}
 
-  /* Overall stats */
+let _newClientColorIdx=0;
+function showAddClient(){
+  document.getElementById('addClientForm').classList.add('open');
+  _newClientColorIdx=kanbanState.clients.length%CLIENT_COLORS.length;
+  renderColorSwatches();
+  setTimeout(()=>document.getElementById('newClientName').focus(),30);
+}
+function hideAddClient(){
+  document.getElementById('addClientForm').classList.remove('open');
+  document.getElementById('newClientName').value='';
+}
+function renderColorSwatches(){
+  const c=document.getElementById('newClientColors');c.innerHTML='';
+  CLIENT_COLORS.forEach((col,i)=>{
+    const d=document.createElement('div');
+    d.className='color-swatch'+(i===_newClientColorIdx?' active':'');
+    d.style.background=col.bg;
+    d.onclick=()=>{_newClientColorIdx=i;renderColorSwatches();};
+    c.appendChild(d);
+  });
+}
+function createClient(){
+  const n=document.getElementById('newClientName').value.trim();
+  if(!n)return;
+  if(kanbanState.clients.some(c=>c.name===n)){alert('Klant bestaat al');return;}
+  kanbanState.clients.push({id:uid(),name:n,colorIdx:_newClientColorIdx});
+  hideAddClient();scheduleSave();
+  renderSidebarClients();
+  if(activeModule==='todo'){renderClientFilterDropdown();renderBoard();}
+}
+function deleteClient(id,e){
+  if(e)e.stopPropagation();
+  if(!confirm('Klant verwijderen?'))return;
+  kanbanState.clients=kanbanState.clients.filter(c=>c.id!==id);
+  if(activeClientFilter===id)activeClientFilter='';
+  scheduleSave();renderSidebarClients();
+  if(activeModule==='todo'){renderClientFilterDropdown();renderBoard();}
+}
+function editClient(id,e){
+  if(e)e.stopPropagation();
+  const c=clientById(id);if(!c)return;
+  const newName=prompt('Nieuwe klantnaam:',c.name);
+  if(newName?.trim()){c.name=newName.trim();scheduleSave();renderSidebarClients();
+    if(activeModule==='todo'){renderClientFilterDropdown();renderBoard();}
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   DASHBOARD MODULE
+   ═══════════════════════════════════════════════════ */
+function renderDashboard(){
+  document.getElementById('todayStr').textContent=formatToday();
+  renderDashTodo();
+  renderDashNotes();
+  renderDashCal();
+}
+
+function renderDashTodo(){
+  const body=document.getElementById('dashTodoBody');
+  const projects=kanbanState.projects||{};
+  const names=Object.keys(projects);
+  if(!names.length){
+    body.innerHTML=`<div style="color:var(--text-hint);font-size:12px;padding:20px 0;text-align:center">
+      <p style="margin-bottom:10px">Nog geen projecten aangemaakt</p>
+      <button class="btn btn-sm btn-primary" onclick="switchModule('todo')">Open To-Do ↗</button>
+    </div>`;return;
+  }
   let totalAll=0,doneAll=0;
   const rows=names.map(n=>{
-    const s=computeProjectStats(projects[n]);
-    totalAll+=s.total;doneAll+=s.done;
-    return{name:n,...s};
+    const p=projects[n];
+    const total=(p.columns||[]).reduce((a,c)=>a+(c.items?.length||0),0);
+    const done=(p.columns||[]).filter(c=>c.isCompleted).reduce((a,c)=>a+(c.items?.length||0),0);
+    const pct=total?Math.round(done/total*100):0;
+    totalAll+=total;doneAll+=done;
+    return{name:n,total,done,pct};
   });
   const pctAll=totalAll?Math.round(doneAll/totalAll*100):0;
-  const openAll=totalAll-doneAll;
-
-  let html=`
-    <div class="big-stats">
-      <div class="big-stat"><div class="big-stat-val">${openAll}</div><div class="big-stat-lbl">Open</div></div>
-      <div class="big-stat"><div class="big-stat-val">${doneAll}</div><div class="big-stat-lbl">Afgerond</div></div>
-      <div class="big-stat"><div class="big-stat-val">${pctAll}%</div><div class="big-stat-lbl">Voortgang</div></div>
-    </div>
-    <div style="font-size:10px;font-weight:600;color:var(--text-hint);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Per project</div>`;
-
+  let html=`<div class="big-stats">
+    <div class="big-stat"><div class="big-stat-val">${totalAll-doneAll}</div><div class="big-stat-lbl">Open</div></div>
+    <div class="big-stat"><div class="big-stat-val">${doneAll}</div><div class="big-stat-lbl">Afgerond</div></div>
+    <div class="big-stat"><div class="big-stat-val">${pctAll}%</div><div class="big-stat-lbl">Voortgang</div></div>
+  </div>
+  <div style="font-size:10px;font-weight:600;color:var(--text-hint);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Per project</div>`;
   rows.forEach(r=>{
-    html+=`
-      <div class="proj-row" title="${escapeHtml(r.name)}">
-        <div class="proj-name">${escapeHtml(r.name)}</div>
-        <div class="proj-nums">${r.done}/${r.total}</div>
-        <div class="proj-bar"><div class="proj-bar-fill" style="width:${r.pct}%"></div></div>
-        <div class="proj-pct">${r.pct}%</div>
-      </div>`;
+    html+=`<div class="proj-row">
+      <div class="proj-name">${escapeHtml(r.name)}</div>
+      <div class="proj-nums">${r.done}/${r.total}</div>
+      <div class="proj-bar"><div class="proj-bar-fill" style="width:${r.pct}%"></div></div>
+      <div class="proj-pct">${r.pct}%</div>
+    </div>`;
   });
-
-  html+=`<div style="margin-top:14px;display:flex;justify-content:center"><button class="btn btn-primary btn-sm" onclick="openTodoApp()">Open To-Do App ↗</button></div>`;
   body.innerHTML=html;
 }
 
-/* ─────────────────────────────────────────────────────────────────
+function renderDashNotes(){
+  const body=document.getElementById('dashNotesBody');
+  /* Collect all pages (not folders) flattened */
+  const pages=[];
+  function collectPages(tree){
+    tree.forEach(n=>{
+      if(n.type!=='folder')pages.push(n);
+      if(n.children)collectPages(n.children);
+    });
+  }
+  collectPages(notesState.tree||[]);
+  if(!pages.length){
+    body.innerHTML=`<div style="color:var(--text-hint);font-size:12px;padding:20px 0;text-align:center">
+      <p style="margin-bottom:10px">Nog geen notities</p>
+      <button class="btn btn-sm btn-primary" onclick="switchModule('notes')">Eerste notitie ↗</button>
+    </div>`;return;
+  }
+  const recent=[...pages].sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0)).slice(0,6);
+  body.innerHTML=recent.map(n=>{
+    const client=n.clientId?clientById(n.clientId):null;
+    const col=client?CLIENT_COLORS[client.colorIdx%CLIENT_COLORS.length]:null;
+    const badge=client?`<span style="font-size:10px;font-weight:600;padding:1px 6px;border-radius:4px;background:${col.bg};color:${col.tx};flex-shrink:0">${escapeHtml(client.name)}</span>`:'';
+    const ts=n.updatedAt?new Date(n.updatedAt).toLocaleDateString('nl-NL',{day:'numeric',month:'short'}):'';
+    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border-radius:var(--radius-md);margin-bottom:6px;cursor:pointer" onclick="switchModule('notes')">
+      <span style="font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(n.title)}</span>
+      ${badge}
+      <span style="font-size:10px;color:var(--text-hint);white-space:nowrap">${ts}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderDashCal(){
+  const body=document.getElementById('dashCalBody');
+  const settingsBtn=document.getElementById('dashCalSettingsBtn');
+  const mode=rawState.settings?.calMode||null;
+  const icalUrl=rawState.settings?.icalUrl||null;
+  const connected=mode==='oauth'||!!icalUrl;
+  if(settingsBtn)settingsBtn.style.display=connected?'':'none';
+
+  if(mode==='oauth'){
+    if(gAccessToken){fetchDashGoogleCalEvents(body);}
+    else{
+      body.innerHTML=`<div class="placeholder">
+        <div class="placeholder-icon">🔐</div>
+        <p style="margin-bottom:10px">Google Agenda is gekoppeld. Klik opnieuw om te verbinden.</p>
+        <button class="btn btn-sm btn-primary" onclick="signInGoogle()">Verbinden</button>
+      </div>`;
+    }
+    return;
+  }
+  if(icalUrl){fetchDashIcalCal(body,icalUrl);return;}
+  body.innerHTML=`<div class="placeholder">
+    <div class="placeholder-icon">📅</div>
+    <p>Koppel je Google Agenda om je afspraken te zien.</p>
+    <button class="btn btn-sm btn-primary" onclick="switchModule('agenda')">Koppelen ↗</button>
+  </div>`;
+}
+
+function toggleDashCalSettings(){
+  const mode=rawState.settings?.calMode||null;
+  if(mode==='oauth'){showOAuthSettings(document.getElementById('dashCalBody'));}
+  else if(rawState.settings?.icalUrl){showDashCalSetup();}
+}
+
+function showDashCalSetup(){
+  const body=document.getElementById('dashCalBody');
+  const current=rawState.settings?.icalUrl||'';
+  body.innerHTML=`<div class="cal-setup">
+    <label>Google Agenda iCal-link</label>
+    <input type="text" id="icalInputDash" value="${escapeHtml(current)}" placeholder="https://calendar.google.com/calendar/ical/.../basic.ics"/>
+    <div class="cal-setup-hint">Ga naar Google Agenda → Instellingen → Integreer agenda → Geheim iCal-adres</div>
+    <div style="display:flex;gap:6px;margin-top:auto">
+      ${current?'<button class="btn btn-sm btn-danger" onclick="removeIcal()">Ontkoppelen</button>':''}
+      <div style="flex:1"></div>
+      <button class="btn btn-sm" onclick="renderDashCal()">Annuleer</button>
+      <button class="btn btn-sm btn-primary" onclick="connectIcalFromDash()">Verbinden</button>
+    </div>
+  </div>`;
+}
+function connectIcalFromDash(){
+  const url=document.getElementById('icalInputDash')?.value.trim();
+  if(!url){alert('Vul een iCal-link in.');return;}
+  if(!rawState.settings)rawState.settings={};
+  rawState.settings.icalUrl=url;rawState.settings.calMode='ical';
+  scheduleSave();renderDashCal();
+}
+function removeIcal(){
+  if(!confirm('Agenda ontkoppelen?'))return;
+  if(rawState.settings){delete rawState.settings.icalUrl;delete rawState.settings.calMode;}
+  scheduleSave();renderDashCal();if(activeModule==='agenda')renderAgendaModule();
+}
+
+/* ═══════════════════════════════════════════════════
+   RENDER ALL (called after load)
+   ═══════════════════════════════════════════════════ */
+function renderAll(){
+  document.getElementById('todayStr').textContent=formatToday();
+  renderSidebarClients();
+  /* Apply hash-based routing on initial load */
+  const hash=(location.hash||'#dashboard').slice(1);
+  const validMods=['dashboard','todo','notes','agenda'];
+  const startMod=validMods.includes(hash)?hash:'dashboard';
+  switchModule(startMod);
+}
+
+/* ═══════════════════════════════════════════════════
+   BOOT
+   ═══════════════════════════════════════════════════ */
+async function boot(){await loadGist();}
+
+loadToken();
+if(ghToken){
+  document.getElementById('appScreen').style.display='flex';
+  boot();
+} else {
+  document.getElementById('setupScreen').style.display='flex';
+}
+
+/* Global keyboard handlers */
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){
+    if(document.getElementById('itemModal').classList.contains('open'))closeItemModal();
+    if(document.getElementById('catModal').classList.contains('open'))closeCatModal();
+    if(document.getElementById('importModal').classList.contains('open'))closeImportModal();
+    if(document.getElementById('renameModal').classList.contains('open'))closeRenameModal();
+    if(document.getElementById('tagPickerPopup').classList.contains('open'))closeTagPicker();
+  }
+  if(document.getElementById('renameModal').classList.contains('open')){
+    if(e.key==='Enter')confirmRename();
+  }
+});
+
+/* Close dropdowns on outside click */
+document.addEventListener('click',()=>{
+  closeSettings();closeProjMenu();closeNoteCtxMenu();
+  if(!document.getElementById('tagPickerPopup').contains(event?.target)&&
+     !event?.target?.closest('.itag-cell')&&!event?.target?.closest('.itag-add-btn'))
+    closeTagPicker();
+});
+
+document.getElementById('itemModal').addEventListener('click',e=>{if(e.target.id==='itemModal')closeItemModal();});
+document.getElementById('catModal').addEventListener('click',e=>{if(e.target.id==='catModal')closeCatModal();});
+document.getElementById('importModal').addEventListener('click',e=>{if(e.target.id==='importModal')closeImportModal();});
+document.getElementById('renameModal').addEventListener('click',e=>{if(e.target.id==='renameModal')closeRenameModal();});
+
+if(window.marked)marked.setOptions({breaks:true,gfm:true});
+
+/* STUB functions (will be completed in next parts) */
+function renderTodoModule(){}
+function renderNotesModule(){}
+function renderAgendaModule(){}
+function renderBoard(){}
+function renderNotesTree(){}
+function closeItemModal(){}
+function closeCatModal(){}
+function closeImportModal(){}
+function closeRenameModal(){}
+function closeNoteCtxMenu(){}
+function closeProjMenu(){}
+function closeSettings(){}
+function closeTagPicker(){}
+function toggleNoteEdit(){}
+function createNote(){}
+function createFolder(){}
+function signInGoogle(){}
+function changeWeek(){}
+function toggleAgendaCalSettings(){}
+function showAgendaIcalSetup(){}
+function undoDelete(){}
+function hideToast(){}
+function openNewItemModal(){}
+function addNewTag(){}
+function saveItem(){}
+function deleteCurrentItem(){}
+function openImport(){}
+function exportData(){}
+function showAddProject(){}
+function hideAddProject(){}
+function createProject(){}
+function setCategoryFilter(){}
+function setSearch(){}
+function setCategoryGrouping(){}
+function renderClientFilterDropdown(){}
+function addCategory(){}
+function renderCatList(){}
+function openItemModal(){}
+function addTagFromPicker(){}
+function addTagFromPicker(){}
+function applyBulk(){}
+function toggleSelectAll(){}
+function handleImportFile(){}
+function executeImport(){}
+function showImportStep(){}
+function projMenuAction(){}
+function selectNote(){}
+function toggleFolder(){}
+function deleteNode(){}
+function renameNode(){}
+function confirmRename(){}
+function updateNoteTitle(){}
+function onNoteDragStart(){}
+function onNoteDragOver(){}
+function onNoteDragLeave(){}
+function onNoteDrop(){}
+function onNoteDragEnd(){}
+function showNoteCtxMenu(){}
+function fetchDashGoogleCalEvents(){}
+function fetchDashIcalCal(){}
+function showOAuthSettings(){}
+function toggleSettings(e){e.stopPropagation();document.getElementById('settingsDropdown').classList.toggle('open');}
+
+/* ═══════════════════════════════════════════════════
+   TODO / KANBAN MODULE
+   ═══════════════════════════════════════════════════ */
+function renderTodoModule(){
+  /* Restore grouping select value */
+  const sel=document.getElementById('categoryGroupingSelect');
+  if(sel)sel.value=kanbanState.categoryGrouping||'grouped';
+  renderProjectMenuList();
+  renderClientFilterDropdown();
+  renderCategoryFilter();
+  renderBoard();
+  updateStats();
+}
+
+/* ─ Settings menu ─ */
+function closeSettings(){document.getElementById('settingsDropdown').classList.remove('open');}
+
+/* ─ Project list in settings dropdown ─ */
+function renderProjectMenuList(){
+  const el=document.getElementById('projectMenuList');if(!el)return;
+  el.innerHTML=Object.keys(kanbanState.projects).map(n=>`
+    <button class="settings-item" onclick="closeSettings();selectProject('${escapeHtml(n)}')"
+      style="${n===kanbanState.activeProject?'font-weight:600;color:var(--text)':''}">
+      ▣ ${escapeHtml(n)}
+      <span onclick="event.stopPropagation();showProjMenu('${escapeHtml(n)}',event)"
+        style="margin-left:auto;padding:0 4px;opacity:.5;font-size:14px" title="Opties">···</span>
+    </button>`).join('');
+}
+
+/* ─ Projects ─ */
+function showAddProject(){
+  const w=document.getElementById('addProjectFormWrap');
+  w.style.display='flex';
+  setTimeout(()=>document.getElementById('newProjectName').focus(),30);
+}
+function hideAddProject(){
+  document.getElementById('addProjectFormWrap').style.display='none';
+  document.getElementById('newProjectName').value='';
+}
+function createProject(){
+  const n=document.getElementById('newProjectName').value.trim();
+  if(!n)return;
+  if(kanbanState.projects[n]){alert('Naam bestaat al');return;}
+  kanbanState.projects[n]=buildFreshProject();
+  kanbanState.activeProject=n;
+  hideAddProject();scheduleSave();renderTodoModule();
+}
+function selectProject(n){
+  kanbanState.activeProject=n;
+  activeCategoryFilter='';searchQuery='';
+  if(activeModule==='todo')renderTodoModule();
+}
+function showProjMenu(n,e){
+  e.stopPropagation();projMenuTarget=n;
+  const menu=document.getElementById('projMenu');
+  menu.style.left=Math.min(e.clientX,window.innerWidth-170)+'px';
+  menu.style.top=Math.min(e.clientY,window.innerHeight-130)+'px';
+  menu.classList.add('open');
+}
+function closeProjMenu(){document.getElementById('projMenu').classList.remove('open');}
+function projMenuAction(action){
+  closeProjMenu();const n=projMenuTarget;if(!n)return;
+  if(action==='rename'){
+    const t=prompt('Nieuwe projectnaam:',n)?.trim();if(!t)return;
+    if(kanbanState.projects[t]){alert('Naam bestaat al');return;}
+    kanbanState.projects[t]=kanbanState.projects[n];delete kanbanState.projects[n];
+    if(kanbanState.activeProject===n)kanbanState.activeProject=t;
+    scheduleSave();if(activeModule==='todo')renderTodoModule();
+  } else if(action==='reset'){
+    if(!confirm('Project "'+n+'" resetten? Alle items worden verwijderd.'))return;
+    kanbanState.projects[n]=buildFreshProject();scheduleSave();
+    if(activeModule==='todo')renderTodoModule();
+  } else if(action==='delete'){
+    if(!confirm('Project "'+n+'" verwijderen?'))return;
+    delete kanbanState.projects[n];
+    if(kanbanState.activeProject===n)
+      kanbanState.activeProject=Object.keys(kanbanState.projects)[0]||null;
+    if(!kanbanState.activeProject){
+      kanbanState.projects['Nieuw project']=buildFreshProject();
+      kanbanState.activeProject='Nieuw project';
+    }
+    scheduleSave();if(activeModule==='todo')renderTodoModule();
+  }
+}
+document.addEventListener('click',closeProjMenu,{capture:false});
+
+/* ─ Client filter dropdown (toolbar) ─ */
+function renderClientFilterDropdown(){
+  /* No dropdown in toolbar — filter is in sidebar. Just keep activeClientFilter in sync. */
+}
+
+/* ─ Category filter ─ */
+function renderCategoryFilter(){
+  const sel=document.getElementById('filterCategory');const p=currentProject();if(!p||!sel)return;
+  sel.innerHTML='<option value="">Alle categorieën</option>'+
+    p.categories.map(c=>`<option value="${escapeHtml(c)}"${activeCategoryFilter===c?' selected':''}>${escapeHtml(c)}</option>`).join('')+
+    '<option value="__manage__">⚙ Beheren...</option>';
+  sel.onchange=function(){
+    if(this.value==='__manage__'){this.value=activeCategoryFilter;openCatModal();}
+    else setCategoryFilter(this.value);
+  };
+}
+function setCategoryFilter(v){activeCategoryFilter=v;renderBoard();updateStats();}
+function setSearch(v){searchQuery=v;renderBoard();updateStats();}
+function setCategoryGrouping(v){kanbanState.categoryGrouping=v;scheduleSave();renderBoard();}
+
+/* ─ Item passes filter ─ */
+function itemPassesFilter(item){
+  if(activeClientFilter&&item.clientId!==activeClientFilter)return false;
+  if(activeCategoryFilter&&item.category!==activeCategoryFilter)return false;
+  if(searchQuery){
+    const q=searchQuery.toLowerCase();
+    if(!(item.title||'').toLowerCase().includes(q)&&
+       !(item.context||'').toLowerCase().includes(q)&&
+       !(item.tags||[]).some(t=>t.toLowerCase().includes(q)))return false;
+  }
+  return true;
+}
+
+/* ─ Stats ─ */
+function updateStats(){
+  const p=currentProject();if(!p)return;
+  const filtered=p.columns.map(c=>({...c,items:c.items.filter(itemPassesFilter)}));
+  const total=filtered.reduce((a,c)=>a+c.items.length,0);
+  const done=filtered.filter(c=>c.isCompleted).reduce((a,c)=>a+c.items.length,0);
+  const pct=total?Math.round(done/total*100):0;
+  document.getElementById('sDone').textContent=done;
+  document.getElementById('sTotal').textContent=total;
+  document.getElementById('sPct').textContent=pct+'%';
+  document.getElementById('pageTitle').textContent=kanbanState.activeProject||'—';
+  document.getElementById('pageSub').textContent=done+' van '+total+' afgerond · '+pct+'%';
+}
+
+/* ─ Columns ─ */
+function addColumn(){
+  const name=prompt('Naam van nieuwe kolom:','Nieuwe fase');if(!name?.trim())return;
+  currentProject().columns.push({id:uid(),title:name.trim(),isCompleted:false,items:[]});
+  scheduleSave();renderBoard();
+}
+function renameColumn(colId,newTitle){
+  const col=currentProject().columns.find(c=>c.id===colId);
+  if(col&&newTitle.trim()){col.title=newTitle.trim();scheduleSave();}
+}
+function deleteColumn(colId){
+  const col=currentProject().columns.find(c=>c.id===colId);if(!col)return;
+  if(col.items.length>0){
+    if(!confirm('Kolom "'+col.title+'" heeft '+col.items.length+' items. Verwijderen? Items gaan naar "New task".'))return;
+    currentProject().columns[0].items.push(...col.items);
+  } else {if(!confirm('Kolom "'+col.title+'" verwijderen?'))return;}
+  currentProject().columns=currentProject().columns.filter(c=>c.id!==colId);
+  scheduleSave();renderBoard();
+}
+function toggleColCompleted(colId){
+  const col=currentProject().columns.find(c=>c.id===colId);
+  if(col){col.isCompleted=!col.isCompleted;scheduleSave();renderBoard();}
+}
+
+/* ─ Categories ─ */
+function openCatModal(){renderCatList();document.getElementById('catModal').classList.add('open');}
+function closeCatModal(){document.getElementById('catModal').classList.remove('open');}
+function renderCatList(){
+  const el=document.getElementById('catList');el.innerHTML='';
+  currentProject().categories.forEach((cat,idx)=>{
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;gap:6px;align-items:center;padding:6px 10px;background:var(--surface2);border-radius:var(--radius)';
+    row.innerHTML=`<input type="text" value="${escapeHtml(cat)}" onchange="renameCategory(${idx},this.value)"
+      style="flex:1;padding:4px 7px;font-size:12px;border:0.5px solid var(--border-strong);border-radius:var(--radius);background:var(--surface);color:var(--text);font-family:inherit"/>
+      <button class="btn btn-xs btn-danger" onclick="deleteCategory(${idx})">✕</button>`;
+    el.appendChild(row);
+  });
+}
+function addCategory(){
+  const n=document.getElementById('newCatName').value.trim();if(!n)return;
+  currentProject().categories.push(n);
+  document.getElementById('newCatName').value='';
+  renderCatList();scheduleSave();renderBoard();renderCategoryFilter();
+}
+function renameCategory(idx,newName){
+  if(!newName.trim())return;
+  const cats=currentProject().categories;const old=cats[idx];cats[idx]=newName.trim();
+  currentProject().columns.forEach(c=>c.items.forEach(i=>{if(i.category===old)i.category=newName.trim();}));
+  scheduleSave();renderBoard();
+}
+function deleteCategory(idx){
+  const cats=currentProject().categories;const name=cats[idx];
+  if(!confirm('Categorie "'+name+'" verwijderen?'))return;
+  cats.splice(idx,1);
+  currentProject().columns.forEach(c=>c.items.forEach(i=>{if(i.category===name)i.category='';}));
+  renderCatList();scheduleSave();renderBoard();renderCategoryFilter();
+}
+function toggleCatCollapsed(colId,cat){
+  const p=currentProject();const key=colId+'::'+cat;
+  p.collapsedCats=p.collapsedCats||{};p.collapsedCats[key]=!p.collapsedCats[key];
+  scheduleSave();renderBoard();
+}
+
+/* ─ Tags (item modal) ─ */
+function renderTagChips(selectedTags){
+  const container=document.getElementById('itemTagChips');container.innerHTML='';
+  if(!kanbanState.tags?.length){
+    container.innerHTML='<span style="font-size:11px;color:var(--text-hint)">Nog geen tags</span>';return;
+  }
+  kanbanState.tags.forEach(tag=>{
+    const chip=document.createElement('span');
+    chip.className='tag-chip-opt'+(selectedTags.includes(tag)?' selected':'');
+    chip.textContent=tag;chip.onclick=()=>chip.classList.toggle('selected');
+    container.appendChild(chip);
+  });
+}
+function getSelectedTags(){
+  return Array.from(document.querySelectorAll('.tag-chip-opt.selected')).map(c=>c.textContent);
+}
+function addNewTag(){
+  const input=document.getElementById('itemTagNew');const tag=input.value.trim();if(!tag)return;
+  if(!kanbanState.tags)kanbanState.tags=[];
+  if(!kanbanState.tags.includes(tag)){kanbanState.tags.push(tag);scheduleSave();}
+  const cur=getSelectedTags();renderTagChips(cur.includes(tag)?cur:[...cur,tag]);input.value='';
+}
+
+/* ─ Item modal ─ */
+function openNewItemModal(){
+  const p=currentProject();if(!p)return;
+  openItemModal(p.columns[0].id,null,true);
+}
+function openItemModal(colId,itemId,fromNew){
+  const p=currentProject();const col=p?.columns.find(c=>c.id===colId);
+  const item=itemId?col?.items.find(i=>i.id===itemId):null;
+  editingItem={colId,itemId,isNew:!item};
+  document.getElementById('itemModalTitle').textContent=item?'Item bewerken':'Nieuw item';
+  document.getElementById('itemTitle').value=item?.title||'';
+  document.getElementById('itemContext').value=item?.context||'';
+  /* Column selector — only show when creating new */
+  const colField=document.getElementById('itemColumnField');
+  if(!item){
+    colField.style.display='';
+    document.getElementById('itemColumn').innerHTML=
+      p.columns.map(c=>`<option value="${c.id}"${c.id===colId?' selected':''}>${escapeHtml(c.title)}</option>`).join('');
+  } else {colField.style.display='none';}
+  document.getElementById('itemClient').innerHTML=
+    '<option value="">— geen klant —</option>'+
+    kanbanState.clients.map(c=>`<option value="${c.id}"${item?.clientId===c.id?' selected':''}>${escapeHtml(c.name)}</option>`).join('');
+  document.getElementById('itemCategory').innerHTML=
+    '<option value="">— geen categorie —</option>'+
+    p.categories.map(c=>`<option value="${c}"${item?.category===c?' selected':''}>${escapeHtml(c)}</option>`).join('');
+  renderTagChips(item?.tags||[]);
+  const datesField=document.getElementById('itemDatesField');
+  if(item?.createdAt){
+    datesField.style.display='';
+    document.getElementById('itemDates').innerHTML=
+      'Aangemaakt: '+new Date(item.createdAt).toLocaleString('nl-NL')+
+      '<br>Gewijzigd: '+new Date(item.updatedAt||item.createdAt).toLocaleString('nl-NL');
+  } else datesField.style.display='none';
+  document.getElementById('itemDeleteBtn').style.display=item?'inline-flex':'none';
+  document.getElementById('itemModal').classList.add('open');
+  setTimeout(()=>document.getElementById('itemTitle').focus(),50);
+}
+function closeItemModal(){document.getElementById('itemModal').classList.remove('open');editingItem=null;}
+function saveItem(){
+  if(!editingItem)return;
+  const title=document.getElementById('itemTitle').value.trim();
+  if(!title){alert('Titel is verplicht');return;}
+  const clientId=document.getElementById('itemClient').value||null;
+  const category=document.getElementById('itemCategory').value||'';
+  const context=document.getElementById('itemContext').value.trim();
+  const tags=getSelectedTags();
+  const p=currentProject();
+  let colId=editingItem.colId;
+  if(editingItem.isNew){
+    const selCol=document.getElementById('itemColumn')?.value;
+    if(selCol)colId=selCol;
+  }
+  const col=p.columns.find(c=>c.id===colId);
+  if(editingItem.isNew){
+    col.items.push({id:uid(),title,clientId,category,context,tags,createdAt:Date.now(),updatedAt:Date.now()});
+  } else {
+    const item=col.items.find(i=>i.id===editingItem.itemId);
+    Object.assign(item,{title,clientId,category,context,tags,updatedAt:Date.now()});
+  }
+  closeItemModal();scheduleSave();renderBoard();updateStats();
+}
+function deleteCurrentItem(){
+  if(!editingItem||editingItem.isNew)return;
+  if(!confirm('Item verwijderen?'))return;
+  const col=currentProject().columns.find(c=>c.id===editingItem.colId);
+  const item=col.items.find(i=>i.id===editingItem.itemId);
+  deletedItemBuffer={item:{...item,tags:[...(item.tags||[])]},colId:editingItem.colId};
+  col.items=col.items.filter(i=>i.id!==editingItem.itemId);
+  closeItemModal();scheduleSave();renderBoard();updateStats();showUndoToast('"'+item.title+'" verwijderd');
+}
+
+/* ─ Undo toast ─ */
+function showUndoToast(msg){
+  document.getElementById('undoToastMsg').textContent=msg;
+  document.getElementById('undoToast').classList.remove('hidden');
+  clearTimeout(toastTimer);toastTimer=setTimeout(hideToast,5000);
+}
+function hideToast(){document.getElementById('undoToast').classList.add('hidden');deletedItemBuffer=null;}
+function undoDelete(){
+  if(!deletedItemBuffer)return;
+  const{item,colId}=deletedItemBuffer;
+  const col=currentProject().columns.find(c=>c.id===colId);
+  if(col){col.items.push(item);scheduleSave();renderBoard();updateStats();}hideToast();
+}
+
+/* ─ Drag & drop ─ */
+function onDragStart(e,colId,itemId){draggedItem={colId,itemId};e.dataTransfer.effectAllowed='move';e.target.classList.add('dragging');}
+function onDragEnd(e){
+  e.target.classList.remove('dragging');draggedItem=null;dragOverTarget=null;
+  document.querySelectorAll('.col-body').forEach(c=>c.classList.remove('drag-over'));
+  document.querySelectorAll('.kanban-card').forEach(c=>c.classList.remove('drag-above','drag-below'));
+}
+function onDragOver(e){e.preventDefault();e.dataTransfer.dropEffect='move';e.currentTarget.classList.add('drag-over');}
+function onDragLeave(e){if(e.currentTarget===e.target)e.currentTarget.classList.remove('drag-over');}
+function onDrop(e,targetColId){
+  e.preventDefault();e.currentTarget.classList.remove('drag-over');
+  if(!draggedItem||dragOverTarget)return;if(draggedItem.colId===targetColId)return;
+  const p=currentProject();
+  const srcCol=p.columns.find(c=>c.id===draggedItem.colId);
+  const tgtCol=p.columns.find(c=>c.id===targetColId);
+  const idx=srcCol.items.findIndex(i=>i.id===draggedItem.itemId);
+  if(idx>=0){const[it]=srcCol.items.splice(idx,1);tgtCol.items.push(it);scheduleSave();renderBoard();updateStats();}
+}
+function onCardDragOver(e,colId,itemId){
+  if(!draggedItem||draggedItem.itemId===itemId)return;
+  e.preventDefault();e.stopPropagation();
+  document.querySelectorAll('.kanban-card.drag-above,.kanban-card.drag-below').forEach(c=>c.classList.remove('drag-above','drag-below'));
+  document.querySelectorAll('.col-body').forEach(c=>c.classList.remove('drag-over'));
+  const rect=e.currentTarget.getBoundingClientRect();const pos=e.clientY<rect.top+rect.height/2?'before':'after';
+  dragOverTarget={colId,itemId,pos};
+  e.currentTarget.classList.add(pos==='before'?'drag-above':'drag-below');
+}
+function onCardDragLeave(e){
+  if(!e.relatedTarget||!e.currentTarget.contains(e.relatedTarget)){
+    e.currentTarget.classList.remove('drag-above','drag-below');dragOverTarget=null;
+  }
+}
+function onCardDrop(e,colId,itemId){
+  e.preventDefault();e.stopPropagation();
+  e.currentTarget.classList.remove('drag-above','drag-below');
+  if(!draggedItem)return;
+  const rect=e.currentTarget.getBoundingClientRect();const pos=e.clientY<rect.top+rect.height/2?'before':'after';
+  const p=currentProject();
+  const srcCol=p.columns.find(c=>c.id===draggedItem.colId);
+  const tgtCol=p.columns.find(c=>c.id===colId);
+  const srcIdx=srcCol.items.findIndex(i=>i.id===draggedItem.itemId);if(srcIdx<0)return;
+  const[movedItem]=srcCol.items.splice(srcIdx,1);
+  const tgtIdx=tgtCol.items.findIndex(i=>i.id===itemId);
+  if(tgtIdx<0){tgtCol.items.push(movedItem);}
+  else{tgtCol.items.splice(pos==='before'?tgtIdx:tgtIdx+1,0,movedItem);}
+  dragOverTarget=null;scheduleSave();renderBoard();updateStats();
+}
+
+/* ─ Board render ─ */
+function renderCardHTML(item,colId){
+  const client=clientById(item.clientId);
+  const col=CLIENT_COLORS[client?client.colorIdx%CLIENT_COLORS.length:0];
+  const clientBgStyle=client?`background:${col.bg}40;border-left-color:${col.tx}`:'border-left-color:var(--border-strong)';
+  const badgeStyle=client?`background:${col.bg};color:${col.tx}`:'background:var(--surface2);color:var(--text-hint)';
+  const tagsHTML=(item.tags||[]).map(t=>`<span class="card-tag">${escapeHtml(t)}</span>`).join('');
+  const hasContext=!!(item.context?.trim());
+  const ctxText=hasContext?escapeHtml(item.context):'<span class="card-context-empty">Geen context</span>';
+  return `<div class="card kanban-card" draggable="true" style="${clientBgStyle}"
+    ondragstart="onDragStart(event,'${colId}','${item.id}')" ondragend="onDragEnd(event)"
+    ondragover="onCardDragOver(event,'${colId}','${item.id}')" ondragleave="onCardDragLeave(event)"
+    ondrop="onCardDrop(event,'${colId}','${item.id}')"
+    onclick="handleCardClick(event,'${colId}','${item.id}')">
+    <div class="card-top">
+      <div class="card-title">${escapeHtml(item.title)}</div>
+      <span class="client-badge" style="${badgeStyle}">${escapeHtml(client?client.name:'—')}</span>
+    </div>
+    <div class="card-meta">${tagsHTML}
+      <button class="card-expand" onclick="event.stopPropagation();toggleCardContext('${item.id}')" data-item="${item.id}">▾</button>
+    </div>
+    <div class="card-context" data-item-ctx="${item.id}">${ctxText}</div>
+  </div>`;
+}
+function handleCardClick(e,colId,itemId){
+  if(e.target.closest('.card-expand')||e.target.closest('.card-context'))return;
+  openItemModal(colId,itemId);
+}
+function toggleCardContext(itemId){
+  const ctx=document.querySelector(`.card-context[data-item-ctx="${itemId}"]`);
+  const btn=document.querySelector(`.card-expand[data-item="${itemId}"]`);
+  if(!ctx)return;const open=ctx.classList.toggle('open');if(btn)btn.classList.toggle('open',open);
+}
+
+function renderBoard(){
+  const p=currentProject();const board=document.getElementById('board');if(!board)return;
+  if(!p){board.innerHTML='<div class="loading-state">Geen project geselecteerd</div>';return;}
+  board.innerHTML='';p.collapsedCats=p.collapsedCats||{};
+  p.columns.forEach(col=>{
+    const visibleItems=col.items.filter(itemPassesFilter);
+    const colEl=document.createElement('div');colEl.className='column';
+    const completedTitle=col.isCompleted?'Telt als afgerond':'Telt niet als afgerond';
+    colEl.innerHTML=`
+      <div class="col-hdr">
+        <div class="col-hdr-left">
+          <input class="col-title" value="${escapeHtml(col.title)}"
+            onblur="renameColumn('${col.id}',this.value)"
+            onkeydown="if(event.key==='Enter')this.blur()"/>
+          <span class="col-count">${visibleItems.length}</span>
+        </div>
+        <div class="col-actions">
+          <button onclick="toggleColCompleted('${col.id}')" title="${completedTitle}"
+            style="${col.isCompleted?'color:var(--success)':''}">${col.isCompleted?'✓':'○'}</button>
+          <button onclick="deleteColumn('${col.id}')" title="Verwijderen">✕</button>
+        </div>
+      </div>
+      <div class="col-body" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)"
+        ondrop="onDrop(event,'${col.id}')" id="body-${col.id}"></div>
+      <div style="padding:0 8px 10px">
+        <button class="add-card-btn" style="width:100%" onclick="openItemModal('${col.id}',null)">+ Item toevoegen</button>
+      </div>`;
+    board.appendChild(colEl);
+    const body=colEl.querySelector('.col-body');
+    if(kanbanState.categoryGrouping==='grouped'){
+      const grouped={};const order=[];
+      visibleItems.forEach(it=>{const cat=it.category||'Geen categorie';if(!grouped[cat]){grouped[cat]=[];order.push(cat);}grouped[cat].push(it);});
+      const orderedCats=[...p.categories.filter(c=>grouped[c]),...order.filter(c=>!p.categories.includes(c))];
+      orderedCats.forEach(cat=>{
+        const items=grouped[cat];if(!items?.length)return;
+        const key=col.id+'::'+cat;const collapsed=p.collapsedCats[key];
+        const group=document.createElement('div');group.className='cat-group'+(collapsed?' collapsed':'');
+        group.innerHTML=`<div class="cat-hdr" onclick="toggleCatCollapsed('${col.id}','${escapeHtml(cat)}')">
+          <div class="cat-hdr-left"><span class="cat-chev">▾</span><span>${escapeHtml(cat)}</span>
+          <span class="cat-count">${items.length}</span></div></div>
+          <div class="cat-items">${items.map(i=>renderCardHTML(i,col.id)).join('')}</div>`;
+        body.appendChild(group);
+      });
+    } else {body.innerHTML=visibleItems.map(i=>renderCardHTML(i,col.id)).join('');}
+  });
+  const addColBtn=document.createElement('button');
+  addColBtn.className='add-col-btn';addColBtn.textContent='+ Fase toevoegen';addColBtn.onclick=addColumn;
+  board.appendChild(addColBtn);
+}
+
+/* ─ Import / Export ─ */
+const FIELD_ALIASES={
+  title:['titel','title','naam','name','taak','task','item','omschrijving'],
+  clientId:['klant','client','opdrachtgever','customer'],
+  category:['categorie','category','fase','phase','type'],
+  colId:['kolom','column','status','staat','state'],
+  tags:['tags','tag','labels','label']
+};
+function detectField(h){
+  for(const[f,aliases]of Object.entries(FIELD_ALIASES)){if(aliases.includes(h.toLowerCase().trim()))return f;}
+  return null;
+}
+function openImport(){document.getElementById('importModal').classList.add('open');showImportStep(1);}
+function closeImportModal(){document.getElementById('importModal').classList.remove('open');closeTagPicker();}
+function showImportStep(n){
+  document.getElementById('importStep1').style.display=n===1?'':'none';
+  document.getElementById('importStep2').style.display=n===2?'flex':'none';
+  if(n===1)document.getElementById('fileInput').value='';
+}
+function handleImportFile(file){
+  if(!file)return;
+  const ext=file.name.split('.').pop().toLowerCase();
+  if(ext==='csv'){const r=new FileReader();r.onload=e=>parseAndBuild(parseCSV(e.target.result));r.readAsText(file);}
+  else if(['xlsx','xls'].includes(ext)){const r=new FileReader();r.onload=e=>parseAndBuild(parseXLSX(e.target.result));r.readAsArrayBuffer(file);}
+  else alert('Ondersteunde formaten: CSV, XLSX, XLS');
+}
+function parseCSV(text){
+  const lines=text.split(/\r?\n/).filter(l=>l.trim());if(!lines.length)return{header:[],rows:[]};
+  const parseRow=l=>{const r=[];let cur='',inQ=false;for(let i=0;i<l.length;i++){const c=l[i];if(c==='"'){inQ=!inQ;}else if(c===','&&!inQ){r.push(cur.trim());cur='';}else cur+=c;}r.push(cur.trim());return r;};
+  const header=parseRow(lines[0]).map(h=>h.replace(/^"|"$/g,''));
+  const rows=lines.slice(1).map(l=>{const vals=parseRow(l);const o={};header.forEach((h,i)=>o[h]=(vals[i]||'').replace(/^"|"$/g,''));return o;});
+  return{header,rows};
+}
+function parseXLSX(buffer){
+  const wb=XLSX.read(buffer,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];
+  const data=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});if(!data.length)return{header:[],rows:[]};
+  const header=data[0].map(h=>String(h||''));
+  const rows=data.slice(1).map(row=>{const o={};header.forEach((h,i)=>o[h]=String(row[i]??''));return o;});
+  return{header,rows};
+}
+function parseAndBuild({header,rows}){
+  const p=currentProject();const defaultColId=p?p.columns[0].id:'';
+  const mapping={};header.forEach(h=>{const f=detectField(h);if(f)mapping[h]=f;});
+  importRows=rows.filter(r=>Object.values(r).some(v=>String(v).trim())).map(r=>{
+    const row={id:uid(),title:'',colId:defaultColId,clientId:'',category:'',tags:[],selected:true};
+    for(const[h,f]of Object.entries(mapping)){
+      const val=String(r[h]||'').trim();if(!val)continue;
+      if(f==='title')row.title=val;
+      else if(f==='colId'){const col=p?.columns.find(c=>c.title.toLowerCase()===val.toLowerCase());if(col)row.colId=col.id;}
+      else if(f==='clientId'){const cl=kanbanState.clients.find(c=>c.name.toLowerCase()===val.toLowerCase());if(cl)row.clientId=cl.id;}
+      else if(f==='category')row.category=val;
+      else if(f==='tags')row.tags=val.split(',').map(t=>t.trim()).filter(Boolean);
+    }
+    if(!row.title)row.title=Object.values(r).map(v=>String(v).trim()).find(v=>v)||'';
+    return row;
+  }).filter(r=>r.title);
+  if(!importRows.length){alert('Geen geldige rijen gevonden.');return;}
+  renderImportTable();showImportStep(2);
+  document.getElementById('importCount').textContent='('+importRows.length+' items)';
+  populateBulkSelects();
+}
+function populateBulkSelects(){
+  const p=currentProject();
+  document.getElementById('bulkColSel').innerHTML='<option value="">— Kolom —</option>'+(p?.columns||[]).map(c=>`<option value="${c.id}">${escapeHtml(c.title)}</option>`).join('');
+  document.getElementById('bulkClientSel').innerHTML='<option value="">— Klant —</option>'+kanbanState.clients.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  document.getElementById('bulkCatSel').innerHTML='<option value="">— Categorie —</option>'+(p?.categories||[]).map(c=>`<option value="${c}">${escapeHtml(c)}</option>`).join('');
+}
+function applyBulk(){
+  const colId=document.getElementById('bulkColSel').value;
+  const clientId=document.getElementById('bulkClientSel').value;
+  const category=document.getElementById('bulkCatSel').value;
+  importRows.forEach(r=>{
+    if(!r.selected)return;
+    if(colId)r.colId=colId;if(clientId)r.clientId=clientId;if(category)r.category=category;
+  });renderImportTable();
+}
+function toggleSelectAll(checked){importRows.forEach(r=>r.selected=checked);renderImportTable();}
+function renderImportTable(){
+  const p=currentProject();
+  const colOpts=(p?.columns||[]).map(c=>`<option value="${c.id}">${escapeHtml(c.title)}</option>`).join('');
+  const clOpts='<option value="">— geen —</option>'+kanbanState.clients.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('')+'<option value="__new__" class="add-new-option">+ Nieuwe klant...</option>';
+  const catOpts='<option value="">— geen —</option>'+(p?.categories||[]).map(c=>`<option value="${c}">${escapeHtml(c)}</option>`).join('')+'<option value="__new__" class="add-new-option">+ Nieuwe categorie...</option>';
+  document.getElementById('importTableBody').innerHTML=importRows.map((row,idx)=>`
+    <tr class="${row.selected?'row-selected':''}">
+      <td style="text-align:center"><input type="checkbox" ${row.selected?'checked':''} onchange="importRows[${idx}].selected=this.checked;this.closest('tr').classList.toggle('row-selected',this.checked)"/></td>
+      <td><input class="itbl-input" value="${escapeHtml(row.title)}" oninput="importRows[${idx}].title=this.value"/></td>
+      <td><select class="itbl-select" onchange="importRows[${idx}].colId=this.value">${colOpts.replace(`value="${row.colId}"`,`value="${row.colId}" selected`)}</select></td>
+      <td><select class="itbl-select" onchange="handleImportClientChange(${idx},this)">${clOpts.replace(`value="${row.clientId}"`,`value="${row.clientId}" selected`)}</select></td>
+      <td><select class="itbl-select" onchange="handleImportCatChange(${idx},this)">${catOpts.replace(`value="${escapeHtml(row.category)}"`,`value="${escapeHtml(row.category)}" selected`)}</select></td>
+      <td><div class="itag-cell" id="itag-${row.id}" onclick="openTagPicker('${row.id}',this)">${(row.tags||[]).map(t=>`<span class="itag-badge">${escapeHtml(t)}<button onclick="event.stopPropagation();removeImportTag('${row.id}','${t}')">✕</button></span>`).join('')}<button class="itag-add-btn" onclick="event.stopPropagation();openTagPicker('${row.id}',this.closest('.itag-cell'))">+</button></div></td>
+      <td><button class="btn btn-xs btn-danger" onclick="importRows.splice(${idx},1);renderImportTable();document.getElementById('importCount').textContent='('+importRows.length+' items)'">✕</button></td>
+    </tr>`).join('');
+}
+function handleImportClientChange(idx,sel){
+  if(sel.value==='__new__'){
+    const name=prompt('Naam van nieuwe klant:');if(!name?.trim()){sel.value=importRows[idx].clientId||'';return;}
+    const nc={id:uid(),name:name.trim(),colorIdx:kanbanState.clients.length%CLIENT_COLORS.length};
+    kanbanState.clients.push(nc);scheduleSave();importRows[idx].clientId=nc.id;
+    populateBulkSelects();renderImportTable();renderSidebarClients();
+  } else importRows[idx].clientId=sel.value;
+}
+function handleImportCatChange(idx,sel){
+  if(sel.value==='__new__'){
+    const name=prompt('Naam van nieuwe categorie:');if(!name?.trim()){sel.value=importRows[idx].category||'';return;}
+    const p=currentProject();if(!p.categories.includes(name.trim()))p.categories.push(name.trim());
+    scheduleSave();importRows[idx].category=name.trim();populateBulkSelects();renderImportTable();renderCategoryFilter();
+  } else importRows[idx].category=sel.value;
+}
+function removeImportTag(rowId,tag){
+  const row=importRows.find(r=>r.id===rowId);if(!row)return;
+  row.tags=row.tags.filter(t=>t!==tag);refreshTagCell(rowId);
+}
+let tagPickerRowId=null;
+function openTagPicker(rowId,anchorEl){
+  tagPickerRowId=rowId;
+  const popup=document.getElementById('tagPickerPopup');
+  const row=importRows.find(r=>r.id===rowId);const selected=row?row.tags:[];
+  const chipsEl=document.getElementById('tagPickerChips');chipsEl.innerHTML='';
+  if(!kanbanState.tags.length){chipsEl.innerHTML='<span style="font-size:11px;color:var(--text-hint)">Nog geen tags</span>';}
+  kanbanState.tags.forEach(tag=>{
+    const chip=document.createElement('span');
+    chip.className='tag-picker-chip'+(selected.includes(tag)?' sel':'');
+    chip.textContent=tag;chip.onclick=()=>{
+      chip.classList.toggle('sel');
+      const r=importRows.find(r=>r.id===tagPickerRowId);if(!r)return;
+      if(chip.classList.contains('sel')){if(!r.tags.includes(tag))r.tags.push(tag);}
+      else r.tags=r.tags.filter(t=>t!==tag);
+      refreshTagCell(tagPickerRowId);
+    };chipsEl.appendChild(chip);
+  });
+  document.getElementById('tagPickerInput').value='';
+  const rect=anchorEl.getBoundingClientRect();
+  popup.style.left=Math.min(rect.left,window.innerWidth-250)+'px';
+  popup.style.top=Math.min(rect.bottom+4,window.innerHeight-200)+'px';
+  popup.classList.add('open');
+}
+function closeTagPicker(){document.getElementById('tagPickerPopup').classList.remove('open');tagPickerRowId=null;}
+function addTagFromPicker(){
+  const input=document.getElementById('tagPickerInput');const tag=input.value.trim();if(!tag)return;
+  if(!kanbanState.tags.includes(tag)){kanbanState.tags.push(tag);scheduleSave();}
+  const row=importRows.find(r=>r.id===tagPickerRowId);
+  if(row&&!row.tags.includes(tag))row.tags.push(tag);
+  refreshTagCell(tagPickerRowId);input.value='';
+  const anchor=document.getElementById('itag-'+tagPickerRowId);
+  if(anchor)openTagPicker(tagPickerRowId,anchor);
+}
+function refreshTagCell(rowId){
+  const row=importRows.find(r=>r.id===rowId);if(!row)return;
+  const cell=document.getElementById('itag-'+rowId);if(!cell)return;
+  cell.innerHTML=(row.tags||[]).map(t=>`<span class="itag-badge">${escapeHtml(t)}<button onclick="event.stopPropagation();removeImportTag('${rowId}','${t}')">✕</button></span>`).join('')+
+    `<button class="itag-add-btn" onclick="event.stopPropagation();openTagPicker('${rowId}',this.closest('.itag-cell'))">+</button>`;
+}
+function executeImport(){
+  const toImport=importRows.filter(r=>r.selected&&r.title.trim());
+  if(!toImport.length){alert('Geen items geselecteerd.');return;}
+  const p=currentProject();
+  toImport.forEach(row=>{
+    const col=p.columns.find(c=>c.id===row.colId)||p.columns[0];
+    col.items.push({id:uid(),title:row.title.trim(),clientId:row.clientId||null,category:row.category||'',
+      context:'',tags:row.tags||[],createdAt:Date.now(),updatedAt:Date.now()});
+  });
+  closeImportModal();scheduleSave();renderBoard();updateStats();showUndoToast(toImport.length+' items geïmporteerd');
+}
+function exportData(){
+  const p=currentProject();if(!p){alert('Geen project geselecteerd.');return;}
+  const rows=[['Titel','Kolom','Klant','Categorie','Tags','Context','Aangemaakt','Gewijzigd']];
+  p.columns.forEach(col=>{col.items.forEach(item=>{
+    const client=clientById(item.clientId);
+    rows.push([item.title,col.title,client?client.name:'',item.category||'',(item.tags||[]).join(', '),
+      item.context||'',item.createdAt?new Date(item.createdAt).toLocaleDateString('nl-NL'):'',
+      item.updatedAt?new Date(item.updatedAt).toLocaleDateString('nl-NL'):'']);
+  });});
+  const csv=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=(kanbanState.activeProject||'export').replace(/[^a-z0-9]/gi,'_')+'_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();URL.revokeObjectURL(a.href);
+}
+
+/* ═══════════════════════════════════════════════════
    NOTES MODULE
-   ───────────────────────────────────────────────────────────────── */
+   ═══════════════════════════════════════════════════ */
+function renderNotesModule(){
+  renderNotesTree();
+  renderNoteEditor();
+}
+
+/* ─ Tree node helpers ─ */
 function findNode(tree,id,path=[]){
   for(let i=0;i<tree.length;i++){
     const n=tree[i];
-    if(n.id===id) return {node:n,parent:path.length?path[path.length-1]:null,parentArr:tree,index:i,path};
-    if(n.children&&n.children.length){
-      const r=findNode(n.children,id,[...path,n]);
-      if(r) return r;
-    }
+    if(n.id===id)return{node:n,parent:path.length?path[path.length-1]:null,parentArr:tree,index:i,path};
+    if(n.children&&n.children.length){const r=findNode(n.children,id,[...path,n]);if(r)return r;}
   }
   return null;
 }
 
+/* Filter tree by client — keeps folders that contain matching descendants */
+function filterNoteTree(nodes,clientId){
+  if(!clientId)return nodes;
+  return nodes.reduce((acc,node)=>{
+    if(node.type==='folder'){
+      const filtered=filterNoteTree(node.children||[],clientId);
+      if(filtered.length)acc.push({...node,children:filtered});
+    } else {
+      if(node.clientId===clientId)acc.push(node);
+    }
+    return acc;
+  },[]);
+}
+
+/* ─ CRUD ─ */
 function createNote(parentId){
-  const newNote={id:uid(),type:'page',title:'Nieuwe notitie',content:'# Nieuwe notitie\n\nBegin hier met schrijven...',updatedAt:Date.now()};
+  const newNote={id:ntuid(),type:'page',title:'Nieuwe notitie',
+    content:'# Nieuwe notitie\n\nBegin hier met schrijven...',
+    clientId:activeClientFilter||null,updatedAt:Date.now()};
   if(parentId){
     const r=findNode(notesState.tree,parentId);
     if(r){
-      if(r.node.type!=='folder'){
-        /* Convert page to folder? Add to same parent instead */
-        const parentArr=r.parentArr;
-        parentArr.splice(r.index+1,0,newNote);
-      } else {
-        r.node.children=r.node.children||[];
-        r.node.children.push(newNote);
-        notesState.collapsed[parentId]=false;
-      }
+      if(r.node.type!=='folder'){r.parentArr.splice(r.index+1,0,newNote);}
+      else{r.node.children=r.node.children||[];r.node.children.push(newNote);notesState.collapsed[parentId]=false;}
     }
-  } else {
-    notesState.tree.push(newNote);
-  }
-  notesState.activeId=newNote.id;
-  editMode=true;
-  scheduleSave();
-  renderNotes();
+  } else notesState.tree.push(newNote);
+  notesState.activeId=newNote.id;noteEditMode=true;scheduleSave();renderNotesModule();
 }
-
 function createFolder(parentId){
-  const name=prompt('Naam van de groep:','Nieuwe groep');
-  if(!name||!name.trim())return;
-  const newFolder={id:uid(),type:'folder',title:name.trim(),children:[]};
+  const name=prompt('Naam van de groep:','Nieuwe groep');if(!name?.trim())return;
+  const newFolder={id:ntuid(),type:'folder',title:name.trim(),children:[]};
   if(parentId){
     const r=findNode(notesState.tree,parentId);
-    if(r&&r.node.type==='folder'){
-      r.node.children=r.node.children||[];
-      r.node.children.push(newFolder);
-      notesState.collapsed[parentId]=false;
-    } else if(r){
-      r.parentArr.splice(r.index+1,0,newFolder);
-    }
-  } else {
-    notesState.tree.push(newFolder);
-  }
-  scheduleSave();
-  renderNotes();
+    if(r&&r.node.type==='folder'){r.node.children=r.node.children||[];r.node.children.push(newFolder);notesState.collapsed[parentId]=false;}
+    else if(r)r.parentArr.splice(r.index+1,0,newFolder);
+  } else notesState.tree.push(newFolder);
+  scheduleSave();renderNotesTree();
 }
-
 function selectNote(id){
-  const r=findNode(notesState.tree,id);
-  if(!r)return;
-  if(r.node.type==='folder'){
-    notesState.collapsed[id]=!notesState.collapsed[id];
-    renderNotes();
-    return;
-  }
-  notesState.activeId=id;
-  editMode=false;
-  renderNotes();
-  renderEditor();
+  const r=findNode(notesState.tree,id);if(!r)return;
+  if(r.node.type==='folder'){notesState.collapsed[id]=!notesState.collapsed[id];renderNotesTree();return;}
+  notesState.activeId=id;noteEditMode=false;renderNotesTree();renderNoteEditor();
 }
-
-function toggleFolder(id,e){
-  if(e)e.stopPropagation();
-  notesState.collapsed[id]=!notesState.collapsed[id];
-  renderNotes();
-}
-
+function toggleFolder(id,e){if(e)e.stopPropagation();notesState.collapsed[id]=!notesState.collapsed[id];renderNotesTree();}
 function deleteNode(id){
-  const r=findNode(notesState.tree,id);
-  if(!r)return;
+  const r=findNode(notesState.tree,id);if(!r)return;
   const label=r.node.type==='folder'?'groep "'+r.node.title+'" (inclusief inhoud)':'notitie "'+r.node.title+'"';
   if(!confirm('Weet je zeker dat je '+label+' wilt verwijderen?'))return;
   r.parentArr.splice(r.index,1);
-  if(notesState.activeId===id) notesState.activeId=null;
-  scheduleSave();
-  renderNotes();
-  renderEditor();
+  if(notesState.activeId===id)notesState.activeId=null;
+  scheduleSave();renderNotesModule();
 }
-
 function renameNode(id){
-  const r=findNode(notesState.tree,id);
-  if(!r)return;
+  const r=findNode(notesState.tree,id);if(!r)return;
   renameTarget=id;
   document.getElementById('renameModalTitle').textContent=r.node.type==='folder'?'Groep hernoemen':'Notitie hernoemen';
   document.getElementById('renameInput').value=r.node.title;
   document.getElementById('renameModal').classList.add('open');
   setTimeout(()=>{document.getElementById('renameInput').focus();document.getElementById('renameInput').select();},30);
 }
-
-function closeRenameModal(){
-  document.getElementById('renameModal').classList.remove('open');
-  renameTarget=null;
-}
-
+function closeRenameModal(){document.getElementById('renameModal').classList.remove('open');renameTarget=null;}
 function confirmRename(){
-  if(!renameTarget) return;
-  const v=document.getElementById('renameInput').value.trim();
-  if(!v){closeRenameModal();return;}
+  if(!renameTarget)return;
+  const v=document.getElementById('renameInput').value.trim();if(!v){closeRenameModal();return;}
   const r=findNode(notesState.tree,renameTarget);
-  if(r){r.node.title=v;scheduleSave();renderNotes();renderEditor();}
-  closeRenameModal();
+  if(r){r.node.title=v;scheduleSave();renderNotesModule();}closeRenameModal();
 }
+function setNoteClient(id,clientId){
+  const r=findNode(notesState.tree,id);if(!r)return;
+  r.node.clientId=clientId||null;r.node.updatedAt=Date.now();scheduleSave();renderNotesTree();
+}
+function toggleNoteEdit(){noteEditMode=!noteEditMode;renderNoteEditor();}
 
+/* ─ Note content updates ─ */
 function updateNoteContent(content){
   const id=notesState.activeId;if(!id)return;
-  const r=findNode(notesState.tree,id);
-  if(!r)return;
-  r.node.content=content;
-  r.node.updatedAt=Date.now();
-  /* Auto-derive title from first H1 line if present */
+  const r=findNode(notesState.tree,id);if(!r)return;
+  r.node.content=content;r.node.updatedAt=Date.now();
   const firstLine=content.split('\n').find(l=>l.trim());
   if(firstLine&&firstLine.startsWith('# ')){
     const derived=firstLine.replace(/^#\s*/,'').trim();
-    if(derived&&derived.length<100) r.node.title=derived;
+    if(derived&&derived.length<100)r.node.title=derived;
   }
   scheduleSave();
-  /* Update sidebar label without full re-render */
   const el=document.querySelector(`.note-node[data-id="${id}"] .note-label`);
-  if(el) el.textContent=r.node.title;
+  if(el)el.textContent=r.node.title;
 }
 const debouncedUpdateContent=debounce(updateNoteContent,400);
-
-function toggleNoteEdit(){
-  editMode=!editMode;
-  renderEditor();
+function updateNoteTitle(v){
+  const id=notesState.activeId;if(!id)return;
+  const r=findNode(notesState.tree,id);
+  if(r){r.node.title=v;r.node.updatedAt=Date.now();scheduleSave();
+    const el=document.querySelector(`.note-node[data-id="${id}"] .note-label`);if(el)el.textContent=v;}
 }
 
-/* ─ Drag & drop tree ───────────────────────────────────────────── */
-function onNoteDragStart(e,id){
-  noteDrag.id=id;
-  e.dataTransfer.effectAllowed='move';
-  e.dataTransfer.setData('text/plain',id);
-}
+/* ─ Drag & drop (notes tree) ─ */
+function onNoteDragStart(e,id){noteDrag.id=id;e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',id);}
 function onNoteDragOver(e,id){
-  if(!noteDrag.id||noteDrag.id===id)return;
-  e.preventDefault();
-  const rect=e.currentTarget.getBoundingClientRect();
-  const y=e.clientY-rect.top;
-  const h=rect.height;
+  if(!noteDrag.id||noteDrag.id===id)return;e.preventDefault();
+  const rect=e.currentTarget.getBoundingClientRect();const y=e.clientY-rect.top;const h=rect.height;
   e.currentTarget.classList.remove('drag-over','drag-over-top','drag-over-bottom');
-  const target=findNode(notesState.tree,id);
-  if(!target)return;
-  if(target.node.type==='folder'&&y>h*0.25&&y<h*0.75){
-    e.currentTarget.classList.add('drag-over');
-  } else if(y<h*0.5){
-    e.currentTarget.classList.add('drag-over-top');
-  } else {
-    e.currentTarget.classList.add('drag-over-bottom');
-  }
+  const target=findNode(notesState.tree,id);if(!target)return;
+  if(target.node.type==='folder'&&y>h*0.25&&y<h*0.75)e.currentTarget.classList.add('drag-over');
+  else if(y<h*0.5)e.currentTarget.classList.add('drag-over-top');
+  else e.currentTarget.classList.add('drag-over-bottom');
 }
-function onNoteDragLeave(e){
-  e.currentTarget.classList.remove('drag-over','drag-over-top','drag-over-bottom');
-}
+function onNoteDragLeave(e){e.currentTarget.classList.remove('drag-over','drag-over-top','drag-over-bottom');}
 function onNoteDrop(e,targetId){
   e.preventDefault();e.stopPropagation();
   e.currentTarget.classList.remove('drag-over','drag-over-top','drag-over-bottom');
   if(!noteDrag.id||noteDrag.id===targetId)return;
-  /* Prevent dropping parent into its own child */
   const isDescendant=(nodeId,ancestorId)=>{
-    const r=findNode(notesState.tree,ancestorId);
-    if(!r||!r.node.children)return false;
-    const walk=(arr)=>arr.some(n=>n.id===nodeId||(n.children&&walk(n.children)));
-    return walk(r.node.children);
+    const r=findNode(notesState.tree,ancestorId);if(!r||!r.node.children)return false;
+    const walk=(arr)=>arr.some(n=>n.id===nodeId||(n.children&&walk(n.children)));return walk(r.node.children);
   };
   if(isDescendant(targetId,noteDrag.id)){noteDrag.id=null;return;}
-
-  const src=findNode(notesState.tree,noteDrag.id);
-  const tgt=findNode(notesState.tree,targetId);
-  if(!src||!tgt)return;
-
-  const rect=e.currentTarget.getBoundingClientRect();
-  const y=e.clientY-rect.top;
-  const h=rect.height;
-
-  /* Remove src from its current position */
-  const [movedNode]=src.parentArr.splice(src.index,1);
-
-  /* Recompute target after removal (indices may have shifted in the same parent) */
+  const src=findNode(notesState.tree,noteDrag.id);const tgt=findNode(notesState.tree,targetId);if(!src||!tgt)return;
+  const rect=e.currentTarget.getBoundingClientRect();const y=e.clientY-rect.top;const h=rect.height;
+  const[movedNode]=src.parentArr.splice(src.index,1);
   const tgtAfter=findNode(notesState.tree,targetId);
   if(!tgtAfter){src.parentArr.push(movedNode);noteDrag.id=null;return;}
-
   if(tgtAfter.node.type==='folder'&&y>h*0.25&&y<h*0.75){
-    tgtAfter.node.children=tgtAfter.node.children||[];
-    tgtAfter.node.children.push(movedNode);
-    notesState.collapsed[targetId]=false;
-  } else if(y<h*0.5){
-    tgtAfter.parentArr.splice(tgtAfter.index,0,movedNode);
-  } else {
-    tgtAfter.parentArr.splice(tgtAfter.index+1,0,movedNode);
-  }
-
-  noteDrag.id=null;
-  scheduleSave();
-  renderNotes();
+    tgtAfter.node.children=tgtAfter.node.children||[];tgtAfter.node.children.push(movedNode);notesState.collapsed[targetId]=false;
+  } else if(y<h*0.5)tgtAfter.parentArr.splice(tgtAfter.index,0,movedNode);
+  else tgtAfter.parentArr.splice(tgtAfter.index+1,0,movedNode);
+  noteDrag.id=null;scheduleSave();renderNotesTree();
 }
 function onNoteDragEnd(){
   noteDrag.id=null;
   document.querySelectorAll('.note-node').forEach(n=>n.classList.remove('drag-over','drag-over-top','drag-over-bottom'));
 }
 
-/* ─ Context menu ───────────────────────────────────────────────── */
+/* ─ Context menu ─ */
 function showNoteCtxMenu(e,id){
   e.preventDefault();e.stopPropagation();
   const menu=document.getElementById('noteCtxMenu');
-  const r=findNode(notesState.tree,id);
-  if(!r)return;
+  const r=findNode(notesState.tree,id);if(!r)return;
   const isFolder=r.node.type==='folder';
+  const clientOpts=`<option value="">— geen —</option>`+
+    kanbanState.clients.map(c=>`<option value="${c.id}"${r.node.clientId===c.id?' selected':''}>${escapeHtml(c.name)}</option>`).join('');
   menu.innerHTML=`
     <button class="ctx-item" onclick="closeNoteCtxMenu();renameNode('${id}')">✎ Hernoemen</button>
-    <button class="ctx-item" onclick="closeNoteCtxMenu();createNote('${id}')">+ Nieuwe notitie ${isFolder?'in groep':'erna'}</button>
+    <button class="ctx-item" onclick="closeNoteCtxMenu();createNote('${id}')">+ Notitie ${isFolder?'in groep':'erna'}</button>
     ${isFolder?`<button class="ctx-item" onclick="closeNoteCtxMenu();createFolder('${id}')">+ Sub-groep</button>`:''}
+    ${!isFolder?`<div style="padding:4px 8px;display:flex;align-items:center;gap:6px;font-size:12px">
+      <span style="color:var(--text-muted)">Klant:</span>
+      <select style="flex:1;font-size:11px;padding:2px 5px;background:var(--surface2);border:0.5px solid var(--border-strong);border-radius:4px;color:var(--text);font-family:inherit"
+        onchange="setNoteClient('${id}',this.value);closeNoteCtxMenu()">${clientOpts}</select>
+    </div>`:''}
     <div class="ctx-divider"></div>
     <button class="ctx-item danger" onclick="closeNoteCtxMenu();deleteNode('${id}')">✕ Verwijderen</button>`;
   menu.style.left=Math.min(e.clientX,window.innerWidth-200)+'px';
-  menu.style.top=Math.min(e.clientY,window.innerHeight-160)+'px';
+  menu.style.top=Math.min(e.clientY,window.innerHeight-200)+'px';
   menu.classList.add('open');
 }
 function closeNoteCtxMenu(){document.getElementById('noteCtxMenu').classList.remove('open');}
-document.addEventListener('click',closeNoteCtxMenu);
 
-/* ─ Renderers ──────────────────────────────────────────────────── */
-function renderNotes(){
-  const el=document.getElementById('notesTree');
-  if(notesState.tree.length===0){
-    el.innerHTML=`<div style="color:var(--text-hint);font-size:11px;padding:10px 8px;text-align:center">Geen pagina's</div>`;
+/* ─ Render tree ─ */
+function renderNotesTree(){
+  const el=document.getElementById('notesTree');if(!el)return;
+  const displayTree=activeClientFilter?filterNoteTree(notesState.tree,activeClientFilter):notesState.tree;
+  if(!displayTree.length){
+    el.innerHTML=activeClientFilter
+      ?`<div style="color:var(--text-hint);font-size:11px;padding:8px;text-align:center">Geen notities voor deze klant</div>`
+      :`<div style="color:var(--text-hint);font-size:11px;padding:8px;text-align:center">Geen pagina's</div>`;
     return;
   }
-  el.innerHTML=notesState.tree.map(n=>renderNoteNode(n,0)).join('');
+  el.innerHTML=displayTree.map(n=>renderNoteNode(n,0)).join('');
 }
-
 function renderNoteNode(node,depth){
   const isFolder=node.type==='folder';
   const isActive=notesState.activeId===node.id;
   const isCollapsed=!!notesState.collapsed[node.id];
   const hasChildren=isFolder&&node.children&&node.children.length>0;
   const indent=depth*12;
-
-  const chev=isFolder?
-    `<span class="note-chev${isCollapsed?' collapsed':''}" onclick="toggleFolder('${node.id}',event)">▾</span>`:
-    `<span class="note-chev" style="visibility:hidden">·</span>`;
-
+  const chev=isFolder
+    ?`<span class="note-chev${isCollapsed?' collapsed':''}" onclick="toggleFolder('${node.id}',event)">▾</span>`
+    :`<span class="note-chev" style="visibility:hidden">·</span>`;
   const icon=isFolder?'📁':'📄';
-
-  const children=hasChildren&&!isCollapsed?
-    `<div class="note-children">${node.children.map(c=>renderNoteNode(c,depth+1)).join('')}</div>`:'';
-
+  const client=!isFolder&&node.clientId?clientById(node.clientId):null;
+  const col=client?CLIENT_COLORS[client.colorIdx%CLIENT_COLORS.length]:null;
+  const clientDot=client?`<span class="note-client-dot" style="background:${col.bg};border:1px solid ${col.tx}" title="${escapeHtml(client.name)}"></span>`:'';
+  const children=hasChildren&&!isCollapsed
+    ?`<div class="note-children">${node.children.map(c=>renderNoteNode(c,depth+1)).join('')}</div>`:'';
   return `
-    <div class="note-node${isActive?' active':''}"
-         data-id="${node.id}"
-         style="margin-left:${indent}px"
-         draggable="true"
-         onclick="selectNote('${node.id}')"
-         oncontextmenu="showNoteCtxMenu(event,'${node.id}')"
-         ondragstart="onNoteDragStart(event,'${node.id}')"
-         ondragover="onNoteDragOver(event,'${node.id}')"
-         ondragleave="onNoteDragLeave(event)"
-         ondrop="onNoteDrop(event,'${node.id}')"
-         ondragend="onNoteDragEnd(event)">
+    <div class="note-node${isActive?' active':''}" data-id="${node.id}"
+      style="margin-left:${indent}px" draggable="true"
+      onclick="selectNote('${node.id}')"
+      oncontextmenu="showNoteCtxMenu(event,'${node.id}')"
+      ondragstart="onNoteDragStart(event,'${node.id}')"
+      ondragover="onNoteDragOver(event,'${node.id}')"
+      ondragleave="onNoteDragLeave(event)"
+      ondrop="onNoteDrop(event,'${node.id}')"
+      ondragend="onNoteDragEnd(event)">
       ${chev}
       <span class="note-icon">${icon}</span>
       <span class="note-label">${escapeHtml(node.title)}</span>
+      ${clientDot}
       <span class="note-actions">
         ${isFolder?`<button onclick="event.stopPropagation();createNote('${node.id}')" title="Nieuwe notitie">+</button>`:''}
         <button onclick="event.stopPropagation();renameNode('${node.id}')" title="Hernoemen">✎</button>
       </span>
-    </div>
-    ${children}`;
+    </div>${children}`;
 }
 
-function renderEditor(){
+/* ─ Note editor ─ */
+function renderNoteEditor(){
   const content=document.getElementById('noteContent');
-  const editToggleBtn=document.getElementById('noteEditToggle');
-
+  const editToggleBtn=document.getElementById('noteEditToggle');if(!content)return;
   if(!notesState.activeId){
-    editToggleBtn.style.display='none';
-    content.innerHTML=`
-      <div class="notes-empty">
-        <div style="font-size:24px">📝</div>
-        <p>Geen notitie geselecteerd</p>
-        <button class="btn btn-sm btn-primary" onclick="createNote(null)">+ Nieuwe notitie</button>
-      </div>`;
-    return;
+    if(editToggleBtn)editToggleBtn.style.display='none';
+    content.innerHTML=`<div class="notes-empty">
+      <div style="font-size:24px">📝</div><p>Geen notitie geselecteerd</p>
+      <button class="btn btn-sm btn-primary" onclick="createNote(null)">+ Nieuwe notitie</button>
+    </div>`;return;
   }
   const r=findNode(notesState.tree,notesState.activeId);
-  if(!r||r.node.type==='folder'){
-    editToggleBtn.style.display='none';
-    notesState.activeId=null;
-    renderEditor();
-    return;
-  }
-  editToggleBtn.style.display='';
-  editToggleBtn.textContent=editMode?'👁 Bekijken':'✎ Bewerken';
-
+  if(!r||r.node.type==='folder'){if(editToggleBtn)editToggleBtn.style.display='none';notesState.activeId=null;renderNoteEditor();return;}
+  if(editToggleBtn){editToggleBtn.style.display='';editToggleBtn.textContent=noteEditMode?'👁 Bekijken':'✎ Bewerken';}
   const node=r.node;
-  if(editMode){
+  const client=node.clientId?clientById(node.clientId):null;
+  const col=client?CLIENT_COLORS[client.colorIdx%CLIENT_COLORS.length]:null;
+  const clientBadgeEdit=`<select class="note-client-select" onchange="setNoteClient('${node.id}',this.value)">
+    <option value="">— geen klant —</option>
+    ${kanbanState.clients.map(c=>`<option value="${c.id}"${node.clientId===c.id?' selected':''}>${escapeHtml(c.name)}</option>`).join('')}
+  </select>`;
+  const clientBadgeView=client
+    ?`<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;background:${col.bg};color:${col.tx}">${escapeHtml(client.name)}</span>`
+    :'';
+  if(noteEditMode){
     content.innerHTML=`
       <div class="notes-editor-hdr">
         <input class="notes-title-input" value="${escapeHtml(node.title)}" oninput="updateNoteTitle(this.value)"/>
+        ${clientBadgeEdit}
       </div>
       <div class="notes-editor-body">
-        <textarea class="notes-textarea" id="noteTextArea" placeholder="Schrijf in markdown...">${escapeHtml(node.content)}</textarea>
+        <textarea class="notes-textarea" id="noteTextArea" placeholder="Schrijf in markdown...">${escapeHtml(node.content||'')}</textarea>
       </div>`;
     const ta=document.getElementById('noteTextArea');
     ta.addEventListener('input',e=>debouncedUpdateContent(e.target.value));
     setTimeout(()=>ta.focus(),30);
   } else {
     const rendered=marked.parse(node.content||'');
+    const ts=node.updatedAt?new Date(node.updatedAt).toLocaleString('nl-NL'):'';
     content.innerHTML=`
       <div class="notes-editor-hdr">
-        <div style="font-size:14px;font-weight:600">${escapeHtml(node.title)}</div>
-        <div style="font-size:11px;color:var(--text-hint)">${node.updatedAt?new Date(node.updatedAt).toLocaleString('nl-NL'):''}</div>
+        <div style="font-size:14px;font-weight:600;flex:1">${escapeHtml(node.title)}</div>
+        ${clientBadgeView}
+        <div style="font-size:11px;color:var(--text-hint)">${ts}</div>
       </div>
       <div class="notes-editor-body">
         <div class="notes-preview">${rendered||'<p style="color:var(--text-hint)">Lege notitie. Klik op Bewerken om te beginnen.</p>'}</div>
@@ -873,372 +2434,323 @@ function renderEditor(){
   }
 }
 
-function updateNoteTitle(v){
-  const id=notesState.activeId;if(!id)return;
-  const r=findNode(notesState.tree,id);
-  if(r){r.node.title=v;r.node.updatedAt=Date.now();scheduleSave();
-    const el=document.querySelector(`.note-node[data-id="${id}"] .note-label`);
-    if(el) el.textContent=v;
-  }
-}
+/* ─ Dashboard notes fetch ─ */
+function renderDashNotesFull(){renderDashNotes();}
 
-function render(){
-  document.getElementById('todayStr').textContent=formatToday();
-  renderTodoStats();
-  renderNotes();
-  renderEditor();
-  loadCalendar();
-}
-
-/* ─────────────────────────────────────────────────────────────────
-   BOOT
-   ───────────────────────────────────────────────────────────────── */
-async function boot(){
-  await loadGist();
-}
-
-loadToken();
-if(ghToken){
-  document.getElementById('appScreen').style.display='block';
-  boot();
-} else {
-  document.getElementById('setupScreen').style.display='flex';
-}
-
-/* Refresh task stats when window regains focus (to-do app might have updated the gist) */
-window.addEventListener('focus',()=>{
-  if(ghToken&&gistId)refetchTasks();
-});
-
-/* Modal: Enter submits, Escape closes */
-document.addEventListener('keydown',e=>{
-  if(document.getElementById('renameModal').classList.contains('open')){
-    if(e.key==='Enter')confirmRename();
-    if(e.key==='Escape')closeRenameModal();
-  }
-});
-document.getElementById('renameModal').addEventListener('click',e=>{if(e.target.id==='renameModal')closeRenameModal();});
-
-/* Configure marked for safe rendering */
-if(window.marked){
-  marked.setOptions({breaks:true,gfm:true});
-}
-
-/* ─────────────────────────────────────────────────────────────────
-   GOOGLE CALENDAR
-   ───────────────────────────────────────────────────────────────── */
-const CORS_PROXY='https://corsproxy.io/?';
-let calRefreshTimer=null;
-
-function getCalMode(){return rawState.settings?.calMode||null;}
-function getIcalUrl(){return rawState.settings?.icalUrl||null;}
-
-function escapeHtmlCal(s){return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-
-/* ── Shared load dispatcher ── */
-async function loadCalendar(){
-  const body=document.getElementById('calBody');
-  const mode=getCalMode();
-  const icalUrl=getIcalUrl();
+/* ═══════════════════════════════════════════════════
+   AGENDA MODULE — WEEKLY CALENDAR
+   ═══════════════════════════════════════════════════ */
+function renderAgendaModule(){
+  updateWeekTitle();
+  const mode=rawState.settings?.calMode||null;
+  const icalUrl=rawState.settings?.icalUrl||null;
   const connected=mode==='oauth'||!!icalUrl;
-  document.getElementById('calSettingsBtn').style.display=connected?'':'none';
-
+  const settingsBtn=document.getElementById('agendaSettingsBtn');
+  const connectBtn=document.getElementById('agendaConnectBtn');
+  if(settingsBtn)settingsBtn.style.display=connected?'':'none';
+  if(connectBtn)connectBtn.style.display=connected?'none':'';
   if(mode==='oauth'){
-    if(gAccessToken){
-      fetchGoogleCalEvents();
-    } else {
-      body.innerHTML=`
-        <div class="placeholder">
-          <div class="placeholder-icon">🔐</div>
-          <p style="margin-bottom:10px">Google Agenda is gekoppeld.<br>Klik opnieuw om te verbinden.</p>
-          <button class="btn btn-sm btn-primary" onclick="signInGoogle()">Verbinden met Google</button>
-          <button class="btn btn-xs btn-ghost" onclick="disconnectGoogle()" style="margin-top:6px">Ontkoppelen</button>
-        </div>`;
-    }
-    return;
+    if(gAccessToken)fetchAndRenderWeek();
+    else renderAgendaReconnect();
+  } else if(icalUrl){
+    fetchIcalForWeek(icalUrl);
+  } else {
+    renderAgendaPlaceholder();
   }
-
-  if(!icalUrl){
-    body.innerHTML=`
-      <div class="placeholder">
-        <div class="placeholder-icon">📅</div>
-        <p style="margin-bottom:10px">Koppel je Google Agenda om je afspraken hier te zien.</p>
-        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
-          <button class="btn btn-sm btn-primary" onclick="signInGoogle()">🔐 Inloggen met Google</button>
-          <button class="btn btn-sm" onclick="showCalSetup()">iCal-link koppelen</button>
-        </div>
-        <small>OAuth geeft toegang tot al je privé-agenda's</small>
-      </div>`;
-    return;
-  }
-
-  loadIcalCalendar(body,icalUrl);
 }
 
-function toggleCalSettings(){
-  const mode=getCalMode();
-  if(mode==='oauth'){showOAuthSettings();}
-  else if(getIcalUrl()){showCalSetup();}
+function renderAgendaPlaceholder(){
+  document.getElementById('agendaContent').innerHTML=`
+    <div class="cal-placeholder">
+      <div style="font-size:36px">📅</div>
+      <p>Koppel je Google Agenda om afspraken in de weekweergave te zien.</p>
+      <button class="btn btn-sm btn-primary" onclick="signInGoogle()">🔐 Inloggen met Google</button>
+      <button class="btn btn-sm" onclick="showAgendaIcalSetup()">iCal-link koppelen</button>
+      <small>OAuth geeft toegang tot al je privé-agenda's</small>
+    </div>`;
+}
+function renderAgendaReconnect(){
+  document.getElementById('agendaContent').innerHTML=`
+    <div class="cal-placeholder">
+      <div style="font-size:36px">🔐</div>
+      <p>Google Agenda is gekoppeld maar de sessie is verlopen.</p>
+      <button class="btn btn-sm btn-primary" onclick="signInGoogle()">Opnieuw verbinden</button>
+      <button class="btn btn-sm btn-danger" style="margin-top:6px" onclick="disconnectGoogle()">Ontkoppelen</button>
+    </div>`;
 }
 
-/* ─────────────────────────────────────────────────────────────────
-   OAUTH — Google Identity Services
-   ───────────────────────────────────────────────────────────────── */
+/* ─ Week navigation ─ */
+function getWeekStart(offset){
+  const now=new Date();
+  const day=now.getDay();
+  const monday=new Date(now);
+  monday.setDate(now.getDate()-(day===0?6:day-1)+offset*7);
+  monday.setHours(0,0,0,0);
+  return monday;
+}
+function changeWeek(delta){
+  agendaWeekOffset+=delta;
+  updateWeekTitle();
+  if(activeModule==='agenda')renderAgendaModule();
+}
+function updateWeekTitle(){
+  const ws=getWeekStart(agendaWeekOffset);
+  const we=new Date(ws);we.setDate(ws.getDate()+6);
+  const opts={day:'numeric',month:'long',year:'numeric'};
+  const el=document.getElementById('weekTitle');if(!el)return;
+  el.textContent='Week van '+ws.toLocaleDateString('nl-NL',{day:'numeric',month:'long',year:'numeric'});
+}
+
+/* ─ Google OAuth ─ */
 function ensureTokenClient(){
   if(gTokenClient)return true;
-  if(!window.google?.accounts?.oauth2){return false;}
+  if(!window.google?.accounts?.oauth2)return false;
   gTokenClient=google.accounts.oauth2.initTokenClient({
-    client_id:GOOGLE_CLIENT_ID,
-    scope:GOOGLE_CAL_SCOPE,
+    client_id:GOOGLE_CLIENT_ID,scope:GOOGLE_CAL_SCOPE,
     callback:(resp)=>{
       if(resp.error){
-        const body=document.getElementById('calBody');
-        body.innerHTML=`<div style="padding:12px"><div class="cal-error">Google autorisatie mislukt: ${escapeHtmlCal(resp.error)}</div><button class="btn btn-sm" onclick="loadCalendar()">Terug</button></div>`;
+        document.getElementById('agendaContent').innerHTML=`<div class="cal-placeholder"><p style="color:var(--danger)">Autorisatie mislukt: ${escapeHtml(resp.error)}</p><button class="btn btn-sm" onclick="renderAgendaModule()">Terug</button></div>`;
         return;
       }
       gAccessToken=resp.access_token;
-      /* Auto-invalidate token before it expires (default 3600s) */
       clearTimeout(gTokenRefreshTimer);
-      gTokenRefreshTimer=setTimeout(()=>{
-        gAccessToken=null;
-        if(getCalMode()==='oauth')loadCalendar();
-      },(Math.max(resp.expires_in||3600,120)-90)*1000);
-      /* Persist mode */
+      gTokenRefreshTimer=setTimeout(()=>{gAccessToken=null;if(activeModule==='agenda')renderAgendaModule();
+        if(activeModule==='dashboard')renderDashCal();},(Math.max(resp.expires_in||3600,120)-90)*1000);
       if(!rawState.settings)rawState.settings={};
-      rawState.settings.calMode='oauth';
-      /* Clear any old iCal URL so it doesn't interfere */
-      delete rawState.settings.icalUrl;
+      rawState.settings.calMode='oauth';delete rawState.settings.icalUrl;
       scheduleSave();
-      document.getElementById('calSettingsBtn').style.display='';
-      fetchGoogleCalEvents();
+      const sb=document.getElementById('agendaSettingsBtn');const cb=document.getElementById('agendaConnectBtn');
+      if(sb)sb.style.display='';if(cb)cb.style.display='none';
+      document.getElementById('dashCalSettingsBtn').style.display='';
+      fetchAndRenderWeek();
+      renderDashCal();
     }
   });
   return true;
 }
-
 function signInGoogle(){
-  if(!ensureTokenClient()){
-    alert('Google Identity Services wordt nog geladen. Probeer over een seconde opnieuw.');
-    return;
-  }
+  if(!ensureTokenClient()){alert('Google Identity Services wordt nog geladen. Probeer over een seconde opnieuw.');return;}
   gTokenClient.requestAccessToken({prompt:gAccessToken?'':'select_account'});
 }
-
 function disconnectGoogle(){
   if(!confirm('Google Agenda ontkoppelen?'))return;
-  if(gAccessToken&&window.google?.accounts?.oauth2){
-    google.accounts.oauth2.revoke(gAccessToken,()=>{});
-    gAccessToken=null;
-  }
+  if(gAccessToken&&window.google?.accounts?.oauth2){google.accounts.oauth2.revoke(gAccessToken,()=>{});gAccessToken=null;}
   clearTimeout(gTokenRefreshTimer);
-  if(rawState.settings)delete rawState.settings.calMode;
-  clearTimeout(calRefreshTimer);
-  scheduleSave();
-  loadCalendar();
+  if(rawState.settings){delete rawState.settings.calMode;}
+  clearTimeout(calRefreshTimer);scheduleSave();
+  renderAgendaModule();renderDashCal();
+}
+function toggleAgendaCalSettings(){
+  const mode=rawState.settings?.calMode||null;
+  if(mode==='oauth')showOAuthSettings(document.getElementById('agendaContent'));
+  else if(rawState.settings?.icalUrl)showAgendaIcalSetup();
+}
+function showOAuthSettings(container){
+  container.innerHTML=`<div class="cal-setup">
+    <label>Google Agenda (OAuth)</label>
+    <div style="background:var(--success-bg);color:var(--success);padding:8px 10px;border-radius:6px;font-size:12px">
+      ✓ Verbonden via Google OAuth — alle privé-agenda's worden gesynchroniseerd.
+    </div>
+    <div style="display:flex;gap:6px;margin-top:auto">
+      <button class="btn btn-sm btn-danger" onclick="disconnectGoogle()">Ontkoppelen</button>
+      <div style="flex:1"></div>
+      <button class="btn btn-sm" onclick="renderAgendaModule()">Sluiten</button>
+      <button class="btn btn-sm btn-primary" onclick="signInGoogle()">Opnieuw verbinden</button>
+    </div>
+  </div>`;
+}
+function showAgendaIcalSetup(){
+  const current=rawState.settings?.icalUrl||'';
+  document.getElementById('agendaContent').innerHTML=`<div class="cal-setup">
+    <label>Google Agenda iCal-link</label>
+    <input type="text" id="icalInputAgenda" value="${escapeHtml(current)}"
+      placeholder="https://calendar.google.com/calendar/ical/.../basic.ics"/>
+    <div class="cal-setup-hint">
+      Ga naar Google Agenda → Instellingen van de agenda →
+      <strong>Integreer agenda</strong> → kopieer het <strong>Geheim iCal-adres</strong>
+    </div>
+    <div style="display:flex;gap:6px;margin-top:auto">
+      ${current?'<button class="btn btn-sm btn-danger" onclick="removeIcal()">Ontkoppelen</button>':''}
+      <div style="flex:1"></div>
+      <button class="btn btn-sm" onclick="renderAgendaModule()">Annuleer</button>
+      <button class="btn btn-sm btn-primary" onclick="connectIcalFromAgenda()">Verbinden</button>
+    </div>
+  </div>`;
+}
+function connectIcalFromAgenda(){
+  const url=document.getElementById('icalInputAgenda')?.value.trim();
+  if(!url){alert('Vul een iCal-link in.');return;}
+  if(!rawState.settings)rawState.settings={};
+  rawState.settings.icalUrl=url;rawState.settings.calMode='ical';
+  scheduleSave();renderAgendaModule();
 }
 
-function showOAuthSettings(){
-  const body=document.getElementById('calBody');
-  body.innerHTML=`
-    <div class="cal-setup">
-      <label>Google Agenda (OAuth)</label>
-      <div class="cal-setup-hint" style="background:var(--success-bg);color:var(--success);padding:8px 10px;border-radius:6px">
-        ✓ Verbonden via Google OAuth — alle privé-agenda's worden gesynchroniseerd.
-      </div>
-      <div style="display:flex;gap:6px;margin-top:auto">
-        <button class="btn btn-sm btn-danger" onclick="disconnectGoogle()">Ontkoppelen</button>
-        <div style="flex:1"></div>
-        <button class="btn btn-sm" onclick="loadCalendar()">Sluiten</button>
-        <button class="btn btn-sm btn-primary" onclick="signInGoogle()">Opnieuw verbinden</button>
-      </div>
-    </div>`;
-}
-
-/* ── Fetch events from Google Calendar API ── */
-async function fetchGoogleCalEvents(){
-  const body=document.getElementById('calBody');
-  body.innerHTML='<div class="cal-loading"><span>Agenda laden...</span></div>';
+/* ─ Fetch & render week (Google) ─ */
+async function fetchAndRenderWeek(){
+  const content=document.getElementById('agendaContent');if(!content)return;
+  content.innerHTML='<div class="cal-loading"><div class="spinner"></div><span>Agenda laden...</span></div>';
+  const ws=getWeekStart(agendaWeekOffset);
+  const we=new Date(ws);we.setDate(ws.getDate()+7);
   try{
-    const now=new Date();
-    const weekLater=new Date(now.getTime()+7*86400000);
-    const timeMin=now.toISOString();
-    const timeMax=weekLater.toISOString();
     const hdrs={'Authorization':'Bearer '+gAccessToken};
-
-    /* Get all calendars the user has */
     const listResp=await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=50',{headers:hdrs});
-    if(listResp.status===401){gAccessToken=null;loadCalendar();return;}
-    if(!listResp.ok)throw new Error('Agenda-lijst ophalen mislukt (HTTP '+listResp.status+')');
+    if(listResp.status===401){gAccessToken=null;renderAgendaModule();return;}
+    if(!listResp.ok)throw new Error('Agenda-lijst ophalen mislukt');
     const calList=await listResp.json();
-
     const COLORS=['#4285f4','#ea4335','#fbbc04','#34a853','#ff6d00','#46bdc6','#7986cb','#a79b8e'];
     const allEvents=[];
-
-    await Promise.all(
-      (calList.items||[])
-        .filter(c=>c.selected!==false&&c.accessRole!=='freeBusyReader')
-        .map(async(cal,i)=>{
-          try{
-            const evResp=await fetch(
-              `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events`+
-              `?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}`+
-              `&singleEvents=true&orderBy=startTime&maxResults=50`,
-              {headers:hdrs}
-            );
-            if(!evResp.ok)return;
-            const data=await evResp.json();
-            const color=cal.backgroundColor||COLORS[i%COLORS.length];
-            (data.items||[]).forEach(ev=>{
-              if(ev.status==='cancelled')return;
-              allEvents.push({...ev,_calName:cal.summary,_calColor:color});
-            });
-          }catch(e){/* skip individual failing calendars */}
-        })
-    );
-
-    /* Sort by start time */
-    allEvents.sort((a,b)=>{
-      const at=a.start?.dateTime||a.start?.date||'';
-      const bt=b.start?.dateTime||b.start?.date||'';
-      return at<bt?-1:at>bt?1:0;
-    });
-
-    renderGoogleCalEvents(allEvents,body);
+    await Promise.all((calList.items||[]).filter(c=>c.selected!==false&&c.accessRole!=='freeBusyReader')
+      .map(async(cal,i)=>{
+        try{
+          const r=await fetch(
+            `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events`+
+            `?timeMin=${encodeURIComponent(ws.toISOString())}&timeMax=${encodeURIComponent(we.toISOString())}`+
+            `&singleEvents=true&orderBy=startTime&maxResults=100`,{headers:hdrs});
+          if(!r.ok)return;const data=await r.json();
+          const color=cal.backgroundColor||COLORS[i%COLORS.length];
+          (data.items||[]).forEach(ev=>{if(ev.status!=='cancelled')allEvents.push({...ev,_calColor:color,_calName:cal.summary});});
+        }catch(e){}
+      }));
+    allEvents.sort((a,b)=>{const at=a.start?.dateTime||a.start?.date||'';const bt=b.start?.dateTime||b.start?.date||'';return at<bt?-1:at>bt?1:0;});
+    cachedWeekEvents=allEvents;
+    renderWeekGrid(allEvents,ws,content);
   }catch(e){
-    body.innerHTML=`<div style="padding:12px"><div class="cal-error">${escapeHtmlCal(e.message)}</div>`+
-      `<button class="btn btn-sm" onclick="fetchGoogleCalEvents()" style="margin-top:8px">Opnieuw proberen</button></div>`;
+    content.innerHTML=`<div class="cal-placeholder"><p style="color:var(--danger)">${escapeHtml(e.message)}</p>
+      <button class="btn btn-sm" onclick="fetchAndRenderWeek()">Opnieuw proberen</button></div>`;
   }
-
-  /* Auto-refresh every 15 min */
   clearTimeout(calRefreshTimer);
-  calRefreshTimer=setTimeout(()=>{if(gAccessToken)fetchGoogleCalEvents();},15*60*1000);
+  calRefreshTimer=setTimeout(()=>{if(gAccessToken&&activeModule==='agenda')fetchAndRenderWeek();},15*60*1000);
 }
 
-function renderGoogleCalEvents(events,body){
-  const dayNames=['zondag','maandag','dinsdag','woensdag','donderdag','vrijdag','zaterdag'];
-  const monthNames=['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
-  const today=new Date();today.setHours(0,0,0,0);
-
-  if(!events.length){
-    body.innerHTML='<div class="cal-events"><div class="cal-empty">Geen afspraken de komende 7 dagen</div></div>';
-    return;
-  }
-
-  const byDay={};
-  events.forEach(ev=>{
-    const startStr=ev.start?.dateTime||ev.start?.date||'';
-    const d=new Date(startStr);
-    const key=d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
-    if(!byDay[key])byDay[key]=[];
-    byDay[key].push(ev);
-  });
-
-  let html='<div class="cal-events">';
-  Object.keys(byDay).sort().forEach(key=>{
-    const [y,m,d]=key.split('-').map(Number);
-    const dayDate=new Date(y,m-1,d);
-    const diffDays=Math.round((dayDate-today)/86400000);
-    const label=diffDays===0?'Vandaag':diffDays===1?'Morgen':dayNames[dayDate.getDay()]+' '+d+' '+monthNames[m-1];
-    html+=`<div class="cal-day-hdr">${label}</div>`;
-    byDay[key].forEach(ev=>{
-      const isAllDay=!!ev.start?.date&&!ev.start?.dateTime;
-      const timeStr=isAllDay?'Hele dag':new Date(ev.start.dateTime).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});
-      const loc=ev.location?`<div class="cal-event-loc">📍 ${escapeHtmlCal(ev.location)}</div>`:'';
-      const calLbl=ev._calName?`<div style="font-size:10px;color:var(--text-hint);margin-top:1px">${escapeHtmlCal(ev._calName)}</div>`:'';
-      html+=`<div class="cal-event">
-        <div class="cal-event-time">${timeStr}</div>
-        <div class="cal-event-dot" style="background:${ev._calColor}"></div>
-        <div><div class="cal-event-title">${escapeHtmlCal(ev.summary||'(geen titel)')}</div>${loc}${calLbl}</div>
-      </div>`;
-    });
-  });
-  html+='</div>';
-  body.innerHTML=html;
-}
-
-/* ─────────────────────────────────────────────────────────────────
-   iCal — public calendar fallback
-   ───────────────────────────────────────────────────────────────── */
-function showCalSetup(){
-  const body=document.getElementById('calBody');
-  const current=getIcalUrl()||'';
-  body.innerHTML=`
-    <div class="cal-setup">
-      <label>Google Agenda iCal-link</label>
-      <input type="text" id="icalInput" value="${escapeHtmlCal(current)}" placeholder="https://calendar.google.com/calendar/ical/.../basic.ics"/>
-      <div class="cal-setup-hint">
-        <strong>Zo maak je een aparte publieke agenda aan:</strong><br>
-        1. Open <a href="https://calendar.google.com" target="_blank" rel="noopener">Google Agenda</a><br>
-        2. Klik links op <strong>+ Andere agenda's → Nieuwe agenda maken</strong><br>
-        3. Geef hem een naam (bijv. <em>Herling Extern</em>)<br>
-        4. Open de agenda-instellingen → tabblad <strong>Toegangsmachtigingen</strong><br>
-        5. Vink aan: <em>Openbaar beschikbaar stellen</em><br>
-        6. Scroll naar <strong>Integreer agenda</strong> → kopieer de <strong>Geheim iCal-adres</strong><br>
-        7. Plak de link hierboven
-      </div>
-      <div style="display:flex;gap:6px;margin-top:auto">
-        ${current?'<button class="btn btn-sm btn-danger" onclick="removeIcal()">Ontkoppelen</button>':''}
-        <div style="flex:1"></div>
-        <button class="btn btn-sm" onclick="loadCalendar()">Annuleer</button>
-        <button class="btn btn-sm btn-primary" onclick="connectIcal()">Verbinden</button>
-      </div>
-    </div>`;
-}
-
-function connectIcal(){
-  const url=document.getElementById('icalInput')?.value.trim();
-  if(!url){alert('Vul een iCal-link in.');return;}
-  if(!url.includes('calendar.google.com')&&!url.endsWith('.ics')){
-    if(!confirm('De link ziet er ongebruikelijk uit. Toch doorgaan?'))return;
-  }
-  if(!rawState.settings)rawState.settings={};
-  rawState.settings.icalUrl=url;
-  rawState.settings.calMode='ical';
-  scheduleSave();
-  loadCalendar();
-}
-
-function removeIcal(){
-  if(!confirm('Agenda ontkoppelen?'))return;
-  if(rawState.settings){delete rawState.settings.icalUrl;delete rawState.settings.calMode;}
-  scheduleSave();loadCalendar();
-}
-
-async function loadIcalCalendar(body,url){
-  body.innerHTML='<div class="cal-loading"><span>Agenda laden...</span></div>';
+/* ─ Fetch iCal for week ─ */
+async function fetchIcalForWeek(url){
+  const content=document.getElementById('agendaContent');if(!content)return;
+  content.innerHTML='<div class="cal-loading"><div class="spinner"></div><span>Agenda laden...</span></div>';
   try{
-    const proxyUrl=CORS_PROXY+encodeURIComponent(url);
-    const resp=await fetch(proxyUrl,{cache:'no-store'});
+    const resp=await fetch(CORS_PROXY+encodeURIComponent(url),{cache:'no-store'});
     if(!resp.ok)throw new Error('HTTP '+resp.status);
     const text=await resp.text();
-    if(!text.includes('BEGIN:VCALENDAR'))throw new Error('Geen geldige iCal-data ontvangen. Controleer of de agenda publiek staat.');
-    const events=parseICS(text);
-    renderCalendarEvents(events,body);
+    if(!text.includes('BEGIN:VCALENDAR'))throw new Error('Geen geldige iCal-data ontvangen.');
+    const ws=getWeekStart(agendaWeekOffset);
+    const we=new Date(ws);we.setDate(ws.getDate()+7);
+    const parsed=parseICS(text);
+    const expanded=expandEvents(parsed,ws,we);
+    const events=expanded.map(ev=>({
+      _ical:true,summary:ev.title,location:ev.location,_calColor:getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()||'#3b5bdb',
+      start:{dateTime:ev.occStart.allDay?null:ev.occStart.date.toISOString(),date:ev.occStart.allDay?dateStr(ev.occStart.date):null},
+      end:{dateTime:ev.occEnd?.allDay?null:ev.occEnd?.date?.toISOString()||null,date:ev.occEnd?.allDay?dateStr(ev.occEnd.date):null}
+    }));
+    cachedWeekEvents=events;
+    renderWeekGrid(events,ws,content);
   }catch(e){
-    body.innerHTML=`<div style="padding:12px"><div class="cal-error">${escapeHtmlCal(e.message)}</div><div style="padding:4px 0"><button class="btn btn-sm" onclick="showCalSetup()">Instellingen</button></div></div>`;
+    content.innerHTML=`<div class="cal-placeholder"><p style="color:var(--danger)">${escapeHtml(e.message)}</p>
+      <button class="btn btn-sm" onclick="showAgendaIcalSetup()">Instellingen</button></div>`;
   }
   clearTimeout(calRefreshTimer);
-  calRefreshTimer=setTimeout(loadCalendar,15*60*1000);
+  calRefreshTimer=setTimeout(()=>{if(activeModule==='agenda')renderAgendaModule();},15*60*1000);
+}
+function dateStr(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+
+/* ─ Weekly grid render ─ */
+const DAY_NAMES_SHORT=['MA','DI','WO','DO','VR','ZA','ZO'];
+const HOUR_START=7,HOUR_END=20,PX_PER_HOUR=60;
+
+function renderWeekGrid(events,weekStart,container){
+  const today=new Date();today.setHours(0,0,0,0);
+  const days=Array.from({length:7},(_,i)=>{const d=new Date(weekStart);d.setDate(weekStart.getDate()+i);return d;});
+  const hours=Array.from({length:HOUR_END-HOUR_START},(_,i)=>HOUR_START+i);
+
+  /* Split all-day vs timed */
+  const allDay=events.filter(ev=>ev.start?.date&&!ev.start?.dateTime);
+  const timed=events.filter(ev=>ev.start?.dateTime);
+
+  /* Build HTML */
+  let html=`<div class="cal-grid-outer">`;
+
+  /* Day header row */
+  html+=`<div class="cal-day-hdr-row"><div style="border-bottom:none"></div>`;
+  days.forEach((d,i)=>{
+    const isToday=d.getTime()===today.getTime();
+    html+=`<div class="cal-day-hdr${isToday?' today':''}">
+      <div class="cal-day-name">${DAY_NAMES_SHORT[i]}</div>
+      <div class="cal-day-num">${d.getDate()}</div>
+    </div>`;
+  });
+  html+=`</div>`;
+
+  /* All-day row */
+  html+=`<div class="cal-allday-row"><div class="cal-allday-label">Hele dag</div>`;
+  days.forEach(d=>{
+    const dayStr=dateStr(d);
+    const dayEvs=allDay.filter(ev=>{
+      const evDate=ev.start.date;return evDate===dayStr;
+    });
+    html+=`<div class="cal-allday-cell">`;
+    dayEvs.forEach(ev=>{
+      html+=`<div class="cal-allday-ev" style="background:${ev._calColor}" title="${escapeHtml(ev.summary||'')}">${escapeHtml(ev.summary||'(geen titel)')}</div>`;
+    });
+    html+=`</div>`;
+  });
+  html+=`</div>`;
+
+  /* Scrollable grid */
+  html+=`<div class="cal-grid-scroll"><div class="cal-grid-inner">`;
+  /* Time labels column */
+  html+=`<div class="cal-time-col">`;
+  hours.forEach(h=>html+=`<div class="cal-time-label">${h}:00</div>`);
+  html+=`</div>`;
+
+  /* Day columns */
+  days.forEach((d,di)=>{
+    const isToday=d.getTime()===today.getTime();
+    html+=`<div class="cal-day-col${isToday?' today':(di===5||di===6?' weekend':'')}" id="daycol-${di}">`;
+    /* Hour lines */
+    hours.forEach((_,i)=>html+=`<div class="cal-hour-line" style="top:${i*PX_PER_HOUR}px"></div>`);
+    /* Current time indicator */
+    if(isToday){
+      const now=new Date();const mins=(now.getHours()-HOUR_START)*60+now.getMinutes();
+      if(mins>=0&&mins<=(HOUR_END-HOUR_START)*60)
+        html+=`<div class="cal-time-now" style="top:${mins}px"></div>`;
+    }
+    /* Timed events */
+    const dayEvs=timed.filter(ev=>{
+      const d2=new Date(ev.start.dateTime);
+      return d2.getFullYear()===d.getFullYear()&&d2.getMonth()===d.getMonth()&&d2.getDate()===d.getDate();
+    });
+    dayEvs.forEach(ev=>{
+      const start=new Date(ev.start.dateTime);
+      const end=ev.end?.dateTime?new Date(ev.end.dateTime):new Date(start.getTime()+30*60000);
+      const startMin=(start.getHours()-HOUR_START)*60+start.getMinutes();
+      const endMin=(end.getHours()-HOUR_START)*60+end.getMinutes();
+      const top=Math.max(startMin,0);
+      const height=Math.max(Math.min(endMin,(HOUR_END-HOUR_START)*60)-top,18);
+      const timeStr=start.toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});
+      html+=`<div class="cal-ev-block"
+        style="top:${top}px;height:${height}px;background:${ev._calColor}22;border-left-color:${ev._calColor};color:var(--text)"
+        title="${escapeHtml(ev.summary||'')} — ${timeStr}">
+        <div style="font-weight:600;font-size:10px">${timeStr}</div>
+        <div>${escapeHtml(ev.summary||'(geen titel)')}</div>
+      </div>`;
+    });
+    html+=`</div>`;
+  });
+  html+=`</div></div></div>`;/* close cal-grid-inner, cal-grid-scroll, cal-grid-outer */
+  container.innerHTML=html;
 }
 
-/* ── ICS parser ── */
+/* ─ ICS parser (reused for iCal) ─ */
 function parseICS(text){
-  /* Unfold continuation lines */
   const unfolded=text.replace(/\r\n([ \t])/g,'$1').replace(/\n([ \t])/g,'$1');
   const lines=unfolded.split(/\r\n|\n|\r/);
   const events=[];let cur=null;
-
   for(const line of lines){
     if(line==='BEGIN:VEVENT'){cur={};}
     else if(line==='END:VEVENT'&&cur){events.push(cur);cur=null;}
     else if(cur){
       const ci=line.indexOf(':');if(ci<0)continue;
-      const keyPart=line.slice(0,ci);
-      const val=line.slice(ci+1);
-      const key=keyPart.split(';')[0];
-      const params={};
-      keyPart.split(';').slice(1).forEach(p=>{const [k,v]=p.split('=');params[k]=v;});
-      if(key==='DTSTART'||key==='DTEND'){cur[key]=parseICSDate(val,params.TZID);}
+      const keyPart=line.slice(0,ci);const val=line.slice(ci+1);const key=keyPart.split(';')[0];
+      const params={};keyPart.split(';').slice(1).forEach(p=>{const[k,v]=p.split('=');params[k]=v;});
+      if(key==='DTSTART'||key==='DTEND')cur[key]=parseICSDate(val,params.TZID);
       else if(key==='SUMMARY')cur.title=val.replace(/\\n/g,' ').replace(/\\,/g,',').replace(/\\\\/g,'\\');
       else if(key==='LOCATION')cur.location=val.replace(/\\n/g,' ').replace(/\\,/g,',');
       else if(key==='RRULE')cur.rrule=val;
@@ -1248,102 +2760,103 @@ function parseICS(text){
   }
   return events;
 }
-
 function parseICSDate(val,tzid){
-  /* All-day: YYYYMMDD */
-  if(/^\d{8}$/.test(val)){
-    return {date:new Date(parseInt(val.slice(0,4)),parseInt(val.slice(4,6))-1,parseInt(val.slice(6,8))),allDay:true};
-  }
-  /* UTC: YYYYMMDDTHHmmssZ */
-  if(val.endsWith('Z')){
-    return {date:new Date(val.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/,'$1-$2-$3T$4:$5:$6Z')),allDay:false};
-  }
-  /* Floating/local: YYYYMMDDTHHmmss — treat as local */
+  if(/^\d{8}$/.test(val)){return{date:new Date(parseInt(val.slice(0,4)),parseInt(val.slice(4,6))-1,parseInt(val.slice(6,8))),allDay:true};}
+  if(val.endsWith('Z')){return{date:new Date(val.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/,'$1-$2-$3T$4:$5:$6Z')),allDay:false};}
   const m=val.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/);
-  if(m)return {date:new Date(m[1],m[2]-1,m[3],m[4],m[5],m[6]),allDay:false};
-  return {date:new Date(val),allDay:false};
+  if(m)return{date:new Date(m[1],m[2]-1,m[3],m[4],m[5],m[6]),allDay:false};
+  return{date:new Date(val),allDay:false};
 }
-
-/* ── Expand recurring events (simple RRULE: FREQ=WEEKLY/DAILY) ── */
 function expandEvents(events,fromDate,toDate){
   const result=[];
   events.forEach(ev=>{
-    if(ev.status==='CANCELLED')return;
-    if(!ev.DTSTART)return;
+    if(ev.status==='CANCELLED'||!ev.DTSTART)return;
     const start=ev.DTSTART.date;
-    if(!ev.rrule){
-      if(start>=fromDate&&start<=toDate)result.push({...ev,occStart:ev.DTSTART,occEnd:ev.DTEND});
-      return;
-    }
-    /* Basic RRULE expansion */
-    const rr={};ev.rrule.split(';').forEach(p=>{const [k,v]=p.split('=');rr[k]=v;});
-    const freq=rr.FREQ;
-    const until=rr.UNTIL?parseICSDate(rr.UNTIL,null).date:toDate;
-    const count=rr.COUNT?parseInt(rr.COUNT):999;
-    const interval=parseInt(rr.INTERVAL||'1');
+    if(!ev.rrule){if(start>=fromDate&&start<=toDate)result.push({...ev,occStart:ev.DTSTART,occEnd:ev.DTEND});return;}
+    const rr={};ev.rrule.split(';').forEach(p=>{const[k,v]=p.split('=');rr[k]=v;});
+    const freq=rr.FREQ;const until=rr.UNTIL?parseICSDate(rr.UNTIL,null).date:toDate;
+    const count=rr.COUNT?parseInt(rr.COUNT):999;const interval=parseInt(rr.INTERVAL||'1');
     let cur=new Date(start);let n=0;
     while(cur<=until&&cur<=toDate&&n<count){
-      if(cur>=fromDate){
-        const diff=cur-start;
-        const occEnd=ev.DTEND?{date:new Date(ev.DTEND.date.getTime()+diff),allDay:ev.DTEND.allDay}:null;
-        result.push({...ev,occStart:{date:new Date(cur),allDay:ev.DTSTART.allDay},occEnd});
-      }
+      if(cur>=fromDate){const diff=cur-start;const occEnd=ev.DTEND?{date:new Date(ev.DTEND.date.getTime()+diff),allDay:ev.DTEND.allDay}:null;result.push({...ev,occStart:{date:new Date(cur),allDay:ev.DTSTART.allDay},occEnd});}
       if(freq==='DAILY')cur=new Date(cur.getTime()+interval*86400000);
       else if(freq==='WEEKLY')cur=new Date(cur.getTime()+interval*7*86400000);
-      else break;
-      n++;
+      else break;n++;
     }
   });
-  result.sort((a,b)=>a.occStart.date-b.occStart.date);
-  return result;
+  result.sort((a,b)=>a.occStart.date-b.occStart.date);return result;
 }
 
-/* ── Render ── */
-function renderCalendarEvents(events,body){
-  const now=new Date();
-  const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
-  const windowEnd=new Date(today.getTime()+7*86400000);
-
-  const expanded=expandEvents(events,today,windowEnd);
-
-  if(!expanded.length){
-    body.innerHTML='<div class="cal-events"><div class="cal-empty">Geen afspraken de komende 7 dagen</div></div>';
-    return;
-  }
-
-  /* Group by day */
-  const byDay={};
-  expanded.forEach(ev=>{
-    const d=ev.occStart.date;
-    const key=d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
-    if(!byDay[key])byDay[key]=[];
-    byDay[key].push(ev);
-  });
-
+/* ─ Dashboard calendar fetchers ─ */
+async function fetchDashGoogleCalEvents(body){
+  body.innerHTML='<div class="cal-loading"><span>Laden...</span></div>';
+  try{
+    const now=new Date();const weekLater=new Date(now.getTime()+7*86400000);
+    const hdrs={'Authorization':'Bearer '+gAccessToken};
+    const listResp=await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=50',{headers:hdrs});
+    if(listResp.status===401){gAccessToken=null;renderDashCal();return;}
+    if(!listResp.ok)throw new Error('Fout bij ophalen agenda');
+    const calList=await listResp.json();
+    const COLORS=['#4285f4','#ea4335','#fbbc04','#34a853','#ff6d00','#46bdc6','#7986cb'];
+    const allEvents=[];
+    await Promise.all((calList.items||[]).filter(c=>c.selected!==false&&c.accessRole!=='freeBusyReader').map(async(cal,i)=>{
+      try{
+        const r=await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events?timeMin=${encodeURIComponent(now.toISOString())}&timeMax=${encodeURIComponent(weekLater.toISOString())}&singleEvents=true&orderBy=startTime&maxResults=50`,{headers:hdrs});
+        if(!r.ok)return;const data=await r.json();
+        const color=cal.backgroundColor||COLORS[i%COLORS.length];
+        (data.items||[]).forEach(ev=>{if(ev.status!=='cancelled')allEvents.push({...ev,_calColor:color,_calName:cal.summary});});
+      }catch(e){}
+    }));
+    allEvents.sort((a,b)=>{const at=a.start?.dateTime||a.start?.date||'';const bt=b.start?.dateTime||b.start?.date||'';return at<bt?-1:at>bt?1:0;});
+    renderDashCalList(allEvents,body);
+  }catch(e){body.innerHTML=`<div class="cal-error">${escapeHtml(e.message)}</div>`;}
+}
+async function fetchDashIcalCal(body,url){
+  body.innerHTML='<div class="cal-loading"><span>Laden...</span></div>';
+  try{
+    const resp=await fetch(CORS_PROXY+encodeURIComponent(url),{cache:'no-store'});
+    if(!resp.ok)throw new Error('HTTP '+resp.status);
+    const text=await resp.text();
+    if(!text.includes('BEGIN:VCALENDAR'))throw new Error('Geen geldige iCal-data.');
+    const now=new Date();const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+    const windowEnd=new Date(today.getTime()+7*86400000);
+    const parsed=parseICS(text);const expanded=expandEvents(parsed,today,windowEnd);
+    const events=expanded.map(ev=>({_ical:true,summary:ev.title,location:ev.location,_calColor:'var(--accent)',
+      start:{dateTime:ev.occStart.allDay?null:ev.occStart.date.toISOString(),date:ev.occStart.allDay?dateStr(ev.occStart.date):null},
+      end:{dateTime:ev.occEnd?.allDay?null:ev.occEnd?.date?.toISOString()||null}}));
+    renderDashCalList(events,body);
+  }catch(e){body.innerHTML=`<div class="cal-error">${escapeHtml(e.message)}</div><button class="btn btn-sm" onclick="showDashCalSetup()" style="margin:8px 14px">Instellingen</button>`;}
+}
+function renderDashCalList(events,body){
+  const today=new Date();today.setHours(0,0,0,0);
   const dayNames=['zondag','maandag','dinsdag','woensdag','donderdag','vrijdag','zaterdag'];
   const monthNames=['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
-
+  if(!events.length){body.innerHTML='<div class="cal-events"><div class="cal-empty">Geen afspraken de komende 7 dagen</div></div>';return;}
+  const byDay={};
+  events.forEach(ev=>{
+    const startStr=ev.start?.dateTime||ev.start?.date||'';const d=new Date(startStr);
+    const key=d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
+    if(!byDay[key])byDay[key]=[];byDay[key].push(ev);
+  });
   let html='<div class="cal-events">';
   Object.keys(byDay).sort().forEach(key=>{
-    const [y,m,d]=key.split('-').map(Number);
-    const dayDate=new Date(y,m-1,d);
+    const[y,m,d]=key.split('-').map(Number);const dayDate=new Date(y,m-1,d);
     const diffDays=Math.round((dayDate-today)/86400000);
     const label=diffDays===0?'Vandaag':diffDays===1?'Morgen':dayNames[dayDate.getDay()]+' '+d+' '+monthNames[m-1];
-    html+=`<div class="cal-day-hdr">${label}</div>`;
+    html+=`<div class="cal-day-hdr-lbl">${label}</div>`;
     byDay[key].forEach(ev=>{
-      const timeStr=ev.occStart.allDay?'Hele dag':ev.occStart.date.toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});
-      const loc=ev.location?`<div class="cal-event-loc">📍 ${escapeHtmlCal(ev.location)}</div>`:'';
+      const isAllDay=!!ev.start?.date&&!ev.start?.dateTime;
+      const timeStr=isAllDay?'Hele dag':new Date(ev.start.dateTime).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});
+      const loc=ev.location?`<div class="cal-event-loc">📍 ${escapeHtml(ev.location)}</div>`:'';
       html+=`<div class="cal-event">
         <div class="cal-event-time">${timeStr}</div>
-        <div class="cal-event-dot" style="background:var(--accent)"></div>
-        <div><div class="cal-event-title">${escapeHtmlCal(ev.title||'(geen titel)')}</div>${loc}</div>
+        <div class="cal-event-dot" style="background:${ev._calColor}"></div>
+        <div><div class="cal-event-title">${escapeHtml(ev.summary||'(geen titel)')}</div>${loc}</div>
       </div>`;
     });
   });
-  html+='</div>';
-  body.innerHTML=html;
+  html+='</div>';body.innerHTML=html;
 }
 </script>
-
 </body>
 </html>
