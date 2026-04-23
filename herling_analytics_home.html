@@ -429,6 +429,24 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .cal-month-cell.today .cal-month-day-num{background:var(--accent);color:#fff;font-weight:700}
 .cal-month-ev-pill{font-size:10px;border-radius:3px;padding:1px 5px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff}
 .cal-month-more{font-size:10px;color:var(--text-hint);padding:0 4px}
+/* Calendar sources management */
+.cal-source-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--radius);background:var(--surface2);margin-bottom:6px}
+.cal-source-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.cal-source-name{flex:1;font-size:12px;font-weight:500}
+.cal-source-type{font-size:10px;color:var(--text-hint);background:var(--surface3);padding:2px 6px;border-radius:10px}
+.cal-source-toggle{width:28px;height:16px;border-radius:8px;border:none;cursor:pointer;transition:background .2s;flex-shrink:0;position:relative}
+.cal-source-toggle::after{content:'';position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#fff;transition:left .2s}
+.cal-source-toggle.on{background:var(--accent)}
+.cal-source-toggle.on::after{left:14px}
+.cal-source-toggle.off{background:var(--border-strong)}
+.cal-add-row{display:flex;gap:6px;margin-top:4px}
+.cal-add-btn{flex:1;padding:8px;border:0.5px dashed var(--border-strong);border-radius:var(--radius);background:transparent;color:var(--text-muted);font-size:12px;cursor:pointer;font-family:inherit;transition:background .15s}
+.cal-add-btn:hover{background:var(--surface2);color:var(--text)}
+.cal-ical-form{background:var(--surface2);border-radius:var(--radius);padding:10px;margin-top:8px;display:flex;flex-direction:column;gap:7px}
+.cal-ical-form input[type=text]{width:100%;padding:6px 8px;border:0.5px solid var(--border-strong);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:12px;font-family:inherit}
+.cal-color-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.cal-color-swatch{width:20px;height:20px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .12s}
+.cal-color-swatch.selected{border-color:var(--text);transform:scale(1.15)}
 
 /* Cal list (dashboard mini) */
 .cal-events{display:flex;flex-direction:column;height:100%;overflow-y:auto}
@@ -780,9 +798,8 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
           <div class="cal-placeholder">
             <div style="font-size:32px">📅</div>
             <p>Koppel je Google Agenda om je afspraken in de weekweergave te zien.</p>
-            <button class="btn btn-sm btn-primary" onclick="signInGoogle()">🔐 Inloggen met Google</button>
-            <button class="btn btn-sm" onclick="showAgendaIcalSetup()">iCal-link koppelen</button>
-            <small>OAuth geeft toegang tot al je privé-agenda's</small>
+            <button class="btn btn-sm btn-primary" onclick="openCalSourcesModal()">+ Agenda koppelen</button>
+            <small>Koppel Google Agenda of Outlook via iCal</small>
           </div>
         </div>
       </div>
@@ -942,6 +959,23 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
           <button class="btn btn-sm btn-primary" onclick="executeImport()">↑ Importeren</button>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Calendar sources modal ── -->
+<div class="modal-bg" id="calSourcesModal">
+  <div class="modal" style="max-width:420px">
+    <h3 style="margin-bottom:14px">Agenda's beheren</h3>
+    <div id="calSourcesList"></div>
+    <div class="cal-add-row">
+      <button class="cal-add-btn" onclick="showAddGoogleForm()">+ Google Agenda</button>
+      <button class="cal-add-btn" onclick="showAddIcalForm()">+ Outlook / iCal</button>
+    </div>
+    <div id="calAddForm" style="display:none"></div>
+    <div class="modal-footer" style="margin-top:14px">
+      <div></div>
+      <button class="btn btn-sm" onclick="closeCalSourcesModal()">Sluiten</button>
     </div>
   </div>
 </div>
@@ -1534,7 +1568,7 @@ function createFolder(){}
 function signInGoogle(){}
 function changeWeek(){}
 function toggleAgendaCalSettings(){}
-function showAgendaIcalSetup(){}
+function showAgendaIcalSetup(){openCalSourcesModal();}
 function undoDelete(){}
 function hideToast(){}
 function openNewItemModal(){}
@@ -2510,46 +2544,102 @@ function updateAgendaTitle(){
   }
 }
 function renderAgendaModule(){
+  migrateCalSettings();
   updateAgendaTitle();
   ['Day','Week','Month'].forEach(v=>{
     const btn=document.getElementById('viewBtn'+v);
     if(btn)btn.classList.toggle('active',v.toLowerCase()===agendaView);
   });
-  const mode=rawState.settings?.calMode||null;
-  const icalUrl=rawState.settings?.icalUrl||null;
-  const connected=mode==='oauth'||!!icalUrl;
+  const sources=(rawState.settings?.calSources||[]).filter(s=>s.enabled!==false);
+  const hasGoogle=sources.some(s=>s.type==='google');
+  const connected=sources.length>0;
   const settingsBtn=document.getElementById('agendaSettingsBtn');
   const connectBtn=document.getElementById('agendaConnectBtn');
   if(settingsBtn)settingsBtn.style.display=connected?'':'none';
   if(connectBtn)connectBtn.style.display=connected?'none':'';
-  if(mode==='oauth'){
-    if(gAccessToken)fetchAndRenderView();
-    else renderAgendaReconnect();
-  } else if(icalUrl){
-    fetchIcalForView(icalUrl);
-  } else {
-    renderAgendaPlaceholder();
-  }
+  if(!connected){renderAgendaPlaceholder();return;}
+  if(hasGoogle&&!gAccessToken){renderAgendaReconnect();return;}
+  fetchAndRenderView();
 }
+/* ─ Unified multi-source fetch engine ─ */
 async function fetchAndRenderView(){
-  if(agendaView==='week')fetchAndRenderWeek();
-  else if(agendaView==='day')fetchAndRenderDay();
-  else fetchAndRenderMonth();
+  const content=document.getElementById('agendaContent');if(!content)return;
+  content.innerHTML='<div class="cal-loading"><div class="spinner"></div><span>Agenda laden...</span></div>';
+  let timeMin,timeMax,renderFn,renderArg;
+  if(agendaView==='week'){
+    const ws=getWeekStart(agendaWeekOffset);const we=new Date(ws);we.setDate(ws.getDate()+7);
+    timeMin=ws.toISOString();timeMax=we.toISOString();renderFn=renderWeekGrid;renderArg=ws;
+  } else if(agendaView==='day'){
+    const d=getDayDate(agendaDayOffset);const de=new Date(d);de.setDate(d.getDate()+1);
+    timeMin=d.toISOString();timeMax=de.toISOString();renderFn=renderDayGrid;renderArg=d;
+  } else {
+    const ms=getMonthStart(agendaMonthOffset);
+    const gs=new Date(ms);const dow=gs.getDay();gs.setDate(gs.getDate()-(dow===0?6:dow-1));
+    const ge=new Date(ms.getFullYear(),ms.getMonth()+1,1);const ld=ge.getDay();if(ld!==1)ge.setDate(ge.getDate()+(ld===0?1:8-ld));
+    timeMin=gs.toISOString();timeMax=ge.toISOString();renderFn=renderMonthGrid;renderArg=ms;
+  }
+  try{
+    const events=await fetchEventsForRange(timeMin,timeMax);
+    cachedWeekEvents=events;
+    renderFn(events,renderArg,content);
+  }catch(e){
+    content.innerHTML=`<div class="cal-placeholder"><p style="color:var(--danger)">${escapeHtml(e.message)}</p><button class="btn btn-sm" onclick="fetchAndRenderView()">Opnieuw</button></div>`;
+  }
+  clearTimeout(calRefreshTimer);
+  calRefreshTimer=setTimeout(()=>{if(activeModule==='agenda')fetchAndRenderView();},15*60*1000);
 }
-async function fetchIcalForView(url){
-  if(agendaView==='week')fetchIcalForWeek(url);
-  else if(agendaView==='day')fetchIcalForDay(url);
-  else fetchIcalForMonth(url);
+async function fetchEventsForRange(timeMin,timeMax){
+  const sources=(rawState.settings?.calSources||[]).filter(s=>s.enabled!==false);
+  const allEvents=[];
+  await Promise.all(sources.map(async s=>{
+    try{const evs=await fetchSourceEvents(s,timeMin,timeMax);allEvents.push(...evs);}catch(e){}
+  }));
+  allEvents.sort((a,b)=>{const at=a.start?.dateTime||a.start?.date||'';const bt=b.start?.dateTime||b.start?.date||'';return at<bt?-1:at>bt?1:0;});
+  return allEvents;
+}
+async function fetchSourceEvents(source,timeMin,timeMax){
+  if(source.type==='google'){
+    if(!gAccessToken)return[];
+    const hdrs={'Authorization':'Bearer '+gAccessToken};
+    const listResp=await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=50',{headers:hdrs});
+    if(listResp.status===401){gAccessToken=null;renderAgendaModule();return[];}
+    if(!listResp.ok)throw new Error('Agenda-lijst ophalen mislukt');
+    const calList=await listResp.json();
+    const GCOLORS=['#4285f4','#ea4335','#fbbc04','#34a853','#ff6d00','#46bdc6','#7986cb','#a79b8e'];
+    const events=[];
+    await Promise.all((calList.items||[]).filter(c=>c.selected!==false&&c.accessRole!=='freeBusyReader').map(async(cal,i)=>{
+      try{
+        const r=await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events`+
+          `?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime&maxResults=250`,{headers:hdrs});
+        if(!r.ok)return;const data=await r.json();
+        const color=cal.backgroundColor||GCOLORS[i%GCOLORS.length];
+        (data.items||[]).forEach(ev=>{if(ev.status!=='cancelled')events.push({...ev,_calColor:color,_calName:cal.summary});});
+      }catch(e){}
+    }));
+    return events;
+  }
+  if(source.type==='ical'){
+    const resp=await fetch(CORS_PROXY+encodeURIComponent(source.url),{cache:'no-store'});
+    if(!resp.ok)throw new Error(`${source.name}: HTTP ${resp.status}`);
+    const text=await resp.text();
+    if(!text.includes('BEGIN:VCALENDAR'))throw new Error(`${source.name}: geen geldige iCal-data`);
+    const tMin=new Date(timeMin),tMax=new Date(timeMax);
+    const parsed=parseICS(text);const expanded=expandEvents(parsed,tMin,tMax);
+    const color=source.color||'#3b5bdb';
+    return expanded.map(ev=>({_ical:true,summary:ev.title,location:ev.location,_calColor:color,_calName:source.name,
+      start:{dateTime:ev.occStart.allDay?null:ev.occStart.date.toISOString(),date:ev.occStart.allDay?dateStr(ev.occStart.date):null},
+      end:{dateTime:ev.occEnd?.allDay?null:ev.occEnd?.date?.toISOString()||null,date:ev.occEnd?.allDay?dateStr(ev.occEnd.date):null}}));
+  }
+  return[];
 }
 
 function renderAgendaPlaceholder(){
   document.getElementById('agendaContent').innerHTML=`
     <div class="cal-placeholder">
       <div style="font-size:36px">📅</div>
-      <p>Koppel je Google Agenda om afspraken in de weekweergave te zien.</p>
-      <button class="btn btn-sm btn-primary" onclick="signInGoogle()">🔐 Inloggen met Google</button>
-      <button class="btn btn-sm" onclick="showAgendaIcalSetup()">iCal-link koppelen</button>
-      <small>OAuth geeft toegang tot al je privé-agenda's</small>
+      <p>Koppel een of meerdere agenda's om je afspraken te zien.</p>
+      <button class="btn btn-sm btn-primary" onclick="openCalSourcesModal()">+ Agenda koppelen</button>
+      <small>Google Agenda · Outlook · iCal van elk bedrijf</small>
     </div>`;
 }
 function renderAgendaReconnect(){
@@ -2589,13 +2679,16 @@ function ensureTokenClient(){
       clearTimeout(gTokenRefreshTimer);
       gTokenRefreshTimer=setTimeout(()=>{gAccessToken=null;if(activeModule==='agenda')renderAgendaModule();
         if(activeModule==='dashboard')renderDashCal();},(Math.max(resp.expires_in||3600,120)-90)*1000);
-      if(!rawState.settings)rawState.settings={};
-      rawState.settings.calMode='oauth';delete rawState.settings.icalUrl;
+      migrateCalSettings();
+      if(!(rawState.settings.calSources||[]).find(s=>s.type==='google'))
+        rawState.settings.calSources.push({id:uid(),type:'google',name:'Google Agenda',enabled:true});
+      rawState.settings.calMode='oauth';
       scheduleSave();
       const sb=document.getElementById('agendaSettingsBtn');const cb=document.getElementById('agendaConnectBtn');
       if(sb)sb.style.display='';if(cb)cb.style.display='none';
       document.getElementById('dashCalSettingsBtn').style.display='';
-      fetchAndRenderWeek();
+      renderCalSourcesList();
+      fetchAndRenderView();
       renderDashCal();
     }
   });
@@ -2609,226 +2702,129 @@ function disconnectGoogle(){
   if(!confirm('Google Agenda ontkoppelen?'))return;
   if(gAccessToken&&window.google?.accounts?.oauth2){google.accounts.oauth2.revoke(gAccessToken,()=>{});gAccessToken=null;}
   clearTimeout(gTokenRefreshTimer);
-  if(rawState.settings){delete rawState.settings.calMode;}
+  if(rawState.settings){
+    rawState.settings.calSources=(rawState.settings.calSources||[]).filter(s=>s.type!=='google');
+    delete rawState.settings.calMode;
+  }
   clearTimeout(calRefreshTimer);scheduleSave();
   renderAgendaModule();renderDashCal();
 }
-function toggleAgendaCalSettings(){
-  const mode=rawState.settings?.calMode||null;
-  if(mode==='oauth')showOAuthSettings(document.getElementById('agendaContent'));
-  else if(rawState.settings?.icalUrl)showAgendaIcalSetup();
-}
-function showOAuthSettings(container){
-  container.innerHTML=`<div class="cal-setup">
-    <label>Google Agenda (OAuth)</label>
-    <div style="background:var(--success-bg);color:var(--success);padding:8px 10px;border-radius:6px;font-size:12px">
-      ✓ Verbonden via Google OAuth — alle privé-agenda's worden gesynchroniseerd.
-    </div>
-    <div style="display:flex;gap:6px;margin-top:auto">
-      <button class="btn btn-sm btn-danger" onclick="disconnectGoogle()">Ontkoppelen</button>
-      <div style="flex:1"></div>
-      <button class="btn btn-sm" onclick="renderAgendaModule()">Sluiten</button>
-      <button class="btn btn-sm btn-primary" onclick="signInGoogle()">Opnieuw verbinden</button>
-    </div>
-  </div>`;
-}
-function showAgendaIcalSetup(){
-  const current=rawState.settings?.icalUrl||'';
-  document.getElementById('agendaContent').innerHTML=`<div class="cal-setup">
-    <label>Google Agenda iCal-link</label>
-    <input type="text" id="icalInputAgenda" value="${escapeHtml(current)}"
-      placeholder="https://calendar.google.com/calendar/ical/.../basic.ics"/>
-    <div class="cal-setup-hint">
-      Ga naar Google Agenda → Instellingen van de agenda →
-      <strong>Integreer agenda</strong> → kopieer het <strong>Geheim iCal-adres</strong>
-    </div>
-    <div style="display:flex;gap:6px;margin-top:auto">
-      ${current?'<button class="btn btn-sm btn-danger" onclick="removeIcal()">Ontkoppelen</button>':''}
-      <div style="flex:1"></div>
-      <button class="btn btn-sm" onclick="renderAgendaModule()">Annuleer</button>
-      <button class="btn btn-sm btn-primary" onclick="connectIcalFromAgenda()">Verbinden</button>
-    </div>
-  </div>`;
-}
-function connectIcalFromAgenda(){
-  const url=document.getElementById('icalInputAgenda')?.value.trim();
-  if(!url){alert('Vul een iCal-link in.');return;}
+function toggleAgendaCalSettings(){openCalSourcesModal();}
+
+/* ─ Calendar sources management ─ */
+function migrateCalSettings(){
   if(!rawState.settings)rawState.settings={};
-  rawState.settings.icalUrl=url;rawState.settings.calMode='ical';
-  scheduleSave();renderAgendaModule();
+  if(rawState.settings.calSources)return;
+  rawState.settings.calSources=[];
+  if(rawState.settings.calMode==='oauth'||rawState.settings.calMode==='ical'&&!rawState.settings.icalUrl){
+    rawState.settings.calSources.push({id:uid(),type:'google',name:'Google Agenda',enabled:true});
+  }
+  if(rawState.settings.icalUrl){
+    rawState.settings.calSources.push({id:uid(),type:'ical',url:rawState.settings.icalUrl,name:'iCal Agenda',color:'#3b5bdb',enabled:true});
+  }
+}
+function openCalSourcesModal(){
+  migrateCalSettings();
+  renderCalSourcesList();
+  document.getElementById('calAddForm').style.display='none';
+  document.getElementById('calSourcesModal').classList.add('open');
+}
+function closeCalSourcesModal(){document.getElementById('calSourcesModal').classList.remove('open');}
+const CAL_PALETTE=['#4285f4','#ea4335','#fbbc04','#34a853','#ff6d00','#46bdc6','#7986cb','#9c27b0','#0078d4','#e03131','#2f9e44','#f08c00'];
+function renderCalSourcesList(){
+  const sources=rawState.settings?.calSources||[];
+  const el=document.getElementById('calSourcesList');
+  if(!sources.length){el.innerHTML='<p style="font-size:12px;color:var(--text-hint);margin-bottom:10px">Nog geen agenda\'s gekoppeld.</p>';return;}
+  el.innerHTML=sources.map(s=>{
+    const color=s.type==='google'?'#4285f4':(s.color||'#3b5bdb');
+    const typeLbl=s.type==='google'?'Google':'iCal / Outlook';
+    const on=s.enabled!==false;
+    const statusHtml=s.type==='google'?
+      (gAccessToken?'<span style="font-size:10px;color:var(--success)">● Verbonden</span>':'<span style="font-size:10px;color:var(--text-hint)">● Sessie verlopen</span>'):
+      '';
+    return `<div class="cal-source-item">
+      <div class="cal-source-dot" style="background:${color}"></div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="cal-source-name">${escapeHtml(s.name)}</span>
+          <span class="cal-source-type">${typeLbl}</span>
+          ${statusHtml}
+        </div>
+        ${s.type==='ical'?`<div style="font-size:10px;color:var(--text-hint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px">${escapeHtml(s.url||'')}</div>`:''}
+      </div>
+      <button class="cal-source-toggle ${on?'on':'off'}" title="${on?'Verbergen':'Tonen'}" onclick="toggleCalSourceEnabled('${s.id}')"></button>
+      ${s.type==='google'?`<button class="btn btn-xs" onclick="signInGoogle()" title="Opnieuw verbinden" style="padding:3px 7px">↻</button>`:''}
+      <button class="btn btn-xs btn-danger" onclick="removeCalSource('${s.id}')" title="Verwijderen" style="padding:3px 7px">✕</button>
+    </div>`;
+  }).join('');
+}
+function toggleCalSourceEnabled(id){
+  const s=(rawState.settings?.calSources||[]).find(x=>x.id===id);
+  if(s)s.enabled=s.enabled===false;
+  scheduleSave();renderCalSourcesList();
+  if(activeModule==='agenda')renderAgendaModule();
+}
+function removeCalSource(id){
+  const s=(rawState.settings?.calSources||[]).find(x=>x.id===id);
+  if(!s)return;
+  if(!confirm(`"${s.name}" verwijderen?`))return;
+  if(s.type==='google'&&gAccessToken){google.accounts.oauth2?.revoke(gAccessToken,()=>{});gAccessToken=null;clearTimeout(gTokenRefreshTimer);}
+  rawState.settings.calSources=rawState.settings.calSources.filter(x=>x.id!==id);
+  scheduleSave();renderCalSourcesList();
+  if(activeModule==='agenda')renderAgendaModule();
+  renderDashCal();
+}
+function showAddGoogleForm(){
+  const existing=(rawState.settings?.calSources||[]).find(s=>s.type==='google');
+  if(existing){alert('Er is al een Google Agenda gekoppeld. Verwijder de bestaande eerst.');return;}
+  document.getElementById('calAddForm').style.display='none';
+  signInGoogle();
+}
+let _pickedColor=CAL_PALETTE[0];
+function showAddIcalForm(){
+  _pickedColor=CAL_PALETTE[0];
+  const swatches=CAL_PALETTE.map((c,i)=>`<div class="cal-color-swatch${i===0?' selected':''}" style="background:${c}" data-color="${c}" onclick="pickCalColor(this,'${c}')"></div>`).join('');
+  document.getElementById('calAddForm').innerHTML=`
+    <div class="cal-ical-form">
+      <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em">Naam</label>
+      <input type="text" id="icalSrcName" placeholder="bijv. Outlook — Bedrijf A"/>
+      <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-top:2px">iCal-link (URL)</label>
+      <input type="text" id="icalSrcUrl" placeholder="https://outlook.office365.com/ical/..."/>
+      <div class="cal-setup-hint" style="font-size:11px;color:var(--text-hint);line-height:1.5">
+        <strong>Outlook 365:</strong> Agenda → ··· → Agenda-instellingen → Gedeeld → ICS-koppeling<br>
+        <strong>Google:</strong> Agenda-instellingen → Integreer agenda → Geheim iCal-adres
+      </div>
+      <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-top:2px">Kleur</label>
+      <div class="cal-color-row" id="calColorRow">${swatches}</div>
+      <div style="display:flex;gap:6px;margin-top:4px">
+        <button class="btn btn-sm" onclick="document.getElementById('calAddForm').style.display='none'">Annuleer</button>
+        <button class="btn btn-sm btn-primary" onclick="saveIcalSource()">Koppelen</button>
+      </div>
+    </div>`;
+  document.getElementById('calAddForm').style.display='block';
+}
+function pickCalColor(el,color){
+  _pickedColor=color;
+  document.querySelectorAll('#calColorRow .cal-color-swatch').forEach(s=>s.classList.remove('selected'));
+  el.classList.add('selected');
+}
+function saveIcalSource(){
+  const name=document.getElementById('icalSrcName')?.value.trim();
+  const url=document.getElementById('icalSrcUrl')?.value.trim();
+  if(!name){alert('Vul een naam in.');return;}
+  if(!url){alert('Vul een iCal-link in.');return;}
+  migrateCalSettings();
+  rawState.settings.calSources.push({id:uid(),type:'ical',url,name,color:_pickedColor,enabled:true});
+  scheduleSave();
+  document.getElementById('calAddForm').style.display='none';
+  renderCalSourcesList();
+  const sb=document.getElementById('agendaSettingsBtn');const cb=document.getElementById('agendaConnectBtn');
+  if(sb)sb.style.display='';if(cb)cb.style.display='none';
+  if(activeModule==='agenda')renderAgendaModule();
+  renderDashCal();
 }
 
-/* ─ Fetch & render week (Google) ─ */
-async function fetchAndRenderWeek(){
-  const content=document.getElementById('agendaContent');if(!content)return;
-  content.innerHTML='<div class="cal-loading"><div class="spinner"></div><span>Agenda laden...</span></div>';
-  const ws=getWeekStart(agendaWeekOffset);
-  const we=new Date(ws);we.setDate(ws.getDate()+7);
-  try{
-    const hdrs={'Authorization':'Bearer '+gAccessToken};
-    const listResp=await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=50',{headers:hdrs});
-    if(listResp.status===401){gAccessToken=null;renderAgendaModule();return;}
-    if(!listResp.ok)throw new Error('Agenda-lijst ophalen mislukt');
-    const calList=await listResp.json();
-    const COLORS=['#4285f4','#ea4335','#fbbc04','#34a853','#ff6d00','#46bdc6','#7986cb','#a79b8e'];
-    const allEvents=[];
-    await Promise.all((calList.items||[]).filter(c=>c.selected!==false&&c.accessRole!=='freeBusyReader')
-      .map(async(cal,i)=>{
-        try{
-          const r=await fetch(
-            `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events`+
-            `?timeMin=${encodeURIComponent(ws.toISOString())}&timeMax=${encodeURIComponent(we.toISOString())}`+
-            `&singleEvents=true&orderBy=startTime&maxResults=100`,{headers:hdrs});
-          if(!r.ok)return;const data=await r.json();
-          const color=cal.backgroundColor||COLORS[i%COLORS.length];
-          (data.items||[]).forEach(ev=>{if(ev.status!=='cancelled')allEvents.push({...ev,_calColor:color,_calName:cal.summary});});
-        }catch(e){}
-      }));
-    allEvents.sort((a,b)=>{const at=a.start?.dateTime||a.start?.date||'';const bt=b.start?.dateTime||b.start?.date||'';return at<bt?-1:at>bt?1:0;});
-    cachedWeekEvents=allEvents;
-    renderWeekGrid(allEvents,ws,content);
-  }catch(e){
-    content.innerHTML=`<div class="cal-placeholder"><p style="color:var(--danger)">${escapeHtml(e.message)}</p>
-      <button class="btn btn-sm" onclick="fetchAndRenderWeek()">Opnieuw proberen</button></div>`;
-  }
-  clearTimeout(calRefreshTimer);
-  calRefreshTimer=setTimeout(()=>{if(gAccessToken&&activeModule==='agenda')fetchAndRenderWeek();},15*60*1000);
-}
-
-/* ─ Fetch iCal for week ─ */
-async function fetchIcalForWeek(url){
-  const content=document.getElementById('agendaContent');if(!content)return;
-  content.innerHTML='<div class="cal-loading"><div class="spinner"></div><span>Agenda laden...</span></div>';
-  try{
-    const resp=await fetch(CORS_PROXY+encodeURIComponent(url),{cache:'no-store'});
-    if(!resp.ok)throw new Error('HTTP '+resp.status);
-    const text=await resp.text();
-    if(!text.includes('BEGIN:VCALENDAR'))throw new Error('Geen geldige iCal-data ontvangen.');
-    const ws=getWeekStart(agendaWeekOffset);
-    const we=new Date(ws);we.setDate(ws.getDate()+7);
-    const parsed=parseICS(text);
-    const expanded=expandEvents(parsed,ws,we);
-    const events=expanded.map(ev=>({
-      _ical:true,summary:ev.title,location:ev.location,_calColor:getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()||'#3b5bdb',
-      start:{dateTime:ev.occStart.allDay?null:ev.occStart.date.toISOString(),date:ev.occStart.allDay?dateStr(ev.occStart.date):null},
-      end:{dateTime:ev.occEnd?.allDay?null:ev.occEnd?.date?.toISOString()||null,date:ev.occEnd?.allDay?dateStr(ev.occEnd.date):null}
-    }));
-    cachedWeekEvents=events;
-    renderWeekGrid(events,ws,content);
-  }catch(e){
-    content.innerHTML=`<div class="cal-placeholder"><p style="color:var(--danger)">${escapeHtml(e.message)}</p>
-      <button class="btn btn-sm" onclick="showAgendaIcalSetup()">Instellingen</button></div>`;
-  }
-  clearTimeout(calRefreshTimer);
-  calRefreshTimer=setTimeout(()=>{if(activeModule==='agenda')renderAgendaModule();},15*60*1000);
-}
 function dateStr(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
-
-/* ─ Fetch day (Google) ─ */
-async function fetchAndRenderDay(){
-  const content=document.getElementById('agendaContent');if(!content)return;
-  content.innerHTML='<div class="cal-loading"><div class="spinner"></div><span>Agenda laden...</span></div>';
-  const day=getDayDate(agendaDayOffset);
-  const dayEnd=new Date(day);dayEnd.setDate(day.getDate()+1);
-  try{
-    const hdrs={'Authorization':'Bearer '+gAccessToken};
-    const listResp=await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=50',{headers:hdrs});
-    if(listResp.status===401){gAccessToken=null;renderAgendaModule();return;}
-    if(!listResp.ok)throw new Error('Agenda-lijst ophalen mislukt');
-    const calList=await listResp.json();
-    const COLORS=['#4285f4','#ea4335','#fbbc04','#34a853','#ff6d00','#46bdc6','#7986cb','#a79b8e'];
-    const allEvents=[];
-    await Promise.all((calList.items||[]).filter(c=>c.selected!==false&&c.accessRole!=='freeBusyReader').map(async(cal,i)=>{
-      try{
-        const r=await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events`+
-          `?timeMin=${encodeURIComponent(day.toISOString())}&timeMax=${encodeURIComponent(dayEnd.toISOString())}`+
-          `&singleEvents=true&orderBy=startTime&maxResults=100`,{headers:hdrs});
-        if(!r.ok)return;const data=await r.json();
-        const color=cal.backgroundColor||COLORS[i%COLORS.length];
-        (data.items||[]).forEach(ev=>{if(ev.status!=='cancelled')allEvents.push({...ev,_calColor:color,_calName:cal.summary});});
-      }catch(e){}
-    }));
-    allEvents.sort((a,b)=>{const at=a.start?.dateTime||a.start?.date||'';const bt=b.start?.dateTime||b.start?.date||'';return at<bt?-1:1;});
-    renderDayGrid(allEvents,day,content);
-  }catch(e){
-    content.innerHTML=`<div class="cal-placeholder"><p style="color:var(--danger)">${escapeHtml(e.message)}</p><button class="btn btn-sm" onclick="fetchAndRenderDay()">Opnieuw</button></div>`;
-  }
-}
-
-/* ─ Fetch month (Google) ─ */
-async function fetchAndRenderMonth(){
-  const content=document.getElementById('agendaContent');if(!content)return;
-  content.innerHTML='<div class="cal-loading"><div class="spinner"></div><span>Agenda laden...</span></div>';
-  const ms=getMonthStart(agendaMonthOffset);
-  const gridStart=new Date(ms);const dow=gridStart.getDay();
-  gridStart.setDate(gridStart.getDate()-(dow===0?6:dow-1));
-  const gridEnd=new Date(ms.getFullYear(),ms.getMonth()+1,1);
-  const lastDow=gridEnd.getDay();if(lastDow!==1)gridEnd.setDate(gridEnd.getDate()+(lastDow===0?1:8-lastDow));
-  try{
-    const hdrs={'Authorization':'Bearer '+gAccessToken};
-    const listResp=await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=50',{headers:hdrs});
-    if(listResp.status===401){gAccessToken=null;renderAgendaModule();return;}
-    if(!listResp.ok)throw new Error('Agenda-lijst ophalen mislukt');
-    const calList=await listResp.json();
-    const COLORS=['#4285f4','#ea4335','#fbbc04','#34a853','#ff6d00','#46bdc6','#7986cb','#a79b8e'];
-    const allEvents=[];
-    await Promise.all((calList.items||[]).filter(c=>c.selected!==false&&c.accessRole!=='freeBusyReader').map(async(cal,i)=>{
-      try{
-        const r=await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events`+
-          `?timeMin=${encodeURIComponent(gridStart.toISOString())}&timeMax=${encodeURIComponent(gridEnd.toISOString())}`+
-          `&singleEvents=true&orderBy=startTime&maxResults=500`,{headers:hdrs});
-        if(!r.ok)return;const data=await r.json();
-        const color=cal.backgroundColor||COLORS[i%COLORS.length];
-        (data.items||[]).forEach(ev=>{if(ev.status!=='cancelled')allEvents.push({...ev,_calColor:color,_calName:cal.summary});});
-      }catch(e){}
-    }));
-    renderMonthGrid(allEvents,ms,content);
-  }catch(e){
-    content.innerHTML=`<div class="cal-placeholder"><p style="color:var(--danger)">${escapeHtml(e.message)}</p><button class="btn btn-sm" onclick="fetchAndRenderMonth()">Opnieuw</button></div>`;
-  }
-}
-
-/* ─ iCal day/month ─ */
-async function fetchIcalForDay(url){
-  const content=document.getElementById('agendaContent');if(!content)return;
-  content.innerHTML='<div class="cal-loading"><div class="spinner"></div><span>Agenda laden...</span></div>';
-  try{
-    const resp=await fetch(CORS_PROXY+encodeURIComponent(url),{cache:'no-store'});
-    if(!resp.ok)throw new Error('HTTP '+resp.status);
-    const text=await resp.text();
-    if(!text.includes('BEGIN:VCALENDAR'))throw new Error('Geen geldige iCal-data.');
-    const day=getDayDate(agendaDayOffset);
-    const dayEnd=new Date(day);dayEnd.setDate(day.getDate()+1);
-    const parsed=parseICS(text);const expanded=expandEvents(parsed,day,dayEnd);
-    const color=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()||'#3b5bdb';
-    const events=expanded.map(ev=>({_ical:true,summary:ev.title,location:ev.location,_calColor:color,
-      start:{dateTime:ev.occStart.allDay?null:ev.occStart.date.toISOString(),date:ev.occStart.allDay?dateStr(ev.occStart.date):null},
-      end:{dateTime:ev.occEnd?.allDay?null:ev.occEnd?.date?.toISOString()||null,date:ev.occEnd?.allDay?dateStr(ev.occEnd.date):null}}));
-    renderDayGrid(events,day,content);
-  }catch(e){
-    content.innerHTML=`<div class="cal-placeholder"><p style="color:var(--danger)">${escapeHtml(e.message)}</p></div>`;
-  }
-}
-async function fetchIcalForMonth(url){
-  const content=document.getElementById('agendaContent');if(!content)return;
-  content.innerHTML='<div class="cal-loading"><div class="spinner"></div><span>Agenda laden...</span></div>';
-  try{
-    const resp=await fetch(CORS_PROXY+encodeURIComponent(url),{cache:'no-store'});
-    if(!resp.ok)throw new Error('HTTP '+resp.status);
-    const text=await resp.text();
-    if(!text.includes('BEGIN:VCALENDAR'))throw new Error('Geen geldige iCal-data.');
-    const ms=getMonthStart(agendaMonthOffset);
-    const me=new Date(ms.getFullYear(),ms.getMonth()+1,1);
-    const parsed=parseICS(text);const expanded=expandEvents(parsed,ms,me);
-    const color=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()||'#3b5bdb';
-    const events=expanded.map(ev=>({_ical:true,summary:ev.title,location:ev.location,_calColor:color,
-      start:{dateTime:ev.occStart.allDay?null:ev.occStart.date.toISOString(),date:ev.occStart.allDay?dateStr(ev.occStart.date):null},
-      end:{dateTime:ev.occEnd?.allDay?null:ev.occEnd?.date?.toISOString()||null,date:ev.occEnd?.allDay?dateStr(ev.occEnd.date):null}}));
-    renderMonthGrid(events,ms,content);
-  }catch(e){
-    content.innerHTML=`<div class="cal-placeholder"><p style="color:var(--danger)">${escapeHtml(e.message)}</p></div>`;
-  }
-}
 
 /* ─ Day grid render ─ */
 function renderDayGrid(events,day,container){
