@@ -447,6 +447,14 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .cal-color-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .cal-color-swatch{width:20px;height:20px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .12s}
 .cal-color-swatch.selected{border-color:var(--text);transform:scale(1.15)}
+/* Agenda source bar */
+.agenda-src-bar{display:flex;align-items:center;gap:6px;padding:6px 16px;border-bottom:0.5px solid var(--border);flex-wrap:wrap;background:var(--surface);flex-shrink:0}
+.src-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 11px 4px 8px;border-radius:100px;border:1.5px solid transparent;font-size:11px;font-weight:500;cursor:pointer;transition:all .15s;font-family:inherit;white-space:nowrap}
+.src-chip.on{color:#fff}
+.src-chip.off{opacity:.4;filter:grayscale(.3)}
+.src-chip-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;flex-shrink:0}
+/* Inline color palette inside source items */
+.csi-palette{display:flex;gap:5px;flex-wrap:wrap;padding:7px 0 3px;margin-top:4px;border-top:0.5px solid var(--border)}
 
 /* Cal list (dashboard mini) */
 .cal-events{display:flex;flex-direction:column;height:100%;overflow-y:auto}
@@ -791,9 +799,10 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
           </div>
           <span class="week-title" id="agendaTitle" style="margin-left:10px">...</span>
           <div style="flex:1"></div>
-          <button class="btn btn-xs" id="agendaSettingsBtn" onclick="toggleAgendaCalSettings()" style="display:none">⚙</button>
-          <button class="btn btn-sm btn-primary" id="agendaConnectBtn" onclick="signInGoogle()">Google Calendar koppelen</button>
+          <button class="btn btn-xs" id="agendaSettingsBtn" onclick="toggleAgendaCalSettings()" style="display:none">⚙ Agenda's</button>
+          <button class="btn btn-sm btn-primary" id="agendaConnectBtn" onclick="openCalSourcesModal()">+ Agenda koppelen</button>
         </div>
+        <div id="agendaSourceBar" class="agenda-src-bar" style="display:none"></div>
         <div id="agendaContent" style="flex:1;overflow:hidden;display:flex;flex-direction:column">
           <div class="cal-placeholder">
             <div style="font-size:32px">📅</div>
@@ -2546,6 +2555,7 @@ function updateAgendaTitle(){
 function renderAgendaModule(){
   migrateCalSettings();
   updateAgendaTitle();
+  renderAgendaSourceBar();
   ['Day','Week','Month'].forEach(v=>{
     const btn=document.getElementById('viewBtn'+v);
     if(btn)btn.classList.toggle('active',v.toLowerCase()===agendaView);
@@ -2687,7 +2697,7 @@ function ensureTokenClient(){
       const sb=document.getElementById('agendaSettingsBtn');const cb=document.getElementById('agendaConnectBtn');
       if(sb)sb.style.display='';if(cb)cb.style.display='none';
       document.getElementById('dashCalSettingsBtn').style.display='';
-      renderCalSourcesList();
+      renderCalSourcesList();renderAgendaSourceBar();
       fetchAndRenderView();
       renderDashCal();
     }
@@ -2707,7 +2717,7 @@ function disconnectGoogle(){
     delete rawState.settings.calMode;
   }
   clearTimeout(calRefreshTimer);scheduleSave();
-  renderAgendaModule();renderDashCal();
+  renderAgendaSourceBar();renderAgendaModule();renderDashCal();
 }
 function toggleAgendaCalSettings(){openCalSourcesModal();}
 
@@ -2731,9 +2741,26 @@ function openCalSourcesModal(){
 }
 function closeCalSourcesModal(){document.getElementById('calSourcesModal').classList.remove('open');}
 const CAL_PALETTE=['#4285f4','#ea4335','#fbbc04','#34a853','#ff6d00','#46bdc6','#7986cb','#9c27b0','#0078d4','#e03131','#2f9e44','#f08c00'];
+function renderAgendaSourceBar(){
+  const bar=document.getElementById('agendaSourceBar');if(!bar)return;
+  const sources=rawState.settings?.calSources||[];
+  if(!sources.length){bar.style.display='none';return;}
+  bar.style.display='flex';
+  bar.innerHTML=sources.map(s=>{
+    const color=s.type==='google'?'#4285f4':(s.color||'#3b5bdb');
+    const on=s.enabled!==false;
+    return `<button class="src-chip ${on?'on':'off'}"
+      style="border-color:${color};${on?'background:'+color:'color:'+color}"
+      onclick="toggleCalSourceEnabled('${s.id}')"
+      title="${escapeHtml(s.name)} — klik om ${on?'te verbergen':'te tonen'}">
+      <span class="src-chip-dot" style="background:${on?'rgba(255,255,255,.65)':color}"></span>
+      ${escapeHtml(s.name)}
+    </button>`;
+  }).join('');
+}
 function renderCalSourcesList(){
   const sources=rawState.settings?.calSources||[];
-  const el=document.getElementById('calSourcesList');
+  const el=document.getElementById('calSourcesList');if(!el)return;
   if(!sources.length){el.innerHTML='<p style="font-size:12px;color:var(--text-hint);margin-bottom:10px">Nog geen agenda\'s gekoppeld.</p>';return;}
   el.innerHTML=sources.map(s=>{
     const color=s.type==='google'?'#4285f4':(s.color||'#3b5bdb');
@@ -2742,26 +2769,51 @@ function renderCalSourcesList(){
     const statusHtml=s.type==='google'?
       (gAccessToken?'<span style="font-size:10px;color:var(--success)">● Verbonden</span>':'<span style="font-size:10px;color:var(--text-hint)">● Sessie verlopen</span>'):
       '';
-    return `<div class="cal-source-item">
-      <div class="cal-source-dot" style="background:${color}"></div>
-      <div style="flex:1;min-width:0">
-        <div style="display:flex;align-items:center;gap:6px">
-          <span class="cal-source-name">${escapeHtml(s.name)}</span>
-          <span class="cal-source-type">${typeLbl}</span>
-          ${statusHtml}
+    const colorBtn=`<button title="Kleur aanpassen" onclick="toggleSourceColorPicker('${s.id}')"
+      style="width:18px;height:18px;padding:0;border-radius:50%;border:2px solid var(--surface);background:${color};cursor:pointer;flex-shrink:0"></button>`;
+    return `<div class="cal-source-item" id="csi-${s.id}" style="flex-direction:column;align-items:stretch">
+      <div style="display:flex;align-items:center;gap:8px">
+        ${colorBtn}
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="cal-source-name">${escapeHtml(s.name)}</span>
+            <span class="cal-source-type">${typeLbl}</span>
+            ${statusHtml}
+          </div>
+          ${s.type==='ical'?`<div style="font-size:10px;color:var(--text-hint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px">${escapeHtml(s.url||'')}</div>`:''}
         </div>
-        ${s.type==='ical'?`<div style="font-size:10px;color:var(--text-hint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px">${escapeHtml(s.url||'')}</div>`:''}
+        <button class="cal-source-toggle ${on?'on':'off'}" title="${on?'Verbergen':'Tonen'}" onclick="toggleCalSourceEnabled('${s.id}')"></button>
+        ${s.type==='google'?`<button class="btn btn-xs" onclick="signInGoogle()" title="Opnieuw verbinden" style="padding:3px 7px">↻</button>`:''}
+        <button class="btn btn-xs btn-danger" onclick="removeCalSource('${s.id}')" title="Verwijderen" style="padding:3px 7px">✕</button>
       </div>
-      <button class="cal-source-toggle ${on?'on':'off'}" title="${on?'Verbergen':'Tonen'}" onclick="toggleCalSourceEnabled('${s.id}')"></button>
-      ${s.type==='google'?`<button class="btn btn-xs" onclick="signInGoogle()" title="Opnieuw verbinden" style="padding:3px 7px">↻</button>`:''}
-      <button class="btn btn-xs btn-danger" onclick="removeCalSource('${s.id}')" title="Verwijderen" style="padding:3px 7px">✕</button>
     </div>`;
   }).join('');
+}
+function toggleSourceColorPicker(id){
+  const s=(rawState.settings?.calSources||[]).find(x=>x.id===id);if(!s)return;
+  const item=document.getElementById('csi-'+id);if(!item)return;
+  const existing=item.querySelector('.csi-palette');
+  if(existing){existing.remove();return;}
+  const palette=document.createElement('div');
+  palette.className='csi-palette';
+  CAL_PALETTE.forEach(c=>{
+    const sw=document.createElement('div');
+    sw.className='cal-color-swatch'+(c===s.color?' selected':'');
+    sw.style.background=c;
+    sw.title=c;
+    sw.onclick=()=>{
+      s.color=c;scheduleSave();
+      renderCalSourcesList();renderAgendaSourceBar();
+      if(activeModule==='agenda')renderAgendaModule();
+    };
+    palette.appendChild(sw);
+  });
+  item.appendChild(palette);
 }
 function toggleCalSourceEnabled(id){
   const s=(rawState.settings?.calSources||[]).find(x=>x.id===id);
   if(s)s.enabled=s.enabled===false;
-  scheduleSave();renderCalSourcesList();
+  scheduleSave();renderCalSourcesList();renderAgendaSourceBar();
   if(activeModule==='agenda')renderAgendaModule();
 }
 function removeCalSource(id){
@@ -2770,7 +2822,7 @@ function removeCalSource(id){
   if(!confirm(`"${s.name}" verwijderen?`))return;
   if(s.type==='google'&&gAccessToken){google.accounts.oauth2?.revoke(gAccessToken,()=>{});gAccessToken=null;clearTimeout(gTokenRefreshTimer);}
   rawState.settings.calSources=rawState.settings.calSources.filter(x=>x.id!==id);
-  scheduleSave();renderCalSourcesList();
+  scheduleSave();renderCalSourcesList();renderAgendaSourceBar();
   if(activeModule==='agenda')renderAgendaModule();
   renderDashCal();
 }
@@ -2817,7 +2869,7 @@ function saveIcalSource(){
   rawState.settings.calSources.push({id:uid(),type:'ical',url,name,color:_pickedColor,enabled:true});
   scheduleSave();
   document.getElementById('calAddForm').style.display='none';
-  renderCalSourcesList();
+  renderCalSourcesList();renderAgendaSourceBar();
   const sb=document.getElementById('agendaSettingsBtn');const cb=document.getElementById('agendaConnectBtn');
   if(sb)sb.style.display='';if(cb)cb.style.display='none';
   if(activeModule==='agenda')renderAgendaModule();
