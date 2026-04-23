@@ -418,9 +418,9 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .cal-month-hdr-row{display:grid;grid-template-columns:repeat(7,1fr);border-bottom:0.5px solid var(--border);flex-shrink:0;background:var(--surface);position:sticky;top:0;z-index:5}
 .cal-month-hdr{text-align:center;padding:7px 0;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted)}
 .cal-month-grid{flex:1;overflow-y:auto;display:flex;flex-direction:column}
-.cal-month-week{display:grid;grid-template-columns:repeat(7,1fr);border-bottom:0.5px solid var(--border)}
+.cal-month-week{display:grid;grid-template-columns:repeat(7,1fr);border-bottom:0.5px solid var(--border);flex:1;min-height:100px}
 .cal-month-week:last-child{border-bottom:none}
-.cal-month-cell{border-right:0.5px solid var(--border);padding:4px;overflow:hidden;cursor:pointer;transition:background .12s;min-height:90px}
+.cal-month-cell{border-right:0.5px solid var(--border);padding:4px;overflow:hidden;cursor:pointer;transition:background .12s;min-height:0}
 .cal-month-cell:last-child{border-right:none}
 .cal-month-cell:hover{background:var(--surface2)}
 .cal-month-cell.today{background:rgba(59,91,219,0.04)}
@@ -2990,18 +2990,7 @@ function renderDayGrid(events,day,container){
   html+=`<div class="cal-day-col${isToday?' today':''}">`;
   hours.forEach((_,i)=>html+=`<div class="cal-hour-line" style="top:${i*PX_PER_HOUR}px"></div>`);
   if(isToday){const now=new Date();const mins=(now.getHours()-HOUR_START)*60+now.getMinutes();if(mins>=0&&mins<=(HOUR_END-HOUR_START)*60)html+=`<div class="cal-time-now" style="top:${mins}px"></div>`;}
-  timed.forEach(ev=>{
-    const start=new Date(ev.start.dateTime);
-    const end=ev.end?.dateTime?new Date(ev.end.dateTime):new Date(start.getTime()+30*60000);
-    const startMin=(start.getHours()-HOUR_START)*60+start.getMinutes();
-    const endMin=(end.getHours()-HOUR_START)*60+end.getMinutes();
-    const top=Math.max(startMin,0);const height=Math.max(Math.min(endMin,(HOUR_END-HOUR_START)*60)-top,18);
-    const timeStr=start.toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});
-    html+=`<div class="cal-ev-block" style="top:${top}px;height:${height}px;background:${ev._calColor}22;border-left-color:${ev._calColor};color:var(--text)" title="${escapeHtml(ev.summary||'')}">
-      <div style="font-weight:600;font-size:10px">${timeStr}</div>
-      <div>${escapeHtml(ev.summary||'(geen titel)')}</div>
-    </div>`;
-  });
+  layoutTimedEvents(timed).forEach(item=>{html+=evBlockHtml(item);});
   html+=`</div></div></div></div>`;
   container.innerHTML=html;
 }
@@ -3056,6 +3045,48 @@ function jumpToDay(ds){
   const d=new Date(ds+'T00:00:00');const today=new Date();today.setHours(0,0,0,0);
   agendaDayOffset=Math.round((d-today)/86400000);
   switchAgendaView('day');
+}
+
+/* ─ Overlap layout for timed events ─ */
+function layoutTimedEvents(dayEvs){
+  const items=dayEvs.map(ev=>{
+    const start=new Date(ev.start.dateTime);
+    const end=ev.end?.dateTime?new Date(ev.end.dateTime):new Date(start.getTime()+30*60000);
+    const startMin=(start.getHours()-HOUR_START)*60+start.getMinutes();
+    const endMin=(end.getHours()-HOUR_START)*60+end.getMinutes();
+    const top=Math.max(startMin,0);
+    const height=Math.max(Math.min(endMin,(HOUR_END-HOUR_START)*60)-top,18);
+    const timeStr=start.toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});
+    return{ev,start,end,top,height,timeStr,col:0,totalCols:1};
+  }).sort((a,b)=>a.start-b.start);
+  /* Assign column slots (interval graph coloring) */
+  const colEnds=[];
+  items.forEach(item=>{
+    let col=0;
+    while(col<colEnds.length&&colEnds[col]>item.start)col++;
+    item.col=col;colEnds[col]=item.end;
+  });
+  /* For each event: totalCols = max column of any overlapping peer + 1 */
+  items.forEach(item=>{
+    let maxCol=item.col;
+    items.forEach(other=>{
+      if(other===item)return;
+      if(other.start<item.end&&other.end>item.start)maxCol=Math.max(maxCol,other.col);
+    });
+    item.totalCols=maxCol+1;
+  });
+  return items;
+}
+function evBlockHtml(item){
+  const{ev,top,height,timeStr,col,totalCols}=item;
+  const colW=100/totalCols;
+  const leftPct=col*colW;const rightPct=100-leftPct-colW;
+  return`<div class="cal-ev-block"
+    style="top:${top}px;height:${height}px;left:calc(${leftPct}% + 2px);right:calc(${rightPct}% + 1px);background:${ev._calColor}22;border-left-color:${ev._calColor};color:var(--text)"
+    title="${escapeHtml(ev.summary||'')} — ${timeStr}">
+    <div style="font-weight:600;font-size:10px">${timeStr}</div>
+    <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(ev.summary||'(geen titel)')}</div>
+  </div>`;
 }
 
 /* ─ Weekly grid render ─ */
@@ -3119,26 +3150,12 @@ function renderWeekGrid(events,weekStart,container){
       if(mins>=0&&mins<=(HOUR_END-HOUR_START)*60)
         html+=`<div class="cal-time-now" style="top:${mins}px"></div>`;
     }
-    /* Timed events */
+    /* Timed events with overlap layout */
     const dayEvs=timed.filter(ev=>{
       const d2=new Date(ev.start.dateTime);
       return d2.getFullYear()===d.getFullYear()&&d2.getMonth()===d.getMonth()&&d2.getDate()===d.getDate();
     });
-    dayEvs.forEach(ev=>{
-      const start=new Date(ev.start.dateTime);
-      const end=ev.end?.dateTime?new Date(ev.end.dateTime):new Date(start.getTime()+30*60000);
-      const startMin=(start.getHours()-HOUR_START)*60+start.getMinutes();
-      const endMin=(end.getHours()-HOUR_START)*60+end.getMinutes();
-      const top=Math.max(startMin,0);
-      const height=Math.max(Math.min(endMin,(HOUR_END-HOUR_START)*60)-top,18);
-      const timeStr=start.toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});
-      html+=`<div class="cal-ev-block"
-        style="top:${top}px;height:${height}px;background:${ev._calColor}22;border-left-color:${ev._calColor};color:var(--text)"
-        title="${escapeHtml(ev.summary||'')} — ${timeStr}">
-        <div style="font-weight:600;font-size:10px">${timeStr}</div>
-        <div>${escapeHtml(ev.summary||'(geen titel)')}</div>
-      </div>`;
-    });
+    layoutTimedEvents(dayEvs).forEach(item=>{html+=evBlockHtml(item);});
     html+=`</div>`;
   });
   html+=`</div></div></div>`;/* close cal-grid-inner, cal-grid-scroll, cal-grid-outer */
