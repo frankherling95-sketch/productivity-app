@@ -2769,19 +2769,18 @@ function renderCalSourcesList(){
     const statusHtml=s.type==='google'?
       (gAccessToken?'<span style="font-size:10px;color:var(--success)">● Verbonden</span>':'<span style="font-size:10px;color:var(--text-hint)">● Sessie verlopen</span>'):
       '';
-    const colorBtn=`<button title="Kleur aanpassen" onclick="toggleSourceColorPicker('${s.id}')"
-      style="width:18px;height:18px;padding:0;border-radius:50%;border:2px solid var(--surface);background:${color};cursor:pointer;flex-shrink:0"></button>`;
     return `<div class="cal-source-item" id="csi-${s.id}" style="flex-direction:column;align-items:stretch">
       <div style="display:flex;align-items:center;gap:8px">
-        ${colorBtn}
+        <div style="width:14px;height:14px;border-radius:50%;background:${color};flex-shrink:0"></div>
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:6px">
             <span class="cal-source-name">${escapeHtml(s.name)}</span>
             <span class="cal-source-type">${typeLbl}</span>
             ${statusHtml}
           </div>
-          ${s.type==='ical'?`<div style="font-size:10px;color:var(--text-hint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px">${escapeHtml(s.url||'')}</div>`:''}
+          ${s.type==='ical'?`<div style="font-size:10px;color:var(--text-hint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px">${escapeHtml(s.url||'')}</div>`:''}
         </div>
+        <button class="btn btn-xs" onclick="toggleSourceEditor('${s.id}')" title="Naam & kleur bewerken" style="padding:3px 7px">✎</button>
         <button class="cal-source-toggle ${on?'on':'off'}" title="${on?'Verbergen':'Tonen'}" onclick="toggleCalSourceEnabled('${s.id}')"></button>
         ${s.type==='google'?`<button class="btn btn-xs" onclick="signInGoogle()" title="Opnieuw verbinden" style="padding:3px 7px">↻</button>`:''}
         <button class="btn btn-xs btn-danger" onclick="removeCalSource('${s.id}')" title="Verwijderen" style="padding:3px 7px">✕</button>
@@ -2789,26 +2788,58 @@ function renderCalSourcesList(){
     </div>`;
   }).join('');
 }
-function toggleSourceColorPicker(id){
-  const s=(rawState.settings?.calSources||[]).find(x=>x.id===id);if(!s)return;
+function toggleSourceEditor(id){
   const item=document.getElementById('csi-'+id);if(!item)return;
-  const existing=item.querySelector('.csi-palette');
+  const existing=item.querySelector('.csi-editor');
   if(existing){existing.remove();return;}
-  const palette=document.createElement('div');
-  palette.className='csi-palette';
-  CAL_PALETTE.forEach(c=>{
-    const sw=document.createElement('div');
-    sw.className='cal-color-swatch'+(c===s.color?' selected':'');
-    sw.style.background=c;
-    sw.title=c;
-    sw.onclick=()=>{
-      s.color=c;scheduleSave();
-      renderCalSourcesList();renderAgendaSourceBar();
-      if(activeModule==='agenda')renderAgendaModule();
-    };
-    palette.appendChild(sw);
-  });
-  item.appendChild(palette);
+  const s=(rawState.settings?.calSources||[]).find(x=>x.id===id);if(!s)return;
+  const currentColor=s.type==='google'?'#4285f4':(s.color||'#3b5bdb');
+  const editor=document.createElement('div');
+  editor.className='csi-editor';
+  editor.style.cssText='margin-top:8px;padding-top:8px;border-top:0.5px solid var(--border);display:flex;flex-direction:column;gap:8px';
+  const swatches=CAL_PALETTE.map(c=>`<div class="cal-color-swatch${c===currentColor?' selected':''}" style="background:${c}" onclick="csiPickColor(this,'${c}','${id}')"></div>`).join('');
+  editor.innerHTML=`
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <label style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em">Naam</label>
+      <input id="csi-name-${id}" type="text" value="${escapeHtml(s.name)}"
+        style="padding:5px 8px;border:0.5px solid var(--border-strong);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:12px;font-family:inherit;width:100%"/>
+    </div>
+    ${s.type==='ical'?`
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <label style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em">iCal-link</label>
+      <input id="csi-url-${id}" type="text" value="${escapeHtml(s.url||'')}"
+        style="padding:5px 8px;border:0.5px solid var(--border-strong);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:12px;font-family:inherit;width:100%"/>
+    </div>`:''}
+    ${s.type!=='google'?`
+    <div style="display:flex;flex-direction:column;gap:5px">
+      <label style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em">Kleur</label>
+      <div class="cal-color-row" id="csi-palette-${id}">${swatches}</div>
+    </div>`:''}
+    <div style="display:flex;gap:6px">
+      <button class="btn btn-sm" onclick="toggleSourceEditor('${id}')">Annuleer</button>
+      <button class="btn btn-sm btn-primary" onclick="saveSourceEdit('${id}')">Opslaan</button>
+    </div>`;
+  item.appendChild(editor);
+}
+let _csiColors={};
+function csiPickColor(el,color,id){
+  _csiColors[id]=color;
+  document.querySelectorAll(`#csi-palette-${id} .cal-color-swatch`).forEach(s=>s.classList.remove('selected'));
+  el.classList.add('selected');
+}
+function saveSourceEdit(id){
+  const s=(rawState.settings?.calSources||[]).find(x=>x.id===id);if(!s)return;
+  const nameEl=document.getElementById('csi-name-'+id);
+  const urlEl=document.getElementById('csi-url-'+id);
+  const name=(nameEl?.value||'').trim();
+  if(!name){nameEl?.focus();return;}
+  s.name=name;
+  if(urlEl)s.url=urlEl.value.trim();
+  if(_csiColors[id]&&s.type!=='google')s.color=_csiColors[id];
+  delete _csiColors[id];
+  scheduleSave();
+  renderCalSourcesList();renderAgendaSourceBar();
+  if(activeModule==='agenda')renderAgendaModule();
 }
 function toggleCalSourceEnabled(id){
   const s=(rawState.settings?.calSources||[]).find(x=>x.id===id);
