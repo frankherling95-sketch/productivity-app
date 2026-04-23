@@ -347,6 +347,14 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .notes-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text-hint);gap:8px;text-align:center;padding:30px 20px}
 .note-client-select{font-size:11px;padding:2px 6px;background:var(--surface2);border:0.5px solid var(--border-strong);border-radius:4px;color:var(--text-muted);cursor:pointer;font-family:inherit;outline:none}
 .note-client-select:focus{border-color:var(--text)}
+.note-label[contenteditable=true]{outline:none;background:var(--surface2);border-radius:3px;padding:0 3px;cursor:text;white-space:nowrap;overflow:visible;min-width:40px}
+.note-label[contenteditable=true]:focus{background:var(--accent);color:#fff;border-radius:3px}
+.notes-tree-hdr{display:flex;align-items:center;justify-content:space-between;padding:4px 6px 4px;flex-shrink:0}
+.notes-tree-hdr span{font-size:10px;font-weight:600;color:var(--text-hint);text-transform:uppercase;letter-spacing:.05em}
+.notes-tree-hdr-btns{display:flex;gap:2px}
+.notes-folder-form{padding:4px 6px;display:flex;gap:4px}
+.notes-folder-form input{flex:1;padding:3px 6px;font-size:12px;border:0.5px solid var(--border-strong);border-radius:var(--radius);background:var(--surface);color:var(--text);font-family:inherit;outline:none}
+.notes-folder-form input:focus{border-color:var(--accent)}
 
 /* ── Agenda (weekly calendar) module ── */
 .agenda-wrap{display:flex;flex-direction:column;flex:1;overflow:hidden}
@@ -761,13 +769,19 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
       <div class="module-topbar">
         <div style="font-size:16px;font-weight:600">Notities</div>
         <div style="display:flex;gap:4px;align-items:center">
-          <button class="btn btn-xs" id="noteEditToggle" onclick="toggleNoteEdit()" style="display:none">✎ Bewerken</button>
-          <button class="btn btn-xs" onclick="createNote(null)">+ Nieuw</button>
-          <button class="btn btn-xs btn-ghost" onclick="createFolder(null)" title="Nieuwe groep">📁+</button>
+          <button class="btn btn-xs btn-primary" onclick="createNote(null)">+ Nieuw</button>
         </div>
       </div>
       <div class="notes-layout">
-        <div class="notes-sidebar">
+        <div class="notes-sidebar" style="display:flex;flex-direction:column">
+          <div class="notes-tree-hdr">
+            <span>Pagina's</span>
+            <div class="notes-tree-hdr-btns">
+              <button class="btn btn-xs" onclick="createNote(null)" title="Nieuwe notitie" style="padding:2px 7px">+</button>
+              <button class="btn btn-xs" onclick="startFolderCreate()" title="Nieuwe groep" style="padding:2px 6px">📁+</button>
+            </div>
+          </div>
+          <div id="notesFolderForm" style="display:none"></div>
           <div class="notes-tree" id="notesTree"></div>
         </div>
         <div class="notes-editor">
@@ -1289,13 +1303,25 @@ function toggleSidebar(){
 /* ═══════════════════════════════════════════════════
    CLIENT MANAGEMENT (shared between todo + notes)
    ═══════════════════════════════════════════════════ */
+function flattenNotes(nodes){
+  return nodes.reduce((acc,n)=>{acc.push(n);if(n.children)acc.push(...flattenNotes(n.children));return acc;},[]);
+}
 function setClientFilter(id){
-  /* Toggle: clicking active filter deselects it */
   activeClientFilter=(activeClientFilter===id)?'':id;
   renderSidebarClients();
-  /* Apply to current module */
   if(activeModule==='todo')renderBoard();
-  else if(activeModule==='notes')renderNotesTree();
+  else if(activeModule==='notes'){
+    if(activeClientFilter){
+      const allNotes=flattenNotes(notesState.tree).filter(n=>n.type==='page'&&n.clientId===activeClientFilter);
+      if(allNotes.length){
+        const newest=allNotes.reduce((a,b)=>((b.updatedAt||0)>(a.updatedAt||0)?b:a));
+        notesState.activeId=newest.id;
+      } else {
+        notesState.activeId=null;
+      }
+    }
+    renderNotesModule();
+  }
   else if(activeModule==='dashboard')renderDashboard();
 }
 
@@ -2286,11 +2312,27 @@ function createNote(parentId){
       else{r.node.children=r.node.children||[];r.node.children.push(newNote);notesState.collapsed[parentId]=false;}
     }
   } else notesState.tree.push(newNote);
-  notesState.activeId=newNote.id;noteEditMode=true;scheduleSave();renderNotesModule();
+  notesState.activeId=newNote.id;scheduleSave();renderNotesModule();
 }
-function createFolder(parentId){
-  const name=prompt('Naam van de groep:','Nieuwe groep');if(!name?.trim())return;
-  const newFolder={id:ntuid(),type:'folder',title:name.trim(),children:[]};
+function startFolderCreate(parentId){
+  const form=document.getElementById('notesFolderForm');if(!form)return;
+  form.style.display='';
+  form.innerHTML=`<div class="notes-folder-form">
+    <input id="folderNameInput" type="text" placeholder="Naam groep..." autofocus/>
+    <button class="btn btn-xs btn-primary" onclick="confirmFolderCreate(${parentId?`'${parentId}'`:'null'})">✓</button>
+    <button class="btn btn-xs" onclick="document.getElementById('notesFolderForm').style.display='none'">✕</button>
+  </div>`;
+  const inp=document.getElementById('folderNameInput');
+  if(inp){inp.focus();inp.onkeydown=e=>{if(e.key==='Enter')confirmFolderCreate(parentId||null);if(e.key==='Escape'){form.style.display='none';}};}
+}
+function createFolder(parentId){startFolderCreate(parentId);}
+function confirmFolderCreate(parentId){
+  const inp=document.getElementById('folderNameInput');
+  const name=(inp?.value||'').trim();
+  const form=document.getElementById('notesFolderForm');
+  if(form)form.style.display='none';
+  if(!name)return;
+  const newFolder={id:ntuid(),type:'folder',title:name,children:[]};
   if(parentId){
     const r=findNode(notesState.tree,parentId);
     if(r&&r.node.type==='folder'){r.node.children=r.node.children||[];r.node.children.push(newFolder);notesState.collapsed[parentId]=false;}
@@ -2301,7 +2343,27 @@ function createFolder(parentId){
 function selectNote(id){
   const r=findNode(notesState.tree,id);if(!r)return;
   if(r.node.type==='folder'){notesState.collapsed[id]=!notesState.collapsed[id];renderNotesTree();return;}
-  notesState.activeId=id;noteEditMode=false;renderNotesTree();renderNoteEditor();
+  if(notesState.activeId===id)return;
+  notesState.activeId=id;renderNotesTree();renderNoteEditor();
+}
+function startInlineRename(id,labelEl){
+  const r=findNode(notesState.tree,id);if(!r)return;
+  labelEl.contentEditable='true';
+  labelEl.focus();
+  /* select all text */
+  const sel=window.getSelection();const range=document.createRange();range.selectNodeContents(labelEl);sel.removeAllRanges();sel.addRange(range);
+  const finish=()=>{
+    labelEl.contentEditable='false';
+    const v=labelEl.textContent.trim();
+    if(v&&v!==r.node.title){r.node.title=v;scheduleSave();}
+    else labelEl.textContent=r.node.title;
+  };
+  labelEl.onblur=finish;
+  labelEl.onkeydown=e=>{
+    if(e.key==='Enter'){e.preventDefault();labelEl.blur();}
+    if(e.key==='Escape'){labelEl.textContent=r.node.title;labelEl.blur();}
+    e.stopPropagation();
+  };
 }
 function toggleFolder(id,e){if(e)e.stopPropagation();notesState.collapsed[id]=!notesState.collapsed[id];renderNotesTree();}
 function deleteNode(id){
@@ -2331,7 +2393,7 @@ function setNoteClient(id,clientId){
   const r=findNode(notesState.tree,id);if(!r)return;
   r.node.clientId=clientId||null;r.node.updatedAt=Date.now();scheduleSave();renderNotesTree();
 }
-function toggleNoteEdit(){noteEditMode=!noteEditMode;renderNoteEditor();}
+
 
 /* ─ Note content updates ─ */
 function updateNoteContent(content){
@@ -2436,7 +2498,7 @@ function renderNoteNode(node,depth){
   const hasChildren=isFolder&&node.children&&node.children.length>0;
   const indent=depth*12;
   const chev=isFolder
-    ?`<span class="note-chev${isCollapsed?' collapsed':''}" onclick="toggleFolder('${node.id}',event)">▾</span>`
+    ?`<span class="note-chev${isCollapsed?' collapsed':''}" onclick="event.stopPropagation();toggleFolder('${node.id}',event)">▾</span>`
     :`<span class="note-chev" style="visibility:hidden">·</span>`;
   const icon=isFolder?'📁':'📄';
   const client=!isFolder&&node.clientId?clientById(node.clientId):null;
@@ -2444,6 +2506,11 @@ function renderNoteNode(node,depth){
   const clientDot=client?`<span class="note-client-dot" style="background:${col.bg};border:1px solid ${col.tx}" title="${escapeHtml(client.name)}"></span>`:'';
   const children=hasChildren&&!isCollapsed
     ?`<div class="note-children">${node.children.map(c=>renderNoteNode(c,depth+1)).join('')}</div>`:'';
+  /* label: single click = select, double-click = rename inline */
+  const labelHtml=`<span class="note-label"
+    onclick="event.stopPropagation();selectNote('${node.id}')"
+    ondblclick="event.stopPropagation();startInlineRename('${node.id}',this)"
+    title="Dubbelklik om te hernoemen">${escapeHtml(node.title)}</span>`;
   return `
     <div class="note-node${isActive?' active':''}" data-id="${node.id}"
       style="margin-left:${indent}px" draggable="true"
@@ -2455,12 +2522,12 @@ function renderNoteNode(node,depth){
       ondrop="onNoteDrop(event,'${node.id}')"
       ondragend="onNoteDragEnd(event)">
       ${chev}
-      <span class="note-icon">${icon}</span>
-      <span class="note-label">${escapeHtml(node.title)}</span>
+      <span class="note-icon" onclick="event.stopPropagation();selectNote('${node.id}')">${icon}</span>
+      ${labelHtml}
       ${clientDot}
       <span class="note-actions">
         ${isFolder?`<button onclick="event.stopPropagation();createNote('${node.id}')" title="Nieuwe notitie">+</button>`:''}
-        <button onclick="event.stopPropagation();renameNode('${node.id}')" title="Hernoemen">✎</button>
+        <button onclick="event.stopPropagation();startInlineRename('${node.id}',this.closest('.note-node').querySelector('.note-label'))" title="Hernoemen">✎</button>
       </span>
     </div>${children}`;
 }
@@ -2468,53 +2535,39 @@ function renderNoteNode(node,depth){
 /* ─ Note editor ─ */
 function renderNoteEditor(){
   const content=document.getElementById('noteContent');
-  const editToggleBtn=document.getElementById('noteEditToggle');if(!content)return;
+  if(!content)return;
   if(!notesState.activeId){
-    if(editToggleBtn)editToggleBtn.style.display='none';
     content.innerHTML=`<div class="notes-empty">
       <div style="font-size:24px">📝</div><p>Geen notitie geselecteerd</p>
       <button class="btn btn-sm btn-primary" onclick="createNote(null)">+ Nieuwe notitie</button>
     </div>`;return;
   }
   const r=findNode(notesState.tree,notesState.activeId);
-  if(!r||r.node.type==='folder'){if(editToggleBtn)editToggleBtn.style.display='none';notesState.activeId=null;renderNoteEditor();return;}
-  if(editToggleBtn){editToggleBtn.style.display='';editToggleBtn.textContent=noteEditMode?'👁 Bekijken':'✎ Bewerken';}
+  if(!r||r.node.type==='folder'){notesState.activeId=null;renderNoteEditor();return;}
   const node=r.node;
-  const client=node.clientId?clientById(node.clientId):null;
-  const col=client?CLIENT_COLORS[client.colorIdx%CLIENT_COLORS.length]:null;
-  const clientBadgeEdit=`<select class="note-client-select" onchange="setNoteClient('${node.id}',this.value)">
+  const clientBadge=`<select class="note-client-select" onchange="setNoteClient('${node.id}',this.value)">
     <option value="">— geen klant —</option>
     ${kanbanState.clients.map(c=>`<option value="${c.id}"${node.clientId===c.id?' selected':''}>${escapeHtml(c.name)}</option>`).join('')}
   </select>`;
-  const clientBadgeView=client
-    ?`<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;background:${col.bg};color:${col.tx}">${escapeHtml(client.name)}</span>`
-    :'';
-  if(noteEditMode){
-    content.innerHTML=`
-      <div class="notes-editor-hdr">
-        <input class="notes-title-input" value="${escapeHtml(node.title)}" oninput="updateNoteTitle(this.value)"/>
-        ${clientBadgeEdit}
-      </div>
-      <div class="notes-editor-body">
-        <textarea class="notes-textarea" id="noteTextArea" placeholder="Schrijf in markdown...">${escapeHtml(node.content||'')}</textarea>
-      </div>`;
-    const ta=document.getElementById('noteTextArea');
+  const ts=node.updatedAt?new Date(node.updatedAt).toLocaleString('nl-NL'):'';
+  content.innerHTML=`
+    <div class="notes-editor-hdr">
+      <input class="notes-title-input" id="noteTitleInput" value="${escapeHtml(node.title)}" oninput="updateNoteTitle(this.value)" placeholder="Titel..."/>
+      ${clientBadge}
+      <div style="font-size:10px;color:var(--text-hint);white-space:nowrap">${ts}</div>
+    </div>
+    <div class="notes-editor-body">
+      <textarea class="notes-textarea" id="noteTextArea" placeholder="Schrijf hier je notitie (markdown ondersteund)...">${escapeHtml(node.content||'')}</textarea>
+    </div>`;
+  const ta=document.getElementById('noteTextArea');
+  if(ta){
     ta.addEventListener('input',e=>debouncedUpdateContent(e.target.value));
-    setTimeout(()=>ta.focus(),30);
-  } else {
-    const rendered=marked.parse(node.content||'');
-    const ts=node.updatedAt?new Date(node.updatedAt).toLocaleString('nl-NL'):'';
-    content.innerHTML=`
-      <div class="notes-editor-hdr">
-        <div style="font-size:14px;font-weight:600;flex:1">${escapeHtml(node.title)}</div>
-        ${clientBadgeView}
-        <div style="font-size:11px;color:var(--text-hint)">${ts}</div>
-      </div>
-      <div class="notes-editor-body">
-        <div class="notes-preview">${rendered||'<p style="color:var(--text-hint)">Lege notitie. Klik op Bewerken om te beginnen.</p>'}</div>
-      </div>`;
+    /* auto-resize */
+    ta.style.height='auto';ta.style.height=Math.max(ta.scrollHeight,200)+'px';
+    ta.addEventListener('input',()=>{ta.style.height='auto';ta.style.height=Math.max(ta.scrollHeight,200)+'px';});
   }
 }
+function toggleNoteEdit(){renderNoteEditor();}
 
 /* ─ Dashboard notes fetch ─ */
 function renderDashNotesFull(){renderDashNotes();}
