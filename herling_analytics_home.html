@@ -799,6 +799,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
           </div>
           <span class="week-title" id="agendaTitle" style="margin-left:10px">...</span>
           <div style="flex:1"></div>
+          <span id="icalRefreshLbl" style="font-size:10px;color:var(--text-hint)"></span>
           <button class="btn btn-xs" id="agendaSettingsBtn" onclick="toggleAgendaCalSettings()" style="display:none">⚙ Agenda's</button>
           <button class="btn btn-sm btn-primary" id="agendaConnectBtn" onclick="openCalSourcesModal()">+ Agenda koppelen</button>
         </div>
@@ -1080,6 +1081,8 @@ let agendaView='week'; // 'day'|'week'|'month'
 let agendaWeekOffset=0,agendaDayOffset=0,agendaMonthOffset=0;
 let cachedWeekEvents=[];
 let calRefreshTimer=null;
+let icalBgInterval=null;
+let lastIcalRefresh=null;
 let newClientColorIdx=0;
 
 /* ═══════════════════════════════════════════════════
@@ -1518,7 +1521,10 @@ function renderAll(){
 /* ═══════════════════════════════════════════════════
    BOOT
    ═══════════════════════════════════════════════════ */
-async function boot(){await loadGist();}
+async function boot(){
+  await loadGist();
+  startIcalBackgroundRefresh();
+}
 
 loadToken();
 if(ghToken){
@@ -2592,11 +2598,12 @@ async function fetchAndRenderView(){
     const events=await fetchEventsForRange(timeMin,timeMax);
     cachedWeekEvents=events;
     renderFn(events,renderArg,content);
+    lastIcalRefresh=new Date();updateIcalRefreshLabel();
   }catch(e){
     content.innerHTML=`<div class="cal-placeholder"><p style="color:var(--danger)">${escapeHtml(e.message)}</p><button class="btn btn-sm" onclick="fetchAndRenderView()">Opnieuw</button></div>`;
   }
   clearTimeout(calRefreshTimer);
-  calRefreshTimer=setTimeout(()=>{if(activeModule==='agenda')fetchAndRenderView();},15*60*1000);
+  calRefreshTimer=setTimeout(()=>{if(activeModule==='agenda')fetchAndRenderView();},10*60*1000);
 }
 async function fetchEventsForRange(timeMin,timeMax){
   const sources=(rawState.settings?.calSources||[]).filter(s=>s.enabled!==false);
@@ -2908,6 +2915,53 @@ function saveIcalSource(){
 }
 
 function dateStr(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+
+/* ─ iCal background refresh (every 10 min) ─ */
+function startIcalBackgroundRefresh(){
+  clearInterval(icalBgInterval);
+  bgRefreshIcal(); // immediate on load
+  icalBgInterval=setInterval(bgRefreshIcal,10*60*1000);
+}
+async function bgRefreshIcal(){
+  migrateCalSettings();
+  const icalSources=(rawState.settings?.calSources||[]).filter(s=>s.type==='ical'&&s.enabled!==false&&s.url);
+  if(!icalSources.length)return;
+  if(activeModule==='agenda'){
+    fetchAndRenderView();
+    return;
+  }
+  // Silent background cache for the current view time range
+  try{
+    let timeMin,timeMax;
+    if(agendaView==='week'){
+      const ws=getWeekStart(agendaWeekOffset);const we=new Date(ws);we.setDate(ws.getDate()+7);
+      timeMin=ws.toISOString();timeMax=we.toISOString();
+    } else if(agendaView==='day'){
+      const d=getDayDate(agendaDayOffset);const de=new Date(d);de.setDate(d.getDate()+1);
+      timeMin=d.toISOString();timeMax=de.toISOString();
+    } else {
+      const ms=getMonthStart(agendaMonthOffset);
+      const gs=new Date(ms);const dow=gs.getDay();gs.setDate(gs.getDate()-(dow===0?6:dow-1));
+      const ge=new Date(ms.getFullYear(),ms.getMonth()+1,1);const ld=ge.getDay();if(ld!==1)ge.setDate(ge.getDate()+(ld===0?1:8-ld));
+      timeMin=gs.toISOString();timeMax=ge.toISOString();
+    }
+    const events=[];
+    await Promise.all(icalSources.map(async s=>{
+      try{const evs=await fetchSourceEvents(s,timeMin,timeMax);events.push(...evs);}catch(e){}
+    }));
+    if(events.length){
+      events.sort((a,b)=>{const at=a.start?.dateTime||a.start?.date||'';const bt=b.start?.dateTime||b.start?.date||'';return at<bt?-1:1;});
+      cachedWeekEvents=events;
+    }
+    lastIcalRefresh=new Date();
+    updateIcalRefreshLabel();
+  }catch(e){}
+}
+function updateIcalRefreshLabel(){
+  const el=document.getElementById('icalRefreshLbl');
+  if(!el||!lastIcalRefresh)return;
+  el.textContent='Bijgewerkt om '+lastIcalRefresh.toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});
+}
 
 /* ─ Day grid render ─ */
 function renderDayGrid(events,day,container){
