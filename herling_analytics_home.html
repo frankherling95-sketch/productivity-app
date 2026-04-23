@@ -406,6 +406,30 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .cal-placeholder small{font-size:11px}
 .cal-loading{display:flex;align-items:center;gap:8px;padding:20px;font-size:12px;color:var(--text-muted)}
 
+/* View switcher */
+.view-switcher{display:flex;gap:2px;background:var(--surface2);border-radius:var(--radius);padding:2px;flex-shrink:0}
+.view-btn{padding:4px 11px;border-radius:calc(var(--radius) - 2px);font-size:12px;font-weight:500;border:none;background:transparent;color:var(--text-muted);cursor:pointer;transition:all .15s;font-family:inherit;white-space:nowrap}
+.view-btn.active{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.view-btn:hover:not(.active){color:var(--text)}
+.today-btn{padding:4px 10px;font-size:12px;border:0.5px solid var(--border-strong);border-radius:var(--radius);background:var(--surface);color:var(--text);cursor:pointer;font-family:inherit;white-space:nowrap}
+.today-btn:hover{background:var(--surface2)}
+/* Month grid */
+.cal-month-outer{display:flex;flex-direction:column;flex:1;overflow:hidden}
+.cal-month-hdr-row{display:grid;grid-template-columns:repeat(7,1fr);border-bottom:0.5px solid var(--border);flex-shrink:0;background:var(--surface);position:sticky;top:0;z-index:5}
+.cal-month-hdr{text-align:center;padding:7px 0;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted)}
+.cal-month-grid{flex:1;overflow-y:auto;display:flex;flex-direction:column}
+.cal-month-week{display:grid;grid-template-columns:repeat(7,1fr);border-bottom:0.5px solid var(--border)}
+.cal-month-week:last-child{border-bottom:none}
+.cal-month-cell{border-right:0.5px solid var(--border);padding:4px;overflow:hidden;cursor:pointer;transition:background .12s;min-height:90px}
+.cal-month-cell:last-child{border-right:none}
+.cal-month-cell:hover{background:var(--surface2)}
+.cal-month-cell.today{background:rgba(59,91,219,0.04)}
+.cal-month-cell.other-month{opacity:.5}
+.cal-month-day-num{font-size:12px;font-weight:500;width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:50%;margin-bottom:2px}
+.cal-month-cell.today .cal-month-day-num{background:var(--accent);color:#fff;font-weight:700}
+.cal-month-ev-pill{font-size:10px;border-radius:3px;padding:1px 5px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff}
+.cal-month-more{font-size:10px;color:var(--text-hint);padding:0 4px}
+
 /* Cal list (dashboard mini) */
 .cal-events{display:flex;flex-direction:column;height:100%;overflow-y:auto}
 .cal-day-hdr-lbl{padding:8px 14px 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-hint);background:var(--bg);position:sticky;top:0}
@@ -736,10 +760,18 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
     <div id="mod-agenda" class="module">
       <div class="agenda-wrap">
         <div class="agenda-hdr">
-          <div style="font-size:16px;font-weight:600;margin-right:4px">Agenda</div>
-          <button class="week-nav-btn" onclick="changeWeek(-1)">← Vorige week</button>
-          <span class="week-title" id="weekTitle">Week van ...</span>
-          <button class="week-nav-btn" onclick="changeWeek(1)">Volgende week →</button>
+          <div style="font-size:16px;font-weight:600;margin-right:8px;flex-shrink:0">Agenda</div>
+          <div class="view-switcher">
+            <button class="view-btn" id="viewBtnDay" onclick="switchAgendaView('day')">Dag</button>
+            <button class="view-btn active" id="viewBtnWeek" onclick="switchAgendaView('week')">Week</button>
+            <button class="view-btn" id="viewBtnMonth" onclick="switchAgendaView('month')">Maand</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:4px;margin-left:10px">
+            <button class="week-nav-btn" onclick="changeAgendaPeriod(-1)">←</button>
+            <button class="today-btn" onclick="goToToday()">Vandaag</button>
+            <button class="week-nav-btn" onclick="changeAgendaPeriod(1)">→</button>
+          </div>
+          <span class="week-title" id="agendaTitle" style="margin-left:10px">...</span>
           <div style="flex:1"></div>
           <button class="btn btn-xs" id="agendaSettingsBtn" onclick="toggleAgendaCalSettings()" style="display:none">⚙</button>
           <button class="btn btn-sm btn-primary" id="agendaConnectBtn" onclick="signInGoogle()">Google Calendar koppelen</button>
@@ -1001,7 +1033,8 @@ let noteDrag={id:null};
 
 /* Calendar */
 let gTokenClient=null,gAccessToken=null,gTokenRefreshTimer=null;
-let agendaWeekOffset=0;
+let agendaView='week'; // 'day'|'week'|'month'
+let agendaWeekOffset=0,agendaDayOffset=0,agendaMonthOffset=0;
 let cachedWeekEvents=[];
 let calRefreshTimer=null;
 let newClientColorIdx=0;
@@ -2440,8 +2473,48 @@ function renderDashNotesFull(){renderDashNotes();}
 /* ═══════════════════════════════════════════════════
    AGENDA MODULE — WEEKLY CALENDAR
    ═══════════════════════════════════════════════════ */
+function switchAgendaView(view){
+  agendaView=view;
+  ['Day','Week','Month'].forEach(v=>{
+    const btn=document.getElementById('viewBtn'+v);
+    if(btn)btn.classList.toggle('active',v.toLowerCase()===view);
+  });
+  updateAgendaTitle();
+  if(activeModule==='agenda')renderAgendaModule();
+}
+function changeAgendaPeriod(delta){
+  if(agendaView==='day')agendaDayOffset+=delta;
+  else if(agendaView==='week')agendaWeekOffset+=delta;
+  else agendaMonthOffset+=delta;
+  updateAgendaTitle();
+  if(activeModule==='agenda')renderAgendaModule();
+}
+function goToToday(){
+  agendaDayOffset=0;agendaWeekOffset=0;agendaMonthOffset=0;
+  updateAgendaTitle();
+  if(activeModule==='agenda')renderAgendaModule();
+}
+function getDayDate(offset){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()+offset);return d;}
+function getMonthStart(offset){const n=new Date();return new Date(n.getFullYear(),n.getMonth()+offset,1);}
+function updateAgendaTitle(){
+  const el=document.getElementById('agendaTitle')||document.getElementById('weekTitle');if(!el)return;
+  if(agendaView==='week'){
+    const ws=getWeekStart(agendaWeekOffset);
+    el.textContent='Week van '+ws.toLocaleDateString('nl-NL',{day:'numeric',month:'long',year:'numeric'});
+  } else if(agendaView==='day'){
+    const d=getDayDate(agendaDayOffset);
+    el.textContent=d.toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  } else {
+    const m=getMonthStart(agendaMonthOffset);
+    el.textContent=m.toLocaleDateString('nl-NL',{month:'long',year:'numeric'});
+  }
+}
 function renderAgendaModule(){
-  updateWeekTitle();
+  updateAgendaTitle();
+  ['Day','Week','Month'].forEach(v=>{
+    const btn=document.getElementById('viewBtn'+v);
+    if(btn)btn.classList.toggle('active',v.toLowerCase()===agendaView);
+  });
   const mode=rawState.settings?.calMode||null;
   const icalUrl=rawState.settings?.icalUrl||null;
   const connected=mode==='oauth'||!!icalUrl;
@@ -2450,13 +2523,23 @@ function renderAgendaModule(){
   if(settingsBtn)settingsBtn.style.display=connected?'':'none';
   if(connectBtn)connectBtn.style.display=connected?'none':'';
   if(mode==='oauth'){
-    if(gAccessToken)fetchAndRenderWeek();
+    if(gAccessToken)fetchAndRenderView();
     else renderAgendaReconnect();
   } else if(icalUrl){
-    fetchIcalForWeek(icalUrl);
+    fetchIcalForView(icalUrl);
   } else {
     renderAgendaPlaceholder();
   }
+}
+async function fetchAndRenderView(){
+  if(agendaView==='week')fetchAndRenderWeek();
+  else if(agendaView==='day')fetchAndRenderDay();
+  else fetchAndRenderMonth();
+}
+async function fetchIcalForView(url){
+  if(agendaView==='week')fetchIcalForWeek(url);
+  else if(agendaView==='day')fetchIcalForDay(url);
+  else fetchIcalForMonth(url);
 }
 
 function renderAgendaPlaceholder(){
@@ -2488,18 +2571,8 @@ function getWeekStart(offset){
   monday.setHours(0,0,0,0);
   return monday;
 }
-function changeWeek(delta){
-  agendaWeekOffset+=delta;
-  updateWeekTitle();
-  if(activeModule==='agenda')renderAgendaModule();
-}
-function updateWeekTitle(){
-  const ws=getWeekStart(agendaWeekOffset);
-  const we=new Date(ws);we.setDate(ws.getDate()+6);
-  const opts={day:'numeric',month:'long',year:'numeric'};
-  const el=document.getElementById('weekTitle');if(!el)return;
-  el.textContent='Week van '+ws.toLocaleDateString('nl-NL',{day:'numeric',month:'long',year:'numeric'});
-}
+/* changeWeek kept for backward compat */
+function changeWeek(delta){changeAgendaPeriod(delta);}
 
 /* ─ Google OAuth ─ */
 function ensureTokenClient(){
@@ -2650,6 +2723,207 @@ async function fetchIcalForWeek(url){
   calRefreshTimer=setTimeout(()=>{if(activeModule==='agenda')renderAgendaModule();},15*60*1000);
 }
 function dateStr(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+
+/* ─ Fetch day (Google) ─ */
+async function fetchAndRenderDay(){
+  const content=document.getElementById('agendaContent');if(!content)return;
+  content.innerHTML='<div class="cal-loading"><div class="spinner"></div><span>Agenda laden...</span></div>';
+  const day=getDayDate(agendaDayOffset);
+  const dayEnd=new Date(day);dayEnd.setDate(day.getDate()+1);
+  try{
+    const hdrs={'Authorization':'Bearer '+gAccessToken};
+    const listResp=await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=50',{headers:hdrs});
+    if(listResp.status===401){gAccessToken=null;renderAgendaModule();return;}
+    if(!listResp.ok)throw new Error('Agenda-lijst ophalen mislukt');
+    const calList=await listResp.json();
+    const COLORS=['#4285f4','#ea4335','#fbbc04','#34a853','#ff6d00','#46bdc6','#7986cb','#a79b8e'];
+    const allEvents=[];
+    await Promise.all((calList.items||[]).filter(c=>c.selected!==false&&c.accessRole!=='freeBusyReader').map(async(cal,i)=>{
+      try{
+        const r=await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events`+
+          `?timeMin=${encodeURIComponent(day.toISOString())}&timeMax=${encodeURIComponent(dayEnd.toISOString())}`+
+          `&singleEvents=true&orderBy=startTime&maxResults=100`,{headers:hdrs});
+        if(!r.ok)return;const data=await r.json();
+        const color=cal.backgroundColor||COLORS[i%COLORS.length];
+        (data.items||[]).forEach(ev=>{if(ev.status!=='cancelled')allEvents.push({...ev,_calColor:color,_calName:cal.summary});});
+      }catch(e){}
+    }));
+    allEvents.sort((a,b)=>{const at=a.start?.dateTime||a.start?.date||'';const bt=b.start?.dateTime||b.start?.date||'';return at<bt?-1:1;});
+    renderDayGrid(allEvents,day,content);
+  }catch(e){
+    content.innerHTML=`<div class="cal-placeholder"><p style="color:var(--danger)">${escapeHtml(e.message)}</p><button class="btn btn-sm" onclick="fetchAndRenderDay()">Opnieuw</button></div>`;
+  }
+}
+
+/* ─ Fetch month (Google) ─ */
+async function fetchAndRenderMonth(){
+  const content=document.getElementById('agendaContent');if(!content)return;
+  content.innerHTML='<div class="cal-loading"><div class="spinner"></div><span>Agenda laden...</span></div>';
+  const ms=getMonthStart(agendaMonthOffset);
+  const gridStart=new Date(ms);const dow=gridStart.getDay();
+  gridStart.setDate(gridStart.getDate()-(dow===0?6:dow-1));
+  const gridEnd=new Date(ms.getFullYear(),ms.getMonth()+1,1);
+  const lastDow=gridEnd.getDay();if(lastDow!==1)gridEnd.setDate(gridEnd.getDate()+(lastDow===0?1:8-lastDow));
+  try{
+    const hdrs={'Authorization':'Bearer '+gAccessToken};
+    const listResp=await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=50',{headers:hdrs});
+    if(listResp.status===401){gAccessToken=null;renderAgendaModule();return;}
+    if(!listResp.ok)throw new Error('Agenda-lijst ophalen mislukt');
+    const calList=await listResp.json();
+    const COLORS=['#4285f4','#ea4335','#fbbc04','#34a853','#ff6d00','#46bdc6','#7986cb','#a79b8e'];
+    const allEvents=[];
+    await Promise.all((calList.items||[]).filter(c=>c.selected!==false&&c.accessRole!=='freeBusyReader').map(async(cal,i)=>{
+      try{
+        const r=await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events`+
+          `?timeMin=${encodeURIComponent(gridStart.toISOString())}&timeMax=${encodeURIComponent(gridEnd.toISOString())}`+
+          `&singleEvents=true&orderBy=startTime&maxResults=500`,{headers:hdrs});
+        if(!r.ok)return;const data=await r.json();
+        const color=cal.backgroundColor||COLORS[i%COLORS.length];
+        (data.items||[]).forEach(ev=>{if(ev.status!=='cancelled')allEvents.push({...ev,_calColor:color,_calName:cal.summary});});
+      }catch(e){}
+    }));
+    renderMonthGrid(allEvents,ms,content);
+  }catch(e){
+    content.innerHTML=`<div class="cal-placeholder"><p style="color:var(--danger)">${escapeHtml(e.message)}</p><button class="btn btn-sm" onclick="fetchAndRenderMonth()">Opnieuw</button></div>`;
+  }
+}
+
+/* ─ iCal day/month ─ */
+async function fetchIcalForDay(url){
+  const content=document.getElementById('agendaContent');if(!content)return;
+  content.innerHTML='<div class="cal-loading"><div class="spinner"></div><span>Agenda laden...</span></div>';
+  try{
+    const resp=await fetch(CORS_PROXY+encodeURIComponent(url),{cache:'no-store'});
+    if(!resp.ok)throw new Error('HTTP '+resp.status);
+    const text=await resp.text();
+    if(!text.includes('BEGIN:VCALENDAR'))throw new Error('Geen geldige iCal-data.');
+    const day=getDayDate(agendaDayOffset);
+    const dayEnd=new Date(day);dayEnd.setDate(day.getDate()+1);
+    const parsed=parseICS(text);const expanded=expandEvents(parsed,day,dayEnd);
+    const color=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()||'#3b5bdb';
+    const events=expanded.map(ev=>({_ical:true,summary:ev.title,location:ev.location,_calColor:color,
+      start:{dateTime:ev.occStart.allDay?null:ev.occStart.date.toISOString(),date:ev.occStart.allDay?dateStr(ev.occStart.date):null},
+      end:{dateTime:ev.occEnd?.allDay?null:ev.occEnd?.date?.toISOString()||null,date:ev.occEnd?.allDay?dateStr(ev.occEnd.date):null}}));
+    renderDayGrid(events,day,content);
+  }catch(e){
+    content.innerHTML=`<div class="cal-placeholder"><p style="color:var(--danger)">${escapeHtml(e.message)}</p></div>`;
+  }
+}
+async function fetchIcalForMonth(url){
+  const content=document.getElementById('agendaContent');if(!content)return;
+  content.innerHTML='<div class="cal-loading"><div class="spinner"></div><span>Agenda laden...</span></div>';
+  try{
+    const resp=await fetch(CORS_PROXY+encodeURIComponent(url),{cache:'no-store'});
+    if(!resp.ok)throw new Error('HTTP '+resp.status);
+    const text=await resp.text();
+    if(!text.includes('BEGIN:VCALENDAR'))throw new Error('Geen geldige iCal-data.');
+    const ms=getMonthStart(agendaMonthOffset);
+    const me=new Date(ms.getFullYear(),ms.getMonth()+1,1);
+    const parsed=parseICS(text);const expanded=expandEvents(parsed,ms,me);
+    const color=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()||'#3b5bdb';
+    const events=expanded.map(ev=>({_ical:true,summary:ev.title,location:ev.location,_calColor:color,
+      start:{dateTime:ev.occStart.allDay?null:ev.occStart.date.toISOString(),date:ev.occStart.allDay?dateStr(ev.occStart.date):null},
+      end:{dateTime:ev.occEnd?.allDay?null:ev.occEnd?.date?.toISOString()||null,date:ev.occEnd?.allDay?dateStr(ev.occEnd.date):null}}));
+    renderMonthGrid(events,ms,content);
+  }catch(e){
+    content.innerHTML=`<div class="cal-placeholder"><p style="color:var(--danger)">${escapeHtml(e.message)}</p></div>`;
+  }
+}
+
+/* ─ Day grid render ─ */
+function renderDayGrid(events,day,container){
+  const today=new Date();today.setHours(0,0,0,0);
+  const isToday=day.getTime()===today.getTime();
+  const hours=Array.from({length:HOUR_END-HOUR_START},(_,i)=>HOUR_START+i);
+  const allDay=events.filter(ev=>ev.start?.date&&!ev.start?.dateTime);
+  const timed=events.filter(ev=>ev.start?.dateTime);
+  const dayName=day.toLocaleDateString('nl-NL',{weekday:'long'}).toUpperCase();
+  let html=`<div class="cal-grid-outer">`;
+  html+=`<div class="cal-day-hdr-row" style="grid-template-columns:48px 1fr">
+    <div style="border-bottom:none"></div>
+    <div class="cal-day-hdr${isToday?' today':''}">
+      <div class="cal-day-name">${dayName}</div>
+      <div class="cal-day-num">${day.getDate()}</div>
+    </div></div>`;
+  html+=`<div class="cal-allday-row" style="grid-template-columns:48px 1fr">
+    <div class="cal-allday-label">Hele dag</div>
+    <div class="cal-allday-cell">`;
+  allDay.forEach(ev=>html+=`<div class="cal-allday-ev" style="background:${ev._calColor}">${escapeHtml(ev.summary||'(geen titel)')}</div>`);
+  html+=`</div></div>`;
+  html+=`<div class="cal-grid-scroll"><div class="cal-grid-inner" style="grid-template-columns:48px 1fr">`;
+  html+=`<div class="cal-time-col">`;
+  hours.forEach(h=>html+=`<div class="cal-time-label">${h}:00</div>`);
+  html+=`</div>`;
+  html+=`<div class="cal-day-col${isToday?' today':''}">`;
+  hours.forEach((_,i)=>html+=`<div class="cal-hour-line" style="top:${i*PX_PER_HOUR}px"></div>`);
+  if(isToday){const now=new Date();const mins=(now.getHours()-HOUR_START)*60+now.getMinutes();if(mins>=0&&mins<=(HOUR_END-HOUR_START)*60)html+=`<div class="cal-time-now" style="top:${mins}px"></div>`;}
+  timed.forEach(ev=>{
+    const start=new Date(ev.start.dateTime);
+    const end=ev.end?.dateTime?new Date(ev.end.dateTime):new Date(start.getTime()+30*60000);
+    const startMin=(start.getHours()-HOUR_START)*60+start.getMinutes();
+    const endMin=(end.getHours()-HOUR_START)*60+end.getMinutes();
+    const top=Math.max(startMin,0);const height=Math.max(Math.min(endMin,(HOUR_END-HOUR_START)*60)-top,18);
+    const timeStr=start.toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});
+    html+=`<div class="cal-ev-block" style="top:${top}px;height:${height}px;background:${ev._calColor}22;border-left-color:${ev._calColor};color:var(--text)" title="${escapeHtml(ev.summary||'')}">
+      <div style="font-weight:600;font-size:10px">${timeStr}</div>
+      <div>${escapeHtml(ev.summary||'(geen titel)')}</div>
+    </div>`;
+  });
+  html+=`</div></div></div></div>`;
+  container.innerHTML=html;
+}
+
+/* ─ Month grid render ─ */
+const DAY_NAMES_MONTH=['MA','DI','WO','DO','VR','ZA','ZO'];
+function renderMonthGrid(events,monthStart,container){
+  const today=new Date();today.setHours(0,0,0,0);
+  /* Build grid (Mon-aligned) */
+  const gridStart=new Date(monthStart);const dow=gridStart.getDay();
+  gridStart.setDate(gridStart.getDate()-(dow===0?6:dow-1));
+  const weeks=[];let cur=new Date(gridStart);
+  for(let w=0;w<6;w++){
+    const week=[];for(let i=0;i<7;i++){week.push(new Date(cur));cur.setDate(cur.getDate()+1);}
+    weeks.push(week);
+    if(w>=3&&cur.getMonth()!==monthStart.getMonth())break;
+  }
+  /* Index events by date */
+  const byDate={};
+  events.forEach(ev=>{
+    let ds;
+    if(ev.start?.dateTime)ds=dateStr(new Date(ev.start.dateTime));
+    else if(ev.start?.date)ds=ev.start.date;
+    else return;
+    if(!byDate[ds])byDate[ds]=[];byDate[ds].push(ev);
+  });
+  let html=`<div class="cal-month-outer"><div class="cal-month-hdr-row">`;
+  DAY_NAMES_MONTH.forEach(n=>html+=`<div class="cal-month-hdr">${n}</div>`);
+  html+=`</div><div class="cal-month-grid">`;
+  weeks.forEach(week=>{
+    html+=`<div class="cal-month-week">`;
+    week.forEach(d=>{
+      const ds=dateStr(d);
+      const isToday=d.getTime()===today.getTime();
+      const other=d.getMonth()!==monthStart.getMonth();
+      const evs=byDate[ds]||[];
+      html+=`<div class="cal-month-cell${isToday?' today':''}${other?' other-month':''}" onclick="jumpToDay('${ds}')">`;
+      html+=`<div class="cal-month-day-num">${d.getDate()}</div>`;
+      evs.slice(0,3).forEach(ev=>{
+        const timeStr=ev.start?.dateTime?new Date(ev.start.dateTime).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'})+' ':'';
+        html+=`<div class="cal-month-ev-pill" style="background:${ev._calColor}" title="${escapeHtml(ev.summary||'')}">${timeStr}${escapeHtml(ev.summary||'(geen titel)')}</div>`;
+      });
+      if(evs.length>3)html+=`<div class="cal-month-more">+${evs.length-3} meer</div>`;
+      html+=`</div>`;
+    });
+    html+=`</div>`;
+  });
+  html+=`</div></div>`;
+  container.innerHTML=html;
+}
+function jumpToDay(ds){
+  const d=new Date(ds+'T00:00:00');const today=new Date();today.setHours(0,0,0,0);
+  agendaDayOffset=Math.round((d-today)/86400000);
+  switchAgendaView('day');
+}
 
 /* ─ Weekly grid render ─ */
 const DAY_NAMES_SHORT=['MA','DI','WO','DO','VR','ZA','ZO'];
