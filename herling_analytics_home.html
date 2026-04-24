@@ -1430,6 +1430,152 @@ textarea { line-height: 1.6; resize: vertical; }
 }
 
 /* ═════════════════════════════════════════════════════════════════════════════
+   CLIENT FILTER — unified dropdown component (every module topbar)
+   ════════════════════════════════════════════════════════════════════════════ */
+.client-filter { position: relative; display: inline-block; }
+.client-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  white-space: nowrap;
+  max-width: 220px;
+}
+.client-filter-btn:hover { background: var(--surface2); border-color: var(--border-strong); }
+.client-filter-btn .cf-dot {
+  width: 12px; height: 12px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  background: var(--surface3);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1);
+}
+.client-filter-btn .cf-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.client-filter-btn .cf-caret { opacity: 0.55; flex-shrink: 0; }
+.client-filter[data-open="true"] .cf-caret { transform: rotate(180deg); }
+.client-filter-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 220px;
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-popover);
+  padding: 5px;
+  z-index: 500;
+  display: none;
+  animation: ha-fadeIn 0.14s ease-out;
+}
+.client-filter[data-open="true"] .client-filter-menu { display: block; }
+.client-filter-option {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 9px;
+  border: 0;
+  background: transparent;
+  border-radius: 6px;
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+.client-filter-option:hover { background: var(--bg); }
+.client-filter-option.selected { background: var(--mint-soft); color: var(--text); font-weight: 600; }
+.client-filter-option .cf-dot { width: 12px; height: 12px; border-radius: 4px; flex-shrink: 0; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1); }
+.client-filter-option .cf-actions { margin-left: auto; display: inline-flex; gap: 2px; opacity: 0; transition: opacity 0.12s; }
+.client-filter-option:hover .cf-actions { opacity: 1; }
+.client-filter-option .cf-actbtn {
+  background: transparent;
+  border: 0;
+  color: var(--text-hint);
+  cursor: pointer;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 1;
+}
+.client-filter-option .cf-actbtn:hover { background: var(--surface2); color: var(--text); }
+.client-filter-empty { padding: 10px 12px; font-size: 11.5px; color: var(--text-hint); text-align: center; }
+
+/* "+ Klant" button variant — ghost with mint accent on hover */
+.client-new-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.client-new-btn:hover { background: var(--mint-soft); border-color: var(--mint); color: var(--navy); }
+.client-new-btn svg { flex-shrink: 0; }
+
+/* Notes tree — client group headers (top-level grouping) */
+.note-client-group { margin-bottom: 6px; }
+.note-client-hdr {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 8px 6px 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  border-radius: 6px;
+  user-select: none;
+}
+.note-client-hdr:hover { background: var(--surface2); }
+.note-client-hdr .note-chev { font-size: 10px; color: var(--text-hint); width: 12px; text-align: center; transition: transform 0.15s; }
+.note-client-hdr .note-chev.collapsed { transform: rotate(-90deg); }
+.note-client-hdr .note-client-dot {
+  width: 11px; height: 11px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1);
+}
+.note-client-hdr .note-client-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.note-client-hdr .note-client-count {
+  font-size: 10px;
+  color: var(--text-hint);
+  font-family: var(--font-mono);
+  padding: 1px 6px;
+  background: var(--surface2);
+  border-radius: 8px;
+}
+.note-client-hdr:hover .note-client-count { background: var(--surface3); }
+.note-client-hdr .note-client-actions { display: inline-flex; opacity: 0; transition: opacity 0.12s; }
+.note-client-hdr:hover .note-client-actions { opacity: 1; }
+.note-client-hdr .note-client-actions button {
+  background: transparent;
+  border: 0;
+  color: var(--text-hint);
+  cursor: pointer;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1;
+}
+.note-client-hdr .note-client-actions button:hover { background: var(--surface3); color: var(--text); }
+.note-client-body { padding-left: 12px; padding-top: 2px; }
+.note-client-empty { font-size: 10.5px; color: var(--text-hint); padding: 4px 8px; font-style: italic; }
+
+/* ═════════════════════════════════════════════════════════════════════════════
    DASHBOARD v2 — hero + KPI strip + 2×2 grid
    ════════════════════════════════════════════════════════════════════════════ */
 
@@ -1765,21 +1911,6 @@ textarea { line-height: 1.6; resize: vertical; }
         <span class="nav-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8.5" r="5.5"/><polyline points="8 5.5 8 8.5 10.2 9.8"/><line x1="6" y1="1.5" x2="10" y2="1.5"/></svg></span><span class="nav-label">Uren</span>
       </div>
 
-      <!-- Clients / filter -->
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px">
-        <div class="sidebar-sec-label" style="margin:0;padding-top:10px">Klanten</div>
-        <button class="sidebar-add-btn" onclick="showAddClient()" title="Klant toevoegen" style="margin-top:8px">+</button>
-      </div>
-      <div id="sidebarClientList"></div>
-      <div class="sidebar-inline-form" id="addClientForm">
-        <input type="text" id="newClientName" placeholder="Klantnaam..."
-          onkeydown="if(event.key==='Enter')createClient();if(event.key==='Escape')hideAddClient()"/>
-        <div class="color-swatches" id="newClientColors"></div>
-        <div style="display:flex;gap:4px">
-          <button class="btn btn-xs btn-success" onclick="createClient()">Toevoegen</button>
-          <button class="btn btn-xs" onclick="hideAddClient()">Annuleer</button>
-        </div>
-      </div>
     </div>
 
     <div class="sidebar-footer">
@@ -1840,6 +1971,13 @@ textarea { line-height: 1.6; resize: vertical; }
               </button>
             </div>
           </div>
+          <!-- Client filter (shared) -->
+          <div class="client-filter" id="dashClientFilter"></div>
+          <!-- Nieuwe klant -->
+          <button class="btn btn-sm client-new-btn" onclick="openNewClientModal()" title="Nieuwe klant">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><circle cx="7" cy="5.5" r="2.5"/><path d="M2.5 13c0-2.2 2-4 4.5-4s4.5 1.8 4.5 4"/><line x1="12.5" y1="4" x2="14.5" y2="4"/><line x1="13.5" y1="3" x2="13.5" y2="5"/></svg>
+            Klant
+          </button>
           <button class="btn btn-sm btn-ghost dash-iconbtn" onclick="showTokenSettings()" title="Instellingen" aria-label="Instellingen">
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><circle cx="8" cy="8" r="2.2"/><path d="M13.4 9.2a1 1 0 0 0 .2 1.1l.04.04a1.2 1.2 0 1 1-1.7 1.7l-.04-.04a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9V13a1.2 1.2 0 1 1-2.4 0v-.06a1 1 0 0 0-.7-.92 1 1 0 0 0-1.1.2l-.04.04a1.2 1.2 0 1 1-1.7-1.7l.04-.04a1 1 0 0 0 .2-1.1 1 1 0 0 0-.9-.6H3a1.2 1.2 0 1 1 0-2.4h.06a1 1 0 0 0 .92-.7 1 1 0 0 0-.2-1.1l-.04-.04a1.2 1.2 0 1 1 1.7-1.7l.04.04a1 1 0 0 0 1.1.2H6.7a1 1 0 0 0 .6-.9V3a1.2 1.2 0 1 1 2.4 0v.06a1 1 0 0 0 .6.9 1 1 0 0 0 1.1-.2l.04-.04a1.2 1.2 0 1 1 1.7 1.7l-.04.04a1 1 0 0 0-.2 1.1V6.7a1 1 0 0 0 .9.6H13a1.2 1.2 0 1 1 0 2.4h-.06a1 1 0 0 0-.9.6z"/></svg>
           </button>
@@ -1955,6 +2093,7 @@ textarea { line-height: 1.6; resize: vertical; }
           <div class="stat-pill"><div class="stat-val" id="sDone">0</div><div class="stat-lbl">Afgerond</div></div>
           <div class="stat-pill"><div class="stat-val" id="sTotal">0</div><div class="stat-lbl">Totaal</div></div>
           <div class="stat-pill"><div class="stat-val" id="sPct">0%</div><div class="stat-lbl">Voltooid</div></div>
+          <div class="client-filter" id="todoClientFilter"></div>
           <button class="btn btn-sm btn-primary" onclick="openNewItemModal()">+ Nieuw</button>
           <div class="settings-wrap">
             <button class="btn btn-sm" id="settingsBtn" onclick="toggleSettings(event)">⚙ Instellingen</button>
@@ -2006,7 +2145,8 @@ textarea { line-height: 1.6; resize: vertical; }
     <div id="mod-notes" class="module">
       <div class="module-topbar">
         <div style="font-size:16px;font-weight:600">Notities</div>
-        <div style="display:flex;gap:4px;align-items:center">
+        <div style="display:flex;gap:6px;align-items:center">
+          <div class="client-filter" id="notesClientFilter"></div>
           <button class="btn btn-xs btn-primary" onclick="createNote(null)">+ Nieuw</button>
         </div>
       </div>
@@ -2052,6 +2192,7 @@ textarea { line-height: 1.6; resize: vertical; }
           <span class="week-title" id="agendaTitle" style="margin-left:10px">...</span>
           <div style="flex:1"></div>
           <span id="icalRefreshLbl" style="font-size:10px;color:var(--text-hint)"></span>
+          <div class="client-filter" id="agendaClientFilter"></div>
           <button class="btn btn-xs" id="agendaSettingsBtn" onclick="toggleAgendaCalSettings()" style="display:none">⚙ Agenda's</button>
           <button class="btn btn-sm btn-primary" id="agendaConnectBtn" onclick="openCalSourcesModal()">+ Agenda koppelen</button>
         </div>
@@ -2403,6 +2544,29 @@ textarea { line-height: 1.6; resize: vertical; }
       <div class="modal-footer-right">
         <button class="btn btn-sm" onclick="closeRenameModal()">Annuleer</button>
         <button class="btn btn-sm btn-primary" onclick="confirmRename()">Opslaan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Nieuwe klant modal ── -->
+<div class="modal-bg" id="newClientModal">
+  <div class="modal" style="max-width:420px;padding:22px">
+    <h3 style="font-size:17px;margin-bottom:14px">Nieuwe klant</h3>
+    <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:14px">
+      <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em">Naam</label>
+      <input type="text" id="newClientModalName" placeholder="Klantnaam..."
+        onkeydown="if(event.key==='Enter')saveNewClient();if(event.key==='Escape')closeNewClientModal()"/>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
+      <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em">Kleur</label>
+      <div class="color-swatches" id="newClientModalColors"></div>
+    </div>
+    <div class="modal-footer">
+      <div></div>
+      <div class="modal-footer-right">
+        <button class="btn btn-sm" onclick="closeNewClientModal()">Annuleer</button>
+        <button class="btn btn-sm btn-primary" onclick="saveNewClient()">Aanmaken</button>
       </div>
     </div>
   </div>
@@ -2842,6 +3006,8 @@ function switchModule(mod){
   else if(mod==='agenda')renderAgendaModule();
   else if(mod==='checklist')renderChecklistModule();
   else if(mod==='uren')renderUrenModule();
+  /* Refresh client-filter dropdowns (each module has its own container) */
+  if(typeof renderClientFilters==='function')renderClientFilters();
 }
 
 function toggleSidebar(){
@@ -2850,26 +3016,27 @@ function toggleSidebar(){
 }
 
 /* ═══════════════════════════════════════════════════
-   MODULE: CLIENTS (sidebar) — shared between todo + notes
+   MODULE: CLIENTS — shared across modules
    ───────────────────────────────────────────────────
    Structure:
      ═══ STATE ═══  kanbanState.clients[], activeClientFilter,
-                    _newClientColorIdx (declared in global STATE).
+                    _newClientColorIdx (modal-local).
      ═══ LOGIC ═══  setClientFilter, createClient, deleteClient,
                     editClient, flattenNotes (notes→pages).
-     ═══ VIEW  ═══  renderSidebarClients, renderColorSwatches,
-                    showAddClient/hideAddClient.
+     ═══ VIEW  ═══  renderClientFilters (per-module topbar dropdowns),
+                    openNewClientModal/saveNewClient (create flow).
 
-   Delegation: sidebar client rows use data-action for pick +
-   edit + delete. Swatches use d.onclick inline (only shown on
-   add-form open, rebuilt on every click → low churn).
+   Each module has a .client-filter container in its topbar.
+   renderClientFilters fills every visible one with a dropdown button
+   + menu listing all clients + Alle/Geen options + edit/delete.
    ═══════════════════════════════════════════════════ */
 function flattenNotes(nodes){
   return nodes.reduce((acc,n)=>{acc.push(n);if(n.children)acc.push(...flattenNotes(n.children));return acc;},[]);
 }
 function setClientFilter(id){
   activeClientFilter=(activeClientFilter===id)?'':id;
-  renderSidebarClients();
+  renderClientFilters();
+  /* Re-render whatever module is active */
   if(activeModule==='todo')renderBoard();
   else if(activeModule==='notes'){
     if(activeClientFilter){
@@ -2883,75 +3050,153 @@ function setClientFilter(id){
     }
     renderNotesModule();
   }
+  else if(activeModule==='agenda'&&activeModule==='agenda'){
+    renderAgendaSourceBar();
+    if(typeof fetchAndRenderView==='function')fetchAndRenderView();
+  }
   else if(activeModule==='dashboard')renderDashboard();
 }
 
-function renderSidebarClients(){
-  const el=document.getElementById('sidebarClientList');
-  if(!kanbanState.clients.length){
-    el.innerHTML='<div style="font-size:11px;color:var(--text-hint);padding:4px 10px">Nog geen klanten</div>';
-    return;
-  }
-  el.innerHTML=kanbanState.clients.map(c=>{
-    const col=CLIENT_COLORS[c.colorIdx%CLIENT_COLORS.length];
-    const isActive=activeClientFilter===c.id;
-    return `<div class="sidebar-client${isActive?' active-filter':''}" data-action="setClientFilter" data-arg1="${c.id}">
-      <span class="client-dot" style="background:${col.bg};border:1px solid ${col.tx}"></span>
-      <span class="client-cname">${escapeHtml(c.name)}</span>
-      <span class="client-acts">
-        <button data-action="editClientStop" data-arg1="${c.id}" title="Bewerken">✎</button>
-        <button data-action="deleteClientStop" data-arg1="${c.id}" title="Verwijderen">✕</button>
-      </span>
-    </div>`;
-  }).join('');
+/* Render/refresh every .client-filter container in the DOM */
+function renderClientFilters(){
+  document.querySelectorAll('.client-filter').forEach(el=>renderOneClientFilter(el));
 }
+function renderOneClientFilter(host){
+  const clients=kanbanState?.clients||[];
+  const active=clients.find(c=>c.id===activeClientFilter);
+  const label=active?active.name:'Alle klanten';
+  const dotStyle=active?`background:${CLIENT_COLORS[active.colorIdx%CLIENT_COLORS.length].bg}`:'';
+  const optionsHtml=[
+    `<button type="button" class="client-filter-option${activeClientFilter===''?' selected':''}" data-cid="">
+       <span class="cf-dot" style="background:var(--surface3)"></span>
+       <span>Alle klanten</span>
+     </button>`,
+    ...clients.map(c=>{
+      const col=CLIENT_COLORS[c.colorIdx%CLIENT_COLORS.length];
+      const sel=activeClientFilter===c.id?' selected':'';
+      return `<button type="button" class="client-filter-option${sel}" data-cid="${c.id}">
+        <span class="cf-dot" style="background:${col.bg}"></span>
+        <span>${escapeHtml(c.name)}</span>
+        <span class="cf-actions">
+          <button class="cf-actbtn" data-cf-edit="${c.id}" title="Hernoemen">✎</button>
+          <button class="cf-actbtn" data-cf-del="${c.id}" title="Verwijderen">✕</button>
+        </span>
+      </button>`;
+    })
+  ];
+  if(!clients.length)optionsHtml.push(`<div class="client-filter-empty">Nog geen klanten. Klik op + Klant.</div>`);
+  host.innerHTML=`
+    <button type="button" class="client-filter-btn" data-cf-trigger>
+      <span class="cf-dot" style="${dotStyle}"></span>
+      <span class="cf-name">${escapeHtml(label)}</span>
+      <svg class="cf-caret" width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M2 3.5L4.5 6L7 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="client-filter-menu" role="menu">${optionsHtml.join('')}</div>`;
+  wireClientFilter(host);
+}
+function wireClientFilter(host){
+  const trigger=host.querySelector('[data-cf-trigger]');
+  const setOpen=on=>host.setAttribute('data-open',on?'true':'false');
+  trigger.addEventListener('click',e=>{
+    e.stopPropagation();
+    /* Close all other open filters first */
+    document.querySelectorAll('.client-filter[data-open="true"]').forEach(o=>{if(o!==host)o.setAttribute('data-open','false');});
+    setOpen(host.getAttribute('data-open')!=='true');
+  });
+  host.querySelectorAll('.client-filter-option').forEach(opt=>{
+    opt.addEventListener('click',e=>{
+      const del=e.target.closest('[data-cf-del]');
+      const edt=e.target.closest('[data-cf-edit]');
+      if(del){e.stopPropagation();deleteClient(del.dataset.cfDel);return;}
+      if(edt){e.stopPropagation();editClient(edt.dataset.cfEdit);return;}
+      e.stopPropagation();
+      const cid=opt.dataset.cid;
+      /* Direct set (not toggle) — user picks 'Alle klanten' to clear */
+      activeClientFilter=cid||'';
+      setOpen(false);
+      renderClientFilters();
+      if(activeModule==='todo')renderBoard();
+      else if(activeModule==='notes')renderNotesModule();
+      else if(activeModule==='agenda'){renderAgendaSourceBar();if(typeof fetchAndRenderView==='function')fetchAndRenderView();}
+      else if(activeModule==='dashboard')renderDashboard();
+    });
+  });
+}
+/* Close filter menus on outside click / Escape */
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.client-filter'))
+    document.querySelectorAll('.client-filter[data-open="true"]').forEach(o=>o.setAttribute('data-open','false'));
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape')
+    document.querySelectorAll('.client-filter[data-open="true"]').forEach(o=>o.setAttribute('data-open','false'));
+});
 
+/* ─ Nieuwe klant modal ─ */
 let _newClientColorIdx=0;
-function showAddClient(){
-  document.getElementById('addClientForm').classList.add('open');
-  _newClientColorIdx=kanbanState.clients.length%CLIENT_COLORS.length;
-  renderColorSwatches();
-  setTimeout(()=>document.getElementById('newClientName').focus(),30);
+function openNewClientModal(){
+  const modal=document.getElementById('newClientModal');
+  _newClientColorIdx=(kanbanState?.clients?.length||0)%CLIENT_COLORS.length;
+  renderNewClientModalColors();
+  document.getElementById('newClientModalName').value='';
+  modal.classList.add('open');
+  setTimeout(()=>document.getElementById('newClientModalName').focus(),30);
 }
-function hideAddClient(){
-  document.getElementById('addClientForm').classList.remove('open');
-  document.getElementById('newClientName').value='';
-}
-function renderColorSwatches(){
-  const c=document.getElementById('newClientColors');c.innerHTML='';
+function closeNewClientModal(){document.getElementById('newClientModal').classList.remove('open');}
+function renderNewClientModalColors(){
+  const c=document.getElementById('newClientModalColors');
+  if(!c)return;
+  c.innerHTML='';
   CLIENT_COLORS.forEach((col,i)=>{
     const d=document.createElement('div');
     d.className='color-swatch'+(i===_newClientColorIdx?' active':'');
     d.style.background=col.bg;
-    d.onclick=()=>{_newClientColorIdx=i;renderColorSwatches();};
+    d.onclick=()=>{_newClientColorIdx=i;renderNewClientModalColors();};
     c.appendChild(d);
   });
 }
-function createClient(){
-  const n=document.getElementById('newClientName').value.trim();
-  if(!n)return;
+function saveNewClient(){
+  const n=document.getElementById('newClientModalName').value.trim();
+  if(!n){document.getElementById('newClientModalName').focus();return;}
   if(kanbanState.clients.some(c=>c.name===n)){alert('Klant bestaat al');return;}
   kanbanState.clients.push({id:uid(),name:n,colorIdx:_newClientColorIdx});
-  hideAddClient();scheduleSave();
-  renderSidebarClients();
-  if(activeModule==='todo'){renderClientFilterDropdown();renderBoard();}
+  closeNewClientModal();
+  scheduleSave();
+  renderClientFilters();
+  if(activeModule==='todo')renderBoard();
+  else if(activeModule==='dashboard')renderDashboard();
 }
-function deleteClient(id,e){
-  if(e)e.stopPropagation();
+document.getElementById('newClientModal')?.addEventListener('click',e=>{if(e.target.id==='newClientModal')closeNewClientModal();});
+
+/* ─ Client CRUD (used from menu ✎/✕) ─ */
+function deleteClient(id){
   if(!confirm('Klant verwijderen?'))return;
   kanbanState.clients=kanbanState.clients.filter(c=>c.id!==id);
   if(activeClientFilter===id)activeClientFilter='';
-  scheduleSave();renderSidebarClients();
-  if(activeModule==='todo'){renderClientFilterDropdown();renderBoard();}
+  scheduleSave();
+  renderClientFilters();
+  if(activeModule==='todo')renderBoard();
+  else if(activeModule==='notes')renderNotesModule();
+  else if(activeModule==='dashboard')renderDashboard();
 }
-function editClient(id,e){
-  if(e)e.stopPropagation();
+function editClient(id){
   const c=clientById(id);if(!c)return;
   const newName=prompt('Nieuwe klantnaam:',c.name);
-  if(newName?.trim()){c.name=newName.trim();scheduleSave();renderSidebarClients();
-    if(activeModule==='todo'){renderClientFilterDropdown();renderBoard();}
+  if(newName?.trim()){
+    c.name=newName.trim();
+    scheduleSave();
+    renderClientFilters();
+    if(activeModule==='todo')renderBoard();
+    else if(activeModule==='notes')renderNotesModule();
+    else if(activeModule==='dashboard')renderDashboard();
   }
 }
+/* Legacy stubs (still referenced from older code paths) */
+function renderSidebarClients(){/* sidebar Klanten section removed; no-op */}
+function createClient(){/* legacy path — route to new modal */openNewClientModal();}
+function showAddClient(){openNewClientModal();}
+function hideAddClient(){closeNewClientModal();}
+function renderColorSwatches(){/* moved to renderNewClientModalColors */renderNewClientModalColors();}
 
 /* ═══════════════════════════════════════════════════
    MODULE: DASHBOARD
@@ -3282,7 +3527,7 @@ function toggleDashCalSettings(){openCalSourcesModal();}
    ═══════════════════════════════════════════════════ */
 function renderAll(){
   document.getElementById('todayStr').textContent=formatToday();
-  renderSidebarClients();
+  renderClientFilters();
   /* Apply hash-based routing on initial load */
   const hash=(location.hash||'#dashboard').slice(1);
   const validMods=['dashboard','todo','notes','agenda','checklist','uren'];
@@ -4318,14 +4563,98 @@ function closeNoteCtxMenu(){document.getElementById('noteCtxMenu').classList.rem
 /* ─ Render tree ─ */
 function renderNotesTree(){
   const el=document.getElementById('notesTree');if(!el)return;
-  const displayTree=activeClientFilter?filterNoteTree(notesState.tree,activeClientFilter):notesState.tree;
-  if(!displayTree.length){
-    el.innerHTML=activeClientFilter
-      ?`<div style="color:var(--text-hint);font-size:11px;padding:8px;text-align:center">Geen notities voor deze klant</div>`
-      :`<div style="color:var(--text-hint);font-size:11px;padding:8px;text-align:center">Geen pagina's</div>`;
+  const clients=kanbanState?.clients||[];
+
+  /* When a client filter is active, show just that client's tree (flat, no grouping) */
+  if(activeClientFilter){
+    const t=filterNoteTree(notesState.tree,activeClientFilter);
+    el.innerHTML=t.length
+      ? t.map(n=>renderNoteNode(n,0)).join('')
+      : `<div style="color:var(--text-hint);font-size:11px;padding:8px;text-align:center">Geen notities voor deze klant</div>`;
     return;
   }
-  el.innerHTML=displayTree.map(n=>renderNoteNode(n,0)).join('');
+
+  /* No filter → group top-level by client. Each client is a collapsible header
+     that contains its filtered sub-tree. 'Geen klant' group catches notes
+     without clientId. */
+  if(!clients.length){
+    const t=notesState.tree||[];
+    el.innerHTML=t.length
+      ? t.map(n=>renderNoteNode(n,0)).join('')
+      : `<div style="color:var(--text-hint);font-size:11px;padding:8px;text-align:center">Geen pagina's</div>`;
+    return;
+  }
+
+  notesState.clientGroupCollapsed=notesState.clientGroupCollapsed||{};
+  const groupHtml=[];
+  clients.forEach(c=>{
+    const sub=filterNoteTree(notesState.tree,c.id);
+    const col=CLIENT_COLORS[c.colorIdx%CLIENT_COLORS.length];
+    const collapsed=!!notesState.clientGroupCollapsed[c.id];
+    const count=flattenNotes(sub).filter(x=>x.type==='page').length;
+    groupHtml.push(`
+      <div class="note-client-group">
+        <div class="note-client-hdr" data-action="toggleNoteClientGroup" data-arg1="${c.id}">
+          <span class="note-chev${collapsed?' collapsed':''}">▾</span>
+          <span class="note-client-dot" style="background:${col.bg}"></span>
+          <span class="note-client-name">${escapeHtml(c.name)}</span>
+          <span class="note-client-count">${count}</span>
+          <span class="note-client-actions">
+            <button data-action="createNoteForClient" data-arg1="${c.id}" title="Nieuwe notitie voor ${escapeHtml(c.name)}">+</button>
+          </span>
+        </div>
+        ${collapsed?'':`<div class="note-client-body">${sub.length?sub.map(n=>renderNoteNode(n,0)).join(''):'<div class="note-client-empty">Geen notities</div>'}</div>`}
+      </div>`);
+  });
+  /* 'Geen klant' — notes without clientId */
+  const orphan=filterOrphanNotes(notesState.tree);
+  if(orphan.length){
+    const collapsed=!!notesState.clientGroupCollapsed['__orphan'];
+    const count=flattenNotes(orphan).filter(x=>x.type==='page').length;
+    groupHtml.push(`
+      <div class="note-client-group">
+        <div class="note-client-hdr" data-action="toggleNoteClientGroup" data-arg1="__orphan">
+          <span class="note-chev${collapsed?' collapsed':''}">▾</span>
+          <span class="note-client-dot" style="background:var(--surface3)"></span>
+          <span class="note-client-name" style="color:var(--text-muted)">Geen klant</span>
+          <span class="note-client-count">${count}</span>
+        </div>
+        ${collapsed?'':`<div class="note-client-body">${orphan.map(n=>renderNoteNode(n,0)).join('')}</div>`}
+      </div>`);
+  }
+  el.innerHTML=groupHtml.join('')||`<div style="color:var(--text-hint);font-size:11px;padding:8px;text-align:center">Geen notities</div>`;
+}
+
+/* Tree of notes without any clientId (folders kept if they contain orphan descendants) */
+function filterOrphanNotes(nodes){
+  return nodes.reduce((acc,node)=>{
+    if(node.type==='folder'){
+      const filtered=filterOrphanNotes(node.children||[]);
+      if(filtered.length)acc.push({...node,children:filtered});
+    } else {
+      if(!node.clientId)acc.push(node);
+    }
+    return acc;
+  },[]);
+}
+function toggleNoteClientGroup(id){
+  notesState.clientGroupCollapsed=notesState.clientGroupCollapsed||{};
+  notesState.clientGroupCollapsed[id]=!notesState.clientGroupCollapsed[id];
+  renderNotesTree();
+}
+function createNoteForClient(clientId){
+  const newNote={id:ntuid(),type:'page',title:'Nieuwe notitie',
+    content:'# Nieuwe notitie\n\nBegin hier met schrijven...',
+    clientId:clientId,updatedAt:Date.now()};
+  notesState.tree.push(newNote);
+  notesState.activeId=newNote.id;
+  scheduleSave();
+  renderNotesTree();
+  renderNoteEditor();
+  setTimeout(()=>{
+    const label=document.querySelector(`.note-node[data-id="${newNote.id}"] .note-label`);
+    if(label)startInlineRename(newNote.id,label);
+  },60);
 }
 function renderNoteNode(node,depth){
   const isFolder=node.type==='folder';
@@ -4413,7 +4742,9 @@ Object.assign(APP_ACTIONS,{
     e.stopPropagation();
     const label=el.closest('.note-node')?.querySelector('.note-label');
     if(label)startInlineRename(id,label);
-  }
+  },
+  toggleNoteClientGroup:(el,e,id)=>toggleNoteClientGroup(id),
+  createNoteForClient:(el,e,id)=>{e.stopPropagation();createNoteForClient(id);}
 });
 /* Delegated dblclick for inline rename on note labels */
 document.addEventListener('dblclick',e=>{
@@ -5086,8 +5417,18 @@ async function fetchAndRenderView(){
   clearTimeout(calRefreshTimer);
   calRefreshTimer=setTimeout(()=>{if(activeModule==='agenda')fetchAndRenderView();},10*60*1000);
 }
+/* Filter rule: when a client filter is active, only include sources whose
+   clientId matches. Sources without a clientId are treated as "unassigned"
+   and hidden while a client is selected. When no client is selected, all
+   enabled sources are shown. */
+function sourceMatchesActiveClient(s){
+  if(!activeClientFilter)return true;
+  return s.clientId===activeClientFilter;
+}
 async function fetchEventsForRange(timeMin,timeMax){
-  const sources=(rawState.settings?.calSources||[]).filter(s=>s.enabled!==false);
+  const sources=(rawState.settings?.calSources||[])
+    .filter(s=>s.enabled!==false)
+    .filter(sourceMatchesActiveClient);
   const allEvents=[];
   await Promise.all(sources.map(async s=>{
     try{const evs=await fetchSourceEvents(s,timeMin,timeMax);allEvents.push(...evs);}catch(e){}
@@ -5157,7 +5498,8 @@ function closeCalSourcesModal(){document.getElementById('calSourcesModal').class
 const CAL_PALETTE=['#4285f4','#ea4335','#fbbc04','#34a853','#ff6d00','#46bdc6','#7986cb','#9c27b0','#0078d4','#e03131','#2f9e44','#f08c00'];
 function renderAgendaSourceBar(){
   const bar=document.getElementById('agendaSourceBar');if(!bar)return;
-  const sources=rawState.settings?.calSources||[];
+  const allSources=rawState.settings?.calSources||[];
+  const sources=allSources.filter(sourceMatchesActiveClient);
   if(!sources.length){bar.style.display='none';return;}
   bar.style.display='flex';
   bar.innerHTML=sources.map(s=>{
@@ -5211,6 +5553,9 @@ function toggleSourceEditor(id){
   editor.className='csi-editor';
   editor.style.cssText='margin-top:8px;padding-top:8px;border-top:0.5px solid var(--border);display:flex;flex-direction:column;gap:8px';
   const swatches=CAL_PALETTE.map(c=>`<div class="cal-color-swatch${c===currentColor?' selected':''}" style="background:${c}" data-action="csiPickColor" data-arg1="${c}" data-arg2="${id}"></div>`).join('');
+  const clients=kanbanState?.clients||[];
+  const clientOpts='<option value="">— Geen klant (altijd zichtbaar)</option>'
+    +clients.map(c=>`<option value="${c.id}"${s.clientId===c.id?' selected':''}>${escapeHtml(c.name)}</option>`).join('');
   editor.innerHTML=`
     <div style="display:flex;flex-direction:column;gap:4px">
       <label style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em">Naam</label>
@@ -5223,6 +5568,10 @@ function toggleSourceEditor(id){
       <input id="csi-url-${id}" type="text" value="${escapeHtml(s.url||'')}"
         style="padding:5px 8px;border:0.5px solid var(--border-strong);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:12px;font-family:inherit;width:100%"/>
     </div>`:''}
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <label style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em">Klant</label>
+      <select id="csi-client-${id}" style="padding:5px 8px;font-size:12px">${clientOpts}</select>
+    </div>
     ${s.type!=='google'?`
     <div style="display:flex;flex-direction:column;gap:5px">
       <label style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em">Kleur</label>
@@ -5244,10 +5593,12 @@ function saveSourceEdit(id){
   const s=(rawState.settings?.calSources||[]).find(x=>x.id===id);if(!s)return;
   const nameEl=document.getElementById('csi-name-'+id);
   const urlEl=document.getElementById('csi-url-'+id);
+  const clientEl=document.getElementById('csi-client-'+id);
   const name=(nameEl?.value||'').trim();
   if(!name){nameEl?.focus();return;}
   s.name=name;
   if(urlEl)s.url=urlEl.value.trim();
+  if(clientEl)s.clientId=clientEl.value||null;
   if(_csiColors[id]&&s.type!=='google')s.color=_csiColors[id];
   delete _csiColors[id];
   scheduleSave();
