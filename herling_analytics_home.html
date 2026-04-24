@@ -1640,10 +1640,28 @@ function renderDashChecklist(){
           ${clientOpts.replace(`value="${item.clientId||''}"`,`value="${item.clientId||''}" selected`)}
         </select>
       </div>
+      ${(item.subtasks&&item.subtasks.length)?`<div style="padding-left:26px;margin-top:6px;display:flex;flex-direction:column;gap:3px">
+        ${item.subtasks.map(st=>`<div style="display:flex;align-items:center;gap:6px">
+          <div onclick="dashClToggleSubtask('${item.id}','${st.id}')" style="width:14px;height:14px;border-radius:3px;border:1.5px solid var(--border-strong);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;${st.done?'background:var(--accent);border-color:var(--accent)':''};transition:all .15s"
+            onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='${st.done?'var(--accent)':'var(--border-strong)'}'">
+            ${st.done?`<svg width="9" height="9" viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`:''}
+          </div>
+          <span style="font-size:12px;color:var(--text-muted);${st.done?'text-decoration:line-through;opacity:.6':''};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(st.text)}</span>
+        </div>`).join('')}
+      </div>`:''}
     </div>`;
   }).join('');
 }
 
+function dashClToggleSubtask(itemId,subId){
+  const item=checklistState.items.find(i=>i.id===itemId);
+  if(!item)return;
+  const st=(item.subtasks||[]).find(s=>s.id===subId);
+  if(!st)return;
+  st.done=!st.done;
+  scheduleSave();renderDashChecklist();
+  if(activeModule==='checklist')renderChecklistModule();
+}
 function dashClToggle(id){
   const item=checklistState.items.find(i=>i.id===id);
   if(!item)return;
