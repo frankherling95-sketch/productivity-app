@@ -1998,6 +1998,117 @@ textarea { line-height: 1.6; resize: vertical; }
 }
 
 /* ═════════════════════════════════════════════════════════════════════════════
+   NOTE EDITOR — rich text toolbar + contenteditable body
+   ════════════════════════════════════════════════════════════════════════════ */
+.note-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.note-tb-div {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+.note-tb-select {
+  padding: 4px 8px !important;
+  font-size: 12px !important;
+  border: 1px solid var(--border) !important;
+  background: var(--surface) !important;
+  color: var(--text);
+  border-radius: 5px !important;
+  cursor: pointer;
+  max-width: 140px;
+}
+.note-tb-select:hover { border-color: var(--border-strong) !important; }
+#noteFontSelect { min-width: 110px; }
+#noteSizeSelect { min-width: 80px; }
+.note-tb-btn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  border-radius: 5px;
+  font-size: 13px;
+  font-family: var(--font-body);
+  transition: all 0.12s;
+  padding: 0;
+}
+.note-tb-btn b  { font-weight: 700; }
+.note-tb-btn i  { font-style: italic; }
+.note-tb-btn u  { text-decoration: underline; }
+.note-tb-btn s  { text-decoration: line-through; }
+.note-tb-btn:hover { background: var(--surface2); border-color: var(--border); }
+.note-tb-btn.active { background: var(--mint-soft); color: var(--navy); border-color: var(--mint); }
+.note-tb-btn svg { display: block; }
+.note-tb-colors {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+}
+.note-tb-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.12s;
+}
+.note-tb-color:hover { transform: scale(1.18); }
+
+/* The contenteditable editor */
+.note-editor {
+  width: 100%;
+  min-height: 100%;
+  padding: 0;
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text);
+  outline: none;
+  caret-color: var(--text);
+}
+.note-editor:empty::before {
+  content: attr(data-placeholder);
+  color: var(--text-hint);
+  pointer-events: none;
+}
+.note-editor p { margin: 0 0 0.5em; }
+.note-editor ul, .note-editor ol { margin: 0.3em 0 0.6em 1.5em; padding: 0; }
+.note-editor li { margin: 0.1em 0; }
+.note-editor h1,.note-editor h2,.note-editor h3 { font-family: var(--font-display); margin: 0.6em 0 0.3em; letter-spacing: -0.02em; }
+.note-editor a { color: var(--accent); text-decoration: underline; }
+.note-editor blockquote {
+  border-left: 3px solid var(--border-strong);
+  margin: 0.4em 0;
+  padding: 0.2em 0.8em;
+  color: var(--text-muted);
+}
+.note-editor code {
+  font-family: var(--font-mono);
+  background: var(--surface2);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 0.92em;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════════
    DASHBOARD v2 — hero + KPI strip + 2×2 grid
    ════════════════════════════════════════════════════════════════════════════ */
 
@@ -5119,6 +5230,32 @@ function renderNoteNode(node,depth){
 }
 
 /* ─ Note editor ─ */
+/* ═══ Rich text editor for notes ═══
+   Uses contenteditable + document.execCommand (broad browser support).
+   Saves innerHTML to node.content via debouncedUpdateContent.
+   Legacy plain-text/markdown notes are upgraded to HTML on load
+   (\n → <br>) so the editor shows them correctly. */
+
+const NOTE_FONT_OPTIONS=[
+  {label:'Standaard',value:''},
+  {label:'Sans-serif',value:'Inter, system-ui, sans-serif'},
+  {label:'Display',value:'"Plus Jakarta Sans", sans-serif'},
+  {label:'Serif',value:'Georgia, "Times New Roman", serif'},
+  {label:'Mono',value:'"JetBrains Mono", ui-monospace, monospace'}
+];
+const NOTE_SIZE_OPTIONS=[12,14,16,18,20,24,28,32];
+const NOTE_COLOR_SWATCHES=[
+  '#0F1B3D','#5B6876','#DC2626','#D97706','#0A9D78','#2563EB','#9333EA','#00E5B0'
+];
+
+function noteContentToHtml(raw){
+  if(!raw)return '';
+  /* If it already looks like HTML, use as-is */
+  if(/<(p|div|span|br|h[1-6]|ul|ol|li|strong|em|b|i|u)\b/i.test(raw))return raw;
+  /* Plain text / markdown — preserve line breaks */
+  return escapeHtml(raw).replace(/\n/g,'<br>');
+}
+
 function renderNoteEditor(){
   const content=document.getElementById('noteContent');
   if(!content)return;
@@ -5132,23 +5269,127 @@ function renderNoteEditor(){
   if(!r||r.node.type==='folder'){notesState.activeId=null;renderNoteEditor();return;}
   const node=r.node;
   const ts=node.updatedAt?new Date(node.updatedAt).toLocaleString('nl-NL'):'';
+
+  const fontOpts=NOTE_FONT_OPTIONS.map(o=>`<option value="${o.value}">${o.label}</option>`).join('');
+  const sizeOpts=['<option value="">Grootte</option>',
+    ...NOTE_SIZE_OPTIONS.map(s=>`<option value="${s}">${s}px</option>`)].join('');
+  const colorDots=NOTE_COLOR_SWATCHES.map(c=>
+    `<button type="button" class="note-tb-color" data-action="noteApplyColor" data-arg1="${c}" style="background:${c}" title="${c}"></button>`).join('');
+
   content.innerHTML=`
     <div class="notes-editor-hdr">
       <input class="notes-title-input" id="noteTitleInput" value="${escapeHtml(node.title)}" oninput="updateNoteTitle(this.value)" placeholder="Titel..."/>
       <div style="font-size:10px;color:var(--text-hint);white-space:nowrap">${ts}</div>
     </div>
+    <div class="note-toolbar" id="noteToolbar">
+      <select class="note-tb-select" id="noteFontSelect" data-change="noteApplyFont" title="Lettertype">${fontOpts}</select>
+      <select class="note-tb-select" id="noteSizeSelect" data-change="noteApplySize" title="Grootte">${sizeOpts}</select>
+      <span class="note-tb-div"></span>
+      <button type="button" class="note-tb-btn" data-action="noteExec" data-arg1="bold" title="Vet (Ctrl+B)"><b>B</b></button>
+      <button type="button" class="note-tb-btn" data-action="noteExec" data-arg1="italic" title="Cursief (Ctrl+I)"><i>I</i></button>
+      <button type="button" class="note-tb-btn" data-action="noteExec" data-arg1="underline" title="Onderstreept (Ctrl+U)"><u>U</u></button>
+      <button type="button" class="note-tb-btn" data-action="noteExec" data-arg1="strikeThrough" title="Doorgestreept"><s>S</s></button>
+      <span class="note-tb-div"></span>
+      <button type="button" class="note-tb-btn" data-action="noteExec" data-arg1="justifyLeft" title="Links uitlijnen"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><line x1="2" y1="3.5" x2="12" y2="3.5"/><line x1="2" y1="7" x2="9" y2="7"/><line x1="2" y1="10.5" x2="11" y2="10.5"/></svg></button>
+      <button type="button" class="note-tb-btn" data-action="noteExec" data-arg1="justifyCenter" title="Centreren"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><line x1="2" y1="3.5" x2="12" y2="3.5"/><line x1="3.5" y1="7" x2="10.5" y2="7"/><line x1="2.5" y1="10.5" x2="11.5" y2="10.5"/></svg></button>
+      <button type="button" class="note-tb-btn" data-action="noteExec" data-arg1="justifyRight" title="Rechts uitlijnen"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><line x1="2" y1="3.5" x2="12" y2="3.5"/><line x1="5" y1="7" x2="12" y2="7"/><line x1="3" y1="10.5" x2="12" y2="10.5"/></svg></button>
+      <button type="button" class="note-tb-btn" data-action="noteExec" data-arg1="justifyFull" title="Uitvullen"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><line x1="2" y1="3.5" x2="12" y2="3.5"/><line x1="2" y1="7" x2="12" y2="7"/><line x1="2" y1="10.5" x2="12" y2="10.5"/></svg></button>
+      <span class="note-tb-div"></span>
+      <button type="button" class="note-tb-btn" data-action="noteExec" data-arg1="insertUnorderedList" title="Opsomming"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="3" cy="3.5" r="0.9" fill="currentColor"/><circle cx="3" cy="7" r="0.9" fill="currentColor"/><circle cx="3" cy="10.5" r="0.9" fill="currentColor"/><line x1="5.5" y1="3.5" x2="12" y2="3.5"/><line x1="5.5" y1="7" x2="12" y2="7"/><line x1="5.5" y1="10.5" x2="12" y2="10.5"/></svg></button>
+      <button type="button" class="note-tb-btn" data-action="noteExec" data-arg1="insertOrderedList" title="Genummerde lijst"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" font-family="var(--font-mono)"><text x="1.5" y="4.5" font-size="3.5" stroke="none" fill="currentColor">1</text><text x="1.5" y="8" font-size="3.5" stroke="none" fill="currentColor">2</text><text x="1.5" y="11.5" font-size="3.5" stroke="none" fill="currentColor">3</text><line x1="5.5" y1="3.5" x2="12" y2="3.5"/><line x1="5.5" y1="7" x2="12" y2="7"/><line x1="5.5" y1="10.5" x2="12" y2="10.5"/></svg></button>
+      <span class="note-tb-div"></span>
+      <div class="note-tb-colors">${colorDots}</div>
+      <span class="note-tb-div"></span>
+      <button type="button" class="note-tb-btn" data-action="noteExec" data-arg1="removeFormat" title="Opmaak wissen"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M3 3h8M5 3v8M9 3v3M3 11h4"/><line x1="8.5" y1="7.5" x2="12.5" y2="11.5"/><line x1="12.5" y1="7.5" x2="8.5" y2="11.5"/></svg></button>
+    </div>
     <div class="notes-editor-body">
-      <textarea class="notes-textarea" id="noteTextArea" placeholder="Schrijf hier je notitie (markdown ondersteund)...">${escapeHtml(node.content||'')}</textarea>
+      <div class="note-editor" id="noteEditor" contenteditable="true" spellcheck="true"></div>
     </div>`;
-  const ta=document.getElementById('noteTextArea');
-  if(ta){
-    ta.addEventListener('input',e=>debouncedUpdateContent(e.target.value));
-    /* auto-resize */
-    ta.style.height='auto';ta.style.height=Math.max(ta.scrollHeight,200)+'px';
-    ta.addEventListener('input',()=>{ta.style.height='auto';ta.style.height=Math.max(ta.scrollHeight,200)+'px';});
+
+  const editor=document.getElementById('noteEditor');
+  if(editor){
+    /* Default paragraph separator: <p> instead of <div> for cleaner HTML */
+    try{document.execCommand('defaultParagraphSeparator',false,'p');}catch(e){}
+    editor.innerHTML=noteContentToHtml(node.content||'');
+    editor.addEventListener('input',()=>debouncedUpdateContent(editor.innerHTML));
+    editor.addEventListener('blur',()=>{
+      clearTimeout(window._noteSaveTimer);
+      updateNoteContent(editor.innerHTML);
+    });
+    /* Keep toolbar button "pressed" state in sync with selection */
+    editor.addEventListener('keyup',syncNoteToolbarState);
+    editor.addEventListener('mouseup',syncNoteToolbarState);
   }
 }
 function toggleNoteEdit(){renderNoteEditor();}
+
+/* Toolbar handlers */
+function noteExec(cmd){
+  try{document.execCommand('styleWithCSS',false,true);}catch(e){}
+  document.execCommand(cmd,false,null);
+  const editor=document.getElementById('noteEditor');
+  if(editor){debouncedUpdateContent(editor.innerHTML);editor.focus();}
+  syncNoteToolbarState();
+}
+function noteApplyFont(value){
+  const editor=document.getElementById('noteEditor');if(!editor)return;
+  editor.focus();
+  try{document.execCommand('styleWithCSS',false,true);}catch(e){}
+  if(value){
+    document.execCommand('fontName',false,value);
+  } else {
+    /* Reset to default: wrap selection in span with no font-family */
+    document.execCommand('removeFormat',false,null);
+  }
+  debouncedUpdateContent(editor.innerHTML);
+}
+function noteApplySize(px){
+  const editor=document.getElementById('noteEditor');if(!editor)return;
+  editor.focus();
+  if(!px){
+    /* No size selected — do nothing */
+    const sel=document.getElementById('noteSizeSelect');if(sel)sel.value='';
+    return;
+  }
+  const sel=window.getSelection();
+  if(!sel||!sel.rangeCount)return;
+  const range=sel.getRangeAt(0);
+  const span=document.createElement('span');
+  span.style.fontSize=px+'px';
+  if(range.collapsed){
+    span.innerHTML='\u200B'; /* zero-width space anchor */
+    range.insertNode(span);
+    const nr=document.createRange();
+    nr.setStart(span.firstChild,1);nr.collapse(true);
+    sel.removeAllRanges();sel.addRange(nr);
+  } else {
+    try{range.surroundContents(span);}
+    catch(e){
+      const frag=range.extractContents();
+      span.appendChild(frag);
+      range.insertNode(span);
+    }
+  }
+  debouncedUpdateContent(editor.innerHTML);
+  /* Reset dropdown to placeholder so the user can re-pick same size */
+  setTimeout(()=>{const s=document.getElementById('noteSizeSelect');if(s)s.value='';},0);
+}
+function noteApplyColor(color){
+  const editor=document.getElementById('noteEditor');if(!editor)return;
+  editor.focus();
+  try{document.execCommand('styleWithCSS',false,true);}catch(e){}
+  document.execCommand('foreColor',false,color);
+  debouncedUpdateContent(editor.innerHTML);
+}
+/* Highlight active toolbar buttons based on current selection */
+function syncNoteToolbarState(){
+  const tb=document.getElementById('noteToolbar');if(!tb)return;
+  ['bold','italic','underline','strikeThrough','justifyLeft','justifyCenter','justifyRight','justifyFull','insertUnorderedList','insertOrderedList'].forEach(cmd=>{
+    const btn=tb.querySelector(`.note-tb-btn[data-arg1="${cmd}"]`);
+    if(!btn)return;
+    try{btn.classList.toggle('active',document.queryCommandState(cmd));}catch(e){}
+  });
+}
 
 /* ─ Dashboard notes fetch ─ */
 function renderDashNotesFull(){renderDashNotes();}
@@ -5165,7 +5406,14 @@ Object.assign(APP_ACTIONS,{
     if(label)startInlineRename(id,label);
   },
   toggleNoteClientGroup:(el,e,id)=>toggleNoteClientGroup(id),
-  createNoteForClient:(el,e,id)=>{e.stopPropagation();createNoteForClient(id);}
+  createNoteForClient:(el,e,id)=>{e.stopPropagation();createNoteForClient(id);},
+  /* Rich-text editor toolbar */
+  noteExec:(el,e,cmd)=>noteExec(cmd),
+  noteApplyColor:(el,e,color)=>noteApplyColor(color)
+});
+Object.assign(APP_CHANGE_ACTIONS,{
+  noteApplyFont:(el)=>noteApplyFont(el.value),
+  noteApplySize:(el)=>noteApplySize(el.value)
 });
 /* Delegated dblclick for inline rename on note labels */
 document.addEventListener('dblclick',e=>{
