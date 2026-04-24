@@ -3822,7 +3822,22 @@ document.addEventListener('focusout',e=>{
 });
 
 /* ═══════════════════════════════════════════════════
-   AGENDA MODULE — WEEKLY CALENDAR
+   MODULE: AGENDA — DAY / WEEK / MONTH CALENDAR
+   ───────────────────────────────────────────────────
+   Structure:
+     ═══ STATE ═══  agendaView, agendaWeekOffset/DayOffset/MonthOffset,
+                    cachedWeekEvents, calRefreshTimer,
+                    icalBgInterval, lastIcalRefresh
+                    (declared in global STATE block).
+     ═══ LOGIC ═══  Time-range math, iCal fetch + parse + expand,
+                    occurrence layout for overlapping events.
+     ═══ VIEW  ═══  renderAgendaModule, renderDayGrid,
+                    renderWeekGrid, renderMonthGrid,
+                    renderAgendaSourceBar, renderCalSourcesList.
+
+   Delegation: source-chip and month-cell click handlers use
+   data-action. Modal/editor items also go through data-action
+   for consistency.
    ═══════════════════════════════════════════════════ */
 function switchAgendaView(view){
   agendaView=view;
@@ -3900,7 +3915,7 @@ async function fetchAndRenderView(){
     renderFn(events,renderArg,content);
     lastIcalRefresh=new Date();updateIcalRefreshLabel();
   }catch(e){
-    content.innerHTML=`<div class="cal-placeholder"><p style="color:var(--danger)">${escapeHtml(e.message)}</p><button class="btn btn-sm" onclick="fetchAndRenderView()">Opnieuw</button></div>`;
+    content.innerHTML=`<div class="cal-placeholder"><p style="color:var(--danger)">${escapeHtml(e.message)}</p><button class="btn btn-sm" data-action="fetchAndRenderView">Opnieuw</button></div>`;
   }
   clearTimeout(calRefreshTimer);
   calRefreshTimer=setTimeout(()=>{if(activeModule==='agenda')fetchAndRenderView();},10*60*1000);
@@ -3935,7 +3950,7 @@ function renderAgendaPlaceholder(){
     <div class="cal-placeholder">
       <div style="font-size:36px">📅</div>
       <p>Koppel een of meerdere agenda's om je afspraken te zien.</p>
-      <button class="btn btn-sm btn-primary" onclick="openCalSourcesModal()">+ Agenda koppelen</button>
+      <button class="btn btn-sm btn-primary" data-action="openCalSourcesModal">+ Agenda koppelen</button>
       <small>Outlook · Google · iCal van elk bedrijf</small>
     </div>`;
 }
@@ -3984,7 +3999,7 @@ function renderAgendaSourceBar(){
     const on=s.enabled!==false;
     return `<button class="src-chip ${on?'on':'off'}"
       style="border-color:${color};${on?'background:'+color:'color:'+color}"
-      onclick="toggleCalSourceEnabled('${s.id}')"
+      data-action="toggleCalSourceEnabled" data-arg1="${s.id}"
       title="${escapeHtml(s.name)} — klik om ${on?'te verbergen':'te tonen'}">
       <span class="src-chip-dot" style="background:${on?'rgba(255,255,255,.65)':color}"></span>
       ${escapeHtml(s.name)}
@@ -4013,9 +4028,9 @@ function renderCalSourcesList(){
           </div>
           ${s.type==='ical'?`<div style="font-size:10px;color:var(--text-hint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px">${escapeHtml(s.url||'')}</div>`:''}
         </div>
-        <button class="btn btn-xs" onclick="toggleSourceEditor('${s.id}')" title="Naam & kleur bewerken" style="padding:3px 7px">✎</button>
-        <button class="cal-source-toggle ${on?'on':'off'}" title="${on?'Verbergen':'Tonen'}" onclick="toggleCalSourceEnabled('${s.id}')"></button>
-        <button class="btn btn-xs btn-danger" onclick="removeCalSource('${s.id}')" title="Verwijderen" style="padding:3px 7px">✕</button>
+        <button class="btn btn-xs" data-action="toggleSourceEditor" data-arg1="${s.id}" title="Naam & kleur bewerken" style="padding:3px 7px">✎</button>
+        <button class="cal-source-toggle ${on?'on':'off'}" title="${on?'Verbergen':'Tonen'}" data-action="toggleCalSourceEnabled" data-arg1="${s.id}"></button>
+        <button class="btn btn-xs btn-danger" data-action="removeCalSource" data-arg1="${s.id}" title="Verwijderen" style="padding:3px 7px">✕</button>
       </div>
     </div>`;
   }).join('');
@@ -4029,7 +4044,7 @@ function toggleSourceEditor(id){
   const editor=document.createElement('div');
   editor.className='csi-editor';
   editor.style.cssText='margin-top:8px;padding-top:8px;border-top:0.5px solid var(--border);display:flex;flex-direction:column;gap:8px';
-  const swatches=CAL_PALETTE.map(c=>`<div class="cal-color-swatch${c===currentColor?' selected':''}" style="background:${c}" onclick="csiPickColor(this,'${c}','${id}')"></div>`).join('');
+  const swatches=CAL_PALETTE.map(c=>`<div class="cal-color-swatch${c===currentColor?' selected':''}" style="background:${c}" data-action="csiPickColor" data-arg1="${c}" data-arg2="${id}"></div>`).join('');
   editor.innerHTML=`
     <div style="display:flex;flex-direction:column;gap:4px">
       <label style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em">Naam</label>
@@ -4048,8 +4063,8 @@ function toggleSourceEditor(id){
       <div class="cal-color-row" id="csi-palette-${id}">${swatches}</div>
     </div>`:''}
     <div style="display:flex;gap:6px">
-      <button class="btn btn-sm" onclick="toggleSourceEditor('${id}')">Annuleer</button>
-      <button class="btn btn-sm btn-primary" onclick="saveSourceEdit('${id}')">Opslaan</button>
+      <button class="btn btn-sm" data-action="toggleSourceEditor" data-arg1="${id}">Annuleer</button>
+      <button class="btn btn-sm btn-primary" data-action="saveSourceEdit" data-arg1="${id}">Opslaan</button>
     </div>`;
   item.appendChild(editor);
 }
@@ -4098,7 +4113,7 @@ function showAddGoogleForm(){
 let _pickedColor=CAL_PALETTE[0];
 function showAddIcalForm(){
   _pickedColor=CAL_PALETTE[0];
-  const swatches=CAL_PALETTE.map((c,i)=>`<div class="cal-color-swatch${i===0?' selected':''}" style="background:${c}" data-color="${c}" onclick="pickCalColor(this,'${c}')"></div>`).join('');
+  const swatches=CAL_PALETTE.map((c,i)=>`<div class="cal-color-swatch${i===0?' selected':''}" style="background:${c}" data-color="${c}" data-action="pickCalColor" data-arg1="${c}"></div>`).join('');
   document.getElementById('calAddForm').innerHTML=`
     <div class="cal-ical-form">
       <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em">Naam</label>
@@ -4112,8 +4127,8 @@ function showAddIcalForm(){
       <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-top:2px">Kleur</label>
       <div class="cal-color-row" id="calColorRow">${swatches}</div>
       <div style="display:flex;gap:6px;margin-top:4px">
-        <button class="btn btn-sm" onclick="document.getElementById('calAddForm').style.display='none'">Annuleer</button>
-        <button class="btn btn-sm btn-primary" onclick="saveIcalSource()">Koppelen</button>
+        <button class="btn btn-sm" data-action="hideCalAddForm">Annuleer</button>
+        <button class="btn btn-sm btn-primary" data-action="saveIcalSource">Koppelen</button>
       </div>
     </div>`;
   document.getElementById('calAddForm').style.display='block';
@@ -4252,7 +4267,7 @@ function renderMonthGrid(events,monthStart,container){
       const isToday=d.getTime()===today.getTime();
       const other=d.getMonth()!==monthStart.getMonth();
       const evs=byDate[ds]||[];
-      html+=`<div class="cal-month-cell${isToday?' today':''}${other?' other-month':''}" onclick="jumpToDay('${ds}')">`;
+      html+=`<div class="cal-month-cell${isToday?' today':''}${other?' other-month':''}" data-action="jumpToDay" data-arg1="${ds}">`;
       html+=`<div class="cal-month-day-num">${d.getDate()}</div>`;
       const compact=evs.length>3;
       const veryCompact=evs.length>6;
@@ -4502,6 +4517,21 @@ function renderDashCalList(events,body){
   });
   html+='</div>';body.innerHTML=html;
 }
+
+/* ─ Event delegation registrations (Agenda) ─ */
+Object.assign(APP_ACTIONS,{
+  fetchAndRenderView:()=>fetchAndRenderView(),
+  openCalSourcesModal:()=>openCalSourcesModal(),
+  toggleCalSourceEnabled:(el,e,id)=>toggleCalSourceEnabled(id),
+  toggleSourceEditor:(el,e,id)=>toggleSourceEditor(id),
+  removeCalSource:(el,e,id)=>removeCalSource(id),
+  saveSourceEdit:(el,e,id)=>saveSourceEdit(id),
+  csiPickColor:(el,e,color,id)=>csiPickColor(el,color,id),
+  pickCalColor:(el,e,color)=>pickCalColor(el,color),
+  hideCalAddForm:()=>{const f=document.getElementById('calAddForm');if(f)f.style.display='none';},
+  saveIcalSource:()=>saveIcalSource(),
+  jumpToDay:(el,e,ds)=>jumpToDay(ds)
+});
 
 /* ═══════════════════════════════════════════════════
    MODULE: UREN
