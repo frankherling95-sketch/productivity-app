@@ -209,12 +209,14 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
   background:var(--surface);flex-shrink:0;gap:12px;
 }
 .dash-grid{
-  display:grid;grid-template-columns:1fr 1fr 1fr;
-  gap:16px;padding:20px;flex:1;overflow-y:auto;
-  align-content:start;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  grid-template-rows:1fr 1fr;
+  gap:16px;padding:16px;
+  flex:1;overflow:hidden;min-height:0;
 }
-@media(max-width:960px){.dash-grid{grid-template-columns:1fr 1fr}}
-.card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-lg);display:flex;flex-direction:column;overflow:hidden;min-height:240px}
+@media(max-width:900px){.dash-grid{grid-template-columns:1fr;grid-template-rows:none;overflow-y:auto;align-content:start}}
+.card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-lg);display:flex;flex-direction:column;overflow:hidden;min-height:0}
 .card-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:0.5px solid var(--border);flex-shrink:0}
 .card-hdr h2{font-size:14px;font-weight:600;margin:0;letter-spacing:.02em}
 .card-body{flex:1;overflow:auto;padding:12px 16px;min-height:0}
@@ -770,6 +772,23 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
               <p>Koppel een Google Agenda om je afspraken te zien.</p>
               <button class="btn btn-sm btn-primary" onclick="switchModule('agenda')">Agenda koppelen</button>
             </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-hdr">
+            <h2>☑ Checklist</h2>
+            <button class="btn btn-xs btn-primary" onclick="switchModule('checklist')">Bekijk ↗</button>
+          </div>
+          <div class="card-body" id="dashChecklistBody" style="display:flex;flex-direction:column;gap:0;padding:8px 12px">
+            <div class="loading-state"><div class="spinner"></div><span>Laden...</span></div>
+          </div>
+          <div style="padding:8px 12px;border-top:0.5px solid var(--border);flex-shrink:0;display:flex;gap:6px">
+            <input id="dashClInput" type="text" placeholder="Nieuwe taak toevoegen..."
+              style="flex:1;padding:6px 10px;font-size:13px;border:0.5px solid var(--border-strong);border-radius:var(--radius);background:var(--surface);color:var(--text);font-family:inherit;outline:none"
+              onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border-strong)'"
+              onkeydown="if(event.key==='Enter')dashClAdd()"/>
+            <button class="btn btn-sm btn-primary" onclick="dashClAdd()">+</button>
           </div>
         </div>
       </div>
@@ -1572,6 +1591,58 @@ function renderDashboard(){
   renderDashTodo();
   renderDashNotes();
   renderDashCal();
+  renderDashChecklist();
+}
+
+function renderDashChecklist(){
+  const body=document.getElementById('dashChecklistBody');
+  if(!body)return;
+  const open=checklistState.items.filter(i=>!i.done&&!i.archived);
+  if(!open.length){
+    body.innerHTML=`<div style="color:var(--text-hint);font-size:13px;padding:20px 0;text-align:center">
+      <p style="margin-bottom:8px">Geen openstaande taken</p>
+      <button class="btn btn-sm btn-primary" onclick="switchModule('checklist')">Open Checklist ↗</button>
+    </div>`;return;
+  }
+  const sorted=[...open].sort((a,b)=>{
+    const ao=(CL_PRIORITY_CFG[a.priority]||CL_PRIORITY_CFG.middel).order;
+    const bo=(CL_PRIORITY_CFG[b.priority]||CL_PRIORITY_CFG.middel).order;
+    if(ao!==bo)return ao-bo;
+    return (a.sortOrder||0)-(b.sortOrder||0);
+  });
+  body.innerHTML=sorted.map(item=>{
+    const cfg=CL_PRIORITY_CFG[item.priority]||CL_PRIORITY_CFG.middel;
+    const today=new Date().toISOString().slice(0,10);
+    const overdue=item.deadline&&item.deadline<today;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:7px 4px;border-bottom:0.5px solid var(--border)">
+      <div onclick="dashClToggle('${item.id}')" style="width:18px;height:18px;border-radius:4px;border:1.5px solid var(--border-strong);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s"
+        onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border-strong)'"></div>
+      <span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(item.text)}</span>
+      <span style="font-size:11px;font-weight:600;padding:1px 7px;border-radius:8px;background:${cfg.bg};color:${cfg.tx};flex-shrink:0">${cfg.label}</span>
+      ${item.deadline?`<span style="font-size:11px;color:${overdue?'var(--danger)':'var(--text-hint)'};white-space:nowrap;flex-shrink:0">📅 ${item.deadline}</span>`:''}
+    </div>`;
+  }).join('');
+}
+
+function dashClToggle(id){
+  const item=checklistState.items.find(i=>i.id===id);
+  if(!item)return;
+  item.done=true;
+  scheduleSave();
+  renderDashChecklist();
+  /* also refresh checklist module if open */
+  if(activeModule==='checklist')renderChecklistModule();
+}
+
+function dashClAdd(){
+  const inp=document.getElementById('dashClInput');
+  const text=inp?.value.trim();
+  if(!text)return;
+  checklistState.items.push({id:uid(),text,done:false,priority:'middel',deadline:null,subtasks:[],archived:false,sortOrder:checklistState.items.length});
+  inp.value='';
+  scheduleSave();
+  renderDashChecklist();
+  if(activeModule==='checklist')renderChecklistModule();
 }
 
 function renderDashTodo(){
