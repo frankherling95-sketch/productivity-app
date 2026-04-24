@@ -1663,6 +1663,7 @@ function dashClToggleSubtask(itemId,subId){
   const st=(item.subtasks||[]).find(s=>s.id===subId);
   if(!st)return;
   st.done=!st.done;
+  if(item.subtasks.length>0&&item.subtasks.every(s=>s.done)&&!item.done){item.done=true;}
   scheduleSave();renderDashChecklist();
   if(activeModule==='checklist')renderChecklistModule();
 }
@@ -2834,6 +2835,7 @@ let clEditingId=null;
 let clDragId=null,clDragOver=null;
 let clDoneExpanded=false;
 let clAddingSubtaskFor=null;
+let clEditingSubtask={itemId:null,subId:null};
 let clCalYear=new Date().getFullYear(),clCalMonth=new Date().getMonth(),clCalSelected=null;
 
 function renderClCal(){
@@ -2994,10 +2996,15 @@ function renderChecklistModule(){
 
   body.innerHTML=html;
 
-  /* Re-focus subtask input if active */
+  /* Re-focus subtask input or edit field if active */
   if(clAddingSubtaskFor){
     const inp=body.querySelector(`[data-subtask-input="${clAddingSubtaskFor}"]`);
     if(inp)inp.focus();
+  }
+  if(clEditingSubtask.itemId){
+    const key=`${clEditingSubtask.itemId}|${clEditingSubtask.subId}`;
+    const inp=body.querySelector(`[data-st-edit="${key}"]`);
+    if(inp){inp.focus();inp.select();}
   }
 
   /* Drag-and-drop (active items only) */
@@ -3042,9 +3049,19 @@ function clItemHtml(item,isArchived=false){
 
   let subtasksHtml='<div class="cl-subtasks">';
   (item.subtasks||[]).forEach(st=>{
+    const isEditing=clEditingSubtask.itemId===item.id&&clEditingSubtask.subId===st.id;
+    const textPart=isEditing
+      ?`<input class="cl-subtask-edit-input" data-st-edit="${item.id}|${st.id}"
+          value="${escapeHtml(st.text)}"
+          style="flex:1;padding:2px 6px;font-size:13px;border:0.5px solid var(--accent);border-radius:var(--radius);background:var(--surface);color:var(--text);font-family:inherit;outline:none"
+          onkeydown="handleEditSubtaskKey(event,'${item.id}','${st.id}')"
+          onblur="commitEditSubtask('${item.id}','${st.id}',this.value)"/>`
+      :`<span class="cl-subtask-text${st.done?' done-text':''}"
+          title="Klik om te bewerken" style="cursor:text;flex:1"
+          onclick="startEditSubtask('${item.id}','${st.id}')">${escapeHtml(st.text)}</span>`;
     subtasksHtml+=`<div class="cl-subtask">
       <div class="cl-subtask-check${st.done?' checked':''}" onclick="toggleSubtask('${item.id}','${st.id}')">${st.done?'✓':''}</div>
-      <span class="cl-subtask-text${st.done?' done-text':''}">${escapeHtml(st.text)}</span>
+      ${textPart}
       <button onclick="deleteSubtask('${item.id}','${st.id}')" style="background:none;border:none;cursor:pointer;color:var(--text-hint);font-size:11px;padding:0 3px;opacity:.5">✕</button>
     </div>`;
   });
@@ -3095,6 +3112,7 @@ function toggleSubtask(itemId,stId){
   const st=(item.subtasks||[]).find(s=>s.id===stId);
   if(!st)return;
   st.done=!st.done;
+  if(item.subtasks.length>0&&item.subtasks.every(s=>s.done)&&!item.done){item.done=true;}
   scheduleSave();renderChecklistModule();
 }
 
@@ -3118,6 +3136,25 @@ function commitSubtaskInput(itemId,val){
   scheduleSave();renderChecklistModule();
 }
 function addSubtask(itemId){startSubtaskInput(itemId);}
+
+function startEditSubtask(itemId,subId){
+  clEditingSubtask={itemId,subId};
+  renderChecklistModule();
+}
+function handleEditSubtaskKey(e,itemId,subId){
+  if(e.key==='Enter'){e.preventDefault();commitEditSubtask(itemId,subId,e.target.value);}
+  if(e.key==='Escape'){clEditingSubtask={itemId:null,subId:null};renderChecklistModule();}
+}
+function commitEditSubtask(itemId,subId,val){
+  if(clEditingSubtask.itemId!==itemId||clEditingSubtask.subId!==subId)return;
+  clEditingSubtask={itemId:null,subId:null};
+  const text=(val||'').trim();
+  const item=checklistState.items.find(i=>i.id===itemId);
+  if(!item)return;
+  const st=(item.subtasks||[]).find(s=>s.id===subId);
+  if(st&&text)st.text=text;
+  scheduleSave();renderChecklistModule();
+}
 
 function deleteAllDone(){
   const count=checklistState.items.filter(i=>i.done&&!i.archived).length;
