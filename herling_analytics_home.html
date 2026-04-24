@@ -787,12 +787,12 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 
 /* ─── A. TOKEN OVERRIDES (light mode) ─────────────────────────────────────── */
 :root {
-  --bg:              #F4F6F8;
+  --bg:              #DDE4EB;     /* cooler, deeper page bg so white cards pop */
   --surface:         #FFFFFF;
-  --surface2:        #EDF2F3;
-  --surface3:        #E1E8EB;
-  --border:          rgba(15, 27, 61, 0.08);
-  --border-strong:   rgba(15, 27, 61, 0.14);
+  --surface2:        #F0F4F8;
+  --surface3:        #E2E8EE;
+  --border:          rgba(15, 27, 61, 0.12);
+  --border-strong:   rgba(15, 27, 61, 0.20);
   --text:            #0F1B3D;
   --text-muted:      #5B6876;
   --text-hint:       #8695A2;
@@ -818,10 +818,10 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
   --warning:              #D97706;
   --warning-bg:           rgba(217, 119, 6, 0.10);
 
-  --shadow-card:          0 1px 2px rgba(15, 27, 61, 0.04);
-  --shadow-card-hover:    0 4px 16px rgba(15, 27, 61, 0.08);
-  --shadow-popover:       0 12px 32px rgba(15, 27, 61, 0.18), 0 0 0 1px rgba(15, 27, 61, 0.06);
-  --shadow-modal:         0 32px 80px rgba(15, 27, 61, 0.35), 0 0 0 1px rgba(15, 27, 61, 0.08);
+  --shadow-card:          0 1px 3px rgba(15, 27, 61, 0.06), 0 1px 2px rgba(15, 27, 61, 0.04);
+  --shadow-card-hover:    0 8px 24px rgba(15, 27, 61, 0.10), 0 2px 6px rgba(15, 27, 61, 0.06);
+  --shadow-popover:       0 12px 32px rgba(15, 27, 61, 0.18), 0 0 0 1px rgba(15, 27, 61, 0.08);
+  --shadow-modal:         0 32px 80px rgba(15, 27, 61, 0.35), 0 0 0 1px rgba(15, 27, 61, 0.10);
 
   --sidebar-gradient:     linear-gradient(180deg, #0F1B3D 0%, #0D3D3A 100%);
   --hero-gradient:        linear-gradient(135deg, #0F1B3D 0%, #0D3D3A 100%);
@@ -1368,6 +1368,12 @@ textarea { line-height: 1.6; resize: vertical; }
 /* ── Fix: cl-body should use standard module padding/vertical stack ───────── */
 .cl-body { gap: 10px !important; padding: 14px 20px !important; }
 
+/* ── Fix: kanban columns had no border, blended into bg ──────────────────── */
+.column {
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-card);
+}
+
 /* ═════════════════════════════════════════════════════════════════════════════
    DASHBOARD v2 — hero + KPI strip + 2×2 grid
    ════════════════════════════════════════════════════════════════════════════ */
@@ -1451,13 +1457,13 @@ textarea { line-height: 1.6; resize: vertical; }
   .dash-hero-right { display: none; }
 }
 
-/* ── KPI strip ───────────────────────────────────────────────────────────── */
+/* ── KPI strip (clickable buttons) ───────────────────────────────────────── */
 .dash-kpis {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 16px;
 }
-@media (max-width: 1200px) { .dash-kpis { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 900px) { .dash-kpis { grid-template-columns: 1fr; } }
 .dash-kpi {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -1467,7 +1473,19 @@ textarea { line-height: 1.6; resize: vertical; }
   display: flex;
   flex-direction: column;
   gap: 10px;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  color: inherit;
+  transition: all 0.16s var(--ease);
 }
+.dash-kpi:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-card-hover);
+}
+.dash-kpi:active { transform: translateY(0); }
+.dash-kpi:focus-visible { outline: 2px solid var(--mint); outline-offset: 2px; }
 .dash-kpi-top {
   display: flex;
   align-items: center;
@@ -1667,7 +1685,6 @@ textarea { line-height: 1.6; resize: vertical; }
       </div>
       <div style="display:flex;flex-direction:column;gap:1px;transition:opacity 150ms" class="sidebar-logo-text">
         <span style="font-size:17px;font-weight:700;letter-spacing:-.02em;line-height:1.1">Herling Analytics</span>
-        <span class="sidebar-logo-sub">Dashboard</span>
       </div>
     </div>
 
@@ -1787,40 +1804,32 @@ textarea { line-height: 1.6; resize: vertical; }
           </div>
         </div>
 
-        <!-- KPI strip -->
+        <!-- KPI strip (clickable → navigate to module) -->
         <div class="dash-kpis" id="dashKpis">
-          <div class="dash-kpi" id="dashKpiTasks">
+          <button type="button" class="dash-kpi" id="dashKpiTasks" onclick="switchModule('todo')" title="Open To-Do">
             <div class="dash-kpi-top">
               <span class="dash-kpi-label">Open taken</span>
               <span class="dash-kpi-icon" style="background:var(--mint-soft);color:var(--success)">✓</span>
             </div>
             <div class="dash-kpi-val">–</div>
             <div class="dash-kpi-trend"></div>
-          </div>
-          <div class="dash-kpi" id="dashKpiHours">
-            <div class="dash-kpi-top">
-              <span class="dash-kpi-label">Uren deze week</span>
-              <span class="dash-kpi-icon" style="background:var(--info-bg);color:var(--info)">⧗</span>
-            </div>
-            <div class="dash-kpi-val">–</div>
-            <div class="dash-kpi-trend"></div>
-          </div>
-          <div class="dash-kpi" id="dashKpiDue">
+          </button>
+          <button type="button" class="dash-kpi" id="dashKpiDue" onclick="switchModule('checklist')" title="Open Checklist">
             <div class="dash-kpi-top">
               <span class="dash-kpi-label">Vervallende checklists</span>
               <span class="dash-kpi-icon" style="background:var(--danger-bg);color:var(--danger)">⚠</span>
             </div>
             <div class="dash-kpi-val">–</div>
             <div class="dash-kpi-trend"></div>
-          </div>
-          <div class="dash-kpi" id="dashKpiMeetings">
+          </button>
+          <button type="button" class="dash-kpi" id="dashKpiMeetings" onclick="switchModule('agenda')" title="Open Agenda">
             <div class="dash-kpi-top">
               <span class="dash-kpi-label">Afspraken vandaag</span>
               <span class="dash-kpi-icon" style="background:var(--warning-bg);color:var(--warning)">📅</span>
             </div>
             <div class="dash-kpi-val">–</div>
             <div class="dash-kpi-trend"></div>
-          </div>
+          </button>
         </div>
 
         <!-- 2×2 grid -->
@@ -3027,7 +3036,6 @@ function renderDashKpis(){
     }
   };
   set('dashKpiTasks',   s.openTasks,         s.totalTasks?`${s.doneTasks}/${s.totalTasks} afgerond`:null, 'flat');
-  set('dashKpiHours',   s.urenWeek!==null?s.urenWeek.toFixed(1)+'u':'🔒', s.urenWeek!==null?'deze week':'uren vergrendeld', 'flat');
   set('dashKpiDue',     s.overdueCl,         s.openClCount?`van ${s.openClCount} open`:null, s.overdueCl>0?'down':'flat');
   set('dashKpiMeetings',s.meetingsToday!==null?s.meetingsToday:'—', s.meetingsToday===null?'geen agenda data':'vandaag', 'flat');
 }
