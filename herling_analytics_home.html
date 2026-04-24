@@ -960,27 +960,36 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
       <textarea id="clItemText" rows="3" placeholder="Wat moet er gedaan worden?" style="font-size:15px;padding:10px 12px"></textarea>
     </div>
 
-    <!-- Two-column: priority left, calendar right -->
-    <div style="display:grid;grid-template-columns:160px 1fr;gap:16px;margin-top:12px">
+    <!-- Two-column: priority+client left, calendar right -->
+    <div style="display:grid;grid-template-columns:170px 1fr;gap:16px;margin-top:12px">
 
-      <!-- Priority stacked -->
-      <div>
-        <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Prioriteit</div>
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <button type="button" class="cl-pri-btn" data-pri="hoog" onclick="selectClPriority('hoog')"
-            style="padding:11px 14px;border-radius:var(--radius);border:2px solid transparent;background:#fbeaea;color:#8b1a1a;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;text-align:left">
-            <span style="font-size:16px;margin-right:6px">①</span>Hoog
-          </button>
-          <button type="button" class="cl-pri-btn" data-pri="middel" onclick="selectClPriority('middel')"
-            style="padding:11px 14px;border-radius:var(--radius);border:2px solid transparent;background:#fff8e6;color:#7a5700;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;text-align:left">
-            <span style="font-size:16px;margin-right:6px">②</span>Middel
-          </button>
-          <button type="button" class="cl-pri-btn" data-pri="laag" onclick="selectClPriority('laag')"
-            style="padding:11px 14px;border-radius:var(--radius);border:2px solid transparent;background:#e8f5ee;color:#2d6a4f;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;text-align:left">
-            <span style="font-size:16px;margin-right:6px">③</span>Laag
-          </button>
+      <!-- Left: priority + client (scrollable) -->
+      <div style="display:flex;flex-direction:column;gap:0;min-height:0">
+        <!-- Priority -->
+        <div style="flex-shrink:0">
+          <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Prioriteit</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <button type="button" class="cl-pri-btn" data-pri="hoog" onclick="selectClPriority('hoog')"
+              style="padding:10px 12px;border-radius:var(--radius);border:2px solid transparent;background:#fbeaea;color:#8b1a1a;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;text-align:left">
+              <span style="font-size:15px;margin-right:6px">①</span>Hoog
+            </button>
+            <button type="button" class="cl-pri-btn" data-pri="middel" onclick="selectClPriority('middel')"
+              style="padding:10px 12px;border-radius:var(--radius);border:2px solid transparent;background:#fff8e6;color:#7a5700;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;text-align:left">
+              <span style="font-size:15px;margin-right:6px">②</span>Middel
+            </button>
+            <button type="button" class="cl-pri-btn" data-pri="laag" onclick="selectClPriority('laag')"
+              style="padding:10px 12px;border-radius:var(--radius);border:2px solid transparent;background:#e8f5ee;color:#2d6a4f;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;text-align:left">
+              <span style="font-size:15px;margin-right:6px">③</span>Laag
+            </button>
+          </div>
+          <input type="hidden" id="clItemPriority" value="middel"/>
         </div>
-        <input type="hidden" id="clItemPriority" value="middel"/>
+        <!-- Client -->
+        <div style="margin-top:14px;flex:1;display:flex;flex-direction:column;min-height:0">
+          <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Klant</div>
+          <div id="clClientBtns" style="display:flex;flex-direction:column;gap:5px;overflow-y:auto;max-height:130px;padding-right:2px"></div>
+          <input type="hidden" id="clItemClient" value=""/>
+        </div>
       </div>
 
       <!-- Inline calendar -->
@@ -1610,16 +1619,27 @@ function renderDashChecklist(){
     if(ao!==bo)return ao-bo;
     return (a.sortOrder||0)-(b.sortOrder||0);
   });
+  const selStyle='padding:2px 6px;font-size:11px;border:0.5px solid var(--border-strong);border-radius:4px;background:var(--surface);color:var(--text);font-family:inherit;outline:none;cursor:pointer';
+  const clientOpts='<option value="">— klant —</option>'+kanbanState.clients.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
   body.innerHTML=sorted.map(item=>{
     const cfg=CL_PRIORITY_CFG[item.priority]||CL_PRIORITY_CFG.middel;
     const today=new Date().toISOString().slice(0,10);
     const overdue=item.deadline&&item.deadline<today;
-    return `<div style="display:flex;align-items:center;gap:8px;padding:7px 4px;border-bottom:0.5px solid var(--border)">
-      <div onclick="dashClToggle('${item.id}')" style="width:18px;height:18px;border-radius:4px;border:1.5px solid var(--border-strong);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s"
-        onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border-strong)'"></div>
-      <span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(item.text)}</span>
-      <span style="font-size:11px;font-weight:600;padding:1px 7px;border-radius:8px;background:${cfg.bg};color:${cfg.tx};flex-shrink:0">${cfg.label}</span>
-      ${item.deadline?`<span style="font-size:11px;color:${overdue?'var(--danger)':'var(--text-hint)'};white-space:nowrap;flex-shrink:0">📅 ${item.deadline}</span>`:''}
+    return `<div style="padding:7px 4px;border-bottom:0.5px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div onclick="dashClToggle('${item.id}')" style="width:18px;height:18px;border-radius:4px;border:1.5px solid var(--border-strong);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s"
+          onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border-strong)'"></div>
+        <span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(item.text)}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:5px;padding-left:26px;flex-wrap:wrap">
+        <select style="${selStyle};background:${cfg.bg};color:${cfg.tx};font-weight:600;border-color:${cfg.tx}40" onchange="dashClSetPriority('${item.id}',this.value)">
+          ${['hoog','middel','laag'].map(p=>`<option value="${p}"${item.priority===p?' selected':''}>${CL_PRIORITY_CFG[p].label}</option>`).join('')}
+        </select>
+        <input type="date" value="${item.deadline||''}" style="${selStyle};color:${overdue?'var(--danger)':'var(--text-muted)'}" onchange="dashClSetDeadline('${item.id}',this.value)"/>
+        <select style="${selStyle}" onchange="dashClSetClient('${item.id}',this.value)">
+          ${clientOpts.replace(`value="${item.clientId||''}"`,`value="${item.clientId||''}" selected`)}
+        </select>
+      </div>
     </div>`;
   }).join('');
 }
@@ -1628,9 +1648,22 @@ function dashClToggle(id){
   const item=checklistState.items.find(i=>i.id===id);
   if(!item)return;
   item.done=true;
-  scheduleSave();
-  renderDashChecklist();
-  /* also refresh checklist module if open */
+  scheduleSave();renderDashChecklist();
+  if(activeModule==='checklist')renderChecklistModule();
+}
+function dashClSetPriority(id,val){
+  const item=checklistState.items.find(i=>i.id===id);
+  if(!item)return;item.priority=val;scheduleSave();renderDashChecklist();
+  if(activeModule==='checklist')renderChecklistModule();
+}
+function dashClSetDeadline(id,val){
+  const item=checklistState.items.find(i=>i.id===id);
+  if(!item)return;item.deadline=val||null;scheduleSave();renderDashChecklist();
+  if(activeModule==='checklist')renderChecklistModule();
+}
+function dashClSetClient(id,val){
+  const item=checklistState.items.find(i=>i.id===id);
+  if(!item)return;item.clientId=val||null;scheduleSave();renderDashChecklist();
   if(activeModule==='checklist')renderChecklistModule();
 }
 
@@ -3029,6 +3062,7 @@ function clItemHtml(item,isArchived=false){
     <div class="cl-meta" style="padding-left:44px">
       <span class="cl-priority-badge" style="background:${cfg.bg};color:${cfg.tx}">${cfg.label}</span>
       ${item.deadline?`<span class="cl-deadline${overdue?' overdue':''}">📅 ${item.deadline}${overdue?' · Verlopen':''}</span>`:''}
+      ${(()=>{const c=item.clientId?kanbanState.clients.find(x=>x.id===item.clientId):null;if(!c)return'';const col=CLIENT_COLORS[c.colorIdx%CLIENT_COLORS.length];return`<span style="font-size:12px;font-weight:600;padding:2px 8px;border-radius:8px;background:${col.bg};color:${col.tx}">${escapeHtml(c.name)}</span>`})()}
       ${subtaskStr}
     </div>
     <div style="padding-left:44px">${subtasksHtml}</div>
@@ -3120,6 +3154,32 @@ function toggleChecklistArchived(){
   renderChecklistModule();
 }
 
+/* ── Client button selection (checklist modal) ── */
+function renderClClientBtns(){
+  const el=document.getElementById('clClientBtns');
+  if(!el)return;
+  const selected=document.getElementById('clItemClient')?.value||'';
+  if(!kanbanState.clients.length){
+    el.innerHTML=`<span style="font-size:12px;color:var(--text-hint)">Geen klanten aangemaakt</span>`;
+    return;
+  }
+  el.innerHTML=`<button type="button" onclick="selectClClient('')"
+    style="padding:7px 10px;border-radius:var(--radius);border:2px solid ${selected===''?'var(--text)':'transparent'};background:var(--surface2);color:var(--text-muted);font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;text-align:left;transition:all .15s">
+    — Geen klant
+  </button>`+kanbanState.clients.map(c=>{
+    const col=CLIENT_COLORS[c.colorIdx%CLIENT_COLORS.length];
+    const active=selected===c.id;
+    return `<button type="button" onclick="selectClClient('${c.id}')"
+      style="padding:7px 10px;border-radius:var(--radius);border:2px solid ${active?col.tx:'transparent'};background:${active?col.bg:'var(--surface2)'};color:${active?col.tx:'var(--text-muted)'};font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;transition:all .15s;display:flex;align-items:center;gap:7px">
+      <span style="width:10px;height:10px;border-radius:3px;background:${col.bg};border:1.5px solid ${col.tx};flex-shrink:0"></span>${escapeHtml(c.name)}
+    </button>`;
+  }).join('');
+}
+function selectClClient(id){
+  document.getElementById('clItemClient').value=id;
+  renderClClientBtns();
+}
+
 /* ── Priority button selection ── */
 function selectClPriority(val){
   document.getElementById('clItemPriority').value=val;
@@ -3148,6 +3208,7 @@ function openChecklistItemModal(id){
     if(item.deadline){const d=new Date(item.deadline);clCalYear=d.getFullYear();clCalMonth=d.getMonth();}
     else{clCalYear=now.getFullYear();clCalMonth=now.getMonth();}
     selectClPriority(item.priority||'middel');
+    document.getElementById('clItemClient').value=item.clientId||'';
     deleteBtn.style.display='';
   } else {
     document.getElementById('clItemModalTitle').textContent='Nieuwe taak';
@@ -3156,10 +3217,11 @@ function openChecklistItemModal(id){
     clCalSelected=null;
     clCalYear=now.getFullYear();clCalMonth=now.getMonth();
     selectClPriority('middel');
+    document.getElementById('clItemClient').value='';
     deleteBtn.style.display='none';
   }
   modal.classList.add('open');
-  setTimeout(()=>{renderClCal();document.getElementById('clItemText').focus();},30);
+  setTimeout(()=>{renderClCal();renderClClientBtns();document.getElementById('clItemText').focus();},30);
 }
 
 function closeChecklistItemModal(){
@@ -3172,12 +3234,13 @@ function saveChecklistItem(){
   if(!text){document.getElementById('clItemText').focus();return;}
   const priority=document.getElementById('clItemPriority').value||'middel';
   const deadline=document.getElementById('clItemDeadline').value||null;
+  const clientId=document.getElementById('clItemClient').value||null;
   if(clEditingId){
     const item=checklistState.items.find(i=>i.id===clEditingId);
-    if(item){item.text=text;item.priority=priority;item.deadline=deadline;}
+    if(item){item.text=text;item.priority=priority;item.deadline=deadline;item.clientId=clientId;}
   } else {
     const sameGroup=checklistState.items.filter(i=>!i.archived&&!i.done&&i.priority===priority);
-    checklistState.items.push({id:uid(),text,done:false,priority,deadline,subtasks:[],archived:false,sortOrder:sameGroup.length});
+    checklistState.items.push({id:uid(),text,done:false,priority,deadline,clientId,subtasks:[],archived:false,sortOrder:sameGroup.length});
   }
   closeChecklistItemModal();
   scheduleSave();renderChecklistModule();
@@ -3245,7 +3308,6 @@ function renderAgendaModule(){
   if(settingsBtn)settingsBtn.style.display=connected?'':'none';
   if(connectBtn)connectBtn.style.display=connected?'none':'';
   if(!connected){renderAgendaPlaceholder();return;}
-  if(hasGoogle&&!gAccessToken){renderAgendaReconnect();return;}
   fetchAndRenderView();
 }
 /* ─ Unified multi-source fetch engine ─ */
@@ -3270,6 +3332,15 @@ async function fetchAndRenderView(){
     cachedWeekEvents=events;
     renderFn(events,renderArg,content);
     lastIcalRefresh=new Date();updateIcalRefreshLabel();
+    /* Show reconnect banner if Google is configured but token expired */
+    const hasGoogle=(rawState.settings?.calSources||[]).some(s=>s.type==='google'&&s.enabled!==false);
+    if(hasGoogle&&!gAccessToken){
+      const banner=document.createElement('div');
+      banner.style.cssText='position:absolute;top:0;left:0;right:0;background:#fff8e6;border-bottom:1px solid #f0c040;padding:6px 16px;font-size:12px;display:flex;align-items:center;justify-content:space-between;z-index:20;gap:10px';
+      banner.innerHTML=`<span style="color:#7a5700">⚠ Google Agenda sessie verlopen — andere agenda's worden wel geladen.</span><button class="btn btn-xs" onclick="signInGoogle()" style="flex-shrink:0">Opnieuw verbinden</button>`;
+      content.style.position='relative';
+      content.prepend(banner);
+    }
   }catch(e){
     content.innerHTML=`<div class="cal-placeholder"><p style="color:var(--danger)">${escapeHtml(e.message)}</p><button class="btn btn-sm" onclick="fetchAndRenderView()">Opnieuw</button></div>`;
   }
@@ -3290,7 +3361,7 @@ async function fetchSourceEvents(source,timeMin,timeMax){
     if(!gAccessToken)return[];
     const hdrs={'Authorization':'Bearer '+gAccessToken};
     const listResp=await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=50',{headers:hdrs});
-    if(listResp.status===401){gAccessToken=null;renderAgendaModule();return[];}
+    if(listResp.status===401){gAccessToken=null;return[];}
     if(!listResp.ok)throw new Error('Agenda-lijst ophalen mislukt');
     const calList=await listResp.json();
     const GCOLORS=['#4285f4','#ea4335','#fbbc04','#34a853','#ff6d00','#46bdc6','#7986cb','#a79b8e'];
