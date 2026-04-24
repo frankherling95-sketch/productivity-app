@@ -1306,6 +1306,241 @@ textarea { line-height: 1.6; resize: vertical; }
   padding: 40px 20px;
   font-size: 13px;
 }
+
+/* ═════════════════════════════════════════════════════════════════════════════
+   HERLING ANALYTICS — THEME OVERLAY v2 · POST-FIXES
+   Corrects a few regressions introduced by the overlay above.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Fix 1: agenda events were unreadable ────────────────────────────────────
+   Theme forced background/border-left to static info colors (!important),
+   overriding the per-source colors set inline. It also added 6-8px padding
+   + 11.5px font that didn't fit short events. Restore per-source colors
+   and tighter sizing; keep the theme's rounded corners + transition. */
+.cal-ev-block {
+  padding: 3px 6px !important;
+  background: transparent;         /* no !important → inline wins */
+  border-left: 3px solid;          /* no color here → inline wins */
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+/* ── Fix 2: checklist items collapsed to a single horizontal row ─────────────
+   Theme's `display:flex !important` + `align-items:center !important` without
+   flex-direction forced the stacked parts (row / meta / subtasks) onto one
+   line. Restore column + card surface so the checklist looks like the other
+   modules. */
+.cl-item {
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 6px !important;
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-card);
+}
+.cl-item:hover { background: var(--surface) !important; box-shadow: var(--shadow-card-hover); }
+
+/* ── Fix 3: filter chips had no selected state ───────────────────────────────
+   Restore visual "pill" shape + white selected background + mint ring. */
+.cl-chip {
+  border-radius: 999px !important;
+  padding: 4px 11px !important;
+  font-family: var(--font-body) !important;
+  font-size: 11px !important;
+  cursor: pointer;
+  border: 1px solid transparent !important;
+  background: transparent !important;
+  color: var(--text-muted) !important;
+}
+.cl-chip:hover {
+  background: var(--surface2) !important;
+  color: var(--text) !important;
+}
+.cl-chip.active {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  font-weight: 700 !important;
+  box-shadow: 0 1px 2px rgba(15,27,61,0.06), 0 0 0 1px var(--border-strong);
+}
+
+/* ── Fix: cl-body should use standard module padding/vertical stack ───────── */
+.cl-body { gap: 10px !important; padding: 14px 20px !important; }
+
+/* ═════════════════════════════════════════════════════════════════════════════
+   DASHBOARD v2 — hero + KPI strip + 2×2 grid
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* Topbar: left-align title, gap with right-side actions */
+.dash-topbar {
+  padding: 14px 24px !important;
+  min-height: 56px;
+  background: var(--surface) !important;
+}
+.dash-topbar .module-title { font-family: var(--font-display); font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
+.dash-topbar .module-sub   { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+
+/* Scroll wrapper replaces the old fixed-height dash-grid container */
+.dash-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 0;
+}
+
+/* ── Hero ────────────────────────────────────────────────────────────────── */
+.dash-hero {
+  background: var(--hero-gradient);
+  color: #fff;
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  min-height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  position: relative;
+  overflow: hidden;
+}
+.dash-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 140' preserveAspectRatio='xMaxYMid slice'><polyline points='0,110 60,85 120,95 180,65 240,50 300,55 360,25 400,18' fill='none' stroke='%2300e5b0' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round' opacity='0.35'/></svg>")
+    no-repeat right center / 45% 100%;
+  opacity: 0.9;
+}
+.dash-hero-left { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; position: relative; z-index: 1; }
+.dash-hero-eyebrow {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--mint);
+  font-weight: 700;
+  font-family: var(--font-display);
+}
+.dash-hero-headline {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: #fff;
+  letter-spacing: -0.02em;
+}
+.dash-hero-headline .hl-num { color: var(--mint); font-weight: 800; }
+.dash-hero-sub { font-size: 13px; color: rgba(255,255,255,0.7); }
+.dash-hero-right {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  position: relative; z-index: 1;
+}
+.dash-hero-spark { width: 200px; height: 60px; display: block; }
+.dash-hero-delta { font-size: 11px; color: var(--mint); font-weight: 600; font-family: var(--font-mono); }
+@media (max-width: 720px) {
+  .dash-hero { padding: 20px; }
+  .dash-hero-headline { font-size: 20px; }
+  .dash-hero-right { display: none; }
+}
+
+/* ── KPI strip ───────────────────────────────────────────────────────────── */
+.dash-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+@media (max-width: 1200px) { .dash-kpis { grid-template-columns: repeat(2, 1fr); } }
+.dash-kpi {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.dash-kpi-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.dash-kpi-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.dash-kpi-icon {
+  width: 24px; height: 24px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.dash-kpi-val {
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text);
+}
+.dash-kpi-trend {
+  font-size: 11px;
+  color: var(--text-hint);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.dash-kpi-trend .trend-up   { color: var(--success); font-weight: 700; }
+.dash-kpi-trend .trend-down { color: var(--danger);  font-weight: 700; }
+.dash-kpi-trend .trend-flat { color: var(--text-muted); font-weight: 700; }
+
+/* ── 2×2 Grid of cards ───────────────────────────────────────────────────── */
+.dash-grid {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  grid-template-rows: 1fr 1fr !important;
+  grid-auto-rows: 1fr;
+  gap: 20px !important;
+  padding: 0 !important;        /* padding now lives on .dash-scroll */
+  flex: 0 0 auto !important;    /* disable the old flex:1 squish */
+  overflow: visible !important;
+  min-height: 420px;
+}
+@media (max-width: 900px) { .dash-grid { grid-template-columns: 1fr !important; grid-template-rows: none !important; } }
+
+.dash-grid .card {
+  min-width: 0;
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-card) !important;
+  padding: 0 !important;
+}
+.dash-grid .card-hdr {
+  padding: 14px 18px 10px !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+.dash-grid .card-hdr h2 {
+  font-family: var(--font-display) !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em !important;
+}
+.dash-grid .card-body { padding: 12px 18px !important; }
 </style>
 </head>
 <body>
@@ -1410,56 +1645,107 @@ textarea { line-height: 1.6; resize: vertical; }
           <button class="btn btn-sm btn-ghost" onclick="showTokenSettings()" title="Instellingen">⚙</button>
         </div>
       </div>
-      <div class="dash-grid">
-        <div class="card">
-          <div class="card-hdr">
-            <h2>✓ To-Do overzicht</h2>
-            <button class="btn btn-xs btn-primary" onclick="switchModule('todo')">Bekijk ↗</button>
+
+      <div class="dash-scroll">
+        <!-- Hero -->
+        <div class="dash-hero">
+          <div class="dash-hero-left">
+            <div class="dash-hero-eyebrow">Vandaag</div>
+            <div class="dash-hero-headline" id="dashHeroHeadline">Laden…</div>
+            <div class="dash-hero-sub" id="dashHeroSub"></div>
           </div>
-          <div class="card-body" id="dashTodoBody">
-            <div class="loading-state"><div class="spinner"></div><span>Laden...</span></div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-hdr">
-            <h2>📝 Recente notities</h2>
-            <button class="btn btn-xs btn-primary" onclick="switchModule('notes')">Bekijk ↗</button>
-          </div>
-          <div class="card-body" id="dashNotesBody">
-            <div class="loading-state"><div class="spinner"></div><span>Laden...</span></div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-hdr">
-            <h2>📅 Agenda</h2>
-            <div style="display:flex;gap:4px">
-              <button class="btn btn-xs" id="dashCalSettingsBtn" onclick="toggleDashCalSettings()" style="display:none">⚙</button>
-              <button class="btn btn-xs btn-primary" onclick="switchModule('agenda')">Bekijk ↗</button>
-            </div>
-          </div>
-          <div class="card-body" id="dashCalBody" style="padding:0;overflow:hidden">
-            <div class="placeholder">
-              <div class="placeholder-icon">📅</div>
-              <p>Koppel een Google Agenda om je afspraken te zien.</p>
-              <button class="btn btn-sm btn-primary" onclick="switchModule('agenda')">Agenda koppelen</button>
-            </div>
+          <div class="dash-hero-right">
+            <svg class="dash-hero-spark" id="dashHeroSpark" viewBox="0 0 200 60" preserveAspectRatio="none" aria-hidden="true"></svg>
+            <div class="dash-hero-delta" id="dashHeroDelta"></div>
           </div>
         </div>
 
-        <div class="card">
-          <div class="card-hdr">
-            <h2>☑ Checklist</h2>
-            <button class="btn btn-xs btn-primary" onclick="switchModule('checklist')">Bekijk ↗</button>
+        <!-- KPI strip -->
+        <div class="dash-kpis" id="dashKpis">
+          <div class="dash-kpi" id="dashKpiTasks">
+            <div class="dash-kpi-top">
+              <span class="dash-kpi-label">Open taken</span>
+              <span class="dash-kpi-icon" style="background:var(--mint-soft);color:var(--success)">✓</span>
+            </div>
+            <div class="dash-kpi-val">–</div>
+            <div class="dash-kpi-trend"></div>
           </div>
-          <div class="card-body" id="dashChecklistBody" style="display:flex;flex-direction:column;gap:0;padding:8px 12px">
-            <div class="loading-state"><div class="spinner"></div><span>Laden...</span></div>
+          <div class="dash-kpi" id="dashKpiHours">
+            <div class="dash-kpi-top">
+              <span class="dash-kpi-label">Uren deze week</span>
+              <span class="dash-kpi-icon" style="background:var(--info-bg);color:var(--info)">⧗</span>
+            </div>
+            <div class="dash-kpi-val">–</div>
+            <div class="dash-kpi-trend"></div>
           </div>
-          <div style="padding:8px 12px;border-top:0.5px solid var(--border);flex-shrink:0;display:flex;gap:6px">
-            <input id="dashClInput" type="text" placeholder="Nieuwe taak toevoegen..."
-              style="flex:1;padding:6px 10px;font-size:13px;border:0.5px solid var(--border-strong);border-radius:var(--radius);background:var(--surface);color:var(--text);font-family:inherit;outline:none"
-              onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border-strong)'"
-              onkeydown="if(event.key==='Enter')dashClAdd()"/>
-            <button class="btn btn-sm btn-primary" onclick="dashClAdd()">+</button>
+          <div class="dash-kpi" id="dashKpiDue">
+            <div class="dash-kpi-top">
+              <span class="dash-kpi-label">Vervallende checklists</span>
+              <span class="dash-kpi-icon" style="background:var(--danger-bg);color:var(--danger)">⚠</span>
+            </div>
+            <div class="dash-kpi-val">–</div>
+            <div class="dash-kpi-trend"></div>
+          </div>
+          <div class="dash-kpi" id="dashKpiMeetings">
+            <div class="dash-kpi-top">
+              <span class="dash-kpi-label">Afspraken vandaag</span>
+              <span class="dash-kpi-icon" style="background:var(--warning-bg);color:var(--warning)">📅</span>
+            </div>
+            <div class="dash-kpi-val">–</div>
+            <div class="dash-kpi-trend"></div>
+          </div>
+        </div>
+
+        <!-- 2×2 grid -->
+        <div class="dash-grid">
+          <div class="card">
+            <div class="card-hdr">
+              <h2>To-Do overzicht</h2>
+              <button class="btn btn-xs btn-primary" onclick="switchModule('todo')">Bekijk ↗</button>
+            </div>
+            <div class="card-body" id="dashTodoBody">
+              <div class="loading-state"><div class="spinner"></div><span>Laden...</span></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-hdr">
+              <h2>Recente notities</h2>
+              <button class="btn btn-xs btn-primary" onclick="switchModule('notes')">Bekijk ↗</button>
+            </div>
+            <div class="card-body" id="dashNotesBody">
+              <div class="loading-state"><div class="spinner"></div><span>Laden...</span></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-hdr">
+              <h2>Checklist</h2>
+              <button class="btn btn-xs btn-primary" onclick="switchModule('checklist')">Bekijk ↗</button>
+            </div>
+            <div class="card-body" id="dashChecklistBody" style="display:flex;flex-direction:column;gap:0">
+              <div class="loading-state"><div class="spinner"></div><span>Laden...</span></div>
+            </div>
+            <div style="padding:10px 18px;border-top:1px solid var(--border);flex-shrink:0;display:flex;gap:6px">
+              <input id="dashClInput" type="text" placeholder="Nieuwe taak toevoegen..."
+                style="flex:1;padding:6px 10px;font-size:13px"
+                onkeydown="if(event.key==='Enter')dashClAdd()"/>
+              <button class="btn btn-sm btn-primary" onclick="dashClAdd()">+</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-hdr">
+              <h2>Agenda</h2>
+              <div style="display:flex;gap:4px">
+                <button class="btn btn-xs" id="dashCalSettingsBtn" onclick="toggleDashCalSettings()" style="display:none">⚙</button>
+                <button class="btn btn-xs btn-primary" onclick="switchModule('agenda')">Bekijk ↗</button>
+              </div>
+            </div>
+            <div class="card-body" id="dashCalBody" style="padding:0;overflow:hidden">
+              <div class="placeholder">
+                <div class="placeholder-icon">📅</div>
+                <p>Koppel een agenda om je afspraken te zien.</p>
+                <button class="btn btn-sm btn-primary" onclick="switchModule('agenda')">Agenda koppelen</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -2494,10 +2780,129 @@ function editClient(id,e){
    ═══════════════════════════════════════════════════ */
 function renderDashboard(){
   document.getElementById('todayStr').textContent=formatToday();
+  renderDashHero();
+  renderDashKpis();
   renderDashTodo();
   renderDashNotes();
   renderDashCal();
   renderDashChecklist();
+}
+
+/* ─── Dashboard: Hero + KPI derived values ───────────────────────────────── */
+function dashDerivedStats(){
+  /* Open tasks across all projects */
+  let totalTasks=0,doneTasks=0;
+  const projects=kanbanState?.projects||{};
+  Object.values(projects).forEach(p=>{
+    (p.columns||[]).forEach(c=>{
+      const n=c.items?.length||0;
+      totalTasks+=n;
+      if(c.isCompleted)doneTasks+=n;
+    });
+  });
+  const openTasks=Math.max(0,totalTasks-doneTasks);
+
+  /* Overdue/Open checklist items */
+  const today=new Date().toISOString().slice(0,10);
+  const openCl=(checklistState?.items||[]).filter(i=>!i.done&&!i.archived);
+  const overdueCl=openCl.filter(i=>i.deadline&&i.deadline<today).length;
+
+  /* Uren — sum hours this ISO-week if unlocked, else null */
+  let urenWeek=null;
+  if(urenLocked!==true&&Array.isArray(urenState?.entries)){
+    const ws=getWeekStart(0);const we=new Date(ws);we.setDate(ws.getDate()+7);
+    const wsStr=ws.toISOString().slice(0,10),weStr=we.toISOString().slice(0,10);
+    urenWeek=urenState.entries
+      .filter(e=>e.date>=wsStr&&e.date<weStr)
+      .reduce((sum,e)=>sum+(parseFloat(e.hours)||0),0);
+  }
+
+  /* Agenda today — from cached events if present */
+  let meetingsToday=null;
+  if(Array.isArray(cachedWeekEvents)&&cachedWeekEvents.length){
+    const t=today;
+    meetingsToday=cachedWeekEvents.filter(ev=>{
+      const ds=ev.start?.dateTime?ev.start.dateTime.slice(0,10):ev.start?.date;
+      return ds===t;
+    }).length;
+  }
+
+  return{openTasks,totalTasks,doneTasks,openClCount:openCl.length,overdueCl,urenWeek,meetingsToday};
+}
+
+function renderDashHero(){
+  const hl=document.getElementById('dashHeroHeadline');
+  const sub=document.getElementById('dashHeroSub');
+  const spark=document.getElementById('dashHeroSpark');
+  const delta=document.getElementById('dashHeroDelta');
+  if(!hl)return;
+  const s=dashDerivedStats();
+  const name=((rawState?.settings||{}).userName||'').trim();
+  const hour=new Date().getHours();
+  const greet=hour<6?'Goedenacht':hour<12?'Goedemorgen':hour<18?'Goedemiddag':'Goedenavond';
+  const weekday=new Date().toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long'});
+  document.getElementById('todayStr').textContent=(name?greet+', '+name+' — ':greet+' — ')+weekday;
+
+  const parts=[];
+  if(s.meetingsToday!==null)parts.push(`<span class="hl-num">${s.meetingsToday}</span> afspraken`);
+  parts.push(`<span class="hl-num">${s.openTasks}</span> open taken`);
+  if(s.overdueCl>0)parts.push(`<span class="hl-num">${s.overdueCl}</span> vervallende checklists`);
+  hl.innerHTML=parts.join(' · ');
+  sub.textContent = s.urenWeek!==null
+    ? `Je hebt ${s.urenWeek.toFixed(1)} uur geregistreerd deze week.`
+    : (s.totalTasks>0 ? `${s.doneTasks} van ${s.totalTasks} taken afgerond.` : 'Klaar om te starten.');
+
+  /* Sparkline: uren per dag (laatste 7 dagen) of 0-baseline */
+  const days=[];
+  for(let i=6;i>=0;i--){
+    const d=new Date();d.setDate(d.getDate()-i);
+    days.push(d.toISOString().slice(0,10));
+  }
+  const vals=days.map(ds=>{
+    if(!Array.isArray(urenState?.entries))return 0;
+    return urenState.entries.filter(e=>e.date===ds).reduce((s,e)=>s+(parseFloat(e.hours)||0),0);
+  });
+  const W=200,H=60,PAD=4;
+  const max=Math.max(1,...vals);
+  const pts=vals.map((v,i)=>{
+    const x=PAD+(i*(W-2*PAD))/(vals.length-1);
+    const y=H-PAD-(v/max)*(H-2*PAD);
+    return[x,y];
+  });
+  const poly=pts.map(([x,y])=>`${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+  const area=`${PAD},${H-PAD} ${poly} ${(W-PAD)},${H-PAD}`;
+  spark.innerHTML=`
+    <defs><linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#00e5b0" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#00e5b0" stop-opacity="0"/>
+    </linearGradient></defs>
+    <polyline points="${area}" fill="url(#sparkFill)" stroke="none"/>
+    <polyline points="${poly}" fill="none" stroke="#00e5b0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    ${pts.map(([x,y])=>`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2" fill="#00e5b0"/>`).join('')}
+  `;
+  const total7=vals.reduce((a,b)=>a+b,0);
+  delta.textContent=total7>0?`${total7.toFixed(1)}u afgelopen 7 dagen`:'Geen uren geregistreerd';
+}
+
+function renderDashKpis(){
+  const s=dashDerivedStats();
+  const set=(id,val,trendText,trendKind)=>{
+    const el=document.getElementById(id);if(!el)return;
+    const valEl=el.querySelector('.dash-kpi-val');
+    const trendEl=el.querySelector('.dash-kpi-trend');
+    valEl.textContent=val;
+    if(trendText){
+      const cls=trendKind==='up'?'trend-up':trendKind==='down'?'trend-down':'trend-flat';
+      const arrow=trendKind==='up'?'▲':trendKind==='down'?'▼':'=';
+      trendEl.innerHTML=`<span class="${cls}">${arrow} ${trendText}</span>`;
+    } else {
+      trendEl.textContent='';
+    }
+  };
+  set('dashKpiTasks',   s.openTasks,         s.totalTasks?`${s.doneTasks}/${s.totalTasks} afgerond`:null, 'flat');
+  set('dashKpiHours',   s.urenWeek!==null?s.urenWeek.toFixed(1)+'u':'🔒', s.urenWeek!==null?'deze week':'uren vergrendeld', 'flat');
+  set('dashKpiDue',     s.overdueCl,         s.openClCount?`van ${s.openClCount} open`:null, s.overdueCl>0?'down':'flat');
+  set('dashKpiMeetings',s.meetingsToday!==null?s.meetingsToday:'—', s.meetingsToday===null?'geen agenda data':'vandaag', 'flat');
 }
 
 function renderDashChecklist(){
