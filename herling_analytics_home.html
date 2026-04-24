@@ -400,6 +400,13 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .cl-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:10px;color:var(--text-hint);text-align:center;padding:40px}
 .cl-filter-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .cl-filter-bar select{padding:4px 8px;font-size:12px;border:0.5px solid var(--border-strong);border-radius:var(--radius);background:var(--surface);color:var(--text);font-family:inherit;outline:none;cursor:pointer}
+.cl-filter-row{display:flex;align-items:center;gap:12px;padding:8px 20px;background:var(--surface2);border-bottom:0.5px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+.cl-filter-group{display:flex;align-items:center;gap:5px}
+.cl-filter-lbl{font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap}
+.cl-chip{padding:3px 9px;font-size:11px;border-radius:20px;border:1px solid var(--border-strong);background:transparent;color:var(--text-muted);cursor:pointer;font-family:inherit;transition:all .15s;white-space:nowrap}
+.cl-chip:hover{background:var(--surface3);color:var(--text)}
+.cl-chip.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.cl-filter-select{padding:3px 7px;font-size:11px;border:1px solid var(--border-strong);border-radius:20px;background:var(--surface);color:var(--text);font-family:inherit;outline:none;cursor:pointer;max-width:130px}
 /* Checklist item modal */
 .cl-modal-field{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
 .cl-modal-field label{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em}
@@ -930,6 +937,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
           <button class="btn btn-xs btn-danger" onclick="deleteAllDone()" title="Alle voltooide taken verwijderen">✕ Verwijder voltooid</button>
         </div>
       </div>
+      <div class="cl-filter-row" id="clFilterRow"></div>
       <div class="cl-progress-wrap" id="clProgressWrap" style="display:none">
         <div class="cl-progress-label" id="clProgressLabel"></div>
         <div class="cl-progress-track"><div class="cl-progress-fill" id="clProgressFill" style="width:0%"></div></div>
@@ -1255,6 +1263,7 @@ const DEFAULT_COLUMNS=[
 let ghToken=null, gistId=null, saveTimer=null;
 let rawState={tasks:{},notes:{},checklist:{},settings:{}};
 let checklistState={items:[],showArchived:false,sortBy:'priority'};
+let clFilters={prio:null,clientId:null,period:null};
 
 /* Kanban state */
 let kanbanState={projects:{},activeProject:null,clients:[],tags:[],categoryGrouping:'grouped'};
@@ -2876,10 +2885,34 @@ function renderChecklistModule(){
   const progEmpty=document.getElementById('clProgressEmpty');
   if(!body)return;
 
+  renderClFilterBar();
+
   const notArchived=checklistState.items.filter(i=>!i.archived);
-  const activeItems=notArchived.filter(i=>!i.done);
+  const allActiveItems=notArchived.filter(i=>!i.done);
   const doneItems=notArchived.filter(i=>i.done);
   const archived=checklistState.items.filter(i=>i.archived);
+
+  /* Apply filters */
+  const now=new Date();
+  let weekStart=null,weekEnd=null,monthStart=null,monthEnd=null;
+  if(clFilters.period==='week'){
+    const d=new Date(now);d.setHours(0,0,0,0);
+    const dow=d.getDay();d.setDate(d.getDate()-(dow===0?6:dow-1));
+    weekStart=d.toISOString().slice(0,10);
+    const we=new Date(d);we.setDate(d.getDate()+6);weekEnd=we.toISOString().slice(0,10);
+  } else if(clFilters.period==='month'){
+    monthStart=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
+    const last=new Date(now.getFullYear(),now.getMonth()+1,0);
+    monthEnd=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(last.getDate()).padStart(2,'0')}`;
+  }
+  const activeItems=allActiveItems.filter(i=>{
+    if(clFilters.prio&&i.priority!==clFilters.prio)return false;
+    if(clFilters.clientId&&i.clientId!==clFilters.clientId)return false;
+    if(clFilters.period==='week'){if(!i.deadline||i.deadline<weekStart||i.deadline>weekEnd)return false;}
+    if(clFilters.period==='month'){if(!i.deadline||i.deadline<monthStart||i.deadline>monthEnd)return false;}
+    return true;
+  });
+  const filtersActive=clFilters.prio||clFilters.clientId||clFilters.period;
 
   /* Progress bar + new-task button placement */
   if(notArchived.length){
@@ -2915,6 +2948,10 @@ function renderChecklistModule(){
     body.innerHTML=`<div class="cl-empty"><div style="font-size:32px">☑</div><p>Nog geen taken. Klik op <strong>+ Nieuwe taak</strong> om te beginnen.</p></div>`;
     return;
   }
+  if(!activeItems.length&&filtersActive&&!doneItems.length){
+    body.innerHTML=`<div class="cl-empty"><div style="font-size:32px">🔍</div><p>Geen taken gevonden voor deze filters.</p><button class="btn btn-sm" onclick="clFilters={prio:null,clientId:null,period:null};renderChecklistModule()">Filters wissen</button></div>`;
+    return;
+  }
 
   let html='';
 
@@ -2931,14 +2968,21 @@ function renderChecklistModule(){
     });
   }
 
-  /* Done items — collapsible section */
-  if(doneItems.length){
+  /* Done items — collapsible section, filtered same as active */
+  const visibleDone=filtersActive?doneItems.filter(i=>{
+    if(clFilters.prio&&i.priority!==clFilters.prio)return false;
+    if(clFilters.clientId&&i.clientId!==clFilters.clientId)return false;
+    if(clFilters.period==='week'){if(!i.deadline||i.deadline<weekStart||i.deadline>weekEnd)return false;}
+    if(clFilters.period==='month'){if(!i.deadline||i.deadline<monthStart||i.deadline>monthEnd)return false;}
+    return true;
+  }):doneItems;
+  if(visibleDone.length){
     const icon=clDoneExpanded?'▼':'▶';
     html+=`<div class="cl-section-hdr" style="cursor:pointer;display:flex;align-items:center;gap:6px;margin-top:10px;color:var(--text-hint)" onclick="toggleClDoneSection()">
-      <span>${icon}</span><span>Afgerond (${doneItems.length})</span>
+      <span>${icon}</span><span>Afgerond (${visibleDone.length})</span>
     </div>`;
     if(clDoneExpanded){
-      doneItems.forEach(item=>{ html+=clItemHtml(item); });
+      visibleDone.forEach(item=>{ html+=clItemHtml(item); });
     }
   }
 
@@ -3115,6 +3159,38 @@ function deleteChecklistItem(id){
 function setChecklistSort(v){
   checklistState.sortBy=v;
   scheduleSave();renderChecklistModule();
+}
+function setClFilter(type,val){
+  clFilters[type]=(clFilters[type]===val)?null:val;
+  renderChecklistModule();
+}
+function renderClFilterBar(){
+  const el=document.getElementById('clFilterRow');if(!el)return;
+  const clients=kanbanState.clients||[];
+  const prioChips=[
+    {val:null,label:'Alle'},
+    {val:'hoog',label:'Hoog',bg:CL_PRIORITY_CFG.hoog.bg,tx:CL_PRIORITY_CFG.hoog.tx},
+    {val:'middel',label:'Middel',bg:CL_PRIORITY_CFG.middel.bg,tx:CL_PRIORITY_CFG.middel.tx},
+    {val:'laag',label:'Laag',bg:CL_PRIORITY_CFG.laag.bg,tx:CL_PRIORITY_CFG.laag.tx},
+  ];
+  const periodChips=[{val:null,label:'Alle'},{val:'week',label:'Deze week'},{val:'month',label:'Deze maand'}];
+  const prioHtml=prioChips.map(p=>{
+    const active=clFilters.prio===p.val;
+    const style=active&&p.bg?`background:${p.bg};color:${p.tx};border-color:${p.bg}`:(active?'':'');
+    return `<button class="cl-chip${active?' active':''}" style="${style}" onclick="setClFilter('prio',${p.val===null?'null':`'${p.val}'`})">${p.label}</button>`;
+  }).join('');
+  const clientHtml=`<select class="cl-filter-select" onchange="setClFilter('clientId',this.value||null)">
+    <option value="">Alle klanten</option>
+    ${clients.map(c=>`<option value="${c.id}"${clFilters.clientId===c.id?' selected':''}>${escapeHtml(c.name)}</option>`).join('')}
+  </select>`;
+  const periodHtml=periodChips.map(p=>{
+    const active=clFilters.period===p.val;
+    return `<button class="cl-chip${active?' active':''}" onclick="setClFilter('period',${p.val===null?'null':`'${p.val}'`})">${p.label}</button>`;
+  }).join('');
+  el.innerHTML=`
+    <div class="cl-filter-group"><span class="cl-filter-lbl">Prio</span>${prioHtml}</div>
+    <div class="cl-filter-group"><span class="cl-filter-lbl">Klant</span>${clientHtml}</div>
+    <div class="cl-filter-group"><span class="cl-filter-lbl">Periode</span>${periodHtml}</div>`;
 }
 
 function toggleChecklistArchived(){
