@@ -3256,7 +3256,25 @@ document.addEventListener('dblclick',e=>{
 });
 
 /* ═══════════════════════════════════════════════════
-   CHECKLIST MODULE
+   MODULE: CHECKLIST
+   ───────────────────────────────────────────────────
+   Structure:
+     ═══ STATE ═══  checklistState, clFilters, clEditingId,
+                    clDragId, clAddingSubtaskFor, clEditingSubtask,
+                    clCalYear/Month/Selected, clDoneExpanded.
+     ═══ LOGIC ═══  CRUD on items + subtasks, filter helpers,
+                    drag-reorder, sort, archive.
+     ═══ VIEW  ═══  renderChecklistModule, clItemHtml,
+                    renderClFilterBar, renderClCal,
+                    renderClClientBtns, modal handling.
+
+   Optimistic saves: toggles, edits, sort/filter changes go
+   through scheduleSave() (debounced gist push) and re-render
+   immediately.
+
+   Delegation: item/subtask click + change handlers use
+   data-action. Drag handlers remain inline on each .cl-item
+   (e.currentTarget-bound), attached in renderChecklistBody.
    ═══════════════════════════════════════════════════ */
 const CL_PRIORITY_CFG={
   hoog:{label:'Hoog',bg:'#fbeaea',tx:'#8b1a1a',order:0},
@@ -3301,7 +3319,7 @@ function clCalDayHtml(label,iso,other,today){
   if(other)cls+=' other-month';
   if(iso===today)cls+=' today';
   if(iso===clCalSelected)cls+=' selected';
-  return `<div class="${cls}" onclick="clCalSelect('${iso}')">${label}</div>`;
+  return `<div class="${cls}" data-action="clCalSelect" data-arg1="${iso}">${label}</div>`;
 }
 function clCalSelect(iso){
   clCalSelected=(clCalSelected===iso)?null:iso;
@@ -3383,7 +3401,7 @@ function renderChecklistModule(){
     return;
   }
   if(!activeItems.length&&filtersActive&&!doneItems.length){
-    body.innerHTML=`<div class="cl-empty"><div style="font-size:32px">🔍</div><p>Geen taken gevonden voor deze filters.</p><button class="btn btn-sm" onclick="clFilters={prio:null,clientId:null,period:null};renderChecklistModule()">Filters wissen</button></div>`;
+    body.innerHTML=`<div class="cl-empty"><div style="font-size:32px">🔍</div><p>Geen taken gevonden voor deze filters.</p><button class="btn btn-sm" data-action="clearClFilters">Filters wissen</button></div>`;
     return;
   }
 
@@ -3412,7 +3430,7 @@ function renderChecklistModule(){
   }):doneItems;
   if(visibleDone.length){
     const icon=clDoneExpanded?'▼':'▶';
-    html+=`<div class="cl-section-hdr" style="cursor:pointer;display:flex;align-items:center;gap:6px;margin-top:10px;color:var(--text-hint)" onclick="toggleClDoneSection()">
+    html+=`<div class="cl-section-hdr" style="cursor:pointer;display:flex;align-items:center;gap:6px;margin-top:10px;color:var(--text-hint)" data-action="toggleClDoneSection">
       <span>${icon}</span><span>Afgerond (${visibleDone.length})</span>
     </div>`;
     if(clDoneExpanded){
@@ -3484,28 +3502,25 @@ function clItemHtml(item,isArchived=false){
     const isEditing=clEditingSubtask.itemId===item.id&&clEditingSubtask.subId===st.id;
     const textPart=isEditing
       ?`<input class="cl-subtask-edit-input" data-st-edit="${item.id}|${st.id}"
+          data-st-edit-item="${item.id}" data-st-edit-sub="${st.id}"
           value="${escapeHtml(st.text)}"
-          style="flex:1;padding:2px 6px;font-size:13px;border:0.5px solid var(--accent);border-radius:var(--radius);background:var(--surface);color:var(--text);font-family:inherit;outline:none"
-          onkeydown="handleEditSubtaskKey(event,'${item.id}','${st.id}')"
-          onblur="commitEditSubtask('${item.id}','${st.id}',this.value)"/>`
+          style="flex:1;padding:2px 6px;font-size:13px;border:0.5px solid var(--accent);border-radius:var(--radius);background:var(--surface);color:var(--text);font-family:inherit;outline:none"/>`
       :`<span class="cl-subtask-text${st.done?' done-text':''}"
           title="Klik om te bewerken" style="cursor:text;flex:1"
-          onclick="startEditSubtask('${item.id}','${st.id}')">${escapeHtml(st.text)}</span>`;
+          data-action="startEditSubtask" data-arg1="${item.id}" data-arg2="${st.id}">${escapeHtml(st.text)}</span>`;
     subtasksHtml+=`<div class="cl-subtask">
-      <div class="cl-subtask-check${st.done?' checked':''}" onclick="toggleSubtask('${item.id}','${st.id}')">${st.done?'✓':''}</div>
+      <div class="cl-subtask-check${st.done?' checked':''}" data-action="toggleSubtask" data-arg1="${item.id}" data-arg2="${st.id}">${st.done?'✓':''}</div>
       ${textPart}
-      <button onclick="deleteSubtask('${item.id}','${st.id}')" style="background:none;border:none;cursor:pointer;color:var(--text-hint);font-size:11px;padding:0 3px;opacity:.5">✕</button>
+      <button data-action="deleteSubtask" data-arg1="${item.id}" data-arg2="${st.id}" style="background:none;border:none;cursor:pointer;color:var(--text-hint);font-size:11px;padding:0 3px;opacity:.5">✕</button>
     </div>`;
   });
   if(clAddingSubtaskFor===item.id){
     subtasksHtml+=`<div style="display:flex;gap:4px;margin-top:2px">
-      <input class="cl-subtask-input-field" data-subtask-input="${item.id}" placeholder="Subtaak omschrijving..."
-        style="flex:1;padding:4px 7px;font-size:13px;border:0.5px solid var(--accent);border-radius:var(--radius);background:var(--surface);color:var(--text);font-family:inherit;outline:none"
-        onkeydown="handleSubtaskInputKey(event,'${item.id}')"
-        onblur="commitSubtaskInput('${item.id}',this.value)"/>
+      <input class="cl-subtask-input-field" data-subtask-input="${item.id}" data-subtask-input-item="${item.id}" placeholder="Subtaak omschrijving..."
+        style="flex:1;padding:4px 7px;font-size:13px;border:0.5px solid var(--accent);border-radius:var(--radius);background:var(--surface);color:var(--text);font-family:inherit;outline:none"/>
     </div>`;
   } else {
-    subtasksHtml+=`<button class="cl-add-subtask" onclick="startSubtaskInput('${item.id}')">+ Subtaak</button>`;
+    subtasksHtml+=`<button class="cl-add-subtask" data-action="startSubtaskInput" data-arg1="${item.id}">+ Subtaak</button>`;
   }
   subtasksHtml+='</div>';
 
@@ -3513,12 +3528,12 @@ function clItemHtml(item,isArchived=false){
   return `<div class="cl-item${item.done?' done-item':''}${isArchived?' archived-item':''}" data-id="${item.id}" ${draggable?'draggable="true"':''}>
     <div class="cl-item-row">
       ${draggable?`<span class="cl-drag-handle" title="Slepen om te sorteren">⠿</span>`:'<span style="width:20px;flex-shrink:0"></span>'}
-      <div class="cl-check${item.done?' checked':''}" onclick="toggleChecklistDone('${item.id}')" style="width:20px;height:20px;border-radius:5px;margin-top:0">${item.done?'✓':''}</div>
+      <div class="cl-check${item.done?' checked':''}" data-action="toggleChecklistDone" data-arg1="${item.id}" style="width:20px;height:20px;border-radius:5px;margin-top:0">${item.done?'✓':''}</div>
       <span class="cl-text${item.done?' done-text':''}">${escapeHtml(item.text)}</span>
       <div class="cl-actions">
-        ${!item.done?`<button onclick="openChecklistItemModal('${item.id}')" title="Bewerken">✎</button>`:''}
-        ${isArchived?`<button onclick="unarchiveItem('${item.id}')" title="Herstellen">↩</button>`:''}
-        <button onclick="deleteChecklistItem('${item.id}')" title="Verwijderen">✕</button>
+        ${!item.done?`<button data-action="openChecklistItemModal" data-arg1="${item.id}" title="Bewerken">✎</button>`:''}
+        ${isArchived?`<button data-action="unarchiveItem" data-arg1="${item.id}" title="Herstellen">↩</button>`:''}
+        <button data-action="deleteChecklistItem" data-arg1="${item.id}" title="Verwijderen">✕</button>
       </div>
     </div>
     <div class="cl-meta" style="padding-left:44px">
@@ -3646,15 +3661,15 @@ function renderClFilterBar(){
   const prioHtml=prioChips.map(p=>{
     const active=clFilters.prio===p.val;
     const style=active&&p.bg?`background:${p.bg};color:${p.tx};border-color:${p.bg}`:(active?'':'');
-    return `<button class="cl-chip${active?' active':''}" style="${style}" onclick="setClFilter('prio',${p.val===null?'null':`'${p.val}'`})">${p.label}</button>`;
+    return `<button class="cl-chip${active?' active':''}" style="${style}" data-action="setClFilter" data-arg1="prio" data-arg2="${p.val===null?'':p.val}">${p.label}</button>`;
   }).join('');
-  const clientHtml=`<select class="cl-filter-select" onchange="setClFilter('clientId',this.value||null)">
+  const clientHtml=`<select class="cl-filter-select" data-change="setClFilterClient">
     <option value="">Alle klanten</option>
     ${clients.map(c=>`<option value="${c.id}"${clFilters.clientId===c.id?' selected':''}>${escapeHtml(c.name)}</option>`).join('')}
   </select>`;
   const periodHtml=periodChips.map(p=>{
     const active=clFilters.period===p.val;
-    return `<button class="cl-chip${active?' active':''}" onclick="setClFilter('period',${p.val===null?'null':`'${p.val}'`})">${p.label}</button>`;
+    return `<button class="cl-chip${active?' active':''}" data-action="setClFilter" data-arg1="period" data-arg2="${p.val===null?'':p.val}">${p.label}</button>`;
   }).join('');
   el.innerHTML=`
     <div class="cl-filter-group"><span class="cl-filter-lbl">Prio</span>${prioHtml}</div>
@@ -3677,13 +3692,13 @@ function renderClClientBtns(){
     el.innerHTML=`<span style="font-size:12px;color:var(--text-hint)">Geen klanten aangemaakt</span>`;
     return;
   }
-  el.innerHTML=`<button type="button" onclick="selectClClient('')"
+  el.innerHTML=`<button type="button" data-action="selectClClient" data-arg1=""
     style="padding:7px 10px;border-radius:var(--radius);border:2px solid ${selected===''?'var(--text)':'transparent'};background:var(--surface2);color:var(--text-muted);font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;text-align:left;transition:all .15s">
     — Geen klant
   </button>`+kanbanState.clients.map(c=>{
     const col=CLIENT_COLORS[c.colorIdx%CLIENT_COLORS.length];
     const active=selected===c.id;
-    return `<button type="button" onclick="selectClClient('${c.id}')"
+    return `<button type="button" data-action="selectClClient" data-arg1="${c.id}"
       style="padding:7px 10px;border-radius:var(--radius);border:2px solid ${active?col.tx:'transparent'};background:${active?col.bg:'var(--surface2)'};color:${active?col.tx:'var(--text-muted)'};font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;transition:all .15s;display:flex;align-items:center;gap:7px">
       <span style="width:10px;height:10px;border-radius:3px;background:${col.bg};border:1.5px solid ${col.tx};flex-shrink:0"></span>${escapeHtml(c.name)}
     </button>`;
@@ -3766,6 +3781,45 @@ document.addEventListener('keydown',function clModalKey(e){
   if(e.key==='Enter'&&e.ctrlKey&&document.getElementById('clItemModal')?.classList.contains('open'))saveChecklistItem();
 });
 document.getElementById('clItemModal')?.addEventListener('click',e=>{if(e.target.id==='clItemModal')closeChecklistItemModal();});
+
+/* ─ Event delegation registrations (Checklist) ─ */
+Object.assign(APP_ACTIONS,{
+  toggleChecklistDone:(el,e,id)=>toggleChecklistDone(id),
+  toggleSubtask:(el,e,itemId,stId)=>toggleSubtask(itemId,stId),
+  startEditSubtask:(el,e,itemId,stId)=>startEditSubtask(itemId,stId),
+  deleteSubtask:(el,e,itemId,stId)=>deleteSubtask(itemId,stId),
+  startSubtaskInput:(el,e,id)=>startSubtaskInput(id),
+  openChecklistItemModal:(el,e,id)=>openChecklistItemModal(id),
+  unarchiveItem:(el,e,id)=>unarchiveItem(id),
+  deleteChecklistItem:(el,e,id)=>deleteChecklistItem(id),
+  toggleClDoneSection:()=>toggleClDoneSection(),
+  setClFilter:(el,e,type,val)=>setClFilter(type,val||null),
+  selectClClient:(el,e,id)=>selectClClient(id||''),
+  clCalSelect:(el,e,iso)=>clCalSelect(iso),
+  clearClFilters:()=>{clFilters={prio:null,clientId:null,period:null};renderChecklistModule();}
+});
+Object.assign(APP_CHANGE_ACTIONS,{
+  setClFilterClient:(el)=>setClFilter('clientId',el.value||null)
+});
+/* Delegated keydown/blur for subtask add + edit inputs */
+document.addEventListener('keydown',e=>{
+  const el=e.target;
+  if(!el||!el.matches)return;
+  if(el.matches('input[data-subtask-input-item]')){
+    handleSubtaskInputKey(e,el.dataset.subtaskInputItem);
+  } else if(el.matches('input[data-st-edit-item]')){
+    handleEditSubtaskKey(e,el.dataset.stEditItem,el.dataset.stEditSub);
+  }
+});
+document.addEventListener('focusout',e=>{
+  const el=e.target;
+  if(!el||!el.matches)return;
+  if(el.matches('input[data-subtask-input-item]')){
+    commitSubtaskInput(el.dataset.subtaskInputItem,el.value);
+  } else if(el.matches('input[data-st-edit-item]')){
+    commitEditSubtask(el.dataset.stEditItem,el.dataset.stEditSub,el.value);
+  }
+});
 
 /* ═══════════════════════════════════════════════════
    AGENDA MODULE — WEEKLY CALENDAR
