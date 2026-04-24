@@ -1541,6 +1541,98 @@ textarea { line-height: 1.6; resize: vertical; }
   letter-spacing: -0.01em !important;
 }
 .dash-grid .card-body { padding: 12px 18px !important; }
+
+/* ═════════════════════════════════════════════════════════════════════════════
+   "NIEUW ITEM" DROPDOWN (scoped with ha-newitem- prefix)
+   ════════════════════════════════════════════════════════════════════════════ */
+.ha-newitem { position: relative; display: inline-block; }
+.ha-newitem-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--mint);
+  color: var(--navy);
+  border: 1px solid var(--mint);
+  border-radius: var(--radius);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  white-space: nowrap;
+}
+.ha-newitem-trigger:hover { transform: translateY(-1px); box-shadow: 0 4px 16px var(--mint-glow); }
+.ha-newitem-trigger svg.ha-newitem-caret { margin-left: 2px; opacity: 0.7; transition: transform 0.15s var(--ease); }
+.ha-newitem[data-open="true"] .ha-newitem-trigger svg.ha-newitem-caret { transform: rotate(180deg); }
+.ha-newitem-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 240px;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-popover);
+  padding: 6px;
+  z-index: 500;
+  animation: ha-fadeIn 0.14s ease-out;
+  display: none;
+}
+.ha-newitem[data-open="true"] .ha-newitem-menu { display: block; }
+.ha-newitem-menu-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-hint);
+  padding: 8px 10px 4px;
+}
+.ha-newitem-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 9px 10px;
+  border-radius: 8px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--font-body);
+  text-align: left;
+  transition: background 0.12s;
+  color: var(--text);
+}
+.ha-newitem-option:hover { background: var(--bg); }
+.ha-newitem-option-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 16px;
+}
+.ha-newitem-option[data-kind="task"] .ha-newitem-option-icon {
+  background-color: var(--mint-soft);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14' fill='none'><rect x='1.5' y='1.5' width='11' height='11' rx='2' stroke='%2300B38C' stroke-width='1.4'/><path d='M4 7.5l2 2 4-4' stroke='%2300B38C' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+}
+.ha-newitem-option[data-kind="checklist"] .ha-newitem-option-icon {
+  background-color: var(--success-bg);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14' fill='none'><rect x='1.5' y='2.5' width='3' height='3' rx='0.5' stroke='%230A9D78' stroke-width='1.3'/><rect x='1.5' y='8.5' width='3' height='3' rx='0.5' stroke='%230A9D78' stroke-width='1.3'/><path d='M6.5 4h6M6.5 10h6' stroke='%230A9D78' stroke-width='1.4' stroke-linecap='round'/></svg>");
+}
+.ha-newitem-option[data-kind="note"] .ha-newitem-option-icon {
+  background-color: var(--info-bg);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14' fill='none'><path d='M3 1.5h5.5L11.5 4.5v8a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-10a1 1 0 0 1 1-1z' stroke='%232563EB' stroke-width='1.3'/><path d='M8.5 1.5v3h3' stroke='%232563EB' stroke-width='1.3'/></svg>");
+}
+.ha-newitem-option-body { flex: 1; min-width: 0; }
+.ha-newitem-option-title { font-size: 13px; font-weight: 600; color: var(--text); letter-spacing: -0.005em; }
+.ha-newitem-option-sub   { font-size: 11px; color: var(--text-muted); }
+.ha-newitem-option-arrow { color: var(--text-hint); flex-shrink: 0; width: 11px; height: 11px; }
+@keyframes ha-fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
 </style>
 </head>
 <body>
@@ -1641,6 +1733,41 @@ textarea { line-height: 1.6; resize: vertical; }
           <div class="module-sub" id="todayStr"></div>
         </div>
         <div style="display:flex;gap:8px;align-items:center">
+          <!-- Nieuw item dropdown (global quick-add) -->
+          <div class="ha-newitem" data-ha-newitem>
+            <button type="button" class="ha-newitem-trigger" data-ha-newitem-trigger>
+              <span style="font-size:13px;line-height:1">＋</span>
+              Nieuw item
+              <svg class="ha-newitem-caret" width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M2 3.5L4.5 6L7 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="ha-newitem-menu" role="menu">
+              <div class="ha-newitem-menu-label">Wat wil je toevoegen?</div>
+              <button type="button" class="ha-newitem-option" data-kind="task" data-ha-newitem-target="todo" role="menuitem">
+                <span class="ha-newitem-option-icon"></span>
+                <span class="ha-newitem-option-body">
+                  <span class="ha-newitem-option-title">Taak</span>
+                  <span class="ha-newitem-option-sub">To Do — Kanban</span>
+                </span>
+                <svg class="ha-newitem-option-arrow" viewBox="0 0 11 11" fill="none"><path d="M3 2L7 5.5L3 9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <button type="button" class="ha-newitem-option" data-kind="checklist" data-ha-newitem-target="checklist" role="menuitem">
+                <span class="ha-newitem-option-icon"></span>
+                <span class="ha-newitem-option-body">
+                  <span class="ha-newitem-option-title">Checklist item</span>
+                  <span class="ha-newitem-option-sub">Checklist</span>
+                </span>
+                <svg class="ha-newitem-option-arrow" viewBox="0 0 11 11" fill="none"><path d="M3 2L7 5.5L3 9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <button type="button" class="ha-newitem-option" data-kind="note" data-ha-newitem-target="notes" role="menuitem">
+                <span class="ha-newitem-option-icon"></span>
+                <span class="ha-newitem-option-body">
+                  <span class="ha-newitem-option-title">Notitie</span>
+                  <span class="ha-newitem-option-sub">Notities</span>
+                </span>
+                <svg class="ha-newitem-option-arrow" viewBox="0 0 11 11" fill="none"><path d="M3 2L7 5.5L3 9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+            </div>
+          </div>
           <button class="btn btn-sm" onclick="forceSave()">↑ Opslaan</button>
           <button class="btn btn-sm btn-ghost" onclick="showTokenSettings()" title="Instellingen">⚙</button>
         </div>
@@ -6443,6 +6570,39 @@ function urenExport(fmt,filter){
     XLSX.writeFile(wb,filename+'.xlsx');
   }
 }
+
+/* ═══════════════════════════════════════════════════
+   "NIEUW ITEM" DROPDOWN — global quick-add
+   ═══════════════════════════════════════════════════ */
+(function initNewItemDropdown(){
+  const root=document.querySelector('[data-ha-newitem]');
+  if(!root)return;
+  const trigger=root.querySelector('[data-ha-newitem-trigger]');
+  const setOpen=on=>root.setAttribute('data-open',on?'true':'false');
+  const toggle=()=>setOpen(root.getAttribute('data-open')!=='true');
+
+  trigger.addEventListener('click',e=>{e.stopPropagation();toggle();});
+
+  root.querySelectorAll('[data-ha-newitem-target]').forEach(opt=>{
+    opt.addEventListener('click',e=>{
+      e.stopPropagation();
+      const target=opt.getAttribute('data-ha-newitem-target');
+      const kind=opt.getAttribute('data-kind');
+      setOpen(false);
+      /* Navigate to the target module, then open the creation flow */
+      if(typeof switchModule==='function')switchModule(target);
+      /* Wait a tick for the module to render, then trigger new-item flow */
+      setTimeout(()=>{
+        if(kind==='task'&&typeof openNewItemModal==='function')openNewItemModal();
+        else if(kind==='checklist'&&typeof openChecklistItemModal==='function')openChecklistItemModal(null);
+        else if(kind==='note'&&typeof createNote==='function')createNote(null);
+      },60);
+    });
+  });
+
+  document.addEventListener('click',e=>{if(!root.contains(e.target))setOpen(false);});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')setOpen(false);});
+})();
 </script>
 </body>
 </html>
