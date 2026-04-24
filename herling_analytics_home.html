@@ -749,6 +749,34 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
   transition:background .1s;
 }
 .uren-export-item:hover{background:var(--surface2)}
+/* Template day grid */
+.uren-tpl-days-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.uren-tpl-day{display:flex;flex-direction:column;align-items:center;gap:4px}
+.uren-tpl-day-btn{
+  width:100%;padding:6px 2px;border:1.5px solid var(--border-strong);
+  border-radius:var(--radius);background:var(--surface);color:var(--text-muted);
+  font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;
+  transition:all .15s;text-align:center;
+}
+.uren-tpl-day-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.uren-tpl-day-input{
+  width:100%;text-align:center;font-size:12px;padding:4px 2px;
+  border:0.5px solid var(--border-strong);border-radius:var(--radius);
+  background:var(--surface2);color:var(--text);font-family:inherit;outline:none;
+  -moz-appearance:textfield;
+}
+.uren-tpl-day-input::-webkit-inner-spin-button,.uren-tpl-day-input::-webkit-outer-spin-button{-webkit-appearance:none}
+.uren-tpl-day-input:focus{border-color:var(--accent)}
+/* Larger fonts in uren module */
+#mod-uren .uren-topbar-title{font-size:20px}
+#mod-uren .uren-matrix{font-size:14px}
+#mod-uren .uren-matrix th{font-size:12px}
+#mod-uren .uren-matrix td.client-col{font-size:14px}
+#mod-uren .uren-cell-input{font-size:15px;width:58px}
+#mod-uren .uren-nav-label{font-size:14px}
+#mod-uren .uren-month-table{font-size:14px}
+#mod-uren .uren-month-table th{font-size:12px}
+#mod-uren .uren-content{font-size:14px}
 </style>
 </head>
 <body>
@@ -1133,12 +1161,81 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 
 <!-- ── Uren: Templates modal ── -->
 <div class="modal-bg" id="urenTemplatesModal">
-  <div class="modal" style="max-width:560px;padding:24px">
-    <h3 style="font-size:18px;margin-bottom:4px">Templates & Herhaling</h3>
-    <p style="font-size:12px;color:var(--text-muted);margin-bottom:16px">Sla veelgebruikte boekingen op als template of laat ze wekelijks automatisch invullen.</p>
-    <div id="urenTemplatesBody"></div>
-    <div class="modal-footer" style="margin-top:16px">
-      <div style="flex:1"></div>
+  <div class="modal" style="max-width:720px;padding:0;overflow:hidden;display:flex;flex-direction:column;max-height:90vh">
+    <!-- Header -->
+    <div style="padding:18px 22px 14px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+      <div>
+        <h3 style="font-size:18px;font-weight:700;margin:0">Templates & Herhaling</h3>
+        <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0">Definieer een weekpatroon per klant en stel in hoe lang het herhaald wordt.</p>
+      </div>
+      <button onclick="closeUrenTemplatesModal()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--text-muted);padding:4px 8px;border-radius:var(--radius)">✕</button>
+    </div>
+    <!-- Two-panel body -->
+    <div style="display:grid;grid-template-columns:320px 1fr;flex:1;overflow:hidden;min-height:0">
+      <!-- Left: create/edit form -->
+      <div style="border-right:0.5px solid var(--border);padding:16px;overflow-y:auto;display:flex;flex-direction:column;gap:12px">
+        <div style="font-size:13px;font-weight:700;color:var(--text)" id="urenTplFormTitle">Nieuw template</div>
+
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:5px">Naam</label>
+          <input type="text" id="urenTplName" placeholder="Bijv. Vaste dagen klant A"
+            style="width:100%;padding:7px 10px;border:0.5px solid var(--border-strong);border-radius:var(--radius);background:var(--surface2);color:var(--text);font-size:14px;font-family:inherit;outline:none"/>
+        </div>
+
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:5px">Klant</label>
+          <select id="urenTplClient" style="width:100%;padding:7px 10px;border:0.5px solid var(--border-strong);border-radius:var(--radius);background:var(--surface2);color:var(--text);font-size:14px;font-family:inherit;outline:none"></select>
+        </div>
+
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:8px">Weekpatroon</label>
+          <div class="uren-tpl-days-grid" id="urenTplDaysGrid"></div>
+        </div>
+
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:8px">Herhaling</label>
+          <div style="display:flex;flex-direction:column;gap:7px">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;user-select:none">
+              <input type="radio" name="urenTplRepeat" id="urenTplRepeatOnce" value="once" checked onchange="urenToggleTplRepeat()"/>
+              Eenmalig toepassen op huidige week
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;user-select:none">
+              <input type="radio" name="urenTplRepeat" id="urenTplRepeatRecur" value="recurring" onchange="urenToggleTplRepeat()"/>
+              Wekelijks herhalen
+            </label>
+          </div>
+          <div id="urenTplCalWrap" style="display:none;margin-top:10px">
+            <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Herhalen t/m (optioneel)</div>
+            <div class="cl-inline-cal">
+              <div class="cl-cal-hdr">
+                <button class="cl-cal-nav" onclick="urenTplCalPrev()">&#8592;</button>
+                <span id="urenTplCalTitle" style="font-size:13px;font-weight:600"></span>
+                <button class="cl-cal-nav" onclick="urenTplCalNext()">&#8594;</button>
+              </div>
+              <div class="cl-cal-weekdays"><span>Ma</span><span>Di</span><span>Wo</span><span>Do</span><span>Vr</span><span>Za</span><span>Zo</span></div>
+              <div id="urenTplCalDays" class="cl-cal-days"></div>
+              <div class="cl-cal-footer">
+                <button onclick="urenTplCalClear()" style="font-size:12px;color:var(--accent);background:none;border:none;cursor:pointer;padding:4px 2px;font-family:inherit">Wissen</button>
+                <span id="urenTplCalLabel" style="font-size:12px;color:var(--text-muted)"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:6px;margin-top:4px">
+          <button class="btn btn-sm btn-primary" onclick="urenSaveTpl()" style="flex:1;justify-content:center">Opslaan</button>
+          <button class="btn btn-sm" onclick="urenResetTplForm()">Wissen</button>
+        </div>
+      </div>
+
+      <!-- Right: templates list -->
+      <div style="padding:16px;overflow-y:auto">
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px">Opgeslagen templates</div>
+        <div id="urenTemplatesBody"></div>
+      </div>
+    </div>
+
+    <div style="padding:12px 22px;border-top:0.5px solid var(--border);display:flex;justify-content:flex-end;flex-shrink:0">
       <button class="btn btn-sm" onclick="closeUrenTemplatesModal()">Sluiten</button>
     </div>
   </div>
@@ -1482,6 +1579,10 @@ let urenView='week';
 let urenWeekOffset=0;
 let urenMonthOffset=0;
 let urenDescTarget={clientId:null,date:null};
+let urenTplCalYear=new Date().getFullYear();
+let urenTplCalMonth=new Date().getMonth();
+let urenTplCalSelected=null;
+let urenTplEditing=null;
 
 /* Calendar */
 let agendaView='week'; // 'day'|'week'|'month'
@@ -4573,7 +4674,6 @@ function urenOpenDesc(event,clientId,date){
         <button class="btn btn-xs" onclick="closeUrenDescPopup()">✕</button>
       </div>
     </div>
-    <button class="btn btn-xs" onclick="urenSaveAsTemplate()" style="font-size:11px;align-self:flex-start">⟳ Sla op als template</button>
   `;
   document.body.appendChild(popup);
 
@@ -4624,16 +4724,22 @@ function closeUrenDescPopup(){
 }
 
 /* ── Templates ── */
+
+/* Apply recurring templates to the current week view */
 function urenApplyRecurring(){
   if(!urenState.templates.length)return;
   const dates=urenWeekDates(urenWeekOffset);
+  const today=new Date().toISOString().slice(0,10);
   let changed=false;
   urenState.templates.filter(t=>t.recurring).forEach(t=>{
-    (t.weekdays||[]).forEach(wd=>{
-      const date=dates[wd-1];
-      if(date&&!urenGetEntry(t.clientId,date)){
+    /* Respect untilDate */
+    if(t.untilDate&&today>t.untilDate)return;
+    const dayMap=t.days||{};
+    Object.entries(dayMap).forEach(([wd,hrs])=>{
+      const date=dates[Number(wd)-1];
+      if(date&&hrs>0&&!urenGetEntry(t.clientId,date)){
         urenState.entries.push({id:urenUid(),clientId:t.clientId,date,
-          hours:t.hours,description:t.description||'',invoiced:false,templateId:t.id});
+          hours:hrs,description:t.description||'',invoiced:false,templateId:t.id});
         changed=true;
       }
     });
@@ -4641,25 +4747,10 @@ function urenApplyRecurring(){
   if(changed)scheduleSave();
 }
 
-function urenSaveAsTemplate(){
-  const {clientId,date}=urenDescTarget;
-  closeUrenDescPopup();
-  const entry=urenGetEntry(clientId,date);
-  if(!entry){alert('Geen boeking gevonden voor deze cel.');return;}
-  const client=(kanbanState.clients.find(c=>c.id===clientId)||{}).name||'?';
-  const name=prompt(`Naam voor dit template (${client}):`,entry.description||`${client} – ${entry.hours}u`);
-  if(name===null)return;
-  const recurring=confirm('Wekelijks automatisch herhalen op dezelfde dag?');
-  const dayIdx=(new Date(date+'T00:00:00').getDay()+6)%7+1;
-  urenState.templates.push({
-    id:urenUid(),clientId,name:name.trim()||`Template ${urenState.templates.length+1}`,
-    hours:entry.hours,description:entry.description||'',recurring,weekdays:[dayIdx]
-  });
-  scheduleSave();
-  alert('Template opgeslagen! Beheer via ⟳ Templates.');
-}
-
+/* Open modal and init form */
 function openUrenTemplatesModal(){
+  urenTplEditing=null;
+  urenResetTplForm();
   renderUrenTemplatesModal();
   document.getElementById('urenTemplatesModal').classList.add('open');
 }
@@ -4668,51 +4759,193 @@ function closeUrenTemplatesModal(){
   document.getElementById('urenTemplatesModal').classList.remove('open');
 }
 
+/* Render existing templates list (right panel) */
 function renderUrenTemplatesModal(){
   const body=document.getElementById('urenTemplatesBody');
   if(!body)return;
   if(!urenState.templates.length){
-    body.innerHTML=`<div style="color:var(--text-hint);font-size:13px;padding:20px;text-align:center">
-      Geen templates opgeslagen.<br>Klik op ✎ in een cel en kies "Sla op als template".</div>`;
+    body.innerHTML=`<div style="color:var(--text-hint);font-size:13px;padding:20px 0;text-align:center">
+      Nog geen templates.<br>Vul het formulier links in en klik <strong>Opslaan</strong>.</div>`;
     return;
   }
   body.innerHTML=urenState.templates.map(t=>{
     const cname=(kanbanState.clients.find(c=>c.id===t.clientId)||{}).name||'?';
-    const days=(t.weekdays||[]).map(d=>DAY_LABELS_NL[d-1]).join(', ');
-    return `<div class="uren-template-row">
-      <div style="flex:1">
-        <div style="font-weight:600;font-size:13px">${escapeHtml(t.name)}</div>
-        <div style="color:var(--text-muted);font-size:11px;margin-top:2px">
-          ${escapeHtml(cname)} · ${t.hours}u · ${days}
-          ${t.recurring?'<span style="color:var(--accent);margin-left:4px">↺ Wekelijks</span>':''}
+    const dayMap=t.days||{};
+    const daySummary=Object.entries(dayMap)
+      .sort((a,b)=>Number(a[0])-Number(b[0]))
+      .map(([wd,hrs])=>`${DAY_LABELS_NL[Number(wd)-1]} ${hrs}u`)
+      .join(' · ');
+    const untilLabel=t.untilDate?` t/m ${new Date(t.untilDate+'T00:00:00').toLocaleDateString('nl-NL',{day:'numeric',month:'short',year:'numeric'})}`:' (geen einddatum)';
+    return `<div class="uren-template-row" style="flex-direction:column;align-items:flex-start;gap:6px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;width:100%;gap:8px">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:14px">${escapeHtml(t.name)}</div>
+          <div style="color:var(--text-muted);font-size:12px;margin-top:2px">${escapeHtml(cname)}</div>
+          <div style="color:var(--text-muted);font-size:12px">${daySummary||'—'}</div>
+          <div style="font-size:12px;margin-top:2px">
+            ${t.recurring
+              ?`<span style="color:var(--accent)">↺ Wekelijks herhalen${untilLabel}</span>`
+              :`<span style="color:var(--text-muted)">Eenmalig</span>`}
+          </div>
         </div>
-        ${t.description?`<div style="color:var(--text-muted);font-size:11px">${escapeHtml(t.description)}</div>`:''}
-      </div>
-      <div style="display:flex;gap:4px;flex-shrink:0">
-        <button class="btn btn-xs btn-primary" onclick="urenApplyTemplate('${t.id}')">Toepassen</button>
-        <button class="btn btn-xs btn-danger" onclick="urenDeleteTemplate('${t.id}')">✕</button>
+        <div style="display:flex;gap:4px;flex-shrink:0">
+          <button class="btn btn-xs btn-primary" onclick="urenApplyTemplate('${t.id}')">Toepassen</button>
+          <button class="btn btn-xs" onclick="urenEditTemplate('${t.id}')" title="Bewerken">✎</button>
+          <button class="btn btn-xs btn-danger" onclick="urenDeleteTemplate('${t.id}')">✕</button>
+        </div>
       </div>
     </div>`;
   }).join('');
 }
 
+/* Reset form to blank state */
+function urenResetTplForm(){
+  urenTplEditing=null;
+  const nameEl=document.getElementById('urenTplName');
+  if(nameEl)nameEl.value='';
+  urenTplCalSelected=null;
+  urenTplCalYear=new Date().getFullYear();
+  urenTplCalMonth=new Date().getMonth();
+  const titleEl=document.getElementById('urenTplFormTitle');
+  if(titleEl)titleEl.textContent='Nieuw template';
+  /* Reset radio */
+  const once=document.getElementById('urenTplRepeatOnce');
+  if(once)once.checked=true;
+  urenToggleTplRepeat();
+  /* Populate client select */
+  const sel=document.getElementById('urenTplClient');
+  if(sel){
+    sel.innerHTML='<option value="">— Kies klant —</option>'+
+      kanbanState.clients.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  }
+  /* Render day grid (all off) */
+  urenRenderTplDaysGrid({});
+}
+
+/* Load template into form for editing */
+function urenEditTemplate(tplId){
+  const t=urenState.templates.find(x=>x.id===tplId);
+  if(!t)return;
+  urenTplEditing=tplId;
+  document.getElementById('urenTplFormTitle').textContent='Template bewerken';
+  document.getElementById('urenTplName').value=t.name||'';
+  const sel=document.getElementById('urenTplClient');
+  if(sel)sel.value=t.clientId||'';
+  /* Repeat */
+  const recurEl=document.getElementById('urenTplRepeatRecur');
+  const onceEl=document.getElementById('urenTplRepeatOnce');
+  if(t.recurring&&recurEl)recurEl.checked=true;
+  else if(onceEl)onceEl.checked=true;
+  /* Until date */
+  urenTplCalSelected=t.untilDate||null;
+  urenTplCalYear=urenTplCalSelected?new Date(urenTplCalSelected+'T00:00:00').getFullYear():new Date().getFullYear();
+  urenTplCalMonth=urenTplCalSelected?new Date(urenTplCalSelected+'T00:00:00').getMonth():new Date().getMonth();
+  urenToggleTplRepeat();
+  /* Days grid */
+  urenRenderTplDaysGrid(t.days||{});
+  /* Scroll form into view */
+  document.getElementById('urenTplName')?.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+/* Render day toggle + hours inputs */
+function urenRenderTplDaysGrid(dayMap){
+  const grid=document.getElementById('urenTplDaysGrid');
+  if(!grid)return;
+  grid.innerHTML=DAY_LABELS_NL.map((lbl,i)=>{
+    const wd=i+1;
+    const active=wd in dayMap;
+    const hrs=dayMap[wd]||'';
+    return `<div class="uren-tpl-day">
+      <button type="button" class="uren-tpl-day-btn${active?' active':''}"
+        onclick="urenToggleTplDay(${wd})" data-wd="${wd}">${lbl}</button>
+      <input type="number" min="0.25" max="24" step="0.25"
+        class="uren-tpl-day-input" id="urenTplHrs${wd}"
+        placeholder="u" value="${hrs}"
+        style="display:${active?'block':'none'}"
+        title="${lbl} – aantal uren"/>
+    </div>`;
+  }).join('');
+}
+
+/* Toggle a weekday on/off */
+function urenToggleTplDay(wd){
+  const btn=document.querySelector(`.uren-tpl-day-btn[data-wd="${wd}"]`);
+  const inp=document.getElementById(`urenTplHrs${wd}`);
+  if(!btn||!inp)return;
+  const isActive=btn.classList.contains('active');
+  btn.classList.toggle('active',!isActive);
+  inp.style.display=isActive?'none':'block';
+  if(!isActive)inp.focus();
+}
+
+/* Show/hide until-date calendar */
+function urenToggleTplRepeat(){
+  const recurring=document.getElementById('urenTplRepeatRecur')?.checked;
+  const wrap=document.getElementById('urenTplCalWrap');
+  if(!wrap)return;
+  wrap.style.display=recurring?'block':'none';
+  if(recurring)urenTplCalRender();
+}
+
+/* Save template */
+function urenSaveTpl(){
+  const name=(document.getElementById('urenTplName')?.value||'').trim();
+  const clientId=document.getElementById('urenTplClient')?.value||'';
+  if(!name){alert('Geef het template een naam.');document.getElementById('urenTplName')?.focus();return;}
+  if(!clientId){alert('Kies een klant.');document.getElementById('urenTplClient')?.focus();return;}
+
+  /* Build days map from grid */
+  const days={};
+  DAY_LABELS_NL.forEach((_,i)=>{
+    const wd=i+1;
+    const btn=document.querySelector(`.uren-tpl-day-btn[data-wd="${wd}"]`);
+    const inp=document.getElementById(`urenTplHrs${wd}`);
+    if(btn?.classList.contains('active')){
+      const h=parseFloat(inp?.value||'0');
+      if(h>0)days[wd]=Math.round(h*100)/100;
+    }
+  });
+  if(!Object.keys(days).length){alert('Selecteer minimaal één dag en vul het aantal uren in.');return;}
+
+  const recurring=document.getElementById('urenTplRepeatRecur')?.checked||false;
+  const untilDate=recurring?urenTplCalSelected:null;
+
+  const tpl={
+    id:urenTplEditing||urenUid(),
+    name,clientId,days,recurring,untilDate,
+    description:''
+  };
+
+  if(urenTplEditing){
+    const idx=urenState.templates.findIndex(t=>t.id===urenTplEditing);
+    if(idx>=0)urenState.templates[idx]=tpl;
+  } else {
+    urenState.templates.push(tpl);
+  }
+  scheduleSave();
+  urenResetTplForm();
+  renderUrenTemplatesModal();
+}
+
+/* Apply template to current week */
 function urenApplyTemplate(tplId){
   const t=urenState.templates.find(x=>x.id===tplId);
   if(!t)return;
   const dates=urenWeekDates(urenWeekOffset);
   let applied=0;
-  (t.weekdays||[]).forEach(wd=>{
-    const date=dates[wd-1];
-    if(date&&!urenGetEntry(t.clientId,date)){
+  const dayMap=t.days||{};
+  Object.entries(dayMap).forEach(([wd,hrs])=>{
+    const date=dates[Number(wd)-1];
+    if(date&&hrs>0&&!urenGetEntry(t.clientId,date)){
       urenState.entries.push({id:urenUid(),clientId:t.clientId,date,
-        hours:t.hours,description:t.description||'',invoiced:false,templateId:t.id});
+        hours:hrs,description:t.description||'',invoiced:false,templateId:t.id});
       applied++;
     }
   });
   scheduleSave();
   closeUrenTemplatesModal();
   urenRenderContent();
-  if(!applied)alert('Alle dagen van dit template waren al ingevuld voor deze week.');
+  if(!applied)alert('Alle geselecteerde dagen waren al ingevuld voor deze week.');
 }
 
 function urenDeleteTemplate(tplId){
@@ -4721,6 +4954,53 @@ function urenDeleteTemplate(tplId){
   scheduleSave();
   renderUrenTemplatesModal();
 }
+
+/* ── Template inline calendar (until-date) ── */
+function urenTplCalRender(){
+  const titleEl=document.getElementById('urenTplCalTitle');
+  const daysEl=document.getElementById('urenTplCalDays');
+  const labelEl=document.getElementById('urenTplCalLabel');
+  if(!titleEl||!daysEl)return;
+  const MONTHS=['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'];
+  titleEl.textContent=MONTHS[urenTplCalMonth]+' '+urenTplCalYear;
+  const today=new Date().toISOString().slice(0,10);
+  const firstDow=new Date(urenTplCalYear,urenTplCalMonth,1).getDay();
+  const startOffset=(firstDow===0?6:firstDow-1);
+  const daysInMonth=new Date(urenTplCalYear,urenTplCalMonth+1,0).getDate();
+  const daysInPrev=new Date(urenTplCalYear,urenTplCalMonth,0).getDate();
+  let html='';
+  for(let i=startOffset-1;i>=0;i--){
+    const d=daysInPrev-i;
+    html+=urenTplCalDayHtml(d,isoDate(urenTplCalYear,urenTplCalMonth-1,d),true,today);
+  }
+  for(let d=1;d<=daysInMonth;d++){
+    html+=urenTplCalDayHtml(d,isoDate(urenTplCalYear,urenTplCalMonth,d),false,today);
+  }
+  const total=Math.ceil((startOffset+daysInMonth)/7)*7;
+  for(let d=1;d<=total-startOffset-daysInMonth;d++){
+    html+=urenTplCalDayHtml(d,isoDate(urenTplCalYear,urenTplCalMonth+1,d),true,today);
+  }
+  daysEl.innerHTML=html;
+  if(labelEl)labelEl.textContent=urenTplCalSelected
+    ?new Date(urenTplCalSelected+'T00:00:00').toLocaleDateString('nl-NL',{day:'numeric',month:'short',year:'numeric'})
+    :'Geen einddatum';
+}
+
+function urenTplCalDayHtml(label,iso,other,today){
+  let cls='cl-cal-day';
+  if(other)cls+=' other-month';
+  if(iso===today)cls+=' today';
+  if(iso===urenTplCalSelected)cls+=' selected';
+  return `<div class="${cls}" onclick="urenTplCalSelect('${iso}')">${label}</div>`;
+}
+
+function urenTplCalSelect(iso){
+  urenTplCalSelected=(urenTplCalSelected===iso)?null:iso;
+  urenTplCalRender();
+}
+function urenTplCalPrev(){urenTplCalMonth--;if(urenTplCalMonth<0){urenTplCalMonth=11;urenTplCalYear--;}urenTplCalRender();}
+function urenTplCalNext(){urenTplCalMonth++;if(urenTplCalMonth>11){urenTplCalMonth=0;urenTplCalYear++;}urenTplCalRender();}
+function urenTplCalClear(){urenTplCalSelected=null;urenTplCalRender();}
 
 /* ── Export ── */
 function urenToggleExportMenu(){
