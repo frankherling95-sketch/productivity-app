@@ -1843,7 +1843,19 @@ function toggleSidebar(){
 }
 
 /* ═══════════════════════════════════════════════════
-   CLIENT MANAGEMENT (shared between todo + notes)
+   MODULE: CLIENTS (sidebar) — shared between todo + notes
+   ───────────────────────────────────────────────────
+   Structure:
+     ═══ STATE ═══  kanbanState.clients[], activeClientFilter,
+                    _newClientColorIdx (declared in global STATE).
+     ═══ LOGIC ═══  setClientFilter, createClient, deleteClient,
+                    editClient, flattenNotes (notes→pages).
+     ═══ VIEW  ═══  renderSidebarClients, renderColorSwatches,
+                    showAddClient/hideAddClient.
+
+   Delegation: sidebar client rows use data-action for pick +
+   edit + delete. Swatches use d.onclick inline (only shown on
+   add-form open, rebuilt on every click → low churn).
    ═══════════════════════════════════════════════════ */
 function flattenNotes(nodes){
   return nodes.reduce((acc,n)=>{acc.push(n);if(n.children)acc.push(...flattenNotes(n.children));return acc;},[]);
@@ -1876,12 +1888,12 @@ function renderSidebarClients(){
   el.innerHTML=kanbanState.clients.map(c=>{
     const col=CLIENT_COLORS[c.colorIdx%CLIENT_COLORS.length];
     const isActive=activeClientFilter===c.id;
-    return `<div class="sidebar-client${isActive?' active-filter':''}" onclick="setClientFilter('${c.id}')">
+    return `<div class="sidebar-client${isActive?' active-filter':''}" data-action="setClientFilter" data-arg1="${c.id}">
       <span class="client-dot" style="background:${col.bg};border:1px solid ${col.tx}"></span>
       <span class="client-cname">${escapeHtml(c.name)}</span>
       <span class="client-acts">
-        <button onclick="event.stopPropagation();editClient('${c.id}',event)" title="Bewerken">✎</button>
-        <button onclick="event.stopPropagation();deleteClient('${c.id}',event)" title="Verwijderen">✕</button>
+        <button data-action="editClientStop" data-arg1="${c.id}" title="Bewerken">✎</button>
+        <button data-action="deleteClientStop" data-arg1="${c.id}" title="Verwijderen">✕</button>
       </span>
     </div>`;
   }).join('');
@@ -1935,7 +1947,21 @@ function editClient(id,e){
 }
 
 /* ═══════════════════════════════════════════════════
-   DASHBOARD MODULE
+   MODULE: DASHBOARD
+   ───────────────────────────────────────────────────
+   Structure:
+     ═══ STATE ═══  All data comes from shared stores
+                    (checklistState, kanbanState, notesState,
+                     rawState.settings). No dashboard-local state.
+     ═══ LOGIC ═══  dashCl* helpers update checklist items and
+                    propagate to the full checklist module if
+                    it's the active view.
+     ═══ VIEW  ═══  renderDashboard orchestrates 4 panels:
+                    Todo, Notes, Agenda (cal), Checklist.
+
+   Delegation: dashboard cards use data-action for toggles,
+   module-switch buttons, add-task, and priority/deadline/client
+   selects (data-change).
    ═══════════════════════════════════════════════════ */
 function renderDashboard(){
   document.getElementById('todayStr').textContent=formatToday();
@@ -1952,7 +1978,7 @@ function renderDashChecklist(){
   if(!open.length){
     body.innerHTML=`<div style="color:var(--text-hint);font-size:13px;padding:20px 0;text-align:center">
       <p style="margin-bottom:8px">Geen openstaande taken</p>
-      <button class="btn btn-sm btn-primary" onclick="switchModule('checklist')">Open Checklist ↗</button>
+      <button class="btn btn-sm btn-primary" data-action="switchModule" data-arg1="checklist">Open Checklist ↗</button>
     </div>`;return;
   }
   const sorted=[...open].sort((a,b)=>{
@@ -1969,22 +1995,22 @@ function renderDashChecklist(){
     const overdue=item.deadline&&item.deadline<today;
     return `<div style="padding:7px 4px;border-bottom:0.5px solid var(--border)">
       <div style="display:flex;align-items:center;gap:8px">
-        <div onclick="dashClToggle('${item.id}')" style="width:18px;height:18px;border-radius:4px;border:1.5px solid var(--border-strong);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s"
+        <div data-action="dashClToggle" data-arg1="${item.id}" style="width:18px;height:18px;border-radius:4px;border:1.5px solid var(--border-strong);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s"
           onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border-strong)'"></div>
         <span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(item.text)}</span>
       </div>
       <div style="display:flex;align-items:center;gap:6px;margin-top:5px;padding-left:26px;flex-wrap:wrap">
-        <select style="${selStyle};background:${cfg.bg};color:${cfg.tx};font-weight:600;border-color:${cfg.tx}40" onchange="dashClSetPriority('${item.id}',this.value)">
+        <select style="${selStyle};background:${cfg.bg};color:${cfg.tx};font-weight:600;border-color:${cfg.tx}40" data-change="dashClSetPriority" data-arg1="${item.id}">
           ${['hoog','middel','laag'].map(p=>`<option value="${p}"${item.priority===p?' selected':''}>${CL_PRIORITY_CFG[p].label}</option>`).join('')}
         </select>
-        <input type="date" value="${item.deadline||''}" style="${selStyle};color:${overdue?'var(--danger)':'var(--text-muted)'}" onchange="dashClSetDeadline('${item.id}',this.value)"/>
-        <select style="${selStyle}" onchange="dashClSetClient('${item.id}',this.value)">
+        <input type="date" value="${item.deadline||''}" style="${selStyle};color:${overdue?'var(--danger)':'var(--text-muted)'}" data-change="dashClSetDeadline" data-arg1="${item.id}"/>
+        <select style="${selStyle}" data-change="dashClSetClient" data-arg1="${item.id}">
           ${clientOpts.replace(`value="${item.clientId||''}"`,`value="${item.clientId||''}" selected`)}
         </select>
       </div>
       ${(item.subtasks&&item.subtasks.length)?`<div style="padding-left:26px;margin-top:6px;display:flex;flex-direction:column;gap:3px">
         ${item.subtasks.map(st=>`<div style="display:flex;align-items:center;gap:6px">
-          <div onclick="dashClToggleSubtask('${item.id}','${st.id}')" style="width:14px;height:14px;border-radius:3px;border:1.5px solid var(--border-strong);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;${st.done?'background:var(--accent);border-color:var(--accent)':''};transition:all .15s"
+          <div data-action="dashClToggleSubtask" data-arg1="${item.id}" data-arg2="${st.id}" style="width:14px;height:14px;border-radius:3px;border:1.5px solid var(--border-strong);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;${st.done?'background:var(--accent);border-color:var(--accent)':''};transition:all .15s"
             onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='${st.done?'var(--accent)':'var(--border-strong)'}'">
             ${st.done?`<svg width="9" height="9" viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`:''}
           </div>
@@ -2046,7 +2072,7 @@ function renderDashTodo(){
   if(!names.length){
     body.innerHTML=`<div style="color:var(--text-hint);font-size:12px;padding:20px 0;text-align:center">
       <p style="margin-bottom:10px">Nog geen projecten aangemaakt</p>
-      <button class="btn btn-sm btn-primary" onclick="switchModule('todo')">Open To-Do ↗</button>
+      <button class="btn btn-sm btn-primary" data-action="switchModule" data-arg1="todo">Open To-Do ↗</button>
     </div>`;return;
   }
   let totalAll=0,doneAll=0;
@@ -2090,7 +2116,7 @@ function renderDashNotes(){
   if(!pages.length){
     body.innerHTML=`<div style="color:var(--text-hint);font-size:12px;padding:20px 0;text-align:center">
       <p style="margin-bottom:10px">Nog geen notities</p>
-      <button class="btn btn-sm btn-primary" onclick="switchModule('notes')">Eerste notitie ↗</button>
+      <button class="btn btn-sm btn-primary" data-action="switchModule" data-arg1="notes">Eerste notitie ↗</button>
     </div>`;return;
   }
   const recent=[...pages].sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0)).slice(0,6);
@@ -2099,7 +2125,7 @@ function renderDashNotes(){
     const col=client?CLIENT_COLORS[client.colorIdx%CLIENT_COLORS.length]:null;
     const badge=client?`<span style="font-size:10px;font-weight:600;padding:1px 6px;border-radius:4px;background:${col.bg};color:${col.tx};flex-shrink:0">${escapeHtml(client.name)}</span>`:'';
     const ts=n.updatedAt?new Date(n.updatedAt).toLocaleDateString('nl-NL',{day:'numeric',month:'short'}):'';
-    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border-radius:var(--radius-md);margin-bottom:6px;cursor:pointer" onclick="switchModule('notes')">
+    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border-radius:var(--radius-md);margin-bottom:6px;cursor:pointer" data-action="switchModule" data-arg1="notes">
       <span style="font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(n.title)}</span>
       ${badge}
       <span style="font-size:10px;color:var(--text-hint);white-space:nowrap">${ts}</span>
@@ -2117,7 +2143,7 @@ function renderDashCal(){
     body.innerHTML=`<div class="placeholder">
       <div class="placeholder-icon">📅</div>
       <p>Koppel een agenda om je afspraken te zien.</p>
-      <button class="btn btn-sm btn-primary" onclick="switchModule('agenda')">Koppelen ↗</button>
+      <button class="btn btn-sm btn-primary" data-action="switchModule" data-arg1="agenda">Koppelen ↗</button>
     </div>`;
     return;
   }
@@ -2138,6 +2164,21 @@ function renderAll(){
   const startMod=validMods.includes(hash)?hash:'dashboard';
   switchModule(startMod);
 }
+
+/* ─ Event delegation registrations (Dashboard + Sidebar clients) ─ */
+Object.assign(APP_ACTIONS,{
+  switchModule:(el,e,mod)=>switchModule(mod),
+  setClientFilter:(el,e,id)=>setClientFilter(id),
+  editClientStop:(el,e,id)=>{e.stopPropagation();editClient(id,e);},
+  deleteClientStop:(el,e,id)=>{e.stopPropagation();deleteClient(id,e);},
+  dashClToggle:(el,e,id)=>dashClToggle(id),
+  dashClToggleSubtask:(el,e,itemId,stId)=>dashClToggleSubtask(itemId,stId)
+});
+Object.assign(APP_CHANGE_ACTIONS,{
+  dashClSetPriority:(el,e,id)=>dashClSetPriority(id,el.value),
+  dashClSetDeadline:(el,e,id)=>dashClSetDeadline(id,el.value),
+  dashClSetClient:(el,e,id)=>dashClSetClient(id,el.value)
+});
 
 /* ═══════════════════════════════════════════════════
    BOOT
