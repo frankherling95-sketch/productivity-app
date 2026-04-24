@@ -4321,8 +4321,24 @@ function renderDashCalList(events,body){
 }
 
 /* ═══════════════════════════════════════════════════
-   UREN MODULE
+   MODULE: UREN
+   ───────────────────────────────────────────────────
+   Organised as:
+     ═══ STATE ═══   Constants & device-local helpers.
+                    (Runtime vars declared in global init block ~L1576.)
+     ═══ LOGIC ═══  Pure data mutations on urenState — no DOM.
+     ═══ VIEW  ═══  Rendering & DOM manipulation.
+
+   Rendering strategy (Principle 3 — Skeleton vs Data):
+     • Full matrix rebuild only on navigation / view switch / template apply.
+     • Cell edits, description saves and invoiced-toggles use *partial*
+       DOM updates via `recalcUrenTotals()` and `updateUrenCellClasses()`
+       to avoid focus loss and flicker.
    ═══════════════════════════════════════════════════ */
+
+/* ╔══════════════════════════════════════════════════╗
+   ║                      STATE                       ║
+   ╚══════════════════════════════════════════════════╝ */
 
 const LS_UREN_PIN='herling_uren_pin';
 const DAY_LABELS_NL=['Ma','Di','Wo','Do','Vr','Za','Zo'];
@@ -4330,6 +4346,11 @@ const DAY_LABELS_NL=['Ma','Di','Wo','Do','Vr','Za','Zo'];
 function urenUid(){return 'ur_'+Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);}
 function urenGetPin(){return localStorage.getItem(LS_UREN_PIN)||'';}
 function urenHasPin(){return !!localStorage.getItem(LS_UREN_PIN);}
+
+/* ╔══════════════════════════════════════════════════╗
+   ║                      LOGIC                       ║
+   ║  Pure data helpers — no DOM access.              ║
+   ╚══════════════════════════════════════════════════╝ */
 
 /* ── Date helpers ── */
 function urenWeekDates(offset){
@@ -4417,6 +4438,12 @@ function urenSetHours(clientId,date,hoursStr){
   }
   scheduleSave();
 }
+
+/* ╔══════════════════════════════════════════════════╗
+   ║                       VIEW                       ║
+   ║  Rendering & DOM. Full rebuilds are explicit;    ║
+   ║  data-only changes go through partial updaters.  ║
+   ╚══════════════════════════════════════════════════╝ */
 
 /* ── Privacy lock ── */
 function renderUrenModule(){
@@ -4530,7 +4557,15 @@ function urenRenderContent(){
   }
 }
 
-/* ── Week matrix ── */
+/* ── Week matrix (SKELETON builder) ──
+   Pure HTML builder; partial updates target data-attributes below.
+   Data-attributes emitted for partial updates:
+     - td[data-cell-client][data-cell-date]           (cell wrapper)
+     - input[data-input-client][data-input-date]     (hours input)
+     - button[data-desc-client][data-desc-date]      (description btn)
+     - td[data-row-total="{clientId}"]               (per-client total)
+     - td[data-col-total="{date}"]                   (per-day total)
+     - td[data-grand-total]                          (grand total) */
 function renderUrenWeekMatrix(clients,dates){
   if(!clients.length){
     return `<div style="color:var(--text-hint);font-size:13px;padding:40px;text-align:center">
@@ -4561,21 +4596,24 @@ function renderUrenWeekMatrix(clients,dates){
       const inv=!!(entry&&entry.invoiced);
       const hasDesc=!!(entry&&entry.description);
       const isToday=d===today;
-      html+=`<td${isToday?' class="uren-today-col"':''}>
+      const tdCls=isToday?' class="uren-today-col"':'';
+      html+=`<td${tdCls} data-cell-client="${client.id}" data-cell-date="${d}">
         <div class="uren-cell-wrap">
           <input type="number" min="0" max="24" step="0.25"
             class="uren-cell-input${hours?' has-value':''}${inv?' invoiced':''}"
+            data-input-client="${client.id}" data-input-date="${d}"
             value="${hours||''}" placeholder=""
             ${inv?'disabled':''}
             onchange="urenCellChange(this,'${client.id}','${d}')"
             onfocus="this.select()"/>
           <button class="uren-cell-desc-btn${hasDesc?' has-desc':''}"
+            data-desc-client="${client.id}" data-desc-date="${d}"
             onclick="urenOpenDesc(event,'${client.id}','${d}')"
             title="${hasDesc?escapeHtml((entry.description||'').substring(0,60)):'Omschrijving / opties'}"
           >${hasDesc?'💬':'✎'}</button>
         </div></td>`;
     });
-    html+=`<td class="total-col">${rowTotal>0?urenFmt(rowTotal):''}</td></tr>`;
+    html+=`<td class="total-col" data-row-total="${client.id}">${rowTotal>0?urenFmt(rowTotal):''}</td></tr>`;
   });
 
   // Totals row
@@ -4584,14 +4622,73 @@ function renderUrenWeekMatrix(clients,dates){
   dates.forEach(d=>{
     let dt=0;clients.forEach(c=>{const e=urenGetEntry(c.id,d);if(e)dt+=e.hours;});grand+=dt;
     const isToday=d===today;
-    html+=`<td${isToday?' class="uren-today-col"':''}>${dt>0?urenFmt(dt):''}</td>`;
+    html+=`<td${isToday?' class="uren-today-col"':''} data-col-total="${d}">${dt>0?urenFmt(dt):''}</td>`;
   });
-  html+=`<td class="total-col">${grand>0?urenFmt(grand):''}</td></tr></tbody></table></div>`;
+  html+=`<td class="total-col" data-grand-total>${grand>0?urenFmt(grand):''}</td></tr></tbody></table></div>`;
   html+=`<div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
     <span class="uren-invoiced-badge">✓ Gefactureerd</span>
     <span style="font-size:12px;color:var(--text-muted)">Typ uren direct in de cel · Klik op ✎ voor omschrijving en opties</span>
   </div>`;
   return html;
+}
+
+/* ── Partial updaters (no innerHTML rebuild) ──
+   Called after data mutations so the DOM stays in sync without
+   re-rendering the whole matrix. Only operate on the currently
+   rendered week view. Month view falls back to full rebuild. */
+
+/* Recompute row / column / grand totals in-place. */
+function recalcUrenTotals(){
+  if(urenView!=='week')return;
+  const body=document.getElementById('urenBody');
+  if(!body)return;
+  const clients=kanbanState.clients;
+  const dates=urenWeekDates(urenWeekOffset);
+  let grand=0;
+  clients.forEach(c=>{
+    let rt=0;
+    dates.forEach(d=>{const e=urenGetEntry(c.id,d);if(e)rt+=e.hours;});
+    const cell=body.querySelector(`[data-row-total="${c.id}"]`);
+    if(cell)cell.textContent=rt>0?urenFmt(rt):'';
+    grand+=rt;
+  });
+  dates.forEach(d=>{
+    let dt=0;clients.forEach(c=>{const e=urenGetEntry(c.id,d);if(e)dt+=e.hours;});
+    const cell=body.querySelector(`[data-col-total="${d}"]`);
+    if(cell)cell.textContent=dt>0?urenFmt(dt):'';
+  });
+  const g=body.querySelector('[data-grand-total]');
+  if(g)g.textContent=grand>0?urenFmt(grand):'';
+}
+
+/* Refresh input classes (has-value/invoiced/disabled) and desc button
+   state for a single cell without touching the rest of the table. */
+function updateUrenCellClasses(clientId,date){
+  if(urenView!=='week')return;
+  const body=document.getElementById('urenBody');
+  if(!body)return;
+  const entry=urenGetEntry(clientId,date);
+  const hours=entry?entry.hours:0;
+  const inv=!!(entry&&entry.invoiced);
+  const hasDesc=!!(entry&&entry.description);
+  const input=body.querySelector(`input[data-input-client="${clientId}"][data-input-date="${date}"]`);
+  if(input){
+    input.classList.toggle('has-value',!!hours);
+    input.classList.toggle('invoiced',inv);
+    input.disabled=inv;
+    /* Keep input in sync when hours were cleared server-side. */
+    if(document.activeElement!==input){
+      input.value=hours||'';
+    }
+  }
+  const btn=body.querySelector(`button[data-desc-client="${clientId}"][data-desc-date="${date}"]`);
+  if(btn){
+    btn.classList.toggle('has-desc',hasDesc);
+    btn.textContent=hasDesc?'💬':'✎';
+    btn.title=hasDesc
+      ?((entry.description||'').substring(0,60))
+      :'Omschrijving / opties';
+  }
 }
 
 function urenFmt(n){return n.toLocaleString('nl-NL',{minimumFractionDigits:0,maximumFractionDigits:2});}
@@ -4640,10 +4737,17 @@ function renderUrenMonthMatrix(clients,weeks,year,month){
   return html;
 }
 
-/* ── Cell interaction ── */
+/* ── Cell interaction ──
+   Partial update: mutate state → refresh classes on this cell →
+   recompute totals. Never rebuild the matrix (preserves focus). */
 function urenCellChange(input,clientId,date){
   urenSetHours(clientId,date,input.value);
-  urenRenderContent();
+  if(urenView==='week'){
+    updateUrenCellClasses(clientId,date);
+    recalcUrenTotals();
+  } else {
+    urenRenderContent();
+  }
 }
 
 /* ── Description / options popup ── */
@@ -4705,7 +4809,9 @@ function urenSaveDesc(){
   const entry=urenGetEntry(clientId,date);
   if(entry){entry.description=txt;scheduleSave();}
   closeUrenDescPopup();
-  urenRenderContent();
+  /* Partial update — only the desc button visual changes. */
+  if(urenView==='week')updateUrenCellClasses(clientId,date);
+  else urenRenderContent();
 }
 
 function urenToggleInvoicedPopup(checkbox){
@@ -4715,7 +4821,13 @@ function urenToggleInvoicedPopup(checkbox){
   const entry=urenGetEntry(clientId,date);
   if(entry){entry.description=txt;entry.invoiced=checkbox.checked;scheduleSave();}
   closeUrenDescPopup();
-  urenRenderContent();
+  /* Invoiced toggle changes both input styling and (indirectly) cell state. */
+  if(urenView==='week'){
+    updateUrenCellClasses(clientId,date);
+    recalcUrenTotals();
+  } else {
+    urenRenderContent();
+  }
 }
 
 function closeUrenDescPopup(){
