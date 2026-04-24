@@ -1495,21 +1495,25 @@ textarea { line-height: 1.6; resize: vertical; }
   color: var(--text);
   cursor: pointer;
   text-align: left;
+  user-select: none;
 }
 .client-filter-option:hover { background: var(--bg); }
 .client-filter-option.selected { background: var(--mint-soft); color: var(--text); font-weight: 600; }
+.client-filter-option:focus-visible { outline: 2px solid var(--mint); outline-offset: -1px; }
 .client-filter-option .cf-dot { width: 12px; height: 12px; border-radius: 4px; flex-shrink: 0; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1); }
-.client-filter-option .cf-actions { margin-left: auto; display: inline-flex; gap: 2px; opacity: 0; transition: opacity 0.12s; }
+.client-filter-option .cf-opt-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.client-filter-option .cf-actions { display: inline-flex; gap: 2px; opacity: 0; transition: opacity 0.12s; flex-shrink: 0; }
 .client-filter-option:hover .cf-actions { opacity: 1; }
 .client-filter-option .cf-actbtn {
   background: transparent;
   border: 0;
   color: var(--text-hint);
   cursor: pointer;
-  padding: 2px 5px;
+  padding: 3px 6px;
   border-radius: 4px;
   font-size: 11px;
   line-height: 1;
+  font-family: inherit;
 }
 .client-filter-option .cf-actbtn:hover { background: var(--surface2); color: var(--text); }
 .client-filter-empty { padding: 10px 12px; font-size: 11.5px; color: var(--text-hint); text-align: center; }
@@ -1574,6 +1578,373 @@ textarea { line-height: 1.6; resize: vertical; }
 .note-client-hdr .note-client-actions button:hover { background: var(--surface3); color: var(--text); }
 .note-client-body { padding-left: 12px; padding-top: 2px; }
 .note-client-empty { font-size: 10.5px; color: var(--text-hint); padding: 4px 8px; font-style: italic; }
+
+/* ═════════════════════════════════════════════════════════════════════════════
+   CHECKLIST v3 — hero + inline-new + priority groups + accent-rule cards
+   Per design handoff (Herling Analytics v3).
+   ════════════════════════════════════════════════════════════════════════════ */
+.cl2-title { font-family: var(--font-display); font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
+.cl2-sort {
+  padding: 5px 10px !important;
+  font-size: 12px !important;
+  border-radius: 6px !important;
+}
+
+.cl2-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 32px 40px;
+  animation: ha-fadeIn 0.4s var(--ease);
+}
+.cl2-wrap { max-width: 880px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+
+/* ── Progress Hero ─────────────────────────────────────────────────────────── */
+.cl2-hero {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 22px;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.cl2-hero-ring { width: 58px; height: 58px; flex-shrink: 0; position: relative; }
+.cl2-hero-ring svg { width: 58px; height: 58px; transform: rotate(-90deg); display: block; }
+.cl2-hero-ring-pct {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; color: var(--navy);
+  letter-spacing: -0.02em;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.cl2-hero-text { flex: 1; min-width: 0; }
+.cl2-hero-eyebrow {
+  font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--text-hint);
+}
+.cl2-hero-heading {
+  font-family: var(--font-display);
+  font-size: 19px; font-weight: 700; color: var(--text);
+  letter-spacing: -0.025em; line-height: 1.2;
+  margin-top: 2px;
+}
+.cl2-hero-heading .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.cl2-hero-meta {
+  font-size: 12px; color: var(--text-muted);
+  font-family: var(--font-mono);
+  margin-top: 3px;
+}
+.cl2-hero-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+/* ── New-item inline card ─────────────────────────────────────────────────── */
+.cl2-newitem {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-card);
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cl2-newitem-slot {
+  width: 20px; height: 20px;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: 6px;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-hint);
+  font-size: 13px; line-height: 1;
+}
+.cl2-newitem-input {
+  flex: 1;
+  border: 0 !important;
+  background: transparent !important;
+  padding: 6px 4px !important;
+  font-size: 13.5px !important;
+  color: var(--text);
+  outline: none !important;
+  box-shadow: none !important;
+}
+.cl2-newitem-input::placeholder { color: var(--text-hint); }
+.cl2-newitem-select {
+  padding: 5px 8px !important;
+  font-size: 12px !important;
+  font-weight: 500;
+  border-radius: 6px !important;
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  cursor: pointer;
+}
+
+/* ── Filter bar ────────────────────────────────────────────────────────────── */
+.cl2-filter {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.cl2-filter-lbl {
+  font-size: 10.5px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--text-hint);
+}
+.cl2-seg {
+  display: inline-flex; gap: 4px;
+  padding: 3px;
+  background: var(--surface2);
+  border-radius: 8px;
+}
+.cl2-seg-btn {
+  padding: 4px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.12s;
+  font-family: inherit;
+}
+.cl2-seg-btn:hover { color: var(--text); }
+.cl2-seg-btn.active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+}
+.cl2-filter-select {
+  padding: 5px 10px !important;
+  font-size: 12px !important;
+  min-width: 130px;
+  border-radius: 6px !important;
+}
+.cl2-filter-counter {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Priority group sections ───────────────────────────────────────────────── */
+.cl2-group { margin-top: 4px; }
+.cl2-group + .cl2-group { margin-top: 18px; }
+.cl2-group-hdr {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 8px;
+  padding: 0 2px;
+}
+.cl2-group-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.cl2-group-name {
+  font-size: 11.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.cl2-group-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--surface2);
+  padding: 1px 7px;
+  border-radius: 20px;
+}
+.cl2-group-rule { flex: 1; height: 1px; background: var(--border); margin-left: 4px; }
+
+/* ── Item card (v3) ─────────────────────────────────────────────────────────
+   Uses same .cl-item hook as existing module but with stronger overrides. */
+#clBody .cl-item {
+  display: block !important;
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-left: 3px solid var(--border) !important;
+  border-radius: 10px !important;
+  padding: 0 !important;
+  margin-bottom: 8px !important;
+  overflow: hidden !important;
+  box-shadow: var(--shadow-card) !important;
+  transition: all 0.15s var(--ease);
+}
+#clBody .cl-item:hover { box-shadow: var(--shadow-card-hover) !important; }
+#clBody .cl-item.done-item,
+#clBody .cl-item[data-done="true"] { opacity: 0.65; }
+
+.cl2-row-head {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px;
+}
+.cl2-drag {
+  width: 14px;
+  color: var(--text-hint);
+  cursor: grab;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  user-select: none;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.cl2-check {
+  width: 20px; height: 20px;
+  border-radius: 6px;
+  border: 2px solid var(--border-strong);
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+}
+.cl2-check.checked {
+  background: var(--mint);
+  border-color: var(--mint);
+}
+.cl2-check.checked svg { display: block; }
+.cl2-check svg { display: none; }
+.cl2-title-col {
+  flex: 1; min-width: 0;
+  cursor: pointer;
+}
+.cl2-item-title {
+  font-size: 13.5px; font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+}
+.cl2-item-title.done { text-decoration: line-through; }
+.cl2-item-meta {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.cl2-pri {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 1.5px 7px;
+  border-radius: 4px;
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.cl2-pri-dot { width: 5px; height: 5px; border-radius: 50%; }
+.cl2-deadline {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+.cl2-deadline.overdue { color: var(--danger); font-weight: 600; }
+.cl2-subcount {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+.cl2-client-tag {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 1.5px 7px;
+  border-radius: 4px;
+  font-size: 10.5px; font-weight: 600;
+}
+.cl2-client-tag .cf-dot { width: 7px; height: 7px; border-radius: 3px; }
+
+.cl2-item-actions {
+  display: flex; gap: 2px;
+  flex-shrink: 0;
+}
+.cl2-iconbtn {
+  width: 26px; height: 26px;
+  border: 0;
+  background: transparent;
+  color: var(--text-hint);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 6px;
+  transition: all 0.12s;
+  padding: 0;
+}
+.cl2-iconbtn:hover { background: var(--surface2); color: var(--text); }
+.cl2-iconbtn.danger:hover { background: var(--danger-bg); color: var(--danger); }
+.cl2-iconbtn .chev { transition: transform 0.2s; }
+.cl2-iconbtn.open .chev { transform: rotate(180deg); }
+
+.cl2-progress {
+  height: 2px;
+  background: var(--surface2);
+  margin: 0 14px;
+}
+.cl2-progress-fill {
+  height: 100%;
+  transition: width 0.4s;
+}
+
+.cl2-subs {
+  padding: 6px 14px 10px 48px;
+  border-top: 1px solid var(--border);
+}
+.cl2-sub-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 0;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.cl2-sub-row:hover { background: var(--bg); }
+.cl2-sub-check {
+  width: 15px; height: 15px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+}
+.cl2-sub-check.checked { background: var(--mint); border-color: var(--mint); }
+.cl2-sub-check svg { display: none; }
+.cl2-sub-check.checked svg { display: block; }
+.cl2-sub-label {
+  flex: 1; font-size: 12.5px;
+  color: var(--text-muted);
+  letter-spacing: -0.005em;
+}
+.cl2-sub-label.done { color: var(--text-hint); text-decoration: line-through; }
+.cl2-sub-add {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 0;
+}
+.cl2-sub-add-slot {
+  width: 15px; height: 15px;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: 4px;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; line-height: 1;
+  color: var(--text-hint);
+}
+.cl2-sub-add-input {
+  flex: 1;
+  border: 0 !important;
+  background: transparent !important;
+  padding: 4px 0 !important;
+  font-size: 12.5px !important;
+  color: var(--text);
+  outline: none !important;
+  box-shadow: none !important;
+}
+.cl2-sub-add-input::placeholder { color: var(--text-hint); }
+
+/* Ring animation */
+@keyframes ringDraw { from { stroke-dasharray: 0 157; } }
+.cl2-hero-ring-fill { animation: ringDraw 0.8s var(--ease); }
+
+/* Empty state */
+.cl2-empty {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 40px 20px;
+  text-align: center;
+  box-shadow: var(--shadow-card);
+}
+.cl2-empty-hdr { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.cl2-empty-sub { font-size: 12.5px; color: var(--text-muted); }
 
 /* ═════════════════════════════════════════════════════════════════════════════
    DASHBOARD v2 — hero + KPI strip + 2×2 grid
@@ -2211,29 +2582,27 @@ textarea { line-height: 1.6; resize: vertical; }
     <!-- ══ Module: Checklist ══ -->
     <div id="mod-checklist" class="module">
       <div class="cl-topbar">
-        <div style="font-size:18px;font-weight:700">Checklist</div>
-        <div class="cl-filter-bar">
-          <select id="clSortSelect" onchange="setChecklistSort(this.value)">
+        <div class="cl2-title">Checklist</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div class="client-filter" id="checklistClientFilter"></div>
+          <select id="clSortSelect" class="cl2-sort" onchange="setChecklistSort(this.value)">
             <option value="priority">Prioriteit ↓</option>
             <option value="deadline">Deadline ↑</option>
           </select>
-          <button class="btn btn-xs" id="clArchiveToggle" onclick="toggleChecklistArchived()">Archief tonen</button>
-          <button class="btn btn-xs btn-danger" onclick="deleteAllDone()" title="Alle voltooide taken verwijderen">✕ Verwijder voltooid</button>
         </div>
       </div>
-      <div class="cl-filter-row" id="clFilterRow"></div>
-      <div class="cl-progress-wrap" id="clProgressWrap" style="display:none">
-        <div class="cl-progress-label" id="clProgressLabel"></div>
-        <div class="cl-progress-track"><div class="cl-progress-fill" id="clProgressFill" style="width:0%"></div></div>
-        <div style="margin-top:10px">
-          <button class="btn btn-sm btn-primary" onclick="openChecklistItemModal(null)" style="width:100%;justify-content:center">+ Nieuwe taak</button>
+      <!-- v3 scroll container: centered reading column -->
+      <div class="cl2-scroll" id="clScroll">
+        <div class="cl2-wrap">
+          <!-- Progress hero -->
+          <div class="cl2-hero" id="clHero"></div>
+          <!-- New-item inline card (hidden in archive view) -->
+          <div class="cl2-newitem" id="clNewItem"></div>
+          <!-- Filter bar (hidden in archive view) -->
+          <div class="cl2-filter" id="clFilterRow"></div>
+          <!-- Grouped body: priority sections + items -->
+          <div id="clBody"></div>
         </div>
-      </div>
-      <div id="clProgressEmpty" style="padding:10px 20px 0;flex-shrink:0">
-        <button class="btn btn-sm btn-primary" onclick="openChecklistItemModal(null)" style="width:100%;justify-content:center">+ Nieuwe taak</button>
-      </div>
-      <div class="cl-body" id="clBody">
-        <div class="cl-empty"><div style="font-size:32px">☑</div><p>Nog geen taken. Klik op <strong>+ Nieuwe taak</strong> om te beginnen.</p></div>
       </div>
     </div>
 
@@ -3067,21 +3436,21 @@ function renderOneClientFilter(host){
   const label=active?active.name:'Alle klanten';
   const dotStyle=active?`background:${CLIENT_COLORS[active.colorIdx%CLIENT_COLORS.length].bg}`:'';
   const optionsHtml=[
-    `<button type="button" class="client-filter-option${activeClientFilter===''?' selected':''}" data-cid="">
+    `<div class="client-filter-option${activeClientFilter===''?' selected':''}" role="button" tabindex="0" data-cid="">
        <span class="cf-dot" style="background:var(--surface3)"></span>
-       <span>Alle klanten</span>
-     </button>`,
+       <span class="cf-opt-name">Alle klanten</span>
+     </div>`,
     ...clients.map(c=>{
       const col=CLIENT_COLORS[c.colorIdx%CLIENT_COLORS.length];
       const sel=activeClientFilter===c.id?' selected':'';
-      return `<button type="button" class="client-filter-option${sel}" data-cid="${c.id}">
+      return `<div class="client-filter-option${sel}" role="button" tabindex="0" data-cid="${c.id}">
         <span class="cf-dot" style="background:${col.bg}"></span>
-        <span>${escapeHtml(c.name)}</span>
+        <span class="cf-opt-name">${escapeHtml(c.name)}</span>
         <span class="cf-actions">
-          <button class="cf-actbtn" data-cf-edit="${c.id}" title="Hernoemen">✎</button>
-          <button class="cf-actbtn" data-cf-del="${c.id}" title="Verwijderen">✕</button>
+          <button type="button" class="cf-actbtn" data-cf-edit="${c.id}" title="Hernoemen">✎</button>
+          <button type="button" class="cf-actbtn" data-cf-del="${c.id}" title="Verwijderen">✕</button>
         </span>
-      </button>`;
+      </div>`;
     })
   ];
   if(!clients.length)optionsHtml.push(`<div class="client-filter-empty">Nog geen klanten. Klik op + Klant.</div>`);
@@ -4773,10 +5142,11 @@ document.addEventListener('dblclick',e=>{
    data-action. Drag handlers remain inline on each .cl-item
    (e.currentTarget-bound), attached in renderChecklistBody.
    ═══════════════════════════════════════════════════ */
+/* v3 priority palette — matches Herling Analytics v3 design handoff */
 const CL_PRIORITY_CFG={
-  hoog:{label:'Hoog',bg:'#fbeaea',tx:'#8b1a1a',order:0},
-  middel:{label:'Middel',bg:'#fff8e6',tx:'#7a5700',order:1},
-  laag:{label:'Laag',bg:'#e8f5ee',tx:'#2d6a4f',order:2}
+  hoog:{label:'Hoog',  bg:'rgba(239,68,68,0.10)',  tx:'#EF4444', dot:'#EF4444', order:0},
+  middel:{label:'Middel',bg:'rgba(245,158,11,0.10)',tx:'#F59E0B', dot:'#F59E0B', order:1},
+  laag:{label:'Laag',  bg:'rgba(16,185,129,0.10)', tx:'#10B981', dot:'#10B981', order:2}
 };
 let clEditingId=null;
 let clDragId=null,clDragOver=null;
@@ -4784,6 +5154,10 @@ let clDoneExpanded=false;
 let clAddingSubtaskFor=null;
 let clEditingSubtask={itemId:null,subId:null};
 let clCalYear=new Date().getFullYear(),clCalMonth=new Date().getMonth(),clCalSelected=null;
+/* Per-item expand state for v3 card (HOOG default-open, others closed) */
+let clItemOpen={};
+/* New-item inline card local draft state */
+let clNewDraft={title:'',priority:'middel',clientId:''};
 
 function renderClCal(){
   const titleEl=document.getElementById('clCalTitle');
@@ -4830,18 +5204,33 @@ function clCalToday(){const n=new Date();clCalYear=n.getFullYear();clCalMonth=n.
 
 function renderChecklistModule(){
   const body=document.getElementById('clBody');
-  const progWrap=document.getElementById('clProgressWrap');
-  const progEmpty=document.getElementById('clProgressEmpty');
-  if(!body)return;
+  const hero=document.getElementById('clHero');
+  const newItem=document.getElementById('clNewItem');
+  if(!body||!hero)return;
 
-  renderClFilterBar();
+  /* Respect activeClientFilter as an overriding client filter */
+  if(activeClientFilter){clFilters.clientId=activeClientFilter;}
 
   const notArchived=checklistState.items.filter(i=>!i.archived);
   const allActiveItems=notArchived.filter(i=>!i.done);
   const doneItems=notArchived.filter(i=>i.done);
   const archived=checklistState.items.filter(i=>i.archived);
 
-  /* Apply filters */
+  /* Hero always rendered (shows progress over notArchived) */
+  renderChecklistHero({notArchived,doneItems,archivedCount:archived.length});
+
+  /* New-item inline card + filter bar: hidden while in archive view */
+  if(checklistState.showArchived){
+    newItem.style.display='none';
+    document.getElementById('clFilterRow').style.display='none';
+  } else {
+    newItem.style.display='';
+    document.getElementById('clFilterRow').style.display='';
+    renderChecklistNewItem();
+    renderClFilterBar();
+  }
+
+  /* Apply filters to active items */
   const now=new Date();
   let weekStart=null,weekEnd=null,monthStart=null,monthEnd=null;
   if(clFilters.period==='week'){
@@ -4854,28 +5243,47 @@ function renderChecklistModule(){
     const last=new Date(now.getFullYear(),now.getMonth()+1,0);
     monthEnd=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(last.getDate()).padStart(2,'0')}`;
   }
-  const activeItems=allActiveItems.filter(i=>{
+  function passes(i){
     if(clFilters.prio&&i.priority!==clFilters.prio)return false;
     if(clFilters.clientId&&i.clientId!==clFilters.clientId)return false;
     if(clFilters.period==='week'){if(!i.deadline||i.deadline<weekStart||i.deadline>weekEnd)return false;}
     if(clFilters.period==='month'){if(!i.deadline||i.deadline<monthStart||i.deadline>monthEnd)return false;}
     return true;
-  });
+  }
+  const activeItems=allActiveItems.filter(passes);
   const filtersActive=clFilters.prio||clFilters.clientId||clFilters.period;
 
-  /* Progress bar + new-task button placement */
-  if(notArchived.length){
-    const pct=Math.round(doneItems.length/notArchived.length*100);
-    document.getElementById('clProgressLabel').textContent=`${doneItems.length} van ${notArchived.length} voltooid (${pct}%)`;
-    document.getElementById('clProgressFill').style.width=pct+'%';
-    progWrap.style.display='';
-    if(progEmpty)progEmpty.style.display='none';
-  } else {
-    progWrap.style.display='none';
-    if(progEmpty)progEmpty.style.display='';
+  /* Archive view: show only archived items grouped by priority, no filter */
+  if(checklistState.showArchived){
+    if(!archived.length){
+      body.innerHTML=`<div class="cl2-empty">
+        <div class="cl2-empty-hdr">Geen gearchiveerde taken</div>
+        <div class="cl2-empty-sub">Gearchiveerde taken verschijnen hier.</div>
+      </div>`;
+      return;
+    }
+    body.innerHTML=renderPriorityGroups(archived,{isArchived:true,showGroupHeaders:false});
+    wireChecklistBodyEvents(body);
+    return;
   }
 
-  /* Sort active items */
+  /* Active view: empty / no-results */
+  if(!notArchived.length){
+    body.innerHTML=`<div class="cl2-empty">
+      <div class="cl2-empty-hdr">Nog geen taken</div>
+      <div class="cl2-empty-sub">Gebruik het veld hierboven om je eerste taak toe te voegen.</div>
+    </div>`;
+    return;
+  }
+  if(!activeItems.length&&!doneItems.filter(passes).length){
+    body.innerHTML=`<div class="cl2-empty">
+      <div class="cl2-empty-hdr">Geen taken gevonden</div>
+      <div class="cl2-empty-sub">Pas je filter aan of voeg een nieuwe taak toe.</div>
+    </div>`;
+    return;
+  }
+
+  /* Sort active items by priority (default) or deadline */
   let display=[...activeItems];
   if(checklistState.sortBy==='deadline'){
     display.sort((a,b)=>{
@@ -4884,65 +5292,55 @@ function renderChecklistModule(){
       if(!b.deadline)return -1;
       return a.deadline<b.deadline?-1:1;
     });
+    /* In deadline sort, render as a flat list without priority grouping */
+    body.innerHTML=display.map(item=>clItemHtml(item)).join('');
   } else {
-    display.sort((a,b)=>{
-      const ao=(CL_PRIORITY_CFG[a.priority]||CL_PRIORITY_CFG.middel).order;
-      const bo=(CL_PRIORITY_CFG[b.priority]||CL_PRIORITY_CFG.middel).order;
-      if(ao!==bo)return ao-bo;
-      return (a.sortOrder||0)-(b.sortOrder||0);
-    });
+    body.innerHTML=renderPriorityGroups(display,{isArchived:false,showGroupHeaders:true});
   }
 
-  if(!notArchived.length&&!checklistState.showArchived){
-    body.innerHTML=`<div class="cl-empty"><div style="font-size:32px">☑</div><p>Nog geen taken. Klik op <strong>+ Nieuwe taak</strong> om te beginnen.</p></div>`;
-    return;
-  }
-  if(!activeItems.length&&filtersActive&&!doneItems.length){
-    body.innerHTML=`<div class="cl-empty"><div style="font-size:32px">🔍</div><p>Geen taken gevonden voor deze filters.</p><button class="btn btn-sm" data-action="clearClFilters">Filters wissen</button></div>`;
-    return;
-  }
-
-  let html='';
-
-  /* Active items */
-  if(display.length){
-    let lastPri=null;
-    display.forEach(item=>{
-      if(checklistState.sortBy==='priority'&&item.priority!==lastPri){
-        lastPri=item.priority;
-        const cfg=CL_PRIORITY_CFG[item.priority]||CL_PRIORITY_CFG.middel;
-        html+=`<div class="cl-section-hdr" style="color:${cfg.tx}">${cfg.label}</div>`;
-      }
-      html+=clItemHtml(item);
-    });
-  }
-
-  /* Done items — collapsible section, filtered same as active */
-  const visibleDone=filtersActive?doneItems.filter(i=>{
-    if(clFilters.prio&&i.priority!==clFilters.prio)return false;
-    if(clFilters.clientId&&i.clientId!==clFilters.clientId)return false;
-    if(clFilters.period==='week'){if(!i.deadline||i.deadline<weekStart||i.deadline>weekEnd)return false;}
-    if(clFilters.period==='month'){if(!i.deadline||i.deadline<monthStart||i.deadline>monthEnd)return false;}
-    return true;
-  }):doneItems;
+  /* Append done + archived sections */
+  const visibleDone=filtersActive?doneItems.filter(passes):doneItems;
   if(visibleDone.length){
-    const icon=clDoneExpanded?'▼':'▶';
-    html+=`<div class="cl-section-hdr" style="cursor:pointer;display:flex;align-items:center;gap:6px;margin-top:10px;color:var(--text-hint)" data-action="toggleClDoneSection">
-      <span>${icon}</span><span>Afgerond (${visibleDone.length})</span>
-    </div>`;
-    if(clDoneExpanded){
-      visibleDone.forEach(item=>{ html+=clItemHtml(item); });
+    const arrow=clDoneExpanded?'▼':'▶';
+    body.insertAdjacentHTML('beforeend',`
+      <div class="cl-section-hdr" style="cursor:pointer;display:flex;align-items:center;gap:6px;margin-top:18px;color:var(--text-hint);font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;padding:6px 2px" data-action="toggleClDoneSection">
+        <span>${arrow}</span><span>Afgerond (${visibleDone.length})</span>
+      </div>
+      ${clDoneExpanded?visibleDone.map(item=>clItemHtml(item)).join(''):''}`);
+  }
+  wireChecklistBodyEvents(body);
+}
+
+/* Render items grouped by priority (HOOG → MIDDEL → LAAG) with group headers */
+function renderPriorityGroups(items,{isArchived,showGroupHeaders}){
+  const bucket={hoog:[],middel:[],laag:[]};
+  items.forEach(i=>{(bucket[i.priority]||bucket.middel).push(i);});
+  ['hoog','middel','laag'].forEach(p=>{
+    bucket[p].sort((a,b)=>(a.sortOrder||0)-(b.sortOrder||0));
+  });
+  let out='';
+  ['hoog','middel','laag'].forEach(p=>{
+    const list=bucket[p];
+    if(!list.length)return;
+    const cfg=CL_PRIORITY_CFG[p];
+    if(showGroupHeaders){
+      out+=`<div class="cl2-group">
+        <div class="cl2-group-hdr">
+          <span class="cl2-group-dot" style="background:${cfg.dot}"></span>
+          <span class="cl2-group-name" style="color:${cfg.tx}">Prioriteit: ${cfg.label}</span>
+          <span class="cl2-group-count">${list.length}</span>
+          <span class="cl2-group-rule"></span>
+        </div>
+        ${list.map(i=>clItemHtml(i,isArchived)).join('')}
+      </div>`;
+    } else {
+      out+=list.map(i=>clItemHtml(i,isArchived)).join('');
     }
-  }
+  });
+  return out;
+}
 
-  /* Archived */
-  if(checklistState.showArchived&&archived.length){
-    html+=`<div class="cl-section-hdr" style="margin-top:10px">Archief (${archived.length})</div>`;
-    archived.forEach(item=>{ html+=clItemHtml(item,true); });
-  }
-
-  body.innerHTML=html;
-
+function wireChecklistBodyEvents(body){
   /* Re-focus subtask input or edit field if active */
   if(clAddingSubtaskFor){
     const inp=body.querySelector(`[data-subtask-input="${clAddingSubtaskFor}"]`);
@@ -4986,61 +5384,204 @@ function toggleClDoneSection(){
   renderChecklistModule();
 }
 
+/* Format deadline as 'Vandaag · 24 apr' / 'Morgen' / 'Over N dgn' / 'N dgn te laat' */
+function formatDeadline(iso){
+  if(!iso)return '';
+  const MN=['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+  const d=new Date(iso+'T00:00:00');
+  const today=new Date();today.setHours(0,0,0,0);
+  const diff=Math.round((d-today)/86400000);
+  const dm=`${d.getDate()} ${MN[d.getMonth()]}`;
+  if(diff===0)return `Vandaag · ${dm}`;
+  if(diff===1)return `Morgen · ${dm}`;
+  if(diff>1&&diff<7)return `Over ${diff} dgn · ${dm}`;
+  if(diff<0)return `${Math.abs(diff)} dgn te laat · ${dm}`;
+  return dm;
+}
+
 function clItemHtml(item,isArchived=false){
   const cfg=CL_PRIORITY_CFG[item.priority]||CL_PRIORITY_CFG.middel;
   const today=new Date().toISOString().slice(0,10);
   const overdue=item.deadline&&!item.done&&item.deadline<today;
-  const subtasksDone=(item.subtasks||[]).filter(s=>s.done).length;
-  const subtasksTotal=(item.subtasks||[]).length;
-  const subtaskStr=subtasksTotal?`<span style="font-size:12px;color:var(--text-hint)">${subtasksDone}/${subtasksTotal} subtaken</span>`:'';
-
-  let subtasksHtml='<div class="cl-subtasks">';
-  (item.subtasks||[]).forEach(st=>{
-    const isEditing=clEditingSubtask.itemId===item.id&&clEditingSubtask.subId===st.id;
-    const textPart=isEditing
-      ?`<input class="cl-subtask-edit-input" data-st-edit="${item.id}|${st.id}"
-          data-st-edit-item="${item.id}" data-st-edit-sub="${st.id}"
-          value="${escapeHtml(st.text)}"
-          style="flex:1;padding:2px 6px;font-size:13px;border:0.5px solid var(--accent);border-radius:var(--radius);background:var(--surface);color:var(--text);font-family:inherit;outline:none"/>`
-      :`<span class="cl-subtask-text${st.done?' done-text':''}"
-          title="Klik om te bewerken" style="cursor:text;flex:1"
-          data-action="startEditSubtask" data-arg1="${item.id}" data-arg2="${st.id}">${escapeHtml(st.text)}</span>`;
-    subtasksHtml+=`<div class="cl-subtask">
-      <div class="cl-subtask-check${st.done?' checked':''}" data-action="toggleSubtask" data-arg1="${item.id}" data-arg2="${st.id}">${st.done?'✓':''}</div>
-      ${textPart}
-      <button data-action="deleteSubtask" data-arg1="${item.id}" data-arg2="${st.id}" style="background:none;border:none;cursor:pointer;color:var(--text-hint);font-size:11px;padding:0 3px;opacity:.5">✕</button>
-    </div>`;
-  });
-  if(clAddingSubtaskFor===item.id){
-    subtasksHtml+=`<div style="display:flex;gap:4px;margin-top:2px">
-      <input class="cl-subtask-input-field" data-subtask-input="${item.id}" data-subtask-input-item="${item.id}" placeholder="Subtaak omschrijving..."
-        style="flex:1;padding:4px 7px;font-size:13px;border:0.5px solid var(--accent);border-radius:var(--radius);background:var(--surface);color:var(--text);font-family:inherit;outline:none"/>
-    </div>`;
-  } else {
-    subtasksHtml+=`<button class="cl-add-subtask" data-action="startSubtaskInput" data-arg1="${item.id}">+ Subtaak</button>`;
-  }
-  subtasksHtml+='</div>';
-
+  const subs=item.subtasks||[];
+  const subsDone=subs.filter(s=>s.done).length;
+  const subsTotal=subs.length;
+  const pct=subsTotal?Math.round((subsDone/subsTotal)*100):(item.done?100:0);
+  /* Expand state: HOOG default-open, others closed (respect user override) */
+  const defaultOpen=item.priority==='hoog';
+  const isOpen=clItemOpen[item.id]!==undefined?clItemOpen[item.id]:defaultOpen;
+  const showSubs=isOpen&&subsTotal>0;
+  const showSubsAdd=isOpen; /* always allow adding when expanded */
+  const client=item.clientId?kanbanState.clients.find(x=>x.id===item.clientId):null;
+  const clientCol=client?CLIENT_COLORS[client.colorIdx%CLIENT_COLORS.length]:null;
   const draggable=!item.done&&!isArchived;
-  return `<div class="cl-item${item.done?' done-item':''}${isArchived?' archived-item':''}" data-id="${item.id}" ${draggable?'draggable="true"':''}>
-    <div class="cl-item-row">
-      ${draggable?`<span class="cl-drag-handle" title="Slepen om te sorteren">⠿</span>`:'<span style="width:20px;flex-shrink:0"></span>'}
-      <div class="cl-check${item.done?' checked':''}" data-action="toggleChecklistDone" data-arg1="${item.id}" style="width:20px;height:20px;border-radius:5px;margin-top:0">${item.done?'✓':''}</div>
-      <span class="cl-text${item.done?' done-text':''}">${escapeHtml(item.text)}</span>
-      <div class="cl-actions">
-        ${!item.done?`<button data-action="openChecklistItemModal" data-arg1="${item.id}" title="Bewerken">✎</button>`:''}
-        ${isArchived?`<button data-action="unarchiveItem" data-arg1="${item.id}" title="Herstellen">↩</button>`:''}
-        <button data-action="deleteChecklistItem" data-arg1="${item.id}" title="Verwijderen">✕</button>
+
+  /* Subtask list */
+  let subsHtml='';
+  if(showSubs){
+    subs.forEach(st=>{
+      const isEditing=clEditingSubtask.itemId===item.id&&clEditingSubtask.subId===st.id;
+      const check=`<div class="cl2-sub-check${st.done?' checked':''}" data-action="toggleSubtask" data-arg1="${item.id}" data-arg2="${st.id}">
+        <svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M1.5 4.5L3.5 6.5L7.5 2.5" stroke="#0F1B3D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>`;
+      const text=isEditing
+        ?`<input class="cl2-sub-label" data-st-edit="${item.id}|${st.id}" data-st-edit-item="${item.id}" data-st-edit-sub="${st.id}" value="${escapeHtml(st.text)}" style="border:0;background:transparent;outline:none;font-family:inherit"/>`
+        :`<span class="cl2-sub-label${st.done?' done':''}" data-action="startEditSubtask" data-arg1="${item.id}" data-arg2="${st.id}" title="Klik om te bewerken">${escapeHtml(st.text)}</span>`;
+      subsHtml+=`<div class="cl2-sub-row">${check}${text}
+        <button type="button" class="cl2-iconbtn" data-action="deleteSubtask" data-arg1="${item.id}" data-arg2="${st.id}" title="Verwijder" style="width:20px;height:20px">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        </button></div>`;
+    });
+  }
+  if(showSubsAdd){
+    const input=clAddingSubtaskFor===item.id
+      ?`<input class="cl2-sub-add-input" data-subtask-input="${item.id}" data-subtask-input-item="${item.id}" placeholder="Subtaak toevoegen..." autofocus/>`
+      :`<span class="cl2-sub-add-input" style="color:var(--text-hint);cursor:pointer" data-action="startSubtaskInput" data-arg1="${item.id}">Subtaak toevoegen…</span>`;
+    subsHtml+=`<div class="cl2-sub-add">
+      <span class="cl2-sub-add-slot">+</span>
+      ${input}
+    </div>`;
+  }
+
+  /* Meta: priority pill + deadline + subtask counter + client tag */
+  const metaBits=[];
+  metaBits.push(`<span class="cl2-pri" style="background:${cfg.bg};color:${cfg.tx}">
+    <span class="cl2-pri-dot" style="background:${cfg.dot}"></span>${cfg.label}
+  </span>`);
+  if(item.deadline){
+    metaBits.push(`<span class="cl2-deadline${overdue?' overdue':''}">
+      <svg width="11" height="11" viewBox="0 0 13 13" fill="none"><rect x="1.5" y="2.5" width="10" height="9" rx="1" stroke="currentColor" stroke-width="1.2"/><line x1="4" y1="1.5" x2="4" y2="3.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><line x1="9" y1="1.5" x2="9" y2="3.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><line x1="1.5" y1="5" x2="11.5" y2="5" stroke="currentColor" stroke-width="1.2"/></svg>
+      ${formatDeadline(item.deadline)}
+    </span>`);
+  }
+  if(subsTotal>0){
+    metaBits.push(`<span class="cl2-subcount">
+      <svg width="11" height="11" viewBox="0 0 13 13" fill="none"><path d="M2 3.5h9 M2 6.5h9 M2 9.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      ${subsDone}/${subsTotal}
+    </span>`);
+  }
+  if(client&&clientCol){
+    metaBits.push(`<span class="cl2-client-tag" style="background:${clientCol.bg};color:${clientCol.tx}">
+      <span class="cf-dot" style="background:${clientCol.tx}"></span>${escapeHtml(client.name)}
+    </span>`);
+  }
+
+  return `<div class="cl-item${item.done?' done-item':''}${isArchived?' archived-item':''}"
+    data-id="${item.id}" data-done="${item.done?'true':'false'}"
+    ${draggable?'draggable="true"':''}
+    style="border-left-color:${cfg.tx}">
+    <div class="cl2-row-head">
+      ${draggable?`<span class="cl2-drag" title="Versleep">⋮⋮</span>`:'<span class="cl2-drag" style="visibility:hidden">⋮⋮</span>'}
+      <div class="cl2-check${item.done?' checked':''}" data-action="toggleChecklistDone" data-arg1="${item.id}">
+        <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M2 5.5L4.5 8L9 3" stroke="#0F1B3D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="cl2-title-col" data-action="toggleClItemOpen" data-arg1="${item.id}">
+        <div class="cl2-item-title${item.done?' done':''}">${escapeHtml(item.text)}</div>
+        <div class="cl2-item-meta">${metaBits.join('')}</div>
+      </div>
+      <div class="cl2-item-actions">
+        <button type="button" class="cl2-iconbtn${isOpen?' open':''}" data-action="toggleClItemOpen" data-arg1="${item.id}" title="${isOpen?'Inklappen':'Uitklappen'}">
+          <svg class="chev" width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        ${!item.done?`<button type="button" class="cl2-iconbtn" data-action="openChecklistItemModal" data-arg1="${item.id}" title="Bewerken">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M8 1.5l2.5 2.5L4 10.5H1.5V8L8 1.5z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>`:''}
+        ${isArchived
+          ?`<button type="button" class="cl2-iconbtn" data-action="unarchiveItem" data-arg1="${item.id}" title="Herstellen">↩</button>`
+          :`<button type="button" class="cl2-iconbtn" data-action="archiveItem" data-arg1="${item.id}" title="Archiveer">
+             <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1.5" y="2.5" width="9" height="2" rx="0.5" stroke="currentColor" stroke-width="1.3"/><path d="M2.5 4.5V10a.5.5 0 0 0 .5.5h6a.5.5 0 0 0 .5-.5V4.5" stroke="currentColor" stroke-width="1.3"/><line x1="5" y1="7" x2="7" y2="7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+           </button>`}
+        <button type="button" class="cl2-iconbtn danger" data-action="deleteChecklistItem" data-arg1="${item.id}" title="Verwijder">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 3.5h7M4.5 3.5V2.5a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1M3.5 3.5L4 10a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1l.5-6.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
       </div>
     </div>
-    <div class="cl-meta" style="padding-left:44px">
-      <span class="cl-priority-badge" style="background:${cfg.bg};color:${cfg.tx}">${cfg.label}</span>
-      ${item.deadline?`<span class="cl-deadline${overdue?' overdue':''}">📅 ${item.deadline}${overdue?' · Verlopen':''}</span>`:''}
-      ${(()=>{const c=item.clientId?kanbanState.clients.find(x=>x.id===item.clientId):null;if(!c)return'';const col=CLIENT_COLORS[c.colorIdx%CLIENT_COLORS.length];return`<span style="font-size:12px;font-weight:600;padding:2px 8px;border-radius:8px;background:${col.bg};color:${col.tx}">${escapeHtml(c.name)}</span>`})()}
-      ${subtaskStr}
-    </div>
-    <div style="padding-left:44px">${subtasksHtml}</div>
+    ${subsTotal>0?`<div class="cl2-progress"><div class="cl2-progress-fill" style="width:${pct}%;background:${pct===100?'var(--mint)':cfg.tx}"></div></div>`:''}
+    ${showSubs||showSubsAdd?`<div class="cl2-subs">${subsHtml}</div>`:''}
   </div>`;
+}
+
+/* Toggle item open/collapse state */
+function toggleClItemOpen(id){
+  const defaultOpen=(checklistState.items.find(i=>i.id===id)?.priority==='hoog');
+  const cur=clItemOpen[id]!==undefined?clItemOpen[id]:defaultOpen;
+  clItemOpen[id]=!cur;
+  renderChecklistModule();
+}
+function archiveItem(id){
+  const item=checklistState.items.find(i=>i.id===id);
+  if(!item)return;
+  item.archived=true;
+  scheduleSave();renderChecklistModule();
+}
+
+/* ─ Progress Hero render ─ */
+function renderChecklistHero({notArchived,doneItems,archivedCount}){
+  const hero=document.getElementById('clHero');if(!hero)return;
+  const totalActive=notArchived.length;
+  const itemsDone=doneItems.length;
+  const pct=totalActive?Math.round((itemsDone/totalActive)*100):0;
+  const dash=(pct/100)*157;
+  const totalSubs=notArchived.reduce((s,i)=>s+(i.subtasks?.length||0),0);
+  const doneSubs=notArchived.reduce((s,i)=>s+(i.subtasks||[]).filter(x=>x.done).length,0);
+  const openCount=totalActive-itemsDone;
+  const completedCount=itemsDone;
+  hero.innerHTML=`
+    <div class="cl2-hero-ring">
+      <svg viewBox="0 0 58 58">
+        <circle cx="29" cy="29" r="25" stroke="var(--surface2)" stroke-width="5" fill="none"/>
+        <circle class="cl2-hero-ring-fill" cx="29" cy="29" r="25" stroke="var(--mint)" stroke-width="5" fill="none" stroke-linecap="round" stroke-dasharray="${dash} 157"/>
+      </svg>
+      <div class="cl2-hero-ring-pct">${pct}%</div>
+    </div>
+    <div class="cl2-hero-text">
+      <div class="cl2-hero-eyebrow">Voortgang</div>
+      <div class="cl2-hero-heading"><span class="num">${itemsDone}</span> van <span class="num">${totalActive}</span> taken afgerond</div>
+      <div class="cl2-hero-meta">${doneSubs}/${totalSubs} subtaken · ${openCount} openstaand</div>
+    </div>
+    <div class="cl2-hero-actions">
+      ${completedCount>0&&!checklistState.showArchived?`<button class="btn btn-sm btn-ghost" data-action="deleteAllDone">Verwijder afgerond (${completedCount})</button>`:''}
+      ${checklistState.showArchived
+        ?`<button class="btn btn-sm btn-primary" data-action="toggleChecklistArchived">← Terug naar actief</button>`
+        :`<button class="btn btn-sm btn-ghost" data-action="toggleChecklistArchived">Archief${archivedCount?' ('+archivedCount+')':''}</button>`}
+    </div>`;
+}
+
+/* ─ New-item inline card ─ */
+function renderChecklistNewItem(){
+  const el=document.getElementById('clNewItem');if(!el)return;
+  const clients=kanbanState?.clients||[];
+  const priorityOpts=['hoog','middel','laag'].map(p=>
+    `<option value="${p}"${clNewDraft.priority===p?' selected':''}>${CL_PRIORITY_CFG[p].label}</option>`).join('');
+  const clientOpts='<option value="">Geen klant</option>'+
+    clients.map(c=>`<option value="${c.id}"${clNewDraft.clientId===c.id?' selected':''}>${escapeHtml(c.name)}</option>`).join('');
+  el.innerHTML=`
+    <span class="cl2-newitem-slot">+</span>
+    <input id="clNewItemInput" class="cl2-newitem-input" type="text" placeholder="Nieuwe taak toevoegen..." value="${escapeHtml(clNewDraft.title)}"/>
+    <select id="clNewItemPriority" class="cl2-newitem-select">${priorityOpts}</select>
+    <select id="clNewItemClient" class="cl2-newitem-select">${clientOpts}</select>
+    <button type="button" class="btn btn-sm btn-primary" data-action="clAddInlineItem">Toevoegen</button>`;
+  const inp=document.getElementById('clNewItemInput');
+  if(inp){
+    inp.addEventListener('input',e=>{clNewDraft.title=e.target.value;});
+    inp.addEventListener('keydown',e=>{if(e.key==='Enter')clAddInlineItem();});
+  }
+  document.getElementById('clNewItemPriority')?.addEventListener('change',e=>{clNewDraft.priority=e.target.value;});
+  document.getElementById('clNewItemClient')?.addEventListener('change',e=>{clNewDraft.clientId=e.target.value;});
+}
+function clAddInlineItem(){
+  const text=(clNewDraft.title||'').trim();
+  if(!text){document.getElementById('clNewItemInput')?.focus();return;}
+  const priority=clNewDraft.priority||'middel';
+  const clientId=clNewDraft.clientId||null;
+  const sameGroup=checklistState.items.filter(i=>!i.archived&&!i.done&&i.priority===priority);
+  checklistState.items.push({
+    id:uid(),text,done:false,priority,deadline:null,clientId,subtasks:[],archived:false,
+    sortOrder:sameGroup.length
+  });
+  clNewDraft.title='';
+  scheduleSave();renderChecklistModule();
+  setTimeout(()=>document.getElementById('clNewItemInput')?.focus(),30);
 }
 
 function toggleChecklistDone(id){
@@ -5147,36 +5688,37 @@ function setClFilter(type,val){
 }
 function renderClFilterBar(){
   const el=document.getElementById('clFilterRow');if(!el)return;
-  const clients=kanbanState.clients||[];
-  const prioChips=[
-    {val:null,label:'Alle'},
-    {val:'hoog',label:'Hoog',bg:CL_PRIORITY_CFG.hoog.bg,tx:CL_PRIORITY_CFG.hoog.tx},
-    {val:'middel',label:'Middel',bg:CL_PRIORITY_CFG.middel.bg,tx:CL_PRIORITY_CFG.middel.tx},
-    {val:'laag',label:'Laag',bg:CL_PRIORITY_CFG.laag.bg,tx:CL_PRIORITY_CFG.laag.tx},
-  ];
-  const periodChips=[{val:null,label:'Alle'},{val:'week',label:'Deze week'},{val:'month',label:'Deze maand'}];
-  const prioHtml=prioChips.map(p=>{
-    const active=clFilters.prio===p.val;
-    const style=active&&p.bg?`background:${p.bg};color:${p.tx};border-color:${p.bg}`:(active?'':'');
-    return `<button class="cl-chip${active?' active':''}" style="${style}" data-action="setClFilter" data-arg1="prio" data-arg2="${p.val===null?'':p.val}">${p.label}</button>`;
+  /* Count visible items for the right-aligned counter */
+  const visible=checklistState.items.filter(i=>{
+    if(i.archived)return false;
+    if(clFilters.prio&&i.priority!==clFilters.prio)return false;
+    if(clFilters.clientId&&i.clientId!==clFilters.clientId)return false;
+    return true;
+  });
+  const count=visible.length;
+  const countLbl=count===1?'1 taak':`${count} taken`;
+
+  const segs=[{v:null,l:'Alle'},{v:'hoog',l:'Hoog'},{v:'middel',l:'Middel'},{v:'laag',l:'Laag'}];
+  const segHtml=segs.map(s=>{
+    const active=(clFilters.prio||null)===s.v;
+    return `<button type="button" class="cl2-seg-btn${active?' active':''}" data-action="setClFilter" data-arg1="prio" data-arg2="${s.v===null?'':s.v}">${s.l}</button>`;
   }).join('');
-  const clientHtml=`<select class="cl-filter-select" data-change="setClFilterClient">
-    <option value="">Alle klanten</option>
-    ${clients.map(c=>`<option value="${c.id}"${clFilters.clientId===c.id?' selected':''}>${escapeHtml(c.name)}</option>`).join('')}
-  </select>`;
-  const periodHtml=periodChips.map(p=>{
-    const active=clFilters.period===p.val;
-    return `<button class="cl-chip${active?' active':''}" data-action="setClFilter" data-arg1="period" data-arg2="${p.val===null?'':p.val}">${p.label}</button>`;
+
+  const periodSegs=[{v:null,l:'Altijd'},{v:'week',l:'Deze week'},{v:'month',l:'Deze maand'}];
+  const periodHtml=periodSegs.map(s=>{
+    const active=(clFilters.period||null)===s.v;
+    return `<button type="button" class="cl2-seg-btn${active?' active':''}" data-action="setClFilter" data-arg1="period" data-arg2="${s.v===null?'':s.v}">${s.l}</button>`;
   }).join('');
+
   el.innerHTML=`
-    <div class="cl-filter-group"><span class="cl-filter-lbl">Prio</span>${prioHtml}</div>
-    <div class="cl-filter-group"><span class="cl-filter-lbl">Klant</span>${clientHtml}</div>
-    <div class="cl-filter-group"><span class="cl-filter-lbl">Periode</span>${periodHtml}</div>`;
+    <span class="cl2-filter-lbl">Filter</span>
+    <div class="cl2-seg">${segHtml}</div>
+    <div class="cl2-seg">${periodHtml}</div>
+    <span class="cl2-filter-counter">${countLbl}</span>`;
 }
 
 function toggleChecklistArchived(){
   checklistState.showArchived=!checklistState.showArchived;
-  document.getElementById('clArchiveToggle').textContent=checklistState.showArchived?'Archief verbergen':'Archief tonen';
   renderChecklistModule();
 }
 
@@ -5287,9 +5829,14 @@ Object.assign(APP_ACTIONS,{
   deleteSubtask:(el,e,itemId,stId)=>deleteSubtask(itemId,stId),
   startSubtaskInput:(el,e,id)=>startSubtaskInput(id),
   openChecklistItemModal:(el,e,id)=>openChecklistItemModal(id),
+  archiveItem:(el,e,id)=>archiveItem(id),
   unarchiveItem:(el,e,id)=>unarchiveItem(id),
   deleteChecklistItem:(el,e,id)=>deleteChecklistItem(id),
+  toggleClItemOpen:(el,e,id)=>toggleClItemOpen(id),
   toggleClDoneSection:()=>toggleClDoneSection(),
+  toggleChecklistArchived:()=>toggleChecklistArchived(),
+  deleteAllDone:()=>deleteAllDone(),
+  clAddInlineItem:()=>clAddInlineItem(),
   setClFilter:(el,e,type,val)=>setClFilter(type,val||null),
   selectClClient:(el,e,id)=>selectClClient(id||''),
   clCalSelect:(el,e,iso)=>clCalSelect(iso),
