@@ -2920,7 +2920,27 @@ document.addEventListener('focusout',e=>{
 
 /* ═══════════════════════════════════════════════════
    MODULE: NOTES
+   ───────────────────────────────────────────────────
+   Structure:
+     ═══ STATE ═══  notesState + noteEditMode/renameTarget/noteDrag
+                    (declared in global STATE block).
+     ═══ LOGIC ═══  Tree traversal (findNode, filterNoteTree),
+                    CRUD on nodes, content debounced saves.
+     ═══ VIEW  ═══  renderNotesTree, renderNoteNode, renderNoteEditor,
+                    context menu.
+
+   Optimistic saves: content edits debounce through
+   `debouncedUpdateContent()` (400 ms) so each keystroke doesn't
+   hit the gist. Title updates on every keystroke and patch the
+   tree label without re-rendering the whole tree.
+
+   Delegation: node click/dblclick/chev/icon/actions use data-action.
+   Drag handlers stay inline (e.currentTarget-bound behaviour).
    ═══════════════════════════════════════════════════ */
+
+/* ╔══════════════════════════════════════════════════╗
+   ║                       VIEW                       ║
+   ╚══════════════════════════════════════════════════╝ */
 function renderNotesModule(){
   renderNotesTree();
   renderNoteEditor();
@@ -3148,7 +3168,7 @@ function renderNoteNode(node,depth){
   const hasChildren=isFolder&&node.children&&node.children.length>0;
   const indent=depth*12;
   const chev=isFolder
-    ?`<span class="note-chev${isCollapsed?' collapsed':''}" onclick="event.stopPropagation();toggleFolder('${node.id}',event)">▾</span>`
+    ?`<span class="note-chev${isCollapsed?' collapsed':''}" data-action="toggleFolder" data-arg1="${node.id}">▾</span>`
     :`<span class="note-chev" style="visibility:hidden">·</span>`;
   const icon=isFolder?'📁':'📄';
   const client=!isFolder&&node.clientId?clientById(node.clientId):null;
@@ -3158,13 +3178,13 @@ function renderNoteNode(node,depth){
     ?`<div class="note-children">${node.children.map(c=>renderNoteNode(c,depth+1)).join('')}</div>`:'';
   /* label: single click = select, double-click = rename inline */
   const labelHtml=`<span class="note-label"
-    onclick="event.stopPropagation();selectNote('${node.id}')"
-    ondblclick="event.stopPropagation();startInlineRename('${node.id}',this)"
+    data-action="selectNoteStop" data-arg1="${node.id}"
+    data-dblclick-rename="${node.id}"
     title="Dubbelklik om te hernoemen">${escapeHtml(node.title)}</span>`;
   return `
     <div class="note-node${isActive?' active':''}" data-id="${node.id}"
       style="margin-left:${indent}px" draggable="true"
-      onclick="selectNote('${node.id}')"
+      data-action="selectNote" data-arg1="${node.id}"
       oncontextmenu="showNoteCtxMenu(event,'${node.id}')"
       ondragstart="onNoteDragStart(event,'${node.id}')"
       ondragover="onNoteDragOver(event,'${node.id}')"
@@ -3172,12 +3192,12 @@ function renderNoteNode(node,depth){
       ondrop="onNoteDrop(event,'${node.id}')"
       ondragend="onNoteDragEnd(event)">
       ${chev}
-      <span class="note-icon" onclick="event.stopPropagation();selectNote('${node.id}')">${icon}</span>
+      <span class="note-icon" data-action="selectNoteStop" data-arg1="${node.id}">${icon}</span>
       ${labelHtml}
       ${clientDot}
       <span class="note-actions">
-        ${isFolder?`<button onclick="event.stopPropagation();createNote('${node.id}')" title="Nieuwe notitie">+</button>`:''}
-        <button onclick="event.stopPropagation();startInlineRename('${node.id}',this.closest('.note-node').querySelector('.note-label'))" title="Hernoemen">✎</button>
+        ${isFolder?`<button data-action="createNote" data-arg1="${node.id}" title="Nieuwe notitie">+</button>`:''}
+        <button data-action="startInlineRenameFromBtn" data-arg1="${node.id}" title="Hernoemen">✎</button>
       </span>
     </div>${children}`;
 }
@@ -3216,6 +3236,24 @@ function toggleNoteEdit(){renderNoteEditor();}
 
 /* ─ Dashboard notes fetch ─ */
 function renderDashNotesFull(){renderDashNotes();}
+
+/* ─ Event delegation registrations (Notes) ─ */
+Object.assign(APP_ACTIONS,{
+  selectNote:(el,e,id)=>selectNote(id),
+  selectNoteStop:(el,e,id)=>{e.stopPropagation();selectNote(id);},
+  toggleFolder:(el,e,id)=>{e.stopPropagation();toggleFolder(id,e);},
+  createNote:(el,e,id)=>{e.stopPropagation();createNote(id);},
+  startInlineRenameFromBtn:(el,e,id)=>{
+    e.stopPropagation();
+    const label=el.closest('.note-node')?.querySelector('.note-label');
+    if(label)startInlineRename(id,label);
+  }
+});
+/* Delegated dblclick for inline rename on note labels */
+document.addEventListener('dblclick',e=>{
+  const el=e.target.closest('[data-dblclick-rename]');
+  if(el){e.stopPropagation();startInlineRename(el.dataset.dblclickRename,el);}
+});
 
 /* ═══════════════════════════════════════════════════
    CHECKLIST MODULE
