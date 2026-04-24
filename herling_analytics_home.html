@@ -402,6 +402,19 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .cl-modal-field label{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em}
 .cl-modal-field input,.cl-modal-field textarea,.cl-modal-field select{padding:7px 9px;border:0.5px solid var(--border-strong);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:13px;font-family:inherit;outline:none;width:100%}
 .cl-modal-field input:focus,.cl-modal-field textarea:focus,.cl-modal-field select:focus{border-color:var(--accent)}
+/* Inline calendar */
+.cl-inline-cal{border:0.5px solid var(--border-strong);border-radius:var(--radius-md);padding:10px 12px;background:var(--surface2);user-select:none}
+.cl-cal-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.cl-cal-nav{background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;padding:2px 6px;border-radius:var(--radius);font-family:inherit;line-height:1;transition:background .12s}
+.cl-cal-nav:hover{background:var(--surface3);color:var(--text)}
+.cl-cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-size:11px;font-weight:600;color:var(--text-hint);margin-bottom:4px}
+.cl-cal-days{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cl-cal-day{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:50%;cursor:pointer;font-size:12px;transition:background .1s,color .1s}
+.cl-cal-day:hover{background:var(--surface3)}
+.cl-cal-day.other-month{color:var(--text-hint)}
+.cl-cal-day.today{font-weight:700;color:var(--accent)}
+.cl-cal-day.selected{background:var(--accent)!important;color:#fff!important;font-weight:700}
+.cl-cal-footer{display:flex;justify-content:space-between;margin-top:8px;border-top:0.5px solid var(--border);padding-top:6px}
 
 /* ── Agenda (weekly calendar) module ── */
 .agenda-wrap{display:flex;flex-direction:column;flex:1;overflow:hidden}
@@ -912,34 +925,60 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 
 <!-- ── Checklist item modal ── -->
 <div class="modal-bg" id="clItemModal">
-  <div class="modal" style="max-width:580px;padding:24px">
+  <div class="modal" style="max-width:620px;padding:24px">
     <h3 id="clItemModalTitle" style="font-size:18px;margin-bottom:16px">Nieuwe taak</h3>
+
+    <!-- Omschrijving full width -->
     <div class="cl-modal-field">
       <label>Omschrijving</label>
       <textarea id="clItemText" rows="3" placeholder="Wat moet er gedaan worden?" style="font-size:15px;padding:10px 12px"></textarea>
     </div>
-    <div class="cl-modal-field">
-      <label>Prioriteit</label>
-      <div style="display:flex;gap:8px;margin-top:2px">
-        <button type="button" class="cl-pri-btn" data-pri="hoog" onclick="selectClPriority('hoog')"
-          style="flex:1;padding:10px;border-radius:var(--radius);border:2px solid transparent;background:#fbeaea;color:#8b1a1a;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s">
-          ↑ Hoog
-        </button>
-        <button type="button" class="cl-pri-btn" data-pri="middel" onclick="selectClPriority('middel')"
-          style="flex:1;padding:10px;border-radius:var(--radius);border:2px solid transparent;background:#fff8e6;color:#7a5700;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s">
-          → Middel
-        </button>
-        <button type="button" class="cl-pri-btn" data-pri="laag" onclick="selectClPriority('laag')"
-          style="flex:1;padding:10px;border-radius:var(--radius);border:2px solid transparent;background:#e8f5ee;color:#2d6a4f;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s">
-          ↓ Laag
-        </button>
+
+    <!-- Two-column: priority left, calendar right -->
+    <div style="display:grid;grid-template-columns:160px 1fr;gap:16px;margin-top:12px">
+
+      <!-- Priority stacked -->
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Prioriteit</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button type="button" class="cl-pri-btn" data-pri="hoog" onclick="selectClPriority('hoog')"
+            style="padding:11px 14px;border-radius:var(--radius);border:2px solid transparent;background:#fbeaea;color:#8b1a1a;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;text-align:left">
+            <span style="font-size:16px;margin-right:6px">①</span>Hoog
+          </button>
+          <button type="button" class="cl-pri-btn" data-pri="middel" onclick="selectClPriority('middel')"
+            style="padding:11px 14px;border-radius:var(--radius);border:2px solid transparent;background:#fff8e6;color:#7a5700;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;text-align:left">
+            <span style="font-size:16px;margin-right:6px">②</span>Middel
+          </button>
+          <button type="button" class="cl-pri-btn" data-pri="laag" onclick="selectClPriority('laag')"
+            style="padding:11px 14px;border-radius:var(--radius);border:2px solid transparent;background:#e8f5ee;color:#2d6a4f;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;text-align:left">
+            <span style="font-size:16px;margin-right:6px">③</span>Laag
+          </button>
+        </div>
+        <input type="hidden" id="clItemPriority" value="middel"/>
       </div>
-      <input type="hidden" id="clItemPriority" value="middel"/>
+
+      <!-- Inline calendar -->
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Deadline</div>
+        <div class="cl-inline-cal">
+          <div class="cl-cal-hdr">
+            <button class="cl-cal-nav" onclick="clCalPrev()">&#8592;</button>
+            <span id="clCalTitle" style="font-size:13px;font-weight:600"></span>
+            <button class="cl-cal-nav" onclick="clCalNext()">&#8594;</button>
+          </div>
+          <div class="cl-cal-weekdays">
+            <span>Ma</span><span>Di</span><span>Wo</span><span>Do</span><span>Vr</span><span>Za</span><span>Zo</span>
+          </div>
+          <div id="clCalDays" class="cl-cal-days"></div>
+          <div class="cl-cal-footer">
+            <button onclick="clCalClear()" style="font-size:12px;color:var(--accent);background:none;border:none;cursor:pointer;padding:4px 2px;font-family:inherit">Wissen</button>
+            <button onclick="clCalToday()" style="font-size:12px;color:var(--accent);background:none;border:none;cursor:pointer;padding:4px 2px;font-family:inherit">Vandaag</button>
+          </div>
+        </div>
+        <input type="hidden" id="clItemDeadline"/>
+      </div>
     </div>
-    <div class="cl-modal-field">
-      <label>Deadline</label>
-      <input type="date" id="clItemDeadline" style="font-size:15px;padding:10px 12px;cursor:pointer"/>
-    </div>
+
     <div class="modal-footer" style="margin-top:20px">
       <button class="btn btn-sm btn-danger" id="clItemDeleteBtn" onclick="deleteChecklistItem(clEditingId)" style="display:none">Verwijderen</button>
       <div class="modal-footer-right">
@@ -2706,6 +2745,50 @@ let clEditingId=null;
 let clDragId=null,clDragOver=null;
 let clDoneExpanded=false;
 let clAddingSubtaskFor=null;
+let clCalYear=new Date().getFullYear(),clCalMonth=new Date().getMonth(),clCalSelected=null;
+
+function renderClCal(){
+  const titleEl=document.getElementById('clCalTitle');
+  const daysEl=document.getElementById('clCalDays');
+  if(!titleEl||!daysEl)return;
+  const MONTHS=['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'];
+  titleEl.textContent=MONTHS[clCalMonth]+' '+clCalYear;
+  const today=new Date().toISOString().slice(0,10);
+  const firstDow=new Date(clCalYear,clCalMonth,1).getDay(); // 0=Sun
+  const startOffset=(firstDow===0?6:firstDow-1); // shift to Mon=0
+  const daysInMonth=new Date(clCalYear,clCalMonth+1,0).getDate();
+  const daysInPrev=new Date(clCalYear,clCalMonth,0).getDate();
+  let html='';
+  for(let i=startOffset-1;i>=0;i--){
+    const d=daysInPrev-i;
+    html+=clCalDayHtml(d,isoDate(clCalYear,clCalMonth-1,d),true,today);
+  }
+  for(let d=1;d<=daysInMonth;d++){
+    html+=clCalDayHtml(d,isoDate(clCalYear,clCalMonth,d),false,today);
+  }
+  const total=Math.ceil((startOffset+daysInMonth)/7)*7;
+  for(let d=1;d<=total-startOffset-daysInMonth;d++){
+    html+=clCalDayHtml(d,isoDate(clCalYear,clCalMonth+1,d),true,today);
+  }
+  daysEl.innerHTML=html;
+}
+function isoDate(y,m,d){const dt=new Date(y,m,d);return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');}
+function clCalDayHtml(label,iso,other,today){
+  let cls='cl-cal-day';
+  if(other)cls+=' other-month';
+  if(iso===today)cls+=' today';
+  if(iso===clCalSelected)cls+=' selected';
+  return `<div class="${cls}" onclick="clCalSelect('${iso}')">${label}</div>`;
+}
+function clCalSelect(iso){
+  clCalSelected=(clCalSelected===iso)?null:iso;
+  document.getElementById('clItemDeadline').value=clCalSelected||'';
+  renderClCal();
+}
+function clCalPrev(){clCalMonth--;if(clCalMonth<0){clCalMonth=11;clCalYear--;}renderClCal();}
+function clCalNext(){clCalMonth++;if(clCalMonth>11){clCalMonth=0;clCalYear++;}renderClCal();}
+function clCalClear(){clCalSelected=null;document.getElementById('clItemDeadline').value='';renderClCal();}
+function clCalToday(){const n=new Date();clCalYear=n.getFullYear();clCalMonth=n.getMonth();clCalSelected=n.toISOString().slice(0,10);document.getElementById('clItemDeadline').value=clCalSelected;renderClCal();}
 
 function renderChecklistModule(){
   const body=document.getElementById('clBody');
@@ -2975,23 +3058,29 @@ function openChecklistItemModal(id){
   clEditingId=id;
   const modal=document.getElementById('clItemModal');
   const deleteBtn=document.getElementById('clItemDeleteBtn');
+  const now=new Date();
   if(id){
     const item=checklistState.items.find(i=>i.id===id);
     if(!item)return;
     document.getElementById('clItemModalTitle').textContent='Taak bewerken';
     document.getElementById('clItemText').value=item.text;
     document.getElementById('clItemDeadline').value=item.deadline||'';
+    clCalSelected=item.deadline||null;
+    if(item.deadline){const d=new Date(item.deadline);clCalYear=d.getFullYear();clCalMonth=d.getMonth();}
+    else{clCalYear=now.getFullYear();clCalMonth=now.getMonth();}
     selectClPriority(item.priority||'middel');
     deleteBtn.style.display='';
   } else {
     document.getElementById('clItemModalTitle').textContent='Nieuwe taak';
     document.getElementById('clItemText').value='';
     document.getElementById('clItemDeadline').value='';
+    clCalSelected=null;
+    clCalYear=now.getFullYear();clCalMonth=now.getMonth();
     selectClPriority('middel');
     deleteBtn.style.display='none';
   }
   modal.classList.add('open');
-  setTimeout(()=>document.getElementById('clItemText').focus(),40);
+  setTimeout(()=>{renderClCal();document.getElementById('clItemText').focus();},30);
 }
 
 function closeChecklistItemModal(){
