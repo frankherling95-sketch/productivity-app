@@ -2286,18 +2286,21 @@ textarea { line-height: 1.6; resize: vertical; }
 }
 .note-tb-colors { gap: 3px !important; padding: 0 2px; }
 
-/* Editor body — flex column so the editor card stretches to fill both
-   the available height AND width (no max-width gutter). */
+/* Editor body — plain block container with vertical scroll.
+   Card sits inside as a normal block; when the card grows past the
+   visible body height, the body's overflow-y:auto kicks in and the
+   user can scroll up/down. flex layout removed because it was
+   preventing the natural overflow from triggering. */
 .notes-editor-body {
   padding: 24px 32px 40px !important;
   background: var(--bg) !important;
-  display: flex !important;
-  flex-direction: column;
-  align-items: stretch;
+  overflow-y: auto !important;
+  /* explicit min-height fallback so flex parent gives us a height */
+  min-height: 0;
 }
 .note-editor {
   width: 100%;
-  flex: 1 0 auto;       /* grow to fill height, don't shrink, basis = content */
+  min-height: calc(100vh - 280px);  /* fill visible area when content is short */
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
