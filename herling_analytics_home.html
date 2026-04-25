@@ -11,6 +11,39 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;800;900&family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <style>
+/* ═════════════════════════════════════════════════════════════════════════════
+   STYLESHEET INDEX — search for the section header to jump
+   ─────────────────────────────────────────────────────────────────────────────
+   1.  CSS variables / tokens                              (~line 17)
+   2.  Body + reset                                        (~line 35)
+   3.  Sidebar (incl. nav, klant-list, footer, collapse)   (~line 41)
+   4.  Buttons (.btn / .btn-primary / .btn-success / ...)  (~line 179)
+   5.  Cards (.card / .card-hdr / kanban-card)             (~line 219)
+   6.  Kanban board (.column / .col-hdr / drag indicators) (~line 256)
+   7.  Notes module (.notes-layout / .note-node / tree)    (~line 307)
+   8.  Inputs / forms / modals                             (~line 360)
+   9.  Checklist module (cl-* base, pre-v3)                (~line 369)
+   10. Agenda / calendar (.cal-* / .src-chip)              (~line 400)
+   11. Toast / placeholder / loading                       (~line 631)
+   12. THEME OVERLAY v2 (overrides above with new tokens)  (~line 782)
+        - Token redefines (light + dark)
+        - Sidebar gradient + wordmark
+        - Buttons / inputs restyled
+        - Card / cl-item / note-node / chip / toast restyles
+   13. Dashboard v2 (hero + KPI strip + 2x2 grid)          (~line 1391)
+   14. 'Nieuw item' dropdown (ha-newitem-*)                (~line 1963)
+   15. Client filter dropdown (.client-filter / .cf-*)     (~line 2125)
+   16. Notes-tree client groups + Note editor toolbar      (~line 2732)
+   17. Checklist v3 (cl2-* hero, item, group, filter)      (~line 2918)
+   18. Sidebar logo wordmark (Archivo HERLING/ANALYTICS)
+   19. Note editor body (rich-text editor + scroll)
+   20. Notes-tree v2 styling (search, recent, footer, kbd)
+   21. Toast app-* (multi-type generalized toast)
+   22. Nav badges + theme-toggle button + manual data-theme
+   23. Note template picker grid (.tpl-card)
+   24. Shortcuts overlay
+   ════════════════════════════════════════════════════════════════════════════ */
+
 /* ── CSS variables ── */
 :root{
   --bg:#f7f6f3;--surface:#fff;--surface2:#f1f0ec;--surface3:#e8e6df;
@@ -83,45 +116,12 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
 .nav-label{transition:opacity 150ms}
 .sidebar.collapsed .nav-label{opacity:0;pointer-events:none}
 
-/* Client items in sidebar */
-.sidebar-client{
-  display:flex;align-items:center;gap:8px;
-  padding:5px 10px;border-radius:var(--radius);cursor:pointer;
-  color:var(--text-muted);font-size:12px;
-  transition:background .15s,color .15s;
-  white-space:nowrap;overflow:hidden;
-  position:relative;user-select:none;
-}
-.sidebar-client:hover{background:var(--surface2);color:var(--text)}
-.sidebar-client.active-filter{background:var(--surface2);color:var(--text);font-weight:500}
-.client-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
-.client-cname{flex:1;overflow:hidden;text-overflow:ellipsis;transition:opacity 150ms}
-.sidebar.collapsed .client-cname{opacity:0;pointer-events:none}
-.client-acts{opacity:0;display:flex;gap:2px;transition:opacity .15s;flex-shrink:0}
-.sidebar-client:hover .client-acts{opacity:1}
-.sidebar.collapsed .sidebar-client:hover .client-acts{opacity:0}
-.client-acts button{
-  background:transparent;border:none;color:var(--text-hint);
-  cursor:pointer;padding:2px 4px;font-size:11px;border-radius:3px;font-family:inherit;
-}
-.client-acts button:hover{background:var(--surface3);color:var(--text)}
-.sidebar-add-btn{
-  background:transparent;border:none;color:var(--text-hint);
-  cursor:pointer;padding:2px 6px;font-size:16px;line-height:1;
-  border-radius:4px;font-family:inherit;transition:opacity 150ms;
-}
-.sidebar.collapsed .sidebar-add-btn{opacity:0;pointer-events:none}
-.sidebar-add-btn:hover{background:var(--surface2);color:var(--text)}
-
-/* Inline add-client form */
-.sidebar-inline-form{display:none;flex-direction:column;gap:5px;padding:4px 4px 6px}
-.sidebar-inline-form.open{display:flex}
-.sidebar-inline-form input{
-  width:100%;padding:5px 8px;font-size:12px;
-  border:0.5px solid var(--border-strong);border-radius:var(--radius);
-  background:var(--surface2);color:var(--text);outline:none;font-family:inherit;
-}
-.sidebar-inline-form input:focus{border-color:var(--text)}
+/* NOTE: rules for the OLD sidebar Klanten section
+   (.sidebar-client, .client-acts, .sidebar-add-btn,
+    .sidebar-inline-form, .client-cname, .client-dot)
+   were removed when client-management moved to the per-module
+   .client-filter dropdown. The .color-swatches class is still
+   used by the new client modal so we keep it. */
 .color-swatches{display:flex;gap:3px;flex-wrap:wrap}
 .color-swatch{width:16px;height:16px;border-radius:4px;cursor:pointer;border:1.5px solid transparent}
 .color-swatch.active{border-color:var(--text)}
@@ -320,7 +320,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .note-chev.collapsed{transform:rotate(-90deg)}
 .note-icon{font-size:11px;color:var(--text-hint);flex-shrink:0}
 .note-label{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.note-client-dot{width:7px;height:7px;border-radius:2px;flex-shrink:0}
+.note-client-dot{width:9px;height:9px;border-radius:3px;flex-shrink:0;box-shadow:inset 0 0 0 1px rgba(255,255,255,0.15)}
 .note-actions{display:none;gap:1px}
 .note-node:hover .note-actions{display:flex}
 .note-actions button{background:transparent;border:none;color:var(--text-hint);cursor:pointer;padding:1px 3px;font-size:10px;border-radius:3px;font-family:inherit}
@@ -976,24 +976,9 @@ h1, h2, h3, h4, h5 {
   /* keep the active fill but use a small inset ring instead of the side bar */
   box-shadow: inset 0 0 0 1px var(--mint);
 }
-.sidebar-client {
-  display: flex !important;
-  align-items: center !important;
-  gap: 10px !important;
-  padding: 6px 11px !important;
-  margin: 0 10px !important;
-  border-radius: 8px !important;
-  font-size: 12px !important;
-  color: rgba(255, 255, 255, 0.62) !important;
-  background: transparent !important;
-  cursor: pointer;
-  transition: var(--transition-fast);
-  position: relative; z-index: 1;
-}
-.sidebar-client:hover {
-  background: rgba(255, 255, 255, 0.05) !important;
-  color: #fff !important;
-}
+/* (theme overlay rules for .sidebar-client removed —
+    the sidebar Klanten section no longer exists; client-management
+    moved to the per-module .client-filter dropdown) */
 .main-content { background: var(--bg) !important; }
 
 /* ─── Buttons ─────────────────────────────────────────────────────────────── */
@@ -1426,15 +1411,7 @@ textarea { line-height: 1.6; resize: vertical; }
 .dash-iconbtn:hover { color: var(--text); }
 .dash-iconbtn svg { display: block; }
 
-/* Client color block (sidebar) — thicker, softer rounded square */
-.client-dot {
-  width: 12px !important;
-  height: 12px !important;
-  border-radius: 4px !important;
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.15), 0 1px 2px rgba(0,0,0,0.2);
-  border: 0 !important;
-}
-/* Note list client dot — small sibling of the above */
+/* Note list client dot — small dot next to a note in the tree */
 .note-client-dot {
   width: 9px !important;
   height: 9px !important;
