@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Quicky</title>
+<title>Herling Analytics</title>
 <link rel="icon" type="image/svg+xml" href="herling-icon.svg"/>
 <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -2429,6 +2429,41 @@ textarea { line-height: 1.6; resize: vertical; }
 }
 .note-shortcut-hint:hover { background: var(--surface2); color: var(--text); }
 
+/* App-wide toast — type-coloured left-border + icon */
+.toast.app-toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 280px;
+  max-width: 480px;
+  padding: 12px 14px !important;
+  transform: translateX(-50%);
+  bottom: 24px;
+}
+.toast .toast-icon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.toast .toast-msg {
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.35;
+}
+.toast .toast-btn {
+  flex-shrink: 0;
+  font-weight: 600;
+}
+.toast.app-toast.hidden { display: none !important; }
+.app-toast.app-toast-success { border-left-color: var(--success) !important; }
+.app-toast.app-toast-success .toast-icon { color: var(--success); }
+.app-toast.app-toast-error   { border-left-color: var(--danger)  !important; }
+.app-toast.app-toast-error   .toast-icon { color: var(--danger); }
+.app-toast.app-toast-warning { border-left-color: var(--warning) !important; }
+.app-toast.app-toast-warning .toast-icon { color: var(--warning); }
+.app-toast.app-toast-info    { border-left-color: var(--mint)    !important; }
+.app-toast.app-toast-info    .toast-icon { color: var(--mint); }
+
 /* Shortcuts overlay */
 .shortcuts-grid {
   display: flex;
@@ -3702,10 +3737,11 @@ textarea { line-height: 1.6; resize: vertical; }
 <div class="ctx-menu" id="noteCtxMenu"></div>
 
 <!-- ── Undo toast ── -->
-<div class="toast hidden" id="undoToast">
-  <span id="undoToastMsg">Item verwijderd</span>
-  <button class="toast-btn" onclick="undoDelete()">↩ Ongedaan maken</button>
-  <button class="toast-btn" onclick="hideToast()" style="padding:3px 6px;opacity:.6">✕</button>
+<div class="toast hidden" id="undoToast" role="status" aria-live="polite">
+  <span class="toast-icon" id="undoToastIcon"></span>
+  <span class="toast-msg" id="undoToastMsg">Item verwijderd</span>
+  <button class="toast-btn toast-undo" id="undoToastUndoBtn" onclick="appToastUndo()">↩ Ongedaan maken</button>
+  <button class="toast-btn toast-close" onclick="appToastHide()" title="Sluiten" style="padding:3px 6px;opacity:.6">✕</button>
 </div>
 
 <script>
@@ -3999,7 +4035,17 @@ async function saveGist(){
       gistId=g.id;localStorage.setItem(LS_GIST_KEY,gistId);
     }
     setSync('saved','Opgeslagen · '+new Date().toLocaleTimeString('nl-NL'));
-  }catch(e){console.error(e);setSync('error','Opslaan mislukt: '+e.message);}
+  }catch(e){
+    console.error(e);
+    setSync('error','Opslaan mislukt: '+e.message);
+    /* Surface the error so users notice — sidebar status is easy to miss */
+    if(typeof appToast==='function'){
+      appToast(`Opslaan naar GitHub mislukt: ${e.message}`,{type:'error',duration:8000,undo:()=>saveGist()});
+      /* Re-purpose 'undo' button as 'retry' */
+      const btn=document.getElementById('undoToastUndoBtn');
+      if(btn)btn.textContent='↻ Opnieuw proberen';
+    }
+  }
 }
 function scheduleSave(){clearTimeout(saveTimer);setSync('saving','Wijzigingen...');saveTimer=setTimeout(saveGist,1500);}
 async function forceSave(){clearTimeout(saveTimer);await saveGist();}
@@ -4188,14 +4234,24 @@ document.getElementById('newClientModal')?.addEventListener('click',e=>{if(e.tar
 
 /* ─ Client CRUD (used from menu ✎/✕) ─ */
 function deleteClient(id){
-  if(!confirm('Klant verwijderen?'))return;
-  kanbanState.clients=kanbanState.clients.filter(c=>c.id!==id);
-  if(activeClientFilter===id)activeClientFilter='';
-  scheduleSave();
-  renderClientFilters();
+  const i=kanbanState.clients.findIndex(c=>c.id===id);
+  if(i<0)return;
+  const removed=kanbanState.clients[i];
+  const wasFilter=activeClientFilter===id;
+  kanbanState.clients.splice(i,1);
+  if(wasFilter)activeClientFilter='';
+  scheduleSave();renderClientFilters();
   if(activeModule==='todo')renderBoard();
   else if(activeModule==='notes')renderNotesModule();
   else if(activeModule==='dashboard')renderDashboard();
+  appToast(`Klant "${removed.name}" verwijderd`,{type:'success',undo:()=>{
+    kanbanState.clients.splice(i,0,removed);
+    if(wasFilter)activeClientFilter=id;
+    scheduleSave();renderClientFilters();
+    if(activeModule==='todo')renderBoard();
+    else if(activeModule==='notes')renderNotesModule();
+    else if(activeModule==='dashboard')renderDashboard();
+  }});
 }
 function editClient(id){
   const c=clientById(id);if(!c)return;
@@ -4844,13 +4900,19 @@ function renameColumn(colId,newTitle){
   if(col&&newTitle.trim()){col.title=newTitle.trim();scheduleSave();}
 }
 function deleteColumn(colId){
-  const col=currentProject().columns.find(c=>c.id===colId);if(!col)return;
-  if(col.items.length>0){
-    if(!confirm('Kolom "'+col.title+'" heeft '+col.items.length+' items. Verwijderen? Items gaan naar "New task".'))return;
-    currentProject().columns[0].items.push(...col.items);
-  } else {if(!confirm('Kolom "'+col.title+'" verwijderen?'))return;}
-  currentProject().columns=currentProject().columns.filter(c=>c.id!==colId);
+  const cols=currentProject().columns;
+  const idx=cols.findIndex(c=>c.id===colId);
+  if(idx<0)return;
+  const removed=cols[idx];
+  /* Snapshot items so undo can put them back exactly where they were */
+  const snapshot=JSON.parse(JSON.stringify(removed));
+  cols.splice(idx,1);
   scheduleSave();renderBoard();
+  const noun=snapshot.items.length?` met ${snapshot.items.length} ${snapshot.items.length===1?'item':'items'}`:'';
+  appToast(`Kolom "${snapshot.title}"${noun} verwijderd`,{type:'success',undo:()=>{
+    cols.splice(idx,0,snapshot);
+    scheduleSave();renderBoard();
+  }});
 }
 function toggleColCompleted(colId){
   const col=currentProject().columns.find(c=>c.id===colId);
@@ -4884,11 +4946,21 @@ function renameCategory(idx,newName){
   scheduleSave();renderBoard();
 }
 function deleteCategory(idx){
-  const cats=currentProject().categories;const name=cats[idx];
-  if(!confirm('Categorie "'+name+'" verwijderen?'))return;
+  const cats=currentProject().categories;
+  const name=cats[idx];
+  if(!name)return;
   cats.splice(idx,1);
-  currentProject().columns.forEach(c=>c.items.forEach(i=>{if(i.category===name)i.category='';}));
+  /* Track which items had this category so undo can restore them */
+  const affectedItems=[];
+  currentProject().columns.forEach(c=>c.items.forEach(i=>{
+    if(i.category===name){affectedItems.push(i);i.category='';}
+  }));
   renderCatList();scheduleSave();renderBoard();renderCategoryFilter();
+  appToast(`Categorie "${name}" verwijderd`,{type:'success',undo:()=>{
+    cats.splice(idx,0,name);
+    affectedItems.forEach(i=>{i.category=name;});
+    renderCatList();scheduleSave();renderBoard();renderCategoryFilter();
+  }});
 }
 function toggleCatCollapsed(colId,cat){
   const p=currentProject();const key=colId+'::'+cat;
@@ -4990,19 +5062,70 @@ function deleteCurrentItem(){
   closeItemModal();scheduleSave();renderBoard();updateStats();showUndoToast('"'+item.title+'" verwijderd');
 }
 
-/* ─ Undo toast ─ */
-function showUndoToast(msg){
-  document.getElementById('undoToastMsg').textContent=msg;
-  document.getElementById('undoToast').classList.remove('hidden');
-  clearTimeout(toastTimer);toastTimer=setTimeout(hideToast,5000);
+/* ═══════════════════════════════════════════════════
+   GENERAL TOAST — appToast(msg, {undo, type, duration, html})
+   ───────────────────────────────────────────────────
+   Single shared #undoToast DOM. Caller passes:
+     msg       : plain text string (or use html option for HTML)
+     undo      : optional () => void callback for restore
+     type      : 'success' | 'error' | 'info' | 'warning' (default info)
+     duration  : ms before auto-dismiss (default 5000, 8000 for errors)
+   ═══════════════════════════════════════════════════ */
+let _appToastUndo=null;
+const TOAST_ICONS={
+  success:'<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M3 7.5l2.5 2.5L11 4.5"/></svg>',
+  error  :'<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" width="13" height="13"><circle cx="7" cy="7" r="5.5"/><line x1="7" y1="4.5" x2="7" y2="7.5"/><line x1="7" y1="10" x2="7" y2="10.01"/></svg>',
+  warning:'<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M7 1.5L13 12H1z"/><line x1="7" y1="6" x2="7" y2="9"/><line x1="7" y1="10.5" x2="7" y2="10.51"/></svg>',
+  info   :'<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" width="13" height="13"><circle cx="7" cy="7" r="5.5"/><line x1="7" y1="6.5" x2="7" y2="10"/><line x1="7" y1="4" x2="7" y2="4.01"/></svg>'
+};
+function appToast(msg,opts){
+  opts=opts||{};
+  const type=opts.type||'info';
+  const duration=opts.duration||(type==='error'?8000:5000);
+  const el=document.getElementById('undoToast');if(!el)return;
+  /* Reset classes; keep .toast as the base */
+  el.className='toast app-toast app-toast-'+type;
+  document.getElementById('undoToastIcon').innerHTML=TOAST_ICONS[type]||'';
+  if(opts.html)document.getElementById('undoToastMsg').innerHTML=opts.html;
+  else document.getElementById('undoToastMsg').textContent=msg||'';
+  const undoBtn=document.getElementById('undoToastUndoBtn');
+  if(opts.undo&&typeof opts.undo==='function'){
+    undoBtn.style.display='';
+    _appToastUndo=opts.undo;
+  } else {
+    undoBtn.style.display='none';
+    _appToastUndo=null;
+  }
+  el.classList.remove('hidden');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(appToastHide,duration);
 }
-function hideToast(){document.getElementById('undoToast').classList.add('hidden');deletedItemBuffer=null;}
-function undoDelete(){
-  if(!deletedItemBuffer)return;
-  const{item,colId}=deletedItemBuffer;
-  const col=currentProject().columns.find(c=>c.id===colId);
-  if(col){col.items.push(item);scheduleSave();renderBoard();updateStats();}hideToast();
+function appToastHide(){
+  const el=document.getElementById('undoToast');
+  if(el)el.classList.add('hidden');
+  _appToastUndo=null;
+  deletedItemBuffer=null;
 }
+function appToastUndo(){
+  if(_appToastUndo){try{_appToastUndo();}catch(e){console.error(e);}}
+  /* Legacy buffer-based undo (kanban delete still uses this path) */
+  else if(deletedItemBuffer){
+    const{item,colId}=deletedItemBuffer;
+    const col=currentProject().columns.find(c=>c.id===colId);
+    if(col){col.items.push(item);scheduleSave();renderBoard();updateStats();}
+  }
+  appToastHide();
+}
+/* Legacy wrappers (kept so existing call sites don't break) */
+function showUndoToast(msg){appToast(msg,{undo:()=>{
+  if(deletedItemBuffer){
+    const{item,colId}=deletedItemBuffer;
+    const col=currentProject().columns.find(c=>c.id===colId);
+    if(col){col.items.push(item);scheduleSave();renderBoard();updateStats();}
+  }
+}});}
+function hideToast(){appToastHide();}
+function undoDelete(){appToastUndo();}
 
 /* ─ Drag & drop ─ */
 function onDragStart(e,colId,itemId){draggedItem={colId,itemId};e.dataTransfer.effectAllowed='move';e.target.classList.add('dragging');}
@@ -5469,11 +5592,20 @@ function startInlineRename(id,labelEl){
 function toggleFolder(id,e){if(e)e.stopPropagation();notesState.collapsed[id]=!notesState.collapsed[id];renderNotesTree();}
 function deleteNode(id){
   const r=findNode(notesState.tree,id);if(!r)return;
-  const label=r.node.type==='folder'?'groep "'+r.node.title+'" (inclusief inhoud)':'notitie "'+r.node.title+'"';
-  if(!confirm('Weet je zeker dat je '+label+' wilt verwijderen?'))return;
-  r.parentArr.splice(r.index,1);
-  if(notesState.activeId===id)notesState.activeId=null;
+  const label=r.node.type==='folder'?'Groep "'+r.node.title+'"':'Notitie "'+r.node.title+'"';
+  /* Snapshot for undo */
+  const removed=JSON.parse(JSON.stringify(r.node));
+  const parentArrRef=r.parentArr;
+  const idx=r.index;
+  const wasActive=notesState.activeId===id;
+  parentArrRef.splice(idx,1);
+  if(wasActive)notesState.activeId=null;
   scheduleSave();renderNotesModule();
+  appToast(`${label} verwijderd`,{type:'success',undo:()=>{
+    parentArrRef.splice(idx,0,removed);
+    if(wasActive)notesState.activeId=removed.id;
+    scheduleSave();renderNotesModule();
+  }});
 }
 function renameNode(id){
   const r=findNode(notesState.tree,id);if(!r)return;
@@ -6707,18 +6839,33 @@ function commitEditSubtask(itemId,subId,val){
 }
 
 function deleteAllDone(){
-  const count=checklistState.items.filter(i=>i.done&&!i.archived).length;
-  if(!count)return;
-  if(!confirm(`${count} voltooide taak${count>1?'en':''} definitief verwijderen?`))return;
+  const removed=checklistState.items.filter(i=>i.done&&!i.archived);
+  if(!removed.length)return;
+  /* Snapshot original positions for restore */
+  const positions=removed.map(item=>({item,idx:checklistState.items.indexOf(item)}));
   checklistState.items=checklistState.items.filter(i=>!(i.done&&!i.archived));
   scheduleSave();renderChecklistModule();
+  appToast(`${removed.length} voltooide ta${removed.length===1?'ak':'ken'} verwijderd`,{type:'success',undo:()=>{
+    /* Re-insert at original positions (sorted ascending so indices stay valid) */
+    positions.sort((a,b)=>a.idx-b.idx).forEach(({item,idx})=>{
+      checklistState.items.splice(Math.min(idx,checklistState.items.length),0,item);
+    });
+    scheduleSave();renderChecklistModule();
+  }});
 }
 
 function deleteSubtask(itemId,stId){
   const item=checklistState.items.find(i=>i.id===itemId);
-  if(!item)return;
-  item.subtasks=(item.subtasks||[]).filter(s=>s.id!==stId);
+  if(!item||!item.subtasks)return;
+  const idx=item.subtasks.findIndex(s=>s.id===stId);
+  if(idx<0)return;
+  const removed=item.subtasks[idx];
+  item.subtasks.splice(idx,1);
   scheduleSave();renderChecklistModule();
+  appToast(`Subtaak "${removed.text}" verwijderd`,{type:'success',undo:()=>{
+    item.subtasks.splice(idx,0,removed);
+    scheduleSave();renderChecklistModule();
+  }});
 }
 
 function archiveChecked(){
@@ -6737,10 +6884,16 @@ function unarchiveItem(id){
 
 function deleteChecklistItem(id){
   if(!id)return;
-  if(!confirm('Taak verwijderen?'))return;
-  checklistState.items=checklistState.items.filter(i=>i.id!==id);
+  const idx=checklistState.items.findIndex(i=>i.id===id);
+  if(idx<0)return;
+  const removed=checklistState.items[idx];
+  checklistState.items.splice(idx,1);
   closeChecklistItemModal();
   scheduleSave();renderChecklistModule();
+  appToast(`Taak "${removed.text}" verwijderd`,{type:'success',undo:()=>{
+    checklistState.items.splice(idx,0,removed);
+    scheduleSave();renderChecklistModule();
+  }});
 }
 
 function setChecklistSort(v){
@@ -7042,9 +7195,25 @@ async function fetchEventsForRange(timeMin,timeMax){
     .filter(s=>s.enabled!==false)
     .filter(sourceMatchesActiveClient);
   const allEvents=[];
+  const errors=[];
   await Promise.all(sources.map(async s=>{
-    try{const evs=await fetchSourceEvents(s,timeMin,timeMax);allEvents.push(...evs);}catch(e){}
+    try{
+      const evs=await fetchSourceEvents(s,timeMin,timeMax);
+      allEvents.push(...evs);
+    }catch(e){
+      console.warn(`Calendar source "${s.name}" failed:`,e);
+      errors.push({name:s.name,msg:e.message||'Onbekende fout'});
+    }
   }));
+  /* Surface fetch errors as a single batched toast (avoid spam) */
+  if(errors.length&&typeof appToast==='function'){
+    if(errors.length===1){
+      appToast(`Agenda "${errors[0].name}" kon niet geladen worden: ${errors[0].msg}`,{type:'warning',duration:6000});
+    } else {
+      const names=errors.map(e=>e.name).join(', ');
+      appToast(`${errors.length} agenda's konden niet geladen worden: ${names}`,{type:'warning',duration:7000});
+    }
+  }
   allEvents.sort((a,b)=>{const at=a.start?.dateTime||a.start?.date||'';const bt=b.start?.dateTime||b.start?.date||'';return at<bt?-1:at>bt?1:0;});
   return allEvents;
 }
@@ -7224,14 +7393,22 @@ function toggleCalSourceEnabled(id){
   if(activeModule==='agenda')renderAgendaModule();
 }
 function removeCalSource(id){
-  const s=(rawState.settings?.calSources||[]).find(x=>x.id===id);
-  if(!s)return;
-  if(!confirm(`"${s.name}" verwijderen?`))return;
-  if(s.type==='google'&&gAccessToken){google.accounts.oauth2?.revoke(gAccessToken,()=>{});gAccessToken=null;clearTimeout(gTokenRefreshTimer);}
-  rawState.settings.calSources=rawState.settings.calSources.filter(x=>x.id!==id);
+  const list=rawState.settings?.calSources||[];
+  const idx=list.findIndex(x=>x.id===id);
+  if(idx<0)return;
+  const removed=list[idx];
+  /* Don't auto-revoke Google token here — user can re-add and we want
+     undo to work without re-auth */
+  list.splice(idx,1);
   scheduleSave();renderCalSourcesList();renderAgendaSourceBar();
   if(activeModule==='agenda')renderAgendaModule();
   renderDashCal();
+  appToast(`Agenda "${removed.name}" verwijderd`,{type:'success',undo:()=>{
+    list.splice(idx,0,removed);
+    scheduleSave();renderCalSourcesList();renderAgendaSourceBar();
+    if(activeModule==='agenda')renderAgendaModule();
+    renderDashCal();
+  }});
 }
 function showAddGoogleForm(){
   const existing=(rawState.settings?.calSources||[]).find(s=>s.type==='google');
