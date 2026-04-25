@@ -2113,8 +2113,16 @@ textarea { line-height: 1.6; resize: vertical; }
    (surfaces, type scale, icon buttons, section headers)
    ════════════════════════════════════════════════════════════════════════════ */
 
-/* Layout: slightly wider sidebar, better breathing room */
-.notes-layout { grid-template-columns: 240px 1fr !important; }
+/* Layout: slightly wider sidebar, better breathing room.
+   grid-template-rows: 1fr forces the row to fill the available height
+   instead of auto-growing with content — required so the body inside
+   the editor column gets a constrained height and overflow:auto works. */
+.notes-layout {
+  grid-template-columns: 240px 1fr !important;
+  grid-template-rows: 1fr !important;
+  min-height: 0 !important;
+}
+.notes-editor { min-height: 0 !important; min-width: 0 !important; }
 
 .notes-sidebar {
   padding: 12px 8px !important;
@@ -2288,19 +2296,19 @@ textarea { line-height: 1.6; resize: vertical; }
 
 /* Editor body — plain block container with vertical scroll.
    Card sits inside as a normal block; when the card grows past the
-   visible body height, the body's overflow-y:auto kicks in and the
-   user can scroll up/down. flex layout removed because it was
-   preventing the natural overflow from triggering. */
+   visible body height, body's overflow-y:auto kicks in. Critical:
+   flex:1 + min-height:0 + parent grid-template-rows:1fr together
+   make the body height bounded so overflow can compute. */
 .notes-editor-body {
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
   padding: 24px 32px 40px !important;
   background: var(--bg) !important;
   overflow-y: auto !important;
-  /* explicit min-height fallback so flex parent gives us a height */
-  min-height: 0;
+  overflow-x: hidden;
 }
 .note-editor {
   width: 100%;
-  min-height: calc(100vh - 280px);  /* fill visible area when content is short */
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
