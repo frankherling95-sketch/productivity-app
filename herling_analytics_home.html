@@ -2251,10 +2251,51 @@ textarea { line-height: 1.6; resize: vertical; }
 }
 .notes-title-input:focus { background: var(--surface2) !important; }
 .notes-title-input::placeholder { color: var(--text-hint); }
-.notes-editor-hdr > div:last-child {
-  font-family: var(--font-mono) !important;
-  font-size: 11px !important;
-  color: var(--text-hint) !important;
+/* Editor meta block on the right of the title — save status + ts + delete */
+.notes-editor-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.notes-editor-meta .note-ts {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-hint);
+  white-space: nowrap;
+}
+.note-save-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-family: var(--font-body);
+  white-space: nowrap;
+  transition: all 0.2s var(--ease);
+}
+.note-save-status.saved {
+  background: var(--success-bg);
+  color: var(--success);
+}
+.note-save-status.saving {
+  background: var(--info-bg);
+  color: var(--info);
+}
+.note-save-status.dirty {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+.note-save-status svg { flex-shrink: 0; }
+
+/* Heading toolbar buttons — slightly wider for the H1/H2/H3/P labels */
+.note-tb-btn.note-tb-h {
+  width: auto !important;
+  min-width: 26px;
+  padding: 0 6px !important;
+  font-family: var(--font-display) !important;
 }
 
 /* Toolbar — tighter, matching cl2 icon button language */
@@ -5250,16 +5291,17 @@ function updateNoteContent(content){
   const id=notesState.activeId;if(!id)return;
   const r=findNode(notesState.tree,id);if(!r)return;
   r.node.content=content;r.node.updatedAt=Date.now();
-  const firstLine=content.split('\n').find(l=>l.trim());
-  if(firstLine&&firstLine.startsWith('# ')){
-    const derived=firstLine.replace(/^#\s*/,'').trim();
-    if(derived&&derived.length<100)r.node.title=derived;
-  }
   scheduleSave();
-  const el=document.querySelector(`.note-node[data-id="${id}"] .note-label`);
-  if(el)el.textContent=r.node.title;
+  if(typeof setNoteSaveStatus==='function')setNoteSaveStatus('saved');
 }
-const debouncedUpdateContent=debounce(updateNoteContent,400);
+/* Wrapper around debounce so we can flip the status to 'saving'
+   immediately on every input keystroke and 'saved' when the
+   debounced save fires. */
+const _debouncedSave=debounce(updateNoteContent,400);
+function debouncedUpdateContent(content){
+  if(typeof setNoteSaveStatus==='function')setNoteSaveStatus('saving');
+  _debouncedSave(content);
+}
 function updateNoteTitle(v){
   const id=notesState.activeId;if(!id)return;
   const r=findNode(notesState.tree,id);
@@ -5434,7 +5476,10 @@ function renderNoteNode(node,depth){
   const chev=isFolder
     ?`<span class="note-chev${isCollapsed?' collapsed':''}" data-action="toggleFolder" data-arg1="${node.id}">▾</span>`
     :`<span class="note-chev" style="visibility:hidden">·</span>`;
-  const icon=isFolder?'📁':'📄';
+  /* SVG icons matching the rest of the app's line-art system */
+  const icon=isFolder
+    ?`<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M2 4.5a1 1 0 0 1 1-1h2.5l1.2 1.2H11a1 1 0 0 1 1 1V11a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V4.5z"/></svg>`
+    :`<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><path d="M3.5 1.5h5L11 4v8a1 1 0 0 1-1 1H3.5a1 1 0 0 1-1-1V2.5a1 1 0 0 1 1-1z"/><path d="M8.5 1.5v3h3"/></svg>`;
   const client=!isFolder&&node.clientId?clientById(node.clientId):null;
   const col=client?CLIENT_COLORS[client.colorIdx%CLIENT_COLORS.length]:null;
   const clientDot=client?`<span class="note-client-dot" style="background:${col.bg};border:1px solid ${col.tx}" title="${escapeHtml(client.name)}"></span>`:'';
@@ -5498,7 +5543,8 @@ function renderNoteEditor(){
   if(!content)return;
   if(!notesState.activeId){
     content.innerHTML=`<div class="notes-empty">
-      <div style="font-size:24px">📝</div><p>Geen notitie geselecteerd</p>
+      <div style="color:var(--text-hint);margin-bottom:4px"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="36" height="36"><path d="M8 4h12l6 6v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><path d="M20 4v6h6"/><line x1="11" y1="16" x2="22" y2="16"/><line x1="11" y1="20" x2="22" y2="20"/><line x1="11" y1="24" x2="18" y2="24"/></svg></div>
+      <p>Geen notitie geselecteerd</p>
       <button class="btn btn-sm btn-primary" onclick="createNote(null)">+ Nieuwe notitie</button>
     </div>`;return;
   }
@@ -5516,11 +5562,28 @@ function renderNoteEditor(){
   content.innerHTML=`
     <div class="notes-editor-hdr">
       <input class="notes-title-input" id="noteTitleInput" value="${escapeHtml(node.title)}" oninput="updateNoteTitle(this.value)" placeholder="Titel..."/>
-      <div style="font-size:10px;color:var(--text-hint);white-space:nowrap">${ts}</div>
+      <div class="notes-editor-meta">
+        <span id="noteSaveStatus" class="note-save-status saved" title="Opgeslagen">
+          <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><path d="M3 7.5l2.5 2.5L11 4.5"/></svg>
+          Opgeslagen
+        </span>
+        <span class="note-ts">${ts}</span>
+        <button type="button" class="cl2-iconbtn danger" data-action="deleteNode" data-arg1="${node.id}" title="Notitie verwijderen">
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 3.5h9M5 3.5V2.5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1M3.5 3.5L4 12a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1l.5-8.5"/></svg>
+        </button>
+      </div>
     </div>
     <div class="note-toolbar" id="noteToolbar">
+      <button type="button" class="note-tb-btn" data-action="noteExec" data-arg1="undo" title="Ongedaan maken (Ctrl+Z)"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4.5L2.5 7L5 9.5"/><path d="M2.5 7H9a3 3 0 0 1 3 3v0a3 3 0 0 1-3 3H6.5"/></svg></button>
+      <button type="button" class="note-tb-btn" data-action="noteExec" data-arg1="redo" title="Opnieuw (Ctrl+Y)"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4.5L11.5 7L9 9.5"/><path d="M11.5 7H5a3 3 0 0 0-3 3v0a3 3 0 0 0 3 3H7.5"/></svg></button>
+      <span class="note-tb-div"></span>
       <select class="note-tb-select" id="noteFontSelect" data-change="noteApplyFont" title="Lettertype">${fontOpts}</select>
       <select class="note-tb-select" id="noteSizeSelect" data-change="noteApplySize" title="Grootte">${sizeOpts}</select>
+      <span class="note-tb-div"></span>
+      <button type="button" class="note-tb-btn note-tb-h" data-action="noteApplyHeading" data-arg1="h1" title="Kop 1"><span style="font-weight:700;font-size:13px">H1</span></button>
+      <button type="button" class="note-tb-btn note-tb-h" data-action="noteApplyHeading" data-arg1="h2" title="Kop 2"><span style="font-weight:700;font-size:12px">H2</span></button>
+      <button type="button" class="note-tb-btn note-tb-h" data-action="noteApplyHeading" data-arg1="h3" title="Kop 3"><span style="font-weight:700;font-size:11px">H3</span></button>
+      <button type="button" class="note-tb-btn note-tb-h" data-action="noteApplyHeading" data-arg1="p" title="Normale tekst"><span style="font-weight:500;font-size:11px">P</span></button>
       <span class="note-tb-div"></span>
       <button type="button" class="note-tb-btn" data-action="noteExec" data-arg1="bold" title="Vet (Ctrl+B)"><b>B</b></button>
       <button type="button" class="note-tb-btn" data-action="noteExec" data-arg1="italic" title="Cursief (Ctrl+I)"><i>I</i></button>
@@ -5533,14 +5596,18 @@ function renderNoteEditor(){
       <button type="button" class="note-tb-btn" data-action="noteExec" data-arg1="justifyFull" title="Uitvullen"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><line x1="2" y1="3.5" x2="12" y2="3.5"/><line x1="2" y1="7" x2="12" y2="7"/><line x1="2" y1="10.5" x2="12" y2="10.5"/></svg></button>
       <span class="note-tb-div"></span>
       <button type="button" class="note-tb-btn" data-action="noteExec" data-arg1="insertUnorderedList" title="Opsomming"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="3" cy="3.5" r="0.9" fill="currentColor"/><circle cx="3" cy="7" r="0.9" fill="currentColor"/><circle cx="3" cy="10.5" r="0.9" fill="currentColor"/><line x1="5.5" y1="3.5" x2="12" y2="3.5"/><line x1="5.5" y1="7" x2="12" y2="7"/><line x1="5.5" y1="10.5" x2="12" y2="10.5"/></svg></button>
-      <button type="button" class="note-tb-btn" data-action="noteExec" data-arg1="insertOrderedList" title="Genummerde lijst"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" font-family="var(--font-mono)"><text x="1.5" y="4.5" font-size="3.5" stroke="none" fill="currentColor">1</text><text x="1.5" y="8" font-size="3.5" stroke="none" fill="currentColor">2</text><text x="1.5" y="11.5" font-size="3.5" stroke="none" fill="currentColor">3</text><line x1="5.5" y1="3.5" x2="12" y2="3.5"/><line x1="5.5" y1="7" x2="12" y2="7"/><line x1="5.5" y1="10.5" x2="12" y2="10.5"/></svg></button>
+      <button type="button" class="note-tb-btn" data-action="noteExec" data-arg1="insertOrderedList" title="Genummerde lijst"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><text x="1.5" y="4.5" font-size="3.5" stroke="none" fill="currentColor">1</text><text x="1.5" y="8" font-size="3.5" stroke="none" fill="currentColor">2</text><text x="1.5" y="11.5" font-size="3.5" stroke="none" fill="currentColor">3</text><line x1="5.5" y1="3.5" x2="12" y2="3.5"/><line x1="5.5" y1="7" x2="12" y2="7"/><line x1="5.5" y1="10.5" x2="12" y2="10.5"/></svg></button>
+      <span class="note-tb-div"></span>
+      <button type="button" class="note-tb-btn" data-action="noteInsertLink" title="Hyperlink invoegen (Ctrl+K)"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 8.5l3-3"/><path d="M6 4.5l1-1a2.5 2.5 0 0 1 3.5 3.5l-1 1"/><path d="M8 9.5l-1 1a2.5 2.5 0 0 1-3.5-3.5l1-1"/></svg></button>
+      <button type="button" class="note-tb-btn" data-action="noteToggleQuote" title="Citaat"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M3 4h2v3H3z M5 7c0 1.5-.7 2.5-2 3 M9 4h2v3H9z M11 7c0 1.5-.7 2.5-2 3"/></svg></button>
+      <button type="button" class="note-tb-btn" data-action="noteToggleCode" title="Inline code"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 4 2 7 5 10"/><polyline points="9 4 12 7 9 10"/></svg></button>
       <span class="note-tb-div"></span>
       <div class="note-tb-colors">${colorDots}</div>
       <span class="note-tb-div"></span>
       <button type="button" class="note-tb-btn" data-action="noteExec" data-arg1="removeFormat" title="Opmaak wissen"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M3 3h8M5 3v8M9 3v3M3 11h4"/><line x1="8.5" y1="7.5" x2="12.5" y2="11.5"/><line x1="12.5" y1="7.5" x2="8.5" y2="11.5"/></svg></button>
     </div>
     <div class="notes-editor-body">
-      <div class="note-editor" id="noteEditor" contenteditable="true" spellcheck="true"></div>
+      <div class="note-editor" id="noteEditor" contenteditable="true" spellcheck="true" data-placeholder="Begin met typen…"></div>
     </div>`;
 
   const editor=document.getElementById('noteEditor');
@@ -5556,6 +5623,12 @@ function renderNoteEditor(){
     /* Keep toolbar button "pressed" state in sync with selection */
     editor.addEventListener('keyup',syncNoteToolbarState);
     editor.addEventListener('mouseup',syncNoteToolbarState);
+    /* Ctrl+K opens the link prompt — Microsoft Word convention */
+    editor.addEventListener('keydown',e=>{
+      if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){
+        e.preventDefault();noteInsertLink();
+      }
+    });
   }
 }
 function toggleNoteEdit(){renderNoteEditor();}
@@ -5626,6 +5699,106 @@ function syncNoteToolbarState(){
     if(!btn)return;
     try{btn.classList.toggle('active',document.queryCommandState(cmd));}catch(e){}
   });
+  /* Heading active state — derived from formatBlock */
+  try{
+    const block=(document.queryCommandValue('formatBlock')||'').toLowerCase();
+    const tag=block.replace(/[<>]/g,'');
+    tb.querySelectorAll('.note-tb-h').forEach(b=>{
+      b.classList.toggle('active',b.dataset.arg1===tag||(b.dataset.arg1==='p'&&(tag===''||tag==='div'||tag==='p')));
+    });
+  }catch(e){}
+}
+
+/* Heading / paragraph block format */
+function noteApplyHeading(tag){
+  const editor=document.getElementById('noteEditor');if(!editor)return;
+  editor.focus();
+  try{document.execCommand('styleWithCSS',false,true);}catch(e){}
+  document.execCommand('formatBlock',false,'<'+tag+'>');
+  debouncedUpdateContent(editor.innerHTML);
+  syncNoteToolbarState();
+}
+
+/* Hyperlink — prompt for URL, wrap selection */
+function noteInsertLink(){
+  const editor=document.getElementById('noteEditor');if(!editor)return;
+  editor.focus();
+  const sel=window.getSelection();
+  const hasSelection=sel&&sel.rangeCount&&!sel.isCollapsed;
+  const existing=hasSelection?sel.toString():'';
+  const url=prompt('Hyperlink URL (laat leeg om link te verwijderen):','https://');
+  if(url===null)return;
+  if(!url.trim()){
+    document.execCommand('unlink',false,null);
+  } else {
+    if(!hasSelection){
+      /* No selection: insert the URL as the link text */
+      document.execCommand('insertHTML',false,
+        `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(url)}</a>`);
+    } else {
+      document.execCommand('createLink',false,url);
+      /* Add target=_blank to the just-created link */
+      const a=editor.querySelector('a[href="'+url+'"]:not([target])');
+      if(a){a.target='_blank';a.rel='noopener';}
+    }
+  }
+  debouncedUpdateContent(editor.innerHTML);
+}
+
+/* Inline code — wrap selection in <code>; if already in code, unwrap */
+function noteToggleCode(){
+  const editor=document.getElementById('noteEditor');if(!editor)return;
+  editor.focus();
+  const sel=window.getSelection();if(!sel.rangeCount)return;
+  const range=sel.getRangeAt(0);
+  /* Check if selection is inside a <code> already */
+  const node=range.commonAncestorContainer;
+  const codeAncestor=(node.nodeType===1?node:node.parentElement)?.closest?.('code');
+  if(codeAncestor){
+    /* Unwrap */
+    const parent=codeAncestor.parentNode;
+    while(codeAncestor.firstChild)parent.insertBefore(codeAncestor.firstChild,codeAncestor);
+    parent.removeChild(codeAncestor);
+  } else if(!range.collapsed){
+    const code=document.createElement('code');
+    try{range.surroundContents(code);}
+    catch(e){
+      const frag=range.extractContents();
+      code.appendChild(frag);
+      range.insertNode(code);
+    }
+  } else {
+    /* No selection: insert empty code with cursor inside */
+    const code=document.createElement('code');
+    code.innerHTML='​';
+    range.insertNode(code);
+    const nr=document.createRange();
+    nr.setStart(code.firstChild,1);nr.collapse(true);
+    sel.removeAllRanges();sel.addRange(nr);
+  }
+  debouncedUpdateContent(editor.innerHTML);
+}
+
+/* Blockquote toggle — wrap/unwrap current paragraph */
+function noteToggleQuote(){
+  const editor=document.getElementById('noteEditor');if(!editor)return;
+  editor.focus();
+  try{document.execCommand('styleWithCSS',false,true);}catch(e){}
+  /* If already in blockquote, switch back to <p> */
+  const block=(document.queryCommandValue('formatBlock')||'').toLowerCase().replace(/[<>]/g,'');
+  document.execCommand('formatBlock',false,block==='blockquote'?'<p>':'<blockquote>');
+  debouncedUpdateContent(editor.innerHTML);
+}
+
+/* Save status indicator: "Opslaan..." while debounce timer pending,
+   "Opgeslagen" after content commit. Wired into the existing
+   debouncedUpdateContent / updateNoteContent path via setNoteSaveStatus. */
+function setNoteSaveStatus(state){
+  const el=document.getElementById('noteSaveStatus');if(!el)return;
+  el.classList.remove('saved','saving','dirty');
+  el.classList.add(state);
+  if(state==='saving')el.innerHTML='<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" width="11" height="11"><circle cx="7" cy="7" r="4.5" stroke-dasharray="6 4"><animateTransform attributeName="transform" type="rotate" from="0 7 7" to="360 7 7" dur="1s" repeatCount="indefinite"/></circle></svg> Opslaan…';
+  else if(state==='saved')el.innerHTML='<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><path d="M3 7.5l2.5 2.5L11 4.5"/></svg> Opgeslagen';
 }
 
 /* ─ Dashboard notes fetch ─ */
@@ -5644,9 +5817,14 @@ Object.assign(APP_ACTIONS,{
   },
   toggleNoteClientGroup:(el,e,id)=>toggleNoteClientGroup(id),
   createNoteForClient:(el,e,id)=>{e.stopPropagation();createNoteForClient(id);},
+  deleteNode:(el,e,id)=>deleteNode(id),
   /* Rich-text editor toolbar */
   noteExec:(el,e,cmd)=>noteExec(cmd),
-  noteApplyColor:(el,e,color)=>noteApplyColor(color)
+  noteApplyColor:(el,e,color)=>noteApplyColor(color),
+  noteApplyHeading:(el,e,tag)=>noteApplyHeading(tag),
+  noteInsertLink:()=>noteInsertLink(),
+  noteToggleQuote:()=>noteToggleQuote(),
+  noteToggleCode:()=>noteToggleCode()
 });
 Object.assign(APP_CHANGE_ACTIONS,{
   noteApplyFont:(el)=>noteApplyFont(el.value),
