@@ -2535,6 +2535,66 @@ textarea { line-height: 1.6; resize: vertical; }
   --info-bg:         rgba(122, 162, 255, 0.14);
 }
 
+/* Native event modal labels + color row */
+.ev-lbl {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+.ev-color-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 4px 0;
+}
+.ev-color-row .cal-color-swatch {
+  width: 22px;
+  height: 22px;
+  cursor: pointer;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  transition: transform 0.12s;
+}
+.ev-color-row .cal-color-swatch:hover { transform: scale(1.1); }
+.ev-color-row .cal-color-swatch.selected {
+  border-color: var(--text);
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--mint);
+}
+
+/* Editable native events get a subtle hover-lift */
+.cal-ev-block.cal-ev-editable { cursor: pointer; }
+.cal-ev-block.cal-ev-editable:hover {
+  filter: brightness(0.95);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  z-index: 5;
+}
+
+/* ICS import drop zone */
+.ics-drop-zone {
+  border: 2px dashed var(--border-strong);
+  border-radius: 12px;
+  padding: 32px 20px;
+  text-align: center;
+  cursor: pointer;
+  background: var(--surface2);
+  color: var(--text-muted);
+  transition: all 0.15s;
+}
+.ics-drop-zone:hover,
+.ics-drop-zone.dragover {
+  border-color: var(--mint);
+  background: var(--mint-soft);
+  color: var(--text);
+}
+.ics-drop-zone svg { color: var(--text-hint); }
+.ics-drop-zone:hover svg,
+.ics-drop-zone.dragover svg { color: var(--mint); }
+
 /* Agenda — connected accounts + add-source dropdown */
 .cal-section-label {
   font-size: 11px;
@@ -3527,8 +3587,9 @@ textarea { line-height: 1.6; resize: vertical; }
           <div style="flex:1"></div>
           <span id="icalRefreshLbl" style="font-size:10px;color:var(--text-hint)"></span>
           <div class="client-filter" id="agendaClientFilter"></div>
-          <button class="btn btn-xs" id="agendaSettingsBtn" onclick="toggleAgendaCalSettings()" style="display:none">⚙ Agenda's</button>
-          <button class="btn btn-sm btn-primary" id="agendaConnectBtn" onclick="openCalSourcesModal()">+ Agenda koppelen</button>
+          <button class="btn btn-sm" onclick="openIcsImport()" title="Importeer een .ics bestand">↓ Importeer</button>
+          <button class="btn btn-sm" id="agendaSettingsBtn" onclick="openCalSourcesModal()" title="Externe agenda's beheren">⚙</button>
+          <button class="btn btn-sm btn-primary" id="agendaConnectBtn" onclick="openEventModalNew()">+ Nieuwe afspraak</button>
         </div>
         <div id="agendaSourceBar" class="agenda-src-bar" style="display:none"></div>
         <div id="agendaContent" style="flex:1;overflow:hidden;display:flex;flex-direction:column">
@@ -3904,6 +3965,83 @@ textarea { line-height: 1.6; resize: vertical; }
   </div>
 </div>
 
+<!-- ── Event create/edit modal (native agenda events) ── -->
+<div class="modal-bg" id="eventModal">
+  <div class="modal" style="max-width:480px;padding:22px">
+    <h3 id="eventModalTitle" style="font-family:var(--font-display);font-size:18px;font-weight:700;margin-bottom:16px">Nieuwe afspraak</h3>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div>
+        <label class="ev-lbl">Titel</label>
+        <input type="text" id="evTitle" placeholder="Titel van de afspraak" style="width:100%"/>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text);cursor:pointer;user-select:none">
+        <input type="checkbox" id="evAllDay" onchange="onEventAllDayChange()" style="width:auto;margin:0"/>
+        Hele dag
+      </label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div>
+          <label class="ev-lbl">Start</label>
+          <input type="date" id="evStartDate" style="width:100%"/>
+          <input type="time" id="evStartTime" style="width:100%;margin-top:4px"/>
+        </div>
+        <div>
+          <label class="ev-lbl">Eind</label>
+          <input type="date" id="evEndDate" style="width:100%"/>
+          <input type="time" id="evEndTime" style="width:100%;margin-top:4px"/>
+        </div>
+      </div>
+      <div>
+        <label class="ev-lbl">Locatie</label>
+        <input type="text" id="evLocation" placeholder="Optioneel" style="width:100%"/>
+      </div>
+      <div>
+        <label class="ev-lbl">Beschrijving</label>
+        <textarea id="evDescription" rows="3" placeholder="Optioneel" style="width:100%;resize:vertical"></textarea>
+      </div>
+      <div>
+        <label class="ev-lbl">Klant</label>
+        <select id="evClientId" style="width:100%"></select>
+      </div>
+      <div>
+        <label class="ev-lbl">Kleur</label>
+        <div class="ev-color-row" id="evColorRow"></div>
+      </div>
+    </div>
+    <div class="modal-footer" style="margin-top:18px;align-items:center">
+      <button class="btn btn-sm btn-danger" id="evDeleteBtn" onclick="deleteEvent()" style="display:none">Verwijderen</button>
+      <div style="margin-left:auto;display:flex;gap:8px">
+        <button class="btn btn-sm" onclick="closeEventModal()">Annuleer</button>
+        <button class="btn btn-sm btn-primary" onclick="saveEvent()">Opslaan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── ICS import preview modal ── -->
+<div class="modal-bg" id="icsImportModal">
+  <div class="modal" style="max-width:520px;padding:22px">
+    <h3 style="font-family:var(--font-display);font-size:18px;font-weight:700;margin-bottom:8px">Agenda importeren</h3>
+    <p style="font-size:12.5px;color:var(--text-muted);line-height:1.55;margin-bottom:14px">
+      Exporteer je agenda uit Outlook of Google als <code>.ics</code> bestand en sleep het hieronder.
+      Alle afspraken worden gekopieerd naar deze app — daarna kun je ze hier bewerken.
+    </p>
+    <div class="ics-drop-zone" id="icsDropZone" onclick="document.getElementById('icsFileInput').click()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" width="36" height="36"><path d="M12 3v12m-4-4l4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+      <div style="font-size:13px;font-weight:600;margin-top:8px">Klik of sleep een .ics bestand hier</div>
+      <div style="font-size:11.5px;color:var(--text-muted);margin-top:4px">Outlook → Bestand → Opslaan als → iCalendar (.ics)<br>Google → Instellingen → Importeren &amp; exporteren → Exporteren</div>
+      <input type="file" id="icsFileInput" accept=".ics,text/calendar" style="display:none" onchange="handleIcsFile(this.files[0])"/>
+    </div>
+    <div id="icsPreview" style="display:none;margin-top:14px"></div>
+    <div class="modal-footer" style="margin-top:18px">
+      <div></div>
+      <div style="margin-left:auto;display:flex;gap:8px">
+        <button class="btn btn-sm" onclick="closeIcsImport()">Annuleer</button>
+        <button class="btn btn-sm btn-primary" id="icsImportBtn" onclick="confirmIcsImport()" disabled>Importeer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ── Note template picker ── -->
 <div class="modal-bg" id="templatePickerModal">
   <div class="modal" style="max-width:580px;padding:24px">
@@ -4016,38 +4154,44 @@ textarea { line-height: 1.6; resize: vertical; }
 
 <!-- ── Calendar sources modal ── -->
 <div class="modal-bg" id="calSourcesModal">
-  <div class="modal" style="max-width:480px;min-height:520px;overflow:visible;display:flex;flex-direction:column">
+  <div class="modal" style="max-width:480px;display:flex;flex-direction:column">
     <h3 style="margin-bottom:14px">Agenda's beheren</h3>
 
-    <!-- Connected OAuth accounts (Microsoft + Google) -->
-    <div class="cal-section-label">Verbonden accounts</div>
-    <div id="calAccountsList"></div>
+    <p style="font-size:11.5px;color:var(--text-muted);line-height:1.5;margin-bottom:14px">
+      Voor de meeste gebruikers is het eenvoudiger om afspraken direct in deze app aan te maken
+      (knop <strong>+ Nieuwe afspraak</strong>) of een bestaand <strong>.ics</strong> bestand te
+      importeren. Externe agenda-bronnen zijn voor wie automatisch wil syncen.
+    </p>
 
-    <!-- iCal sources (legacy URL-based) -->
-    <div class="cal-section-label" style="margin-top:14px">iCal links</div>
+    <!-- iCal sources (URL-based — works for Outlook + Google secret iCal links) -->
+    <div class="cal-section-label">iCal links</div>
     <div id="calSourcesList"></div>
+    <button class="btn btn-sm" onclick="showAddIcalForm()" style="width:100%;margin-top:8px">+ iCal link toevoegen</button>
+    <div id="calAddForm" style="display:none;margin-top:10px"></div>
 
-    <div class="cal-add-row">
-      <div class="cal-add-dropdown" id="calAddDropdown">
-        <button class="cal-add-btn" onclick="toggleCalAddDropdown(event)">+ Agenda koppelen ▾</button>
-        <div class="cal-add-menu" id="calAddMenu">
-          <button type="button" onclick="connectMicrosoftAccount();closeCalAddDropdown()">
-            <svg viewBox="0 0 14 14" width="14" height="14"><rect x="1" y="1" width="5.7" height="5.7" fill="#F25022"/><rect x="7.3" y="1" width="5.7" height="5.7" fill="#7FBA00"/><rect x="1" y="7.3" width="5.7" height="5.7" fill="#00A4EF"/><rect x="7.3" y="7.3" width="5.7" height="5.7" fill="#FFB900"/></svg>
-            <span><strong>Microsoft 365 / Outlook</strong><br><small>Werkt met persoonlijke + zakelijke accounts</small></span>
+    <!-- Geavanceerd — OAuth (vereist eigen Azure / Google client ID) -->
+    <details style="margin-top:18px;border-top:1px solid var(--border);padding-top:14px">
+      <summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--text-muted);user-select:none">⚙ Geavanceerd: Microsoft / Google OAuth</summary>
+      <div style="margin-top:10px">
+        <p style="font-size:11px;color:var(--text-hint);line-height:1.5;margin-bottom:10px">
+          Optioneel. Vereist een eigen Azure / Google client ID. Configureer eerst in
+          <a href="javascript:showTokenSettings()" style="color:var(--accent)">Instellingen → Agenda OAuth</a>.
+          Daarna kun je accounts hieronder koppelen.
+        </p>
+        <div class="cal-section-label" style="font-size:10.5px">Verbonden accounts</div>
+        <div id="calAccountsList"></div>
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <button class="btn btn-xs" onclick="connectMicrosoftAccount()">
+            <svg viewBox="0 0 14 14" width="11" height="11" style="margin-right:2px"><rect x="1" y="1" width="5.7" height="5.7" fill="#F25022"/><rect x="7.3" y="1" width="5.7" height="5.7" fill="#7FBA00"/><rect x="1" y="7.3" width="5.7" height="5.7" fill="#00A4EF"/><rect x="7.3" y="7.3" width="5.7" height="5.7" fill="#FFB900"/></svg>
+            Microsoft account
           </button>
-          <button type="button" onclick="connectGoogleAccount();closeCalAddDropdown()">
-            <svg viewBox="0 0 14 14" width="14" height="14"><path d="M13.6 7.15c0-.4-.04-.79-.1-1.15H7v2.18h3.7a3.16 3.16 0 0 1-1.37 2.07v1.72h2.22c1.3-1.2 2.05-2.96 2.05-4.82z" fill="#4285F4"/><path d="M7 13.6c1.86 0 3.41-.62 4.55-1.67L9.33 10.2a4.06 4.06 0 0 1-6.04-2.13H1v1.78A6.6 6.6 0 0 0 7 13.6z" fill="#34A853"/><path d="M3.29 8.07a3.96 3.96 0 0 1 0-2.55V3.74H1A6.6 6.6 0 0 0 .4 7c0 1.07.26 2.07.7 2.96l2.19-1.7z" fill="#FBBC05"/><path d="M7 2.79c1.06 0 2 .36 2.74 1.06l2.06-2.06A6.4 6.4 0 0 0 7 .4 6.6 6.6 0 0 0 1 3.74l2.29 1.78A4.06 4.06 0 0 1 7 2.79z" fill="#EA4335"/></svg>
-            <span><strong>Google Calendar</strong><br><small>Persoonlijk Google account</small></span>
-          </button>
-          <div class="cal-add-divider"></div>
-          <button type="button" onclick="showAddIcalForm();closeCalAddDropdown()">
-            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="2" y="3" width="10" height="9" rx="1.2"/><line x1="2" y1="6" x2="12" y2="6"/><line x1="5" y1="1.5" x2="5" y2="4"/><line x1="9" y1="1.5" x2="9" y2="4"/></svg>
-            <span><strong>iCal-link (URL)</strong><br><small>Geheim adres uit Outlook / Google / etc.</small></span>
+          <button class="btn btn-xs" onclick="connectGoogleAccount()">
+            <svg viewBox="0 0 14 14" width="11" height="11" style="margin-right:2px"><path d="M13.6 7.15c0-.4-.04-.79-.1-1.15H7v2.18h3.7a3.16 3.16 0 0 1-1.37 2.07v1.72h2.22c1.3-1.2 2.05-2.96 2.05-4.82z" fill="#4285F4"/><path d="M7 13.6c1.86 0 3.41-.62 4.55-1.67L9.33 10.2a4.06 4.06 0 0 1-6.04-2.13H1v1.78A6.6 6.6 0 0 0 7 13.6z" fill="#34A853"/><path d="M3.29 8.07a3.96 3.96 0 0 1 0-2.55V3.74H1A6.6 6.6 0 0 0 .4 7c0 1.07.26 2.07.7 2.96l2.19-1.7z" fill="#FBBC05"/><path d="M7 2.79c1.06 0 2 .36 2.74 1.06l2.06-2.06A6.4 6.4 0 0 0 7 .4 6.6 6.6 0 0 0 1 3.74l2.29 1.78A4.06 4.06 0 0 1 7 2.79z" fill="#EA4335"/></svg>
+            Google account
           </button>
         </div>
       </div>
-    </div>
-    <div id="calAddForm" style="display:none"></div>
+    </details>
     <div class="modal-footer" style="margin-top:auto;padding-top:14px">
       <div></div>
       <button class="btn btn-sm" onclick="closeCalSourcesModal()">Sluiten</button>
@@ -4127,7 +4271,7 @@ const DEFAULT_COLUMNS=[
    STATE
    ═══════════════════════════════════════════════════ */
 let ghToken=null, gistId=null, saveTimer=null;
-let rawState={tasks:{},notes:{},checklist:{},uren:{},settings:{}};
+let rawState={tasks:{},notes:{},checklist:{},uren:{},agenda:{events:[]},settings:{}};
 let checklistState={items:[],showArchived:false,sortBy:'priority'};
 let clFilters={prio:null,clientId:null,period:null};
 
@@ -4400,6 +4544,7 @@ async function saveGist(){
   rawState.notes=notesState;
   rawState.checklist=checklistState;
   rawState.uren=urenState;
+  if(!rawState.agenda)rawState.agenda={events:[]};
   const content=JSON.stringify(rawState,null,2);
   try{
     if(gistId){
@@ -7716,13 +7861,14 @@ function renderAgendaModule(){
     const btn=document.getElementById('viewBtn'+v);
     if(btn)btn.classList.toggle('active',v.toLowerCase()===agendaView);
   });
-  const sources=(rawState.settings?.calSources||[]).filter(s=>s.enabled!==false);
-  const connected=sources.length>0;
+  /* Settings + connect buttons are always visible now (Nieuwe afspraak
+     is the primary action; no longer requires an external source first) */
   const settingsBtn=document.getElementById('agendaSettingsBtn');
-  const connectBtn=document.getElementById('agendaConnectBtn');
-  if(settingsBtn)settingsBtn.style.display=connected?'':'none';
-  if(connectBtn)connectBtn.style.display=connected?'none':'';
-  if(!connected){renderAgendaPlaceholder();return;}
+  if(settingsBtn)settingsBtn.style.display='';
+  /* Show placeholder only if there are NO native events AND NO external sources */
+  const sources=(rawState.settings?.calSources||[]).filter(s=>s.enabled!==false);
+  const nativeEvents=rawState.agenda?.events||[];
+  if(!sources.length&&!nativeEvents.length){renderAgendaPlaceholder();return;}
   fetchAndRenderView();
 }
 /* ─ Unified multi-source fetch engine ─ */
@@ -7767,6 +7913,9 @@ async function fetchEventsForRange(timeMin,timeMax){
     .filter(sourceMatchesActiveClient);
   const allEvents=[];
   const errors=[];
+  /* Native events: stored in rawState.agenda.events, no fetch needed */
+  const nativeEvents=getNativeEventsInRange(timeMin,timeMax);
+  allEvents.push(...nativeEvents);
   await Promise.all(sources.map(async s=>{
     try{
       const evs=await fetchSourceEvents(s,timeMin,timeMax);
@@ -7788,6 +7937,48 @@ async function fetchEventsForRange(timeMin,timeMax){
   allEvents.sort((a,b)=>{const at=a.start?.dateTime||a.start?.date||'';const bt=b.start?.dateTime||b.start?.date||'';return at<bt?-1:at>bt?1:0;});
   return allEvents;
 }
+
+/* ─ Native events: stored locally, synced via Gist ────────────────────────
+   Shape:
+     { id, title, start:'YYYY-MM-DDTHH:MM' or 'YYYY-MM-DD',
+       end, allDay, location, description, color, clientId,
+       _native:true }
+   Converted to the common iCal-shaped format used by the renderers. */
+function getNativeEventsInRange(timeMin,timeMax){
+  const events=rawState.agenda?.events||[];
+  const tMin=new Date(timeMin),tMax=new Date(timeMax);
+  return events
+    .filter(ev=>{
+      /* client filter — same rule as iCal sources */
+      if(activeClientFilter&&ev.clientId&&ev.clientId!==activeClientFilter)return false;
+      /* If a client filter is active and event has no clientId,
+         still show it (acts as 'unassigned' = always visible) */
+      const evStart=new Date(ev.start);
+      const evEnd=ev.end?new Date(ev.end):evStart;
+      return evStart<=tMax&&evEnd>=tMin;
+    })
+    .map(ev=>nativeToCommonFormat(ev));
+}
+function nativeToCommonFormat(ev){
+  const color=ev.color||'#3b5bdb';
+  const out={
+    _native:true,
+    _nativeId:ev.id,
+    summary:ev.title,
+    location:ev.location||'',
+    _calColor:color,
+    _calName:'Mijn agenda',
+    description:ev.description||''
+  };
+  if(ev.allDay){
+    out.start={date:ev.start};
+    out.end={date:ev.end||ev.start};
+  } else {
+    out.start={dateTime:new Date(ev.start).toISOString()};
+    out.end={dateTime:new Date(ev.end||ev.start).toISOString()};
+  }
+  return out;
+}
 async function fetchSourceEvents(source,timeMin,timeMax){
   if(source.type==='ical'){
     const resp=await fetch(CORS_PROXY+encodeURIComponent(source.url),{cache:'no-store'});
@@ -7808,9 +7999,12 @@ function renderAgendaPlaceholder(){
   document.getElementById('agendaContent').innerHTML=`
     <div class="cal-placeholder">
       <div style="font-size:36px">📅</div>
-      <p>Koppel een of meerdere agenda's om je afspraken te zien.</p>
-      <button class="btn btn-sm btn-primary" data-action="openCalSourcesModal">+ Agenda koppelen</button>
-      <small>Outlook · Google · iCal van elk bedrijf</small>
+      <p>Begin meteen met een nieuwe afspraak, of importeer je bestaande agenda als .ics bestand.</p>
+      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+        <button class="btn btn-sm btn-primary" onclick="openEventModalNew()">+ Nieuwe afspraak</button>
+        <button class="btn btn-sm" onclick="openIcsImport()">↓ Importeer .ics</button>
+      </div>
+      <small style="margin-top:4px">Of via ⚙ rechtsboven: koppel een Outlook / Google / iCal-bron</small>
     </div>`;
 }
 
@@ -8473,13 +8667,255 @@ function evBlockHtml(item){
   const{ev,top,height,timeStr,col,totalCols}=item;
   const colW=100/totalCols;
   const leftPct=col*colW;const rightPct=100-leftPct-colW;
-  return`<div class="cal-ev-block"
+  const editable=ev._native&&ev._nativeId;
+  const dataAttr=editable?` data-action="openEventModalEdit" data-arg1="${ev._nativeId}"`:'';
+  return`<div class="cal-ev-block${editable?' cal-ev-editable':''}"
     style="top:${top}px;height:${height}px;left:calc(${leftPct}% + 2px);right:calc(${rightPct}% + 1px);background:${ev._calColor}22;border-left-color:${ev._calColor};color:var(--text)"
-    title="${escapeHtml(ev.summary||'')} — ${timeStr}">
+    title="${escapeHtml(ev.summary||'')} — ${timeStr}${editable?' (klik om te bewerken)':''}"${dataAttr}>
     <div style="font-weight:600;font-size:10px">${timeStr}</div>
     <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(ev.summary||'(geen titel)')}</div>
   </div>`;
 }
+
+/* ═══════════════════════════════════════════════════
+   NATIVE EVENT CRUD + MODAL
+   ═══════════════════════════════════════════════════ */
+let _editingEventId=null;
+let _evPickedColor=null;
+
+function ensureAgendaState(){
+  if(!rawState.agenda)rawState.agenda={};
+  if(!Array.isArray(rawState.agenda.events))rawState.agenda.events=[];
+  return rawState.agenda;
+}
+
+function openEventModalNew(presetDate){
+  _editingEventId=null;
+  _evPickedColor=CAL_PALETTE[0];
+  document.getElementById('eventModalTitle').textContent='Nieuwe afspraak';
+  document.getElementById('evDeleteBtn').style.display='none';
+  document.getElementById('evTitle').value='';
+  document.getElementById('evAllDay').checked=false;
+  /* Default: today, in 1 hour, for 1 hour */
+  const now=presetDate?new Date(presetDate):new Date();
+  const startD=now.toISOString().slice(0,10);
+  const startH=String(Math.min(now.getHours(),22)).padStart(2,'0');
+  const startM='00';
+  const endH=String(Math.min(now.getHours()+1,23)).padStart(2,'0');
+  document.getElementById('evStartDate').value=startD;
+  document.getElementById('evStartTime').value=`${startH}:${startM}`;
+  document.getElementById('evEndDate').value=startD;
+  document.getElementById('evEndTime').value=`${endH}:${startM}`;
+  document.getElementById('evLocation').value='';
+  document.getElementById('evDescription').value='';
+  populateEvClientSelect('');
+  renderEvColorRow();
+  onEventAllDayChange();
+  document.getElementById('eventModal').classList.add('open');
+  setTimeout(()=>document.getElementById('evTitle').focus(),30);
+}
+function openEventModalEdit(id){
+  const ev=ensureAgendaState().events.find(e=>e.id===id);
+  if(!ev)return;
+  _editingEventId=id;
+  _evPickedColor=ev.color||CAL_PALETTE[0];
+  document.getElementById('eventModalTitle').textContent='Afspraak bewerken';
+  document.getElementById('evDeleteBtn').style.display='';
+  document.getElementById('evTitle').value=ev.title||'';
+  document.getElementById('evAllDay').checked=!!ev.allDay;
+  if(ev.allDay){
+    document.getElementById('evStartDate').value=ev.start;
+    document.getElementById('evEndDate').value=ev.end||ev.start;
+    document.getElementById('evStartTime').value='';
+    document.getElementById('evEndTime').value='';
+  } else {
+    const s=new Date(ev.start),e=new Date(ev.end||ev.start);
+    document.getElementById('evStartDate').value=s.toISOString().slice(0,10);
+    document.getElementById('evStartTime').value=`${String(s.getHours()).padStart(2,'0')}:${String(s.getMinutes()).padStart(2,'0')}`;
+    document.getElementById('evEndDate').value=e.toISOString().slice(0,10);
+    document.getElementById('evEndTime').value=`${String(e.getHours()).padStart(2,'0')}:${String(e.getMinutes()).padStart(2,'0')}`;
+  }
+  document.getElementById('evLocation').value=ev.location||'';
+  document.getElementById('evDescription').value=ev.description||'';
+  populateEvClientSelect(ev.clientId||'');
+  renderEvColorRow();
+  onEventAllDayChange();
+  document.getElementById('eventModal').classList.add('open');
+}
+function closeEventModal(){
+  document.getElementById('eventModal').classList.remove('open');
+  _editingEventId=null;
+}
+function onEventAllDayChange(){
+  const allDay=document.getElementById('evAllDay').checked;
+  document.getElementById('evStartTime').style.display=allDay?'none':'';
+  document.getElementById('evEndTime').style.display=allDay?'none':'';
+}
+function populateEvClientSelect(selectedId){
+  const sel=document.getElementById('evClientId');
+  if(!sel)return;
+  const clients=kanbanState?.clients||[];
+  sel.innerHTML='<option value="">— Geen klant —</option>'+
+    clients.map(c=>`<option value="${c.id}"${c.id===selectedId?' selected':''}>${escapeHtml(c.name)}</option>`).join('');
+}
+function renderEvColorRow(){
+  const el=document.getElementById('evColorRow');if(!el)return;
+  el.innerHTML=CAL_PALETTE.map(c=>
+    `<div class="cal-color-swatch${c===_evPickedColor?' selected':''}" data-action="evPickColor" data-arg1="${c}" style="background:${c}"></div>`
+  ).join('');
+}
+function evPickColor(c){
+  _evPickedColor=c;
+  renderEvColorRow();
+}
+function saveEvent(){
+  const title=document.getElementById('evTitle').value.trim();
+  if(!title){document.getElementById('evTitle').focus();return;}
+  const allDay=document.getElementById('evAllDay').checked;
+  const startD=document.getElementById('evStartDate').value;
+  const endD=document.getElementById('evEndDate').value||startD;
+  if(!startD){appToast('Vul een startdatum in',{type:'warning'});return;}
+  let start,end;
+  if(allDay){
+    start=startD;end=endD;
+  } else {
+    const startT=document.getElementById('evStartTime').value||'09:00';
+    const endT=document.getElementById('evEndTime').value||'10:00';
+    start=`${startD}T${startT}`;
+    end=`${endD}T${endT}`;
+    if(new Date(end)<=new Date(start)){
+      appToast('De eindtijd moet na de starttijd zijn',{type:'warning'});return;
+    }
+  }
+  const data={
+    title,
+    allDay,
+    start,end,
+    location:document.getElementById('evLocation').value.trim(),
+    description:document.getElementById('evDescription').value.trim(),
+    clientId:document.getElementById('evClientId').value||null,
+    color:_evPickedColor||CAL_PALETTE[0]
+  };
+  const events=ensureAgendaState().events;
+  if(_editingEventId){
+    const ev=events.find(e=>e.id===_editingEventId);
+    if(ev)Object.assign(ev,data,{updatedAt:Date.now()});
+  } else {
+    events.push({id:uid(),...data,createdAt:Date.now(),updatedAt:Date.now()});
+  }
+  closeEventModal();
+  scheduleSave();
+  if(activeModule==='agenda')fetchAndRenderView();
+  appToast(_editingEventId?'Afspraak opgeslagen':'Afspraak aangemaakt',{type:'success',duration:3000});
+}
+function deleteEvent(){
+  if(!_editingEventId)return;
+  const events=ensureAgendaState().events;
+  const idx=events.findIndex(e=>e.id===_editingEventId);
+  if(idx<0)return;
+  const removed=events[idx];
+  events.splice(idx,1);
+  closeEventModal();
+  scheduleSave();
+  if(activeModule==='agenda')fetchAndRenderView();
+  appToast(`"${removed.title}" verwijderd`,{type:'success',undo:()=>{
+    events.splice(idx,0,removed);
+    scheduleSave();
+    if(activeModule==='agenda')fetchAndRenderView();
+  }});
+}
+/* Close on backdrop click + Escape */
+document.getElementById('eventModal')?.addEventListener('click',e=>{
+  if(e.target.id==='eventModal')closeEventModal();
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&document.getElementById('eventModal')?.classList.contains('open'))closeEventModal();
+  if(e.key==='Escape'&&document.getElementById('icsImportModal')?.classList.contains('open'))closeIcsImport();
+});
+
+/* ═══════════════════════════════════════════════════
+   ICS FILE IMPORT — drag-drop / file picker → preview → confirm
+   ═══════════════════════════════════════════════════ */
+let _icsParsedEvents=null;
+function openIcsImport(){
+  _icsParsedEvents=null;
+  document.getElementById('icsPreview').style.display='none';
+  document.getElementById('icsPreview').innerHTML='';
+  document.getElementById('icsImportBtn').disabled=true;
+  document.getElementById('icsFileInput').value='';
+  document.getElementById('icsImportModal').classList.add('open');
+  closeCalAddDropdown();
+}
+function closeIcsImport(){
+  document.getElementById('icsImportModal').classList.remove('open');
+  _icsParsedEvents=null;
+}
+async function handleIcsFile(file){
+  if(!file)return;
+  try{
+    const text=await file.text();
+    if(!text.includes('BEGIN:VCALENDAR')){
+      appToast('Dit lijkt geen iCalendar (.ics) bestand',{type:'error'});
+      return;
+    }
+    const parsed=parseICS(text);
+    /* Expand recurring events for the next 12 months so user gets all instances */
+    const fromDate=new Date();fromDate.setMonth(fromDate.getMonth()-1);
+    const toDate=new Date();toDate.setMonth(toDate.getMonth()+12);
+    const expanded=expandEvents(parsed,fromDate,toDate);
+    _icsParsedEvents=expanded;
+    /* Preview */
+    const prev=document.getElementById('icsPreview');
+    prev.style.display='';
+    prev.innerHTML=`<div style="background:var(--surface2);padding:10px 12px;border-radius:6px">
+      <div style="font-size:13px;font-weight:600;color:var(--text)">${expanded.length} afspra${expanded.length===1?'ak':'ken'} gevonden in <em>${escapeHtml(file.name)}</em></div>
+      <div style="font-size:11.5px;color:var(--text-muted);margin-top:4px">Tijdsspanne: ${fromDate.toLocaleDateString('nl-NL')} – ${toDate.toLocaleDateString('nl-NL')}</div>
+      ${expanded.length?'':'<div style="font-size:11.5px;color:var(--warning);margin-top:6px">⚠ Geen afspraken in deze periode. Probeer een ander bestand.</div>'}
+    </div>`;
+    document.getElementById('icsImportBtn').disabled=expanded.length===0;
+  }catch(e){
+    appToast(`Fout bij lezen: ${e.message}`,{type:'error'});
+  }
+}
+function confirmIcsImport(){
+  if(!_icsParsedEvents||!_icsParsedEvents.length)return;
+  const events=ensureAgendaState().events;
+  const now=Date.now();
+  const importedColor=CAL_PALETTE[1];
+  const imported=_icsParsedEvents.map(ev=>{
+    const allDay=!!ev.occStart?.allDay;
+    const start=allDay?dateStr(ev.occStart.date):ev.occStart.date.toISOString().slice(0,16);
+    const end=ev.occEnd?(allDay?dateStr(ev.occEnd.date):ev.occEnd.date.toISOString().slice(0,16)):start;
+    return{
+      id:uid(),
+      title:ev.title||'(geen titel)',
+      allDay,
+      start,end,
+      location:ev.location||'',
+      description:'',
+      clientId:activeClientFilter||null,
+      color:importedColor,
+      _imported:true,
+      createdAt:now,updatedAt:now
+    };
+  });
+  events.push(...imported);
+  scheduleSave();
+  closeIcsImport();
+  if(activeModule==='agenda')fetchAndRenderView();
+  appToast(`${imported.length} afspra${imported.length===1?'ak':'ken'} geïmporteerd`,{type:'success'});
+}
+/* Drag-drop on the drop zone */
+document.addEventListener('DOMContentLoaded',()=>{
+  const dz=document.getElementById('icsDropZone');
+  if(!dz)return;
+  dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('dragover');});
+  dz.addEventListener('dragleave',()=>dz.classList.remove('dragover'));
+  dz.addEventListener('drop',e=>{
+    e.preventDefault();dz.classList.remove('dragover');
+    if(e.dataTransfer.files.length)handleIcsFile(e.dataTransfer.files[0]);
+  });
+});
 
 /* ─ Weekly grid render ─ */
 const DAY_NAMES_SHORT=['MA','DI','WO','DO','VR','ZA','ZO'];
@@ -8679,7 +9115,12 @@ Object.assign(APP_ACTIONS,{
   hideCalAddForm:()=>{const f=document.getElementById('calAddForm');if(f)f.style.display='none';},
   saveIcalSource:()=>saveIcalSource(),
   jumpToDay:(el,e,ds)=>jumpToDay(ds),
-  removeAccount:(el,e,id)=>removeAccount(id)
+  removeAccount:(el,e,id)=>removeAccount(id),
+  /* Native events */
+  openEventModalNew:()=>openEventModalNew(),
+  openEventModalEdit:(el,e,id)=>{e.stopPropagation();openEventModalEdit(id);},
+  evPickColor:(el,e,c)=>evPickColor(c),
+  openIcsImport:()=>openIcsImport()
 });
 
 /* ═══════════════════════════════════════════════════
