@@ -148,6 +148,13 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
 .sidebar-sync.saving{background:var(--info-bg);color:var(--info)}
 .sidebar-sync.saved{background:var(--success-bg);color:var(--success)}
 .sidebar-sync.error{background:var(--danger-bg);color:var(--danger)}
+.sidebar-refresh-btn{
+  margin-left:auto;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;
+  background:transparent;border:0;border-radius:5px;color:inherit;cursor:pointer;opacity:0.7;
+  transition:all 0.15s;flex-shrink:0;
+}
+.sidebar-refresh-btn:hover{opacity:1;background:rgba(255,255,255,0.08);transform:rotate(180deg);}
+.sidebar.collapsed .sidebar-refresh-btn{display:none}
 .sidebar-collapse-btn{
   display:flex;align-items:center;gap:8px;
   padding:7px 10px;border-radius:var(--radius);cursor:pointer;
@@ -3589,10 +3596,11 @@ textarea { line-height: 1.6; resize: vertical; }
       <li>Klik <strong>Generate token</strong>, kopieer en plak hier:</li>
     </ol>
     <input type="password" id="tokenInput" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"/>
-    <div style="display:flex;justify-content:flex-end">
+    <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-sm" onclick="gistDiagnose()" title="Lijst alle Gists met dit bestandsnaam (handig om duplicaten te vinden)">🔍 Gist diagnose</button>
       <button class="btn btn-primary" onclick="saveToken()">Verbinden</button>
     </div>
-    <p style="font-size:11px;color:var(--text-hint)">Token wordt alleen lokaal opgeslagen (localStorage).</p>
+    <p style="font-size:11px;color:var(--text-hint)">Token wordt alleen lokaal opgeslagen (localStorage). Data syncing per device — gebruik 'Gist diagnose' als data niet matcht tussen apparaten.</p>
 
     <details class="oauth-config" style="margin-top:18px;border-top:1px solid var(--border);padding-top:16px">
       <summary style="cursor:pointer;font-weight:600;font-size:13px;color:var(--text);user-select:none">⚙ Agenda OAuth instellen (Microsoft + Google)</summary>
@@ -3710,6 +3718,9 @@ textarea { line-height: 1.6; resize: vertical; }
       <div class="sidebar-sync idle" id="syncBar">
         <div class="sync-dot" id="syncDot"></div>
         <span class="sync-msg" id="syncMsg">—</span>
+        <button class="sidebar-refresh-btn" onclick="refreshGist()" title="Data opnieuw laden van GitHub" aria-label="Ververs">
+          <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><path d="M12 4.5a5 5 0 1 0 1 3"/><polyline points="13 2 13 5 10 5"/></svg>
+        </button>
       </div>
       <button class="sidebar-theme-btn" id="themeToggleBtn" onclick="toggleColorScheme()" title="Schakel donker / licht">
         <span class="theme-icon-light"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="8" cy="8" r="3.2"/><line x1="8" y1="1.5" x2="8" y2="3"/><line x1="8" y1="13" x2="8" y2="14.5"/><line x1="1.5" y1="8" x2="3" y2="8"/><line x1="13" y1="8" x2="14.5" y2="8"/><line x1="3.5" y1="3.5" x2="4.5" y2="4.5"/><line x1="11.5" y1="11.5" x2="12.5" y2="12.5"/><line x1="3.5" y1="12.5" x2="4.5" y2="11.5"/><line x1="11.5" y1="4.5" x2="12.5" y2="3.5"/></svg></span>
@@ -4821,6 +4832,12 @@ function loadToken(){
   ghToken=localStorage.getItem(LS_TOKEN_KEY)||null;
   gistId=localStorage.getItem(LS_GIST_KEY)||null;
 }
+
+/* Track when we last successfully loaded the remote Gist + the
+   remote's updated_at at that moment. Used to detect race-condition
+   overwrites when multiple devices edit at once. */
+let lastLoadedAt=0;
+let lastRemoteUpdatedAt=null;
 function saveToken(){
   const v=document.getElementById('tokenInput').value.trim();
   if(!v||!v.startsWith('gh')){alert('Ongeldig token');return;}
@@ -4903,20 +4920,35 @@ async function loadGist(){
   setSync('saving','Verbinden...');
   try{
     let content=null;
+    let remoteUpdatedAt=null;
     if(gistId){
       try{
         const g=await gistRequest('GET','/gists/'+gistId);
         const f=g.files[GIST_FILENAME];
         if(f)content=f.content;
+        remoteUpdatedAt=g.updated_at;
       }catch(e){gistId=null;localStorage.removeItem(LS_GIST_KEY);}
     }
     if(!content){
+      /* When no gistId is cached, find ALL gists with our filename
+         and pick the most recently updated one. This is more
+         deterministic than 'first match' which is what the old code did. */
       const gists=await gistRequest('GET','/gists?per_page=100');
-      const found=gists.find(g=>g.files&&g.files[GIST_FILENAME]);
-      if(found){
+      const matches=gists.filter(g=>g.files&&g.files[GIST_FILENAME]);
+      if(matches.length){
+        matches.sort((a,b)=>(new Date(b.updated_at))-(new Date(a.updated_at)));
+        const found=matches[0];
+        if(matches.length>1){
+          /* Warn the user about duplicates so they can clean up */
+          console.warn(`Found ${matches.length} gists with ${GIST_FILENAME} — using most recent (${found.id}). Other IDs:`,matches.slice(1).map(g=>g.id));
+          if(typeof appToast==='function'){
+            appToast(`Let op: ${matches.length} dubbele Gists gevonden. Gebruik nu de nieuwste (${found.id.slice(0,7)}). Open Instellingen → Gist diagnose om de andere op te ruimen.`,{type:'warning',duration:9000});
+          }
+        }
         gistId=found.id;localStorage.setItem(LS_GIST_KEY,gistId);
         const g=await gistRequest('GET','/gists/'+gistId);
         content=g.files[GIST_FILENAME]?.content;
+        remoteUpdatedAt=g.updated_at;
       }
     }
     if(content){
@@ -4947,12 +4979,16 @@ async function loadGist(){
       urenState=rawState.uren||{entries:[],templates:[]};
       if(!urenState.entries)urenState.entries=[];
       if(!urenState.templates)urenState.templates=[];
+      lastLoadedAt=Date.now();
+      lastRemoteUpdatedAt=remoteUpdatedAt;
       setSync('saved','Geladen · '+new Date().toLocaleTimeString('nl-NL'));
     } else {
       rawState={tasks:{},notes:{tree:[],activeId:null,collapsed:{}},checklist:{},settings:{}};
       initDefaultKanban();
       notesState=rawState.notes;
       checklistState={items:[],showArchived:false,sortBy:'priority'};
+      lastLoadedAt=Date.now();
+      lastRemoteUpdatedAt=null;
       setSync('idle','Nieuw bestand');
     }
   }catch(e){
@@ -4986,14 +5022,45 @@ async function saveGist(){
   if(!rawState.agenda)rawState.agenda={events:[]};
   const content=JSON.stringify(rawState,null,2);
   try{
+    /* CONFLICT CHECK: before overwriting the remote, fetch a HEAD of
+       the gist to read its updated_at. If it's newer than what we
+       loaded, another device has saved in between — warn instead of
+       silently overwriting. */
+    if(gistId&&lastRemoteUpdatedAt){
+      try{
+        const head=await gistRequest('GET','/gists/'+gistId);
+        const remoteAt=head.updated_at;
+        if(remoteAt&&remoteAt!==lastRemoteUpdatedAt){
+          /* Remote is newer — pause auto-save and warn */
+          setSync('error','Conflict — andere apparaat heeft gewijzigd');
+          if(typeof appToast==='function'){
+            appToast('Conflict: een ander apparaat heeft data gewijzigd nadat jij hier laadde. Klik om te kiezen wat te doen.',{
+              type:'warning',
+              duration:15000,
+              undo:()=>showConflictDialog(head)
+            });
+            const btn=document.getElementById('undoToastUndoBtn');
+            if(btn)btn.textContent='⚖ Oplossen';
+          }
+          return;
+        }
+      } catch(e){
+        /* If the conflict check fails (e.g. network), still try the save */
+        console.warn('Conflict check failed, proceeding with save:',e);
+      }
+    }
     if(gistId){
-      await gistRequest('PATCH','/gists/'+gistId,{files:{[GIST_FILENAME]:{content}}});
+      const r=await gistRequest('PATCH','/gists/'+gistId,{files:{[GIST_FILENAME]:{content}}});
+      lastRemoteUpdatedAt=r.updated_at;
+      lastLoadedAt=Date.now();
     } else {
       const g=await gistRequest('POST','/gists',{
         description:'Herling Analytics — Dashboard data',public:false,
         files:{[GIST_FILENAME]:{content}}
       });
       gistId=g.id;localStorage.setItem(LS_GIST_KEY,gistId);
+      lastRemoteUpdatedAt=g.updated_at;
+      lastLoadedAt=Date.now();
     }
     setSync('saved','Opgeslagen · '+new Date().toLocaleTimeString('nl-NL'));
   }catch(e){
@@ -5014,6 +5081,82 @@ function scheduleSave(){
   saveTimer=setTimeout(saveGist,1500);
   /* Refresh nav badges on every state change so counts stay current */
   if(typeof updateNavBadges==='function')updateNavBadges();
+}
+
+/* ─ Manual 'Ververs' button — pulls from remote and re-renders ─ */
+async function refreshGist(){
+  if(!ghToken){appToast('Geen token ingesteld',{type:'warning'});return;}
+  /* If there are unsaved local changes, warn the user */
+  if(saveTimer){
+    if(!confirm('Er zijn lokale wijzigingen die nog niet zijn opgeslagen. Bij verversen gaan ze verloren. Doorgaan?'))return;
+    clearTimeout(saveTimer);saveTimer=null;
+  }
+  await loadGist();
+  /* loadGist calls renderAll() which re-renders everything */
+  appToast('Data ververst van GitHub',{type:'success',duration:2500});
+}
+
+/* ─ Conflict dialog — show options when remote is newer than local ─ */
+function showConflictDialog(remoteGist){
+  const remoteAt=remoteGist?.updated_at?new Date(remoteGist.updated_at).toLocaleString('nl-NL'):'?';
+  const localAt=lastRemoteUpdatedAt?new Date(lastRemoteUpdatedAt).toLocaleString('nl-NL'):'?';
+  const choice=prompt(
+    `Remote heeft nieuwere versie:\n  Lokaal geladen op: ${localAt}\n  Remote bijgewerkt: ${remoteAt}\n\n` +
+    `Type 'reload' om remote-versie te laden (LOKALE WIJZIGINGEN VERLOREN GAAN)\n` +
+    `Type 'force' om jouw lokale versie remote te overschrijven\n` +
+    `Of laat leeg om te annuleren.`,
+    'reload'
+  );
+  if(choice==='reload'){
+    loadGist();
+  } else if(choice==='force'){
+    /* Reset the timestamp so the conflict check passes */
+    lastRemoteUpdatedAt=remoteGist?.updated_at||null;
+    saveGist();
+  } else {
+    appToast('Conflict niet opgelost — wijzigingen niet opgeslagen',{type:'info',duration:4000});
+  }
+}
+
+/* ─ Auto-refresh when tab regains visibility (after >30s away) ─ */
+let _hiddenSince=null;
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='hidden'){
+    _hiddenSince=Date.now();
+  } else if(document.visibilityState==='visible'&&_hiddenSince){
+    const awayMs=Date.now()-_hiddenSince;
+    _hiddenSince=null;
+    /* Only refresh if user was away >30s — skips short tab-switches */
+    if(awayMs>30000&&ghToken&&!saveTimer){
+      console.log(`[gist] Tab visible again after ${Math.round(awayMs/1000)}s, refreshing…`);
+      loadGist();
+    }
+  }
+});
+
+/* ─ Gist diagnose: list all gists matching our filename ─ */
+async function gistDiagnose(){
+  if(!ghToken){alert('Geen token ingesteld');return;}
+  try{
+    const gists=await gistRequest('GET','/gists?per_page=100');
+    const matches=gists.filter(g=>g.files&&g.files[GIST_FILENAME]);
+    if(!matches.length){alert('Geen Gists gevonden met '+GIST_FILENAME);return;}
+    let msg=`${matches.length} Gist(s) met "${GIST_FILENAME}":\n\n`;
+    matches.sort((a,b)=>(new Date(b.updated_at))-(new Date(a.updated_at)));
+    matches.forEach((g,i)=>{
+      const isCurrent=g.id===gistId;
+      msg+=`${i+1}. ${g.id.slice(0,12)} ${isCurrent?'(ACTIEF)':''}\n`;
+      msg+=`   Bijgewerkt: ${new Date(g.updated_at).toLocaleString('nl-NL')}\n`;
+      msg+=`   Aangemaakt: ${new Date(g.created_at).toLocaleString('nl-NL')}\n`;
+      msg+=`   URL: https://gist.github.com/${g.id}\n\n`;
+    });
+    if(matches.length>1){
+      msg+=`Tip: open de URLs in een nieuw tabblad en verwijder duplicaten via 'Delete' op gist.github.com.`;
+    }
+    alert(msg);
+  } catch(e){
+    alert('Fout bij ophalen: '+e.message);
+  }
 }
 async function forceSave(){clearTimeout(saveTimer);await saveGist();}
 
