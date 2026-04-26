@@ -2592,13 +2592,17 @@ textarea { line-height: 1.6; resize: vertical; }
 .cal-add-menu {
   display: none;
   position: absolute;
-  bottom: calc(100% + 6px);
+  /* Open downward from the button — modal has plenty of room below
+     and we avoid the menu being clipped by the modal top */
+  top: calc(100% + 6px);
   left: 0;
-  right: 0;
+  /* Wider than the trigger so option text can breathe */
+  min-width: 340px;
+  max-width: 420px;
   background: var(--surface);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-popover);
-  padding: 5px;
+  padding: 6px;
   z-index: 600;
   animation: ha-fadeIn 0.14s ease-out;
 }
@@ -2606,9 +2610,9 @@ textarea { line-height: 1.6; resize: vertical; }
 .cal-add-menu button {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   width: 100%;
-  padding: 9px 10px;
+  padding: 10px 12px;
   border: 0;
   background: transparent;
   border-radius: 6px;
@@ -2617,11 +2621,33 @@ textarea { line-height: 1.6; resize: vertical; }
   text-align: left;
   color: var(--text);
   transition: background 0.12s;
+  white-space: normal; /* allow descriptions to wrap if needed */
 }
 .cal-add-menu button:hover { background: var(--bg); }
-.cal-add-menu button svg { flex-shrink: 0; }
-.cal-add-menu button span { font-size: 12.5px; line-height: 1.4; }
-.cal-add-menu button small { color: var(--text-muted); font-size: 10.5px; }
+.cal-add-menu button > svg {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+.cal-add-menu button > span {
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.45;
+  display: block;
+}
+.cal-add-menu button > span small {
+  display: block;
+  color: var(--text-muted);
+  font-size: 11px;
+  margin-top: 2px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.cal-add-menu button > span strong {
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: -0.005em;
+}
 .cal-add-divider { height: 1px; background: var(--border); margin: 4px 0; }
 
 /* OAuth config section in setup screen */
@@ -3110,10 +3136,16 @@ textarea { line-height: 1.6; resize: vertical; }
     <details class="oauth-config" style="margin-top:18px;border-top:1px solid var(--border);padding-top:16px">
       <summary style="cursor:pointer;font-weight:600;font-size:13px;color:var(--text);user-select:none">⚙ Agenda OAuth instellen (Microsoft + Google)</summary>
       <div style="margin-top:12px;display:flex;flex-direction:column;gap:14px">
-        <p style="font-size:11.5px;color:var(--text-muted);line-height:1.5;margin:0">
-          Optioneel. Met OAuth kun je Microsoft / Google agenda's verbinden zonder geheime iCal-URL's.
-          Eenmalig instellen — daarna onthoudt de browser je login (Microsoft via MSAL ~7 dagen, Google via stille token-refresh).
-        </p>
+        <div style="background:var(--info-bg);border-left:3px solid var(--info);padding:10px 12px;border-radius:6px;font-size:11.5px;color:var(--text);line-height:1.55">
+          <strong>Belangrijk:</strong> je hebt <em>geen</em> beheer-rechten nodig in je klanten's tenant.
+          Je registreert <strong>één app</strong> in een Microsoft / Google account dat <em>jij wel beheert</em>
+          (bijv. een eigen persoonlijk Outlook/Gmail account). Die app is "multi-tenant" — daarna kunnen
+          klanten inloggen met hun werk-emailadres en toegang geven tot hun eigen agenda, net zoals bij
+          de officiële Outlook of Calendar app.<br><br>
+          Geen persoonlijk Microsoft-account? Maak er een gratis aan op
+          <a href="https://signup.live.com" target="_blank" rel="noopener">signup.live.com</a>
+          (kost 1 minuut). Dat account hoeft alleen voor de app-registratie te dienen.
+        </div>
 
         <div>
           <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em">Microsoft client ID (Azure App Registration)</label>
@@ -3121,13 +3153,18 @@ textarea { line-height: 1.6; resize: vertical; }
           <details style="margin-top:6px;font-size:11px;color:var(--text-muted)">
             <summary style="cursor:pointer">Hoe krijg ik dit?</summary>
             <ol style="padding-left:20px;line-height:1.6;margin-top:6px">
-              <li>Ga naar <a href="https://portal.azure.com" target="_blank" rel="noopener">portal.azure.com</a> → Azure Active Directory → <strong>App registrations</strong> → New registration</li>
+              <li>Log in op <a href="https://portal.azure.com" target="_blank" rel="noopener">portal.azure.com</a> met <strong>jouw eigen</strong> Microsoft-account (persoonlijk of zakelijk — niet die van een klant)</li>
+              <li>Ga naar <strong>Microsoft Entra ID</strong> (voorheen Azure AD) → <strong>App registrations</strong> → <strong>New registration</strong></li>
               <li>Naam: bijv. <em>Herling Analytics Agenda</em></li>
-              <li>Account types: <strong>Accounts in any organizational directory and personal Microsoft accounts</strong></li>
-              <li>Redirect URI: <strong>Single-page application (SPA)</strong>, URL = <code id="originUrl">…</code></li>
-              <li>Klik <strong>Register</strong>, kopieer de <strong>Application (client) ID</strong> hierboven</li>
-              <li>Bij <strong>API permissions</strong> → Add → Microsoft Graph → Delegated → vink <code>Calendars.Read</code>, <code>Calendars.Read.Shared</code> en <code>User.Read</code> aan</li>
+              <li>Account types: kies <strong>"Accounts in any organizational directory (Any Microsoft Entra ID tenant — Multitenant) and personal Microsoft accounts (e.g. Skype, Xbox)"</strong> — dit maakt het mogelijk dat <em>iedere</em> Microsoft-gebruiker (incl. al je klanten) kan inloggen</li>
+              <li>Redirect URI: type <strong>Single-page application (SPA)</strong>, URL = <code id="originUrl">…</code></li>
+              <li><strong>Register</strong>, kopieer de <strong>Application (client) ID</strong> en plak hierboven</li>
+              <li>Bij <strong>API permissions</strong> → <strong>Add a permission</strong> → <strong>Microsoft Graph</strong> → <strong>Delegated permissions</strong> → vink aan: <code>Calendars.Read</code>, <code>Calendars.Read.Shared</code>, <code>User.Read</code></li>
+              <li><em>Geen "Grant admin consent" nodig</em> — elke gebruiker geeft individueel toestemming bij het inloggen</li>
             </ol>
+            <p style="margin-top:8px;padding:8px 10px;background:var(--surface2);border-radius:5px">
+              <strong>Bij sommige strikte tenants</strong> (bijv. enterprise klanten met restrictief consent-beleid) kan het zijn dat een IT-admin van die klant éénmalig toestemming moet geven via <a href="https://login.microsoftonline.com/common/adminconsent?client_id=YOUR_CLIENT_ID" target="_blank" rel="noopener">deze admin-consent link</a> (vervang YOUR_CLIENT_ID). Dit is een <em>eenmalige</em> handeling per klant-tenant.
+            </p>
           </details>
         </div>
 
@@ -3137,12 +3174,14 @@ textarea { line-height: 1.6; resize: vertical; }
           <details style="margin-top:6px;font-size:11px;color:var(--text-muted)">
             <summary style="cursor:pointer">Hoe krijg ik dit?</summary>
             <ol style="padding-left:20px;line-height:1.6;margin-top:6px">
-              <li>Ga naar <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">Google Cloud Console → Credentials</a></li>
-              <li>Maak een nieuw project (gratis), enable de <strong>Google Calendar API</strong></li>
-              <li>OAuth consent screen → External → vul naam + email in</li>
-              <li>Credentials → <strong>Create credentials → OAuth client ID</strong> → type <strong>Web application</strong></li>
+              <li>Log in op <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">Google Cloud Console</a> met <strong>jouw eigen</strong> Google account</li>
+              <li>Maak een nieuw project (gratis) — bijv. <em>Herling Agenda Sync</em></li>
+              <li>Bij <strong>APIs &amp; Services → Library</strong> → zoek <em>Google Calendar API</em> → <strong>Enable</strong></li>
+              <li><strong>OAuth consent screen</strong> → User type: <strong>External</strong> → vul app-naam + support email in. Publishing status mag op "Testing" blijven (geeft je 100 test-users).</li>
+              <li><strong>Credentials → Create credentials → OAuth client ID</strong> → type <strong>Web application</strong></li>
               <li>Authorized JavaScript origins: <code id="originUrl2">…</code></li>
-              <li>Klik <strong>Create</strong>, kopieer het <strong>Client ID</strong> hierboven</li>
+              <li><strong>Create</strong>, kopieer het <strong>Client ID</strong> hierboven</li>
+              <li>Voeg eventuele klant-emails toe als test users (consent screen → Test users → Add users)</li>
             </ol>
           </details>
         </div>
