@@ -2587,6 +2587,40 @@ textarea { line-height: 1.6; resize: vertical; }
 .mobile-topbar,
 .mobile-bottom-nav,
 .mobile-backdrop { display: none; }
+/* Mobile-only dashboard settings dropdown — hidden on desktop */
+.dash-mobile-settings { display: none; position: relative; }
+.dash-mobile-settings-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 240px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-popover);
+  padding: 6px;
+  z-index: 200;
+  animation: ha-fadeIn 0.14s ease-out;
+}
+.dash-mobile-settings.open .dash-mobile-settings-menu { display: block; }
+.dash-mobile-settings-menu button {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  text-align: left;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.12s;
+  min-height: 40px;
+}
+.dash-mobile-settings-menu button:hover { background: var(--surface2); }
+.dash-mobile-settings-divider { height: 1px; background: var(--border); margin: 4px 0; }
 
 /* ICS import drop zone */
 .ics-drop-zone {
@@ -3062,6 +3096,14 @@ textarea { line-height: 1.6; resize: vertical; }
   .kanban-topbar > div:last-child { flex-wrap: wrap; gap: 6px !important; }
   /* Hide stat pills on small screens to save space */
   .kanban-topbar .stat-pill { display: none; }
+  /* Hide the Todo-page settings dropdown on mobile — it lives on
+     dashboard instead via #dashMobileSettings */
+  .kanban-topbar .settings-wrap { display: none !important; }
+
+  /* ── DASHBOARD MOBILE SETTINGS ──
+     Show the new mobile-only dropdown, hide the old simple ⚙. */
+  .dash-mobile-settings { display: inline-block !important; }
+  .dash-iconbtn-desktop { display: none !important; }
   .toolbar { padding: 8px 12px !important; flex-wrap: wrap; gap: 6px !important; }
   .board {
     padding: 12px !important;
@@ -3796,9 +3838,27 @@ textarea { line-height: 1.6; resize: vertical; }
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><circle cx="7" cy="5.5" r="2.5"/><path d="M2.5 13c0-2.2 2-4 4.5-4s4.5 1.8 4.5 4"/><line x1="12.5" y1="4" x2="14.5" y2="4"/><line x1="13.5" y1="3" x2="13.5" y2="5"/></svg>
             Klant
           </button>
-          <button class="btn btn-sm btn-ghost dash-iconbtn" onclick="showTokenSettings()" title="Instellingen" aria-label="Instellingen">
+          <button class="btn btn-sm btn-ghost dash-iconbtn dash-iconbtn-desktop" onclick="showTokenSettings()" title="Instellingen" aria-label="Instellingen">
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><circle cx="8" cy="8" r="2.2"/><path d="M13.4 9.2a1 1 0 0 0 .2 1.1l.04.04a1.2 1.2 0 1 1-1.7 1.7l-.04-.04a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9V13a1.2 1.2 0 1 1-2.4 0v-.06a1 1 0 0 0-.7-.92 1 1 0 0 0-1.1.2l-.04.04a1.2 1.2 0 1 1-1.7-1.7l.04-.04a1 1 0 0 0 .2-1.1 1 1 0 0 0-.9-.6H3a1.2 1.2 0 1 1 0-2.4h.06a1 1 0 0 0 .92-.7 1 1 0 0 0-.2-1.1l-.04-.04a1.2 1.2 0 1 1 1.7-1.7l.04.04a1 1 0 0 0 1.1.2H6.7a1 1 0 0 0 .6-.9V3a1.2 1.2 0 1 1 2.4 0v.06a1 1 0 0 0 .6.9 1 1 0 0 0 1.1-.2l.04-.04a1.2 1.2 0 1 1 1.7 1.7l-.04.04a1 1 0 0 0-.2 1.1V6.7a1 1 0 0 0 .9.6H13a1.2 1.2 0 1 1 0 2.4h-.06a1 1 0 0 0-.9.6z"/></svg>
           </button>
+
+          <!-- Mobile-only settings dropdown (replaces the small ⚙ on mobile,
+               and replaces the Todo-page settings button which is hidden on mobile) -->
+          <div class="dash-mobile-settings" id="dashMobileSettings">
+            <button class="btn btn-sm" onclick="toggleDashMobileSettings(event)" aria-label="Instellingen">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15" style="margin-right:4px"><circle cx="8" cy="8" r="2.2"/><path d="M13.4 9.2a1 1 0 0 0 .2 1.1l.04.04a1.2 1.2 0 1 1-1.7 1.7l-.04-.04a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9V13a1.2 1.2 0 1 1-2.4 0v-.06a1 1 0 0 0-.7-.92 1 1 0 0 0-1.1.2l-.04.04a1.2 1.2 0 1 1-1.7-1.7l.04-.04a1 1 0 0 0 .2-1.1 1 1 0 0 0-.9-.6H3a1.2 1.2 0 1 1 0-2.4h.06a1 1 0 0 0 .92-.7 1 1 0 0 0-.2-1.1l-.04-.04a1.2 1.2 0 1 1 1.7-1.7l.04.04a1 1 0 0 0 1.1.2H6.7a1 1 0 0 0 .6-.9V3a1.2 1.2 0 1 1 2.4 0v.06a1 1 0 0 0 .6.9 1 1 0 0 0 1.1-.2l.04-.04a1.2 1.2 0 1 1 1.7 1.7l-.04.04a1 1 0 0 0-.2 1.1V6.7a1 1 0 0 0 .9.6H13a1.2 1.2 0 1 1 0 2.4h-.06a1 1 0 0 0-.9.6z"/></svg>
+              Instellingen
+            </button>
+            <div class="dash-mobile-settings-menu" id="dashMobileSettingsMenu">
+              <button type="button" onclick="closeDashMobileSettings();showAddProject()">+ Nieuw project</button>
+              <button type="button" onclick="closeDashMobileSettings();openImport()">↑ Importeren (CSV / Excel)</button>
+              <button type="button" onclick="closeDashMobileSettings();exportData()">↓ Exporteren (CSV)</button>
+              <div class="dash-mobile-settings-divider"></div>
+              <button type="button" onclick="closeDashMobileSettings();showTokenSettings()">⚙ Token &amp; OAuth instellen</button>
+              <button type="button" onclick="closeDashMobileSettings();gistDiagnose()">🔍 Gist diagnose</button>
+              <button type="button" onclick="closeDashMobileSettings();refreshGist()">↻ Data opnieuw laden</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -5314,6 +5374,24 @@ function toggleSidebar(){
   sidebarCollapsed=!sidebarCollapsed;
   document.getElementById('sidebar').classList.toggle('collapsed',sidebarCollapsed);
 }
+
+/* ─ Mobile-only dashboard settings dropdown
+   (replaces both the small ⚙ on dashboard AND the Todo-page settings
+   button on phone-sized screens). */
+function toggleDashMobileSettings(e){
+  if(e)e.stopPropagation();
+  document.getElementById('dashMobileSettings')?.classList.toggle('open');
+}
+function closeDashMobileSettings(){
+  document.getElementById('dashMobileSettings')?.classList.remove('open');
+}
+document.addEventListener('click',e=>{
+  const dd=document.getElementById('dashMobileSettings');
+  if(dd&&!dd.contains(e.target))dd.classList.remove('open');
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape')closeDashMobileSettings();
+});
 
 /* ─ Mobile sidebar drawer (off-canvas) ─ */
 function toggleSidebarMobile(force){
