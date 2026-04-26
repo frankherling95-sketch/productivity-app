@@ -3595,12 +3595,21 @@ textarea { line-height: 1.6; resize: vertical; }
       <li>Scope: <strong>gist</strong></li>
       <li>Klik <strong>Generate token</strong>, kopieer en plak hier:</li>
     </ol>
-    <input type="password" id="tokenInput" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"/>
+    <input type="password" id="tokenInput" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"/>
     <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
-      <button class="btn btn-sm" onclick="gistDiagnose()" title="Lijst alle Gists met dit bestandsnaam (handig om duplicaten te vinden)">🔍 Gist diagnose</button>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-sm" onclick="testTokenInline()" title="Test of de token geldig is zonder hem op te slaan">✓ Test</button>
+        <button class="btn btn-sm" onclick="gistDiagnose()" title="Lijst alle Gists met dit bestandsnaam (handig om duplicaten te vinden)">🔍 Gist diagnose</button>
+      </div>
       <button class="btn btn-primary" onclick="saveToken()">Verbinden</button>
     </div>
-    <p style="font-size:11px;color:var(--text-hint)">Token wordt alleen lokaal opgeslagen (localStorage). Data syncing per device — gebruik 'Gist diagnose' als data niet matcht tussen apparaten.</p>
+    <p style="font-size:11px;color:var(--text-hint);line-height:1.6">
+      Token wordt lokaal opgeslagen (localStorage), per apparaat.<br>
+      <strong>Bad credentials op mobiel?</strong> Klik op <strong>✓ Test</strong> om te checken. Veelvoorkomende oorzaken:<br>
+      • Trailing spatie bij plakken (wordt automatisch verwijderd)<br>
+      • Token is verlopen (classic PAT verloopt na 90 dagen) → maak een nieuwe en gebruik dezelfde op alle apparaten<br>
+      • Token zonder <code>gist</code> scope
+    </p>
 
     <details class="oauth-config" style="margin-top:18px;border-top:1px solid var(--border);padding-top:16px">
       <summary style="cursor:pointer;font-weight:600;font-size:13px;color:var(--text);user-select:none">⚙ Agenda OAuth instellen (Microsoft + Google)</summary>
@@ -4838,13 +4847,67 @@ function loadToken(){
    overwrites when multiple devices edit at once. */
 let lastLoadedAt=0;
 let lastRemoteUpdatedAt=null;
-function saveToken(){
-  const v=document.getElementById('tokenInput').value.trim();
-  if(!v||!v.startsWith('gh')){alert('Ongeldig token');return;}
-  localStorage.setItem(LS_TOKEN_KEY,v);ghToken=v;
-  document.getElementById('setupScreen').style.display='none';
-  document.getElementById('appScreen').style.display='flex';
-  boot();
+/* Sanitize a pasted token: strips spaces, tabs, newlines, BOMs, and
+   common copy-paste artefacts that mobile keyboards / clipboards add. */
+function sanitizeToken(raw){
+  if(!raw)return '';
+  return raw
+    .replace(/​|‌|‍|﻿/g,'') /* zero-width chars */
+    .replace(/\s/g,'')                          /* any whitespace */
+    .trim();
+}
+
+/* Test the token by hitting /user. Resolves with the username on
+   success, throws with a clear message on failure. */
+async function testGitHubToken(token){
+  const res=await fetch('https://api.github.com/user',{
+    headers:{'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json'}
+  });
+  if(res.status===401)throw new Error('Token afgewezen door GitHub (Bad credentials). Token is verlopen, gerevoked, of fout overgenomen.');
+  if(res.status===403)throw new Error('Toegang geweigerd. Heeft de token de juiste scope (gist)?');
+  if(!res.ok)throw new Error('GitHub gaf statuscode '+res.status);
+  return res.json();
+}
+
+async function saveToken(){
+  const inp=document.getElementById('tokenInput');
+  const v=sanitizeToken(inp.value);
+  if(!v){
+    appToast('Vul een GitHub token in',{type:'warning'});
+    inp.focus();return;
+  }
+  if(!v.startsWith('gh')){
+    appToast(`Token moet beginnen met 'ghp_', 'github_pat_' of 'gho_'. Jouw input begon met '${v.slice(0,4)}…'`,{type:'error',duration:8000});
+    return;
+  }
+  /* Test the token before persisting */
+  setSync('saving','Token testen...');
+  try{
+    const user=await testGitHubToken(v);
+    /* Test passed — commit */
+    inp.value=v; /* reflect the cleaned version back */
+    localStorage.setItem(LS_TOKEN_KEY,v);
+    ghToken=v;
+    appToast(`Token werkt — ingelogd als ${user.login}`,{type:'success'});
+    document.getElementById('setupScreen').style.display='none';
+    document.getElementById('appScreen').style.display='flex';
+    boot();
+  } catch(e){
+    setSync('error','Token ongeldig');
+    appToast(e.message,{type:'error',duration:10000});
+  }
+}
+
+/* Optional: 'Test token' button — checks current input without saving */
+async function testTokenInline(){
+  const v=sanitizeToken(document.getElementById('tokenInput').value);
+  if(!v){appToast('Vul eerst een token in',{type:'warning'});return;}
+  try{
+    const user=await testGitHubToken(v);
+    appToast(`✓ Token is geldig — ingelogd als ${user.login}`,{type:'success',duration:5000});
+  } catch(e){
+    appToast('✗ '+e.message,{type:'error',duration:8000});
+  }
 }
 function showTokenSettings(){
   document.getElementById('appScreen').style.display='none';
@@ -4996,8 +5059,21 @@ async function loadGist(){
     rawState={tasks:{},notes:{tree:[],activeId:null,collapsed:{}},checklist:{},settings:{}};
     initDefaultKanban();notesState=rawState.notes;
     checklistState={items:[],showArchived:false,sortBy:'priority'};
-    if(e.message&&e.message.includes('Bad credentials'))setSync('error','Ongeldig token — klik ⚙');
-    else setSync('error','Fout: '+e.message);
+    const isBadCreds=e.message&&e.message.toLowerCase().includes('bad credentials');
+    if(isBadCreds){
+      setSync('error','Token ongeldig — klik ⚙');
+      if(typeof appToast==='function'){
+        appToast('GitHub token afgewezen — kun je niet inladen. Open Instellingen om token te testen of een nieuwe in te voeren.',{
+          type:'error',
+          duration:12000,
+          undo:()=>showTokenSettings()
+        });
+        const btn=document.getElementById('undoToastUndoBtn');
+        if(btn)btn.textContent='⚙ Open instellingen';
+      }
+    } else {
+      setSync('error','Fout: '+e.message);
+    }
   }
   renderAll();
 }
@@ -5065,13 +5141,22 @@ async function saveGist(){
     setSync('saved','Opgeslagen · '+new Date().toLocaleTimeString('nl-NL'));
   }catch(e){
     console.error(e);
-    setSync('error','Opslaan mislukt: '+e.message);
-    /* Surface the error so users notice — sidebar status is easy to miss */
+    const isBadCreds=e.message&&e.message.toLowerCase().includes('bad credentials');
+    setSync('error',isBadCreds?'Token ongeldig — klik ↻':'Opslaan mislukt: '+e.message);
     if(typeof appToast==='function'){
-      appToast(`Opslaan naar GitHub mislukt: ${e.message}`,{type:'error',duration:8000,undo:()=>saveGist()});
-      /* Re-purpose 'undo' button as 'retry' */
-      const btn=document.getElementById('undoToastUndoBtn');
-      if(btn)btn.textContent='↻ Opnieuw proberen';
+      if(isBadCreds){
+        appToast('GitHub token afgewezen (Bad credentials). Maak een nieuwe token aan of test de huidige.',{
+          type:'error',
+          duration:12000,
+          undo:()=>showTokenSettings()
+        });
+        const btn=document.getElementById('undoToastUndoBtn');
+        if(btn)btn.textContent='⚙ Open instellingen';
+      } else {
+        appToast(`Opslaan naar GitHub mislukt: ${e.message}`,{type:'error',duration:8000,undo:()=>saveGist()});
+        const btn=document.getElementById('undoToastUndoBtn');
+        if(btn)btn.textContent='↻ Opnieuw proberen';
+      }
     }
   }
 }
