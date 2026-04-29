@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Herling Analytics</title>
 <link rel="icon" type="image/svg+xml" href="herling-icon.svg"/>
+<link rel="manifest" href="manifest.json"/>
+<meta name="theme-color" content="#0F1B3D"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Herling"/>
+<link rel="apple-touch-icon" href="herling-icon.svg"/>
 <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <!-- OAuth libraries for the agenda module (Microsoft Graph + Google Calendar) -->
@@ -4615,6 +4621,39 @@ textarea { line-height: 1.6; resize: vertical; }
   </div>
 </div>
 
+<!-- ── Sync conflict modal — replaces the old prompt() ── -->
+<div class="modal-bg" id="conflictModal">
+  <div class="modal" style="max-width:460px;padding:24px">
+    <h3 style="font-family:var(--font-display);font-size:18px;font-weight:700;margin-bottom:8px">Conflict bij syncen</h3>
+    <p style="font-size:12.5px;color:var(--text-muted);line-height:1.55;margin-bottom:14px">
+      De data op GitHub is bijgewerkt sinds jij de pagina opende — waarschijnlijk vanaf een ander apparaat.
+      Kies hoe je verder wilt:
+    </p>
+    <div style="background:var(--surface2);padding:12px 14px;border-radius:8px;margin-bottom:14px;font-size:12px;line-height:1.6">
+      <div><strong>Lokaal geladen:</strong> <span id="conflictLocalTime" style="font-family:var(--font-mono);color:var(--text-muted)">—</span></div>
+      <div><strong>Remote bijgewerkt:</strong> <span id="conflictRemoteTime" style="font-family:var(--font-mono);color:var(--info)">—</span></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button class="btn btn-sm btn-primary" onclick="conflictReload()" style="justify-content:flex-start;text-align:left;padding:12px 14px;height:auto">
+        <div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%">
+          <span style="font-weight:700">↓ Remote-versie laden (aanbevolen)</span>
+          <small style="font-weight:400;opacity:0.85">Lokale wijzigingen sinds de laatste sync gaan verloren</small>
+        </div>
+      </button>
+      <button class="btn btn-sm btn-danger" onclick="conflictForce()" style="justify-content:flex-start;text-align:left;padding:12px 14px;height:auto">
+        <div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%">
+          <span style="font-weight:700">↑ Mijn versie remote overschrijven</span>
+          <small style="font-weight:400;opacity:0.85">Remote-wijzigingen op GitHub gaan verloren</small>
+        </div>
+      </button>
+    </div>
+    <div class="modal-footer" style="margin-top:14px">
+      <div></div>
+      <button class="btn btn-sm" onclick="closeConflictDialog()">Annuleer</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── Note template picker ── -->
 <div class="modal-bg" id="templatePickerModal">
   <div class="modal" style="max-width:580px;padding:24px">
@@ -5295,29 +5334,35 @@ async function refreshGist(){
   appToast('Data ververst van GitHub',{type:'success',duration:2500});
 }
 
-/* ─ Conflict dialog — show options when remote is newer than local ─ */
+/* ─ Conflict dialog — proper modal instead of native prompt() ─ */
+let _conflictRemoteGist=null;
 function showConflictDialog(remoteGist){
+  _conflictRemoteGist=remoteGist;
   const remoteAt=remoteGist?.updated_at?new Date(remoteGist.updated_at).toLocaleString('nl-NL'):'?';
   const localAt=lastRemoteUpdatedAt?new Date(lastRemoteUpdatedAt).toLocaleString('nl-NL'):'?';
-  const choice=prompt(
-    `Remote heeft nieuwere versie:\n  Lokaal geladen op: ${localAt}\n  Remote bijgewerkt: ${remoteAt}\n\n` +
-    `Type 'reload' om remote-versie te laden (LOKALE WIJZIGINGEN VERLOREN GAAN)\n` +
-    `Type 'force' om jouw lokale versie remote te overschrijven\n` +
-    `Of laat leeg om te annuleren.`,
-    'reload'
-  );
-  if(choice==='reload'){
-    loadGist();
-  } else if(choice==='force'){
-    /* Reset the timestamp so the conflict check passes */
-    lastRemoteUpdatedAt=remoteGist?.updated_at||null;
-    saveGist();
-  } else {
-    appToast('Conflict niet opgelost — wijzigingen niet opgeslagen',{type:'info',duration:4000});
+  document.getElementById('conflictLocalTime').textContent=localAt;
+  document.getElementById('conflictRemoteTime').textContent=remoteAt;
+  document.getElementById('conflictModal').classList.add('open');
+}
+function closeConflictDialog(){
+  document.getElementById('conflictModal').classList.remove('open');
+  _conflictRemoteGist=null;
+}
+function conflictReload(){
+  closeConflictDialog();
+  loadGist();
+}
+function conflictForce(){
+  if(_conflictRemoteGist){
+    lastRemoteUpdatedAt=_conflictRemoteGist.updated_at||null;
   }
+  closeConflictDialog();
+  saveGist();
 }
 
-/* ─ Auto-refresh when tab regains visibility (after >30s away) ─ */
+/* ─ Auto-refresh ─
+   1. On tab visibility regain (after >30s away)
+   2. Every 5 minutes while tab is active and no pending save */
 let _hiddenSince=null;
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='hidden'){
@@ -5325,12 +5370,72 @@ document.addEventListener('visibilitychange',()=>{
   } else if(document.visibilityState==='visible'&&_hiddenSince){
     const awayMs=Date.now()-_hiddenSince;
     _hiddenSince=null;
-    /* Only refresh if user was away >30s — skips short tab-switches */
     if(awayMs>30000&&ghToken&&!saveTimer){
       console.log(`[gist] Tab visible again after ${Math.round(awayMs/1000)}s, refreshing…`);
       loadGist();
     }
   }
+});
+/* Background refresh — only when tab is foreground AND nothing is being
+   typed (no pending save). Quietly checks if remote changed; if so,
+   runs loadGist (which re-renders). */
+let _bgRefreshTimer=null;
+function startBackgroundRefresh(){
+  clearInterval(_bgRefreshTimer);
+  _bgRefreshTimer=setInterval(async()=>{
+    if(document.visibilityState!=='visible')return;
+    if(!ghToken||!gistId)return;
+    if(saveTimer)return; /* Don't disrupt user mid-edit */
+    try{
+      /* Cheap HEAD-style check: fetch the gist, compare updated_at.
+         If unchanged, skip the heavy reload. */
+      const g=await gistRequest('GET','/gists/'+gistId);
+      if(g.updated_at&&g.updated_at!==lastRemoteUpdatedAt){
+        console.log('[gist] Remote changed in background, refreshing…');
+        await loadGist();
+      }
+    }catch(e){
+      /* Network blip or 401 — log silently, regular flow handles errors */
+      console.warn('[gist] background refresh skipped:',e.message);
+    }
+  },5*60*1000); /* 5 minutes */
+}
+/* Kick off after first successful boot — startBackgroundRefresh is
+   safe to call multiple times (clearInterval cleans up stale ones) */
+window.addEventListener('load',()=>setTimeout(startBackgroundRefresh,3000));
+
+/* ─ PWA service worker registration ─
+   Registers sw.js for offline support + add-to-homescreen capability.
+   Only on HTTPS (or localhost). Logs but never blocks the app on failure. */
+if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost')){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('sw.js')
+      .then(reg=>console.log('[sw] Registered, scope:',reg.scope))
+      .catch(err=>console.warn('[sw] Registration failed:',err.message));
+  });
+}
+
+/* ─ Accessibility: ensure every icon-only button has an aria-label ─
+   Many of our buttons rely on the title attribute. Most screen readers
+   honour it but aria-label is more consistent. Auto-mirror title to
+   aria-label on initial render + every dynamic re-render via
+   MutationObserver. */
+function applyAriaLabels(root){
+  (root||document).querySelectorAll('button[title]:not([aria-label]), [role="button"][title]:not([aria-label])').forEach(el=>{
+    el.setAttribute('aria-label',el.getAttribute('title'));
+  });
+}
+window.addEventListener('load',()=>{
+  applyAriaLabels();
+  /* Watch for dynamically rendered buttons (toolbars, lists, etc) */
+  const obs=new MutationObserver(muts=>{
+    muts.forEach(m=>{
+      m.addedNodes.forEach(n=>{
+        if(n.nodeType===1)applyAriaLabels(n);
+      });
+    });
+  });
+  obs.observe(document.body,{childList:true,subtree:true});
 });
 
 /* ─ Gist diagnose: list all gists matching our filename ─ */
