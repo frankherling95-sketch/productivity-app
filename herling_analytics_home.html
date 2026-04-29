@@ -5535,10 +5535,11 @@ function setClientFilter(id){
     }
     renderNotesModule();
   }
-  else if(activeModule==='agenda'&&activeModule==='agenda'){
+  else if(activeModule==='agenda'){
     renderAgendaSourceBar();
     if(typeof fetchAndRenderView==='function')fetchAndRenderView();
   }
+  else if(activeModule==='checklist')renderChecklistModule();
   else if(activeModule==='dashboard')renderDashboard();
 }
 
@@ -5603,6 +5604,7 @@ function wireClientFilter(host){
       if(activeModule==='todo')renderBoard();
       else if(activeModule==='notes')renderNotesModule();
       else if(activeModule==='agenda'){renderAgendaSourceBar();if(typeof fetchAndRenderView==='function')fetchAndRenderView();}
+      else if(activeModule==='checklist')renderChecklistModule();
       else if(activeModule==='dashboard')renderDashboard();
     });
   });
@@ -7965,8 +7967,9 @@ function renderChecklistModule(){
   const newItem=document.getElementById('clNewItem');
   if(!body||!hero)return;
 
-  /* Respect activeClientFilter as an overriding client filter */
-  if(activeClientFilter){clFilters.clientId=activeClientFilter;}
+  /* Mirror the global client filter into clFilters.clientId — both
+     set AND clear, so 'Alle klanten' actually clears the filter. */
+  clFilters.clientId=activeClientFilter||null;
 
   const notArchived=checklistState.items.filter(i=>!i.archived);
   const allActiveItems=notArchived.filter(i=>!i.done);
