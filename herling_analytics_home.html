@@ -3277,6 +3277,15 @@ textarea { line-height: 1.6; resize: vertical; }
     max-width: none !important;
   }
 
+  /* ── Soft keyboard open: hide the bottom-nav so it doesn't overlap
+       what the user is typing; toast moves to the top edge instead. */
+  body.keyboard-open .mobile-bottom-nav { display: none !important; }
+  body.keyboard-open .main-area { padding-bottom: 0 !important; }
+  body.keyboard-open .toast.app-toast {
+    top: 64px !important;
+    bottom: auto !important;
+  }
+
   /* ── Setup screen on mobile: full screen, padded ── */
   .setup-card { width: 100% !important; max-width: 100% !important; padding: 24px 18px !important; min-height: 100vh; border-radius: 0 !important; }
 }
@@ -5438,6 +5447,24 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Escape')closeDashMobileSettings();
 });
 
+/* ─ Mobile soft keyboard handling ─
+   When iOS / Android opens the on-screen keyboard, the visualViewport
+   shrinks. We add 'keyboard-open' to body so CSS can hide the bottom-
+   nav and reposition the toast above the keyboard. */
+if(window.visualViewport){
+  let _kbState=false;
+  const checkKb=()=>{
+    const kbHeight=window.innerHeight-window.visualViewport.height;
+    const isOpen=kbHeight>120;  /* only counts if >120px (rules out small UI shifts) */
+    if(isOpen!==_kbState){
+      _kbState=isOpen;
+      document.body.classList.toggle('keyboard-open',isOpen);
+    }
+  };
+  window.visualViewport.addEventListener('resize',checkKb);
+  window.visualViewport.addEventListener('scroll',checkKb);
+}
+
 /* ─ Mobile sidebar drawer (off-canvas) ─ */
 function toggleSidebarMobile(force){
   const sb=document.getElementById('sidebar');
@@ -5656,37 +5683,69 @@ function saveNewClient(){
 document.getElementById('newClientModal')?.addEventListener('click',e=>{if(e.target.id==='newClientModal')closeNewClientModal();});
 
 /* ─ Client CRUD (used from menu ✎/✕) ─ */
+/* Collect every object across the app that has clientId === id.
+   Returns array of { obj } refs so we can mutate clientId in place
+   on delete and restore on undo. */
+function collectClientReferences(id){
+  const refs=[];
+  /* Todo cards (across all projects + columns) */
+  Object.values(kanbanState?.projects||{}).forEach(p=>{
+    (p.columns||[]).forEach(c=>{
+      (c.items||[]).forEach(item=>{if(item.clientId===id)refs.push({obj:item});});
+    });
+  });
+  /* Notes (recursive tree walk) */
+  (function walk(nodes){
+    (nodes||[]).forEach(n=>{
+      if(n.clientId===id)refs.push({obj:n});
+      if(n.children)walk(n.children);
+    });
+  })(notesState?.tree||[]);
+  /* Checklist items */
+  (checklistState?.items||[]).forEach(item=>{if(item.clientId===id)refs.push({obj:item});});
+  /* Native agenda events */
+  (rawState.agenda?.events||[]).forEach(ev=>{if(ev.clientId===id)refs.push({obj:ev});});
+  /* iCal sources mapped to a client */
+  (rawState.settings?.calSources||[]).forEach(s=>{if(s.clientId===id)refs.push({obj:s});});
+  return refs;
+}
+function rerenderActiveModule(){
+  if(activeModule==='todo')renderBoard();
+  else if(activeModule==='notes')renderNotesModule();
+  else if(activeModule==='checklist')renderChecklistModule();
+  else if(activeModule==='agenda'){renderAgendaSourceBar();if(typeof fetchAndRenderView==='function')fetchAndRenderView();}
+  else if(activeModule==='dashboard')renderDashboard();
+}
 function deleteClient(id){
   const i=kanbanState.clients.findIndex(c=>c.id===id);
   if(i<0)return;
   const removed=kanbanState.clients[i];
   const wasFilter=activeClientFilter===id;
+  /* Cascade: orphan every reference to this client (set to null) */
+  const refs=collectClientReferences(id);
+  refs.forEach(r=>{r.obj.clientId=null;});
   kanbanState.clients.splice(i,1);
   if(wasFilter)activeClientFilter='';
-  scheduleSave();renderClientFilters();
-  if(activeModule==='todo')renderBoard();
-  else if(activeModule==='notes')renderNotesModule();
-  else if(activeModule==='dashboard')renderDashboard();
-  appToast(`Klant "${removed.name}" verwijderd`,{type:'success',undo:()=>{
+  scheduleSave();renderClientFilters();rerenderActiveModule();
+  const detail=refs.length?` (${refs.length} item${refs.length===1?'':'s'} ontkoppeld)`:'';
+  appToast(`Klant "${removed.name}" verwijderd${detail}`,{type:'success',undo:()=>{
     kanbanState.clients.splice(i,0,removed);
+    refs.forEach(r=>{r.obj.clientId=id;});
     if(wasFilter)activeClientFilter=id;
-    scheduleSave();renderClientFilters();
-    if(activeModule==='todo')renderBoard();
-    else if(activeModule==='notes')renderNotesModule();
-    else if(activeModule==='dashboard')renderDashboard();
+    scheduleSave();renderClientFilters();rerenderActiveModule();
   }});
 }
 function editClient(id){
   const c=clientById(id);if(!c)return;
-  const newName=prompt('Nieuwe klantnaam:',c.name);
-  if(newName?.trim()){
-    c.name=newName.trim();
-    scheduleSave();
-    renderClientFilters();
-    if(activeModule==='todo')renderBoard();
-    else if(activeModule==='notes')renderNotesModule();
-    else if(activeModule==='dashboard')renderDashboard();
-  }
+  /* Use the consistent renameModal — same as notes / projects */
+  renameTarget='client:'+id;
+  document.getElementById('renameModalTitle').textContent='Klant hernoemen';
+  document.getElementById('renameInput').value=c.name;
+  document.getElementById('renameModal').classList.add('open');
+  setTimeout(()=>{
+    const inp=document.getElementById('renameInput');
+    if(inp){inp.focus();inp.select();}
+  },30);
 }
 /* Legacy stubs (still referenced from older code paths) */
 function renderSidebarClients(){/* sidebar Klanten section removed; no-op */}
@@ -6243,25 +6302,48 @@ function closeProjMenu(){document.getElementById('projMenu').classList.remove('o
 function projMenuAction(action){
   closeProjMenu();const n=projMenuTarget;if(!n)return;
   if(action==='rename'){
-    const t=prompt('Nieuwe projectnaam:',n)?.trim();if(!t)return;
-    if(kanbanState.projects[t]){alert('Naam bestaat al');return;}
-    kanbanState.projects[t]=kanbanState.projects[n];delete kanbanState.projects[n];
-    if(kanbanState.activeProject===n)kanbanState.activeProject=t;
-    scheduleSave();if(activeModule==='todo')renderTodoModule();
+    /* Use the renameModal pattern instead of native prompt */
+    renameTarget='project:'+n;
+    document.getElementById('renameModalTitle').textContent='Project hernoemen';
+    document.getElementById('renameInput').value=n;
+    document.getElementById('renameModal').classList.add('open');
+    setTimeout(()=>{
+      const inp=document.getElementById('renameInput');
+      if(inp){inp.focus();inp.select();}
+    },30);
   } else if(action==='reset'){
+    /* Reset still has confirm — destructive within active project */
+    const snapshot=JSON.parse(JSON.stringify(kanbanState.projects[n]));
     if(!confirm('Project "'+n+'" resetten? Alle items worden verwijderd.'))return;
-    kanbanState.projects[n]=buildFreshProject();scheduleSave();
-    if(activeModule==='todo')renderTodoModule();
+    kanbanState.projects[n]=buildFreshProject();
+    scheduleSave();if(activeModule==='todo')renderTodoModule();
+    appToast(`Project "${n}" gereset`,{type:'success',undo:()=>{
+      kanbanState.projects[n]=snapshot;
+      scheduleSave();if(activeModule==='todo')renderTodoModule();
+    }});
   } else if(action==='delete'){
-    if(!confirm('Project "'+n+'" verwijderen?'))return;
+    /* Snapshot the entire project (incl. all items + categories +
+       collapsed state) so undo can restore everything verbatim. */
+    const snapshot=JSON.parse(JSON.stringify(kanbanState.projects[n]));
+    const wasActive=kanbanState.activeProject===n;
+    const itemCount=(snapshot.columns||[]).reduce((sum,c)=>sum+(c.items?.length||0),0);
     delete kanbanState.projects[n];
-    if(kanbanState.activeProject===n)
-      kanbanState.activeProject=Object.keys(kanbanState.projects)[0]||null;
+    if(wasActive)kanbanState.activeProject=Object.keys(kanbanState.projects)[0]||null;
+    /* Auto-create a placeholder if user deleted the last project */
+    let autoCreated=false;
     if(!kanbanState.activeProject){
       kanbanState.projects['Nieuw project']=buildFreshProject();
       kanbanState.activeProject='Nieuw project';
+      autoCreated=true;
     }
     scheduleSave();if(activeModule==='todo')renderTodoModule();
+    const detail=itemCount?` (${itemCount} item${itemCount===1?'':'s'})`:'';
+    appToast(`Project "${n}"${detail} verwijderd`,{type:'success',duration:8000,undo:()=>{
+      kanbanState.projects[n]=snapshot;
+      if(autoCreated)delete kanbanState.projects['Nieuw project'];
+      if(wasActive||autoCreated)kanbanState.activeProject=n;
+      scheduleSave();if(activeModule==='todo')renderTodoModule();
+    }});
   }
 }
 document.addEventListener('click',closeProjMenu,{capture:false});
@@ -7175,9 +7257,37 @@ function renameNode(id){
 function closeRenameModal(){document.getElementById('renameModal').classList.remove('open');renameTarget=null;}
 function confirmRename(){
   if(!renameTarget)return;
-  const v=document.getElementById('renameInput').value.trim();if(!v){closeRenameModal();return;}
-  const r=findNode(notesState.tree,renameTarget);
-  if(r){r.node.title=v;scheduleSave();renderNotesModule();}closeRenameModal();
+  const v=document.getElementById('renameInput').value.trim();
+  if(!v){closeRenameModal();return;}
+  /* Typed targets: 'client:<id>' / 'project:<name>' / plain string = note id */
+  if(typeof renameTarget==='string'&&renameTarget.startsWith('client:')){
+    const id=renameTarget.slice(7);
+    const c=clientById(id);
+    if(c){
+      c.name=v;
+      scheduleSave();
+      renderClientFilters();
+      rerenderActiveModule();
+    }
+  } else if(typeof renameTarget==='string'&&renameTarget.startsWith('project:')){
+    const oldName=renameTarget.slice(8);
+    if(kanbanState.projects[v]&&v!==oldName){
+      appToast('Project met deze naam bestaat al',{type:'warning'});
+      return;
+    }
+    if(v!==oldName){
+      kanbanState.projects[v]=kanbanState.projects[oldName];
+      delete kanbanState.projects[oldName];
+      if(kanbanState.activeProject===oldName)kanbanState.activeProject=v;
+      scheduleSave();
+      if(activeModule==='todo')renderTodoModule();
+    }
+  } else {
+    /* Default: note rename via tree */
+    const r=findNode(notesState.tree,renameTarget);
+    if(r){r.node.title=v;scheduleSave();renderNotesModule();}
+  }
+  closeRenameModal();
 }
 function setNoteClient(id,clientId){
   const r=findNode(notesState.tree,id);if(!r)return;
