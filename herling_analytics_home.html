@@ -3561,18 +3561,22 @@ textarea { line-height: 1.6; resize: vertical; }
 .dash-grid {
   display: grid !important;
   grid-template-columns: 1fr 1fr !important;
-  grid-template-rows: 1fr 1fr !important;
-  grid-auto-rows: 1fr;
+  grid-template-rows: 220px 220px !important;  /* fixed row height — cards no longer grow with content */
   gap: 20px !important;
   padding: 0 !important;        /* padding now lives on .dash-scroll */
   flex: 0 0 auto !important;    /* disable the old flex:1 squish */
   overflow: visible !important;
-  min-height: 420px;
+  min-height: 0 !important;     /* let row tracks define total height */
 }
-@media (max-width: 900px) { .dash-grid { grid-template-columns: 1fr !important; grid-template-rows: none !important; } }
+@media (max-width: 900px) { .dash-grid { grid-template-columns: 1fr !important; grid-template-rows: 220px 220px 220px 220px !important; } }
 
 .dash-grid .card {
   min-width: 0;
+  min-height: 0;                /* allow card to fit row exactly */
+  height: 220px;                /* match grid row height */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;             /* clip; internal .card-body scrolls */
   background: var(--surface) !important;
   border: 1px solid var(--border) !important;
   border-radius: var(--radius-lg) !important;
@@ -3580,8 +3584,9 @@ textarea { line-height: 1.6; resize: vertical; }
   padding: 0 !important;
 }
 .dash-grid .card-hdr {
-  padding: 14px 18px 10px !important;
+  padding: 10px 18px 8px !important;            /* tighter header */
   border-bottom: 1px solid var(--border) !important;
+  flex-shrink: 0;
 }
 .dash-grid .card-hdr h2 {
   font-family: var(--font-display) !important;
@@ -3589,7 +3594,12 @@ textarea { line-height: 1.6; resize: vertical; }
   font-weight: 600 !important;
   letter-spacing: -0.01em !important;
 }
-.dash-grid .card-body { padding: 12px 18px !important; }
+.dash-grid .card-body {
+  padding: 10px 18px !important;
+  flex: 1;
+  overflow-y: auto;             /* internal scroll for overflow content */
+  min-height: 0;
+}
 
 /* ═════════════════════════════════════════════════════════════════════════════
    "NIEUW ITEM" DROPDOWN (scoped with ha-newitem- prefix)
