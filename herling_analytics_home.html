@@ -4851,6 +4851,7 @@ textarea { line-height: 1.6; resize: vertical; }
 const GIST_FILENAME='bi_checklist_kanban.json';
 const LS_TOKEN_KEY='bi_checklist_gh_token';
 const LS_GIST_KEY='bi_checklist_gist_id_kanban';
+const LS_BACKUP_KEY='herling_analytics_local_backup';
 const CORS_PROXY='https://corsproxy.io/?';
 
 /* OAuth — client IDs are PER DEVICE (not synced via Gist) so each
@@ -5241,43 +5242,40 @@ function initDefaultKanban(){
   };
 }
 
+/* Local backup — instant, no network. Single source of truth fallback
+   if the Gist is unreachable. */
+function saveLocalBackup(){
+  try{
+    rawState.tasks=kanbanState;
+    rawState.notes=notesState;
+    rawState.checklist=checklistState;
+    if(typeof urenState!=='undefined')rawState.uren=urenState;
+    localStorage.setItem(LS_BACKUP_KEY,JSON.stringify({data:rawState,savedAt:Date.now()}));
+  }catch(e){}
+}
+function loadLocalBackup(){
+  try{
+    const raw=localStorage.getItem(LS_BACKUP_KEY);
+    if(!raw)return null;
+    return JSON.parse(raw).data||null;
+  }catch(e){return null;}
+}
+
 async function saveGist(){
+  /* Always persist to localStorage first — instant, no network */
+  saveLocalBackup();
   if(!ghToken){setSync('error','Geen token');return;}
   setSync('saving','Opslaan...');
   rawState.tasks=kanbanState;
   rawState.notes=notesState;
   rawState.checklist=checklistState;
-  rawState.uren=urenState;
+  if(typeof urenState!=='undefined')rawState.uren=urenState;
   if(!rawState.agenda)rawState.agenda={events:[]};
   const content=JSON.stringify(rawState,null,2);
   try{
-    /* CONFLICT CHECK: before overwriting the remote, fetch a HEAD of
-       the gist to read its updated_at. If it's newer than what we
-       loaded, another device has saved in between — warn instead of
-       silently overwriting. */
-    if(gistId&&lastRemoteUpdatedAt){
-      try{
-        const head=await gistRequest('GET','/gists/'+gistId);
-        const remoteAt=head.updated_at;
-        if(remoteAt&&remoteAt!==lastRemoteUpdatedAt){
-          /* Remote is newer — pause auto-save and warn */
-          setSync('error','Conflict — andere apparaat heeft gewijzigd');
-          if(typeof appToast==='function'){
-            appToast('Conflict: een ander apparaat heeft data gewijzigd nadat jij hier laadde. Klik om te kiezen wat te doen.',{
-              type:'warning',
-              duration:15000,
-              undo:()=>showConflictDialog(head)
-            });
-            const btn=document.getElementById('undoToastUndoBtn');
-            if(btn)btn.textContent='⚖ Oplossen';
-          }
-          return;
-        }
-      } catch(e){
-        /* If the conflict check fails (e.g. network), still try the save */
-        console.warn('Conflict check failed, proceeding with save:',e);
-      }
-    }
+    /* Single-user setup: always overwrite, no conflict check.
+       Conflict detection caused false positives due to GitHub's
+       eventual consistency between read replicas after a PATCH. */
     if(gistId){
       const r=await gistRequest('PATCH','/gists/'+gistId,{files:{[GIST_FILENAME]:{content}}});
       lastRemoteUpdatedAt=r.updated_at;
@@ -5314,12 +5312,15 @@ async function saveGist(){
   }
 }
 function scheduleSave(){
+  saveLocalBackup(); /* instant local snapshot on every state change */
   clearTimeout(saveTimer);
   setSync('saving','Wijzigingen...');
   saveTimer=setTimeout(saveGist,1500);
   /* Refresh nav badges on every state change so counts stay current */
   if(typeof updateNavBadges==='function')updateNavBadges();
 }
+/* Capture in-flight pending save when the tab closes */
+window.addEventListener('beforeunload',()=>{if(saveTimer)saveLocalBackup();});
 
 /* ─ Manual 'Ververs' button — pulls from remote and re-renders ─ */
 async function refreshGist(){
