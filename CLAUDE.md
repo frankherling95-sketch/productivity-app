@@ -6,7 +6,7 @@ Single-page productivity app voor Frank Herling. Single-file HTML SPA, gehost op
 
 - **Eén gebruiker, één omgeving tegelijk.** Frank werkt vanuit meerdere computers, maar nooit tegelijkertijd op twee apparaten met de app open.
 - **Taal: Nederlands.** Alle UI-tekst en commit messages in het Nederlands.
-- **Force-pushes zijn toegestaan** op `main` — geen team, geen reviews.
+- **Force-pushes zijn TOEGESTAAN MAAR ALLEEN met expliciete bevestiging** — zie hard rules onderaan.
 
 ## Architectuur
 
@@ -98,6 +98,58 @@ git push origin main
 - **2026-04-30**: Checklist filters (prio/klant/periode), subtaken bewerkbaar, auto-close bij alle subtaken klaar
 - **2026-04-30**: Agenda iCal-only, onbeperkt aantal bronnen via `calSources` array
 - **2026-04-30**: Dashboard 2×2 grid, Checklist-kaart toegevoegd
+
+## Hard rules voor Claude (niet overslaan)
+
+Deze workflow wordt afgedwongen door git hooks (`.githooks/pre-push`) en
+Claude Code hooks (`.claude/settings.json` + `.claude/hooks/`). Probeer
+ze niet te omzeilen — ze bestaan vanwege de fouten van 2026-04-30.
+
+### Vóór elke edit
+
+1. **Lees deze CLAUDE.md eerst** als je het nog niet deze sessie hebt gedaan.
+2. **`git fetch origin main`** + **`git log HEAD..origin/main --oneline`**
+   - Als de output niet leeg is: STOP. Pull eerst (`git pull --rebase origin main`).
+3. **Grep alle referenties** naar symbolen die je gaat wijzigen of verwijderen:
+   - `grep -n "<naam>" herling_analytics_home.html`
+   - Geldt voor: functienamen, DOM IDs, CSS classes, state-keys.
+4. **Lees het volledige blok** dat je gaat aanraken — niet alleen het stukje dat je
+   denkt te wijzigen. CSS is cascade, JS is hoist/scope-gevoelig.
+
+### Vóór elke push
+
+1. **`node validate.mjs`** lokaal draaien — moet groen zijn.
+2. **`git diff origin/main..HEAD`** doorlezen.
+3. **NOOIT `git push --force`** zonder de gebruiker letterlijk om bevestiging
+   te vragen. De hook blokkeert het anders.
+4. Bij bevestigde force-push: `ALLOW_FORCE_PUSH=1 git push --force origin main`.
+
+### Na een push
+
+Vraag de gebruiker om **`Ctrl+Shift+R`** te doen op de live site. Eventueel
+`test.html` openen voor een visuele smoke test.
+
+## Setup voor een nieuwe machine
+
+Eenmalig per nieuwe clone of nieuwe computer:
+
+```bash
+git config core.hooksPath .githooks
+chmod +x .githooks/pre-push
+```
+
+Daarna draaien `node validate.mjs` en de pre-push hook automatisch.
+
+## Tooling
+
+| Bestand | Doel |
+|---------|------|
+| `validate.mjs` | JS syntax + tag balance + onclick-referentie checks |
+| `test.html` | Open in browser → laadt app in iframe + 16 smoke tests |
+| `.githooks/pre-push` | Blokkeert force-push en non-fast-forward, draait validate |
+| `.claude/hooks/pre-tool-use.mjs` | Blokkeert mijn (Claude's) gevaarlijke commando's |
+| `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van het hoofdbestand |
+| `.claude/settings.json` | Hook-registratie voor Claude Code |
 
 ## Bij problemen met loading / cache
 

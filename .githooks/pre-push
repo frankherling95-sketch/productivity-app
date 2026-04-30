@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# pre-push hook — prevents the two failure modes from session 2026-04-30:
+#   1. Force-push without explicit consent (overwrites remote history)
+#   2. Push when remote is ahead (loses unfetched commits on next pull)
+#
+# Setup (one-time per clone):
+#   git config core.hooksPath .githooks
+
+set -e
+
+remote="$1"
+url="$2"
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ -z "$local_sha" ] && continue
+  branch="${remote_ref##*/}"
+
+  # 1. Block --force pushes unless ALLOW_FORCE_PUSH=1 is set in env.
+  #    git push --force passes through here unchanged; we detect it by
+  #    checking if remote_sha is set and is NOT an ancestor of local_sha.
+  if [ "$remote_sha" != "0000000000000000000000000000000000000000" ] && [ -n "$remote_sha" ]; then
+    if ! git merge-base --is-ancestor "$remote_sha" "$local_sha" 2>/dev/null; then
+      if [ "${ALLOW_FORCE_PUSH:-0}" != "1" ]; then
+        echo ""
+        echo "✗ BLOCKED — non-fast-forward push to $branch"
+        echo "  Remote tip ($remote_sha) is not in your local history."
+        echo "  This would overwrite remote commits."
+        echo ""
+        echo "  Recovery options:"
+        echo "    git fetch origin $branch"
+        echo "    git log HEAD..origin/$branch --oneline   # what you'd lose"
+        echo "    git rebase origin/$branch                # then push without force"
+        echo ""
+        echo "  If you really mean to overwrite, run:"
+        echo "    ALLOW_FORCE_PUSH=1 git push --force"
+        exit 1
+      else
+        echo "⚠ Force push allowed via ALLOW_FORCE_PUSH=1"
+      fi
+    fi
+  fi
+
+  # 2. Check if remote has commits we don't have (race-condition guard).
+  git fetch "$remote" "$branch" --quiet 2>/dev/null || true
+  ahead_remote=$(git rev-list "$local_sha..$remote/$branch" --count 2>/dev/null || echo 0)
+  if [ "$ahead_remote" -gt 0 ]; then
+    if [ "${ALLOW_FORCE_PUSH:-0}" != "1" ]; then
+      echo ""
+      echo "✗ BLOCKED — remote $branch has $ahead_remote commit(s) you don't have."
+      echo "  Run: git pull --rebase origin $branch"
+      exit 1
+    fi
+  fi
+
+  # 3. Run validation on the file being pushed (only for main branch).
+  if [ "$branch" = "main" ] && [ -f validate.mjs ] && [ -f herling_analytics_home.html ]; then
+    if command -v node >/dev/null 2>&1; then
+      if ! node validate.mjs; then
+        echo ""
+        echo "✗ BLOCKED — validate.mjs reported errors. Fix them before pushing."
+        echo "  To bypass (use sparingly): git push --no-verify"
+        exit 1
+      fi
+    fi
+  fi
+done
+
+exit 0
