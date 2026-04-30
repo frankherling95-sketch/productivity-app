@@ -902,6 +902,21 @@ body {
   background: var(--bg);
   color: var(--text);
 }
+/* Subtiele grain overlay — geeft de hele app atmosferische diepte
+   zonder dat het opvalt. Pointer-events:none zodat klikken doorgaat. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.7'/></svg>");
+  mix-blend-mode: overlay;
+}
+@media (prefers-color-scheme: dark) {
+  body::before { opacity: 0.04; }   /* iets meer grain in dark mode */
+}
 h1, h2, h3, h4, h5 {
   font-family: var(--font-display);
   letter-spacing: -0.02em;
@@ -3541,9 +3556,11 @@ textarea { line-height: 1.6; resize: vertical; }
 }
 .dash-kpi-val {
   font-family: var(--font-mono);
-  font-size: 28px;
-  font-weight: 700;
+  font-size: 36px;
+  font-weight: 600;
   line-height: 1;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
   color: var(--text);
 }
 .dash-kpi-trend {
@@ -3598,6 +3615,31 @@ textarea { line-height: 1.6; resize: vertical; }
   flex: 1;
   overflow-y: auto;             /* internal scroll for overflow content */
   min-height: 0;
+}
+
+/* Staggered card entrance — voelt premium zonder traag te worden */
+.dash-grid > .card,
+.dash-hero,
+.dash-kpi {
+  opacity: 0;
+  transform: translateY(8px);
+  animation: dash-enter 0.5s var(--ease) forwards;
+}
+.dash-hero                  { animation-delay: 0.00s; }
+.dash-kpi:nth-child(1)      { animation-delay: 0.05s; }
+.dash-kpi:nth-child(2)      { animation-delay: 0.08s; }
+.dash-kpi:nth-child(3)      { animation-delay: 0.11s; }
+.dash-grid > .card:nth-child(1) { animation-delay: 0.16s; }
+.dash-grid > .card:nth-child(2) { animation-delay: 0.20s; }
+.dash-grid > .card:nth-child(3) { animation-delay: 0.24s; }
+.dash-grid > .card:nth-child(4) { animation-delay: 0.28s; }
+@keyframes dash-enter {
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dash-grid > .card, .dash-hero, .dash-kpi {
+    animation: none; opacity: 1; transform: none;
+  }
 }
 
 /* ═════════════════════════════════════════════════════════════════════════════
