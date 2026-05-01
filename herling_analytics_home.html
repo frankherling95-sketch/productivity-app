@@ -3658,6 +3658,148 @@ textarea { line-height: 1.6; resize: vertical; }
 #mod-checklist { --module-accent: #F43F5E; }           /* rose */
 #mod-uren      { --module-accent: #A78BFA; }           /* violet */
 
+/* ── Externe tools — sidebar trigger + popover ──────────────────────────── */
+.sidebar-sec-label.ext-tools-label {
+  margin-top: 14px;                          /* visuele breuk t.o.v. modules */
+}
+.nav-item-ext-trigger .nav-label { flex: 1; }
+.nav-item-ext-trigger .ext-arrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  opacity: 0.5;
+  transition: var(--transition-fast);
+}
+.nav-item-ext-trigger:hover .ext-arrow { opacity: 1; transform: translate(1px, -1px); }
+.nav-item-ext-trigger.is-open {
+  background: rgba(167, 139, 250, 0.10) !important;     /* subtiel violet */
+  color: #C4B5FD !important;
+}
+.nav-item-ext-trigger.is-open .ext-arrow { opacity: 1; color: #C4B5FD; }
+
+.ext-tools-popover {
+  position: fixed;
+  width: 320px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-modal);
+  padding: 6px;
+  z-index: 700;
+  display: none;
+  animation: ext-tools-fade 0.16s var(--ease) forwards;
+  max-height: calc(100vh - 60px);
+  overflow-y: auto;
+}
+.ext-tools-popover.is-open { display: block; }
+@keyframes ext-tools-fade {
+  from { opacity: 0; transform: translateX(-4px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.ext-tools-section {
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--border);
+}
+.ext-tools-section:last-child { border-bottom: 0; }
+.ext-tools-section-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--text-hint);
+  padding: 6px 10px 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ext-tools-section-label::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.ext-tools-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  text-decoration: none;
+  color: var(--text);
+  transition: var(--transition-fast);
+  cursor: pointer;
+}
+.ext-tools-link:hover {
+  background: var(--surface2);
+  outline: none;
+}
+.ext-tools-link:focus-visible {
+  outline: 2px solid var(--mint);
+  outline-offset: -2px;
+  background: var(--surface2);
+}
+
+.ext-tools-link-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--surface3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: -0.01em;
+}
+.ext-tools-link-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.ext-tools-link-name {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  line-height: 1.25;
+}
+.ext-tools-link-host {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-hint);
+  letter-spacing: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ext-tools-link-arrow {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-hint);
+  opacity: 0;
+  transition: var(--transition-fast);
+  flex-shrink: 0;
+}
+.ext-tools-link:hover .ext-tools-link-arrow,
+.ext-tools-link:focus-visible .ext-tools-link-arrow {
+  opacity: 1;
+  transform: translate(2px, -2px);
+  color: var(--mint);
+}
+
+/* Collapsed sidebar: hide label, just show icon */
+.sidebar.collapsed .nav-item-ext-trigger .nav-label,
+.sidebar.collapsed .nav-item-ext-trigger .ext-arrow,
+.sidebar.collapsed .ext-tools-label { display: none; }
+
 /* ═════════════════════════════════════════════════════════════════════════════
    "NIEUW ITEM" DROPDOWN (scoped with ha-newitem- prefix)
    ════════════════════════════════════════════════════════════════════════════ */
@@ -3888,6 +4030,12 @@ textarea { line-height: 1.6; resize: vertical; }
       </div>
       <div class="nav-item" data-mod="uren" onclick="switchModule('uren')">
         <span class="nav-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8.5" r="5.5"/><polyline points="8 5.5 8 8.5 10.2 9.8"/><line x1="6" y1="1.5" x2="10" y2="1.5"/></svg></span><span class="nav-label">Uren</span>
+      </div>
+
+      <!-- Externe tools — sidebar trigger -->
+      <div class="sidebar-sec-label ext-tools-label">Snel naar</div>
+      <div class="nav-item nav-item-ext-trigger" id="extToolsTrigger" onclick="toggleExtTools(event)" role="button" aria-haspopup="menu" aria-expanded="false" aria-controls="extToolsPopover" tabindex="0" title="Externe tools">
+        <span class="nav-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 5.5h11v7a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1v-7z"/><path d="M5.5 5.5V4a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v1.5"/><line x1="2.5" y1="9" x2="13.5" y2="9"/></svg></span><span class="nav-label">Externe tools</span><span class="ext-arrow">↗</span>
       </div>
 
     </div>
@@ -4903,6 +5051,102 @@ textarea { line-height: 1.6; resize: vertical; }
 <!-- ── Note context menu ── -->
 <div class="ctx-menu" id="noteCtxMenu"></div>
 
+<!-- ── Externe tools popover ── -->
+<div class="ext-tools-popover" id="extToolsPopover" role="menu" aria-labelledby="extToolsTrigger">
+  <div class="ext-tools-section">
+    <div class="ext-tools-section-label">Administratie</div>
+    <a class="ext-tools-link" href="https://punctsalaris.nmbrs.nl/" target="_blank" rel="noopener noreferrer" role="menuitem">
+      <span class="ext-tools-link-icon">SA</span>
+      <span class="ext-tools-link-text">
+        <span class="ext-tools-link-name">Salaris</span>
+        <span class="ext-tools-link-host">punctsalaris.nmbrs.nl</span>
+      </span>
+      <span class="ext-tools-link-arrow">↗</span>
+    </a>
+    <a class="ext-tools-link" href="https://app.rompslomp.nl/" target="_blank" rel="noopener noreferrer" role="menuitem">
+      <span class="ext-tools-link-icon">FA</span>
+      <span class="ext-tools-link-text">
+        <span class="ext-tools-link-name">Facturen</span>
+        <span class="ext-tools-link-host">app.rompslomp.nl</span>
+      </span>
+      <span class="ext-tools-link-arrow">↗</span>
+    </a>
+    <a class="ext-tools-link" href="https://herling-analytics-bv.yukiworks.nl/" target="_blank" rel="noopener noreferrer" role="menuitem">
+      <span class="ext-tools-link-icon">BO</span>
+      <span class="ext-tools-link-text">
+        <span class="ext-tools-link-name">Boekhouding</span>
+        <span class="ext-tools-link-host">yukiworks.nl</span>
+      </span>
+      <span class="ext-tools-link-arrow">↗</span>
+    </a>
+  </div>
+  <div class="ext-tools-section">
+    <div class="ext-tools-section-label">Uren</div>
+    <a class="ext-tools-link" href="https://kasparov-bi.yoobi.nl/" target="_blank" rel="noopener noreferrer" role="menuitem">
+      <span class="ext-tools-link-icon">BK</span>
+      <span class="ext-tools-link-text">
+        <span class="ext-tools-link-name">Boka</span>
+        <span class="ext-tools-link-host">kasparov-bi.yoobi.nl</span>
+      </span>
+      <span class="ext-tools-link-arrow">↗</span>
+    </a>
+    <a class="ext-tools-link" href="https://prowandeu.pro-unlimited.com/" target="_blank" rel="noopener noreferrer" role="menuitem">
+      <span class="ext-tools-link-icon">MG</span>
+      <span class="ext-tools-link-text">
+        <span class="ext-tools-link-name">Magnit</span>
+        <span class="ext-tools-link-host">prowandeu.pro-unlimited.com</span>
+      </span>
+      <span class="ext-tools-link-arrow">↗</span>
+    </a>
+  </div>
+  <div class="ext-tools-section">
+    <div class="ext-tools-section-label">Dev</div>
+    <a class="ext-tools-link" href="https://mijn.host/cp/login/?url=%2Fcp%2F" target="_blank" rel="noopener noreferrer" role="menuitem">
+      <span class="ext-tools-link-icon">HO</span>
+      <span class="ext-tools-link-text">
+        <span class="ext-tools-link-name">Hosting</span>
+        <span class="ext-tools-link-host">mijn.host</span>
+      </span>
+      <span class="ext-tools-link-arrow">↗</span>
+    </a>
+    <a class="ext-tools-link" href="https://github.com/" target="_blank" rel="noopener noreferrer" role="menuitem">
+      <span class="ext-tools-link-icon">GH</span>
+      <span class="ext-tools-link-text">
+        <span class="ext-tools-link-name">GitHub</span>
+        <span class="ext-tools-link-host">github.com</span>
+      </span>
+      <span class="ext-tools-link-arrow">↗</span>
+    </a>
+  </div>
+  <div class="ext-tools-section">
+    <div class="ext-tools-section-label">Design</div>
+    <a class="ext-tools-link" href="https://www.figma.com/" target="_blank" rel="noopener noreferrer" role="menuitem">
+      <span class="ext-tools-link-icon">FG</span>
+      <span class="ext-tools-link-text">
+        <span class="ext-tools-link-name">Figma</span>
+        <span class="ext-tools-link-host">figma.com</span>
+      </span>
+      <span class="ext-tools-link-arrow">↗</span>
+    </a>
+    <a class="ext-tools-link" href="https://www.canva.com/nl_nl/" target="_blank" rel="noopener noreferrer" role="menuitem">
+      <span class="ext-tools-link-icon">CA</span>
+      <span class="ext-tools-link-text">
+        <span class="ext-tools-link-name">Canva</span>
+        <span class="ext-tools-link-host">canva.com</span>
+      </span>
+      <span class="ext-tools-link-arrow">↗</span>
+    </a>
+    <a class="ext-tools-link" href="https://claude.ai/design" target="_blank" rel="noopener noreferrer" role="menuitem">
+      <span class="ext-tools-link-icon">CL</span>
+      <span class="ext-tools-link-text">
+        <span class="ext-tools-link-name">Claude Design</span>
+        <span class="ext-tools-link-host">claude.ai/design</span>
+      </span>
+      <span class="ext-tools-link-arrow">↗</span>
+    </a>
+  </div>
+</div>
+
 <!-- ── Undo toast ── -->
 <div class="toast hidden" id="undoToast" role="status" aria-live="polite">
   <span class="toast-icon" id="undoToastIcon"></span>
@@ -5601,6 +5845,77 @@ function toggleSidebar(){
   sidebarCollapsed=!sidebarCollapsed;
   document.getElementById('sidebar').classList.toggle('collapsed',sidebarCollapsed);
 }
+
+/* ─ Externe tools popover ──────────────────────────────────────────────────
+   Trigger zit in de sidebar, popover wordt rechts naast de trigger
+   gepositioneerd. Sluit op: outside click, Esc, of klik op een link. */
+function toggleExtTools(e){
+  if(e)e.stopPropagation();
+  const trigger=document.getElementById('extToolsTrigger');
+  const pop=document.getElementById('extToolsPopover');
+  if(!trigger||!pop)return;
+  const isOpen=pop.classList.contains('is-open');
+  if(isOpen){closeExtTools();return;}
+  /* Position to the right of the trigger, vertically aligned to its top */
+  const r=trigger.getBoundingClientRect();
+  pop.style.left=(r.right+8)+'px';
+  pop.style.top=Math.max(8,r.top)+'px';
+  /* If popover would go below viewport, anchor to bottom */
+  pop.classList.add('is-open');
+  trigger.classList.add('is-open');
+  trigger.setAttribute('aria-expanded','true');
+  /* After it's visible, check actual height and reposition if needed */
+  requestAnimationFrame(()=>{
+    const ph=pop.offsetHeight;
+    const vh=window.innerHeight;
+    if(r.top+ph>vh-8){
+      pop.style.top=Math.max(8,vh-ph-8)+'px';
+    }
+  });
+  /* Focus first link for keyboard nav */
+  const first=pop.querySelector('.ext-tools-link');
+  if(first)setTimeout(()=>first.focus(),50);
+}
+function closeExtTools(){
+  const trigger=document.getElementById('extToolsTrigger');
+  const pop=document.getElementById('extToolsPopover');
+  if(pop)pop.classList.remove('is-open');
+  if(trigger){trigger.classList.remove('is-open');trigger.setAttribute('aria-expanded','false');}
+}
+/* Outside click closes */
+document.addEventListener('click',e=>{
+  const pop=document.getElementById('extToolsPopover');
+  if(!pop||!pop.classList.contains('is-open'))return;
+  if(pop.contains(e.target))return;
+  if(e.target.closest('#extToolsTrigger'))return;
+  closeExtTools();
+});
+/* Esc closes; arrow-keys navigate within popover */
+document.addEventListener('keydown',e=>{
+  const pop=document.getElementById('extToolsPopover');
+  if(!pop||!pop.classList.contains('is-open'))return;
+  if(e.key==='Escape'){
+    closeExtTools();
+    document.getElementById('extToolsTrigger')?.focus();
+    return;
+  }
+  if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+    e.preventDefault();
+    const links=Array.from(pop.querySelectorAll('.ext-tools-link'));
+    const idx=links.indexOf(document.activeElement);
+    const next=e.key==='ArrowDown'?(idx+1)%links.length:(idx<=0?links.length-1:idx-1);
+    links[next]?.focus();
+  }
+});
+/* Click on a link auto-closes (after the new tab opens) */
+document.addEventListener('click',e=>{
+  const link=e.target.closest('.ext-tools-link');
+  if(link)setTimeout(closeExtTools,100);
+},true);
+/* Trigger keyboard activation */
+document.getElementById('extToolsTrigger')?.addEventListener('keydown',e=>{
+  if(e.key==='Enter'||e.key===' '){e.preventDefault();toggleExtTools(e);}
+});
 
 /* ─ Mobile-only dashboard settings dropdown
    (replaces both the small ⚙ on dashboard AND the Todo-page settings
