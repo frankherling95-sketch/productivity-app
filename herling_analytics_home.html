@@ -13,9 +13,6 @@
 <link rel="apple-touch-icon" href="herling-icon.svg"/>
 <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<!-- OAuth libraries for the agenda module (Microsoft Graph + Google Calendar) -->
-<script src="https://alcdn.msauth.net/browser/3.10.0/js/msal-browser.min.js"></script>
-<script src="https://accounts.google.com/gsi/client" async defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;800;900&family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
@@ -4116,64 +4113,6 @@ textarea { line-height: 1.6; resize: vertical; }
       • Token zonder <code>gist</code> scope
     </p>
 
-    <details class="oauth-config" style="margin-top:18px;border-top:1px solid var(--border);padding-top:16px">
-      <summary style="cursor:pointer;font-weight:600;font-size:13px;color:var(--text);user-select:none">⚙ Agenda OAuth instellen (Microsoft + Google)</summary>
-      <div style="margin-top:12px;display:flex;flex-direction:column;gap:14px">
-        <div style="background:var(--info-bg);border-left:3px solid var(--info);padding:10px 12px;border-radius:6px;font-size:11.5px;color:var(--text);line-height:1.55">
-          <strong>Belangrijk:</strong> je hebt <em>geen</em> beheer-rechten nodig in je klanten's tenant.
-          Je registreert <strong>één app</strong> in een Microsoft / Google account dat <em>jij wel beheert</em>
-          (bijv. een eigen persoonlijk Outlook/Gmail account). Die app is "multi-tenant" — daarna kunnen
-          klanten inloggen met hun werk-emailadres en toegang geven tot hun eigen agenda, net zoals bij
-          de officiële Outlook of Calendar app.<br><br>
-          Geen persoonlijk Microsoft-account? Maak er een gratis aan op
-          <a href="https://signup.live.com" target="_blank" rel="noopener">signup.live.com</a>
-          (kost 1 minuut). Dat account hoeft alleen voor de app-registratie te dienen.
-        </div>
-
-        <div>
-          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em">Microsoft client ID (Azure App Registration)</label>
-          <input type="text" id="msClientIdInput" placeholder="00000000-0000-0000-0000-000000000000" style="width:100%;margin-top:4px"/>
-          <details style="margin-top:6px;font-size:11px;color:var(--text-muted)">
-            <summary style="cursor:pointer">Hoe krijg ik dit?</summary>
-            <ol style="padding-left:20px;line-height:1.6;margin-top:6px">
-              <li>Log in op <a href="https://portal.azure.com" target="_blank" rel="noopener">portal.azure.com</a> met <strong>jouw eigen</strong> Microsoft-account (persoonlijk of zakelijk — niet die van een klant)</li>
-              <li>Ga naar <strong>Microsoft Entra ID</strong> (voorheen Azure AD) → <strong>App registrations</strong> → <strong>New registration</strong></li>
-              <li>Naam: bijv. <em>Herling Analytics Agenda</em></li>
-              <li>Account types: kies <strong>"Accounts in any organizational directory (Any Microsoft Entra ID tenant — Multitenant) and personal Microsoft accounts (e.g. Skype, Xbox)"</strong> — dit maakt het mogelijk dat <em>iedere</em> Microsoft-gebruiker (incl. al je klanten) kan inloggen</li>
-              <li>Redirect URI: type <strong>Single-page application (SPA)</strong>, URL = <code id="originUrl">…</code></li>
-              <li><strong>Register</strong>, kopieer de <strong>Application (client) ID</strong> en plak hierboven</li>
-              <li>Bij <strong>API permissions</strong> → <strong>Add a permission</strong> → <strong>Microsoft Graph</strong> → <strong>Delegated permissions</strong> → vink aan: <code>Calendars.Read</code>, <code>Calendars.Read.Shared</code>, <code>User.Read</code></li>
-              <li><em>Geen "Grant admin consent" nodig</em> — elke gebruiker geeft individueel toestemming bij het inloggen</li>
-            </ol>
-            <p style="margin-top:8px;padding:8px 10px;background:var(--surface2);border-radius:5px">
-              <strong>Bij sommige strikte tenants</strong> (bijv. enterprise klanten met restrictief consent-beleid) kan het zijn dat een IT-admin van die klant éénmalig toestemming moet geven via <a href="https://login.microsoftonline.com/common/adminconsent?client_id=YOUR_CLIENT_ID" target="_blank" rel="noopener">deze admin-consent link</a> (vervang YOUR_CLIENT_ID). Dit is een <em>eenmalige</em> handeling per klant-tenant.
-            </p>
-          </details>
-        </div>
-
-        <div>
-          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em">Google client ID (OAuth 2.0 Web Client)</label>
-          <input type="text" id="googleClientIdInput" placeholder="000000000000-xxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com" style="width:100%;margin-top:4px"/>
-          <details style="margin-top:6px;font-size:11px;color:var(--text-muted)">
-            <summary style="cursor:pointer">Hoe krijg ik dit?</summary>
-            <ol style="padding-left:20px;line-height:1.6;margin-top:6px">
-              <li>Log in op <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">Google Cloud Console</a> met <strong>jouw eigen</strong> Google account</li>
-              <li>Maak een nieuw project (gratis) — bijv. <em>Herling Agenda Sync</em></li>
-              <li>Bij <strong>APIs &amp; Services → Library</strong> → zoek <em>Google Calendar API</em> → <strong>Enable</strong></li>
-              <li><strong>OAuth consent screen</strong> → User type: <strong>External</strong> → vul app-naam + support email in. Publishing status mag op "Testing" blijven (geeft je 100 test-users).</li>
-              <li><strong>Credentials → Create credentials → OAuth client ID</strong> → type <strong>Web application</strong></li>
-              <li>Authorized JavaScript origins: <code id="originUrl2">…</code></li>
-              <li><strong>Create</strong>, kopieer het <strong>Client ID</strong> hierboven</li>
-              <li>Voeg eventuele klant-emails toe als test users (consent screen → Test users → Add users)</li>
-            </ol>
-          </details>
-        </div>
-
-        <div style="display:flex;justify-content:flex-end;gap:8px">
-          <button class="btn btn-sm btn-primary" onclick="saveOAuthClientIds()">OAuth-instellingen opslaan</button>
-        </div>
-      </div>
-    </details>
   </div>
 </div>
 
@@ -5211,27 +5150,28 @@ textarea { line-height: 1.6; resize: vertical; }
     <button class="btn btn-sm" onclick="showAddIcalForm()" style="width:100%;margin-top:8px">+ iCal link toevoegen</button>
     <div id="calAddForm" style="display:none;margin-top:10px"></div>
 
-    <!-- Geavanceerd — OAuth (vereist eigen Azure / Google client ID) -->
+    <!-- Outlook agenda — instructies om iCal-link te publiceren -->
     <details style="margin-top:18px;border-top:1px solid var(--border);padding-top:14px">
-      <summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--text-muted);user-select:none">⚙ Geavanceerd: Microsoft / Google OAuth</summary>
-      <div style="margin-top:10px">
-        <p style="font-size:11px;color:var(--text-hint);line-height:1.5;margin-bottom:10px">
-          Optioneel. Vereist een eigen Azure / Google client ID. Configureer eerst in
-          <a href="javascript:showTokenSettings()" style="color:var(--accent)">Instellingen → Agenda OAuth</a>.
-          Daarna kun je accounts hieronder koppelen.
+      <summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--text-muted);user-select:none">📅 Outlook-agenda koppelen via iCal-link</summary>
+      <div style="margin-top:10px;font-size:12px;color:var(--text);line-height:1.55">
+        <p style="margin-bottom:10px">
+          Voor live synchronisatie publiceer je je Outlook-agenda als iCal-link en plak je die hierboven.
+          Werkt voor zowel persoonlijke (<em>outlook.com / hotmail.com / live.com</em>) als werk-/school-accounts
+          (mits niet door IT geblokkeerd).
         </p>
-        <div class="cal-section-label" style="font-size:10.5px">Verbonden accounts</div>
-        <div id="calAccountsList"></div>
-        <div style="display:flex;gap:6px;margin-top:8px">
-          <button class="btn btn-xs" onclick="connectMicrosoftAccount()">
-            <svg viewBox="0 0 14 14" width="11" height="11" style="margin-right:2px"><rect x="1" y="1" width="5.7" height="5.7" fill="#F25022"/><rect x="7.3" y="1" width="5.7" height="5.7" fill="#7FBA00"/><rect x="1" y="7.3" width="5.7" height="5.7" fill="#00A4EF"/><rect x="7.3" y="7.3" width="5.7" height="5.7" fill="#FFB900"/></svg>
-            Microsoft account
-          </button>
-          <button class="btn btn-xs" onclick="connectGoogleAccount()">
-            <svg viewBox="0 0 14 14" width="11" height="11" style="margin-right:2px"><path d="M13.6 7.15c0-.4-.04-.79-.1-1.15H7v2.18h3.7a3.16 3.16 0 0 1-1.37 2.07v1.72h2.22c1.3-1.2 2.05-2.96 2.05-4.82z" fill="#4285F4"/><path d="M7 13.6c1.86 0 3.41-.62 4.55-1.67L9.33 10.2a4.06 4.06 0 0 1-6.04-2.13H1v1.78A6.6 6.6 0 0 0 7 13.6z" fill="#34A853"/><path d="M3.29 8.07a3.96 3.96 0 0 1 0-2.55V3.74H1A6.6 6.6 0 0 0 .4 7c0 1.07.26 2.07.7 2.96l2.19-1.7z" fill="#FBBC05"/><path d="M7 2.79c1.06 0 2 .36 2.74 1.06l2.06-2.06A6.4 6.4 0 0 0 7 .4 6.6 6.6 0 0 0 1 3.74l2.29 1.78A4.06 4.06 0 0 1 7 2.79z" fill="#EA4335"/></svg>
-            Google account
-          </button>
-        </div>
+        <ol style="padding-left:20px;line-height:1.65;margin:0 0 10px">
+          <li>Ga naar <a href="https://outlook.live.com/calendar/0/options/calendar/SharedCalendars" target="_blank" rel="noopener" style="color:var(--accent)">outlook.live.com</a> (persoonlijk) of <a href="https://outlook.office.com/calendar/options/calendar/SharedCalendars" target="_blank" rel="noopener" style="color:var(--accent)">outlook.office.com</a> (werk)</li>
+          <li>Klik op het tandwiel rechtsboven → <strong>View all Outlook settings</strong></li>
+          <li>Open <strong>Calendar → Shared calendars</strong></li>
+          <li>Bij <em>Publish a calendar</em>: kies de agenda + permissie <strong>"Can view all details"</strong> → <strong>Publish</strong></li>
+          <li>Kopieer de <strong>ICS-link</strong> (eindigt op <code>.ics</code>) — niet de HTML-link</li>
+          <li>Plak hierboven via <strong>+ iCal link toevoegen</strong></li>
+        </ol>
+        <p style="font-size:11px;color:var(--text-hint);margin:0">
+          ⓘ Microsoft cached publicatie-feeds, updates kunnen 15-30 min vertraging hebben.
+          Is de publish-optie grijs of weg? Dan heeft IT het op tenant-niveau uitgezet
+          — gebruik in dat geval handmatig <em>File → Save Calendar (.ics)</em> en importeer via de ICS-import knop.
+        </p>
       </div>
     </details>
     <div class="modal-footer" style="margin-top:auto;padding-top:14px">
@@ -5379,18 +5319,6 @@ const LS_TOKEN_KEY='bi_checklist_gh_token';
 const LS_GIST_KEY='bi_checklist_gist_id_kanban';
 const LS_BACKUP_KEY='herling_analytics_local_backup';
 const CORS_PROXY='https://corsproxy.io/?';
-
-/* OAuth — client IDs are PER DEVICE (not synced via Gist) so each
-   browser uses its own configured app registrations. The user
-   creates an Azure App Registration + a Google OAuth Client ID
-   once, then pastes the IDs in the Token settings modal. */
-const LS_MS_CLIENT_ID='herling_ms_client_id';
-const LS_GOOGLE_CLIENT_ID='herling_google_client_id';
-/* Local cache of the access tokens (refresh tokens for Microsoft
-   are managed by MSAL itself in its own LS keys). For Google we
-   store the access token + expiry so we can detect when to silently
-   re-acquire. Wiping localStorage logs the user out of all accounts. */
-const LS_GOOGLE_TOKENS='herling_google_tokens';
 
 const CLIENT_COLORS=[
   {bg:'#ffd6cc',tx:'#7a2b15'},{bg:'#cce5ff',tx:'#0c4a7c'},
@@ -5593,27 +5521,6 @@ function showTokenSettings(){
   document.getElementById('appScreen').style.display='none';
   document.getElementById('setupScreen').style.display='flex';
   document.getElementById('tokenInput').value=ghToken||'';
-  /* Pre-fill OAuth fields if previously configured */
-  const msEl=document.getElementById('msClientIdInput');
-  const ggEl=document.getElementById('googleClientIdInput');
-  if(msEl)msEl.value=getMsClientId();
-  if(ggEl)ggEl.value=getGoogleClientId();
-  /* Inject the current origin into the setup-instruction code blocks
-     so user can copy it straight into the Azure / Google config */
-  const origin=window.location.origin+window.location.pathname;
-  const o1=document.getElementById('originUrl');if(o1)o1.textContent=origin;
-  const o2=document.getElementById('originUrl2');if(o2)o2.textContent=window.location.origin;
-}
-function saveOAuthClientIds(){
-  const ms=(document.getElementById('msClientIdInput')?.value||'').trim();
-  const gg=(document.getElementById('googleClientIdInput')?.value||'').trim();
-  if(ms)localStorage.setItem(LS_MS_CLIENT_ID,ms);
-  else localStorage.removeItem(LS_MS_CLIENT_ID);
-  if(gg)localStorage.setItem(LS_GOOGLE_CLIENT_ID,gg);
-  else localStorage.removeItem(LS_GOOGLE_CLIENT_ID);
-  /* Reset cached MSAL instance so it picks up the new client ID */
-  msAuthInstance=null;googleTokenClient=null;
-  appToast('OAuth-instellingen opgeslagen',{type:'success'});
 }
 
 /* ═══════════════════════════════════════════════════
@@ -10278,34 +10185,9 @@ function migrateCalSettings(){
 function openCalSourcesModal(){
   migrateCalSettings();
   renderCalSourcesList();
-  renderAccountList();
   document.getElementById('calAddForm').style.display='none';
   closeCalAddDropdown();
   document.getElementById('calSourcesModal').classList.add('open');
-}
-
-/* Render the connected OAuth accounts (Microsoft + Google) section */
-function renderAccountList(){
-  const el=document.getElementById('calAccountsList');if(!el)return;
-  const accts=getAccounts();
-  if(!accts.length){
-    el.innerHTML='<p style="font-size:11.5px;color:var(--text-hint);margin:4px 0 0;line-height:1.5">Nog geen accounts verbonden. Klik op <strong>+ Agenda koppelen</strong> hieronder.</p>';
-    return;
-  }
-  el.innerHTML=accts.map(a=>{
-    const providerIcon=a.provider==='microsoft'
-      ?'<svg viewBox="0 0 14 14" width="14" height="14"><rect x="1" y="1" width="5.7" height="5.7" fill="#F25022"/><rect x="7.3" y="1" width="5.7" height="5.7" fill="#7FBA00"/><rect x="1" y="7.3" width="5.7" height="5.7" fill="#00A4EF"/><rect x="7.3" y="7.3" width="5.7" height="5.7" fill="#FFB900"/></svg>'
-      :'<svg viewBox="0 0 14 14" width="14" height="14"><path d="M13.6 7.15c0-.4-.04-.79-.1-1.15H7v2.18h3.7a3.16 3.16 0 0 1-1.37 2.07v1.72h2.22c1.3-1.2 2.05-2.96 2.05-4.82z" fill="#4285F4"/><path d="M7 13.6c1.86 0 3.41-.62 4.55-1.67L9.33 10.2a4.06 4.06 0 0 1-6.04-2.13H1v1.78A6.6 6.6 0 0 0 7 13.6z" fill="#34A853"/><path d="M3.29 8.07a3.96 3.96 0 0 1 0-2.55V3.74H1A6.6 6.6 0 0 0 .4 7c0 1.07.26 2.07.7 2.96l2.19-1.7z" fill="#FBBC05"/><path d="M7 2.79c1.06 0 2 .36 2.74 1.06l2.06-2.06A6.4 6.4 0 0 0 7 .4 6.6 6.6 0 0 0 1 3.74l2.29 1.78A4.06 4.06 0 0 1 7 2.79z" fill="#EA4335"/></svg>';
-    const providerLabel=a.provider==='microsoft'?'Microsoft':'Google';
-    return `<div class="cal-account-item">
-      <span class="cal-account-icon">${providerIcon}</span>
-      <span class="cal-account-info">
-        <span class="cal-account-name">${escapeHtml(a.displayName||a.email)}</span>
-        <span class="cal-account-email">${escapeHtml(a.email)} · ${providerLabel}</span>
-      </span>
-      <button class="btn btn-xs btn-danger" data-action="removeAccount" data-arg1="${a.id}" title="Loskoppelen">Loskoppelen</button>
-    </div>`;
-  }).join('');
 }
 
 /* Dropdown for the "+ Agenda koppelen" button */
@@ -10329,7 +10211,7 @@ function renderAgendaSourceBar(){
   if(!sources.length){bar.style.display='none';return;}
   bar.style.display='flex';
   bar.innerHTML=sources.map(s=>{
-    const color=s.type==='google'?'#4285f4':(s.color||'#3b5bdb');
+    const color=s.color||'#3b5bdb';
     const on=s.enabled!==false;
     return `<button class="src-chip ${on?'on':'off'}"
       style="border-color:${color};${on?'background:'+color:'color:'+color}"
@@ -10345,12 +10227,10 @@ function renderCalSourcesList(){
   const el=document.getElementById('calSourcesList');if(!el)return;
   if(!sources.length){el.innerHTML='<p style="font-size:12px;color:var(--text-hint);margin-bottom:10px">Nog geen agenda\'s gekoppeld.</p>';return;}
   el.innerHTML=sources.map(s=>{
-    const color=s.type==='google'?'#4285f4':(s.color||'#3b5bdb');
-    const typeLbl=s.type==='google'?'Google':'iCal / Outlook';
+    const color=s.color||'#3b5bdb';
+    const typeLbl='iCal / Outlook';
     const on=s.enabled!==false;
-    const statusHtml=s.type==='google'?
-      (gAccessToken?'<span style="font-size:10px;color:var(--success)">● Verbonden</span>':'<span style="font-size:10px;color:var(--text-hint)">● Sessie verlopen</span>'):
-      '';
+    const statusHtml='';
     return `<div class="cal-source-item" id="csi-${s.id}" style="flex-direction:column;align-items:stretch">
       <div style="display:flex;align-items:center;gap:8px">
         <div style="width:14px;height:14px;border-radius:50%;background:${color};flex-shrink:0"></div>
@@ -10503,238 +10383,6 @@ function saveIcalSource(){
   if(sb)sb.style.display='';if(cb)cb.style.display='none';
   if(activeModule==='agenda')renderAgendaModule();
   renderDashCal();
-}
-
-/* ═══════════════════════════════════════════════════
-   AGENDA OAUTH (Phase A — accounts + token mgmt)
-   ───────────────────────────────────────────────────
-   Provides foundation for Microsoft Graph + Google Calendar:
-   - msAuthInstance: MSAL PublicClientApplication (lazy)
-   - googleTokenClient: Google Identity Services token client (lazy)
-   - rawState.settings.accounts[]: persisted in Gist
-       { id, provider:'microsoft'|'google', email, displayName,
-         color, enabled, calendarIds:[], addedAt }
-   - Tokens themselves NOT in Gist:
-       MS  → MSAL's own localStorage cache
-       GG  → LS_GOOGLE_TOKENS keyed by accountId
-   - Phase B will hook fetchSourceEvents() to also call Graph/Google
-     APIs for events from these accounts.
-   ═══════════════════════════════════════════════════ */
-let msAuthInstance=null;
-let googleTokenClient=null;
-let _googleTokens={};  /* {accountId: {accessToken, expiresAt}} */
-
-/* Load Google token cache from localStorage on boot */
-try{_googleTokens=JSON.parse(localStorage.getItem(LS_GOOGLE_TOKENS)||'{}');}catch(e){_googleTokens={};}
-
-function getMsClientId(){return localStorage.getItem(LS_MS_CLIENT_ID)||'';}
-function getGoogleClientId(){return localStorage.getItem(LS_GOOGLE_CLIENT_ID)||'';}
-
-/* Initialize MSAL when first needed. Reads client ID from localStorage. */
-async function ensureMsAuth(){
-  if(msAuthInstance)return msAuthInstance;
-  const clientId=getMsClientId();
-  if(!clientId)throw new Error('Geen Microsoft client ID ingesteld. Open Instellingen → OAuth.');
-  if(typeof msal==='undefined')throw new Error('MSAL library is nog niet geladen — probeer opnieuw over enkele seconden.');
-  msAuthInstance=new msal.PublicClientApplication({
-    auth:{
-      clientId,
-      authority:'https://login.microsoftonline.com/common',
-      redirectUri:window.location.origin+window.location.pathname
-    },
-    cache:{
-      cacheLocation:'localStorage',
-      storeAuthStateInCookie:false
-    }
-  });
-  await msAuthInstance.initialize();
-  return msAuthInstance;
-}
-
-function ensureGoogleClient(){
-  if(googleTokenClient)return googleTokenClient;
-  const clientId=getGoogleClientId();
-  if(!clientId)throw new Error('Geen Google client ID ingesteld. Open Instellingen → OAuth.');
-  if(typeof google==='undefined'||!google.accounts?.oauth2)throw new Error('Google Identity Services is nog niet geladen — probeer opnieuw over enkele seconden.');
-  /* The token client is created per-request below — using a single
-     reusable instance complicates email retrieval. Instead, each
-     connect-call builds a fresh tokenClient. We just verify availability here. */
-  googleTokenClient=true;
-  return true;
-}
-
-/* ─ Account registry helpers ─ */
-function getAccounts(){
-  if(!rawState.settings)rawState.settings={};
-  rawState.settings.accounts=rawState.settings.accounts||[];
-  return rawState.settings.accounts;
-}
-function findAccount(id){return getAccounts().find(a=>a.id===id);}
-function addAccount(acct){
-  getAccounts().push(acct);
-  scheduleSave();
-}
-function removeAccount(id){
-  const list=getAccounts();
-  const i=list.findIndex(a=>a.id===id);
-  if(i<0)return;
-  const removed=list[i];
-  list.splice(i,1);
-  /* Clean up provider-specific cached tokens */
-  if(removed.provider==='google'){
-    delete _googleTokens[id];
-    localStorage.setItem(LS_GOOGLE_TOKENS,JSON.stringify(_googleTokens));
-  } else if(removed.provider==='microsoft'&&msAuthInstance){
-    /* Remove the MSAL account by homeAccountId so its tokens are wiped */
-    const msAccts=msAuthInstance.getAllAccounts();
-    const m=msAccts.find(a=>a.username===removed.email);
-    if(m){try{msAuthInstance.logoutRedirect({account:m,onRedirectNavigate:()=>false});}catch(e){}}
-  }
-  scheduleSave();
-  appToast(`Account "${removed.email}" losgekoppeld`,{type:'success',undo:()=>{
-    list.splice(i,0,removed);
-    scheduleSave();
-    if(activeModule==='agenda')renderCalSourcesList();
-  }});
-  if(activeModule==='agenda')renderCalSourcesList();
-}
-
-/* ─ Microsoft connect ─ Uses loginPopup so no redirect-callback handling needed. */
-const MS_SCOPES=['User.Read','Calendars.Read','Calendars.Read.Shared'];
-async function connectMicrosoftAccount(){
-  try{
-    const inst=await ensureMsAuth();
-    const result=await inst.loginPopup({scopes:MS_SCOPES,prompt:'select_account'});
-    if(!result||!result.account)throw new Error('Geen account ontvangen van Microsoft.');
-    const email=result.account.username;
-    /* Avoid duplicates */
-    const existing=getAccounts().find(a=>a.provider==='microsoft'&&a.email===email);
-    if(existing){
-      appToast(`Account "${email}" was al gekoppeld`,{type:'info'});
-      return existing;
-    }
-    const acct={
-      id:uid(),
-      provider:'microsoft',
-      email,
-      displayName:result.account.name||email,
-      color:CAL_PALETTE[(getAccounts().length+1)%CAL_PALETTE.length],
-      enabled:true,
-      calendarIds:[], /* Phase B will populate */
-      addedAt:Date.now()
-    };
-    addAccount(acct);
-    appToast(`Microsoft account "${email}" verbonden`,{type:'success'});
-    if(activeModule==='agenda')renderCalSourcesList();
-    return acct;
-  } catch(e){
-    console.error('MS connect failed:',e);
-    appToast(`Microsoft inloggen mislukt: ${e.message||e}`,{type:'error',duration:8000});
-  }
-}
-
-/* Acquire a fresh Microsoft access token silently (used by Phase B for API calls). */
-async function getMsAccessToken(accountId){
-  const acct=findAccount(accountId);
-  if(!acct||acct.provider!=='microsoft')return null;
-  const inst=await ensureMsAuth();
-  const msAcct=inst.getAllAccounts().find(a=>a.username===acct.email);
-  if(!msAcct)throw new Error(`Microsoft sessie verlopen voor ${acct.email}. Verbind opnieuw.`);
-  try{
-    const r=await inst.acquireTokenSilent({scopes:MS_SCOPES,account:msAcct});
-    return r.accessToken;
-  } catch(e){
-    /* Silent failed — fall back to interactive popup */
-    const r=await inst.acquireTokenPopup({scopes:MS_SCOPES,account:msAcct});
-    return r.accessToken;
-  }
-}
-
-/* ─ Google connect ─ Uses GIS token client (implicit flow). */
-const GOOGLE_SCOPES='openid email profile https://www.googleapis.com/auth/calendar.readonly';
-function connectGoogleAccount(){
-  try{
-    ensureGoogleClient();
-    const clientId=getGoogleClientId();
-    /* Build a fresh tokenClient each time so we can grab the email */
-    const client=google.accounts.oauth2.initTokenClient({
-      client_id:clientId,
-      scope:GOOGLE_SCOPES,
-      prompt:'select_account',
-      callback:async(resp)=>{
-        if(resp.error){
-          appToast(`Google inloggen mislukt: ${resp.error}`,{type:'error',duration:8000});
-          return;
-        }
-        const accessToken=resp.access_token;
-        const expiresAt=Date.now()+(resp.expires_in||3600)*1000;
-        /* Decode user info via the ID token endpoint */
-        try{
-          const ui=await fetch('https://www.googleapis.com/oauth2/v3/userinfo',{
-            headers:{'Authorization':'Bearer '+accessToken}
-          }).then(r=>r.json());
-          const email=ui.email;
-          const existing=getAccounts().find(a=>a.provider==='google'&&a.email===email);
-          if(existing){
-            _googleTokens[existing.id]={accessToken,expiresAt};
-            localStorage.setItem(LS_GOOGLE_TOKENS,JSON.stringify(_googleTokens));
-            appToast(`Account "${email}" was al gekoppeld — token vernieuwd`,{type:'info'});
-            return;
-          }
-          const acct={
-            id:uid(),
-            provider:'google',
-            email,
-            displayName:ui.name||email,
-            color:CAL_PALETTE[(getAccounts().length+1)%CAL_PALETTE.length],
-            enabled:true,
-            calendarIds:[],
-            addedAt:Date.now()
-          };
-          _googleTokens[acct.id]={accessToken,expiresAt};
-          localStorage.setItem(LS_GOOGLE_TOKENS,JSON.stringify(_googleTokens));
-          addAccount(acct);
-          appToast(`Google account "${email}" verbonden`,{type:'success'});
-          if(activeModule==='agenda')renderCalSourcesList();
-        } catch(err){
-          appToast(`Kon e-mailadres niet ophalen: ${err.message}`,{type:'error'});
-        }
-      }
-    });
-    client.requestAccessToken();
-  } catch(e){
-    console.error('Google connect failed:',e);
-    appToast(`Google inloggen mislukt: ${e.message||e}`,{type:'error',duration:8000});
-  }
-}
-
-/* Get a fresh Google access token. If cached one is < 5 min from
-   expiring, request a new one silently (no popup) via prompt:''. */
-function getGoogleAccessToken(accountId){
-  return new Promise((resolve,reject)=>{
-    const acct=findAccount(accountId);
-    if(!acct||acct.provider!=='google')return reject(new Error('Geen Google account.'));
-    const cached=_googleTokens[accountId];
-    if(cached&&cached.expiresAt-Date.now()>5*60*1000)return resolve(cached.accessToken);
-    /* Silent re-acquire */
-    try{
-      const clientId=getGoogleClientId();
-      const c=google.accounts.oauth2.initTokenClient({
-        client_id:clientId,
-        scope:GOOGLE_SCOPES,
-        prompt:'',  /* '' = silent if user is still signed in to Google */
-        hint:acct.email,
-        callback:(resp)=>{
-          if(resp.error)return reject(new Error(resp.error+' — log opnieuw in voor '+acct.email));
-          const t={accessToken:resp.access_token,expiresAt:Date.now()+(resp.expires_in||3600)*1000};
-          _googleTokens[accountId]=t;
-          localStorage.setItem(LS_GOOGLE_TOKENS,JSON.stringify(_googleTokens));
-          resolve(t.accessToken);
-        }
-      });
-      c.requestAccessToken();
-    } catch(e){reject(e);}
-  });
 }
 
 function dateStr(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
@@ -11356,7 +11004,6 @@ Object.assign(APP_ACTIONS,{
   hideCalAddForm:()=>{const f=document.getElementById('calAddForm');if(f)f.style.display='none';},
   saveIcalSource:()=>saveIcalSource(),
   jumpToDay:(el,e,ds)=>jumpToDay(ds),
-  removeAccount:(el,e,id)=>removeAccount(id),
   /* Native events */
   openEventModalNew:()=>openEventModalNew(),
   openEventModalEdit:(el,e,id)=>{e.stopPropagation();openEventModalEdit(id);},

@@ -55,23 +55,23 @@ Snel zoeken in JS: elke major sectie heeft een banner-comment met `═══` li
 | `#dashboard` | Dashboard | Hero + KPI strip + 2×2 grid: Todo / Notes / Agenda / Checklist | Stabiel |
 | `#todo` | Kanban | Projecten met kolommen, kaarten met klant/tags/category, drag-drop | Stabiel |
 | `#notes` | Notes | Boomstructuur (folders/pages) met rich-text editor (marked.js) | Stabiel |
-| `#agenda` | Agenda | iCal multi-source (week/dag/maand views), MS/Google OAuth Phase A | **⚠ Verbeterpunt — zie hieronder** |
+| `#agenda` | Agenda | iCal multi-source (week/dag/maand views) — Outlook via published iCal-link | Stabiel |
 | `#checklist` | Checklist | Taken met subtaken, filters (prio/klant/periode), drag-drop, archief | Stabiel |
 | `#uren` | Uren | Timesheets, weekpatronen, herhaling, export | Stabiel |
 
-#### ⚠ Agenda module — needs improvement
+#### Agenda module — Outlook integratie
 
-De Agenda module is op dit moment het zwakste deel van de app. Aandachtspunten:
+OAuth (MSAL/Graph + Google) is **bewust verwijderd** omdat Frank geen Entra/Azure-rechten heeft. De agenda werkt nu uitsluitend met iCal-feeds:
 
-- **OAuth Phase A is wel aanwezig maar Phase B niet aangesloten**: vanaf regel ~9331 staat de foundation voor Microsoft Graph (MSAL) en Google Calendar (GIS). `rawState.settings.accounts[]` bewaart accounts. Maar `fetchSourceEvents()` gebruikt deze tokens nog **niet** om events op te halen. Alleen iCal feeds werken volledig.
-- **iCal blijft de aanbevolen weg** voor nieuwe agendabronnen totdat OAuth Phase B af is.
+- **Outlook agenda koppelen**: in Outlook web → Settings → Calendar → Shared calendars → Publish a calendar → kopieer ICS-link → plak in app via "+ iCal link toevoegen". Werkt voor zowel persoonlijke als werk-/school-accounts (mits IT publishing niet heeft uitgezet).
+- **Vertraging**: Microsoft cached gepubliceerde feeds, updates lopen 15-30 min achter.
+- **Fallback**: handmatige `.ics`-import via de bestaande ICS-import knop.
+- **NIET opnieuw introduceren** zonder expliciete vraag: MSAL, Google Identity Services, `accounts[]`-gebaseerde OAuth flows. Zie de instructie in `openCalSourcesModal` voor uitleg.
 - **Mogelijke verbeteringen**:
-  - Phase B implementeren: Microsoft Graph events ophalen via MSAL token, Google Calendar API events via GIS token.
-  - Native event creation: lokale events maken/bewerken in `rawState.agenda.events[]` (state bestaat al, UI gedeeltelijk).
+  - Native event creation/edit: lokale events maken/bewerken in `rawState.agenda.events[]` (state bestaat, UI gedeeltelijk).
   - Maandweergave: nu adaptive pill-formaat bij 4+ events, maar bij erg drukke dagen wordt het toch krap.
   - Recurrence editing: nu alleen lezen van iCal RRULE, niet bewerken.
   - Drag-drop voor events herplannen.
-- Bij wijzigingen in dit gebied: extra voorzichtig, veel state-paden, OAuth flows zijn fragiel.
 
 ### Modules — entry render functions
 
@@ -101,8 +101,7 @@ rawState = {
   agenda:   {events: []},    // native (niet-iCal) events
   settings: {
     calSources: [],          // [{id, type:'ical', name, url, color, enabled}]
-    accounts:   [],          // [{id, provider:'microsoft'|'google', email, displayName, color, enabled, calendarIds, addedAt}]
-    theme:      'auto',      // 'auto' | 'light' | 'dark'
+    theme:      'auto',      // 'auto' | 'light' | 'dark' | 'schedule'
     /* ...andere instellingen */
   }
 }
@@ -137,12 +136,6 @@ rawState = {
 { id, type:'ical', name, url, color, enabled }
 ```
 
-**OAuth account** (Phase A):
-```js
-{ id, provider:'microsoft'|'google', email, displayName,
-  color, enabled, calendarIds:[], addedAt }
-```
-
 ### Storage keys / constants
 
 | Constant | Waarde | Doel |
@@ -151,8 +144,6 @@ rawState = {
 | `LS_TOKEN_KEY` | `bi_checklist_gh_token` | GitHub PAT in localStorage |
 | `LS_GIST_KEY` | `bi_checklist_gist_id_kanban` | Gist ID in localStorage |
 | `LS_BACKUP_KEY` | `herling_analytics_local_backup` | Volledige rawState backup |
-| `LS_MS_CLIENT_ID` | `herling_ms_client_id` | Microsoft OAuth client ID |
-| `LS_GOOGLE_TOKENS` | `herling_google_tokens` | `{accountId: {accessToken, expiresAt}}` |
 | `CORS_PROXY` | `https://corsproxy.io/?` | Proxy voor iCal-feeds (browser CORS) |
 
 ### `uid()` — ID-generator
@@ -266,11 +257,9 @@ Volg dit bij nieuwe componenten. Geen utility-classes (Tailwind-stijl), geen `!i
 |---------|-----|------|
 | xlsx | `https://unpkg.com/xlsx/dist/xlsx.full.min.js` | Excel export (Uren) |
 | marked | `https://cdn.jsdelivr.net/npm/marked/marked.min.js` | Markdown rendering (Notes) |
-| MSAL Browser 3.10 | `https://alcdn.msauth.net/browser/3.10.0/js/msal-browser.min.js` | Microsoft OAuth |
-| Google Identity Services | `https://accounts.google.com/gsi/client` | Google OAuth |
 | Google Fonts | `Archivo, Inter, Plus Jakarta Sans, JetBrains Mono` | Typography |
 
-**Bij CDN-falen**: app crasht niet hard, maar features die de lib gebruiken werken niet (Excel-export uit, Notes tonen ruwe markdown, OAuth onbeschikbaar). Geen fallback ingebouwd.
+**Bij CDN-falen**: app crasht niet hard, maar features die de lib gebruiken werken niet (Excel-export uit, Notes tonen ruwe markdown). Geen fallback ingebouwd.
 
 ## Belangrijke conventies
 
@@ -348,7 +337,6 @@ git push origin main
 
 - Alle gebruikersdata in **private GitHub Gist** (alleen toegankelijk met PAT)
 - GitHub PAT in localStorage — acceptabel voor single-user, *niet* in repo committen
-- Microsoft / Google tokens lokaal (MSAL cache, `LS_GOOGLE_TOKENS`) — niet in Gist
 - Geen telemetrie, geen externe API-calls behalve GitHub + Google Fonts CDNs + iCal feeds
 - iCal feeds via `corsproxy.io` — feed-URLs zijn typisch "secret" maar passeren wel een derde partij
 
@@ -376,6 +364,7 @@ git push origin main
 - **2026-04-30**: Checklist filters (prio/klant/periode), subtaken bewerkbaar inline, auto-close bij alle subtaken klaar
 - **2026-04-30**: Subtaken zichtbaar op dashboard checklist-kaart met toggle
 - **2026-04-30**: Agenda iCal-only (Google OAuth UI weg uit de productpath); Phase A foundation blijft in code voor later
+- **2026-05-03**: MSAL + Google OAuth foundation **volledig verwijderd** (Frank heeft geen Entra/Azure-rechten). Outlook agenda's koppelen via gepubliceerde iCal-link (outlook.com/office.com → Settings → Calendar → Shared calendars → Publish)
 - **2026-04-30**: Maand-weergave: alle events tonen met adaptive pill-grootte i.p.v. "+X meer"
 - **2026-04-30**: Dashboard 2×2 grid met 4 modules + Checklist-kaart
 
