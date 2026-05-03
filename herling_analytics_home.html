@@ -3585,7 +3585,19 @@ textarea { line-height: 1.6; resize: vertical; }
   overflow: visible !important;
   min-height: 0 !important;     /* let row tracks define total height */
 }
-@media (max-width: 900px) { .dash-grid { grid-template-columns: 1fr !important; grid-template-rows: 220px 220px 440px 440px !important; } }
+/* 3-card layout (Todo removed): Notes top-left, Checklist top-right,
+   Agenda full-width bottom row */
+.dash-grid.dash-grid-3 {
+  grid-template-rows: 280px 440px !important;
+}
+.dash-grid.dash-grid-3 > .card:nth-child(3) {
+  grid-column: 1 / -1 !important;
+}
+@media (max-width: 900px) {
+  .dash-grid { grid-template-columns: 1fr !important; grid-template-rows: 220px 220px 440px 440px !important; }
+  .dash-grid.dash-grid-3 { grid-template-rows: 280px 280px 440px !important; }
+  .dash-grid.dash-grid-3 > .card:nth-child(3) { grid-column: auto !important; }
+}
 
 .dash-grid .card {
   min-width: 0;
@@ -4016,9 +4028,6 @@ textarea { line-height: 1.6; resize: vertical; }
       <div class="nav-item active" data-mod="dashboard" onclick="switchModule('dashboard')">
         <span class="nav-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="5.5" height="5.5" rx="1.2"/><rect x="8.5" y="2" width="5.5" height="5.5" rx="1.2"/><rect x="2" y="8.5" width="5.5" height="5.5" rx="1.2"/><rect x="8.5" y="8.5" width="5.5" height="5.5" rx="1.2"/></svg></span><span class="nav-label">Dashboard</span>
       </div>
-      <div class="nav-item" data-mod="todo" onclick="switchModule('todo')">
-        <span class="nav-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8.5 L7.5 11 L11 5.5"/></svg></span><span class="nav-label">To Do</span><span class="nav-badge" id="navBadgeTodo"></span>
-      </div>
       <div class="nav-item" data-mod="notes" onclick="switchModule('notes')">
         <span class="nav-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2h5.5l3.5 3.5V13a1 1 0 0 1-1 1H3.5a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z"/><path d="M9 2v4h3.5"/><line x1="5" y1="9" x2="10" y2="9"/><line x1="5" y1="11.5" x2="8.5" y2="11.5"/></svg></span><span class="nav-label">Notities</span>
       </div>
@@ -4027,9 +4036,6 @@ textarea { line-height: 1.6; resize: vertical; }
       </div>
       <div class="nav-item" data-mod="checklist" onclick="switchModule('checklist')">
         <span class="nav-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2.5" width="3.5" height="3.5" rx="0.6"/><path d="M2.7 4.2 L3.5 5 L4.8 3.4" stroke-width="1.2"/><rect x="2" y="9.5" width="3.5" height="3.5" rx="0.6"/><line x1="7" y1="4.2" x2="14" y2="4.2"/><line x1="7" y1="11.2" x2="14" y2="11.2"/></svg></span><span class="nav-label">Checklist</span><span class="nav-badge nav-badge-danger" id="navBadgeChecklist"></span>
-      </div>
-      <div class="nav-item" data-mod="uren" onclick="switchModule('uren')">
-        <span class="nav-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8.5" r="5.5"/><polyline points="8 5.5 8 8.5 10.2 9.8"/><line x1="6" y1="1.5" x2="10" y2="1.5"/></svg></span><span class="nav-label">Uren</span>
       </div>
 
       <!-- Externe tools — sidebar trigger -->
@@ -4080,14 +4086,6 @@ textarea { line-height: 1.6; resize: vertical; }
             </button>
             <div class="ha-newitem-menu" role="menu">
               <div class="ha-newitem-menu-label">Wat wil je toevoegen?</div>
-              <button type="button" class="ha-newitem-option" data-kind="task" data-ha-newitem-target="todo" role="menuitem">
-                <span class="ha-newitem-option-icon"></span>
-                <span class="ha-newitem-option-body">
-                  <span class="ha-newitem-option-title">Taak</span>
-                  <span class="ha-newitem-option-sub">To Do — Kanban</span>
-                </span>
-                <svg class="ha-newitem-option-arrow" viewBox="0 0 11 11" fill="none"><path d="M3 2L7 5.5L3 9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              </button>
               <button type="button" class="ha-newitem-option" data-kind="checklist" data-ha-newitem-target="checklist" role="menuitem">
                 <span class="ha-newitem-option-icon"></span>
                 <span class="ha-newitem-option-body">
@@ -4125,10 +4123,6 @@ textarea { line-height: 1.6; resize: vertical; }
               Instellingen
             </button>
             <div class="dash-mobile-settings-menu" id="dashMobileSettingsMenu">
-              <button type="button" onclick="closeDashMobileSettings();showAddProject()">+ Nieuw project</button>
-              <button type="button" onclick="closeDashMobileSettings();openImport()">↑ Importeren (CSV / Excel)</button>
-              <button type="button" onclick="closeDashMobileSettings();exportData()">↓ Exporteren (CSV)</button>
-              <div class="dash-mobile-settings-divider"></div>
               <button type="button" onclick="closeDashMobileSettings();showTokenSettings()">⚙ Token &amp; OAuth instellen</button>
               <button type="button" onclick="closeDashMobileSettings();gistDiagnose()">🔍 Gist diagnose</button>
               <button type="button" onclick="closeDashMobileSettings();refreshGist()">↻ Data opnieuw laden</button>
@@ -4153,7 +4147,7 @@ textarea { line-height: 1.6; resize: vertical; }
 
         <!-- KPI strip (clickable → navigate to module) -->
         <div class="dash-kpis" id="dashKpis">
-          <button type="button" class="dash-kpi" id="dashKpiTasks" onclick="switchModule('todo')" title="Open To-Do">
+          <button type="button" class="dash-kpi" id="dashKpiOpen" onclick="switchModule('checklist')" title="Open checklist taken">
             <div class="dash-kpi-top">
               <span class="dash-kpi-label">Open taken</span>
               <span class="dash-kpi-icon" style="background:var(--mint-soft);color:var(--success)">✓</span>
@@ -4163,7 +4157,7 @@ textarea { line-height: 1.6; resize: vertical; }
           </button>
           <button type="button" class="dash-kpi" id="dashKpiDue" onclick="switchModule('checklist')" title="Open Checklist">
             <div class="dash-kpi-top">
-              <span class="dash-kpi-label">Vervallende checklists</span>
+              <span class="dash-kpi-label">Vervallende</span>
               <span class="dash-kpi-icon" style="background:var(--danger-bg);color:var(--danger)">⚠</span>
             </div>
             <div class="dash-kpi-val">–</div>
@@ -4179,17 +4173,8 @@ textarea { line-height: 1.6; resize: vertical; }
           </button>
         </div>
 
-        <!-- 2×2 grid -->
-        <div class="dash-grid">
-          <div class="card">
-            <div class="card-hdr">
-              <h2>To-Do overzicht</h2>
-              <button class="btn btn-xs btn-primary" onclick="switchModule('todo')">Bekijk ↗</button>
-            </div>
-            <div class="card-body" id="dashTodoBody">
-              <div class="loading-state"><div class="spinner"></div><span>Laden...</span></div>
-            </div>
-          </div>
+        <!-- 3-card grid (Notes top-left, Checklist top-right, Agenda full-width below) -->
+        <div class="dash-grid dash-grid-3">
           <div class="card">
             <div class="card-hdr">
               <h2>Recente notities</h2>
@@ -4471,11 +4456,6 @@ textarea { line-height: 1.6; resize: vertical; }
     <button class="mobile-nav-tab" data-mod="dashboard" onclick="switchModule('dashboard')" aria-label="Dashboard">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><rect x="2" y="2" width="5.5" height="5.5" rx="1.2"/><rect x="8.5" y="2" width="5.5" height="5.5" rx="1.2"/><rect x="2" y="8.5" width="5.5" height="5.5" rx="1.2"/><rect x="8.5" y="8.5" width="5.5" height="5.5" rx="1.2"/></svg>
       <span>Dashboard</span>
-    </button>
-    <button class="mobile-nav-tab" data-mod="todo" onclick="switchModule('todo')" aria-label="To Do">
-      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8.5 L7.5 11 L11 5.5"/></svg>
-      <span>To Do</span>
-      <span class="mobile-nav-badge" id="mobileNavBadgeTodo"></span>
     </button>
     <button class="mobile-nav-tab" data-mod="notes" onclick="switchModule('notes')" aria-label="Notities">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M3.5 2h5.5l3.5 3.5V13a1 1 0 0 1-1 1H3.5a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z"/><path d="M9 2v4h3.5"/></svg>
@@ -5780,6 +5760,9 @@ async function forceSave(){clearTimeout(saveTimer);await saveGist();}
    NAVIGATION
    ═══════════════════════════════════════════════════ */
 function switchModule(mod){
+  /* Removed modules — silently redirect to dashboard so old hash URLs
+     and any leftover internal switchModule calls don't crash. */
+  if(mod==='todo'||mod==='uren')mod='dashboard';
   activeModule=mod;
   /* Update nav items */
   document.querySelectorAll('.nav-item').forEach(el=>
@@ -5791,11 +5774,9 @@ function switchModule(mod){
   history.replaceState(null,'','#'+mod);
   /* Module-specific init */
   if(mod==='dashboard')renderDashboard();
-  else if(mod==='todo')renderTodoModule();
   else if(mod==='notes')renderNotesModule();
   else if(mod==='agenda')renderAgendaModule();
   else if(mod==='checklist')renderChecklistModule();
-  else if(mod==='uren')renderUrenModule();
   /* Refresh client-filter dropdowns (each module has its own container) */
   if(typeof renderClientFilters==='function')renderClientFilters();
   if(typeof updateNavBadges==='function')updateNavBadges();
@@ -5810,13 +5791,6 @@ function switchModule(mod){
 /* Update count-badges on nav items. Called after every state change
    that could affect the counts (saveGist hook + module switches). */
 function updateNavBadges(){
-  /* Todo: total open (not in completed columns) items across all projects */
-  let openTodos=0;
-  Object.values(kanbanState?.projects||{}).forEach(p=>{
-    (p.columns||[]).forEach(c=>{
-      if(!c.isCompleted)openTodos+=c.items?.length||0;
-    });
-  });
   /* Checklist: overdue items only (most actionable signal) */
   const today=new Date().toISOString().slice(0,10);
   const overdue=(checklistState?.items||[]).filter(i=>!i.done&&!i.archived&&i.deadline&&i.deadline<today).length;
@@ -5834,7 +5808,6 @@ function updateNavBadges(){
     el.style.display='';
     el.textContent=n>99?'99+':String(n);
   };
-  setBadge('navBadgeTodo',openTodos);
   setBadge('navBadgeChecklist',overdue);
   setBadge('navBadgeAgenda',today2);
   /* Mirror to the mobile bottom-nav badges */
@@ -5966,8 +5939,8 @@ function toggleSidebarMobile(force){
 
 /* ─ Update mobile top bar title + bottom-nav active state ─ */
 const MOBILE_MODULE_TITLES={
-  dashboard:'Dashboard',todo:'To Do',notes:'Notities',
-  agenda:'Agenda',checklist:'Checklist',uren:'Uren'
+  dashboard:'Dashboard',notes:'Notities',
+  agenda:'Agenda',checklist:'Checklist'
 };
 function updateMobileChrome(mod){
   const title=document.getElementById('mobileTopbarTitle');
@@ -5977,7 +5950,6 @@ function updateMobileChrome(mod){
 }
 function updateMobileNavBadges(){
   /* Mirror desktop nav badges to the mobile bottom bar */
-  const todo=document.getElementById('navBadgeTodo')?.textContent||'';
   const cl=document.getElementById('navBadgeChecklist')?.textContent||'';
   const ag=document.getElementById('navBadgeAgenda')?.textContent||'';
   const set=(id,txt)=>{
@@ -5985,7 +5957,6 @@ function updateMobileNavBadges(){
     if(!txt){el.style.display='none';return;}
     el.style.display='';el.textContent=txt;
   };
-  set('mobileNavBadgeTodo',todo);
   set('mobileNavBadgeChecklist',cl);
   set('mobileNavBadgeAgenda',ag);
 }
@@ -6263,7 +6234,6 @@ function renderDashboard(){
   document.getElementById('todayStr').textContent=formatToday();
   renderDashHero();
   renderDashKpis();
-  renderDashTodo();
   renderDashNotes();
   renderDashCal();
   renderDashChecklist();
@@ -6271,44 +6241,31 @@ function renderDashboard(){
 
 /* ─── Dashboard: Hero + KPI derived values ───────────────────────────────── */
 function dashDerivedStats(){
-  /* Open tasks across all projects */
-  let totalTasks=0,doneTasks=0;
-  const projects=kanbanState?.projects||{};
-  Object.values(projects).forEach(p=>{
-    (p.columns||[]).forEach(c=>{
-      const n=c.items?.length||0;
-      totalTasks+=n;
-      if(c.isCompleted)doneTasks+=n;
-    });
-  });
-  const openTasks=Math.max(0,totalTasks-doneTasks);
-
-  /* Overdue/Open checklist items */
+  /* Open + overdue checklist items (Todo + Uren modules removed) */
   const today=new Date().toISOString().slice(0,10);
   const openCl=(checklistState?.items||[]).filter(i=>!i.done&&!i.archived);
   const overdueCl=openCl.filter(i=>i.deadline&&i.deadline<today).length;
-
-  /* Uren — sum hours this ISO-week if unlocked, else null */
-  let urenWeek=null;
-  if(urenLocked!==true&&Array.isArray(urenState?.entries)){
-    const ws=getWeekStart(0);const we=new Date(ws);we.setDate(ws.getDate()+7);
-    const wsStr=ws.toISOString().slice(0,10),weStr=we.toISOString().slice(0,10);
-    urenWeek=urenState.entries
-      .filter(e=>e.date>=wsStr&&e.date<weStr)
-      .reduce((sum,e)=>sum+(parseFloat(e.hours)||0),0);
-  }
+  const doneCl=(checklistState?.items||[]).filter(i=>i.done&&!i.archived).length;
+  const totalCl=openCl.length+doneCl;
 
   /* Agenda today — from cached events if present */
   let meetingsToday=null;
   if(Array.isArray(cachedWeekEvents)&&cachedWeekEvents.length){
-    const t=today;
     meetingsToday=cachedWeekEvents.filter(ev=>{
       const ds=ev.start?.dateTime?ev.start.dateTime.slice(0,10):ev.start?.date;
-      return ds===t;
+      return ds===today;
     }).length;
   }
 
-  return{openTasks,totalTasks,doneTasks,openClCount:openCl.length,overdueCl,urenWeek,meetingsToday};
+  /* Notes — flat list of pages for sparkline */
+  function flatPages(nodes){
+    const out=[];
+    (function walk(arr){(arr||[]).forEach(n=>{if(n.type!=='folder')out.push(n);if(n.children)walk(n.children);});})(nodes);
+    return out;
+  }
+  const allPages=flatPages(notesState?.tree||[]);
+
+  return{openClCount:openCl.length,overdueCl,doneCl,totalCl,meetingsToday,allPages};
 }
 
 function renderDashHero(){
@@ -6326,22 +6283,22 @@ function renderDashHero(){
 
   const parts=[];
   if(s.meetingsToday!==null)parts.push(`<span class="hl-num">${s.meetingsToday}</span> afspraken`);
-  parts.push(`<span class="hl-num">${s.openTasks}</span> open taken`);
-  if(s.overdueCl>0)parts.push(`<span class="hl-num">${s.overdueCl}</span> vervallende checklists`);
+  parts.push(`<span class="hl-num">${s.openClCount}</span> open ${s.openClCount===1?'taak':'taken'}`);
+  if(s.overdueCl>0)parts.push(`<span class="hl-num">${s.overdueCl}</span> vervallende`);
   hl.innerHTML=parts.join(' · ');
-  sub.textContent = s.urenWeek!==null
-    ? `Je hebt ${s.urenWeek.toFixed(1)} uur geregistreerd deze week.`
-    : (s.totalTasks>0 ? `${s.doneTasks} van ${s.totalTasks} taken afgerond.` : 'Klaar om te starten.');
+  sub.textContent = s.totalCl>0
+    ? `${s.doneCl} van ${s.totalCl} taken afgerond.`
+    : 'Klaar om te starten.';
 
-  /* Sparkline: uren per dag (laatste 7 dagen) of 0-baseline */
-  const days=[];
+  /* Sparkline: notes updated per day (last 7 days) */
+  const dayBuckets=[];
   for(let i=6;i>=0;i--){
-    const d=new Date();d.setDate(d.getDate()-i);
-    days.push(d.toISOString().slice(0,10));
+    const d=new Date();d.setDate(d.getDate()-i);d.setHours(0,0,0,0);
+    dayBuckets.push(d.getTime());
   }
-  const vals=days.map(ds=>{
-    if(!Array.isArray(urenState?.entries))return 0;
-    return urenState.entries.filter(e=>e.date===ds).reduce((s,e)=>s+(parseFloat(e.hours)||0),0);
+  const vals=dayBuckets.map(dayMs=>{
+    const next=dayMs+86400000;
+    return s.allPages.filter(n=>(n.updatedAt||0)>=dayMs&&(n.updatedAt||0)<next).length;
   });
   const W=200,H=60,PAD=4;
   const max=Math.max(1,...vals);
@@ -6362,7 +6319,7 @@ function renderDashHero(){
     ${pts.map(([x,y])=>`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2" fill="#00e5b0"/>`).join('')}
   `;
   const total7=vals.reduce((a,b)=>a+b,0);
-  delta.textContent=total7>0?`${total7.toFixed(1)}u afgelopen 7 dagen`:'Geen uren geregistreerd';
+  delta.textContent=total7>0?`${total7} ${total7===1?'notitie':'notities'} bewerkt afgelopen 7 dagen`:'Nog geen activiteit deze week';
 }
 
 function renderDashKpis(){
@@ -6380,8 +6337,8 @@ function renderDashKpis(){
       trendEl.textContent='';
     }
   };
-  set('dashKpiTasks',   s.openTasks,         s.totalTasks?`${s.doneTasks}/${s.totalTasks} afgerond`:null, 'flat');
-  set('dashKpiDue',     s.overdueCl,         s.openClCount?`van ${s.openClCount} open`:null, s.overdueCl>0?'down':'flat');
+  set('dashKpiOpen',    s.openClCount,                          s.totalCl?`van ${s.totalCl} totaal`:null, 'flat');
+  set('dashKpiDue',     s.overdueCl,                            s.openClCount?`van ${s.openClCount} open`:null, s.overdueCl>0?'down':'flat');
   set('dashKpiMeetings',s.meetingsToday!==null?s.meetingsToday:'—', s.meetingsToday===null?'geen agenda data':'vandaag', 'flat');
 }
 
@@ -6479,42 +6436,10 @@ function dashClAdd(){
   if(activeModule==='checklist')renderChecklistModule();
 }
 
-function renderDashTodo(){
-  const body=document.getElementById('dashTodoBody');
-  const projects=kanbanState.projects||{};
-  const names=Object.keys(projects);
-  if(!names.length){
-    body.innerHTML=`<div style="color:var(--text-hint);font-size:12px;padding:20px 0;text-align:center">
-      <p style="margin-bottom:10px">Nog geen projecten aangemaakt</p>
-      <button class="btn btn-sm btn-primary" data-action="switchModule" data-arg1="todo">Open To-Do ↗</button>
-    </div>`;return;
-  }
-  let totalAll=0,doneAll=0;
-  const rows=names.map(n=>{
-    const p=projects[n];
-    const total=(p.columns||[]).reduce((a,c)=>a+(c.items?.length||0),0);
-    const done=(p.columns||[]).filter(c=>c.isCompleted).reduce((a,c)=>a+(c.items?.length||0),0);
-    const pct=total?Math.round(done/total*100):0;
-    totalAll+=total;doneAll+=done;
-    return{name:n,total,done,pct};
-  });
-  const pctAll=totalAll?Math.round(doneAll/totalAll*100):0;
-  let html=`<div class="big-stats">
-    <div class="big-stat"><div class="big-stat-val">${totalAll-doneAll}</div><div class="big-stat-lbl">Open</div></div>
-    <div class="big-stat"><div class="big-stat-val">${doneAll}</div><div class="big-stat-lbl">Afgerond</div></div>
-    <div class="big-stat"><div class="big-stat-val">${pctAll}%</div><div class="big-stat-lbl">Voortgang</div></div>
-  </div>
-  <div style="font-size:10px;font-weight:600;color:var(--text-hint);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Per project</div>`;
-  rows.forEach(r=>{
-    html+=`<div class="proj-row">
-      <div class="proj-name">${escapeHtml(r.name)}</div>
-      <div class="proj-nums">${r.done}/${r.total}</div>
-      <div class="proj-bar"><div class="proj-bar-fill" style="width:${r.pct}%"></div></div>
-      <div class="proj-pct">${r.pct}%</div>
-    </div>`;
-  });
-  body.innerHTML=html;
-}
+/* renderDashTodo: kept as no-op stub. Todo module + its dashboard
+   widget were removed but the function name is referenced from older
+   code paths that we don't want to break. Safe to call. */
+function renderDashTodo(){/* no-op: Todo module removed */}
 
 function renderDashNotes(){
   const body=document.getElementById('dashNotesBody');
@@ -6575,7 +6500,7 @@ function renderAll(){
   if(typeof updateNavBadges==='function')updateNavBadges();
   /* Apply hash-based routing on initial load */
   const hash=(location.hash||'#dashboard').slice(1);
-  const validMods=['dashboard','todo','notes','agenda','checklist','uren'];
+  const validMods=['dashboard','notes','agenda','checklist'];
   const startMod=validMods.includes(hash)?hash:'dashboard';
   switchModule(startMod);
 }
