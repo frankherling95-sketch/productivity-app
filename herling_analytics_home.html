@@ -1540,6 +1540,32 @@ textarea { line-height: 1.6; resize: vertical; }
 .client-filter-option .cf-actbtn:hover { background: var(--surface2); color: var(--text); }
 .client-filter-empty { padding: 10px 12px; font-size: 11.5px; color: var(--text-hint); text-align: center; }
 
+/* Klant dashboard modal */
+.cd-kpi {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 8px;
+  text-align: center;
+}
+.cd-kpi-num { font-family: var(--font-display); font-size: 20px; font-weight: 700; color: var(--text); line-height: 1; }
+.cd-kpi-lbl { font-size: 10.5px; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+.cd-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--surface2);
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--text);
+}
+.cd-row:hover { background: var(--surface3); }
+@media (max-width: 768px){
+  .cd-kpi-num { font-size: 17px; }
+  #clientDashModal .modal { max-width: 96vw !important; }
+}
+
 /* "+ Klant" button variant — ghost with mint accent on hover */
 .client-new-btn {
   display: inline-flex;
@@ -4285,6 +4311,8 @@ textarea { line-height: 1.6; resize: vertical; }
               <div class="dash-mobile-settings-divider"></div>
               <button type="button" onclick="closeDashMobileSettings();downloadBackup()">↓ Backup downloaden (JSON)</button>
               <button type="button" onclick="closeDashMobileSettings();document.getElementById('restoreFileInput').click()">↑ Backup terugzetten</button>
+              <div class="dash-mobile-settings-divider"></div>
+              <button type="button" onclick="closeDashMobileSettings();requestNotifPermission()">🔔 Notificaties inschakelen</button>
             </div>
             <input type="file" id="restoreFileInput" accept=".json,application/json" style="display:none" onchange="handleRestoreFile(this.files[0])"/>
           </div>
@@ -4788,6 +4816,18 @@ textarea { line-height: 1.6; resize: vertical; }
         </div>
         <input type="hidden" id="clItemDeadline"/>
       </div>
+      <div class="modal-field" style="margin-top:14px">
+        <label class="ev-lbl">Herhaling</label>
+        <select id="clItemRecurrence" style="width:100%">
+          <option value="none">Geen — eenmalige taak</option>
+          <option value="daily">Dagelijks</option>
+          <option value="weekly">Wekelijks</option>
+          <option value="biweekly">Tweewekelijks</option>
+          <option value="monthly">Maandelijks</option>
+          <option value="yearly">Jaarlijks</option>
+        </select>
+        <small style="font-size:11px;color:var(--text-hint);margin-top:4px;display:block">Bij voltooien wordt automatisch een nieuwe instance aangemaakt met de volgende deadline.</small>
+      </div>
     </div>
 
     <div class="modal-footer" style="margin-top:20px">
@@ -4904,6 +4944,18 @@ textarea { line-height: 1.6; resize: vertical; }
         <button class="btn btn-sm" onclick="closeNewClientModal()">Annuleer</button>
         <button class="btn btn-sm btn-primary" onclick="saveNewClient()">Aanmaken</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Klant dashboard modal — overview of all data for one client ── -->
+<div class="modal-bg" id="clientDashModal" onclick="if(event.target===this)closeClientDash()">
+  <div class="modal" style="max-width:680px;max-height:84vh;overflow:auto;padding:0">
+    <div id="clientDashHeader" style="padding:20px 24px 16px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);z-index:2;border-radius:12px 12px 0 0">
+      <!-- filled by openClientDash -->
+    </div>
+    <div id="clientDashBody" style="padding:18px 24px 24px">
+      <!-- filled by openClientDash -->
     </div>
   </div>
 </div>
@@ -6431,6 +6483,84 @@ function toggleColorScheme(){
 applyColorScheme(localStorage.getItem(LS_THEME)||'auto');
 
 /* ═══════════════════════════════════════════════════
+   BROWSER NOTIFICATIONS — checklist deadline reminders
+   ───────────────────────────────────────────────────
+   Pings the user once per item per day for items with a
+   deadline today (morning ping ≈09:00) and overdue items
+   (max 1×/day). Stores last-sent timestamps in localStorage
+   so refreshes don't spam. Requires explicit permission.
+   ═══════════════════════════════════════════════════ */
+const LS_NOTIF='herling_notif_log';
+function notifSupport(){return 'Notification' in window;}
+function notifPerm(){return notifSupport()?Notification.permission:'denied';}
+async function requestNotifPermission(){
+  if(!notifSupport()){appToast('Browser ondersteunt geen notificaties',{type:'error'});return false;}
+  if(Notification.permission==='granted'){appToast('Notificaties al ingeschakeld',{type:'info'});return true;}
+  if(Notification.permission==='denied'){appToast('Notificaties geblokkeerd — wijzig in browser-instellingen',{type:'error',duration:5000});return false;}
+  try{
+    const result=await Notification.requestPermission();
+    if(result==='granted'){
+      appToast('Notificaties ingeschakeld ✓',{type:'success'});
+      checkDeadlineNotifications();
+      return true;
+    } else {
+      appToast('Notificaties niet toegestaan',{type:'info'});
+      return false;
+    }
+  }catch(e){console.error(e);return false;}
+}
+function getNotifLog(){
+  try{return JSON.parse(localStorage.getItem(LS_NOTIF)||'{}');}
+  catch(e){return {};}
+}
+function setNotifLog(log){
+  try{localStorage.setItem(LS_NOTIF,JSON.stringify(log));}catch(e){}
+}
+function checkDeadlineNotifications(){
+  if(notifPerm()!=='granted')return;
+  if(!checklistState||!checklistState.items)return;
+  const today=new Date();today.setHours(0,0,0,0);
+  const todayIso=today.toISOString().slice(0,10);
+  const log=getNotifLog();
+  /* Items with deadline = today, not done, not yet notified today */
+  const dueToday=checklistState.items.filter(i=>!i.done&&!i.archived&&i.deadline===todayIso);
+  const overdue=checklistState.items.filter(i=>{
+    if(i.done||i.archived||!i.deadline)return false;
+    const d=new Date(i.deadline+'T00:00:00');
+    return d<today;
+  });
+  /* Group: 1 notification per day per category */
+  const todayKey='due_'+todayIso;
+  if(dueToday.length&&log[todayKey]!==todayIso){
+    try{
+      new Notification('Vandaag deadline',{
+        body:dueToday.length===1?dueToday[0].text:`${dueToday.length} taken vervallen vandaag`,
+        icon:'./herling-icon.svg',
+        tag:'herling-due-today'
+      });
+      log[todayKey]=todayIso;
+    }catch(e){console.error(e);}
+  }
+  const overdueKey='overdue_'+todayIso;
+  if(overdue.length&&log[overdueKey]!==todayIso){
+    try{
+      new Notification('Achterstallige taken',{
+        body:`${overdue.length} ${overdue.length===1?'taak is':'taken zijn'} over de deadline`,
+        icon:'./herling-icon.svg',
+        tag:'herling-overdue'
+      });
+      log[overdueKey]=todayIso;
+    }catch(e){console.error(e);}
+  }
+  setNotifLog(log);
+}
+/* Run check on app load (after data loaded) and once an hour */
+window.addEventListener('load',()=>{
+  setTimeout(checkDeadlineNotifications,5000);
+  setInterval(checkDeadlineNotifications,60*60*1000);
+});
+
+/* ═══════════════════════════════════════════════════
    MODULE: CLIENTS — shared across modules
    ───────────────────────────────────────────────────
    Structure:
@@ -6494,6 +6624,7 @@ function renderOneClientFilter(host){
         <span class="cf-dot" style="background:${col.bg}"></span>
         <span class="cf-opt-name">${escapeHtml(c.name)}</span>
         <span class="cf-actions">
+          <button type="button" class="cf-actbtn" data-cf-info="${c.id}" title="Klant overzicht">ℹ</button>
           <button type="button" class="cf-actbtn" data-cf-edit="${c.id}" title="Hernoemen">✎</button>
           <button type="button" class="cf-actbtn" data-cf-del="${c.id}" title="Verwijderen">✕</button>
         </span>
@@ -6523,8 +6654,10 @@ function wireClientFilter(host){
     opt.addEventListener('click',e=>{
       const del=e.target.closest('[data-cf-del]');
       const edt=e.target.closest('[data-cf-edit]');
+      const inf=e.target.closest('[data-cf-info]');
       if(del){e.stopPropagation();deleteClient(del.dataset.cfDel);return;}
       if(edt){e.stopPropagation();editClient(edt.dataset.cfEdit);return;}
+      if(inf){e.stopPropagation();setOpen(false);openClientDash(inf.dataset.cfInfo);return;}
       e.stopPropagation();
       const cid=opt.dataset.cid;
       /* Direct set (not toggle) — user picks 'Alle klanten' to clear */
@@ -6650,6 +6783,156 @@ function editClient(id){
     if(inp){inp.focus();inp.select();}
   },30);
 }
+/* ─── Klant dashboard — aggregated overview for one client ─── */
+function openClientDash(id){
+  const c=clientById(id);if(!c)return;
+  const col=CLIENT_COLORS[c.colorIdx%CLIENT_COLORS.length];
+  /* Gather data */
+  const allNotes=flattenNotes(notesState?.tree||[]).filter(n=>n.type!=='folder'&&n.clientId===id);
+  /* Sort newest first by updatedAt or createdAt */
+  allNotes.sort((a,b)=>(b.updatedAt||b.createdAt||0)-(a.updatedAt||a.createdAt||0));
+  const today=new Date().toISOString().slice(0,10);
+  const allCl=(checklistState?.items||[]).filter(i=>i.clientId===id&&!i.archived);
+  const openCl=allCl.filter(i=>!i.done);
+  const doneCl=allCl.filter(i=>i.done);
+  const overdueCl=openCl.filter(i=>i.deadline&&i.deadline<today);
+  const events=(rawState?.agenda?.events||[]).filter(e=>e.clientId===id);
+  /* Sort upcoming events */
+  events.sort((a,b)=>{
+    const ad=a.start?.dateTime||a.start?.date||'';
+    const bd=b.start?.dateTime||b.start?.date||'';
+    return ad.localeCompare(bd);
+  });
+  const upcoming=events.filter(e=>{
+    const ds=e.start?.dateTime?e.start.dateTime.slice(0,10):e.start?.date;
+    return ds&&ds>=today;
+  }).slice(0,5);
+
+  /* Build header */
+  const hdr=document.getElementById('clientDashHeader');
+  hdr.innerHTML=`
+    <div style="display:flex;align-items:center;gap:14px">
+      <span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:${col.bg};flex-shrink:0"></span>
+      <div style="flex:1;min-width:0">
+        <div style="font-family:var(--font-display);font-size:18px;font-weight:700;color:var(--text)">${escapeHtml(c.name)}</div>
+        <div style="font-size:11.5px;color:var(--text-muted);margin-top:2px">
+          ${openCl.length} open · ${doneCl.length} klaar · ${allNotes.length} notitie${allNotes.length===1?'':'s'} · ${events.length} afspraken
+        </div>
+      </div>
+      <button class="btn btn-sm" type="button" onclick="closeClientDash()" aria-label="Sluiten">✕</button>
+    </div>`;
+
+  /* Build body sections */
+  const body=document.getElementById('clientDashBody');
+  let html='';
+
+  /* KPIs strip */
+  html+=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:18px">
+    <div class="cd-kpi"><div class="cd-kpi-num">${openCl.length}</div><div class="cd-kpi-lbl">Open taken</div></div>
+    <div class="cd-kpi"${overdueCl.length?' style="background:rgba(229,75,75,.08)"':''}><div class="cd-kpi-num"${overdueCl.length?' style="color:#e54b4b"':''}>${overdueCl.length}</div><div class="cd-kpi-lbl">Vervallen</div></div>
+    <div class="cd-kpi"><div class="cd-kpi-num">${allNotes.length}</div><div class="cd-kpi-lbl">Notities</div></div>
+    <div class="cd-kpi"><div class="cd-kpi-num">${upcoming.length}</div><div class="cd-kpi-lbl">Afspraken</div></div>
+  </div>`;
+
+  /* Quick actions */
+  html+=`<div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap">
+    <button class="btn btn-sm btn-primary" type="button" onclick="closeClientDash();activeClientFilter='${c.id}';switchModule('checklist');renderClientFilters();">→ Open in Checklist</button>
+    <button class="btn btn-sm" type="button" onclick="closeClientDash();activeClientFilter='${c.id}';switchModule('notes');renderClientFilters();">→ Open in Notities</button>
+    <button class="btn btn-sm" type="button" onclick="closeClientDash();activeClientFilter='${c.id}';switchModule('agenda');renderClientFilters();">→ Open in Agenda</button>
+    <button class="btn btn-sm" type="button" onclick="copyLastNoteForClient('${c.id}')" title="Kopieer een nieuwe notitie op basis van de laatste">⎘ Notitie kopiëren</button>
+  </div>`;
+
+  /* Open tasks */
+  html+=`<h4 style="font-size:12.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin:0 0 8px">Open taken (${openCl.length})</h4>`;
+  if(openCl.length){
+    html+=`<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:18px">`;
+    openCl.slice(0,8).forEach(it=>{
+      const isOver=it.deadline&&it.deadline<today;
+      html+=`<div class="cd-row" style="${isOver?'border-left:3px solid #e54b4b':''}">
+        <span style="flex:1">${escapeHtml(it.text)}</span>
+        ${it.deadline?`<span style="font-size:11px;color:${isOver?'#e54b4b':'var(--text-muted)'}">${escapeHtml(it.deadline)}</span>`:''}
+      </div>`;
+    });
+    if(openCl.length>8)html+=`<div style="font-size:11.5px;color:var(--text-muted);text-align:center;padding-top:4px">+ ${openCl.length-8} meer</div>`;
+    html+=`</div>`;
+  } else {
+    html+=`<div style="color:var(--text-muted);font-size:13px;margin-bottom:18px;padding:8px 0">Geen open taken.</div>`;
+  }
+
+  /* Recent notes */
+  html+=`<h4 style="font-size:12.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin:0 0 8px">Recente notities (${allNotes.length})</h4>`;
+  if(allNotes.length){
+    html+=`<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:18px">`;
+    allNotes.slice(0,5).forEach(n=>{
+      const ts=n.updatedAt?new Date(n.updatedAt).toLocaleDateString('nl-NL',{day:'numeric',month:'short'}):'';
+      html+=`<div class="cd-row" style="cursor:pointer" onclick="closeClientDash();notesState.activeId='${n.id}';switchModule('notes');">
+        <span style="flex:1">${escapeHtml(n.title||'(geen titel)')}</span>
+        <span style="font-size:11px;color:var(--text-muted)">${ts}</span>
+      </div>`;
+    });
+    html+=`</div>`;
+  } else {
+    html+=`<div style="color:var(--text-muted);font-size:13px;margin-bottom:18px;padding:8px 0">Geen notities.</div>`;
+  }
+
+  /* Upcoming events */
+  html+=`<h4 style="font-size:12.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin:0 0 8px">Komende afspraken (${upcoming.length})</h4>`;
+  if(upcoming.length){
+    html+=`<div style="display:flex;flex-direction:column;gap:6px">`;
+    upcoming.forEach(ev=>{
+      const ds=ev.start?.dateTime?ev.start.dateTime.slice(0,10):ev.start?.date||'';
+      const ts=ev.start?.dateTime?ev.start.dateTime.slice(11,16):'';
+      html+=`<div class="cd-row">
+        <span style="flex:1">${escapeHtml(ev.summary||'(geen titel)')}</span>
+        <span style="font-size:11px;color:var(--text-muted)">${escapeHtml(ds)}${ts?' '+ts:''}</span>
+      </div>`;
+    });
+    html+=`</div>`;
+  } else {
+    html+=`<div style="color:var(--text-muted);font-size:13px;padding:8px 0">Geen geplande afspraken.</div>`;
+  }
+
+  body.innerHTML=html;
+  document.getElementById('clientDashModal').classList.add('open');
+}
+function closeClientDash(){document.getElementById('clientDashModal').classList.remove('open');}
+
+/* ─── Copy last note for client (#4) — clones most-recent note as new ─── */
+function copyLastNoteForClient(id){
+  const c=clientById(id);if(!c){appToast('Klant niet gevonden',{type:'error'});return;}
+  const notes=flattenNotes(notesState?.tree||[]).filter(n=>n.type!=='folder'&&n.clientId===id);
+  notes.sort((a,b)=>(b.updatedAt||b.createdAt||0)-(a.updatedAt||a.createdAt||0));
+  if(!notes.length){appToast(`Geen notities gevonden voor ${c.name}`,{type:'info'});return;}
+  const src=notes[0];
+  /* Find parent folder of src to insert sibling */
+  function findParent(arr,target,parent){
+    for(const n of arr){
+      if(n===target)return parent;
+      if(n.children){const r=findParent(n.children,target,n);if(r!==undefined)return r;}
+    }
+    return undefined;
+  }
+  const parent=findParent(notesState.tree,src,null);
+  const list=parent?parent.children:notesState.tree;
+  const idx=list.indexOf(src);
+  const today=new Date().toLocaleDateString('nl-NL',{day:'numeric',month:'short'});
+  const clone={
+    id:uid(),
+    type:'page',
+    title:(src.title||'Notitie')+' — '+today,
+    content:src.content||'',
+    clientId:src.clientId,
+    createdAt:Date.now(),
+    updatedAt:Date.now()
+  };
+  list.splice(idx+1,0,clone);
+  notesState.activeId=clone.id;
+  scheduleSave();
+  closeClientDash();
+  switchModule('notes');
+  appToast(`Notitie gekopieerd voor ${c.name}`,{type:'success'});
+}
+
 /* Legacy stubs (still referenced from older code paths) */
 function renderSidebarClients(){/* sidebar Klanten section removed; no-op */}
 function createClient(){/* legacy path — route to new modal */openNewClientModal();}
@@ -9411,8 +9694,49 @@ function clAddInlineItem(){
 function toggleChecklistDone(id){
   const item=checklistState.items.find(i=>i.id===id);
   if(!item)return;
+  const wasOpen=!item.done;
   item.done=!item.done;
+  /* Recurring: when an item with .recurrence becomes done, spawn the
+     next occurrence with the deadline rolled forward. */
+  if(wasOpen&&item.done&&item.recurrence&&item.recurrence!=='none'){
+    const next=spawnRecurringNext(item);
+    if(next){
+      checklistState.items.push(next);
+      appToast(`Volgende herhaling aangemaakt: "${next.text}"${next.deadline?` (deadline ${next.deadline})`:''}`,
+        {type:'info',duration:4000});
+    }
+  }
   scheduleSave();renderChecklistModule();
+}
+
+/* Compute the next deadline for a recurring item and return a fresh
+   uncompleted clone. Recurrence options: 'daily','weekly','biweekly',
+   'monthly','yearly'. Falls back to today + interval-days. */
+function spawnRecurringNext(item){
+  const baseDate=item.deadline?new Date(item.deadline+'T00:00:00'):new Date();
+  baseDate.setHours(0,0,0,0);
+  const nd=new Date(baseDate);
+  switch(item.recurrence){
+    case 'daily':    nd.setDate(nd.getDate()+1);break;
+    case 'weekly':   nd.setDate(nd.getDate()+7);break;
+    case 'biweekly': nd.setDate(nd.getDate()+14);break;
+    case 'monthly':  nd.setMonth(nd.getMonth()+1);break;
+    case 'yearly':   nd.setFullYear(nd.getFullYear()+1);break;
+    default: return null;
+  }
+  return{
+    id:uid(),
+    text:item.text,
+    done:false,
+    priority:item.priority,
+    deadline:nd.toISOString().slice(0,10),
+    clientId:item.clientId||null,
+    subtasks:(item.subtasks||[]).map(st=>({id:uid(),text:st.text,done:false})),
+    archived:false,
+    sortOrder:(checklistState.items.filter(i=>!i.archived&&!i.done&&i.priority===item.priority).length),
+    recurrence:item.recurrence,
+    createdAt:Date.now(),updatedAt:Date.now()
+  };
 }
 
 function toggleSubtask(itemId,stId){
@@ -9622,6 +9946,8 @@ function openChecklistItemModal(id){
     else{clCalYear=now.getFullYear();clCalMonth=now.getMonth();}
     selectClPriority(item.priority||'middel');
     document.getElementById('clItemClient').value=item.clientId||'';
+    const recSel=document.getElementById('clItemRecurrence');
+    if(recSel)recSel.value=item.recurrence||'none';
     deleteBtn.style.display='';
   } else {
     document.getElementById('clItemModalTitle').textContent='Nieuwe taak';
@@ -9631,6 +9957,8 @@ function openChecklistItemModal(id){
     clCalYear=now.getFullYear();clCalMonth=now.getMonth();
     selectClPriority('middel');
     document.getElementById('clItemClient').value='';
+    const recSel=document.getElementById('clItemRecurrence');
+    if(recSel)recSel.value='none';
     deleteBtn.style.display='none';
   }
   modal.classList.add('open');
@@ -9648,12 +9976,14 @@ function saveChecklistItem(){
   const priority=document.getElementById('clItemPriority').value||'middel';
   const deadline=document.getElementById('clItemDeadline').value||null;
   const clientId=document.getElementById('clItemClient').value||null;
+  const recVal=document.getElementById('clItemRecurrence')?.value||'none';
+  const recurrence=(recVal==='none')?null:recVal;
   if(clEditingId){
     const item=checklistState.items.find(i=>i.id===clEditingId);
-    if(item){item.text=text;item.priority=priority;item.deadline=deadline;item.clientId=clientId;}
+    if(item){item.text=text;item.priority=priority;item.deadline=deadline;item.clientId=clientId;item.recurrence=recurrence;item.updatedAt=Date.now();}
   } else {
     const sameGroup=checklistState.items.filter(i=>!i.archived&&!i.done&&i.priority===priority);
-    checklistState.items.push({id:uid(),text,done:false,priority,deadline,clientId,subtasks:[],archived:false,sortOrder:sameGroup.length});
+    checklistState.items.push({id:uid(),text,done:false,priority,deadline,clientId,subtasks:[],archived:false,sortOrder:sameGroup.length,recurrence,createdAt:Date.now(),updatedAt:Date.now()});
   }
   closeChecklistItemModal();
   scheduleSave();renderChecklistModule();

@@ -6,7 +6,7 @@
      never gets stale-cached.
    Bump CACHE_NAME when shipping a new release to invalidate old caches. */
 
-const CACHE_NAME = 'herling-v3';
+const CACHE_NAME = 'herling-v4';
 
 const PRECACHE_URLS = [
   './',
