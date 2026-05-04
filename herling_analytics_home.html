@@ -5052,6 +5052,43 @@ textarea { line-height: 1.6; resize: vertical; }
         <select id="evClientId" style="width:100%"></select>
       </div>
       <div>
+        <label class="ev-lbl">Herhaling</label>
+        <select id="evRecurFreq" onchange="onEventRecurChange()" style="width:100%">
+          <option value="">Niet herhalen</option>
+          <option value="DAILY">Dagelijks</option>
+          <option value="WEEKLY">Wekelijks</option>
+          <option value="MONTHLY">Maandelijks</option>
+          <option value="YEARLY">Jaarlijks</option>
+        </select>
+        <div id="evRecurOptions" style="display:none;flex-direction:column;gap:8px;margin-top:8px;padding:10px 12px;background:var(--surface2);border-radius:8px">
+          <div style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-muted)">
+            <span>Elke</span>
+            <input type="number" id="evRecurInterval" min="1" max="99" value="1" style="width:64px;padding:4px 6px"/>
+            <span id="evRecurUnit">dag</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;cursor:pointer;user-select:none">
+              <input type="radio" name="evRecurEnd" value="never" checked onchange="onEventRecurEndChange()" style="width:auto;margin:0"/>
+              Nooit eindigen
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;cursor:pointer;user-select:none">
+              <input type="radio" name="evRecurEnd" value="until" onchange="onEventRecurEndChange()" style="width:auto;margin:0"/>
+              <span>Eindigt op</span>
+              <input type="date" id="evRecurUntil" disabled style="flex:1;padding:4px 6px"/>
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;cursor:pointer;user-select:none">
+              <input type="radio" name="evRecurEnd" value="count" onchange="onEventRecurEndChange()" style="width:auto;margin:0"/>
+              <span>Na</span>
+              <input type="number" id="evRecurCount" disabled min="1" max="999" value="10" style="width:64px;padding:4px 6px"/>
+              <span>keer</span>
+            </label>
+          </div>
+          <div style="font-size:11px;color:var(--text-hint);line-height:1.4">
+            ↻ Wijzigingen aan een herhalende afspraak gelden voor de hele serie.
+          </div>
+        </div>
+      </div>
+      <div>
         <label class="ev-lbl">Kleur</label>
         <div class="ev-color-row" id="evColorRow"></div>
       </div>
@@ -10290,20 +10327,56 @@ async function fetchEventsForRange(timeMin,timeMax){
        end, allDay, location, description, color, clientId,
        _native:true }
    Converted to the common iCal-shaped format used by the renderers. */
+/* Format helpers voor native events in lokale tijdzone (vermijdt UTC drift). */
+function _fmtLocalDate(d){const y=d.getFullYear();const m=String(d.getMonth()+1).padStart(2,'0');const day=String(d.getDate()).padStart(2,'0');return`${y}-${m}-${day}`;}
+function _fmtLocalDateTime(d){return _fmtLocalDate(d)+'T'+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
+
 function getNativeEventsInRange(timeMin,timeMax){
   const events=rawState.agenda?.events||[];
   const tMin=new Date(timeMin),tMax=new Date(timeMax);
-  return events
-    .filter(ev=>{
-      /* client filter — same rule as iCal sources */
-      if(activeClientFilter&&ev.clientId&&ev.clientId!==activeClientFilter)return false;
-      /* If a client filter is active and event has no clientId,
-         still show it (acts as 'unassigned' = always visible) */
-      const evStart=new Date(ev.start);
-      const evEnd=ev.end?new Date(ev.end):evStart;
-      return evStart<=tMax&&evEnd>=tMin;
-    })
-    .map(ev=>nativeToCommonFormat(ev));
+  const result=[];
+  events.forEach(ev=>{
+    /* client filter — same rule as iCal sources */
+    if(activeClientFilter&&ev.clientId&&ev.clientId!==activeClientFilter)return;
+    const baseStart=new Date(ev.start);
+    const baseEnd=ev.end?new Date(ev.end):baseStart;
+    const dur=baseEnd.getTime()-baseStart.getTime();
+
+    /* Single (non-recurring) event */
+    if(!ev.recurrence||!ev.recurrence.freq){
+      if(baseStart<=tMax&&baseEnd>=tMin)result.push(nativeToCommonFormat(ev));
+      return;
+    }
+
+    /* Recurring: expandeer naar individuele occurrences binnen [tMin, tMax].
+       Eenvoudige RRULE-achtige semantiek: FREQ + INTERVAL + UNTIL/COUNT.
+       Geen BYDAY/BYMONTHDAY; "elke X maand op dezelfde dag-van-de-maand"
+       is wat de meeste mensen verwachten en dat werkt via setMonth(). */
+    const rec=ev.recurrence;
+    const interval=Math.max(1,rec.interval||1);
+    const untilTime=rec.until?new Date(rec.until+'T23:59:59').getTime():tMax.getTime();
+    const maxCount=rec.count||999;
+    let cur=new Date(baseStart);
+    let n=0;
+    while(cur.getTime()<=tMax.getTime()&&cur.getTime()<=untilTime&&n<maxCount){
+      const occEnd=new Date(cur.getTime()+dur);
+      if(cur.getTime()<=tMax.getTime()&&occEnd.getTime()>=tMin.getTime()){
+        const occEv={...ev};
+        if(ev.allDay){occEv.start=_fmtLocalDate(cur);occEv.end=_fmtLocalDate(occEnd);}
+        else{occEv.start=_fmtLocalDateTime(cur);occEv.end=_fmtLocalDateTime(occEnd);}
+        result.push(nativeToCommonFormat(occEv));
+      }
+      const next=new Date(cur);
+      if(rec.freq==='DAILY')next.setDate(next.getDate()+interval);
+      else if(rec.freq==='WEEKLY')next.setDate(next.getDate()+7*interval);
+      else if(rec.freq==='MONTHLY')next.setMonth(next.getMonth()+interval);
+      else if(rec.freq==='YEARLY')next.setFullYear(next.getFullYear()+interval);
+      else break;
+      cur=next;
+      n++;
+    }
+  });
+  return result;
 }
 function nativeToCommonFormat(ev){
   const color=ev.color||'#3b5bdb';
@@ -10990,6 +11063,8 @@ function openEventModalNew(presetDate){
   populateEvClientSelect('');
   renderEvColorRow();
   onEventAllDayChange();
+  /* Reset herhaling */
+  setEventRecurFromData(null);
   document.getElementById('eventModal').classList.add('open');
   setTimeout(()=>document.getElementById('evTitle').focus(),30);
 }
@@ -11019,6 +11094,8 @@ function openEventModalEdit(id){
   populateEvClientSelect(ev.clientId||'');
   renderEvColorRow();
   onEventAllDayChange();
+  /* Populate herhaling vanuit opgeslagen data */
+  setEventRecurFromData(ev.recurrence||null);
   document.getElementById('eventModal').classList.add('open');
 }
 function closeEventModal(){
@@ -11029,6 +11106,65 @@ function onEventAllDayChange(){
   const allDay=document.getElementById('evAllDay').checked;
   document.getElementById('evStartTime').style.display=allDay?'none':'';
   document.getElementById('evEndTime').style.display=allDay?'none':'';
+}
+
+/* ── Native event recurrence helpers ──────────────────────────────────── */
+function onEventRecurChange(){
+  const freq=document.getElementById('evRecurFreq').value;
+  const opts=document.getElementById('evRecurOptions');
+  opts.style.display=freq?'flex':'none';
+  const unitMap={DAILY:'dag',WEEKLY:'week',MONTHLY:'maand',YEARLY:'jaar'};
+  const unitEl=document.getElementById('evRecurUnit');
+  if(unitEl)unitEl.textContent=unitMap[freq]||'';
+}
+function onEventRecurEndChange(){
+  const sel=document.querySelector('input[name="evRecurEnd"]:checked');
+  const val=sel?sel.value:'never';
+  document.getElementById('evRecurUntil').disabled=val!=='until';
+  document.getElementById('evRecurCount').disabled=val!=='count';
+}
+/* Vul de herhalings-formvelden vanuit een rec object (of null = reset). */
+function setEventRecurFromData(rec){
+  const freqEl=document.getElementById('evRecurFreq');
+  const intEl=document.getElementById('evRecurInterval');
+  const untilEl=document.getElementById('evRecurUntil');
+  const countEl=document.getElementById('evRecurCount');
+  if(!freqEl)return;
+  if(!rec||!rec.freq){
+    freqEl.value='';
+    intEl.value='1';
+    untilEl.value='';
+    countEl.value='10';
+    document.querySelectorAll('input[name="evRecurEnd"]').forEach(r=>{r.checked=(r.value==='never');});
+    onEventRecurChange();
+    onEventRecurEndChange();
+    return;
+  }
+  freqEl.value=rec.freq;
+  intEl.value=rec.interval||1;
+  let endVal='never';
+  if(rec.until){endVal='until';untilEl.value=rec.until;}
+  else if(rec.count){endVal='count';countEl.value=rec.count;}
+  document.querySelectorAll('input[name="evRecurEnd"]').forEach(r=>{r.checked=(r.value===endVal);});
+  onEventRecurChange();
+  onEventRecurEndChange();
+}
+/* Lees herhalings-formvelden naar een rec-object (of null). */
+function getEventRecurFromForm(){
+  const freq=document.getElementById('evRecurFreq').value;
+  if(!freq)return null;
+  const interval=Math.max(1,parseInt(document.getElementById('evRecurInterval').value)||1);
+  const endSel=document.querySelector('input[name="evRecurEnd"]:checked');
+  const endVal=endSel?endSel.value:'never';
+  const rec={freq,interval};
+  if(endVal==='until'){
+    const u=document.getElementById('evRecurUntil').value;
+    if(u)rec.until=u;
+  }else if(endVal==='count'){
+    const c=parseInt(document.getElementById('evRecurCount').value);
+    if(c>0)rec.count=c;
+  }
+  return rec;
 }
 function populateEvClientSelect(selectedId){
   const sel=document.getElementById('evClientId');
@@ -11073,7 +11209,8 @@ function saveEvent(){
     location:document.getElementById('evLocation').value.trim(),
     description:document.getElementById('evDescription').value.trim(),
     clientId:document.getElementById('evClientId').value||null,
-    color:_evPickedColor||CAL_PALETTE[0]
+    color:_evPickedColor||CAL_PALETTE[0],
+    recurrence:getEventRecurFromForm()
   };
   const events=ensureAgendaState().events;
   if(_editingEventId){

@@ -113,10 +113,33 @@ Elk start met `_clearCalTooltipData()` om de tooltip-Map te resetten.
 - Window: vandaag tot +14 dagen
 - Cache wordt gedeeld met agenda module → instant data zodra een van beide eerder is geladen
 
+## Native events (rawState.agenda.events[])
+
+Lokaal aangemaakte/bewerkte afspraken — los van iCal-feeds, gesyncd via Gist.
+
+**Shape**:
+```js
+{ id, title, allDay, start, end,    // start/end: 'YYYY-MM-DDTHH:MM' of 'YYYY-MM-DD'
+  location, description, color, clientId,
+  recurrence: null | {              // optioneel
+    freq: 'DAILY'|'WEEKLY'|'MONTHLY'|'YEARLY',
+    interval: 1,                    // elke N units
+    until?: 'YYYY-MM-DD',           // optionele einddatum
+    count?: number                  // alternatief: stoppen na N keer
+  },
+  createdAt, updatedAt }
+```
+
+**Render-pad**: `getNativeEventsInRange(timeMin, timeMax)` (regel ~10293) doet ofwel een single-event window check, ofwel expandeert recurring events naar individuele occurrences — vergelijkbaar met `expandEvents` voor iCal maar simpeler omdat we geen RECURRENCE-ID overrides hebben (single-user).
+
+**Edit-semantiek**: bewerken van een herhalende afspraak wijzigt de **hele serie**. Per-instance overrides (zoals iCal RECURRENCE-ID) zijn niet ondersteund voor v1 — feature voor later als Frank dat nodig heeft.
+
+**Geen BYDAY/BYMONTHDAY**: maandelijks = "elke X maand op dezelfde dag-van-de-maand" via `setMonth(getMonth()+interval)`. Voor "elke 2e dinsdag" is BYDAY+BYSETPOS nodig — niet geïmplementeerd.
+
 ## Bekende beperkingen / verbeterpunten
 
 - **Maandweergave**: bij erg drukke dagen (>10 events) wordt het krap — adaptive pill-grootte heeft limieten.
-- **Recurrence editing**: alleen lezen, niet bewerken.
+- **iCal-recurrence editing**: alleen lezen vanuit feeds, niet bewerken.
+- **Native recurrence per-instance edit**: niet ondersteund (hele serie wijzigt).
 - **Drag-drop voor herplannen**: niet geïmplementeerd.
-- **Native event creation**: state bestaat (`rawState.agenda.events[]`), UI gedeeltelijk.
 - **TZID handling in parser**: huidige `parseICSDate` ignoreert TZID en gebruikt naive local time. Werkt voor de meeste cases, maar DST-overgangen kunnen 1-uur drift geven (overrides aligned met masters via dezelfde drift, dus geen duplicate-issues).
