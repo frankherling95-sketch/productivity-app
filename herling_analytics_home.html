@@ -5319,6 +5319,38 @@ const LS_TOKEN_KEY='bi_checklist_gh_token';
 const LS_GIST_KEY='bi_checklist_gist_id_kanban';
 const LS_BACKUP_KEY='herling_analytics_local_backup';
 const CORS_PROXY='https://corsproxy.io/?';
+/* Fallback proxies — corsproxy.io heeft een ~1MB limiet (HTTP 413 op
+   grote enterprise iCal-feeds), allorigins handelt veel grotere payloads.
+   Volgorde = volgorde van probeer-en. */
+const ICAL_PROXIES=[
+  url=>'https://corsproxy.io/?'+encodeURIComponent(url),
+  url=>'https://api.allorigins.win/raw?url='+encodeURIComponent(url),
+];
+/* Centrale iCal-fetcher: probeert elke proxy tot er valide iCal-data
+   uitkomt. Geeft de meest informatieve error terug bij volledige fail. */
+async function fetchICalText(url,sourceName='iCal'){
+  let lastError=null;
+  for(let i=0;i<ICAL_PROXIES.length;i++){
+    const proxyUrl=ICAL_PROXIES[i](url);
+    try{
+      const resp=await fetch(proxyUrl,{cache:'no-store'});
+      if(!resp.ok){
+        /* 413 = payload too large bij corsproxy.io; ga door naar fallback */
+        lastError=new Error(`${sourceName}: HTTP ${resp.status}${resp.status===413?' (te groot voor proxy, fallback geprobeerd)':''}`);
+        continue;
+      }
+      const text=await resp.text();
+      if(!text.includes('BEGIN:VCALENDAR')){
+        lastError=new Error(`${sourceName}: geen geldige iCal-data via proxy ${i+1}`);
+        continue;
+      }
+      return text;
+    }catch(e){
+      lastError=e instanceof Error?e:new Error(String(e));
+    }
+  }
+  throw lastError||new Error(`${sourceName}: alle proxies faalden`);
+}
 
 const CLIENT_COLORS=[
   {bg:'#ffd6cc',tx:'#7a2b15'},{bg:'#cce5ff',tx:'#0c4a7c'},
@@ -10129,10 +10161,7 @@ function nativeToCommonFormat(ev){
 }
 async function fetchSourceEvents(source,timeMin,timeMax){
   if(source.type==='ical'){
-    const resp=await fetch(CORS_PROXY+encodeURIComponent(source.url),{cache:'no-store'});
-    if(!resp.ok)throw new Error(`${source.name}: HTTP ${resp.status}`);
-    const text=await resp.text();
-    if(!text.includes('BEGIN:VCALENDAR'))throw new Error(`${source.name}: geen geldige iCal-data`);
+    const text=await fetchICalText(source.url,source.name);
     const tMin=new Date(timeMin),tMax=new Date(timeMax);
     const parsed=parseICS(text);const expanded=expandEvents(parsed,tMin,tMax);
     const color=source.color||'#3b5bdb';
@@ -10946,10 +10975,7 @@ async function fetchDashIcalCal(body){
     const allEvents=[];
     await Promise.all(sources.map(async s=>{
       try{
-        const resp=await fetch(CORS_PROXY+encodeURIComponent(s.url),{cache:'no-store'});
-        if(!resp.ok)return;
-        const text=await resp.text();
-        if(!text.includes('BEGIN:VCALENDAR'))return;
+        const text=await fetchICalText(s.url,s.name);
         const parsed=parseICS(text);const expanded=expandEvents(parsed,today,windowEnd);
         expanded.forEach(ev=>allEvents.push({_ical:true,summary:ev.title,location:ev.location,_calColor:s.color||'var(--accent)',_calName:s.name,
           start:{dateTime:ev.occStart.allDay?null:ev.occStart.date.toISOString(),date:ev.occStart.allDay?dateStr(ev.occStart.date):null},
