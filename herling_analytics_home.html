@@ -1248,8 +1248,123 @@ textarea { line-height: 1.6; resize: vertical; }
   font-weight: 600;
   transition: var(--transition-fast);
   cursor: pointer;
+  /* Strakker layout binnen smal block: tijd in mono boven, titel daaronder */
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow: hidden;
+  min-height: 0;
 }
-.cal-ev-block:hover { filter: brightness(0.97); transform: translateY(-0.5px); }
+.cal-ev-block:hover {
+  filter: brightness(0.97);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(15,27,61,.12);
+  z-index: 5;
+}
+.cal-ev-block .cal-ev-time {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  opacity: 0.85;
+  flex-shrink: 0;
+}
+.cal-ev-block .cal-ev-title {
+  font-family: var(--font-display);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+/* Voor erg korte blocks (≤30min): titel + tijd inline om ruimte te besparen */
+.cal-ev-block.cal-ev-short { flex-direction: row; align-items: baseline; gap: 6px; }
+.cal-ev-block.cal-ev-short .cal-ev-time { opacity: 0.7; }
+.cal-ev-block.cal-ev-short .cal-ev-title { flex: 1; min-width: 0; }
+
+/* All-day event verbetering — iets meer presence */
+.cal-allday-ev {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  border-radius: 4px !important;
+  padding: 2px 8px !important;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+.cal-allday-ev:hover { filter: brightness(0.95); transform: translateY(-0.5px); }
+
+/* ── Custom hover tooltip — vervangt native title attribuut ────────────── */
+.cal-ev-tooltip {
+  position: fixed;
+  z-index: 9000;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-modal);
+  padding: 12px 14px;
+  min-width: 220px;
+  max-width: 340px;
+  pointer-events: none;
+  font-family: var(--font-body);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.15s var(--ease), transform 0.15s var(--ease);
+}
+.cal-ev-tooltip.is-open { opacity: 1; transform: translateY(0); }
+.cal-ev-tooltip .tt-source {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-hint);
+  margin-bottom: 8px;
+}
+.cal-ev-tooltip .tt-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  display: inline-block;
+}
+.cal-ev-tooltip .tt-title {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--text);
+  margin-bottom: 8px;
+  word-break: break-word;
+}
+.cal-ev-tooltip .tt-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 2px 0;
+}
+.cal-ev-tooltip .tt-row .tt-icon {
+  width: 14px;
+  flex-shrink: 0;
+  color: var(--text-hint);
+}
+.cal-ev-tooltip .tt-time {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  font-weight: 500;
+}
+.cal-ev-tooltip .tt-duration {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-hint);
+  margin-left: 4px;
+}
 
 .cal-month-cell {
   background: var(--surface) !important;
@@ -10596,6 +10711,7 @@ function updateIcalRefreshLabel(){
 
 /* ─ Day grid render ─ */
 function renderDayGrid(events,day,container){
+  _clearCalTooltipData();
   const today=new Date();today.setHours(0,0,0,0);
   const isToday=day.getTime()===today.getTime();
   const hours=Array.from({length:HOUR_END-HOUR_START},(_,i)=>HOUR_START+i);
@@ -10612,7 +10728,7 @@ function renderDayGrid(events,day,container){
   html+=`<div class="cal-allday-row" style="grid-template-columns:48px 1fr">
     <div class="cal-allday-label">Hele dag</div>
     <div class="cal-allday-cell">`;
-  allDay.forEach(ev=>html+=`<div class="cal-allday-ev" style="background:${ev._calColor}">${escapeHtml(ev.summary||'(geen titel)')}</div>`);
+  allDay.forEach(ev=>{const ttId=_registerCalTooltip(ev);html+=`<div class="cal-allday-ev" data-tt="${ttId}" style="background:${ev._calColor}" aria-label="${escapeHtml(ev.summary||'')} (hele dag)">${escapeHtml(ev.summary||'(geen titel)')}</div>`;});
   html+=`</div></div>`;
   html+=`<div class="cal-grid-scroll"><div class="cal-grid-inner" style="grid-template-columns:48px 1fr">`;
   html+=`<div class="cal-time-col">`;
@@ -10629,6 +10745,7 @@ function renderDayGrid(events,day,container){
 /* ─ Month grid render ─ */
 const DAY_NAMES_MONTH=['MA','DI','WO','DO','VR','ZA','ZO'];
 function renderMonthGrid(events,monthStart,container){
+  _clearCalTooltipData();
   const today=new Date();today.setHours(0,0,0,0);
   /* Build grid (Mon-aligned) */
   const gridStart=new Date(monthStart);const dow=gridStart.getDay();
@@ -10667,7 +10784,7 @@ function renderMonthGrid(events,monthStart,container){
         const showTime=!compact&&ev.start?.dateTime;
         const timeStr=showTime?new Date(ev.start.dateTime).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'})+' ':'';
         const title=escapeHtml(ev.summary||'(geen titel)');
-        html+=`<div class="cal-month-ev-pill" style="background:${ev._calColor};${pillStyle}" title="${escapeHtml(ev.summary||'')}">${timeStr}${title}</div>`;
+        const ttId=_registerCalTooltip(ev);html+=`<div class="cal-month-ev-pill" data-tt="${ttId}" style="background:${ev._calColor};${pillStyle}" aria-label="${escapeHtml(ev.summary||'')}">${timeStr}${title}</div>`;
       });
       html+=`</div>`;
     });
@@ -10712,18 +10829,131 @@ function layoutTimedEvents(dayEvs){
   });
   return items;
 }
+/* Globale lookup voor tooltip-data — gevuld bij render, gebruikt bij hover */
+const _calTooltipData=new Map();
+function _registerCalTooltip(ev){
+  const id='ev_'+(_calTooltipData.size+1);
+  _calTooltipData.set(id,ev);
+  return id;
+}
+function _clearCalTooltipData(){_calTooltipData.clear();}
+
 function evBlockHtml(item){
   const{ev,top,height,timeStr,col,totalCols}=item;
   const colW=100/totalCols;
   const leftPct=col*colW;const rightPct=100-leftPct-colW;
   const editable=ev._native&&ev._nativeId;
   const dataAttr=editable?` data-action="openEventModalEdit" data-arg1="${ev._nativeId}"`:'';
-  return`<div class="cal-ev-block${editable?' cal-ev-editable':''}"
-    style="top:${top}px;height:${height}px;left:calc(${leftPct}% + 2px);right:calc(${rightPct}% + 1px);background:${ev._calColor}22;border-left-color:${ev._calColor};color:var(--text)"
-    title="${escapeHtml(ev.summary||'')} — ${timeStr}${editable?' (klik om te bewerken)':''}"${dataAttr}>
-    <div style="font-weight:600;font-size:10px">${timeStr}</div>
-    <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(ev.summary||'(geen titel)')}</div>
+  const tooltipId=_registerCalTooltip(ev);
+  /* Block <= 26px: korte variant (tijd + titel inline) */
+  const isShort=height<=26;
+  const shortClass=isShort?' cal-ev-short':'';
+  return`<div class="cal-ev-block${editable?' cal-ev-editable':''}${shortClass}" data-tt="${tooltipId}"
+    style="top:${top}px;height:${height}px;left:calc(${leftPct}% + 2px);right:calc(${rightPct}% + 1px);background:${ev._calColor}22;border-left-color:${ev._calColor};color:var(--text)"${dataAttr}
+    aria-label="${escapeHtml(ev.summary||'')} — ${timeStr}">
+    <div class="cal-ev-time">${timeStr}</div>
+    <div class="cal-ev-title">${escapeHtml(ev.summary||'(geen titel)')}</div>
   </div>`;
+}
+
+/* ── Custom tooltip systeem ────────────────────────────────────────────
+   Listent op delegated mouseover/mouseout voor alle .cal-ev-block en
+   .cal-allday-ev elementen. Toont een rich popover met titel, tijd,
+   duur, locatie en bron. Hover-delay van 220ms voorkomt flikkeren bij
+   snel langs events bewegen. */
+let _calTooltipEl=null;
+let _calTooltipTimer=null;
+function _ensureCalTooltipEl(){
+  if(_calTooltipEl)return _calTooltipEl;
+  const el=document.createElement('div');
+  el.className='cal-ev-tooltip';
+  el.setAttribute('role','tooltip');
+  document.body.appendChild(el);
+  _calTooltipEl=el;
+  return el;
+}
+function _formatEvTime(ev){
+  const isAllDay=!!(ev.start?.date)&&!ev.start?.dateTime;
+  if(isAllDay){
+    const dStr=ev.start.date;
+    const d=new Date(dStr);
+    return{timeLine:'Hele dag · '+d.toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long'}),durationStr:''};
+  }
+  const s=new Date(ev.start.dateTime);
+  const e=ev.end?.dateTime?new Date(ev.end.dateTime):null;
+  const dateStr=s.toLocaleDateString('nl-NL',{weekday:'short',day:'numeric',month:'short'});
+  const startStr=s.toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});
+  const endStr=e?e.toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'}):'';
+  let durationStr='';
+  if(e){
+    const min=Math.round((e-s)/60000);
+    if(min<60)durationStr=`${min} min`;
+    else if(min%60===0)durationStr=`${min/60} uur`;
+    else durationStr=`${Math.floor(min/60)}u ${min%60}m`;
+  }
+  return{timeLine:`${dateStr} · ${startStr}${endStr?' — '+endStr:''}`,durationStr};
+}
+function _buildCalTooltipHtml(ev){
+  const{timeLine,durationStr}=_formatEvTime(ev);
+  const calName=ev._calName||'';
+  const calColor=ev._calColor||'var(--accent)';
+  const title=ev.summary||'(geen titel)';
+  const loc=ev.location||'';
+  const editable=ev._native&&ev._nativeId;
+  return`
+    ${calName?`<div class="tt-source"><span class="tt-dot" style="background:${calColor}"></span>${escapeHtml(calName)}</div>`:''}
+    <div class="tt-title">${escapeHtml(title)}</div>
+    <div class="tt-row">
+      <span class="tt-icon">⏰</span>
+      <span class="tt-time">${escapeHtml(timeLine)}</span>
+      ${durationStr?`<span class="tt-duration">${durationStr}</span>`:''}
+    </div>
+    ${loc?`<div class="tt-row"><span class="tt-icon">📍</span><span>${escapeHtml(loc)}</span></div>`:''}
+    ${editable?`<div class="tt-row" style="margin-top:4px;font-size:11px;color:var(--text-hint)"><span class="tt-icon">✎</span><span>Klik om te bewerken</span></div>`:''}
+  `;
+}
+function _showCalTooltipNow(blockEl,ev){
+  const t=_ensureCalTooltipEl();
+  t.innerHTML=_buildCalTooltipHtml(ev);
+  /* Position right of block; flip to left if it would overflow viewport */
+  const rect=blockEl.getBoundingClientRect();
+  const margin=8;
+  /* Force-render to measure */
+  t.style.left='-9999px';t.style.top='0px';t.classList.add('is-open');
+  const ttW=t.offsetWidth,ttH=t.offsetHeight;
+  let left=rect.right+margin;
+  if(left+ttW>window.innerWidth-margin)left=Math.max(margin,rect.left-ttW-margin);
+  let top=rect.top;
+  if(top+ttH>window.innerHeight-margin)top=Math.max(margin,window.innerHeight-ttH-margin);
+  t.style.left=left+'px';
+  t.style.top=top+'px';
+}
+function _hideCalTooltip(){
+  clearTimeout(_calTooltipTimer);
+  if(_calTooltipEl)_calTooltipEl.classList.remove('is-open');
+}
+function _onCalEvMouseOver(e){
+  const blockEl=e.target.closest('[data-tt]');
+  if(!blockEl)return;
+  const id=blockEl.getAttribute('data-tt');
+  const ev=_calTooltipData.get(id);
+  if(!ev)return;
+  clearTimeout(_calTooltipTimer);
+  _calTooltipTimer=setTimeout(()=>_showCalTooltipNow(blockEl,ev),220);
+}
+function _onCalEvMouseOut(e){
+  const blockEl=e.target.closest('[data-tt]');
+  if(!blockEl)return;
+  /* If moving to another event, _onCalEvMouseOver fires after this — so just always hide */
+  _hideCalTooltip();
+}
+/* Delegated listeners — installed once */
+if(!window._calTooltipBound){
+  document.addEventListener('mouseover',_onCalEvMouseOver);
+  document.addEventListener('mouseout',_onCalEvMouseOut);
+  document.addEventListener('scroll',_hideCalTooltip,true);
+  window.addEventListener('blur',_hideCalTooltip);
+  window._calTooltipBound=true;
 }
 
 /* ═══════════════════════════════════════════════════
@@ -10971,6 +11201,7 @@ const DAY_NAMES_SHORT=['MA','DI','WO','DO','VR','ZA','ZO'];
 const HOUR_START=7,HOUR_END=20,PX_PER_HOUR=60;
 
 function renderWeekGrid(events,weekStart,container){
+  _clearCalTooltipData();
   const today=new Date();today.setHours(0,0,0,0);
   const days=Array.from({length:7},(_,i)=>{const d=new Date(weekStart);d.setDate(weekStart.getDate()+i);return d;});
   const hours=Array.from({length:HOUR_END-HOUR_START},(_,i)=>HOUR_START+i);
