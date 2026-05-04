@@ -10210,17 +10210,97 @@ function nativeToCommonFormat(ev){
   }
   return out;
 }
-async function fetchSourceEvents(source,timeMin,timeMax){
-  if(source.type==='ical'){
-    const text=await fetchICalText(source.url,source.name);
-    const tMin=new Date(timeMin),tMax=new Date(timeMax);
-    const parsed=parseICS(text);const expanded=expandEvents(parsed,tMin,tMax);
-    const color=source.color||'#3b5bdb';
-    return expanded.map(ev=>({_ical:true,summary:ev.title,location:ev.location,_calColor:color,_calName:source.name,
-      start:{dateTime:ev.occStart.allDay?null:ev.occStart.date.toISOString(),date:ev.occStart.allDay?dateStr(ev.occStart.date):null},
-      end:{dateTime:ev.occEnd?.allDay?null:ev.occEnd?.date?.toISOString()||null,date:ev.occEnd?.allDay?dateStr(ev.occEnd.date):null}}));
+/* ─── iCal event cache ──────────────────────────────────────────────────────
+   Strategie:
+   - We bewaren altijd events voor een vast 5-maands window (-2mo / +3mo)
+   - Ge-cachte events in localStorage; key = source URL
+   - Stale-while-revalidate:
+       fresh (<10 min): direct uit cache, geen netwerk
+       stale          : direct uit cache + background refresh + auto re-render
+       no cache       : netwerkfetch en wachten
+   - Filter cached events naar de gevraagde view-range bij elke call */
+const ICAL_WINDOW_MONTHS_BACK=2;
+const ICAL_WINDOW_MONTHS_FWD=3;
+const ICAL_FRESH_TTL_MS=10*60*1000;
+const LS_ICAL_EVENT_CACHE='herling_ical_event_cache';
+
+function getICalWindow(){
+  /* Strikt 5-maands venster: 2mo terug + 3mo vooruit vanaf vandaag */
+  const now=new Date();
+  const from=new Date(now.getFullYear(),now.getMonth()-ICAL_WINDOW_MONTHS_BACK,now.getDate(),0,0,0);
+  const to=new Date(now.getFullYear(),now.getMonth()+ICAL_WINDOW_MONTHS_FWD,now.getDate(),23,59,59);
+  return{from,to};
+}
+function _loadEventCache(){
+  try{return JSON.parse(localStorage.getItem(LS_ICAL_EVENT_CACHE)||'{}');}catch(e){return{};}
+}
+function _saveEventCacheEntry(url,events){
+  try{
+    const cache=_loadEventCache();
+    cache[url]={events,fetchedAt:Date.now()};
+    localStorage.setItem(LS_ICAL_EVENT_CACHE,JSON.stringify(cache));
+  }catch(e){
+    /* Quota exceeded — drop oudste entries en probeer opnieuw */
+    try{
+      const cache=_loadEventCache();
+      const keys=Object.keys(cache).sort((a,b)=>(cache[a].fetchedAt||0)-(cache[b].fetchedAt||0));
+      while(keys.length>0&&JSON.stringify(cache).length>3_000_000){delete cache[keys.shift()];}
+      cache[url]={events,fetchedAt:Date.now()};
+      localStorage.setItem(LS_ICAL_EVENT_CACHE,JSON.stringify(cache));
+    }catch(e2){console.warn('[iCal] cache save failed:',e2.message);}
   }
-  return[];
+}
+function _getCachedEntry(url){return _loadEventCache()[url]||null;}
+
+function _filterEventsByRange(events,fromDate,toDate){
+  const fromMs=fromDate.getTime(),toMs=toDate.getTime();
+  return events.filter(ev=>{
+    const startStr=ev.start?.dateTime||ev.start?.date;
+    if(!startStr)return false;
+    const startMs=new Date(startStr).getTime();
+    const endStr=ev.end?.dateTime||ev.end?.date;
+    const endMs=endStr?new Date(endStr).getTime():startMs;
+    return startMs<=toMs&&endMs>=fromMs;
+  });
+}
+
+async function _refreshSourceEvents(source){
+  const text=await fetchICalText(source.url,source.name);
+  const win=getICalWindow();
+  const parsed=parseICS(text);
+  const expanded=expandEvents(parsed,win.from,win.to);
+  const color=source.color||'#3b5bdb';
+  const events=expanded.map(ev=>({_ical:true,summary:ev.title,location:ev.location,_calColor:color,_calName:source.name,
+    start:{dateTime:ev.occStart.allDay?null:ev.occStart.date.toISOString(),date:ev.occStart.allDay?dateStr(ev.occStart.date):null},
+    end:{dateTime:ev.occEnd?.allDay?null:ev.occEnd?.date?.toISOString()||null,date:ev.occEnd?.allDay?dateStr(ev.occEnd.date):null}}));
+  _saveEventCacheEntry(source.url,events);
+  return events;
+}
+
+async function fetchSourceEvents(source,timeMin,timeMax){
+  if(source.type!=='ical')return[];
+  const tMin=new Date(timeMin),tMax=new Date(timeMax);
+  const cached=_getCachedEntry(source.url);
+  const isFresh=cached&&(Date.now()-cached.fetchedAt<ICAL_FRESH_TTL_MS);
+  /* Hot path: fresh cache → direct */
+  if(cached&&isFresh){
+    return _filterEventsByRange(cached.events,tMin,tMax);
+  }
+  /* Stale path: serve cached now, refresh in background, re-render when klaar */
+  if(cached){
+    _refreshSourceEvents(source).then(()=>{
+      if(typeof activeModule!=='undefined'&&activeModule==='agenda'&&typeof fetchAndRenderView==='function'){
+        fetchAndRenderView();
+      }
+      if(typeof activeModule!=='undefined'&&activeModule==='dashboard'&&typeof renderDashCal==='function'){
+        renderDashCal();
+      }
+    }).catch(()=>{/* error al gelogd in fetchICalText */});
+    return _filterEventsByRange(cached.events,tMin,tMax);
+  }
+  /* Cold path: niet eerder gefetched → wachten op eerste fetch */
+  const events=await _refreshSourceEvents(source);
+  return _filterEventsByRange(events,tMin,tMax);
 }
 
 function renderAgendaPlaceholder(){
@@ -11023,14 +11103,14 @@ async function fetchDashIcalCal(body){
     const sources=(rawState.settings?.calSources||[]).filter(s=>s.type==='ical'&&s.enabled!==false&&s.url);
     const now=new Date();const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
     const windowEnd=new Date(today.getTime()+14*86400000);
+    /* Gebruik de centrale fetchSourceEvents — die deelt de 5-maands cache
+       met de agenda module, dus het dashboard krijgt instant data zodra
+       de gebruiker de agenda eerder heeft geopend (en vice versa). */
     const allEvents=[];
     await Promise.all(sources.map(async s=>{
       try{
-        const text=await fetchICalText(s.url,s.name);
-        const parsed=parseICS(text);const expanded=expandEvents(parsed,today,windowEnd);
-        expanded.forEach(ev=>allEvents.push({_ical:true,summary:ev.title,location:ev.location,_calColor:s.color||'var(--accent)',_calName:s.name,
-          start:{dateTime:ev.occStart.allDay?null:ev.occStart.date.toISOString(),date:ev.occStart.allDay?dateStr(ev.occStart.date):null},
-          end:{dateTime:ev.occEnd?.allDay?null:ev.occEnd?.date?.toISOString()||null}}));
+        const evs=await fetchSourceEvents(s,today.toISOString(),windowEnd.toISOString());
+        allEvents.push(...evs);
       }catch(e){}
     }));
     allEvents.sort((a,b)=>{const at=a.start?.dateTime||a.start?.date||'';const bt=b.start?.dateTime||b.start?.date||'';return at<bt?-1:at>bt?1:0;});
