@@ -5471,6 +5471,14 @@ const LS_TOKEN_KEY='bi_checklist_gh_token';
 const LS_GIST_KEY='bi_checklist_gist_id_kanban';
 const LS_BACKUP_KEY='herling_analytics_local_backup';
 const CORS_PROXY='https://corsproxy.io/?';
+/* Pre-normaliseer iCal-URLs: sommige users plakken URLs met %40 al
+   geëncodeerd (bv. uit Google Calendar settings). Onze encodeURIComponent
+   maakt daar dan %2540 van — proxies decoderen 1× → upstream ziet %40
+   letterlijk in de path en geeft 404. decodeURIComponent normalizeert. */
+function _normalizeIcalUrl(url){
+  try{return decodeURIComponent(url);}catch(e){return url;}
+}
+
 /* Fallback proxies — verschillende limieten en blokkeringspatronen.
    Outlook 365 calendars worden door sommige proxies geblokkeerd of
    rate-limited; daarom een keten van 4 onafhankelijke services.
@@ -5478,21 +5486,39 @@ const CORS_PROXY='https://corsproxy.io/?';
 const ICAL_PROXIES=[
   /* corsproxy.io: snelst, maar ~1MB limiet (HTTP 413 op grote feeds) */
   { name:'corsproxy.io',
-    build: url=>'https://corsproxy.io/?'+encodeURIComponent(url),
+    build: url=>'https://corsproxy.io/?'+encodeURIComponent(_normalizeIcalUrl(url)),
     parse: async resp=>resp.text() },
   /* allorigins.win/raw: handelt grote payloads, soms geblokkeerd door MS */
   { name:'allorigins.win/raw',
-    build: url=>'https://api.allorigins.win/raw?url='+encodeURIComponent(url),
+    build: url=>'https://api.allorigins.win/raw?url='+encodeURIComponent(_normalizeIcalUrl(url)),
     parse: async resp=>resp.text() },
   /* allorigins.win/get: zelfde service maar JSON-wrapped — werkt soms wanneer /raw faalt */
   { name:'allorigins.win/get',
-    build: url=>'https://api.allorigins.win/get?url='+encodeURIComponent(url),
+    build: url=>'https://api.allorigins.win/get?url='+encodeURIComponent(_normalizeIcalUrl(url)),
     parse: async resp=>{ const j=await resp.json(); return j.contents||''; } },
   /* codetabs: alternatief, andere infra dan allorigins */
   { name:'codetabs.com',
-    build: url=>'https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(url),
+    build: url=>'https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(_normalizeIcalUrl(url)),
     parse: async resp=>resp.text() },
 ];
+
+/* Detecteert of een non-iCal response een upstream HTML-foutpagina is
+   en haalt daar de HTTP status / titel uit, zodat de gebruiker een
+   begrijpelijke fout ziet ("Error 404 (Not Found)") ipv een vage
+   "geen iCal-data" melding. */
+function _detectUpstreamError(text){
+  if(!text)return null;
+  /* Google's robot-page: "Error 404 (Not Found)!!1" */
+  const tm=text.match(/<title>([^<]{1,120})<\/title>/i);
+  if(tm){
+    const cleaned=tm[1].replace(/!!\d+\s*$/,'').trim();
+    if(/error|not found|forbidden|unauthor|denied|signin|login/i.test(cleaned))return cleaned;
+  }
+  /* Sommige proxies wrappen 4xx in JSON met status; vang dat ook */
+  const sm=text.match(/HTTP[\/\s]+\d+\.?\d*\s+(\d{3})/);
+  if(sm)return`HTTP ${sm[1]} bij upstream`;
+  return null;
+}
 /* Proxy-cache per iCal URL: onthoud welke proxy het eerder deed,
    zodat volgende fetches direct via die proxy gaan ipv parallel-race. */
 const LS_PROXY_CACHE_KEY='herling_ical_proxy_cache';
@@ -5515,7 +5541,13 @@ async function _fetchViaProxy(proxy,url){
     const resp=await fetch(proxy.build(url),{cache:'no-store',signal:ctrl.signal});
     if(!resp.ok)throw new Error(`HTTP ${resp.status}`);
     const text=await proxy.parse(resp);
-    if(!text||!text.includes('BEGIN:VCALENDAR'))throw new Error('geen iCal-data');
+    if(!text||!text.includes('BEGIN:VCALENDAR')){
+      /* Bij HTML-foutpagina van Google/Outlook: surface de echte upstream error
+         zodat de user direct ziet wat er mis is (bv. "Error 404 (Not Found)"
+         ipv vage "geen iCal-data") */
+      const upstream=_detectUpstreamError(text);
+      throw new Error(upstream||'geen iCal-data');
+    }
     return{proxy,text};
   }finally{clearTimeout(tid);}
 }
