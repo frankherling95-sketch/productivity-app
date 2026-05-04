@@ -10337,7 +10337,11 @@ function nativeToCommonFormat(ev){
 const ICAL_WINDOW_MONTHS_BACK=2;
 const ICAL_WINDOW_MONTHS_FWD=3;
 const ICAL_FRESH_TTL_MS=10*60*1000;
-const LS_ICAL_EVENT_CACHE='herling_ical_event_cache';
+/* v2 = na fix voor RECURRENCE-ID overrides (master + override deduplicatie).
+   Oude cache key wordt eenmalig opgeruimd zodat user direct gededupliceerde
+   data ziet zonder te wachten op de 10-min stale-while-revalidate cyclus. */
+const LS_ICAL_EVENT_CACHE='herling_ical_event_cache_v2';
+try{localStorage.removeItem('herling_ical_event_cache');}catch(e){}
 
 function getICalWindow(){
   /* Strikt 5-maands venster: 2mo terug + 3mo vooruit vanaf vandaag */
@@ -11270,13 +11274,17 @@ function renderWeekGrid(events,weekStart,container){
   container.innerHTML=html;
 }
 
-/* ─ ICS parser (reused for iCal) ─ */
+/* ─ ICS parser (reused for iCal) ─
+   Begrijpt nu UID + RECURRENCE-ID + EXDATE zodat expandEvents
+   master/override paren correct kan dedupen (Outlook publishes
+   recurring events met overrides als losse VEVENTs met dezelfde UID
+   en een RECURRENCE-ID die de original-occurrence aanwijst). */
 function parseICS(text){
   const unfolded=text.replace(/\r\n([ \t])/g,'$1').replace(/\n([ \t])/g,'$1');
   const lines=unfolded.split(/\r\n|\n|\r/);
   const events=[];let cur=null;
   for(const line of lines){
-    if(line==='BEGIN:VEVENT'){cur={};}
+    if(line==='BEGIN:VEVENT'){cur={exdate:[]};}
     else if(line==='END:VEVENT'&&cur){events.push(cur);cur=null;}
     else if(cur){
       const ci=line.indexOf(':');if(ci<0)continue;
@@ -11287,6 +11295,9 @@ function parseICS(text){
       else if(key==='LOCATION')cur.location=val.replace(/\\n/g,' ').replace(/\\,/g,',');
       else if(key==='RRULE')cur.rrule=val;
       else if(key==='STATUS')cur.status=val;
+      else if(key==='UID')cur.uid=val;
+      else if(key==='RECURRENCE-ID')cur.recurrenceId=parseICSDate(val,params.TZID);
+      else if(key==='EXDATE'){val.split(',').forEach(v=>{const d=parseICSDate(v,params.TZID);if(d)cur.exdate.push(d);});}
       else cur[key]=val;
     }
   }
@@ -11300,21 +11311,60 @@ function parseICSDate(val,tzid){
   return{date:new Date(val),allDay:false};
 }
 function expandEvents(events,fromDate,toDate){
-  const result=[];
+  /* Stap 1: split events in masters (geen RECURRENCE-ID) en overrides
+     (een instance van een recurring event die afwijkt). Overrides worden
+     gegroepeerd per UID en geïndexeerd op de timestamp van de original
+     occurrence (RECURRENCE-ID), zodat we ze straks kunnen mappen
+     terwijl we de master-serie expanderen. */
+  const overridesByUid=new Map();
+  const masters=[];
   events.forEach(ev=>{
-    if(ev.status==='CANCELLED'||!ev.DTSTART)return;
+    if(!ev.DTSTART)return;
+    if(ev.recurrenceId&&ev.uid){
+      if(!overridesByUid.has(ev.uid))overridesByUid.set(ev.uid,new Map());
+      overridesByUid.get(ev.uid).set(ev.recurrenceId.date.getTime(),ev);
+    }else{
+      masters.push(ev);
+    }
+  });
+
+  const result=[];
+  /* Dedup-set: voorkomt dat dezelfde (UID,occurrence) twee keer pushed
+     wordt — defensief tegen pathologische iCal data. */
+  const seen=new Set();
+  const tryPush=(ev,occStart,occEnd)=>{
+    const key=(ev.uid||ev.title||'?')+'|'+(occStart?.date?occStart.date.getTime():0);
+    if(seen.has(key))return;
+    seen.add(key);
+    result.push({...ev,occStart,occEnd});
+  };
+
+  /* Stap 2: master-serie expanderen, met EXDATE en override-skips */
+  masters.forEach(ev=>{
+    if(ev.status==='CANCELLED')return;
     const start=ev.DTSTART.date;
     if(!ev.rrule){
       const evEnd=ev.DTEND?ev.DTEND.date:new Date(start.getTime()+86400000);
-      if(start<=toDate&&evEnd>=fromDate)result.push({...ev,occStart:ev.DTSTART,occEnd:ev.DTEND});
+      if(start<=toDate&&evEnd>=fromDate)tryPush(ev,ev.DTSTART,ev.DTEND);
       return;
     }
     const rr={};ev.rrule.split(';').forEach(p=>{const[k,v]=p.split('=');rr[k]=v;});
     const freq=rr.FREQ;const until=rr.UNTIL?parseICSDate(rr.UNTIL,null).date:toDate;
     const count=rr.COUNT?parseInt(rr.COUNT):9999;const interval=parseInt(rr.INTERVAL||'1');
+    const exdateSet=new Set((ev.exdate||[]).map(e=>e.date.getTime()));
+    const overridesForUid=ev.uid?(overridesByUid.get(ev.uid)||new Map()):new Map();
     let cur=new Date(start);let n=0;
     while(cur<=until&&cur<=toDate&&n<count){
-      if(cur>=fromDate){const diff=cur-start;const occEnd=ev.DTEND?{date:new Date(ev.DTEND.date.getTime()+diff),allDay:ev.DTEND.allDay}:null;result.push({...ev,occStart:{date:new Date(cur),allDay:ev.DTSTART.allDay},occEnd});}
+      const curMs=cur.getTime();
+      const isExcluded=exdateSet.has(curMs);
+      const hasOverride=overridesForUid.has(curMs);
+      /* Skip: deze occurrence is excluded OF wordt vervangen door een override.
+         Beide gevallen: master mag deze datum niet emitten — anders krijg je dubbele rendering. */
+      if(cur>=fromDate&&!isExcluded&&!hasOverride){
+        const diff=cur-start;
+        const occEnd=ev.DTEND?{date:new Date(ev.DTEND.date.getTime()+diff),allDay:ev.DTEND.allDay}:null;
+        tryPush(ev,{date:new Date(cur),allDay:ev.DTSTART.allDay},occEnd);
+      }
       if(freq==='DAILY')cur=new Date(cur.getTime()+interval*86400000);
       else if(freq==='WEEKLY')cur=new Date(cur.getTime()+interval*7*86400000);
       else if(freq==='MONTHLY'){const d=new Date(cur);d.setMonth(d.getMonth()+interval);cur=d;}
@@ -11323,6 +11373,20 @@ function expandEvents(events,fromDate,toDate){
       n++;
     }
   });
+
+  /* Stap 3: overrides apart toevoegen (tenzij gecanceld) — die hebben
+     de gewijzigde DTSTART/DTEND en summary, dus ze tonen op de juiste
+     plek met de juiste content. */
+  overridesByUid.forEach(overrideMap=>{
+    overrideMap.forEach(ovEv=>{
+      if(ovEv.status==='CANCELLED')return;
+      if(!ovEv.DTSTART)return;
+      const s=ovEv.DTSTART.date;
+      const e=ovEv.DTEND?ovEv.DTEND.date:new Date(s.getTime()+86400000);
+      if(s<=toDate&&e>=fromDate)tryPush(ovEv,ovEv.DTSTART,ovEv.DTEND);
+    });
+  });
+
   result.sort((a,b)=>a.occStart.date-b.occStart.date);return result;
 }
 
