@@ -5341,38 +5341,66 @@ const ICAL_PROXIES=[
     build: url=>'https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(url),
     parse: async resp=>resp.text() },
 ];
-/* Centrale iCal-fetcher: probeert elke proxy tot er valide iCal-data
-   uitkomt. Geeft een gedetailleerde error met ALLE proxy-uitkomsten
-   terug bij volledige fail, zodat duidelijk is wat er fout ging. */
+/* Proxy-cache per iCal URL: onthoud welke proxy het eerder deed,
+   zodat volgende fetches direct via die proxy gaan ipv parallel-race. */
+const LS_PROXY_CACHE_KEY='herling_ical_proxy_cache';
+function _getProxyCache(){
+  try{return JSON.parse(localStorage.getItem(LS_PROXY_CACHE_KEY)||'{}');}catch(e){return{};}
+}
+function _setCachedProxy(url,proxyName){
+  try{const c=_getProxyCache();c[url]=proxyName;localStorage.setItem(LS_PROXY_CACHE_KEY,JSON.stringify(c));}catch(e){}
+}
+function _clearCachedProxy(url){
+  try{const c=_getProxyCache();delete c[url];localStorage.setItem(LS_PROXY_CACHE_KEY,JSON.stringify(c));}catch(e){}
+}
+
+/* Single-proxy fetch met timeout. Succes → {proxy, text}. Fail → throws. */
+const PROXY_TIMEOUT_MS=12000;
+async function _fetchViaProxy(proxy,url){
+  const ctrl=new AbortController();
+  const tid=setTimeout(()=>ctrl.abort(),PROXY_TIMEOUT_MS);
+  try{
+    const resp=await fetch(proxy.build(url),{cache:'no-store',signal:ctrl.signal});
+    if(!resp.ok)throw new Error(`HTTP ${resp.status}`);
+    const text=await proxy.parse(resp);
+    if(!text||!text.includes('BEGIN:VCALENDAR'))throw new Error('geen iCal-data');
+    return{proxy,text};
+  }finally{clearTimeout(tid);}
+}
+
+/* Centrale iCal-fetcher:
+   1. Probeer eerst de gecachte proxy (snel pad: ~1-2s)
+   2. Bij cache miss/fail: parallel-race ALLE proxies (Promise.any),
+      eerste succesvolle wint en wordt gecached
+   3. Bij volledige fail: gedetailleerde error per proxy */
 async function fetchICalText(url,sourceName='iCal'){
-  const failures=[];
-  /* Per-proxy timeout: 12 seconden. Voorkomt dat één hangende proxy
-     de hele fetch blokkeert; we vallen door naar de volgende. */
-  const PROXY_TIMEOUT_MS=12000;
-  for(const proxy of ICAL_PROXIES){
-    const ctrl=new AbortController();
-    const tid=setTimeout(()=>ctrl.abort(),PROXY_TIMEOUT_MS);
+  const cachedName=_getProxyCache()[url];
+  const cachedProxy=cachedName?ICAL_PROXIES.find(p=>p.name===cachedName):null;
+
+  /* Stap 1 — known-good proxy first */
+  if(cachedProxy){
     try{
-      const resp=await fetch(proxy.build(url),{cache:'no-store',signal:ctrl.signal});
-      clearTimeout(tid);
-      if(!resp.ok){
-        failures.push(`${proxy.name}: HTTP ${resp.status}`);
-        continue;
-      }
-      const text=await proxy.parse(resp);
-      if(!text||!text.includes('BEGIN:VCALENDAR')){
-        failures.push(`${proxy.name}: geen iCal-data`);
-        continue;
-      }
-      console.info(`[iCal] ${sourceName} via ${proxy.name} (${(text.length/1024).toFixed(1)}KB)`);
+      const{proxy,text}=await _fetchViaProxy(cachedProxy,url);
+      console.info(`[iCal] ${sourceName} via ${proxy.name} (cached, ${(text.length/1024).toFixed(1)}KB)`);
       return text;
     }catch(e){
-      clearTimeout(tid);
-      const msg=e.name==='AbortError'?'timeout (>12s)':(e.message||'fout');
-      failures.push(`${proxy.name}: ${msg}`);
+      console.warn(`[iCal] cached ${cachedName} faalde voor ${sourceName} (${e.message}), nu parallel race`);
+      _clearCachedProxy(url);
     }
   }
-  throw new Error(`${sourceName}: alle ${ICAL_PROXIES.length} proxies faalden — ${failures.join(' | ')}`);
+
+  /* Stap 2 — parallel race over alle proxies */
+  const attempts=ICAL_PROXIES.map(p=>_fetchViaProxy(p,url));
+  try{
+    const{proxy,text}=await Promise.any(attempts);
+    _setCachedProxy(url,proxy.name);
+    console.info(`[iCal] ${sourceName} via ${proxy.name} (parallel, ${(text.length/1024).toFixed(1)}KB)`);
+    return text;
+  }catch(aggErr){
+    const errs=(aggErr&&aggErr.errors)||[];
+    const failures=ICAL_PROXIES.map((p,i)=>`${p.name}: ${errs[i]?.message||'fout'}`);
+    throw new Error(`${sourceName}: alle ${ICAL_PROXIES.length} proxies faalden — ${failures.join(' | ')}`);
+  }
 }
 
 const CLIENT_COLORS=[
