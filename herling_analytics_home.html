@@ -443,13 +443,35 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 /* ── Agenda (weekly calendar) module ── */
 .agenda-wrap{display:flex;flex-direction:column;flex:1;overflow:hidden}
 .agenda-hdr{
-  display:flex;align-items:center;gap:10px;
-  padding:12px 20px;border-bottom:0.5px solid var(--border);
+  display:flex;align-items:center;gap:8px;
+  padding:8px 16px;border-bottom:0.5px solid var(--border);
   background:var(--surface);flex-shrink:0;
 }
+.agenda-period-nav{display:flex;align-items:center;gap:4px}
 .week-nav-btn{background:transparent;border:0.5px solid var(--border-strong);border-radius:var(--radius);padding:5px 10px;font-size:12px;color:var(--text-muted);cursor:pointer;font-family:inherit;transition:background .15s}
 .week-nav-btn:hover{background:var(--surface2);color:var(--text)}
-.week-title{font-size:13px;font-weight:600;color:var(--text);min-width:180px;text-align:center}
+.week-title{font-size:13px;font-weight:600;color:var(--text);min-width:170px;text-align:center}
+
+/* Agenda overflow menu (… → Importeer / Beheren / sync info) */
+.agenda-overflow{position:relative}
+.agenda-overflow-menu{
+  display:none;position:absolute;top:calc(100% + 6px);right:0;
+  min-width:240px;background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-md);box-shadow:var(--shadow-popover);
+  padding:6px;z-index:200;animation:ha-fadeIn .14s ease-out;
+}
+.agenda-overflow.open .agenda-overflow-menu{display:block}
+.agenda-overflow-menu button{
+  display:block;width:100%;padding:9px 12px;background:transparent;border:0;
+  border-radius:6px;text-align:left;font-family:var(--font-body);font-size:13px;
+  color:var(--text);cursor:pointer;transition:background .12s;min-height:38px;
+}
+.agenda-overflow-menu button:hover{background:var(--surface2)}
+.agenda-overflow-sync{
+  padding:8px 12px 4px;font-size:10.5px;color:var(--text-hint);
+  text-transform:uppercase;letter-spacing:.05em;
+}
+.agenda-overflow-divider{height:1px;background:var(--border);margin:4px 0}
 .cal-grid-outer{flex:1;overflow:hidden;display:flex;flex-direction:column}
 .cal-allday-row{
   display:grid;grid-template-columns:48px repeat(7,1fr);
@@ -540,8 +562,8 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .cal-color-swatch{width:20px;height:20px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .12s}
 .cal-color-swatch.selected{border-color:var(--text);transform:scale(1.15)}
 /* Agenda source bar */
-.agenda-src-bar{display:flex;align-items:center;gap:6px;padding:6px 16px;border-bottom:0.5px solid var(--border);flex-wrap:wrap;background:var(--surface);flex-shrink:0}
-.src-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 11px 4px 8px;border-radius:100px;border:1.5px solid transparent;font-size:11px;font-weight:500;cursor:pointer;transition:all .15s;font-family:inherit;white-space:nowrap}
+.agenda-src-bar{display:flex;align-items:center;gap:5px;padding:4px 16px;border-bottom:0.5px solid var(--border);flex-wrap:wrap;background:var(--surface);flex-shrink:0}
+.src-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px 3px 7px;border-radius:100px;border:1.5px solid transparent;font-size:10.5px;font-weight:500;cursor:pointer;transition:all .15s;font-family:inherit;white-space:nowrap}
 .src-chip.on{color:#fff}
 .src-chip.off{opacity:.4;filter:grayscale(.3)}
 .src-chip-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;flex-shrink:0}
@@ -3492,14 +3514,16 @@ textarea { line-height: 1.6; resize: vertical; }
 
   /* ── AGENDA ── */
   .agenda-hdr {
-    padding: 8px 12px !important;
+    padding: 6px 10px !important;
     flex-wrap: wrap !important;
-    gap: 6px !important;
+    gap: 5px !important;
   }
-  .week-title { font-size: 13px !important; flex-basis: 100%; order: 99; }
+  .week-title { font-size: 13px !important; flex-basis: 100%; order: 99; min-width: 0 !important; }
   .view-switcher button,
   .week-nav-btn,
-  .today-btn { min-height: 40px; min-width: 40px; }
+  .today-btn,
+  #agendaOverflowBtn { min-height: 36px; min-width: 36px; }
+  .agenda-src-bar { padding: 3px 10px !important; gap: 4px !important; }
   /* Day-grid is naturally 1 column — perfect for mobile */
   .cal-day-hdr { font-size: 11px; padding: 8px 0 !important; }
   .cal-time-col { font-size: 10px; }
@@ -4585,32 +4609,40 @@ textarea { line-height: 1.6; resize: vertical; }
     <div id="mod-agenda" class="module">
       <div class="agenda-wrap">
         <div class="agenda-hdr">
-          <div style="font-size:16px;font-weight:600;margin-right:8px;flex-shrink:0">Agenda</div>
           <div class="view-switcher">
             <button class="view-btn" id="viewBtnDay" onclick="switchAgendaView('day')">Dag</button>
             <button class="view-btn active" id="viewBtnWeek" onclick="switchAgendaView('week')">Week</button>
             <button class="view-btn" id="viewBtnMonth" onclick="switchAgendaView('month')">Maand</button>
           </div>
-          <div style="display:flex;align-items:center;gap:4px;margin-left:10px">
-            <button class="week-nav-btn" onclick="changeAgendaPeriod(-1)">←</button>
+          <div class="agenda-period-nav">
+            <button class="week-nav-btn" onclick="changeAgendaPeriod(-1)" aria-label="Vorige periode">←</button>
             <button class="today-btn" onclick="goToToday()">Vandaag</button>
-            <button class="week-nav-btn" onclick="changeAgendaPeriod(1)">→</button>
+            <button class="week-nav-btn" onclick="changeAgendaPeriod(1)" aria-label="Volgende periode">→</button>
           </div>
-          <span class="week-title" id="agendaTitle" style="margin-left:10px">...</span>
+          <span class="week-title" id="agendaTitle">...</span>
           <div style="flex:1"></div>
-          <span id="icalRefreshLbl" style="font-size:10px;color:var(--text-hint)"></span>
           <div class="client-filter" id="agendaClientFilter"></div>
-          <button class="btn btn-sm" onclick="openIcsImport()" title="Importeer een .ics bestand">↓ Importeer</button>
-          <button class="btn btn-sm" id="agendaSettingsBtn" onclick="openCalSourcesModal()" title="Externe agenda's beheren">⚙</button>
+          <!-- Overflow menu: importeer / agenda's beheren / sync info -->
+          <div class="agenda-overflow" id="agendaOverflow">
+            <button class="btn btn-sm" id="agendaOverflowBtn" type="button" onclick="toggleAgendaOverflow(event)" aria-label="Meer opties" title="Meer opties">
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><circle cx="3" cy="8" r="1.4"/><circle cx="8" cy="8" r="1.4"/><circle cx="13" cy="8" r="1.4"/></svg>
+            </button>
+            <div class="agenda-overflow-menu" id="agendaOverflowMenu" role="menu">
+              <div class="agenda-overflow-sync" id="icalRefreshLbl">Nog niet gesynced</div>
+              <div class="agenda-overflow-divider"></div>
+              <button type="button" onclick="closeAgendaOverflow();openIcsImport()" role="menuitem">↓ .ics bestand importeren</button>
+              <button type="button" id="agendaSettingsBtn" onclick="closeAgendaOverflow();openCalSourcesModal()" role="menuitem">⚙ Externe agenda's beheren</button>
+            </div>
+          </div>
           <button class="btn btn-sm btn-primary" id="agendaConnectBtn" onclick="openEventModalNew()">+ Nieuwe afspraak</button>
         </div>
         <div id="agendaSourceBar" class="agenda-src-bar" style="display:none"></div>
         <div id="agendaContent" style="flex:1;overflow:hidden;display:flex;flex-direction:column">
           <div class="cal-placeholder">
             <div style="font-size:32px">📅</div>
-            <p>Koppel je Google Agenda om je afspraken in de weekweergave te zien.</p>
+            <p>Koppel je Outlook-agenda via iCal-link om je afspraken in deze weergave te zien.</p>
             <button class="btn btn-sm btn-primary" onclick="openCalSourcesModal()">+ Agenda koppelen</button>
-            <small>Koppel Google Agenda of Outlook via iCal</small>
+            <small>Outlook → Settings → Calendar → Shared calendars → Publish</small>
           </div>
         </div>
       </div>
@@ -10649,6 +10681,33 @@ document.addEventListener('click',e=>{
   const dd=document.getElementById('calAddDropdown');
   if(dd&&!dd.contains(e.target))dd.classList.remove('open');
 });
+
+/* Agenda topbar — overflow menu (… → Importeer / Beheren / sync info) */
+function toggleAgendaOverflow(e){
+  if(e)e.stopPropagation();
+  const root=document.getElementById('agendaOverflow');
+  if(!root)return;
+  const willOpen=!root.classList.contains('open');
+  root.classList.toggle('open');
+  const menu=document.getElementById('agendaOverflowMenu');
+  if(willOpen&&menu)requestAnimationFrame(()=>clampDropdownToViewport(menu));
+  else if(menu){menu.style.left='';menu.style.right='';}
+}
+function closeAgendaOverflow(){
+  const root=document.getElementById('agendaOverflow');
+  if(!root)return;
+  root.classList.remove('open');
+  const menu=document.getElementById('agendaOverflowMenu');
+  if(menu){menu.style.left='';menu.style.right='';}
+}
+document.addEventListener('click',e=>{
+  const root=document.getElementById('agendaOverflow');
+  if(root&&!root.contains(e.target))root.classList.remove('open');
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape')closeAgendaOverflow();
+});
+
 function closeCalSourcesModal(){document.getElementById('calSourcesModal').classList.remove('open');}
 const CAL_PALETTE=['#4285f4','#ea4335','#fbbc04','#34a853','#ff6d00','#46bdc6','#7986cb','#9c27b0','#0078d4','#e03131','#2f9e44','#f08c00'];
 function renderAgendaSourceBar(){
