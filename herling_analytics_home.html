@@ -448,6 +448,23 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
   background:var(--surface);flex-shrink:0;
 }
 .agenda-period-nav{display:flex;align-items:center;gap:4px}
+/* Alle topbar-knoppen op gelijke hoogte (28px) voor visueel evenwicht.
+   Geldt voor: view-btn, week-nav-btn, today-btn, ⋯ overflow, + Nieuwe afspraak */
+.agenda-hdr .view-btn,
+.agenda-hdr .week-nav-btn,
+.agenda-hdr .today-btn,
+.agenda-hdr .btn-sm,
+.agenda-hdr .client-filter-btn{
+  height:28px;
+  box-sizing:border-box;
+  padding-top:0;padding-bottom:0;
+  display:inline-flex;align-items:center;
+}
+.agenda-hdr .view-btn{padding:0 11px}
+.agenda-hdr .week-nav-btn{padding:0 10px}
+.agenda-hdr .today-btn{padding:0 11px}
+.agenda-hdr .btn-sm{padding:0 12px}
+.agenda-hdr .client-filter-btn{padding:0 10px}
 .week-nav-btn{background:transparent;border:0.5px solid var(--border-strong);border-radius:var(--radius);padding:5px 10px;font-size:12px;color:var(--text-muted);cursor:pointer;font-family:inherit;transition:background .15s}
 .week-nav-btn:hover{background:var(--surface2);color:var(--text)}
 .week-title{font-size:13px;font-weight:600;color:var(--text);min-width:170px;text-align:center}
@@ -562,11 +579,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .cal-color-swatch{width:20px;height:20px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .12s}
 .cal-color-swatch.selected{border-color:var(--text);transform:scale(1.15)}
 /* Agenda source bar */
-.agenda-src-bar{display:flex;align-items:center;gap:5px;padding:4px 16px;border-bottom:0.5px solid var(--border);flex-wrap:wrap;background:var(--surface);flex-shrink:0}
-.src-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px 3px 7px;border-radius:100px;border:1.5px solid transparent;font-size:10.5px;font-weight:500;cursor:pointer;transition:all .15s;font-family:inherit;white-space:nowrap}
-.src-chip.on{color:#fff}
-.src-chip.off{opacity:.4;filter:grayscale(.3)}
-.src-chip-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;flex-shrink:0}
+.agenda-src-bar{display:flex;align-items:center;gap:6px;padding:6px 16px;border-bottom:0.5px solid var(--border);flex-wrap:wrap;background:var(--surface);flex-shrink:0}
 /* Inline color palette inside source items */
 .csi-palette{display:flex;gap:5px;flex-wrap:wrap;padding:7px 0 3px;margin-top:4px;border-top:0.5px solid var(--border)}
 
@@ -1399,17 +1412,39 @@ textarea { line-height: 1.6; resize: vertical; }
 .cal-month-cell.other-month,
 .cal-month-cell[data-other="true"] { color: var(--text-hint); background: var(--bg) !important; }
 
+/* Source chips — uniform "klant blok" style.
+   Identieke vorm/grootte/border voor elke chip. De agenda-kleur zit
+   alleen in de gekleurde dot (.src-chip-dot), niet in de achtergrond,
+   zodat alle chips visueel even zwaar zijn. */
 .src-chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: 6px;
+  gap: 7px;
+  padding: 5px 11px;
+  height: 28px;
+  box-sizing: border-box;
+  border-radius: 8px;
   background: var(--surface2);
   color: var(--text);
   font-size: 11.5px;
   font-weight: 500;
   border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all .15s;
+  font-family: inherit;
+  white-space: nowrap;
+  line-height: 1;
+}
+.src-chip:hover { background: var(--surface3); border-color: var(--border-strong); }
+.src-chip.on  { /* enabled state — same as default */ }
+.src-chip.off { opacity: .42; }
+.src-chip.off .src-chip-dot { filter: grayscale(.6); }
+.src-chip-dot {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--accent);  /* fallback; JS sets via inline style */
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08);
 }
 .cal-loading {
   color: var(--text-hint);
@@ -10719,11 +10754,12 @@ function renderAgendaSourceBar(){
   bar.innerHTML=sources.map(s=>{
     const color=s.color||'#3b5bdb';
     const on=s.enabled!==false;
+    /* Symmetrische chips: identieke vorm/maat. Kleur zit alleen in de dot
+       zodat alle "klant blokken" visueel even zwaar zijn. */
     return `<button class="src-chip ${on?'on':'off'}"
-      style="border-color:${color};${on?'background:'+color:'color:'+color}"
       data-action="toggleCalSourceEnabled" data-arg1="${s.id}"
       title="${escapeHtml(s.name)} — klik om ${on?'te verbergen':'te tonen'}">
-      <span class="src-chip-dot" style="background:${on?'rgba(255,255,255,.65)':color}"></span>
+      <span class="src-chip-dot" style="background:${color}"></span>
       ${escapeHtml(s.name)}
     </button>`;
   }).join('');
