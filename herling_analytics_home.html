@@ -1615,6 +1615,16 @@ textarea { line-height: 1.6; resize: vertical; }
   animation: ha-fadeIn 0.14s ease-out;
 }
 .client-filter[data-open="true"] .client-filter-menu { display: block; }
+@media (max-width: 768px) {
+  /* Topbar dropdown menus: nooit breder dan viewport, JS klampt verder */
+  .client-filter-menu,
+  .ha-newitem-menu,
+  .dash-mobile-settings-menu,
+  .cal-add-menu {
+    max-width: calc(100vw - 16px);
+    min-width: min(220px, calc(100vw - 16px)) !important;
+  }
+}
 .client-filter-option {
   display: flex;
   align-items: center;
@@ -5693,6 +5703,38 @@ document.addEventListener('change',appDispatchChange);
 function uid(){return 'id_'+Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);}
 function ntuid(){return 'nt_'+Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-4);}
 function escapeHtml(s){return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+/* ─── Dropdown viewport clamping ────────────────────────────────────────────
+   Voor dropdown menus die met `position:absolute; right:0` of `left:0`
+   t.o.v. hun trigger button gepositioneerd zijn, kunnen op smalle schermen
+   (mobiel) over de viewport-rand vallen. Deze helper meet het menu na
+   openen en past left/right inline aan zodat het binnen [PAD, vw-PAD] valt.
+   Roep aan ná het zichtbaar maken (display:block) van het menu.
+   ──────────────────────────────────────────────────────────────────────── */
+function clampDropdownToViewport(menuEl,pad){
+  if(!menuEl)return;
+  pad=pad||8;
+  /* Reset eerdere inline overrides, anders meten we de aangepaste positie */
+  menuEl.style.left='';
+  menuEl.style.right='';
+  /* Force layout flush */
+  const r=menuEl.getBoundingClientRect();
+  if(!r.width)return; /* menu nog niet zichtbaar */
+  const vw=window.innerWidth;
+  const parent=menuEl.parentElement?.getBoundingClientRect();
+  if(!parent)return;
+  /* Overflow LINKS: menu rechtsedge in beeld houden, links pinnen op pad */
+  if(r.left<pad){
+    menuEl.style.left=(pad-parent.left)+'px';
+    menuEl.style.right='auto';
+    return;
+  }
+  /* Overflow RECHTS: rechts pinnen op vw-pad */
+  if(r.right>vw-pad){
+    menuEl.style.right=(parent.right-(vw-pad))+'px';
+    menuEl.style.left='auto';
+  }
+}
 function debounce(fn,ms){let t;return function(){clearTimeout(t);t=setTimeout(()=>fn.apply(this,arguments),ms);};}
 function buildFreshProject(){return{columns:DEFAULT_COLUMNS.map(c=>({...c,items:[]})),categories:[...DEFAULT_CATEGORIES],collapsedCats:{}};}
 function clientById(id){return kanbanState.clients.find(c=>c.id===id);}
@@ -6547,10 +6589,20 @@ document.getElementById('extToolsTrigger')?.addEventListener('keydown',e=>{
    button on phone-sized screens). */
 function toggleDashMobileSettings(e){
   if(e)e.stopPropagation();
-  document.getElementById('dashMobileSettings')?.classList.toggle('open');
+  const root=document.getElementById('dashMobileSettings');
+  if(!root)return;
+  const willOpen=!root.classList.contains('open');
+  root.classList.toggle('open');
+  const menu=root.querySelector('.dash-mobile-settings-menu');
+  if(willOpen&&menu)requestAnimationFrame(()=>clampDropdownToViewport(menu));
+  else if(menu){menu.style.left='';menu.style.right='';}
 }
 function closeDashMobileSettings(){
-  document.getElementById('dashMobileSettings')?.classList.remove('open');
+  const root=document.getElementById('dashMobileSettings');
+  if(!root)return;
+  root.classList.remove('open');
+  const menu=root.querySelector('.dash-mobile-settings-menu');
+  if(menu){menu.style.left='';menu.style.right='';}
 }
 document.addEventListener('click',e=>{
   const dd=document.getElementById('dashMobileSettings');
@@ -6817,7 +6869,12 @@ function renderOneClientFilter(host){
 }
 function wireClientFilter(host){
   const trigger=host.querySelector('[data-cf-trigger]');
-  const setOpen=on=>host.setAttribute('data-open',on?'true':'false');
+  const menu=host.querySelector('.client-filter-menu');
+  const setOpen=on=>{
+    host.setAttribute('data-open',on?'true':'false');
+    if(on&&menu)requestAnimationFrame(()=>clampDropdownToViewport(menu));
+    else if(menu){menu.style.left='';menu.style.right='';}
+  };
   trigger.addEventListener('click',e=>{
     e.stopPropagation();
     /* Close all other open filters first */
@@ -10573,10 +10630,20 @@ function openCalSourcesModal(){
 /* Dropdown for the "+ Agenda koppelen" button */
 function toggleCalAddDropdown(e){
   if(e)e.stopPropagation();
-  document.getElementById('calAddDropdown')?.classList.toggle('open');
+  const dd=document.getElementById('calAddDropdown');
+  if(!dd)return;
+  const willOpen=!dd.classList.contains('open');
+  dd.classList.toggle('open');
+  const menu=dd.querySelector('.cal-add-menu');
+  if(willOpen&&menu)requestAnimationFrame(()=>clampDropdownToViewport(menu));
+  else if(menu){menu.style.left='';menu.style.right='';}
 }
 function closeCalAddDropdown(){
-  document.getElementById('calAddDropdown')?.classList.remove('open');
+  const dd=document.getElementById('calAddDropdown');
+  if(!dd)return;
+  dd.classList.remove('open');
+  const menu=dd.querySelector('.cal-add-menu');
+  if(menu){menu.style.left='';menu.style.right='';}
 }
 document.addEventListener('click',e=>{
   const dd=document.getElementById('calAddDropdown');
@@ -12511,7 +12578,12 @@ function urenExport(fmt,filter){
   const root=document.querySelector('[data-ha-newitem]');
   if(!root)return;
   const trigger=root.querySelector('[data-ha-newitem-trigger]');
-  const setOpen=on=>root.setAttribute('data-open',on?'true':'false');
+  const menu=root.querySelector('.ha-newitem-menu');
+  const setOpen=on=>{
+    root.setAttribute('data-open',on?'true':'false');
+    if(on&&menu)requestAnimationFrame(()=>clampDropdownToViewport(menu));
+    else if(menu){menu.style.left='';menu.style.right='';}
+  };
   const toggle=()=>setOpen(root.getAttribute('data-open')!=='true');
 
   trigger.addEventListener('click',e=>{e.stopPropagation();toggle();});
