@@ -10465,7 +10465,6 @@ function renderAgendaModule(){
 /* ─ Unified multi-source fetch engine ─ */
 async function fetchAndRenderView(){
   const content=document.getElementById('agendaContent');if(!content)return;
-  content.innerHTML='<div class="cal-loading"><div class="spinner"></div><span>Agenda laden...</span></div>';
   let timeMin,timeMax,renderFn,renderArg;
   if(agendaView==='week'){
     const ws=getWeekStart(agendaWeekOffset);const we=new Date(ws);we.setDate(ws.getDate()+7);
@@ -10479,13 +10478,40 @@ async function fetchAndRenderView(){
     const ge=new Date(ms.getFullYear(),ms.getMonth()+1,1);const ld=ge.getDay();if(ld!==1)ge.setDate(ge.getDate()+(ld===0?1:8-ld));
     timeMin=gs.toISOString();timeMax=ge.toISOString();renderFn=renderMonthGrid;renderArg=ms;
   }
+  /* Stale-while-revalidate op view-niveau:
+     Lees de localStorage-cache synchroon en render meteen wat er is.
+     Dit geeft instant zichtbare agenda zonder te wachten op het netwerk.
+     Alleen bij koude start (geen cache) tonen we een spinner. */
+  const tMin=new Date(timeMin),tMax=new Date(timeMax);
+  const enabledSources=(rawState.settings?.calSources||[]).filter(s=>s.enabled!==false).filter(sourceMatchesActiveClient);
+  const icalSources=enabledSources.filter(s=>s.type==='ical'&&s.url);
+  let instantEvents=[...getNativeEventsInRange(timeMin,timeMax)];
+  let hasCold=false;
+  for(const s of icalSources){
+    const cached=_getCachedEntry(s.url);
+    if(cached)instantEvents.push(..._filterEventsByRange(cached.events,tMin,tMax));
+    else hasCold=true;
+  }
+  const alreadyRendered=!!(content.querySelector('.cal-grid-outer,.cal-month-grid'));
+  if(instantEvents.length>0||(!hasCold&&icalSources.length>0)){
+    /* Sorteer en render direct vanuit cache — geen spinner */
+    instantEvents.sort((a,b)=>{const at=a.start?.dateTime||a.start?.date||'';const bt=b.start?.dateTime||b.start?.date||'';return at<bt?-1:at>bt?1:0;});
+    renderFn(instantEvents,renderArg,content);
+  } else if(!alreadyRendered&&hasCold){
+    /* Echt koude start: geen data beschikbaar, toon spinner */
+    content.innerHTML='<div class="cal-loading"><div class="spinner"></div><span>Agenda laden...</span></div>';
+  }
+  /* Voer nu de volledige async fetch uit (gebruikt stale-while-revalidate per bron).
+     Na afloop overschrijven we de instant-render met verse data. */
   try{
     const events=await fetchEventsForRange(timeMin,timeMax);
     cachedWeekEvents=events;
     renderFn(events,renderArg,content);
     lastIcalRefresh=new Date();updateIcalRefreshLabel();
   }catch(e){
-    content.innerHTML=`<div class="cal-placeholder"><p style="color:var(--danger)">${escapeHtml(e.message)}</p><button class="btn btn-sm" data-action="fetchAndRenderView">Opnieuw</button></div>`;
+    if(!content.querySelector('.cal-grid-outer,.cal-month-grid')){
+      content.innerHTML=`<div class="cal-placeholder"><p style="color:var(--danger)">${escapeHtml(e.message)}</p><button class="btn btn-sm" data-action="fetchAndRenderView">Opnieuw</button></div>`;
+    }
   }
   clearTimeout(calRefreshTimer);
   calRefreshTimer=setTimeout(()=>{if(activeModule==='agenda')fetchAndRenderView();},10*60*1000);
