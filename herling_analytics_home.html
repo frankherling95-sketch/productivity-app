@@ -1953,6 +1953,20 @@ textarea { line-height: 1.6; resize: vertical; }
   margin-left: auto;
   font-variant-numeric: tabular-nums;
 }
+.cl2-filter-search {
+  padding: 5px 10px;
+  font-size: 12px;
+  background: var(--surface);
+  border: 0.5px solid var(--border-strong);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: inherit;
+  outline: none;
+  min-width: 180px;
+  transition: border-color 0.12s;
+}
+.cl2-filter-search:focus { border-color: var(--text); }
+.cl2-filter-search::placeholder { color: var(--text-hint); }
 
 /* ── Priority group sections ───────────────────────────────────────────────── */
 .cl2-group { margin-top: 4px; }
@@ -5695,7 +5709,7 @@ const DEFAULT_COLUMNS=[
 let ghToken=null, gistId=null, saveTimer=null;
 let rawState={tasks:{},notes:{},checklist:{},uren:{},agenda:{events:[]},settings:{}};
 let checklistState={items:[],showArchived:false,sortBy:'priority'};
-let clFilters={prio:null,clientId:null,period:null};
+let clFilters={prio:null,clientId:null,period:null,search:''};
 
 /* Kanban state */
 let kanbanState={projects:{},activeProject:null,clients:[],tags:[],categoryGrouping:'grouped'};
@@ -9659,15 +9673,21 @@ function renderChecklistModule(){
     const last=new Date(now.getFullYear(),now.getMonth()+1,0);
     monthEnd=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(last.getDate()).padStart(2,'0')}`;
   }
+  const searchQ=(clFilters.search||'').trim().toLowerCase();
   function passes(i){
     if(clFilters.prio&&i.priority!==clFilters.prio)return false;
     if(clFilters.clientId&&i.clientId!==clFilters.clientId)return false;
     if(clFilters.period==='week'){if(!i.deadline||i.deadline<weekStart||i.deadline>weekEnd)return false;}
     if(clFilters.period==='month'){if(!i.deadline||i.deadline<monthStart||i.deadline>monthEnd)return false;}
+    if(searchQ){
+      const inText=(i.text||'').toLowerCase().includes(searchQ);
+      const inSub=(i.subtasks||[]).some(s=>(s.text||'').toLowerCase().includes(searchQ));
+      if(!inText&&!inSub)return false;
+    }
     return true;
   }
   const activeItems=allActiveItems.filter(passes);
-  const filtersActive=clFilters.prio||clFilters.clientId||clFilters.period;
+  const filtersActive=clFilters.prio||clFilters.clientId||clFilters.period||searchQ;
 
   /* Archive view: show only archived items grouped by priority, no filter */
   if(checklistState.showArchived){
@@ -10164,13 +10184,28 @@ function setClFilter(type,val){
   clFilters[type]=(clFilters[type]===val)?null:val;
   renderChecklistModule();
 }
+function setClSearch(v){
+  clFilters.search=v||'';
+  renderChecklistModule();
+}
 function renderClFilterBar(){
   const el=document.getElementById('clFilterRow');if(!el)return;
-  /* Count visible items for the right-aligned counter */
+
+  /* Preserve focus + cursor in the search input across re-renders */
+  const wasFocused=document.activeElement&&document.activeElement.id==='clSearchInput';
+  const cursorPos=wasFocused?document.activeElement.selectionStart:null;
+
+  /* Count visible items for the right-aligned counter (honours all filters incl. search) */
+  const sQ=(clFilters.search||'').trim().toLowerCase();
   const visible=checklistState.items.filter(i=>{
     if(i.archived)return false;
     if(clFilters.prio&&i.priority!==clFilters.prio)return false;
     if(clFilters.clientId&&i.clientId!==clFilters.clientId)return false;
+    if(sQ){
+      const inText=(i.text||'').toLowerCase().includes(sQ);
+      const inSub=(i.subtasks||[]).some(s=>(s.text||'').toLowerCase().includes(sQ));
+      if(!inText&&!inSub)return false;
+    }
     return true;
   });
   const count=visible.length;
@@ -10192,7 +10227,13 @@ function renderClFilterBar(){
     <span class="cl2-filter-lbl">Filter</span>
     <div class="cl2-seg">${segHtml}</div>
     <div class="cl2-seg">${periodHtml}</div>
+    <input type="text" id="clSearchInput" class="cl2-filter-search" placeholder="🔍 Zoek in taken..." value="${escapeHtml(clFilters.search||'')}" oninput="setClSearch(this.value)"/>
     <span class="cl2-filter-counter">${countLbl}</span>`;
+
+  if(wasFocused){
+    const inp=document.getElementById('clSearchInput');
+    if(inp){inp.focus();if(cursorPos!=null)inp.setSelectionRange(cursorPos,cursorPos);}
+  }
 }
 
 function toggleChecklistArchived(){
@@ -10324,7 +10365,7 @@ Object.assign(APP_ACTIONS,{
   setClFilter:(el,e,type,val)=>setClFilter(type,val||null),
   selectClClient:(el,e,id)=>selectClClient(id||''),
   clCalSelect:(el,e,iso)=>clCalSelect(iso),
-  clearClFilters:()=>{clFilters={prio:null,clientId:null,period:null};renderChecklistModule();}
+  clearClFilters:()=>{clFilters={prio:null,clientId:null,period:null,search:''};renderChecklistModule();}
 });
 Object.assign(APP_CHANGE_ACTIONS,{
   setClFilterClient:(el)=>setClFilter('clientId',el.value||null)
