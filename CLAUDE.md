@@ -9,6 +9,7 @@ Single-page productivity app voor Frank Herling. Single-file HTML SPA, gehost op
 - **Auto-deploy**: elke push naar `main` → Pages-build (~30s)
 - **Hoofd-bestand**: `herling_analytics_home.html` (~580KB, ~12k regels) — alles inline, geen build step
 - **Diepe duik agenda**: zie [`docs/agenda.md`](docs/agenda.md)
+- **Beslissingen-log**: zie [`docs/decisions.md`](docs/decisions.md) — waarom keuzes gemaakt zijn (lees vóór je iets ongedaan maakt)
 
 ## Wie is de gebruiker
 
@@ -26,6 +27,7 @@ Single-page productivity app voor Frank Herling. Single-file HTML SPA, gehost op
 ├── manifest.json, sw.js          ← PWA + Service Worker (zie ⚠️ hieronder)
 ├── CLAUDE.md                     ← dit bestand
 ├── docs/agenda.md                ← deep-dive iCal/agenda
+├── docs/decisions.md             ← append-only beslissingen-log (ADR-stijl)
 ├── validate.mjs                  ← Node syntax/structure checker
 ├── test.html                     ← browser smoke test
 ├── .githooks/pre-push            ← git hook (na `core.hooksPath` setup)
@@ -183,16 +185,13 @@ Daarna: vraag Frank om **Ctrl+Shift+R** op de live site. Optioneel `test.html` o
 
 ## Recent gemaakte beslissingen
 
-- **2026-05-04**: Agenda — fix duplicate events bij Outlook recurring met overrides (UID/RECURRENCE-ID/EXDATE handling in parseICS + expandEvents); rich hover tooltip met titel/tijd/duur/locatie/bron; betere event-block layout
-- **2026-05-04**: Agenda — 4-proxy chain (corsproxy.io → allorigins/raw → allorigins/get → codetabs.com) met parallel race + per-feed proxy-cache; 5-maands event-cache met stale-while-revalidate (Boskalis 25s → 0ms na cold load)
-- **2026-05-03**: Externe tools popover in sidebar (10 links, 4 categorieën: Administratie / Uren / Dev / Design)
-- **2026-05-03**: Design polish — KPI's 36px tabular-nums, card-headers 18px Plus Jakarta Sans, module accent ribbons (6 kleuren), staggered card entrance, SVG grain overlay
-- **2026-05-03**: Dashboard — Checklist + Agenda kaarten 2× hoger (440px) dan Todo + Notes (220px)
-- **2026-05-03**: MSAL + Google OAuth **volledig verwijderd** (Frank heeft geen Entra-rechten). Outlook agenda's via gepubliceerde iCal-link
-- **2026-04-30**: Quality-guard infra (validate.mjs, test.html, githooks, claude hooks)
-- **2026-04-30**: Conflict-detectie weg uit `saveGist` (was false-positive door GitHub eventual consistency); localStorage als instant backup
-- **2026-04-30**: Checklist filters (prio/klant/periode), inline subtaak-edit, auto-close bij alle subtaken klaar
-- **2026-04-30**: Force-push protectie via pre-push hook
+Top-3 meest recent. Volledige log + *waarom* per beslissing: [`docs/decisions.md`](docs/decisions.md).
+
+- **2026-05-10**: Agenda — instant render vanuit localStorage-cache, geen spinner-flash bij stale data
+- **2026-05-04**: Agenda — duplicate events fix (UID/RECURRENCE-ID/EXDATE) + 4-proxy chain met 5-maands cache (25s → 0ms cold load)
+- **2026-05-03**: MSAL + Google OAuth **volledig verwijderd** (geen Entra-rechten). Outlook agenda's via gepubliceerde iCal-link
+
+> ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 
 ## Hard rules voor Claude
 
@@ -214,6 +213,16 @@ Afgedwongen door git hooks (`.githooks/pre-push`) en Claude Code hooks (`.claude
 ### Na een push
 
 Vraag Frank om **Ctrl+Shift+R** op de live site.
+
+### Bij significante beslissingen
+
+Voeg een nieuwe entry toe aan [`docs/decisions.md`](docs/decisions.md) bij:
+- Architectuur-keuzes (cache strategie, save flow, routing, …)
+- UX-systeem-keuzes (hoe spinner werkt, wanneer toast, hoe conflict afgehandeld)
+- Verwijderen van features of dependencies (waarom + alternatief)
+- Bug-fixes met conceptuele oorzaak (niet pure typo's)
+
+Format: `## YYYY-MM-DD · Titel` met *Probleem / Beslissing / Waarom / Bestanden / Niet doen*. Append-only — oude entries nooit wijzigen.
 
 ## Setup voor een nieuwe machine
 
