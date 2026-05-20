@@ -1906,6 +1906,33 @@ textarea { line-height: 1.6; resize: vertical; }
   color: var(--text) !important;
   cursor: pointer;
 }
+.cl2-newitem-date {
+  padding: 5px 8px !important;
+  font-size: 12px !important;
+  font-weight: 500;
+  font-family: inherit !important;
+  border: 1px solid var(--border-strong) !important;
+  border-radius: 6px !important;
+  background: var(--surface) !important;
+  color: var(--text);
+  cursor: pointer;
+  /* Subtieler als geen datum is gekozen — suggereert "optioneel" */
+  color-scheme: light dark;
+  min-width: 0;
+  width: 132px;
+}
+.cl2-newitem-date:not([data-set="1"]) {
+  color: var(--text-hint);
+}
+.cl2-newitem-date:hover { border-color: var(--text-muted) !important; }
+.cl2-newitem-date:focus {
+  outline: none !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 2px var(--mint-soft);
+}
+/* Native calendar icon iets bleker bij empty state */
+.cl2-newitem-date:not([data-set="1"])::-webkit-calendar-picker-indicator { opacity: 0.5; }
+.cl2-newitem-date::-webkit-calendar-picker-indicator { cursor: pointer; }
 
 /* ── Filter bar ────────────────────────────────────────────────────────────── */
 .cl2-filter {
@@ -9586,7 +9613,7 @@ let clCalYear=new Date().getFullYear(),clCalMonth=new Date().getMonth(),clCalSel
 /* Per-item expand state for v3 card (HOOG default-open, others closed) */
 let clItemOpen={};
 /* New-item inline card local draft state */
-let clNewDraft={title:'',priority:'middel',clientId:''};
+let clNewDraft={title:'',priority:'middel',clientId:'',deadline:''};
 
 function renderClCal(){
   const titleEl=document.getElementById('clCalTitle');
@@ -9991,11 +10018,13 @@ function renderChecklistNewItem(){
     `<option value="${p}"${clNewDraft.priority===p?' selected':''}>${CL_PRIORITY_CFG[p].label}</option>`).join('');
   const clientOpts='<option value="">Geen klant</option>'+
     clients.map(c=>`<option value="${c.id}"${clNewDraft.clientId===c.id?' selected':''}>${escapeHtml(c.name)}</option>`).join('');
+  const deadlineVal=clNewDraft.deadline||'';
   el.innerHTML=`
     <span class="cl2-newitem-slot">+</span>
     <input id="clNewItemInput" class="cl2-newitem-input" type="text" placeholder="Nieuwe taak toevoegen..." value="${escapeHtml(clNewDraft.title)}"/>
     <select id="clNewItemPriority" class="cl2-newitem-select">${priorityOpts}</select>
     <select id="clNewItemClient" class="cl2-newitem-select">${clientOpts}</select>
+    <input id="clNewItemDeadline" class="cl2-newitem-date" type="date" value="${deadlineVal}" data-set="${deadlineVal?'1':'0'}" title="Deadline (optioneel)" aria-label="Deadline"/>
     <button type="button" class="btn btn-sm btn-primary" data-action="clAddInlineItem">Toevoegen</button>`;
   const inp=document.getElementById('clNewItemInput');
   if(inp){
@@ -10004,17 +10033,26 @@ function renderChecklistNewItem(){
   }
   document.getElementById('clNewItemPriority')?.addEventListener('change',e=>{clNewDraft.priority=e.target.value;});
   document.getElementById('clNewItemClient')?.addEventListener('change',e=>{clNewDraft.clientId=e.target.value;});
+  document.getElementById('clNewItemDeadline')?.addEventListener('change',e=>{
+    clNewDraft.deadline=e.target.value;
+    /* data-set drives de :not([data-set="1"]) styling — full opacity zodra een datum staat */
+    e.target.setAttribute('data-set',e.target.value?'1':'0');
+  });
 }
 function clAddInlineItem(){
   const text=(clNewDraft.title||'').trim();
   if(!text){document.getElementById('clNewItemInput')?.focus();return;}
   const priority=clNewDraft.priority||'middel';
   const clientId=clNewDraft.clientId||null;
+  const deadline=clNewDraft.deadline||null;
   const sameGroup=checklistState.items.filter(i=>!i.archived&&!i.done&&i.priority===priority);
   checklistState.items.push({
-    id:uid(),text,done:false,priority,deadline:null,clientId,subtasks:[],archived:false,
+    id:uid(),text,done:false,priority,deadline,clientId,subtasks:[],archived:false,
     sortOrder:sameGroup.length
   });
+  /* Behoud priority / klant / deadline als sticky default voor de volgende taak —
+     veelal voer je meerdere taken na elkaar in met dezelfde context. Alleen
+     het title-veld wordt geleegd. */
   clNewDraft.title='';
   scheduleSave();renderChecklistModule();
   setTimeout(()=>document.getElementById('clNewItemInput')?.focus(),30);
