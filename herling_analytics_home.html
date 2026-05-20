@@ -1865,6 +1865,8 @@ textarea { line-height: 1.6; resize: vertical; }
   margin-top: 3px;
 }
 .cl2-hero-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.cl2-bulk-chev { transition: transform 0.18s var(--ease); }
+.cl2-bulk-chev.open { transform: rotate(180deg); }
 
 /* ── New-item inline card ─────────────────────────────────────────────────── */
 .cl2-newitem {
@@ -9971,6 +9973,33 @@ function toggleClItemOpen(id){
   clItemOpen[id]=!cur;
   renderChecklistModule();
 }
+
+/* Helper: kijkt naar actieve items met subtaken — geeft terug
+   { withSubs, openCount, allOpen, mostlyOpen } voor de bulk-toggle. */
+function _clSubtaskAggregate(){
+  const withSubs=checklistState.items.filter(i=>!i.archived&&!i.done&&(i.subtasks?.length>0));
+  const openCount=withSubs.filter(i=>{
+    const defaultOpen=i.priority==='hoog';
+    return clItemOpen[i.id]!==undefined?clItemOpen[i.id]:defaultOpen;
+  }).length;
+  return{
+    withSubs,
+    openCount,
+    allOpen: withSubs.length>0&&openCount===withSubs.length,
+    mostlyOpen: withSubs.length>0&&openCount>withSubs.length/2
+  };
+}
+
+/* Bulk toggle: als de meeste open zijn → alles inklappen.
+   Anders → alles uitklappen. Werkt alleen op active (non-done, non-archived)
+   items met subtaken; gearchiveerde/voltooide items blijven onaangetast. */
+function toggleAllSubtasks(){
+  const{withSubs,mostlyOpen}=_clSubtaskAggregate();
+  if(!withSubs.length)return;
+  const shouldOpen=!mostlyOpen;
+  withSubs.forEach(i=>{clItemOpen[i.id]=shouldOpen;});
+  renderChecklistModule();
+}
 function archiveItem(id){
   const item=checklistState.items.find(i=>i.id===id);
   if(!item)return;
@@ -10002,7 +10031,19 @@ function renderChecklistHero({notArchived,doneItems,archivedCount}){
       <div class="cl2-hero-heading"><span class="num">${itemsDone}</span> van <span class="num">${totalActive}</span> taken afgerond</div>
       <div class="cl2-hero-meta">${doneSubs}/${totalSubs} subtaken · ${openCount} openstaand</div>
     </div>
-    <div class="cl2-hero-actions">
+    ${(()=>{
+      /* Build subtask-bulk-toggle knop alleen als er items met subtaken zijn */
+      const agg=_clSubtaskAggregate();
+      if(!agg.withSubs.length||checklistState.showArchived)return '<div class="cl2-hero-actions">';
+      const label=agg.mostlyOpen?'Inklappen':'Uitklappen';
+      const title=agg.mostlyOpen?'Alle subtaken inklappen':'Alle subtaken uitklappen';
+      /* Chevron-svg + class .open als alles open is → roteert via CSS */
+      const cls=agg.mostlyOpen?'cl2-bulk-chev open':'cl2-bulk-chev';
+      return`<div class="cl2-hero-actions">
+        <button class="btn btn-sm btn-ghost" data-action="toggleAllSubtasks" title="${title}">
+          <svg class="${cls}" width="11" height="11" viewBox="0 0 12 12" fill="none" style="margin-right:4px;vertical-align:-1px"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>${label} subtaken
+        </button>`;
+    })()}
       ${completedCount>0&&!checklistState.showArchived?`<button class="btn btn-sm btn-ghost" data-action="deleteAllDone">Verwijder afgerond (${completedCount})</button>`:''}
       ${checklistState.showArchived
         ?`<button class="btn btn-sm btn-primary" data-action="toggleChecklistArchived">← Terug naar actief</button>`
@@ -10396,6 +10437,7 @@ Object.assign(APP_ACTIONS,{
   unarchiveItem:(el,e,id)=>unarchiveItem(id),
   deleteChecklistItem:(el,e,id)=>deleteChecklistItem(id),
   toggleClItemOpen:(el,e,id)=>toggleClItemOpen(id),
+  toggleAllSubtasks:()=>toggleAllSubtasks(),
   toggleClDoneSection:()=>toggleClDoneSection(),
   toggleChecklistArchived:()=>toggleChecklistArchived(),
   deleteAllDone:()=>deleteAllDone(),
