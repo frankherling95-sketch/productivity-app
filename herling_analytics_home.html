@@ -4320,6 +4320,74 @@ textarea { line-height: 1.6; resize: vertical; }
 .ha-newitem-option-sub   { font-size: 11px; color: var(--text-muted); }
 .ha-newitem-option-arrow { color: var(--text-hint); flex-shrink: 0; width: 11px; height: 11px; }
 @keyframes ha-fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ── AI Quick-Add ──────────────────────────────────────────────────── */
+.nav-item-ai .nav-icon {
+  background: linear-gradient(135deg, #00E5B0 0%, #3B5BDB 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-size: 16px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+#quickAddAIInput {
+  width: 100%; min-height: 80px; padding: 11px 13px;
+  background: var(--surface2); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--radius-md);
+  font-family: inherit; font-size: 13px; line-height: 1.45;
+  resize: vertical; outline: none; transition: border-color .15s;
+}
+#quickAddAIInput:focus { border-color: var(--accent); }
+.quickadd-hint {
+  font-size: 11.5px; color: var(--text-muted); line-height: 1.5;
+  margin: 0 0 10px 0;
+}
+.quickadd-hint code {
+  background: var(--surface2); padding: 1px 5px; border-radius: 4px;
+  font-size: 10.5px; color: var(--text);
+}
+.quickadd-error {
+  margin-top: 10px; padding: 8px 11px; border-radius: 6px;
+  background: rgba(220, 53, 69, 0.12); color: var(--danger);
+  font-size: 12px; line-height: 1.4;
+  border: 1px solid rgba(220, 53, 69, 0.3);
+}
+.quickadd-preview {
+  margin-top: 14px; display: flex; flex-direction: column; gap: 8px;
+  max-height: 280px; overflow-y: auto; padding-right: 4px;
+}
+.qa-card {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 12px; background: var(--surface2);
+  border: 1px solid var(--border); border-radius: var(--radius-md);
+  font-size: 12.5px;
+}
+.qa-card-icon {
+  width: 26px; height: 26px; flex-shrink: 0;
+  border-radius: 6px; display: inline-flex;
+  align-items: center; justify-content: center;
+  font-size: 14px;
+}
+.qa-card-task .qa-card-icon { background: rgba(0,229,176,.15); color: var(--accent); }
+.qa-card-event .qa-card-icon { background: rgba(59,91,219,.15); color: #6b89ee; }
+.qa-card-body { flex: 1; min-width: 0; }
+.qa-card-title { font-weight: 600; color: var(--text); line-height: 1.3; margin-bottom: 3px; }
+.qa-card-meta { font-size: 11px; color: var(--text-muted); display: flex; flex-wrap: wrap; gap: 8px; }
+.qa-card-meta-item { display: inline-flex; align-items: center; gap: 4px; }
+.qa-summary {
+  margin-top: 12px; padding: 9px 12px;
+  background: rgba(0,229,176,.08); border-left: 3px solid var(--accent);
+  border-radius: 4px; font-size: 11.5px; color: var(--text); line-height: 1.45;
+}
+.qa-loading {
+  display: flex; align-items: center; gap: 9px; margin-top: 14px;
+  padding: 10px 12px; background: var(--surface2);
+  border-radius: var(--radius-md); font-size: 12px; color: var(--text-muted);
+}
+.qa-loading .spinner { width: 14px; height: 14px; border-width: 2px; }
 </style>
 </head>
 <body>
@@ -4395,6 +4463,12 @@ textarea { line-height: 1.6; resize: vertical; }
       </div>
       <div class="nav-item" data-mod="checklist" onclick="switchModule('checklist')">
         <span class="nav-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2.5" width="3.5" height="3.5" rx="0.6"/><path d="M2.7 4.2 L3.5 5 L4.8 3.4" stroke-width="1.2"/><rect x="2" y="9.5" width="3.5" height="3.5" rx="0.6"/><line x1="7" y1="4.2" x2="14" y2="4.2"/><line x1="7" y1="11.2" x2="14" y2="11.2"/></svg></span><span class="nav-label">Checklist</span><span class="nav-badge nav-badge-danger" id="navBadgeChecklist"></span>
+      </div>
+
+      <!-- AI Quick-Add — slim toevoegen met natuurlijke taal -->
+      <div class="sidebar-sec-label">Snel toevoegen</div>
+      <div class="nav-item nav-item-ai" onclick="openQuickAddAI()" role="button" tabindex="0" title="Slim toevoegen — beschrijf wat je wil en AI maakt de taken en afspraken">
+        <span class="nav-icon">✨</span><span class="nav-label">Slim toevoegen</span>
       </div>
 
       <!-- Externe tools — sidebar trigger -->
@@ -5460,6 +5534,35 @@ textarea { line-height: 1.6; resize: vertical; }
     <div class="modal-footer" style="margin-top:auto;padding-top:14px">
       <div></div>
       <button class="btn btn-sm" onclick="closeCalSourcesModal()">Sluiten</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── AI Quick-Add ── -->
+<div class="modal-bg" id="quickAddAIModal" onclick="if(event.target===this)closeQuickAddAI()">
+  <div class="modal" style="max-width:520px;display:flex;flex-direction:column">
+    <h3 style="margin-bottom:6px;display:flex;align-items:center;gap:8px">
+      <span style="background:linear-gradient(135deg,#00E5B0 0%,#3B5BDB 100%);-webkit-background-clip:text;background-clip:text;color:transparent">✨</span>
+      Slim toevoegen
+    </h3>
+    <p class="quickadd-hint">
+      Beschrijf in normale taal wat je wil. AI extraheert taken en/of afspraken met klant, deadline, prioriteit en tijd.<br>
+      Voorbeeld: <code>Meeting met Boskalis dinsdag 10u over Q3 dashboard, deadline volgende vrijdag voor het concept</code>
+    </p>
+    <textarea id="quickAddAIInput" placeholder="Wat wil je toevoegen?" rows="3"
+      onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();parseQuickAddAI();}"></textarea>
+    <div id="quickAddAIError" class="quickadd-error" style="display:none"></div>
+    <div id="quickAddAILoading" class="qa-loading" style="display:none">
+      <div class="spinner"></div><span>AI denkt na...</span>
+    </div>
+    <div id="quickAddAIPreview" class="quickadd-preview" style="display:none"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;gap:8px">
+      <button class="btn btn-sm" type="button" onclick="openGeminiKeyPrompt()" title="Gemini API-key instellen" style="font-size:11px">⚙ API-key</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-sm" type="button" onclick="closeQuickAddAI()">Annuleren</button>
+        <button class="btn btn-sm btn-primary" id="quickAddAIParseBtn" type="button" onclick="parseQuickAddAI()">✨ Parseer</button>
+        <button class="btn btn-sm btn-primary" id="quickAddAIApplyBtn" type="button" onclick="applyQuickAddAI()" style="display:none">✓ Toevoegen</button>
+      </div>
     </div>
   </div>
 </div>
@@ -12861,6 +12964,281 @@ function urenExport(fmt,filter){
   document.addEventListener('click',e=>{if(!root.contains(e.target))setOpen(false);});
   document.addEventListener('keydown',e=>{if(e.key==='Escape')setOpen(false);});
 })();
+
+/* ═══════════════════════════════════════════════════════════════════
+   AI INTEGRATIE — Smart Quick-Add (Google Gemini Flash)
+   Gratis tier: 1500 req/dag — ruim voldoende voor dagelijks gebruik.
+   Key: aistudio.google.com → "Get API Key" → plakken bij ⚙ API-key.
+   Architectuur: generic callGemini() helper → herbruikbaar voor
+   wekelijkse review + toekomstige AI-features.
+   ═══════════════════════════════════════════════════════════════════ */
+const LS_GEMINI_KEY='herling_gemini_api_key';
+const GEMINI_MODEL='gemini-flash-latest';
+let _quickAddAIResult=null; /* tijdelijke buffer tussen parse en apply */
+
+/* ─ Generic Gemini API caller ─
+   Returns parsed JSON wanneer responseSchema/responseMimeType=json.
+   Gooit Error met begrijpelijke message bij API/parse/quota fouten. */
+async function callGemini({system,user,schema,temperature=0.2}){
+  const key=localStorage.getItem(LS_GEMINI_KEY);
+  if(!key)throw new Error('Geen Gemini API-key ingesteld. Klik op ⚙ API-key.');
+  const body={
+    contents:[{role:'user',parts:[{text:user}]}],
+    generationConfig:{
+      responseMimeType:'application/json',
+      temperature
+    }
+  };
+  if(system)body.systemInstruction={parts:[{text:system}]};
+  if(schema)body.generationConfig.responseSchema=schema;
+  let r;
+  try{
+    r=await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(key)}`,
+      {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}
+    );
+  }catch(e){throw new Error('Geen verbinding met Gemini: '+(e.message||'netwerkfout'));}
+  if(!r.ok){
+    let msg='Gemini API fout '+r.status;
+    try{const j=await r.json();if(j.error?.message)msg=j.error.message;}catch(e){}
+    if(r.status===400&&/API key/i.test(msg))msg='Ongeldige API-key. Check via ⚙ API-key.';
+    if(r.status===429)msg='Limiet bereikt (1500/dag of 15/min). Wacht even of probeer morgen.';
+    throw new Error(msg);
+  }
+  const data=await r.json();
+  const text=data.candidates?.[0]?.content?.parts?.[0]?.text||'';
+  if(!text){
+    const reason=data.candidates?.[0]?.finishReason||'onbekend';
+    throw new Error('Lege response (reason: '+reason+')');
+  }
+  try{return JSON.parse(text);}catch(e){throw new Error('Gemini gaf ongeldige JSON');}
+}
+
+/* ─ API-key beheer ─ */
+function openGeminiKeyPrompt(){
+  const cur=localStorage.getItem(LS_GEMINI_KEY)||'';
+  const v=prompt(
+    'Gemini API-key (gratis op aistudio.google.com → "Get API Key"):\n\n'+
+    'Wordt lokaal opgeslagen in je browser, net als je GitHub PAT.\n'+
+    'Laat leeg om te verwijderen.',
+    cur
+  );
+  if(v===null)return; /* cancel */
+  const trimmed=(v||'').trim();
+  if(!trimmed){
+    localStorage.removeItem(LS_GEMINI_KEY);
+    appToast('API-key verwijderd',{type:'info',duration:2500});
+    return;
+  }
+  localStorage.setItem(LS_GEMINI_KEY,trimmed);
+  appToast('API-key opgeslagen',{type:'success',duration:2500});
+}
+
+/* ─ Quick-Add modal: open / close ─ */
+function openQuickAddAI(){
+  document.getElementById('quickAddAIModal').classList.add('open');
+  const inp=document.getElementById('quickAddAIInput');
+  inp.value='';
+  document.getElementById('quickAddAIError').style.display='none';
+  document.getElementById('quickAddAILoading').style.display='none';
+  document.getElementById('quickAddAIPreview').style.display='none';
+  document.getElementById('quickAddAIParseBtn').style.display='';
+  document.getElementById('quickAddAIApplyBtn').style.display='none';
+  _quickAddAIResult=null;
+  setTimeout(()=>inp.focus(),50);
+}
+function closeQuickAddAI(){
+  document.getElementById('quickAddAIModal').classList.remove('open');
+}
+
+/* ─ Prompt builder: zorgt dat AI weet welke datum/dag het is en welke
+     klanten beschikbaar zijn voor matching. Compact om tokens te sparen. ─ */
+function _buildQuickAddSystemPrompt(){
+  const now=new Date();
+  const dows=['zondag','maandag','dinsdag','woensdag','donderdag','vrijdag','zaterdag'];
+  const today=now.toISOString().slice(0,10);
+  const todayDow=dows[now.getDay()];
+  const clients=(kanbanState?.clients||[]).map(c=>({id:c.id,name:c.name}));
+  return `Je bent een NL-talige parser die natuurlijke beschrijvingen omzet naar gestructureerde taken en agenda-events voor een productivity-app.
+
+Vandaag is ${todayDow} ${today}.
+
+Beschikbare klanten (gebruik exact deze id's bij clientId, of null als geen klant duidelijk genoemd wordt):
+${clients.length?clients.map(c=>`- ${c.id}: ${c.name}`).join('\n'):'(geen klanten gedefinieerd)'}
+
+Regels:
+- Geef ALTIJD een JSON-object terug met velden: tasks (array), events (array), summary (string).
+- "tasks" = checklist-items met een TE DOEN ding. Velden per item:
+  - text (string, kort en actionable, NL)
+  - clientId (string of null — match losse termen zoals "Boskalis" tegen klantenlijst)
+  - deadline (YYYY-MM-DD of null — interpreteer "morgen", "vrijdag", "volgende week" relatief aan vandaag; default null als niet genoemd)
+  - priority ("laag" | "middel" | "hoog" — default "middel"; "asap"/"urgent"/"belangrijk" → "hoog")
+- "events" = agenda-afspraken (alleen als concrete tijd/datum genoemd wordt). Velden per item:
+  - title (string)
+  - start (YYYY-MM-DDTHH:MM voor tijden, of YYYY-MM-DD voor hele dag)
+  - end (zelfde format, of null → +1 uur na start)
+  - allDay (boolean)
+  - location (string of null)
+  - clientId (string of null)
+- "summary" = 1 zin NL die kort beschrijft wat is aangemaakt.
+
+Voorbeelden van interpretatie:
+- "deadline vrijdag" → eerstvolgende vrijdag vanaf vandaag
+- "morgen 10u" → ${new Date(now.getTime()+86400000).toISOString().slice(0,10)}T10:00
+- "meeting" + tijd → event; "moet nog X doen" → task
+- Eén zin kan zowel een event als een task opleveren (bv. "morgen Boskalis call + concept-doc voor maandag" = event + task)
+
+Bij onduidelijk: maak een task met text=de hele input, clientId=null, deadline=null.`;
+}
+
+/* ─ Parse: roep AI aan, valideer resultaat, render preview ─ */
+async function parseQuickAddAI(){
+  const input=document.getElementById('quickAddAIInput').value.trim();
+  if(!input){
+    document.getElementById('quickAddAIInput').focus();return;
+  }
+  const errEl=document.getElementById('quickAddAIError');
+  const loadEl=document.getElementById('quickAddAILoading');
+  const prevEl=document.getElementById('quickAddAIPreview');
+  const parseBtn=document.getElementById('quickAddAIParseBtn');
+  const applyBtn=document.getElementById('quickAddAIApplyBtn');
+  errEl.style.display='none';
+  prevEl.style.display='none';
+  loadEl.style.display='';
+  parseBtn.disabled=true;
+  applyBtn.style.display='none';
+  try{
+    const system=_buildQuickAddSystemPrompt();
+    const data=await callGemini({system,user:input});
+    /* Defensieve normalisatie — Gemini kan velden weglaten */
+    const tasks=Array.isArray(data.tasks)?data.tasks.filter(t=>t&&t.text):[];
+    const events=Array.isArray(data.events)?data.events.filter(e=>e&&e.title&&e.start):[];
+    const summary=typeof data.summary==='string'?data.summary:'';
+    if(!tasks.length&&!events.length){
+      errEl.textContent='AI heeft geen taken of afspraken kunnen herleiden. Probeer wat meer detail.';
+      errEl.style.display='';return;
+    }
+    _quickAddAIResult={tasks,events,summary};
+    _renderQuickAddPreview(_quickAddAIResult);
+    prevEl.style.display='';
+    parseBtn.style.display='none';
+    applyBtn.style.display='';
+  }catch(e){
+    errEl.textContent='⚠ '+e.message;
+    errEl.style.display='';
+  }finally{
+    loadEl.style.display='none';
+    parseBtn.disabled=false;
+  }
+}
+
+/* ─ Render: preview-kaarten zodat user kan controleren vóór toevoegen ─ */
+function _renderQuickAddPreview(d){
+  const prevEl=document.getElementById('quickAddAIPreview');
+  const clientName=id=>{const c=(kanbanState?.clients||[]).find(c=>c.id===id);return c?c.name:null;};
+  const fmtDate=s=>{if(!s)return'';try{const d=new Date(s);return d.toLocaleDateString('nl-NL',{day:'numeric',month:'short'});}catch(e){return s;}};
+  const fmtDateTime=s=>{if(!s)return'';try{const d=new Date(s);return d.toLocaleDateString('nl-NL',{weekday:'short',day:'numeric',month:'short'})+' '+d.toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});}catch(e){return s;}};
+  let html='';
+  d.tasks.forEach(t=>{
+    const meta=[];
+    if(t.clientId&&clientName(t.clientId))meta.push(`<span class="qa-card-meta-item">👤 ${escapeHtml(clientName(t.clientId))}</span>`);
+    if(t.deadline)meta.push(`<span class="qa-card-meta-item">📅 ${fmtDate(t.deadline)}</span>`);
+    if(t.priority&&t.priority!=='middel')meta.push(`<span class="qa-card-meta-item">${t.priority==='hoog'?'🔴':'🟢'} ${escapeHtml(t.priority)}</span>`);
+    html+=`<div class="qa-card qa-card-task">
+      <span class="qa-card-icon">✓</span>
+      <div class="qa-card-body">
+        <div class="qa-card-title">${escapeHtml(t.text)}</div>
+        ${meta.length?`<div class="qa-card-meta">${meta.join('')}</div>`:''}
+      </div>
+    </div>`;
+  });
+  d.events.forEach(e=>{
+    const meta=[];
+    meta.push(`<span class="qa-card-meta-item">🕐 ${e.allDay?fmtDate(e.start)+' (hele dag)':fmtDateTime(e.start)}</span>`);
+    if(e.location)meta.push(`<span class="qa-card-meta-item">📍 ${escapeHtml(e.location)}</span>`);
+    if(e.clientId&&clientName(e.clientId))meta.push(`<span class="qa-card-meta-item">👤 ${escapeHtml(clientName(e.clientId))}</span>`);
+    html+=`<div class="qa-card qa-card-event">
+      <span class="qa-card-icon">📅</span>
+      <div class="qa-card-body">
+        <div class="qa-card-title">${escapeHtml(e.title)}</div>
+        <div class="qa-card-meta">${meta.join('')}</div>
+      </div>
+    </div>`;
+  });
+  if(d.summary)html+=`<div class="qa-summary">${escapeHtml(d.summary)}</div>`;
+  prevEl.innerHTML=html;
+}
+
+/* ─ Apply: schrijf parsed result naar state, sla op, sluit modal ─ */
+function applyQuickAddAI(){
+  if(!_quickAddAIResult)return;
+  const {tasks,events}=_quickAddAIResult;
+  /* Tasks → checklistState */
+  if(tasks.length){
+    if(!checklistState.items)checklistState.items=[];
+    const baseOrder=checklistState.items.length;
+    tasks.forEach((t,i)=>{
+      const prio=['laag','middel','hoog'].includes(t.priority)?t.priority:'middel';
+      checklistState.items.push({
+        id:uid(),
+        text:t.text,
+        done:false,
+        priority:prio,
+        deadline:t.deadline||null,
+        clientId:t.clientId||null,
+        subtasks:[],
+        archived:false,
+        sortOrder:baseOrder+i,
+        createdAt:Date.now(),
+        updatedAt:Date.now()
+      });
+    });
+  }
+  /* Events → rawState.agenda.events */
+  if(events.length){
+    const agendaEvents=ensureAgendaState().events;
+    events.forEach(e=>{
+      let endVal=e.end;
+      if(!endVal&&!e.allDay&&e.start){
+        /* Default eind = start + 1 uur */
+        try{const d=new Date(e.start);d.setHours(d.getHours()+1);endVal=d.toISOString().slice(0,16);}catch(err){endVal=e.start;}
+      }
+      if(!endVal)endVal=e.start;
+      agendaEvents.push({
+        id:uid(),
+        title:e.title,
+        allDay:!!e.allDay,
+        start:e.start,
+        end:endVal,
+        location:e.location||'',
+        description:'',
+        clientId:e.clientId||null,
+        color:(typeof CAL_PALETTE!=='undefined'?CAL_PALETTE[0]:'#3b5bdb'),
+        recurrence:null,
+        createdAt:Date.now(),
+        updatedAt:Date.now()
+      });
+    });
+  }
+  scheduleSave();
+  if(typeof updateNavBadges==='function')updateNavBadges();
+  /* Refresh actieve module */
+  if(activeModule==='checklist'&&typeof renderChecklistModule==='function')renderChecklistModule();
+  else if(activeModule==='agenda'&&typeof fetchAndRenderView==='function')fetchAndRenderView();
+  else if(activeModule==='dashboard'&&typeof renderDashboard==='function')renderDashboard();
+  const parts=[];
+  if(tasks.length)parts.push(`${tasks.length} ${tasks.length===1?'taak':'taken'}`);
+  if(events.length)parts.push(`${events.length} ${events.length===1?'afspraak':'afspraken'}`);
+  appToast(`✨ ${parts.join(' + ')} toegevoegd`,{type:'success',duration:3500});
+  closeQuickAddAI();
+}
+
+/* Maak functies globaal beschikbaar voor onclick-handlers */
+window.openQuickAddAI=openQuickAddAI;
+window.closeQuickAddAI=closeQuickAddAI;
+window.parseQuickAddAI=parseQuickAddAI;
+window.applyQuickAddAI=applyQuickAddAI;
+window.openGeminiKeyPrompt=openGeminiKeyPrompt;
 </script>
 </body>
 </html>
