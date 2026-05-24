@@ -4525,6 +4525,51 @@ textarea { line-height: 1.6; resize: vertical; }
   background: rgba(220,53,69,0.12); color: var(--danger);
 }
 
+/* Subtasks in Quick-Add preview cards (alleen voor task-cards) */
+.qa-subtasks {
+  margin-top: 6px;
+  display: flex; flex-direction: column; gap: 3px;
+  padding-left: 4px;
+}
+.qa-subtasks:empty { display: none; }
+.qa-subtask-row {
+  display: flex; align-items: center; gap: 6px;
+}
+.qa-subtask-bullet {
+  color: var(--text-hint); font-size: 11px; flex-shrink: 0;
+  font-family: var(--font-mono); line-height: 1;
+}
+.qa-edit-subtask {
+  flex: 1; min-width: 0;
+  background: transparent; border: none; outline: none;
+  font-family: inherit; font-size: 11.5px; color: var(--text);
+  padding: 2px 0;
+  border-bottom: 1px dashed transparent; transition: border-color .15s;
+}
+.qa-edit-subtask:hover, .qa-edit-subtask:focus {
+  border-bottom-color: var(--border);
+}
+.qa-edit-subtask:focus { border-bottom-color: var(--accent); }
+.qa-subtask-remove {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: transparent; border: none; color: var(--text-hint);
+  cursor: pointer; font-size: 13px; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: all .15s;
+}
+.qa-subtask-remove:hover {
+  background: rgba(220,53,69,0.12); color: var(--danger);
+}
+.qa-subtask-add {
+  align-self: flex-start; margin-top: 3px;
+  background: transparent; border: 1px dashed var(--border); color: var(--text-muted);
+  font-family: inherit; font-size: 10.5px; cursor: pointer;
+  padding: 3px 9px; border-radius: 10px; transition: all .15s;
+}
+.qa-subtask-add:hover {
+  border-color: var(--accent); color: var(--accent); border-style: solid;
+}
+
 /* Inline retry-knop in error-bubbles */
 .ai-retry-btn {
   display: inline-block; margin-left: 8px;
@@ -13354,10 +13399,11 @@ ${clients.length?clients.map(c=>`- ${c.id}: ${c.name}`).join('\n'):'(geen klante
 Regels:
 - Geef ALTIJD een JSON-object terug met velden: tasks (array), events (array), summary (string).
 - "tasks" = checklist-items met een TE DOEN ding. Velden per item:
-  - text (string, kort en actionable, NL)
+  - text (string, kort en actionable, NL — de KOPTAAK, niet alle deeltaken)
   - clientId (string of null — match losse termen zoals "Boskalis" tegen klantenlijst)
   - deadline (YYYY-MM-DD of null — interpreteer "morgen", "vrijdag", "volgende week" relatief aan vandaag; default null als niet genoemd)
   - priority ("laag" | "middel" | "hoog" — default "middel"; "asap"/"urgent"/"belangrijk" → "hoog")
+  - subtasks (array van strings, optioneel — zie regels hieronder)
 - "events" = agenda-afspraken (alleen als concrete tijd/datum genoemd wordt). Velden per item:
   - title (string)
   - start (YYYY-MM-DDTHH:MM voor tijden, of YYYY-MM-DD voor hele dag)
@@ -13367,13 +13413,26 @@ Regels:
   - clientId (string of null)
 - "summary" = 1 zin NL die kort beschrijft wat is aangemaakt.
 
+SUBTASKS-regels (belangrijk — wees terughoudend):
+- Voeg subtasks ALLEEN toe als de input EXPLICIET meerdere concrete deelstappen noemt.
+- Trigger-woorden: ":", "met", "bestaande uit", "incl.", opsomming met komma's of "en"/"plus" tussen acties.
+- Voorbeelden WEL subtaken maken:
+  - "rapport Boskalis: intro, analyse, conclusie" → text:"Rapport Boskalis", subtasks:["Intro","Analyse","Conclusie"]
+  - "Q3 dashboard bouwen met data ophalen, model maken, visuals + review" → text:"Q3 dashboard bouwen", subtasks:["Data ophalen","Model maken","Visuals","Review"]
+  - "presentatie voorbereiden: slides, demo opnemen, mailen naar team" → 3 subtasks
+- Voorbeelden GEEN subtaken (gewoon één task, geen subtaken):
+  - "rapport voor Boskalis afronden" → text:"Rapport voor Boskalis afronden", GEEN subtasks
+  - "morgen mail sturen naar klant" → één task, geen subtasks
+- Bij twijfel: GEEN subtaken. Té veel subtaken is irritant. Maak liever één task met goede tekst.
+- Subtasks zelf zijn korte imperatieven (max 5-7 woorden): "Intro schrijven", niet "Ik moet de intro schrijven".
+
 Voorbeelden van interpretatie:
 - "deadline vrijdag" → eerstvolgende vrijdag vanaf vandaag
 - "morgen 10u" → ${new Date(now.getTime()+86400000).toISOString().slice(0,10)}T10:00
 - "meeting" + tijd → event; "moet nog X doen" → task
 - Eén zin kan zowel een event als een task opleveren (bv. "morgen Boskalis call + concept-doc voor maandag" = event + task)
 
-Bij onduidelijk: maak een task met text=de hele input, clientId=null, deadline=null.`;
+Bij onduidelijk: maak een task met text=de hele input, clientId=null, deadline=null, subtasks=[].`;
 }
 
 /* ─ Parse: roep AI aan, valideer resultaat, render preview ─ */
@@ -13397,8 +13456,14 @@ async function parseQuickAddAI(){
   try{
     const system=_buildQuickAddSystemPrompt();
     const data=await callGemini({system,user:input});
-    /* Defensieve normalisatie — Gemini kan velden weglaten */
-    const tasks=Array.isArray(data.tasks)?data.tasks.filter(t=>t&&t.text):[];
+    /* Defensieve normalisatie — Gemini kan velden weglaten of fout-getypeerd retourneren */
+    const tasks=Array.isArray(data.tasks)?data.tasks.filter(t=>t&&t.text).map(t=>{
+      /* Subtasks: filter naar string-array, max 10 om over-eager AI te begrenzen */
+      const subs=Array.isArray(t.subtasks)
+        ?t.subtasks.map(s=>typeof s==='string'?s.trim():'').filter(Boolean).slice(0,10)
+        :[];
+      return {...t,subtasks:subs};
+    }):[];
     const events=Array.isArray(data.events)?data.events.filter(e=>e&&e.title&&e.start):[];
     const summary=typeof data.summary==='string'?data.summary:'';
     if(!tasks.length&&!events.length){
@@ -13441,6 +13506,13 @@ function _renderQuickAddPreview(d){
   };
   let html='';
   d.tasks.forEach((t,i)=>{
+    const subs=Array.isArray(t.subtasks)?t.subtasks:[];
+    const subsHtml=subs.map((s,si)=>`
+      <div class="qa-subtask-row" data-sub-idx="${si}">
+        <span class="qa-subtask-bullet">└</span>
+        <input class="qa-edit qa-edit-subtask" data-sub-field="text" value="${escapeHtml(s||'')}" placeholder="Subtaak..."/>
+        <button class="qa-subtask-remove" data-sub-remove title="Verwijder subtaak" type="button">×</button>
+      </div>`).join('');
     html+=`<div class="qa-card qa-card-task" data-qa-type="task" data-qa-idx="${i}">
       <span class="qa-card-icon">✓</span>
       <div class="qa-card-body">
@@ -13449,6 +13521,10 @@ function _renderQuickAddPreview(d){
           <select class="qa-edit-chip" data-field="clientId" title="Klant">${clientOpts(t.clientId)}</select>
           <input type="date" class="qa-edit-chip" data-field="deadline" value="${escapeHtml(t.deadline||'')}" title="Deadline"/>
           <select class="qa-edit-chip" data-field="priority" title="Prioriteit">${prioOpts(t.priority)}</select>
+        </div>
+        <div class="qa-subtasks">
+          ${subsHtml}
+          <button class="qa-subtask-add" data-sub-add title="Subtaak toevoegen" type="button">+ Subtaak</button>
         </div>
         <button class="qa-card-remove" data-qa-remove title="Verwijder uit preview" type="button">×</button>
       </div>
@@ -13483,14 +13559,25 @@ function _attachQuickAddPreviewListeners(){
 }
 function _onQuickAddPreviewEdit(e){
   const target=e.target;
-  const field=target.dataset.field;
-  if(!field)return;
   const card=target.closest('.qa-card');
   if(!card||!_quickAddAIResult)return;
   const type=card.dataset.qaType;
   const idx=parseInt(card.dataset.qaIdx);
   const arr=type==='task'?_quickAddAIResult.tasks:_quickAddAIResult.events;
   if(!arr[idx])return;
+  /* Subtask-edit binnen task-card */
+  const subField=target.dataset.subField;
+  if(subField){
+    const row=target.closest('.qa-subtask-row');
+    if(!row)return;
+    const sIdx=parseInt(row.dataset.subIdx);
+    if(!Array.isArray(arr[idx].subtasks))arr[idx].subtasks=[];
+    arr[idx].subtasks[sIdx]=target.value;
+    return;
+  }
+  /* Normaal veld op task/event */
+  const field=target.dataset.field;
+  if(!field)return;
   let val=target.value;
   /* Event start via datetime-local → forceer allDay=false */
   if(type==='event'&&field==='start'&&val){
@@ -13500,17 +13587,49 @@ function _onQuickAddPreviewEdit(e){
   arr[idx][field]=val===''?null:val;
 }
 function _onQuickAddPreviewClick(e){
+  if(!_quickAddAIResult)return;
+  /* Subtask toevoegen */
+  const addBtn=e.target.closest('[data-sub-add]');
+  if(addBtn){
+    const card=addBtn.closest('.qa-card');
+    if(!card)return;
+    const idx=parseInt(card.dataset.qaIdx);
+    const task=_quickAddAIResult.tasks[idx];
+    if(!task)return;
+    if(!Array.isArray(task.subtasks))task.subtasks=[];
+    task.subtasks.push('');
+    _renderQuickAddPreview(_quickAddAIResult);
+    /* Focus de nieuwe subtask-input voor direct typen */
+    setTimeout(()=>{
+      const newRow=document.querySelector(`.qa-card[data-qa-idx="${idx}"] .qa-subtask-row[data-sub-idx="${task.subtasks.length-1}"] input`);
+      newRow?.focus();
+    },20);
+    return;
+  }
+  /* Subtask verwijderen */
+  const subRemove=e.target.closest('[data-sub-remove]');
+  if(subRemove){
+    const card=subRemove.closest('.qa-card');
+    const row=subRemove.closest('.qa-subtask-row');
+    if(!card||!row)return;
+    const idx=parseInt(card.dataset.qaIdx);
+    const sIdx=parseInt(row.dataset.subIdx);
+    const task=_quickAddAIResult.tasks[idx];
+    if(!task||!Array.isArray(task.subtasks))return;
+    task.subtasks.splice(sIdx,1);
+    _renderQuickAddPreview(_quickAddAIResult);
+    return;
+  }
+  /* Hele task/event verwijderen */
   const removeBtn=e.target.closest('[data-qa-remove]');
   if(!removeBtn)return;
   const card=removeBtn.closest('.qa-card');
-  if(!card||!_quickAddAIResult)return;
+  if(!card)return;
   const type=card.dataset.qaType;
   const idx=parseInt(card.dataset.qaIdx);
   const arr=type==='task'?_quickAddAIResult.tasks:_quickAddAIResult.events;
   arr.splice(idx,1);
-  /* Re-render (indices opnieuw, listeners blijven via _qaListenersAttached) */
   _renderQuickAddPreview(_quickAddAIResult);
-  /* Alles weg? Terug naar parse-mode */
   if(!_quickAddAIResult.tasks.length&&!_quickAddAIResult.events.length){
     document.getElementById('quickAddAIPreview').style.display='none';
     document.getElementById('quickAddAIParseBtn').style.display='';
@@ -13529,6 +13648,11 @@ function applyQuickAddAI(){
     const baseOrder=checklistState.items.length;
     tasks.forEach((t,i)=>{
       const prio=['laag','middel','hoog'].includes(t.priority)?t.priority:'middel';
+      /* Subtasks: filter lege strings (na user-edit), converteer naar item-shape */
+      const subtasks=(Array.isArray(t.subtasks)?t.subtasks:[])
+        .map(s=>typeof s==='string'?s.trim():'')
+        .filter(Boolean)
+        .map(text=>({id:uid(),text,done:false}));
       checklistState.items.push({
         id:uid(),
         text:t.text,
@@ -13536,7 +13660,7 @@ function applyQuickAddAI(){
         priority:prio,
         deadline:t.deadline||null,
         clientId:t.clientId||null,
-        subtasks:[],
+        subtasks,
         archived:false,
         sortOrder:baseOrder+i,
         createdAt:Date.now(),
