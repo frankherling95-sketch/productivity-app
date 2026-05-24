@@ -4396,6 +4396,49 @@ textarea { line-height: 1.6; resize: vertical; }
   border-radius: var(--radius-md); font-size: 12px; color: var(--text-muted);
 }
 .qa-loading .spinner { width: 14px; height: 14px; border-width: 2px; }
+
+/* ── Wekelijkse review modal ── */
+.wr-stats {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px; margin-bottom: 14px;
+}
+.wr-stat {
+  padding: 10px 12px; background: var(--surface2);
+  border: 1px solid var(--border); border-radius: var(--radius-md);
+  text-align: center;
+}
+.wr-stat-num {
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  font-size: 22px; font-weight: 700; color: var(--text); line-height: 1.1;
+}
+.wr-stat-lbl {
+  font-size: 10.5px; color: var(--text-muted); text-transform: uppercase;
+  letter-spacing: 0.04em; margin-top: 3px;
+}
+.wr-content {
+  margin-top: 6px; padding: 16px 18px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  max-height: 50vh; overflow-y: auto;
+  font-size: 13.5px; line-height: 1.55; color: var(--text);
+}
+.wr-content h1 { font-size: 18px; font-weight: 700; margin: 0 0 12px 0; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.wr-content h2 { font-size: 15px; font-weight: 600; margin: 18px 0 8px 0; color: var(--text); }
+.wr-content h3 { font-size: 13.5px; font-weight: 600; margin: 14px 0 6px 0; color: var(--text); }
+.wr-content p { margin: 0 0 10px 0; }
+.wr-content ul, .wr-content ol { margin: 6px 0 12px 18px; padding: 0; }
+.wr-content li { margin: 3px 0; }
+.wr-content strong { font-weight: 600; color: var(--text); }
+.wr-content em { color: var(--text-muted); }
+.wr-content blockquote {
+  margin: 10px 0; padding: 8px 12px;
+  border-left: 3px solid var(--accent); background: rgba(0,229,176,.06);
+  border-radius: 4px; color: var(--text);
+}
+.wr-content code {
+  background: var(--surface); padding: 1px 5px; border-radius: 3px;
+  font-family: var(--font-mono); font-size: 12px;
+}
 </style>
 </head>
 <body>
@@ -4512,6 +4555,8 @@ textarea { line-height: 1.6; resize: vertical; }
           <div class="module-sub" id="todayStr"></div>
         </div>
         <div style="display:flex;gap:8px;align-items:center">
+          <!-- Wekelijkse review (AI) -->
+          <button class="btn btn-sm btn-ai" id="weeklyReviewBtn" onclick="openWeeklyReviewModal()" title="AI-gegenereerde samenvatting van wat je deze week hebt afgerond"><span class="ai-spark">📊</span>Wekelijkse review</button>
           <!-- Nieuw item dropdown (global quick-add) -->
           <div class="ha-newitem" data-ha-newitem>
             <button type="button" class="ha-newitem-trigger" data-ha-newitem-trigger>
@@ -5537,6 +5582,32 @@ textarea { line-height: 1.6; resize: vertical; }
     <div class="modal-footer" style="margin-top:auto;padding-top:14px">
       <div></div>
       <button class="btn btn-sm" onclick="closeCalSourcesModal()">Sluiten</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Wekelijkse Review (AI) ── -->
+<div class="modal-bg" id="weeklyReviewModal" onclick="if(event.target===this)closeWeeklyReviewModal()">
+  <div class="modal" style="max-width:720px;display:flex;flex-direction:column;max-height:88vh">
+    <h3 style="margin-bottom:6px;display:flex;align-items:center;gap:8px">
+      <span class="ai-spark" style="font-size:22px">📊</span>
+      <span id="weeklyReviewTitle">Wekelijkse review</span>
+    </h3>
+    <p class="quickadd-hint" id="weeklyReviewSub">Samenvatting van wat je deze week hebt afgerond.</p>
+    <div id="weeklyReviewStats" class="wr-stats" style="display:none"></div>
+    <div id="weeklyReviewEmpty" class="quickadd-error" style="display:none;background:rgba(255,193,7,0.12);color:#b78900;border-color:rgba(255,193,7,0.3)"></div>
+    <div id="weeklyReviewLoading" class="qa-loading" style="display:none">
+      <div class="spinner"></div><span>AI schrijft je weekreview...</span>
+    </div>
+    <div id="weeklyReviewError" class="quickadd-error" style="display:none"></div>
+    <div id="weeklyReviewContent" class="wr-content" style="display:none"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-sm" type="button" onclick="openGeminiKeyPrompt()" title="Gemini API-key instellen" style="font-size:11px">⚙ API-key</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-sm" type="button" onclick="closeWeeklyReviewModal()">Sluiten</button>
+        <button class="btn btn-sm" id="weeklyReviewCopyBtn" type="button" onclick="copyWeeklyReview()" style="display:none">📋 Kopiëren</button>
+        <button class="btn btn-sm btn-primary" id="weeklyReviewSaveBtn" type="button" onclick="saveWeeklyReviewAsNote()" style="display:none">💾 Opslaan als notitie</button>
+      </div>
     </div>
   </div>
 </div>
@@ -7680,7 +7751,7 @@ function dashClToggleSubtask(itemId,subId){
   const st=(item.subtasks||[]).find(s=>s.id===subId);
   if(!st)return;
   st.done=!st.done;
-  if(item.subtasks.length>0&&item.subtasks.every(s=>s.done)&&!item.done){item.done=true;}
+  if(item.subtasks.length>0&&item.subtasks.every(s=>s.done)&&!item.done){item.done=true;item.doneAt=Date.now();}
   scheduleSave();renderDashChecklist();
   if(activeModule==='checklist')renderChecklistModule();
 }
@@ -7688,6 +7759,7 @@ function dashClToggle(id){
   const item=checklistState.items.find(i=>i.id===id);
   if(!item)return;
   item.done=true;
+  item.doneAt=Date.now();
   scheduleSave();renderDashChecklist();
   if(activeModule==='checklist')renderChecklistModule();
 }
@@ -10211,6 +10283,8 @@ function toggleChecklistDone(id){
   if(!item)return;
   const wasOpen=!item.done;
   item.done=!item.done;
+  /* Track completion timestamp voor wekelijkse review */
+  item.doneAt=item.done?Date.now():null;
   /* Recurring: when an item with .recurrence becomes done, spawn the
      next occurrence with the deadline rolled forward. */
   if(wasOpen&&item.done&&item.recurrence&&item.recurrence!=='none'){
@@ -10260,7 +10334,7 @@ function toggleSubtask(itemId,stId){
   const st=(item.subtasks||[]).find(s=>s.id===stId);
   if(!st)return;
   st.done=!st.done;
-  if(item.subtasks.length>0&&item.subtasks.every(s=>s.done)&&!item.done){item.done=true;}
+  if(item.subtasks.length>0&&item.subtasks.every(s=>s.done)&&!item.done){item.done=true;item.doneAt=Date.now();}
   scheduleSave();renderChecklistModule();
 }
 
@@ -13236,6 +13310,273 @@ function applyQuickAddAI(){
   appToast(`✨ ${parts.join(' + ')} toegevoegd`,{type:'success',duration:3500});
   closeQuickAddAI();
 }
+
+/* ─────────────────────────────────────────────────────────────────
+   WEKELIJKSE REVIEW
+   Verzamelt voltooide checklist-items van deze week + metadata,
+   stuurt naar Gemini, krijgt NL markdown weekreview terug.
+   Output kan direct als notitie worden opgeslagen onder "Reviews".
+   ───────────────────────────────────────────────────────────────── */
+let _weeklyReviewMarkdown=''; /* buffer voor copy/save acties */
+let _weeklyReviewMeta=null;    /* week-info voor note-titel */
+
+/* ─ Verzamel data: voltooide items deze week (ma 00:00 → nu) ─ */
+function _collectWeeklyReviewData(){
+  const now=new Date();
+  /* Week start = maandag van huidige week, 00:00 lokaal */
+  const weekStart=new Date(now);
+  const dow=weekStart.getDay();
+  const daysFromMon=dow===0?6:dow-1;
+  weekStart.setDate(weekStart.getDate()-daysFromMon);
+  weekStart.setHours(0,0,0,0);
+  const weekStartMs=weekStart.getTime();
+  /* Verzamel voltooide items deze week (gebruik doneAt, fallback updatedAt) */
+  const items=checklistState?.items||[];
+  const completed=items.filter(i=>{
+    if(!i.done)return false;
+    const ts=i.doneAt||i.updatedAt||0;
+    return ts>=weekStartMs;
+  });
+  /* Ook open items meegeven als context voor "voor volgende week" */
+  const openItems=items.filter(i=>!i.done&&!i.archived);
+  const overdueOpen=openItems.filter(i=>i.deadline&&i.deadline<now.toISOString().slice(0,10));
+  /* Klanten lookup */
+  const clientName=id=>{const c=(kanbanState?.clients||[]).find(c=>c.id===id);return c?c.name:'Geen klant';};
+  /* Per-klant aggregatie */
+  const perClient={};
+  completed.forEach(i=>{
+    const k=clientName(i.clientId);
+    if(!perClient[k])perClient[k]=[];
+    perClient[k].push(i);
+  });
+  /* Per-prio counts */
+  const prioCounts={hoog:0,middel:0,laag:0};
+  completed.forEach(i=>{const p=i.priority||'middel';if(prioCounts[p]!==undefined)prioCounts[p]++;});
+  /* Format week-label */
+  const weekEnd=new Date(weekStart);weekEnd.setDate(weekStart.getDate()+6);
+  const fmt=d=>d.toLocaleDateString('nl-NL',{day:'numeric',month:'short'});
+  const isoWeek=_getISOWeek(weekStart);
+  const weekLabel=`Week ${isoWeek} · ${fmt(weekStart)} – ${fmt(weekEnd)} ${weekEnd.getFullYear()}`;
+  return{
+    weekStart,weekEnd,weekLabel,isoWeek,
+    completed,openItems,overdueOpen,perClient,prioCounts,
+    totalCompleted:completed.length,
+    totalOpen:openItems.length
+  };
+}
+
+/* ISO weeknummer berekening */
+function _getISOWeek(date){
+  const d=new Date(Date.UTC(date.getFullYear(),date.getMonth(),date.getDate()));
+  const dayNum=d.getUTCDay()||7;
+  d.setUTCDate(d.getUTCDate()+4-dayNum);
+  const yearStart=new Date(Date.UTC(d.getUTCFullYear(),0,1));
+  return Math.ceil(((d-yearStart)/86400000+1)/7);
+}
+
+/* ─ Stats-tegels voor in modal ─ */
+function _renderWeeklyReviewStats(data){
+  const el=document.getElementById('weeklyReviewStats');
+  if(!data.totalCompleted){el.style.display='none';return;}
+  const subsDone=data.completed.reduce((s,i)=>s+(i.subtasks||[]).filter(x=>x.done).length,0);
+  el.innerHTML=`
+    <div class="wr-stat">
+      <div class="wr-stat-num">${data.totalCompleted}</div>
+      <div class="wr-stat-lbl">Afgerond</div>
+    </div>
+    <div class="wr-stat">
+      <div class="wr-stat-num">${Object.keys(data.perClient).length}</div>
+      <div class="wr-stat-lbl">Klanten</div>
+    </div>
+    <div class="wr-stat">
+      <div class="wr-stat-num">${subsDone}</div>
+      <div class="wr-stat-lbl">Subtaken</div>
+    </div>
+    <div class="wr-stat">
+      <div class="wr-stat-num">${data.prioCounts.hoog}</div>
+      <div class="wr-stat-lbl">Hoge prio</div>
+    </div>`;
+  el.style.display='';
+}
+
+/* ─ Prompt-bouwer ─ */
+function _buildWeeklyReviewPrompt(data){
+  const lines=[];
+  lines.push(`Genereer een Nederlandse weekreview in markdown-formaat.`);
+  lines.push(``);
+  lines.push(`WEEK: ${data.weekLabel}`);
+  lines.push(`Totaal voltooid: ${data.totalCompleted}`);
+  lines.push(`Open items (context): ${data.totalOpen} (waarvan ${data.overdueOpen.length} over deadline)`);
+  lines.push(``);
+  lines.push(`VOLTOOIDE TAKEN per klant:`);
+  Object.entries(data.perClient).forEach(([klant,items])=>{
+    lines.push(``);
+    lines.push(`${klant} (${items.length}):`);
+    items.forEach(i=>{
+      const meta=[];
+      if(i.priority&&i.priority!=='middel')meta.push(`prio:${i.priority}`);
+      if(i.subtasks?.length)meta.push(`${i.subtasks.filter(s=>s.done).length}/${i.subtasks.length} subtaken`);
+      if(i.deadline)meta.push(`deadline was ${i.deadline}`);
+      lines.push(`- ${i.text}${meta.length?' ['+meta.join(', ')+']':''}`);
+    });
+  });
+  if(data.overdueOpen.length){
+    lines.push(``);
+    lines.push(`OPEN TAKEN OVER DEADLINE (max 5 voorbeelden):`);
+    data.overdueOpen.slice(0,5).forEach(i=>lines.push(`- ${i.text} (deadline ${i.deadline})`));
+  }
+  lines.push(``);
+  lines.push(`OUTPUT — markdown met deze structuur (gebruik exact deze H2-secties):`);
+  lines.push(`# Weekreview ${data.weekLabel}`);
+  lines.push(`## 📊 In het kort`);
+  lines.push(`[2–3 zinnen samenvatting]`);
+  lines.push(`## 🏆 Highlights`);
+  lines.push(`[3–5 bullets van meest impactvolle voltooide taken — focus op outcomes]`);
+  lines.push(`## 👥 Per klant`);
+  lines.push(`[Per klant kort: aantal taken + 1 zin observatie. Sortering op aantal aflopend]`);
+  lines.push(`## 💭 Patronen & observaties`);
+  lines.push(`[Wat valt op? Veel hoge prio? Concentratie bij één klant? Veel subtaken?]`);
+  lines.push(`## ⏭ Voor volgende week`);
+  lines.push(`[Korte vooruitblik op basis van open items + overdues. Max 3 bullets]`);
+  lines.push(``);
+  lines.push(`Stijl: zakelijk maar prettig leesbaar. Géén jargon, géén corporate fluff. Korte zinnen.`);
+  return lines.join('\n');
+}
+
+/* ─ Modal open/close ─ */
+function openWeeklyReviewModal(){
+  const data=_collectWeeklyReviewData();
+  _weeklyReviewMeta=data;
+  document.getElementById('weeklyReviewTitle').textContent=`Wekelijkse review · ${data.weekLabel}`;
+  document.getElementById('weeklyReviewSub').textContent=
+    data.totalCompleted
+      ?`Samenvatting van de ${data.totalCompleted} voltooide ${data.totalCompleted===1?'taak':'taken'} deze week.`
+      :'Geen voltooide taken deze week.';
+  document.getElementById('weeklyReviewError').style.display='none';
+  document.getElementById('weeklyReviewContent').style.display='none';
+  document.getElementById('weeklyReviewEmpty').style.display='none';
+  document.getElementById('weeklyReviewCopyBtn').style.display='none';
+  document.getElementById('weeklyReviewSaveBtn').style.display='none';
+  _renderWeeklyReviewStats(data);
+  document.getElementById('weeklyReviewModal').classList.add('open');
+  /* Geen taken voltooid? Toon vriendelijke melding, geen AI-call */
+  if(!data.totalCompleted){
+    const empty=document.getElementById('weeklyReviewEmpty');
+    empty.innerHTML='ℹ Er zijn deze week nog geen taken afgerond. Vink eerst items af in de checklist, dan kan AI hier iets zinvols over schrijven.';
+    empty.style.display='';
+    document.getElementById('weeklyReviewLoading').style.display='none';
+    return;
+  }
+  /* Auto-start generatie */
+  generateWeeklyReview();
+}
+function closeWeeklyReviewModal(){
+  document.getElementById('weeklyReviewModal').classList.remove('open');
+}
+
+/* ─ Genereer review via Gemini ─ */
+async function generateWeeklyReview(){
+  if(!_weeklyReviewMeta||!_weeklyReviewMeta.totalCompleted)return;
+  const loadEl=document.getElementById('weeklyReviewLoading');
+  const errEl=document.getElementById('weeklyReviewError');
+  const contentEl=document.getElementById('weeklyReviewContent');
+  const copyBtn=document.getElementById('weeklyReviewCopyBtn');
+  const saveBtn=document.getElementById('weeklyReviewSaveBtn');
+  loadEl.style.display='';
+  errEl.style.display='none';
+  contentEl.style.display='none';
+  copyBtn.style.display='none';
+  saveBtn.style.display='none';
+  try{
+    /* Gebruik tekst-mode (geen JSON schema) — we willen pure markdown terug */
+    const key=localStorage.getItem(LS_GEMINI_KEY);
+    if(!key)throw new Error('Geen Gemini API-key ingesteld. Klik op ⚙ API-key.');
+    const prompt=_buildWeeklyReviewPrompt(_weeklyReviewMeta);
+    const r=await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(key)}`,
+      {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        contents:[{role:'user',parts:[{text:prompt}]}],
+        generationConfig:{temperature:0.5}
+      })}
+    );
+    if(!r.ok){
+      let msg='Gemini API fout '+r.status;
+      try{const j=await r.json();if(j.error?.message)msg=j.error.message;}catch(e){}
+      if(r.status===400&&/API key/i.test(msg))msg='Ongeldige API-key. Check via ⚙ API-key.';
+      if(r.status===429)msg='Limiet bereikt (1500/dag of 15/min). Wacht even of probeer morgen.';
+      throw new Error(msg);
+    }
+    const data=await r.json();
+    const md=data.candidates?.[0]?.content?.parts?.[0]?.text||'';
+    if(!md)throw new Error('Lege response van Gemini');
+    _weeklyReviewMarkdown=md;
+    /* Render markdown via marked.js (al geladen voor Notes) */
+    const html=(typeof marked!=='undefined'&&marked.parse)?marked.parse(md):escapeHtml(md).replace(/\n/g,'<br>');
+    contentEl.innerHTML=html;
+    contentEl.style.display='';
+    copyBtn.style.display='';
+    saveBtn.style.display='';
+  }catch(e){
+    errEl.textContent='⚠ '+e.message;
+    errEl.style.display='';
+  }finally{
+    loadEl.style.display='none';
+  }
+}
+
+/* ─ Kopieer markdown naar clipboard ─ */
+async function copyWeeklyReview(){
+  if(!_weeklyReviewMarkdown)return;
+  try{
+    await navigator.clipboard.writeText(_weeklyReviewMarkdown);
+    appToast('Weekreview gekopieerd naar klembord',{type:'success',duration:2500});
+  }catch(e){
+    appToast('Kopiëren mislukt: '+e.message,{type:'error'});
+  }
+}
+
+/* ─ Save als notitie onder folder "Reviews" ─ */
+function saveWeeklyReviewAsNote(){
+  if(!_weeklyReviewMarkdown||!_weeklyReviewMeta)return;
+  if(!notesState.tree)notesState.tree=[];
+  /* Zoek of maak "Reviews" folder op root-niveau */
+  let reviewsFolder=notesState.tree.find(n=>n.type==='folder'&&n.title==='Reviews');
+  if(!reviewsFolder){
+    reviewsFolder={
+      id:(typeof ntuid==='function'?ntuid():uid()),
+      type:'folder',title:'Reviews',children:[],
+      updatedAt:Date.now()
+    };
+    notesState.tree.push(reviewsFolder);
+    if(notesState.collapsed)notesState.collapsed[reviewsFolder.id]=false;
+  }
+  /* Convert markdown to HTML voor opslag (notes verwacht HTML in .content) */
+  const html=(typeof marked!=='undefined'&&marked.parse)
+    ?marked.parse(_weeklyReviewMarkdown)
+    :escapeHtml(_weeklyReviewMarkdown).replace(/\n/g,'<br>');
+  const note={
+    id:(typeof ntuid==='function'?ntuid():uid()),
+    type:'page',
+    title:`Weekreview ${_weeklyReviewMeta.weekLabel}`,
+    content:html,
+    clientId:null,
+    updatedAt:Date.now()
+  };
+  reviewsFolder.children=reviewsFolder.children||[];
+  reviewsFolder.children.unshift(note); /* nieuwste bovenaan */
+  notesState.activeId=note.id;
+  scheduleSave();
+  closeWeeklyReviewModal();
+  appToast('Weekreview opgeslagen in Notities → Reviews',{type:'success',duration:3500,undo:null});
+  /* Open de notitie meteen */
+  switchModule('notes');
+}
+
+window.openWeeklyReviewModal=openWeeklyReviewModal;
+window.closeWeeklyReviewModal=closeWeeklyReviewModal;
+window.generateWeeklyReview=generateWeeklyReview;
+window.copyWeeklyReview=copyWeeklyReview;
+window.saveWeeklyReviewAsNote=saveWeeklyReviewAsNote;
 
 /* Maak functies globaal beschikbaar voor onclick-handlers */
 window.openQuickAddAI=openQuickAddAI;
