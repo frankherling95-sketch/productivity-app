@@ -9229,13 +9229,44 @@ function setNoteClient(id,clientId){
 }
 
 
+/* ─ Note content sanitisatie ─
+   Strips blob:-URLs (verlopen na reload) en oversized data:-afbeeldingen
+   (>2 MB base64) die localStorage/Gist doen overlopen.
+   Regex-aanpak is veiliger dan DOM-parsing bij grote strings. */
+function sanitizeNoteContent(html){
+  if(!html)return html;
+  /* blob: URLs zijn altijd tijdelijk — verwijder de volledige <img>-tag */
+  html=html.replace(/<img\b[^>]*\bsrc="blob:[^"]*"[^>]*\/?>/gi,'');
+  /* data: URLs groter dan 2 MB — vervang door placeholder */
+  html=html.replace(/<img\b([^>]*)\bsrc="(data:image\/[^;]{1,30};base64,[^"]{2097152,})"([^>]*)\/?>/gi,
+    '<span style="display:inline-block;padding:4px 8px;background:var(--surface2);border-radius:4px;font-size:12px;color:var(--text-muted)">[Afbeelding te groot — gebruik Ctrl+V om opnieuw in te voegen]</span>');
+  return html;
+}
+
 /* ─ Note content updates ─ */
 function updateNoteContent(content){
   const id=notesState.activeId;if(!id)return;
   const r=findNode(notesState.tree,id);if(!r)return;
-  r.node.content=content;r.node.updatedAt=Date.now();
+  r.node.content=sanitizeNoteContent(content);r.node.updatedAt=Date.now();
   scheduleSave();
   if(typeof setNoteSaveStatus==='function')setNoteSaveStatus('saved');
+}
+
+/* ─ Inhoud legen (met undo) ─ */
+function noteClearContent(){
+  const editor=document.getElementById('noteEditor');if(!editor)return;
+  const id=notesState.activeId;if(!id)return;
+  const r=findNode(notesState.tree,id);if(!r)return;
+  const prev=r.node.content||'';
+  editor.innerHTML='';
+  updateNoteContent('');
+  appToast('Inhoud gewist',{
+    undo:()=>{
+      const ed=document.getElementById('noteEditor');
+      if(ed){ed.innerHTML=noteContentToHtml(prev);updateNoteContent(prev);}
+      else{r.node.content=prev;r.node.updatedAt=Date.now();scheduleSave();}
+    }
+  });
 }
 /* Wrapper around debounce so we can flip the status to 'saving'
    immediately on every input keystroke and 'saved' when the
@@ -9592,6 +9623,9 @@ function renderNoteEditor(){
           Opgeslagen
         </span>
         <span class="note-ts">${ts}</span>
+        <button type="button" class="cl2-iconbtn" data-action="noteClearContent" title="Inhoud legen">
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3.5h8M5.5 3.5V2.5a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1"/><rect x="2.5" y="3.5" width="9" height="8" rx="1"/><line x1="5.5" y1="6" x2="5.5" y2="9.5"/><line x1="8.5" y1="6" x2="8.5" y2="9.5"/></svg>
+        </button>
         <button type="button" class="cl2-iconbtn danger" data-action="deleteNode" data-arg1="${node.id}" title="Notitie verwijderen">
           <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 3.5h9M5 3.5V2.5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1M3.5 3.5L4 12a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1l.5-8.5"/></svg>
         </button>
@@ -9647,7 +9681,7 @@ function renderNoteEditor(){
   if(editor){
     /* Default paragraph separator: <p> instead of <div> for cleaner HTML */
     try{document.execCommand('defaultParagraphSeparator',false,'p');}catch(e){}
-    editor.innerHTML=noteContentToHtml(node.content||'');
+    editor.innerHTML=noteContentToHtml(sanitizeNoteContent(node.content||''));
     editor.addEventListener('input',()=>{
       debouncedUpdateContent(editor.innerHTML);
       updateNoteWordCount(editor);
