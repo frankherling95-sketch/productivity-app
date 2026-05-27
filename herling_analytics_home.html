@@ -6345,11 +6345,25 @@ async function loadGist(){
   try{
     let content=null;
     let remoteUpdatedAt=null;
+    /* Helper: als GitHub de file afkapt (>1 MB), haal volledige content op via raw_url */
+    const fetchGistContent=async(f)=>{
+      if(!f)return null;
+      if(f.truncated&&f.raw_url){
+        /* GitHub kapt Gist-bestanden > 1 MB af in de API-response.
+           raw_url bevat de volledige inhoud — haal die rechtstreeks op. */
+        const tok=localStorage.getItem(LS_TOKEN_KEY);
+        try{
+          const r=await fetch(f.raw_url,{headers:tok?{Authorization:'token '+sanitizeToken(tok)}:{}});
+          if(r.ok)return await r.text();
+        }catch(e){console.warn('raw_url fetch mislukt, val terug op truncated content',e);}
+      }
+      return f.content||null;
+    };
     if(gistId){
       try{
         const g=await gistRequest('GET','/gists/'+gistId);
         const f=g.files[GIST_FILENAME];
-        if(f)content=f.content;
+        content=await fetchGistContent(f);
         remoteUpdatedAt=g.updated_at;
       }catch(e){gistId=null;localStorage.removeItem(LS_GIST_KEY);}
     }
@@ -6371,7 +6385,7 @@ async function loadGist(){
         }
         gistId=found.id;localStorage.setItem(LS_GIST_KEY,gistId);
         const g=await gistRequest('GET','/gists/'+gistId);
-        content=g.files[GIST_FILENAME]?.content;
+        content=await fetchGistContent(g.files[GIST_FILENAME]);
         remoteUpdatedAt=g.updated_at;
       }
     }
@@ -6417,10 +6431,39 @@ async function loadGist(){
     }
   }catch(e){
     console.error(e);
+    const isBadCreds=e.message&&e.message.toLowerCase().includes('bad credentials');
+    /* Probeer eerst herstel vanuit localStorage-backup voordat we lege state tonen */
+    if(!isBadCreds){
+      try{
+        const backup=localStorage.getItem(LS_BACKUP_KEY);
+        if(backup){
+          const parsed=JSON.parse(backup);
+          if(parsed&&(parsed.checklist?.items?.length||parsed.tasks||parsed.notes)){
+            rawState=parsed;
+            kanbanState=migrateOldKanban((parsed.tasks||{}));
+            if(!kanbanState.projects||!Object.keys(kanbanState.projects).length)initDefaultKanban();
+            if(!kanbanState.activeProject||!kanbanState.projects[kanbanState.activeProject])
+              kanbanState.activeProject=Object.keys(kanbanState.projects)[0];
+            if(!kanbanState.clients)kanbanState.clients=[];
+            if(!kanbanState.tags)kanbanState.tags=[];
+            notesState=parsed.notes||{tree:[],activeId:null,collapsed:{}};
+            if(!notesState.tree)notesState.tree=[];
+            checklistState=parsed.checklist||{items:[],showArchived:false,sortBy:'priority'};
+            if(!checklistState.items)checklistState.items=[];
+            urenState=parsed.uren||{entries:[],templates:[]};
+            if(!urenState.entries)urenState.entries=[];
+            setSync('error','Gist-fout — hersteld vanuit lokale backup');
+            appToast('⚠️ Gist kon niet geladen worden — data hersteld vanuit lokale backup. Open de POM-notitie om de grote afbeelding te verwijderen, sla dan opnieuw op.',{duration:12000});
+            renderAll();
+            return;
+          }
+        }
+      }catch(e2){console.warn('Backup-herstel mislukt',e2);}
+    }
+    /* Geen bruikbare backup — lege state */
     rawState={tasks:{},notes:{tree:[],activeId:null,collapsed:{}},checklist:{},settings:{}};
     initDefaultKanban();notesState=rawState.notes;
     checklistState={items:[],showArchived:false,sortBy:'priority'};
-    const isBadCreds=e.message&&e.message.toLowerCase().includes('bad credentials');
     if(isBadCreds){
       setSync('error','Token ongeldig — klik ⚙');
       if(typeof appToast==='function'){
