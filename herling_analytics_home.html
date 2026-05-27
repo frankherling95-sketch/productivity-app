@@ -6432,31 +6432,32 @@ async function loadGist(){
   }catch(e){
     console.error(e);
     const isBadCreds=e.message&&e.message.toLowerCase().includes('bad credentials');
-    /* Probeer eerst herstel vanuit localStorage-backup voordat we lege state tonen */
+    /* Probeer eerst herstel vanuit localStorage-backup voordat we lege state tonen.
+       saveLocalBackup() slaat op als {data: rawState, savedAt: ...} — gebruik loadLocalBackup(). */
     if(!isBadCreds){
       try{
-        const backup=localStorage.getItem(LS_BACKUP_KEY);
-        if(backup){
-          const parsed=JSON.parse(backup);
-          if(parsed&&(parsed.checklist?.items?.length||parsed.tasks||parsed.notes)){
-            rawState=parsed;
-            kanbanState=migrateOldKanban((parsed.tasks||{}));
-            if(!kanbanState.projects||!Object.keys(kanbanState.projects).length)initDefaultKanban();
-            if(!kanbanState.activeProject||!kanbanState.projects[kanbanState.activeProject])
-              kanbanState.activeProject=Object.keys(kanbanState.projects)[0];
-            if(!kanbanState.clients)kanbanState.clients=[];
-            if(!kanbanState.tags)kanbanState.tags=[];
-            notesState=parsed.notes||{tree:[],activeId:null,collapsed:{}};
-            if(!notesState.tree)notesState.tree=[];
-            checklistState=parsed.checklist||{items:[],showArchived:false,sortBy:'priority'};
-            if(!checklistState.items)checklistState.items=[];
-            urenState=parsed.uren||{entries:[],templates:[]};
-            if(!urenState.entries)urenState.entries=[];
-            setSync('error','Gist-fout — hersteld vanuit lokale backup');
-            appToast('⚠️ Gist kon niet geladen worden — data hersteld vanuit lokale backup. Open de POM-notitie om de grote afbeelding te verwijderen, sla dan opnieuw op.',{duration:12000});
-            renderAll();
-            return;
-          }
+        const saved=loadLocalBackup(); /* geeft rawState terug of null */
+        if(saved&&(saved.checklist||saved.tasks||saved.notes)){
+          rawState=saved;
+          const ts=saved.tasks||{};
+          kanbanState=migrateOldKanban(ts.projects?ts:{projects:{},activeProject:null,clients:[],tags:[],categoryGrouping:'grouped'});
+          if(!kanbanState.projects||!Object.keys(kanbanState.projects).length)initDefaultKanban();
+          if(!kanbanState.activeProject||!kanbanState.projects[kanbanState.activeProject])
+            kanbanState.activeProject=Object.keys(kanbanState.projects)[0];
+          if(!kanbanState.clients)kanbanState.clients=[];
+          if(!kanbanState.tags)kanbanState.tags=[];
+          if(!kanbanState.categoryGrouping)kanbanState.categoryGrouping='grouped';
+          notesState=saved.notes||{tree:[],activeId:null,collapsed:{}};
+          if(!notesState.tree)notesState.tree=[];
+          checklistState=saved.checklist||{items:[],showArchived:false,sortBy:'priority'};
+          if(!checklistState.items)checklistState.items=[];
+          urenState=saved.uren||{entries:[],templates:[]};
+          if(!urenState.entries)urenState.entries=[];
+          if(!urenState.templates)urenState.templates=[];
+          setSync('error','Gist-fout — hersteld vanuit lokale backup');
+          appToast('⚠️ Gist kon niet geladen worden — hersteld vanuit lokale backup. Open de POM-notitie en gebruik de Legen-knop om de grote afbeelding te verwijderen.',{duration:15000});
+          renderAll();
+          return;
         }
       }catch(e2){console.warn('Backup-herstel mislukt',e2);}
     }
@@ -6511,6 +6512,21 @@ function loadLocalBackup(){
   }catch(e){return null;}
 }
 
+/* Loopt recursief over de notes-tree en strips grote afbeeldingen
+   uit node.content. Geeft een NIEUWE tree terug — originele notesState
+   blijft onaangetast (zodat de editor-weergave niet verandert). */
+function sanitizeNotesStateForGist(state){
+  if(!state||!state.tree)return state;
+  const walkNode=n=>{
+    if(!n)return n;
+    const out={...n};
+    if(out.content)out.content=sanitizeNoteContent(out.content);
+    if(out.children)out.children=out.children.map(walkNode);
+    return out;
+  };
+  return {...state,tree:state.tree.map(walkNode)};
+}
+
 async function saveGist(){
   /* Always persist to localStorage first — instant, no network */
   saveLocalBackup();
@@ -6521,7 +6537,11 @@ async function saveGist(){
   rawState.checklist=checklistState;
   if(typeof urenState!=='undefined')rawState.uren=urenState;
   if(!rawState.agenda)rawState.agenda={events:[]};
-  const content=JSON.stringify(rawState,null,2);
+  /* Strip grote afbeeldingen uit notes ALLEEN voor de Gist-payload.
+     In-memory state (notesState) blijft ongewijzigd zodat de editor
+     de afbeeldingen nog toont. Dit voorkomt Gist-truncatie (>1 MB). */
+  const gistState={...rawState,notes:sanitizeNotesStateForGist(notesState)};
+  const content=JSON.stringify(gistState,null,2);
   try{
     /* Single-user setup: always overwrite, no conflict check.
        Conflict detection caused false positives due to GitHub's
@@ -9280,8 +9300,11 @@ function sanitizeNoteContent(html){
   if(!html)return html;
   /* blob: URLs zijn altijd tijdelijk — verwijder de volledige <img>-tag */
   html=html.replace(/<img\b[^>]*\bsrc="blob:[^"]*"[^>]*\/?>/gi,'');
-  /* data: URLs groter dan 2 MB — vervang door placeholder */
-  html=html.replace(/<img\b([^>]*)\bsrc="(data:image\/[^;]{1,30};base64,[^"]{2097152,})"([^>]*)\/?>/gi,
+  /* data: URLs groter dan 400 KB — vervang door placeholder.
+     400KB is ruim boven wat de paste-handler produceert (~50-250KB JPEG),
+     maar kapt ongecomprimeerde PNG-screenshots (500KB-5MB) af die de
+     Gist-truncatie veroorzaken. */
+  html=html.replace(/<img\b([^>]*)\bsrc="(data:image\/[^;]{1,30};base64,[^"]{409600,})"([^>]*)\/?>/gi,
     '<span style="display:inline-block;padding:4px 8px;background:var(--surface2);border-radius:4px;font-size:12px;color:var(--text-muted)">[Afbeelding te groot — gebruik Ctrl+V om opnieuw in te voegen]</span>');
   return html;
 }
