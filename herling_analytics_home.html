@@ -694,105 +694,396 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 @keyframes spin{to{transform:rotate(360deg)}}
 .loading-state{display:flex;align-items:center;gap:10px;padding:2rem;color:var(--text-muted);font-size:13px;justify-content:center}
 
-/* ══ Uren module ══ */
+/* ══ Uren module ══
+   Registratie-tabel (spreadsheet-gevoel) + pivot-overzichten.
+   Mobiel: dag-gegroepeerde kaarten + invoerblad. Print: factuurbijlage. */
 #mod-uren{flex-direction:column}
-.uren-lock-screen{flex:1;display:flex;align-items:center;justify-content:center;background:var(--bg)}
-.uren-lock-card{
-  background:var(--surface);border:0.5px solid var(--border);
-  border-radius:var(--radius-lg);padding:32px 28px;width:320px;
-  display:flex;flex-direction:column;align-items:center;gap:14px;
-  box-shadow:0 4px 24px rgba(0,0,0,0.08);
-}
-.uren-lock-icon{font-size:36px}
-.uren-lock-title{font-size:17px;font-weight:700;color:var(--text)}
-.uren-lock-sub{font-size:13px;color:var(--text-muted);text-align:center;line-height:1.5}
-.uren-pin-input{
-  width:100%;text-align:center;font-size:24px;font-weight:600;letter-spacing:6px;
-  padding:12px 16px;border:1.5px solid var(--border-strong);border-radius:var(--radius-md);
-  background:var(--surface2);color:var(--text);font-family:inherit;outline:none;
-  transition:border-color .15s;
-}
-.uren-pin-input:focus{border-color:var(--accent)}
-.uren-lock-err{color:var(--danger);font-size:12px;min-height:16px;text-align:center}
+
+/* ── Topbar ── */
 .uren-topbar{
   display:flex;align-items:center;gap:10px;flex-wrap:wrap;
   padding:12px 16px;border-bottom:0.5px solid var(--border);
   flex-shrink:0;background:var(--surface);
 }
-.uren-topbar-title{font-size:18px;font-weight:700;color:var(--text)}
-.uren-view-tabs{display:flex;border:0.5px solid var(--border-strong);border-radius:var(--radius);overflow:hidden}
-.uren-view-tab{
-  padding:5px 13px;font-size:12px;font-weight:500;cursor:pointer;
-  background:var(--surface);color:var(--text-muted);border:none;
-  font-family:inherit;transition:all .15s;
+.uren-topbar-title{font-family:var(--font-display);font-size:19px;font-weight:700;letter-spacing:-.02em;color:var(--text)}
+.uren-periode{
+  display:flex;align-items:center;gap:2px;background:var(--surface2);
+  border:0.5px solid var(--border);border-radius:var(--radius);padding:2px;
 }
-.uren-view-tab.active{background:var(--accent);color:#fff}
-.uren-nav-wrap{display:flex;align-items:center;gap:6px}
-.uren-nav-label{font-size:13px;font-weight:600;min-width:160px;text-align:center;color:var(--text)}
-.uren-content{flex:1;overflow:auto;padding:16px}
-.uren-matrix-wrap{overflow-x:auto}
-.uren-matrix{width:100%;border-collapse:collapse;min-width:580px;font-size:13px}
-.uren-matrix th{
-  padding:8px 10px;background:var(--surface2);font-size:11px;font-weight:600;
-  color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;
-  border:0.5px solid var(--border);text-align:center;white-space:nowrap;
+.uren-periode button{
+  background:transparent;border:none;padding:5px 9px;border-radius:6px;
+  font-size:14px;line-height:1;color:var(--text-muted);cursor:pointer;font-family:inherit;
+  transition:background .12s,color .12s;
 }
-.uren-matrix th.client-col{text-align:left}
-.uren-matrix td{border:0.5px solid var(--border);padding:3px 5px;vertical-align:middle;text-align:center;background:var(--surface)}
-.uren-matrix td.client-col{
-  text-align:left;font-weight:500;padding:6px 10px;background:var(--surface2);
-  white-space:nowrap;max-width:150px;overflow:hidden;text-overflow:ellipsis;
+.uren-periode button:hover{background:var(--surface3);color:var(--text)}
+.uren-periode-lbl{
+  font-size:12.5px;font-weight:600;padding:0 10px;min-width:180px;
+  text-align:center;font-variant-numeric:tabular-nums;color:var(--text);
 }
-.uren-matrix td.total-col{font-weight:600;background:var(--surface2);color:var(--text);white-space:nowrap}
-.uren-matrix tr.total-row td{background:var(--surface2);font-weight:600}
-.uren-matrix tr.total-row td.client-col{color:var(--text-muted);font-size:11px}
-.uren-cell-wrap{position:relative;display:flex;align-items:center;justify-content:center;min-height:34px}
-.uren-cell-input{
-  width:54px;text-align:center;font-size:14px;font-weight:500;padding:4px 4px;
-  border:1px solid transparent;border-radius:var(--radius);
-  background:transparent;color:var(--text);font-family:inherit;outline:none;
-  transition:border-color .15s,background .15s;
-  -moz-appearance:textfield;
+
+/* ── Viewbar: tabs + filters ── */
+.uren-viewbar{
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  padding:10px 16px;background:var(--surface);
+  border-bottom:0.5px solid var(--border);flex-shrink:0;
 }
-.uren-cell-input::-webkit-inner-spin-button,.uren-cell-input::-webkit-outer-spin-button{-webkit-appearance:none}
-.uren-cell-input:hover:not(:disabled){border-color:var(--border-strong);background:var(--surface2)}
-.uren-cell-input:focus{border-color:var(--accent);background:var(--surface)}
-.uren-cell-input.has-value{font-weight:600}
-.uren-cell-input.invoiced{color:var(--success);pointer-events:none;background:var(--success-bg);border-color:transparent}
-.uren-cell-desc-btn{
-  position:absolute;right:1px;top:50%;transform:translateY(-50%);
-  font-size:10px;padding:1px 3px;cursor:pointer;
-  background:none;border:none;color:var(--text-hint);opacity:0;
-  transition:opacity .15s;font-family:inherit;line-height:1;
+.uren-tabs{
+  display:flex;background:var(--surface2);border:0.5px solid var(--border);
+  border-radius:var(--radius);padding:2px;gap:2px;
 }
-.uren-cell-wrap:hover .uren-cell-desc-btn{opacity:1}
-.uren-cell-desc-btn.has-desc{opacity:1;color:var(--accent)}
-.uren-today-col{background:var(--info-bg)!important}
-.uren-invoiced-badge{
-  display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;
-  padding:2px 7px;background:var(--success-bg);color:var(--success);border-radius:4px;
+.uren-tab{
+  background:transparent;border:none;padding:6px 13px;border-radius:6px;
+  font-size:12.5px;font-weight:600;color:var(--text-muted);cursor:pointer;
+  font-family:inherit;white-space:nowrap;transition:all .15s;
 }
-.uren-desc-popup{
+.uren-tab:hover{color:var(--text)}
+.uren-tab.active{background:var(--surface);color:var(--text);box-shadow:var(--shadow-card)}
+.uren-sel{
+  background:var(--surface);border:0.5px solid var(--border-strong);border-radius:20px;
+  padding:5px 11px;font-size:11.5px;font-weight:500;color:var(--text-muted);
+  cursor:pointer;font-family:inherit;outline:none;transition:all .15s;
+}
+.uren-sel:hover{border-color:var(--text-hint);color:var(--text)}
+.uren-sel.active{background:var(--mint-soft);border-color:var(--mint);color:var(--text);font-weight:600}
+
+/* ── KPI strip ── */
+.uren-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:14px 16px 2px;flex-shrink:0}
+.uren-kpi{
+  background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-md);
+  padding:12px 14px;position:relative;overflow:hidden;
+}
+.uren-kpi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--k,var(--mint))}
+.uren-kpi-lab{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-hint)}
+.uren-kpi-val{
+  font-family:var(--font-mono);font-size:23px;font-weight:600;letter-spacing:-.02em;
+  margin-top:4px;font-variant-numeric:tabular-nums;display:flex;align-items:baseline;gap:4px;color:var(--text);
+}
+.uren-kpi-val small{font-size:12px;font-weight:400;color:var(--text-hint);letter-spacing:0}
+.uren-kpi-sub{font-size:11.5px;color:var(--text-muted);margin-top:2px}
+.uren-kpi-bar{height:4px;border-radius:2px;background:var(--surface3);margin-top:8px;overflow:hidden}
+.uren-kpi-bar i{display:block;height:100%;border-radius:2px;background:var(--k,var(--mint))}
+
+/* ── Content shell ── */
+.uren-content{flex:1;overflow:auto;padding:12px 16px 20px}
+.uren-sheet-card{
+  background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-md);
+  overflow-x:auto;box-shadow:var(--shadow-card);
+}
+
+/* ── Selectiebalk (bulk-acties) ── */
+.uren-selbar{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:9px 13px;margin-bottom:10px;border-radius:var(--radius-md);
+  background:var(--mint-soft);border:1px solid var(--mint);
+}
+.uren-selbar-count{font-size:12.5px;font-weight:700;color:var(--text)}
+.uren-selbar-count b{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.uren-selbar .btn{padding:5px 11px;font-size:12px}
+
+/* ── Registratie-tabel ── */
+.uren-sheet{width:100%;border-collapse:separate;border-spacing:0;font-size:13.5px;min-width:820px}
+.uren-sheet thead th{
+  position:sticky;top:0;z-index:3;background:var(--surface2);
+  font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--text-hint);text-align:left;padding:9px 11px;
+  border-bottom:0.5px solid var(--border-strong);white-space:nowrap;
+}
+.uren-sheet thead th.num{text-align:right}
+.uren-sheet td{padding:0;border-bottom:0.5px solid var(--border);vertical-align:middle;background:var(--surface)}
+.uren-sheet tbody tr:hover td{background:var(--surface2)}
+
+.uren-daygrp td{
+  background:var(--surface2);padding:6px 11px;
+  border-bottom:0.5px solid var(--border);position:sticky;top:33px;z-index:2;
+}
+.uren-daygrp .in{display:flex;align-items:center;gap:9px}
+.uren-daygrp .dg-date{
+  font-family:var(--font-mono);font-size:11.5px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.04em;color:var(--text);
+}
+.uren-daygrp .dg-rule{flex:1;height:1px;background:var(--border)}
+.uren-daygrp .dg-tot{font-family:var(--font-mono);font-size:11.5px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--text)}
+.uren-daygrp .dg-today{
+  background:var(--mint-soft);color:var(--text);border:1px solid var(--mint);border-radius:20px;
+  padding:1px 8px;font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+}
+.uren-daygrp .dg-add{
+  background:transparent;border:none;color:var(--text-hint);cursor:pointer;font-family:inherit;
+  font-size:11px;font-weight:600;padding:2px 7px;border-radius:5px;transition:all .12s;
+}
+.uren-daygrp .dg-add:hover{background:var(--mint-soft);color:var(--text)}
+
+.uren-col-check{width:36px}
+.uren-col-date{width:132px}
+.uren-col-klant{width:200px}
+.uren-col-uren{width:132px}
+.uren-col-status{width:136px}
+.uren-col-act{width:66px}
+
+.uren-check{
+  width:15px;height:15px;margin:0 auto;display:block;cursor:pointer;
+  accent-color:var(--mint);
+}
+.uren-sheet td.uren-cb{text-align:center;padding:0 4px}
+
+.uren-cell{
+  width:100%;border:1px solid transparent;background:transparent;border-radius:5px;
+  padding:8px 9px;font-size:13.5px;font-family:inherit;color:var(--text);
+  outline:none;transition:border-color .12s,background .12s;
+}
+.uren-cell:hover:not(:disabled){border-color:var(--border);background:var(--surface)}
+.uren-cell:focus{border-color:var(--mint);background:var(--surface);box-shadow:0 0 0 3px var(--mint-soft)}
+.uren-cell:disabled{color:var(--text-muted);cursor:default}
+.uren-cell.date{font-family:var(--font-mono);font-size:12.5px}
+.uren-cell.desc{color:var(--text-muted)}
+.uren-cell.desc:hover:not(:disabled),.uren-cell.desc:focus{color:var(--text)}
+.uren-cell::placeholder{color:var(--text-hint)}
+.uren-cell.date::-webkit-calendar-picker-indicator{opacity:.45;cursor:pointer}
+.uren-cell.date:hover::-webkit-calendar-picker-indicator{opacity:.9}
+
+/* Uren-cel met − / + stepper */
+.uren-hours{display:flex;align-items:center;gap:1px;padding:0 5px}
+.uren-hours-in{
+  flex:1;min-width:0;width:100%;text-align:right;border:1px solid transparent;background:transparent;
+  border-radius:5px;padding:8px 6px;font-family:var(--font-mono);font-size:13.5px;font-weight:600;
+  font-variant-numeric:tabular-nums;color:var(--text);outline:none;
+  transition:border-color .12s,background .12s;-moz-appearance:textfield;
+}
+.uren-hours-in::-webkit-inner-spin-button,.uren-hours-in::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.uren-hours-in:hover:not(:disabled){border-color:var(--border);background:var(--surface)}
+.uren-hours-in:focus{border-color:var(--mint);background:var(--surface);box-shadow:0 0 0 3px var(--mint-soft)}
+.uren-hours-in:disabled{color:var(--text-muted)}
+.uren-step{
+  width:22px;height:24px;flex-shrink:0;border:0.5px solid var(--border);background:var(--surface);
+  border-radius:5px;color:var(--text-muted);cursor:pointer;font-family:inherit;font-size:13px;
+  line-height:1;display:flex;align-items:center;justify-content:center;
+  opacity:0;transition:opacity .12s,background .12s,color .12s,border-color .12s;
+}
+.uren-sheet tr:hover .uren-step,.uren-hours:focus-within .uren-step{opacity:1}
+.uren-step:hover{background:var(--mint-soft);border-color:var(--mint);color:var(--text)}
+.uren-step:disabled{display:none}
+
+.uren-klant-btn{
+  display:flex;align-items:center;gap:8px;width:100%;padding:7px 9px;
+  border:1px solid transparent;border-radius:5px;background:transparent;
+  cursor:pointer;font-family:inherit;font-size:13.5px;color:var(--text);text-align:left;
+  transition:border-color .12s,background .12s;
+}
+.uren-klant-btn:hover:not(:disabled){border-color:var(--border);background:var(--surface)}
+.uren-klant-btn:focus-visible{outline:2px solid var(--mint);outline-offset:-1px}
+.uren-klant-btn:disabled{cursor:default}
+.uren-klant-btn .sw{width:9px;height:9px;border-radius:2px;flex-shrink:0}
+.uren-klant-btn .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.uren-klant-btn .cr{color:var(--text-hint);font-size:9px;flex-shrink:0}
+.uren-klant-btn.empty .nm{color:var(--text-hint);font-weight:400}
+
+.uren-pill{
+  display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;
+  font-size:11px;font-weight:600;white-space:nowrap;border:none;
+  font-family:inherit;cursor:pointer;transition:filter .12s;
+}
+.uren-pill:hover{filter:brightness(.96)}
+.uren-pill:focus-visible{outline:2px solid var(--mint);outline-offset:1px}
+.uren-pill-open{background:var(--surface3);color:var(--text-muted)}
+.uren-pill-concept{background:var(--warning-bg);color:var(--warning)}
+.uren-pill-invoiced{background:var(--success-bg);color:var(--success)}
+.uren-sheet td.uren-status-td{padding:6px 9px}
+
+.uren-rowacts{display:flex;gap:2px;opacity:0;transition:opacity .12s;padding:0 6px}
+.uren-sheet tr:hover .uren-rowacts,.uren-rowacts:focus-within{opacity:1}
+.uren-rowacts button{
+  background:transparent;border:none;color:var(--text-hint);cursor:pointer;
+  font-size:12px;padding:4px 5px;border-radius:5px;font-family:inherit;line-height:1;
+}
+.uren-rowacts button:hover{background:var(--surface3);color:var(--text)}
+.uren-row.is-invoiced td{background:var(--surface2)}
+.uren-row.is-invoiced:hover td{background:var(--surface3)}
+.uren-row.is-selected td{background:var(--mint-soft)!important}
+
+.uren-draft td{border-bottom:0.5px solid var(--border)}
+.uren-draft:hover td{background:var(--mint-soft)}
+.uren-draft .uren-rn{color:var(--mint);font-weight:700}
+
+.uren-sheet tfoot td{
+  position:sticky;bottom:0;background:var(--surface2);
+  border-top:0.5px solid var(--border-strong);padding:10px 11px;font-size:12px;font-weight:700;
+}
+.uren-sheet tfoot .lab{letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);font-size:10.5px}
+.uren-sheet tfoot .tot{font-family:var(--font-mono);font-size:14px;text-align:right;font-variant-numeric:tabular-nums;color:var(--text)}
+.uren-sheet tfoot .split{font-weight:500;color:var(--text-muted);font-size:11.5px}
+
+.uren-empty{
+  color:var(--text-hint);font-size:13px;padding:44px 20px;text-align:center;line-height:1.6;
+}
+.uren-empty b{display:block;color:var(--text-muted);font-size:14px;font-weight:600;margin-bottom:4px}
+
+/* ── Pivot-overzichten ── */
+.uren-pivot{width:100%;border-collapse:separate;border-spacing:0;font-size:13.5px;min-width:760px}
+.uren-pivot th{
+  background:var(--surface2);font-size:10.5px;font-weight:700;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--text-hint);padding:9px 11px;
+  border-bottom:0.5px solid var(--border-strong);text-align:right;white-space:nowrap;
+}
+.uren-pivot th:first-child{text-align:left}
+.uren-pivot td{
+  padding:9px 11px;border-bottom:0.5px solid var(--border);text-align:right;
+  font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:12.5px;
+  color:var(--text-muted);white-space:nowrap;background:var(--surface);
+}
+.uren-pivot td:first-child{text-align:left;font-family:var(--font-body);font-weight:500;color:var(--text)}
+.uren-pivot tbody tr:hover td{background:var(--surface2)}
+.uren-pivot td.hot{color:var(--text);font-weight:600}
+.uren-pivot td.muted{color:var(--text-hint)}
+.uren-pivot .k{display:flex;align-items:center;gap:8px}
+.uren-pivot .k .sw{width:9px;height:9px;border-radius:2px;flex-shrink:0}
+.uren-pivot tfoot td{
+  background:var(--surface2);font-weight:700;color:var(--text);
+  border-top:0.5px solid var(--border-strong);border-bottom:none;
+}
+.uren-meter{display:flex;align-items:center;gap:9px;justify-content:flex-end}
+.uren-meter .track{width:96px;height:6px;border-radius:3px;background:var(--surface3);overflow:hidden;flex-shrink:0}
+.uren-meter .track i{display:block;height:100%;border-radius:3px}
+.uren-inv-btn{
+  border:0.5px solid var(--border-strong);background:var(--surface);color:var(--text-muted);
+  border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer;
+  font-family:var(--font-body);transition:all .15s;white-space:nowrap;
+}
+.uren-inv-btn:hover{background:var(--mint-soft);border-color:var(--mint);color:var(--text)}
+.uren-legend{display:flex;gap:16px;flex-wrap:wrap;padding:12px 3px 0;font-size:11.5px;color:var(--text-muted)}
+.uren-legend span{display:inline-flex;align-items:center;gap:6px}
+.uren-hint{margin-left:auto;color:var(--text-hint)}
+
+/* ── Klant-picker popover ── */
+.uren-pop{
   position:fixed;z-index:9999;background:var(--surface);
   border:0.5px solid var(--border-strong);border-radius:var(--radius-md);
-  padding:12px;box-shadow:0 4px 20px rgba(0,0,0,0.14);
-  min-width:240px;max-width:300px;display:flex;flex-direction:column;gap:8px;
+  padding:5px;box-shadow:var(--shadow-popover);
+  min-width:210px;max-height:320px;overflow-y:auto;
 }
+.uren-pop-item{
+  display:flex;align-items:center;gap:9px;width:100%;padding:8px 10px;
+  border:none;background:transparent;border-radius:var(--radius);cursor:pointer;
+  font-family:inherit;font-size:13px;color:var(--text);text-align:left;
+}
+.uren-pop-item:hover{background:var(--surface2)}
+.uren-pop-item.selected{background:var(--mint-soft);font-weight:600}
+.uren-pop-item .sw{width:9px;height:9px;border-radius:2px;flex-shrink:0}
+
+/* ── Duur-stepper (invoerblad) ── */
+.uren-dur{display:flex;align-items:center;gap:10px}
+.uren-dur-btn{
+  width:44px;height:44px;flex-shrink:0;border:0.5px solid var(--border-strong);
+  background:var(--surface);color:var(--text);border-radius:var(--radius-md);
+  font-size:20px;font-weight:600;cursor:pointer;font-family:inherit;line-height:1;
+  display:flex;align-items:center;justify-content:center;transition:all .15s;
+}
+.uren-dur-btn:hover{background:var(--mint-soft);border-color:var(--mint)}
+.uren-dur-btn:active{transform:scale(.95)}
+.uren-dur-in{
+  flex:1;min-width:0;text-align:center;font-family:var(--font-mono);font-size:22px;font-weight:600;
+  font-variant-numeric:tabular-nums;padding:9px 8px;border:0.5px solid var(--border-strong);
+  border-radius:var(--radius-md);background:var(--surface2);color:var(--text);
+  outline:none;-moz-appearance:textfield;
+}
+.uren-dur-in::-webkit-inner-spin-button,.uren-dur-in::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.uren-dur-in:focus{border-color:var(--mint);box-shadow:0 0 0 3px var(--mint-soft)}
+.uren-dur-chips{display:flex;gap:6px;flex-wrap:wrap}
+.uren-chip{
+  border:0.5px solid var(--border-strong);background:var(--surface);border-radius:20px;
+  padding:6px 12px;font-family:var(--font-mono);font-size:12px;font-weight:600;
+  color:var(--text-muted);cursor:pointer;transition:all .15s;
+}
+.uren-chip:hover{background:var(--mint-soft);border-color:var(--mint);color:var(--text)}
+.uren-chip.active{background:var(--mint-soft);border-color:var(--mint);color:var(--text)}
+.uren-chip-clear{color:var(--text-hint);font-family:var(--font-body)}
+.uren-chip-clear:hover{background:var(--danger-bg);border-color:var(--danger);color:var(--danger)}
+
+/* ── Invoerblad (modal op desktop, bottom sheet op mobiel) ── */
+.uren-form{display:flex;flex-direction:column;gap:14px}
+.uren-fld{display:flex;flex-direction:column;gap:6px}
+.uren-fld label{font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-hint)}
+.uren-fld .inp{
+  background:var(--surface2);border:0.5px solid var(--border-strong);border-radius:var(--radius);
+  padding:11px 12px;font-size:15px;width:100%;font-family:inherit;color:var(--text);outline:none;
+}
+.uren-fld .inp:focus{border-color:var(--mint);box-shadow:0 0 0 3px var(--mint-soft)}
+.uren-fld textarea.inp{resize:vertical;min-height:74px;font-size:14px;line-height:1.5}
+.uren-date-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.uren-date-row .inp{flex:1;min-width:150px;font-family:var(--font-mono);font-size:14px}
+.uren-klantpick{display:flex;gap:7px;flex-wrap:wrap}
+.uren-kchip{
+  display:inline-flex;align-items:center;gap:7px;border:0.5px solid var(--border-strong);
+  background:var(--surface);border-radius:20px;padding:7px 13px;font-size:12.5px;
+  font-weight:500;cursor:pointer;font-family:inherit;color:var(--text);transition:all .15s;
+}
+.uren-kchip:hover{border-color:var(--mint)}
+.uren-kchip .sw{width:9px;height:9px;border-radius:2px}
+.uren-kchip.active{border-color:var(--mint);background:var(--mint-soft);font-weight:600}
+.uren-statuspick{display:flex;gap:7px;flex-wrap:wrap}
+
+/* ── Mobiel: kaarten ──
+   .uren-mlist is de mobiele tegenhanger van .uren-sheet-card; precies één
+   van beide is zichtbaar (omgeschakeld in de 768px-breakpoint). */
+.uren-mlist{display:none;flex-direction:column;gap:11px}
+.uren-mday{display:flex;align-items:center;gap:9px;padding:2px 2px 0}
+.uren-mday em{
+  font-style:normal;font-family:var(--font-mono);font-size:11.5px;font-weight:600;
+  letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);
+}
+.uren-mday .rule{flex:1;height:1px;background:var(--border)}
+.uren-mday b{font-family:var(--font-mono);font-size:12px;font-variant-numeric:tabular-nums;color:var(--text)}
+.uren-mday .today{
+  background:var(--mint-soft);border:1px solid var(--mint);color:var(--text);border-radius:20px;
+  padding:1px 8px;font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+}
+.uren-mcard{
+  background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-md);
+  padding:12px 13px;display:flex;gap:12px;box-shadow:var(--shadow-card);
+  position:relative;overflow:hidden;width:100%;text-align:left;
+  font-family:inherit;color:var(--text);cursor:pointer;
+}
+.uren-mcard::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c,var(--mint))}
+.uren-mcard:active{background:var(--surface2)}
+.uren-mcard .body{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+.uren-mcard .kl{display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:600}
+.uren-mcard .kl .sw{width:9px;height:9px;border-radius:2px;flex-shrink:0}
+.uren-mcard .ds{
+  font-size:12.5px;color:var(--text-muted);line-height:1.5;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+}
+.uren-mcard .hrs{
+  font-family:var(--font-mono);font-size:19px;font-weight:600;font-variant-numeric:tabular-nums;
+  text-align:right;white-space:nowrap;padding-top:1px;
+}
+.uren-mcard .hrs small{font-size:11px;font-weight:400;color:var(--text-hint)}
+.uren-mpiv{
+  background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-md);
+  overflow:hidden;box-shadow:var(--shadow-card);
+}
+.uren-mpiv-row{display:flex;align-items:center;gap:11px;padding:12px 13px;border-bottom:0.5px solid var(--border)}
+.uren-mpiv-row:last-child{border-bottom:none}
+.uren-mpiv-row .sw{width:9px;height:9px;border-radius:2px;flex-shrink:0}
+.uren-mpiv-row .nm{flex:1;min-width:0;font-size:13.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.uren-mpiv-row .track{width:70px;height:6px;border-radius:3px;background:var(--surface3);overflow:hidden;flex-shrink:0}
+.uren-mpiv-row .track i{display:block;height:100%;border-radius:3px}
+.uren-mpiv-row .v{font-family:var(--font-mono);font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;width:56px;text-align:right}
+.uren-mpiv-foot{
+  display:flex;align-items:center;padding:11px 13px;background:var(--surface2);
+  border-top:0.5px solid var(--border-strong);font-size:11px;font-weight:700;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);
+}
+.uren-mpiv-foot b{margin-left:auto;font-family:var(--font-mono);font-size:14px;letter-spacing:0;text-transform:none;color:var(--text)}
+.uren-fab{
+  display:none;position:fixed;right:17px;bottom:80px;width:56px;height:56px;border-radius:50%;
+  background:var(--mint);color:var(--navy);border:none;font-size:26px;font-weight:600;
+  cursor:pointer;z-index:60;align-items:center;justify-content:center;font-family:inherit;
+  box-shadow:0 8px 24px var(--mint-glow),0 2px 8px rgba(15,27,61,.2);
+}
+.uren-fab:active{transform:scale(.94)}
 .uren-template-row{
   display:flex;align-items:center;gap:8px;padding:8px 10px;
   border-radius:var(--radius);background:var(--surface2);margin-bottom:5px;
 }
-.uren-month-table{width:100%;border-collapse:collapse;font-size:13px;min-width:600px}
-.uren-month-table th{
-  padding:8px 10px;background:var(--surface2);font-size:11px;font-weight:600;
-  color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;
-  border:0.5px solid var(--border);text-align:center;
-}
-.uren-month-table th.client-col{text-align:left}
-.uren-month-table td{border:0.5px solid var(--border);padding:7px 10px;text-align:center;background:var(--surface)}
-.uren-month-table td.client-col{text-align:left;font-weight:500;background:var(--surface2)}
-.uren-month-table td.total-col{font-weight:600;background:var(--surface2)}
-.uren-month-table tr.total-row td{background:var(--surface2);font-weight:600}
 .uren-export-item{
   padding:7px 12px;cursor:pointer;border-radius:var(--radius);font-size:13px;
   transition:background .1s;
@@ -816,16 +1107,40 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 }
 .uren-tpl-day-input::-webkit-inner-spin-button,.uren-tpl-day-input::-webkit-outer-spin-button{-webkit-appearance:none}
 .uren-tpl-day-input:focus{border-color:var(--accent)}
-/* Larger fonts in uren module */
-#mod-uren .uren-topbar-title{font-size:20px}
-#mod-uren .uren-matrix{font-size:14px}
-#mod-uren .uren-matrix th{font-size:12px}
-#mod-uren .uren-matrix td.client-col{font-size:14px}
-#mod-uren .uren-cell-input{font-size:15px;width:58px}
-#mod-uren .uren-nav-label{font-size:14px}
-#mod-uren .uren-month-table{font-size:14px}
-#mod-uren .uren-month-table th{font-size:12px}
-#mod-uren .uren-content{font-size:14px}
+
+/* ── Print: uren-overzicht als factuurbijlage ──
+   Alleen #urenPrintArea wordt afgedrukt; de rest van de app valt weg.
+   Wordt gevuld door urenExportPdf() vlak voor window.print(). */
+#urenPrintArea{display:none}
+@media print{
+  body{background:#fff!important;overflow:visible!important;height:auto!important}
+  body>*{display:none!important}
+  #urenPrintArea{
+    display:block!important;position:static!important;
+    color:#000;font-family:var(--font-body);font-size:11pt;padding:0;
+  }
+  #urenPrintArea .pr-head{
+    display:flex;align-items:flex-start;justify-content:space-between;gap:20px;
+    border-bottom:2px solid #0F1B3D;padding-bottom:10px;margin-bottom:16px;
+  }
+  #urenPrintArea .pr-brand{font-family:'Archivo',var(--font-display);font-size:15pt;font-weight:800;letter-spacing:.02em;color:#0F1B3D;line-height:1.1}
+  #urenPrintArea .pr-brand span{display:block;font-weight:400;letter-spacing:.16em;font-size:11pt;color:#0D3D3A}
+  #urenPrintArea .pr-meta{text-align:right;font-size:9.5pt;color:#444;line-height:1.5}
+  #urenPrintArea h1{font-family:var(--font-display);font-size:14pt;font-weight:700;margin:0 0 3px}
+  #urenPrintArea .pr-sub{font-size:10pt;color:#555;margin:0 0 14px}
+  #urenPrintArea table{width:100%;border-collapse:collapse;font-size:9.5pt}
+  #urenPrintArea th{
+    text-align:left;background:#F0F4F8;border-bottom:1.2px solid #0F1B3D;
+    padding:6px 8px;font-size:8pt;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#333;
+  }
+  #urenPrintArea th.num,#urenPrintArea td.num{text-align:right;font-variant-numeric:tabular-nums}
+  #urenPrintArea td{padding:5px 8px;border-bottom:0.5px solid #D7DEE6;vertical-align:top}
+  #urenPrintArea tbody tr{page-break-inside:avoid}
+  #urenPrintArea .pr-daygrp td{background:#F7F9FB;font-weight:700;font-size:8.5pt;text-transform:uppercase;letter-spacing:.05em}
+  #urenPrintArea tfoot td{border-top:1.2px solid #0F1B3D;border-bottom:none;font-weight:700;padding-top:8px}
+  #urenPrintArea .pr-foot{margin-top:20px;font-size:8pt;color:#777;border-top:0.5px solid #D7DEE6;padding-top:8px}
+  @page{margin:16mm 14mm}
+}
 
 /* ═════════════════════════════════════════════════════════════════════════════
    HERLING ANALYTICS — THEME OVERLAY v2
@@ -1452,35 +1767,6 @@ textarea { line-height: 1.6; resize: vertical; }
   padding: 20px;
   text-align: center;
 }
-
-/* ─── Uren-matrix grid ────────────────────────────────────────────────────── */
-.uren-grid {
-  background: var(--surface) !important;
-  border: 1px solid var(--border) !important;
-  border-radius: var(--radius-md) !important;
-  overflow: hidden;
-}
-.uren-hdr {
-  background: var(--surface2) !important;
-  color: var(--text) !important;
-  font-family: var(--font-display);
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  padding: 10px 12px !important;
-  border-bottom: 1px solid var(--border) !important;
-}
-.uren-cell {
-  padding: 8px 10px !important;
-  border-bottom: 1px solid var(--border) !important;
-  border-right: 1px solid var(--border) !important;
-  font-size: 12.5px;
-  color: var(--text);
-  background: var(--surface) !important;
-  font-family: var(--font-mono);
-}
-.uren-cell:hover { background: var(--surface2) !important; }
 
 /* ─── Toast & placeholder ─────────────────────────────────────────────────── */
 .toast {
@@ -3663,10 +3949,42 @@ textarea { line-height: 1.6; resize: vertical; }
   /* Item action icons sit on a wider tap area */
   #clBody .cl-item .cl2-iconbtn { width: 36px; height: 36px; }
 
-  /* ── UREN: matrix scrolls horizontally; sticky first column ── */
-  #mod-uren .uren-grid { overflow-x: auto; }
-  #mod-uren .uren-cell,
-  #mod-uren .uren-hdr { font-size: 13px !important; }
+  /* ── UREN: tabel wijkt voor dag-gegroepeerde kaarten ── */
+  .uren-topbar { padding: 10px 12px; gap: 8px; }
+  .uren-topbar-title { display: none; }          /* staat al in de mobile-topbar */
+  .uren-periode { flex: 1; justify-content: space-between; }
+  .uren-periode-lbl { min-width: 0; flex: 1; font-size: 12px; }
+  .uren-topbar .btn { padding: 7px 10px; font-size: 12px; }
+  .uren-viewbar { padding: 9px 12px; gap: 8px; }
+  .uren-tabs {
+    width: 100%; overflow-x: auto; scrollbar-width: none;
+    background: transparent; border: 0; padding: 0; gap: 6px;
+  }
+  .uren-tabs::-webkit-scrollbar { display: none; }
+  .uren-tab {
+    border: 0.5px solid var(--border-strong); border-radius: 20px;
+    padding: 7px 14px; min-height: 36px;
+  }
+  .uren-tab.active { background: var(--navy); color: #fff; border-color: var(--navy); box-shadow: none; }
+  .uren-kpis { grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px 12px 0; }
+  .uren-kpi-val { font-size: 20px; }
+  .uren-content { padding: 12px 12px 90px; display: flex; flex-direction: column; gap: 12px; }
+  .uren-content > * { flex-shrink: 0; }
+  .uren-sheet-card { display: none; }             /* spreadsheet is desktop-only */
+  .uren-mlist { display: flex; }
+  .uren-fab { display: flex; }
+  .uren-legend { display: none; }
+  .uren-selbar { position: sticky; top: 0; z-index: 5; }
+
+  /* Invoerblad: de generieke .modal-regels hierboven maken er al een
+     bottom sheet van; alleen de veilige zone onderaan komt erbij. */
+  #urenEntryModal .modal {
+    padding-bottom: calc(20px + env(safe-area-inset-bottom, 0)) !important;
+  }
+  .uren-dur-btn { width: 52px; height: 52px; font-size: 22px; }
+  .uren-dur-in { font-size: 26px; padding: 12px 8px; }
+  .uren-chip { padding: 9px 14px; font-size: 13px; }
+  .uren-kchip { padding: 9px 15px; font-size: 13px; }
 
   /* ── Hide mobile-only chrome on desktop is handled at base.
      Hide desktop-only chrome on mobile: ── */
@@ -4662,6 +4980,9 @@ textarea { line-height: 1.6; resize: vertical; }
       <div class="nav-item" data-mod="notes" onclick="switchModule('notes')">
         <span class="nav-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2h5.5l3.5 3.5V13a1 1 0 0 1-1 1H3.5a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z"/><path d="M9 2v4h3.5"/><line x1="5" y1="9" x2="10" y2="9"/><line x1="5" y1="11.5" x2="8.5" y2="11.5"/></svg></span><span class="nav-label">Notities</span>
       </div>
+      <div class="nav-item" data-mod="uren" onclick="switchModule('uren')">
+        <span class="nav-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M8 4.5V8l2.5 1.5"/></svg></span><span class="nav-label">Uren</span><span class="nav-badge" id="navBadgeUren"></span>
+      </div>
       <div class="nav-item" data-mod="agenda" onclick="switchModule('agenda')">
         <span class="nav-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3.5" width="12" height="10.5" rx="1.5"/><line x1="2" y1="6.5" x2="14" y2="6.5"/><line x1="5.5" y1="2" x2="5.5" y2="5"/><line x1="10.5" y1="2" x2="10.5" y2="5"/></svg></span><span class="nav-label">Agenda</span><span class="nav-badge" id="navBadgeAgenda"></span>
       </div>
@@ -5041,69 +5362,45 @@ textarea { line-height: 1.6; resize: vertical; }
 
     <!-- ══ Module: Uren ══ -->
     <div id="mod-uren" class="module">
-      <!-- Lock screen -->
-      <div class="uren-lock-screen" id="urenLockScreen">
-        <div class="uren-lock-card">
-          <div class="uren-lock-icon">🔒</div>
-          <div class="uren-lock-title">Uren – Privacy Shield</div>
-          <div class="uren-lock-sub" id="urenLockSub">Voer je pincode in om toegang te krijgen</div>
-          <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8"
-            class="uren-pin-input" id="urenPinInput" placeholder="••••"
-            onkeydown="if(event.key==='Enter')urenUnlockSubmit()"
-            oninput="document.getElementById('urenLockErr').textContent=''"/>
-          <div class="uren-lock-err" id="urenLockErr"></div>
-          <button class="btn btn-primary btn-sm" style="width:100%;justify-content:center" data-uren-action="urenUnlockSubmit">Ontgrendelen</button>
-          <button class="btn btn-ghost btn-xs" data-uren-action="urenShowSetPin" style="font-size:11px;color:var(--text-hint)">Pincode wijzigen</button>
+      <div class="uren-topbar">
+        <span class="uren-topbar-title">Uren</span>
+        <div class="uren-periode">
+          <button data-uren-action="urenNavPrev" title="Vorige periode" aria-label="Vorige periode">‹</button>
+          <span class="uren-periode-lbl" id="urenPeriodeLabel"></span>
+          <button data-uren-action="urenNavNext" title="Volgende periode" aria-label="Volgende periode">›</button>
         </div>
-      </div>
-      <!-- Set PIN screen (first time / change) -->
-      <div class="uren-lock-screen" id="urenSetPinScreen" style="display:none">
-        <div class="uren-lock-card">
-          <div class="uren-lock-icon">🔐</div>
-          <div class="uren-lock-title">Pincode instellen</div>
-          <div class="uren-lock-sub">Kies een pincode (4–8 cijfers) om je uren te beveiligen</div>
-          <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8"
-            class="uren-pin-input" id="urenSetPinInput1" placeholder="Nieuwe pincode"
-            onkeydown="if(event.key==='Enter')document.getElementById('urenSetPinInput2').focus()"/>
-          <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8"
-            class="uren-pin-input" id="urenSetPinInput2" placeholder="Herhaal pincode"
-            onkeydown="if(event.key==='Enter')urenConfirmSetPin()"/>
-          <div class="uren-lock-err" id="urenSetPinErr"></div>
-          <button class="btn btn-primary btn-sm" style="width:100%;justify-content:center" data-uren-action="urenConfirmSetPin">Pincode opslaan</button>
-          <button class="btn btn-ghost btn-xs" data-uren-action="urenSkipPin" style="font-size:11px;color:var(--text-hint)">Overslaan (geen vergrendeling)</button>
-        </div>
-      </div>
-      <!-- Timesheet content -->
-      <div id="urenContent" style="display:none;flex-direction:column;flex:1;overflow:hidden">
-        <div class="uren-topbar">
-          <span class="uren-topbar-title">Uren</span>
-          <div class="uren-view-tabs">
-            <button class="uren-view-tab active" id="urenTabWeek" data-uren-action="urenSetView" data-uren-arg1="week">Week</button>
-            <button class="uren-view-tab" id="urenTabMonth" data-uren-action="urenSetView" data-uren-arg1="month">Maand</button>
-          </div>
-          <div class="uren-nav-wrap">
-            <button class="btn btn-xs" data-uren-action="urenNavPrev">← Vorige</button>
-            <span class="uren-nav-label" id="urenNavLabel"></span>
-            <button class="btn btn-xs" data-uren-action="urenNavNext">Volgende →</button>
-            <button class="btn btn-xs" data-uren-action="urenNavToday">Vandaag</button>
-          </div>
-          <div style="flex:1"></div>
-          <button class="btn btn-xs" data-uren-action="openUrenTemplatesModal">⟳ Templates</button>
-          <div style="position:relative">
-            <button class="btn btn-xs" data-uren-action="urenToggleExportMenu">⬇ Export</button>
-            <div id="urenExportMenu" style="display:none;position:absolute;right:0;top:calc(100% + 4px);background:var(--surface);border:0.5px solid var(--border-strong);border-radius:var(--radius-md);box-shadow:0 4px 16px rgba(0,0,0,0.12);z-index:100;min-width:190px">
-              <div style="padding:4px">
-                <div data-uren-action="urenExport" data-uren-arg1="csv" data-uren-arg2="all" class="uren-export-item">CSV – Alle uren</div>
-                <div data-uren-action="urenExport" data-uren-arg1="csv" data-uren-arg2="open" class="uren-export-item">CSV – Openstaand</div>
-                <div data-uren-action="urenExport" data-uren-arg1="xlsx" data-uren-arg2="all" class="uren-export-item">Excel – Alle uren</div>
-                <div data-uren-action="urenExport" data-uren-arg1="xlsx" data-uren-arg2="open" class="uren-export-item">Excel – Openstaand</div>
-              </div>
+        <button class="btn btn-xs" data-uren-action="urenNavToday">Vandaag</button>
+        <div style="flex:1"></div>
+        <button class="btn btn-xs" data-uren-action="openUrenTemplatesModal" title="Weekpatronen en herhaling">⟳ Templates</button>
+        <div style="position:relative">
+          <button class="btn btn-xs" data-uren-action="urenToggleExportMenu">↧ Exporteer</button>
+          <div id="urenExportMenu" style="display:none;position:absolute;right:0;top:calc(100% + 4px);background:var(--surface);border:0.5px solid var(--border-strong);border-radius:var(--radius-md);box-shadow:var(--shadow-popover);z-index:100;min-width:230px">
+            <div style="padding:4px">
+              <div class="uren-export-item" data-uren-action="urenExport" data-uren-arg1="xlsx" data-uren-arg2="view">Excel — huidige weergave</div>
+              <div class="uren-export-item" data-uren-action="urenExport" data-uren-arg1="xlsx" data-uren-arg2="entries">Excel — alle registraties</div>
+              <div class="uren-export-item" data-uren-action="urenExport" data-uren-arg1="xlsx" data-uren-arg2="open">Excel — alleen openstaand</div>
+              <div style="height:1px;background:var(--border);margin:4px 2px"></div>
+              <div class="uren-export-item" data-uren-action="urenExport" data-uren-arg1="pdf" data-uren-arg2="view">PDF — huidige weergave</div>
+              <div class="uren-export-item" data-uren-action="urenExport" data-uren-arg1="pdf" data-uren-arg2="open">PDF — alleen openstaand</div>
             </div>
           </div>
-          <button class="btn btn-xs btn-danger" data-uren-action="urenLock" title="Module vergrendelen">🔒 Lock</button>
         </div>
-        <div class="uren-content" id="urenBody"></div>
+        <button class="btn btn-xs btn-primary" data-uren-action="urenNewEntry">+ Nieuwe regel</button>
       </div>
+
+      <div class="uren-viewbar">
+        <div class="uren-tabs" role="tablist">
+          <button class="uren-tab active" role="tab" data-uren-action="urenSetView" data-uren-arg1="reg">Registraties</button>
+          <button class="uren-tab" role="tab" data-uren-action="urenSetView" data-uren-arg1="klant">Per klant</button>
+          <button class="uren-tab" role="tab" data-uren-action="urenSetView" data-uren-arg1="week">Per week</button>
+          <button class="uren-tab" role="tab" data-uren-action="urenSetView" data-uren-arg1="maand">Per maand</button>
+        </div>
+        <div class="uren-filters" id="urenFilterBar" style="display:flex;align-items:center;gap:7px;flex-wrap:wrap"></div>
+      </div>
+
+      <div class="uren-kpis" id="urenKpis"></div>
+      <div class="uren-content" id="urenBody"></div>
+      <button class="uren-fab" data-uren-action="urenNewEntry" aria-label="Nieuwe urenregistratie">+</button>
     </div>
 
   </div><!-- /main-area -->
@@ -5128,10 +5425,82 @@ textarea { line-height: 1.6; resize: vertical; }
       <span>Check</span>
       <span class="mobile-nav-badge mobile-nav-badge-danger" id="mobileNavBadgeChecklist"></span>
     </button>
+    <button class="mobile-nav-tab" data-mod="uren" onclick="switchModule('uren')" aria-label="Uren">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><circle cx="8" cy="8" r="6"/><path d="M8 4.5V8l2.5 1.5"/></svg>
+      <span>Uren</span>
+    </button>
   </nav>
 </div><!-- /appScreen -->
 
 <!-- ── Uren: Templates modal ── -->
+<!-- ── Uren: registratie toevoegen / bewerken ──
+     Desktop: gewone modal. Mobiel: bottom sheet (zie 768px-breakpoint). -->
+<div class="modal-bg" id="urenEntryModal">
+  <div class="modal" style="max-width:470px;padding:20px 22px">
+    <h3 id="urenEntryTitle" style="font-size:18px;font-weight:700;margin:0 0 16px">Nieuwe registratie</h3>
+    <div class="uren-form">
+
+      <div class="uren-fld">
+        <label for="urenEntryDate">Datum</label>
+        <div class="uren-date-row">
+          <button class="uren-dur-btn" style="width:38px;height:38px;font-size:15px" data-uren-action="urenEntryShiftDate" data-uren-arg1="-1" title="Dag eerder" aria-label="Dag eerder">‹</button>
+          <input type="date" class="inp" id="urenEntryDate"/>
+          <button class="uren-dur-btn" style="width:38px;height:38px;font-size:15px" data-uren-action="urenEntryShiftDate" data-uren-arg1="1" title="Dag later" aria-label="Dag later">›</button>
+        </div>
+        <div class="uren-dur-chips" style="margin-top:2px">
+          <button class="uren-chip" data-uren-action="urenEntrySetDate" data-uren-arg1="0">Vandaag</button>
+          <button class="uren-chip" data-uren-action="urenEntrySetDate" data-uren-arg1="-1">Gisteren</button>
+          <button class="uren-chip" data-uren-action="urenEntrySetDate" data-uren-arg1="-2">Eergisteren</button>
+        </div>
+      </div>
+
+      <div class="uren-fld">
+        <label for="urenEntryHours">Uren</label>
+        <div class="uren-dur">
+          <button class="uren-dur-btn" data-uren-action="urenEntryStep" data-uren-arg1="-0.25" title="15 minuten eraf" aria-label="15 minuten eraf">−</button>
+          <input type="text" inputmode="decimal" class="uren-dur-in" id="urenEntryHours" value="0,00" aria-label="Aantal uren"/>
+          <button class="uren-dur-btn" data-uren-action="urenEntryStep" data-uren-arg1="0.25" title="15 minuten erbij" aria-label="15 minuten erbij">+</button>
+        </div>
+        <div class="uren-dur-chips">
+          <button class="uren-chip" data-uren-action="urenEntryStep" data-uren-arg1="0.25">+15m</button>
+          <button class="uren-chip" data-uren-action="urenEntryStep" data-uren-arg1="0.5">+30m</button>
+          <button class="uren-chip" data-uren-action="urenEntryStep" data-uren-arg1="1">+1u</button>
+          <button class="uren-chip" data-uren-action="urenEntryStep" data-uren-arg1="2">+2u</button>
+          <button class="uren-chip" data-uren-action="urenEntryStep" data-uren-arg1="4">+4u</button>
+          <button class="uren-chip uren-chip-clear" data-uren-action="urenEntryClearHours">wis</button>
+        </div>
+        <small style="font-size:11px;color:var(--text-hint)">Typen mag ook: <code>3,5</code> · <code>3:30</code> · <code>3u30</code> · <code>90m</code></small>
+      </div>
+
+      <div class="uren-fld">
+        <label>Klant</label>
+        <div class="uren-klantpick" id="urenEntryClients"></div>
+      </div>
+
+      <div class="uren-fld">
+        <label for="urenEntryDesc">Omschrijving</label>
+        <textarea class="inp" id="urenEntryDesc" rows="3" placeholder="Waar heb je aan gewerkt?"></textarea>
+      </div>
+
+      <div class="uren-fld">
+        <label>Status</label>
+        <div class="uren-statuspick" id="urenEntryStatus"></div>
+      </div>
+
+    </div>
+    <div class="modal-footer" style="margin-top:20px">
+      <button class="btn btn-sm btn-danger" id="urenEntryDeleteBtn" data-uren-action="urenEntryDelete" style="display:none">Verwijderen</button>
+      <div class="modal-footer-right">
+        <button class="btn btn-sm" data-uren-action="closeUrenEntryModal">Annuleer</button>
+        <button class="btn btn-sm btn-primary" data-uren-action="urenEntrySave">Opslaan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Print-doel voor "Exporteer → PDF"; gevuld door urenExportPdf() -->
+<div id="urenPrintArea" aria-hidden="true"></div>
+
 <div class="modal-bg" id="urenTemplatesModal">
   <div class="modal" style="max-width:720px;padding:0;overflow:hidden;display:flex;flex-direction:column;max-height:90vh">
     <!-- Header -->
@@ -6106,13 +6475,19 @@ let importRows=[];
 let noteEditMode=false,renameTarget=null;
 let noteDrag={id:null};
 
-/* Uren state */
+/* Uren state
+   entries: één regel per registratie — meerdere per klant/dag toegestaan.
+   {id,date:'YYYY-MM-DD',clientId,hours,description,status,createdAt,updatedAt} */
 let urenState={entries:[],templates:[]};
-let urenLocked=true;
-let urenView='week';
-let urenWeekOffset=0;
-let urenMonthOffset=0;
-let urenDescTarget={clientId:null,date:null};
+let urenView='reg';              /* reg | klant | week | maand */
+let urenRegScope='week';         /* week | month — periodebreedte van de registratie-tab */
+let urenOffset={week:0,month:0,year:0};
+let urenSelection=new Set();     /* ids van aangevinkte regels (bulk-acties) */
+let urenDraft=null;              /* lege invoerregel onderaan de tabel */
+let urenFilterClient='';         /* '' = alle klanten */
+let urenFilterStatus='';         /* '' = alle statussen */
+let urenEntryEditing=null;       /* id bij bewerken via het invoerblad, null bij nieuw */
+let urenEntryForm={date:'',hours:0,clientId:null,description:'',status:'open'};
 let urenTplCalYear=new Date().getFullYear();
 let urenTplCalMonth=new Date().getMonth();
 let urenTplCalSelected=null;
@@ -6417,6 +6792,7 @@ async function loadGist(){
       urenState=rawState.uren||{entries:[],templates:[]};
       if(!urenState.entries)urenState.entries=[];
       if(!urenState.templates)urenState.templates=[];
+      urenMigrateEntries();   /* invoiced-bool → status, ids aanvullen */
       lastLoadedAt=Date.now();
       lastRemoteUpdatedAt=remoteUpdatedAt;
       setSync('saved','Geladen · '+new Date().toLocaleTimeString('nl-NL'));
@@ -6454,6 +6830,7 @@ async function loadGist(){
           urenState=saved.uren||{entries:[],templates:[]};
           if(!urenState.entries)urenState.entries=[];
           if(!urenState.templates)urenState.templates=[];
+          urenMigrateEntries();
           setSync('error','Gist-fout — hersteld vanuit lokale backup');
           appToast('⚠️ Gist kon niet geladen worden — hersteld vanuit lokale backup. Open de POM-notitie en gebruik de Legen-knop om de grote afbeelding te verwijderen.',{duration:15000});
           renderAll();
@@ -6835,6 +7212,9 @@ async function handleRestoreFile(file){
     notesState=incoming.notes||notesState;
     checklistState=incoming.checklist||checklistState;
     urenState=incoming.uren||urenState;
+    if(!urenState.entries)urenState.entries=[];
+    if(!urenState.templates)urenState.templates=[];
+    urenMigrateEntries();
     if(!rawState.agenda)rawState.agenda={events:[]};
     /* Persist to Gist immediately so the restore propagates to other devices */
     scheduleSave();
@@ -6984,7 +7364,7 @@ async function forceSave(){clearTimeout(saveTimer);await saveGist();}
 function switchModule(mod){
   /* Removed modules — silently redirect to dashboard so old hash URLs
      and any leftover internal switchModule calls don't crash. */
-  if(mod==='todo'||mod==='uren')mod='dashboard';
+  if(mod==='todo')mod='dashboard';
   activeModule=mod;
   /* Update nav items */
   document.querySelectorAll('.nav-item').forEach(el=>
@@ -6999,6 +7379,7 @@ function switchModule(mod){
   else if(mod==='notes')renderNotesModule();
   else if(mod==='agenda')renderAgendaModule();
   else if(mod==='checklist')renderChecklistModule();
+  else if(mod==='uren')renderUrenModule();
   /* Refresh client-filter dropdowns (each module has its own container) */
   if(typeof renderClientFilters==='function')renderClientFilters();
   if(typeof updateNavBadges==='function')updateNavBadges();
@@ -7032,6 +7413,18 @@ function updateNavBadges(){
   };
   setBadge('navBadgeChecklist',overdue);
   setBadge('navBadgeAgenda',today2);
+  /* Uren: openstaande (nog te factureren) uren — het enige getal dat
+     om actie vraagt. Als tekst gezet omdat het een decimaal is. */
+  const openUren=(urenState?.entries||[])
+    .filter(e=>(e.status||(e.invoiced?'invoiced':'open'))==='open')
+    .reduce((s,e)=>s+(e.hours||0),0);
+  const bu=document.getElementById('navBadgeUren');
+  if(bu){
+    if(openUren>0){
+      bu.style.display='';
+      bu.textContent=Math.round(openUren)+'u';
+    } else bu.style.display='none';
+  }
   /* Mirror to the mobile bottom-nav badges */
   if(typeof updateMobileNavBadges==='function')updateMobileNavBadges();
 }
@@ -8084,7 +8477,7 @@ function renderAll(){
   if(typeof updateNavBadges==='function')updateNavBadges();
   /* Apply hash-based routing on initial load */
   const hash=(location.hash||'#dashboard').slice(1);
-  const validMods=['dashboard','notes','agenda','checklist'];
+  const validMods=['dashboard','notes','agenda','checklist','uren'];
   const startMod=validMods.includes(hash)?hash:'dashboard';
   switchModule(startMod);
 }
@@ -12397,73 +12790,66 @@ Object.assign(APP_ACTIONS,{
 });
 
 /* ═══════════════════════════════════════════════════
-   MODULE: UREN
+   MODULE: UREN — tijdschrijven
    ───────────────────────────────────────────────────
-   Organised as:
-     ═══ STATE ═══   Constants & device-local helpers.
-                    (Runtime vars declared in global init block ~L1576.)
-     ═══ LOGIC ═══  Pure data mutations on urenState — no DOM.
-     ═══ VIEW  ═══  Rendering & DOM manipulation.
+   Datamodel — één entry per registratieregel. Meerdere regels per
+   klant per dag zijn toegestaan (ochtend project A, middag project B):
 
-   Rendering strategy (Principle 3 — Skeleton vs Data):
-     • Full matrix rebuild only on navigation / view switch / template apply.
-     • Cell edits, description saves and invoiced-toggles use *partial*
-       DOM updates via `recalcUrenTotals()` and `updateUrenCellClasses()`
-       to avoid focus loss and flicker.
+     {id, date:'YYYY-MM-DD', clientId, hours, description,
+      status:'open'|'concept'|'invoiced', createdAt, updatedAt}
+
+   Vier weergaven (urenView):
+     reg    — spreadsheet-tabel gegroepeerd per dag (desktop)
+              / dag-gegroepeerde kaarten (mobiel)
+     klant  — klant × week binnen de maand
+     week   — week × weekdag binnen de maand
+     maand  — maand × klant binnen het jaar
+
+   Factureren gaat per klant per maand. Twee wegen naar dezelfde actie:
+   regels aanvinken in de tabel, of de "Factureer"-knop in het
+   klant-overzicht. Beide lopen via urenSetStatus() zodat undo overal
+   identiek werkt.
+
+   Rendering: één volledige rebuild per interactie (urenRenderAll).
+   De tabel is klein genoeg dat dit niet merkbaar is; focus wordt na een
+   rebuild expliciet hersteld via urenFocusAfterRender.
    ═══════════════════════════════════════════════════ */
 
 /* ╔══════════════════════════════════════════════════╗
    ║                      STATE                       ║
    ╚══════════════════════════════════════════════════╝ */
 
-const LS_UREN_PIN='herling_uren_pin';
 const DAY_LABELS_NL=['Ma','Di','Wo','Do','Vr','Za','Zo'];
+const MONTH_LABELS_NL=['Januari','Februari','Maart','April','Mei','Juni',
+  'Juli','Augustus','September','Oktober','November','December'];
+const UREN_STATUSSEN=[
+  {id:'open',    label:'Open',         cls:'uren-pill-open',     icon:''},
+  {id:'concept', label:'Concept',      cls:'uren-pill-concept',  icon:''},
+  {id:'invoiced',label:'Gefactureerd', cls:'uren-pill-invoiced', icon:'✓ '}
+];
+/* Selector die na een rebuild opnieuw focus krijgt (behoudt het
+   spreadsheet-gevoel: typen → Tab → typen zonder focusverlies). */
+let urenFocusAfterRender=null;
 
 function urenUid(){return 'ur_'+Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);}
-function urenGetPin(){return localStorage.getItem(LS_UREN_PIN)||'';}
-function urenHasPin(){return !!localStorage.getItem(LS_UREN_PIN);}
 
 /* ╔══════════════════════════════════════════════════╗
    ║                      LOGIC                       ║
-   ║  Pure data helpers — no DOM access.              ║
+   ║  Pure data helpers — geen DOM-toegang.           ║
    ╚══════════════════════════════════════════════════╝ */
 
-/* ── Date helpers ── */
-function urenWeekDates(offset){
-  const now=new Date();
-  const dow=(now.getDay()+6)%7; // 0=Mon
-  const mon=new Date(now);
-  mon.setDate(now.getDate()-dow+offset*7);
-  mon.setHours(0,0,0,0);
-  const dates=[];
-  for(let i=0;i<7;i++){
-    const d=new Date(mon);d.setDate(mon.getDate()+i);
-    dates.push(d.toISOString().slice(0,10));
-  }
-  return dates;
+/* ── Datum-helpers ──
+   Bewust NIET toISOString(): dat rekent naar UTC en levert in NL
+   (zomertijd) de dag ervóór op voor datums om middernacht. */
+function urenIso(d){
+  const p=n=>String(n).padStart(2,'0');
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
 }
-
-function urenMonthInfo(offset){
-  const now=new Date();
-  const target=new Date(now.getFullYear(),now.getMonth()+offset,1);
-  const year=target.getFullYear(),month=target.getMonth();
-  const firstDay=new Date(year,month,1);
-  const lastDay=new Date(year,month+1,0);
-  const startDate=new Date(firstDay);
-  startDate.setDate(firstDay.getDate()-(( firstDay.getDay()+6)%7));
-  const endDate=new Date(lastDay);
-  const trail=(6-(lastDay.getDay()+6)%7)%7;
-  endDate.setDate(lastDay.getDate()+trail);
-  const weeks=[];
-  let cur=new Date(startDate);
-  while(cur<=endDate){
-    const wk=[];
-    for(let i=0;i<7;i++){wk.push(cur.toISOString().slice(0,10));cur.setDate(cur.getDate()+1);}
-    weeks.push(wk);
-  }
-  return {weeks,year,month};
+function urenToday(){return urenIso(new Date());}
+function urenDate(iso){return new Date(iso+'T00:00:00');}
+function urenShiftIso(iso,days){
+  const d=urenDate(iso);d.setDate(d.getDate()+days);return urenIso(d);
 }
-
 function getISOWeek(d){
   const tmp=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));
   const dn=tmp.getUTCDay()||7;
@@ -12471,99 +12857,292 @@ function getISOWeek(d){
   const ys=new Date(Date.UTC(tmp.getUTCFullYear(),0,1));
   return Math.ceil((((tmp-ys)/86400000)+1)/7);
 }
-
-function urenFormatWeekLabel(dates){
-  const f=new Date(dates[0]+'T00:00:00');
-  const l=new Date(dates[6]+'T00:00:00');
-  const wn=getISOWeek(f);
-  return `Week ${wn} · ${f.toLocaleDateString('nl-NL',{day:'numeric',month:'short'})} – ${l.toLocaleDateString('nl-NL',{day:'numeric',month:'short',year:'numeric'})}`;
+/* Maandag van de week waarin `d` valt */
+function urenMonday(d){
+  const m=new Date(d);
+  m.setDate(d.getDate()-((d.getDay()+6)%7));
+  m.setHours(0,0,0,0);
+  return m;
 }
-
-function urenFormatMonthLabel(offset){
+function urenWeekDates(offset){
+  const mon=urenMonday(new Date());
+  mon.setDate(mon.getDate()+offset*7);
+  const out=[];
+  for(let i=0;i<7;i++){const d=new Date(mon);d.setDate(mon.getDate()+i);out.push(urenIso(d));}
+  return out;
+}
+/* Alle dagen van de maand op `offset` maanden van nu */
+function urenMonthDates(offset){
   const now=new Date();
-  const d=new Date(now.getFullYear(),now.getMonth()+offset,1);
-  const s=d.toLocaleDateString('nl-NL',{month:'long',year:'numeric'});
-  return s.charAt(0).toUpperCase()+s.slice(1);
+  const first=new Date(now.getFullYear(),now.getMonth()+offset,1);
+  const last=new Date(first.getFullYear(),first.getMonth()+1,0);
+  const out=[];
+  for(let d=new Date(first);d<=last;d.setDate(d.getDate()+1))out.push(urenIso(d));
+  return out;
 }
-
-function urenFormatDateShort(dateStr){
-  const d=new Date(dateStr+'T00:00:00');
-  return d.toLocaleDateString('nl-NL',{weekday:'short',day:'numeric',month:'short'});
-}
-
-/* ── Entry access ── */
-function urenGetEntry(clientId,date){
-  return urenState.entries.find(e=>e.clientId===clientId&&e.date===date)||null;
-}
-
-function urenSetHours(clientId,date,hoursStr){
-  const hours=parseFloat(String(hoursStr).replace(',','.'));
-  const entry=urenGetEntry(clientId,date);
-  if(!hoursStr||isNaN(hours)||hours<=0){
-    if(entry&&!entry.invoiced){
-      urenState.entries=urenState.entries.filter(e=>!(e.clientId===clientId&&e.date===date));
-      scheduleSave();
-    }
-    return;
+/* De weken (ma-zo arrays) die de maand op `offset` overlappen */
+function urenMonthWeeks(offset){
+  const now=new Date();
+  const first=new Date(now.getFullYear(),now.getMonth()+offset,1);
+  const last=new Date(first.getFullYear(),first.getMonth()+1,0);
+  const weeks=[];
+  let cur=urenMonday(first);
+  while(cur<=last){
+    const wk=[];
+    for(let i=0;i<7;i++){const d=new Date(cur);d.setDate(cur.getDate()+i);wk.push(urenIso(d));}
+    weeks.push(wk);
+    cur.setDate(cur.getDate()+7);
   }
-  if(entry){
-    if(entry.invoiced)return;
-    entry.hours=Math.round(hours*100)/100;
-  } else {
-    urenState.entries.push({id:urenUid(),clientId,date,hours:Math.round(hours*100)/100,description:'',invoiced:false});
+  return weeks;
+}
+function urenFormatDayLabel(iso){
+  const d=urenDate(iso);
+  return DAY_LABELS_NL[(d.getDay()+6)%7]+' '+d.getDate()+' '+
+    d.toLocaleDateString('nl-NL',{month:'short'}).replace('.','');
+}
+function urenFmt(n){
+  return (n||0).toLocaleString('nl-NL',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function urenFmtShort(n){
+  return (n||0).toLocaleString('nl-NL',{minimumFractionDigits:0,maximumFractionDigits:2});
+}
+function urenRound(n){return Math.round(n*100)/100;}
+
+/* ── Urenparser ──
+   Accepteert 3,5 · 3.5 · 3:30 · 3u30 · 3h30 · 3u · 90m · 45min.
+   Geeft een getal terug, of null als de invoer onleesbaar is. */
+function urenParseHours(raw){
+  if(raw===null||raw===undefined)return null;
+  const s=String(raw).trim().toLowerCase().replace(/\s+/g,'');
+  if(!s)return 0;
+  let m;
+  if((m=s.match(/^(\d+(?:[.,]\d+)?)m(?:in)?$/)))
+    return urenClampHours(parseFloat(m[1].replace(',','.'))/60);
+  if((m=s.match(/^(\d+)[:uh](\d{1,2})$/))){
+    const min=parseInt(m[2].length===1?m[2]+'0':m[2],10);
+    if(min>59)return null;
+    return urenClampHours(parseInt(m[1],10)+min/60);
   }
+  if((m=s.match(/^(\d+(?:[.,]\d+)?)[uh]$/)))
+    return urenClampHours(parseFloat(m[1].replace(',','.')));
+  if((m=s.match(/^(\d+(?:[.,]\d+)?)$/)))
+    return urenClampHours(parseFloat(m[1].replace(',','.')));
+  return null;
+}
+function urenClampHours(n){
+  if(isNaN(n)||n<0)return 0;
+  return urenRound(Math.min(n,24));
+}
+
+/* ── Periode ──
+   Elke weergave heeft zijn eigen natuurlijke breedte; de ‹ › knoppen
+   verschuiven die breedte. urenOffset houdt per scope de stand bij. */
+function urenScope(){
+  if(urenView==='reg')return urenRegScope;      /* week of month */
+  if(urenView==='maand')return 'year';
+  return 'month';                                /* klant + week */
+}
+function urenPeriod(){
+  const scope=urenScope();
+  const now=new Date();
+  if(scope==='week'){
+    const dates=urenWeekDates(urenOffset.week);
+    const f=urenDate(dates[0]),l=urenDate(dates[6]);
+    return {scope,dates,from:dates[0],to:dates[6],
+      label:'Week '+getISOWeek(f)+' · '+
+        f.toLocaleDateString('nl-NL',{day:'numeric',month:'short'})+' – '+
+        l.toLocaleDateString('nl-NL',{day:'numeric',month:'short',year:'numeric'})};
+  }
+  if(scope==='year'){
+    const year=now.getFullYear()+urenOffset.year;
+    return {scope,year,from:year+'-01-01',to:year+'-12-31',label:String(year)};
+  }
+  const dates=urenMonthDates(urenOffset.month);
+  const first=urenDate(dates[0]);
+  return {scope,dates,from:dates[0],to:dates[dates.length-1],
+    year:first.getFullYear(),month:first.getMonth(),
+    label:MONTH_LABELS_NL[first.getMonth()]+' '+first.getFullYear()};
+}
+
+/* ── Entry-toegang ── */
+function urenEntry(id){return urenState.entries.find(e=>e.id===id)||null;}
+function urenStatusOf(e){
+  if(!e)return 'open';
+  /* Migratiepad: oude entries kennen alleen invoiced:true/false */
+  if(e.status)return e.status;
+  return e.invoiced?'invoiced':'open';
+}
+function urenStatusMeta(id){
+  return UREN_STATUSSEN.find(s=>s.id===id)||UREN_STATUSSEN[0];
+}
+function urenClient(id){return kanbanState.clients.find(c=>c.id===id)||null;}
+function urenClientName(id){const c=urenClient(id);return c?c.name:'—';}
+function urenClientColor(id){
+  const c=urenClient(id);
+  if(!c)return {bg:'var(--surface3)',tx:'var(--text-muted)'};
+  return CLIENT_COLORS[c.colorIdx%CLIENT_COLORS.length];
+}
+
+/* Entries binnen [from,to], gesorteerd nieuwste dag eerst. */
+function urenEntriesBetween(from,to){
+  return urenState.entries
+    .filter(e=>e.date>=from&&e.date<=to)
+    .sort((a,b)=>{
+      if(a.date!==b.date)return b.date.localeCompare(a.date);
+      const na=urenClientName(a.clientId),nb=urenClientName(b.clientId);
+      if(na!==nb)return na.localeCompare(nb);
+      return (a.createdAt||0)-(b.createdAt||0);
+    });
+}
+/* Entries in de huidige periode ná toepassing van de filterchips. */
+function urenVisibleEntries(){
+  const p=urenPeriod();
+  let list=urenEntriesBetween(p.from,p.to);
+  if(urenFilterClient)list=list.filter(e=>e.clientId===urenFilterClient);
+  if(urenFilterStatus)list=list.filter(e=>urenStatusOf(e)===urenFilterStatus);
+  return list;
+}
+function urenSum(list){return urenRound(list.reduce((s,e)=>s+(e.hours||0),0));}
+
+/* Migratie: invoiced-bool → status, plus ontbrekende velden aanvullen.
+   Draait bij elke module-render; is idempotent. */
+function urenMigrateEntries(){
+  let changed=false;
+  urenState.entries.forEach(e=>{
+    if(!e.status){e.status=e.invoiced?'invoiced':'open';changed=true;}
+    if('invoiced' in e){delete e.invoiced;changed=true;}
+    if(!e.id){e.id=urenUid();changed=true;}
+    if(typeof e.description!=='string'){e.description='';changed=true;}
+    if(!e.createdAt){e.createdAt=Date.now();changed=true;}
+  });
+  if(changed)scheduleSave();
+}
+
+/* ── Mutaties ── */
+function urenAddEntry(data){
+  const entry={
+    id:urenUid(),
+    date:data.date||urenToday(),
+    clientId:data.clientId||null,
+    hours:urenClampHours(data.hours||0),
+    description:data.description||'',
+    status:data.status||'open',
+    createdAt:Date.now(),updatedAt:Date.now()
+  };
+  urenState.entries.push(entry);
   scheduleSave();
+  return entry;
+}
+function urenUpdateEntry(id,patch){
+  const e=urenEntry(id);
+  if(!e)return null;
+  Object.assign(e,patch,{updatedAt:Date.now()});
+  scheduleSave();
+  return e;
+}
+function urenDeleteEntries(ids){
+  const removed=urenState.entries.filter(e=>ids.includes(e.id));
+  if(!removed.length)return;
+  urenState.entries=urenState.entries.filter(e=>!ids.includes(e.id));
+  ids.forEach(id=>urenSelection.delete(id));
+  scheduleSave();
+  urenRenderAll();
+  appToast(removed.length===1?'Registratie verwijderd':removed.length+' registraties verwijderd',{
+    undo:()=>{
+      urenState.entries.push(...removed);
+      scheduleSave();urenRenderAll();
+    }
+  });
+}
+/* Statuswijziging met undo — de enige weg naar entry.status.
+   Zowel bulk-selectie als "Factureer klant" lopen hierlangs. */
+function urenSetStatus(ids,status){
+  const before=ids.map(id=>{
+    const e=urenEntry(id);
+    return e?{id,status:urenStatusOf(e)}:null;
+  }).filter(Boolean);
+  if(!before.length)return;
+  before.forEach(b=>urenUpdateEntry(b.id,{status}));
+  urenSelection.clear();
+  urenRenderAll();
+  const meta=urenStatusMeta(status);
+  const n=before.length;
+  appToast(`${n} ${n===1?'regel':'regels'} → ${meta.label.toLowerCase()}`,{
+    type:status==='invoiced'?'success':'info',
+    undo:()=>{
+      before.forEach(b=>urenUpdateEntry(b.id,{status:b.status}));
+      urenRenderAll();
+    }
+  });
 }
 
 /* ╔══════════════════════════════════════════════════╗
    ║                       VIEW                       ║
-   ║  Rendering & DOM. Full rebuilds are explicit;    ║
-   ║  data-only changes go through partial updaters.  ║
    ╚══════════════════════════════════════════════════╝ */
 
-/* ── Event delegation (Principle 4) ──
-   One document-level click/change listener per concern. Elements opt in
-   with `data-uren-action="<fnName>"` (click) or
-   `data-uren-change="<fnName>"` (change), plus optional
-   `data-uren-arg1 / data-uren-arg2` for parameters. This keeps all the
-   Uren interactivity wireable without string-compiled inline handlers
-   and without per-element listeners. */
-
-/* Whitelist of functions reachable via click delegation. */
+/* ── Event-delegatie ──
+   Elementen melden zich aan met data-uren-action (click) of
+   data-uren-change (change). Handlers krijgen (arg1, arg2, event, el). */
 const UREN_CLICK_ACTIONS={
-  urenUnlockSubmit:()=>urenUnlockSubmit(),
-  urenShowSetPin:()=>urenShowSetPin(),
-  urenConfirmSetPin:()=>urenConfirmSetPin(),
-  urenSkipPin:()=>urenSkipPin(),
   urenSetView:(a)=>urenSetView(a),
-  urenNavPrev:()=>urenNavPrev(),
-  urenNavNext:()=>urenNavNext(),
+  urenSetRegScope:(a)=>urenSetRegScope(a),
+  urenNavPrev:()=>urenNav(-1),
+  urenNavNext:()=>urenNav(1),
   urenNavToday:()=>urenNavToday(),
+  urenFilterSetClient:(a)=>{urenFilterClient=a||'';urenRenderAll();},
+  urenFilterSetStatus:(a)=>{urenFilterStatus=a||'';urenRenderAll();},
+  urenNewEntry:()=>urenNewEntry(),
+  urenNewEntryOn:(a)=>urenNewEntry(a),
+  urenEditEntry:(a)=>urenEditEntry(a),
+  urenEntrySave:()=>urenEntrySave(),
+  urenEntryDelete:()=>urenEntryDelete(),
+  urenEntryStep:(a)=>urenEntryStep(parseFloat(a)),
+  urenEntrySetDate:(a)=>urenEntrySetDate(parseInt(a,10)),
+  urenEntryShiftDate:(a)=>urenEntryShiftDate(parseInt(a,10)),
+  urenEntryClearHours:()=>urenEntryClearHours(),
+  urenEntryPickClient:(a)=>urenEntryPickClient(a),
+  urenEntryPickStatus:(a)=>urenEntryPickStatus(a),
+  closeUrenEntryModal:()=>closeUrenEntryModal(),
+  urenRowStep:(a,b)=>urenRowStep(a,parseFloat(b)),
+  urenCycleStatus:(a)=>urenCycleStatus(a),
+  urenDuplicateRow:(a)=>urenDuplicateRow(a),
+  urenDeleteRow:(a)=>urenDeleteEntries([a]),
+  urenOpenClientPicker:(a,b,ev,el)=>urenOpenClientPicker(a,el),
+  urenPickClient:(a,b)=>urenPickClient(a,b),
+  urenBulkStatus:(a)=>urenBulkStatus(a),
+  urenBulkDelete:()=>urenBulkDelete(),
+  urenClearSelection:()=>{urenSelection.clear();urenRenderAll();},
+  urenInvoiceClient:(a,b)=>urenInvoiceClient(a,b),
+  urenDraftStep:(a)=>urenDraftStep(parseFloat(a)),
+  urenDraftPickClient:()=>{},
   openUrenTemplatesModal:()=>openUrenTemplatesModal(),
   closeUrenTemplatesModal:()=>closeUrenTemplatesModal(),
   urenToggleExportMenu:()=>urenToggleExportMenu(),
   urenExport:(a,b)=>urenExport(a,b),
-  urenLock:()=>urenLock(),
   urenTplCalPrev:()=>urenTplCalPrev(),
   urenTplCalNext:()=>urenTplCalNext(),
   urenTplCalClear:()=>urenTplCalClear(),
   urenTplCalSelect:(a)=>urenTplCalSelect(a),
   urenSaveTpl:()=>urenSaveTpl(),
   urenResetTplForm:()=>urenResetTplForm(),
-  urenOpenDesc:(a,b,ev)=>urenOpenDesc(ev,a,b),
-  urenSaveDesc:()=>urenSaveDesc(),
-  closeUrenDescPopup:()=>closeUrenDescPopup(),
   urenApplyTemplate:(a)=>urenApplyTemplate(a),
   urenEditTemplate:(a)=>urenEditTemplate(a),
   urenDeleteTemplate:(a)=>urenDeleteTemplate(a),
   urenToggleTplDay:(a)=>urenToggleTplDay(Number(a))
 };
 
-/* Whitelist of functions reachable via change delegation. */
 const UREN_CHANGE_ACTIONS={
-  urenCellChange:(el,a,b)=>urenCellChange(el,a,b),
-  urenToggleTplRepeat:()=>urenToggleTplRepeat(),
-  urenToggleInvoicedPopup:(el)=>urenToggleInvoicedPopup(el)
+  urenSetFilterClient:(el)=>{urenFilterClient=el.value;urenRenderAll();},
+  urenSetFilterStatus:(el)=>{urenFilterStatus=el.value;urenRenderAll();},
+  urenRowDate:(el,a)=>{if(el.value){urenUpdateEntry(a,{date:el.value});urenRenderAll();}},
+  urenRowHours:(el,a)=>urenRowHours(el,a),
+  urenRowDesc:(el,a)=>urenUpdateEntry(a,{description:el.value.trim()}),
+  urenRowSelect:(el,a)=>urenRowSelect(el,a),
+  urenDaySelect:(el,a)=>urenDaySelect(el,a),
+  urenDraftDate:(el)=>{urenDraftEnsure();urenDraft.date=el.value||urenToday();},
+  urenDraftHours:(el)=>urenDraftHours(el),
+  urenDraftDesc:(el)=>{urenDraftEnsure();urenDraft.description=el.value;},
+  urenToggleTplRepeat:()=>urenToggleTplRepeat()
 };
 
 function urenDispatchClick(e){
@@ -12571,15 +13150,8 @@ function urenDispatchClick(e){
   if(!el)return;
   const fn=UREN_CLICK_ACTIONS[el.dataset.urenAction];
   if(!fn)return;
-  /* urenOpenDesc needs the event for popup positioning — pass it last. */
-  if(el.dataset.urenAction==='urenOpenDesc'){
-    e.stopPropagation();
-    fn(el.dataset.urenArg1,el.dataset.urenArg2,e);
-  } else {
-    fn(el.dataset.urenArg1,el.dataset.urenArg2);
-  }
+  fn(el.dataset.urenArg1,el.dataset.urenArg2,e,el);
 }
-
 function urenDispatchChange(e){
   const el=e.target.closest('[data-uren-change]');
   if(!el)return;
@@ -12587,426 +13159,924 @@ function urenDispatchChange(e){
   if(!fn)return;
   fn(el,el.dataset.urenArg1,el.dataset.urenArg2);
 }
-
 document.addEventListener('click',urenDispatchClick);
 document.addEventListener('change',urenDispatchChange);
 
-/* Cell-input auto-select on focus (delegated — replaces inline onfocus). */
+/* Getalvelden selecteren zichzelf bij focus (direct overtypen). */
 document.addEventListener('focusin',e=>{
   const el=e.target;
-  if(el&&el.classList&&el.classList.contains('uren-cell-input')){
-    try{el.select();}catch(_){/* ignore */}
+  if(el&&el.classList&&(el.classList.contains('uren-hours-in')||el.classList.contains('uren-dur-in'))){
+    try{el.select();}catch(_){/* niet-selecteerbaar veldtype */}
   }
 });
 
-/* ── Privacy lock ── */
+/* Toetsenbord in de tabel: ↑/↓ stapt 15 min (Shift = 1 uur),
+   Enter bevestigt en springt naar de volgende regel. */
+document.addEventListener('keydown',e=>{
+  const el=e.target;
+  if(!el||!el.classList)return;
+  const isRowHours=el.classList.contains('uren-hours-in');
+  const isDur=el.classList.contains('uren-dur-in');
+  if(!isRowHours&&!isDur)return;
+  if(e.key==='ArrowUp'||e.key==='ArrowDown'){
+    e.preventDefault();
+    const step=(e.shiftKey?1:0.25)*(e.key==='ArrowUp'?1:-1);
+    const cur=urenParseHours(el.value);
+    el.value=urenFmt(urenClampHours((cur===null?0:cur)+step));
+    el.dispatchEvent(new Event('change',{bubbles:true}));
+  } else if(e.key==='Enter'&&isRowHours){
+    e.preventDefault();
+    el.blur();
+  }
+});
+
+/* ── Entry point ── */
 function renderUrenModule(){
-  const hasPin=urenHasPin();
-  const lockEl=document.getElementById('urenLockScreen');
-  const setPinEl=document.getElementById('urenSetPinScreen');
-  const contentEl=document.getElementById('urenContent');
-  if(!lockEl||!setPinEl||!contentEl)return;
-
-  if(!hasPin){
-    urenLocked=true;
-    lockEl.style.display='none';
-    setPinEl.style.display='flex';
-    contentEl.style.display='none';
-    document.getElementById('urenSetPinInput1').value='';
-    document.getElementById('urenSetPinInput2').value='';
-    document.getElementById('urenSetPinErr').textContent='';
-    setTimeout(()=>document.getElementById('urenSetPinInput1').focus(),60);
-    return;
-  }
-  if(urenLocked){
-    lockEl.style.display='flex';
-    setPinEl.style.display='none';
-    contentEl.style.display='none';
-    document.getElementById('urenPinInput').value='';
-    document.getElementById('urenLockErr').textContent='';
-    setTimeout(()=>document.getElementById('urenPinInput').focus(),60);
-    return;
-  }
-  lockEl.style.display='none';
-  setPinEl.style.display='none';
-  contentEl.style.display='flex';
-  urenRenderContent();
-}
-
-function urenUnlockSubmit(){
-  const pin=document.getElementById('urenPinInput').value.trim();
-  if(!pin){document.getElementById('urenLockErr').textContent='Voer je pincode in';return;}
-  const stored=urenGetPin();
-  if(stored==='__none__'||pin===stored){
-    urenLocked=false;
-    renderUrenModule();
-  } else {
-    document.getElementById('urenLockErr').textContent='Onjuiste pincode';
-    document.getElementById('urenPinInput').value='';
-    document.getElementById('urenPinInput').focus();
-  }
-}
-
-function urenLock(){
-  urenLocked=true;
-  closeUrenDescPopup();
-  renderUrenModule();
-}
-
-function urenShowSetPin(){
-  document.getElementById('urenLockScreen').style.display='none';
-  document.getElementById('urenSetPinScreen').style.display='flex';
-  document.getElementById('urenContent').style.display='none';
-  document.getElementById('urenSetPinInput1').value='';
-  document.getElementById('urenSetPinInput2').value='';
-  document.getElementById('urenSetPinErr').textContent='';
-  setTimeout(()=>document.getElementById('urenSetPinInput1').focus(),60);
-}
-
-function urenConfirmSetPin(){
-  const p1=document.getElementById('urenSetPinInput1').value;
-  const p2=document.getElementById('urenSetPinInput2').value;
-  const err=document.getElementById('urenSetPinErr');
-  if(!p1||p1.length<4){err.textContent='Pincode moet minimaal 4 cijfers zijn';return;}
-  if(!/^\d+$/.test(p1)){err.textContent='Alleen cijfers toegestaan';return;}
-  if(p1!==p2){err.textContent='Pincodes komen niet overeen';return;}
-  localStorage.setItem(LS_UREN_PIN,p1);
-  urenLocked=false;
-  renderUrenModule();
-}
-
-function urenSkipPin(){
-  localStorage.setItem(LS_UREN_PIN,'__none__');
-  urenLocked=false;
-  renderUrenModule();
-}
-
-/* ── Navigation ── */
-function urenSetView(view){
-  urenView=view;
-  document.getElementById('urenTabWeek').classList.toggle('active',view==='week');
-  document.getElementById('urenTabMonth').classList.toggle('active',view==='month');
-  urenRenderContent();
-}
-
-function urenNavPrev(){if(urenView==='week')urenWeekOffset--;else urenMonthOffset--;urenRenderContent();}
-function urenNavNext(){if(urenView==='week')urenWeekOffset++;else urenMonthOffset++;urenRenderContent();}
-function urenNavToday(){urenWeekOffset=0;urenMonthOffset=0;urenRenderContent();}
-
-/* ── Main content render ── */
-function urenRenderContent(){
-  const body=document.getElementById('urenBody');
-  const navLabel=document.getElementById('urenNavLabel');
-  if(!body||!navLabel)return;
+  urenMigrateEntries();
   urenApplyRecurring();
-  const clients=kanbanState.clients;
-  if(urenView==='week'){
-    const dates=urenWeekDates(urenWeekOffset);
-    navLabel.textContent=urenFormatWeekLabel(dates);
-    body.innerHTML=renderUrenWeekMatrix(clients,dates);
-  } else {
-    const info=urenMonthInfo(urenMonthOffset);
-    navLabel.textContent=urenFormatMonthLabel(urenMonthOffset);
-    body.innerHTML=renderUrenMonthMatrix(clients,info.weeks,info.year,info.month);
+  urenRenderAll();
+}
+
+function urenRenderAll(){
+  if(!document.getElementById('urenBody'))return;
+  urenRenderPeriodLabel();
+  urenRenderFilters();
+  urenRenderKpis();
+  urenRenderBody();
+  urenRenderTabs();
+  if(typeof updateNavBadges==='function')updateNavBadges();
+  /* Focus terugzetten na de rebuild (spreadsheet-gevoel). */
+  if(urenFocusAfterRender){
+    const el=document.querySelector(urenFocusAfterRender);
+    urenFocusAfterRender=null;
+    if(el){el.focus();try{el.select();}catch(_){/* geen tekstveld */}}
   }
 }
 
-/* ── Week matrix (SKELETON builder) ──
-   Pure HTML builder; partial updates target data-attributes below.
-   Data-attributes emitted for partial updates:
-     - td[data-cell-client][data-cell-date]           (cell wrapper)
-     - input[data-input-client][data-input-date]     (hours input)
-     - button[data-desc-client][data-desc-date]      (description btn)
-     - td[data-row-total="{clientId}"]               (per-client total)
-     - td[data-col-total="{date}"]                   (per-day total)
-     - td[data-grand-total]                          (grand total) */
-function renderUrenWeekMatrix(clients,dates){
-  if(!clients.length){
-    return `<div style="color:var(--text-hint);font-size:13px;padding:40px;text-align:center">
-      Nog geen klanten. Voeg klanten toe via de zijbalk om uren te registreren.</div>`;
+function urenRenderTabs(){
+  document.querySelectorAll('#mod-uren .uren-tab').forEach(t=>{
+    t.classList.toggle('active',t.dataset.urenArg1===urenView);
+  });
+}
+
+function urenRenderPeriodLabel(){
+  const el=document.getElementById('urenPeriodeLabel');
+  if(el)el.textContent=urenPeriod().label;
+}
+
+/* ── Navigatie ── */
+/* Waar "kijkt" de gebruiker nu? Vandaag als die in beeld is, anders het
+   midden van de periode. Wordt gebruikt om bij een weergavewissel op
+   dezelfde plek in de tijd te blijven — week 31 (27 jul–2 aug) mag niet
+   omslaan naar augustus terwijl je vooral naar juli keek. */
+function urenAnchorDate(){
+  const p=urenPeriod();
+  const today=urenToday();
+  if(today>=p.from&&today<=p.to)return today;
+  return urenIso(new Date((urenDate(p.from).getTime()+urenDate(p.to).getTime())/2));
+}
+function urenSetView(view){
+  if(!['reg','klant','week','maand'].includes(view))return;
+  const anchor=urenAnchorDate();
+  urenView=view;
+  urenSelection.clear();
+  urenEnsurePeriodContains(anchor);
+  urenRenderAll();
+}
+function urenSetRegScope(scope){
+  const anchor=urenAnchorDate();
+  urenRegScope=scope==='month'?'month':'week';
+  urenEnsurePeriodContains(anchor);
+  urenRenderAll();
+}
+function urenNav(dir){
+  const scope=urenScope();
+  urenOffset[scope]+=dir;
+  urenSelection.clear();
+  urenRenderAll();
+}
+function urenNavToday(){
+  urenOffset={week:0,month:0,year:0};
+  urenSelection.clear();
+  urenRenderAll();
+}
+
+/* ── Filterchips ── */
+function urenRenderFilters(){
+  const bar=document.getElementById('urenFilterBar');
+  if(!bar)return;
+  const clients=kanbanState.clients||[];
+  let html='';
+  /* Alleen in de registratie-tab is een periodebreedte zinvol */
+  if(urenView==='reg'){
+    html+=`<button class="uren-sel${urenRegScope==='week'?' active':''}" data-uren-action="urenSetRegScope" data-uren-arg1="week">Week</button>
+      <button class="uren-sel${urenRegScope==='month'?' active':''}" data-uren-action="urenSetRegScope" data-uren-arg1="month">Maand</button>
+      <span style="width:1px;height:18px;background:var(--border)"></span>`;
   }
-  const today=new Date().toISOString().slice(0,10);
-  let html=`<div class="uren-matrix-wrap"><table class="uren-matrix"><thead><tr>
-    <th class="client-col">Klant</th>`;
-  dates.forEach((d,i)=>{
-    const isToday=d===today;
-    const dn=new Date(d+'T00:00:00').getDate();
-    html+=`<th${isToday?' style="background:var(--info-bg)"':''}>${DAY_LABELS_NL[i]}<br><span style="font-weight:400;font-size:10px">${dn}</span></th>`;
-  });
-  html+=`<th>Totaal</th></tr></thead><tbody>`;
+  html+=`<select class="uren-sel${urenFilterClient?' active':''}"
+      data-uren-change="urenSetFilterClient" aria-label="Filter op klant">
+      <option value="">Alle klanten</option>
+      ${clients.map(c=>`<option value="${c.id}"${urenFilterClient===c.id?' selected':''}>${escapeHtml(c.name)}</option>`).join('')}
+    </select>`;
+  html+=`<select class="uren-sel${urenFilterStatus?' active':''}"
+      data-uren-change="urenSetFilterStatus" aria-label="Filter op status">
+      <option value="">Alle statussen</option>
+      ${UREN_STATUSSEN.map(s=>`<option value="${s.id}"${urenFilterStatus===s.id?' selected':''}>${s.label}</option>`).join('')}
+    </select>`;
+  bar.innerHTML=html;
+}
 
-  clients.forEach(client=>{
-    const col=CLIENT_COLORS[client.colorIdx%CLIENT_COLORS.length];
-    let rowTotal=0;
-    html+=`<tr><td class="client-col">
-      <div style="display:flex;align-items:center;gap:6px">
-        <span style="width:8px;height:8px;border-radius:2px;background:${col.bg};flex-shrink:0;display:inline-block"></span>
-        <span style="overflow:hidden;text-overflow:ellipsis">${escapeHtml(client.name)}</span>
-      </div></td>`;
-    dates.forEach(d=>{
-      const entry=urenGetEntry(client.id,d);
-      const hours=entry?entry.hours:0;
-      if(hours)rowTotal+=hours;
-      const inv=!!(entry&&entry.invoiced);
-      const hasDesc=!!(entry&&entry.description);
-      const isToday=d===today;
-      const tdCls=isToday?' class="uren-today-col"':'';
-      html+=`<td${tdCls} data-cell-client="${client.id}" data-cell-date="${d}">
-        <div class="uren-cell-wrap">
-          <input type="number" min="0" max="24" step="0.25"
-            class="uren-cell-input${hours?' has-value':''}${inv?' invoiced':''}"
-            data-input-client="${client.id}" data-input-date="${d}"
-            data-uren-change="urenCellChange" data-uren-arg1="${client.id}" data-uren-arg2="${d}"
-            value="${hours||''}" placeholder=""
-            ${inv?'disabled':''}/>
-          <button class="uren-cell-desc-btn${hasDesc?' has-desc':''}"
-            data-desc-client="${client.id}" data-desc-date="${d}"
-            data-uren-action="urenOpenDesc" data-uren-arg1="${client.id}" data-uren-arg2="${d}"
-            title="${hasDesc?escapeHtml((entry.description||'').substring(0,60)):'Omschrijving / opties'}"
-          >${hasDesc?'💬':'✎'}</button>
-        </div></td>`;
-    });
-    html+=`<td class="total-col" data-row-total="${client.id}">${rowTotal>0?urenFmt(rowTotal):''}</td></tr>`;
+/* ── KPI-strip ──
+   Bewust geen streefuren/normen: dit telt wat er staat, het beoordeelt niet. */
+function urenRenderKpis(){
+  const box=document.getElementById('urenKpis');
+  if(!box)return;
+  const list=urenVisibleEntries();
+  const total=urenSum(list);
+  const open=urenSum(list.filter(e=>urenStatusOf(e)==='open'));
+  const concept=urenSum(list.filter(e=>urenStatusOf(e)==='concept'));
+  const inv=urenSum(list.filter(e=>urenStatusOf(e)==='invoiced'));
+  const klanten=new Set(list.map(e=>e.clientId).filter(Boolean)).size;
+  const pct=v=>total>0?Math.round(v/total*100):0;
+  const kpi=(k,lab,val,sub,bar)=>`
+    <div class="uren-kpi" style="--k:${k}">
+      <div class="uren-kpi-lab">${lab}</div>
+      <div class="uren-kpi-val">${val}<small>u</small></div>
+      <div class="uren-kpi-sub">${sub}</div>
+      ${bar!==null?`<div class="uren-kpi-bar"><i style="width:${bar}%"></i></div>`:''}
+    </div>`;
+  box.innerHTML=
+    kpi('var(--mint)','Totaal periode',urenFmtShort(total),
+      `${list.length} ${list.length===1?'registratie':'registraties'} · ${klanten} ${klanten===1?'klant':'klanten'}`,null)+
+    kpi('var(--warning)','Te factureren',urenFmtShort(open),
+      `${pct(open)}% van de periode`,pct(open))+
+    kpi('var(--success)','Gefactureerd',urenFmtShort(inv),
+      `${pct(inv)}% van de periode`,pct(inv))+
+    kpi('var(--info)','Concept',urenFmtShort(concept),
+      concept>0?'nog te bevestigen':'niets in concept',pct(concept));
+}
+
+/* ── Body: schakelt tussen de vier weergaven ── */
+function urenRenderBody(){
+  const body=document.getElementById('urenBody');
+  if(!body)return;
+  if(!(kanbanState.clients||[]).length){
+    body.innerHTML=`<div class="uren-empty"><b>Nog geen klanten</b>
+      Voeg eerst een klant toe via de zijbalk — elke urenregistratie hoort bij een klant.</div>`;
+    return;
+  }
+  if(urenView==='reg')      body.innerHTML=urenRenderRegView();
+  else if(urenView==='klant')body.innerHTML=urenRenderKlantView();
+  else if(urenView==='week') body.innerHTML=urenRenderWeekView();
+  else                       body.innerHTML=urenRenderMaandView();
+}
+
+/* ══ Weergave: registraties ══ */
+function urenRenderRegView(){
+  const list=urenVisibleEntries();
+  const p=urenPeriod();
+  urenDraftEnsure(p);
+  /* Groepeer per dag, nieuwste dag eerst */
+  const byDay=new Map();
+  list.forEach(e=>{
+    if(!byDay.has(e.date))byDay.set(e.date,[]);
+    byDay.get(e.date).push(e);
+  });
+  const days=[...byDay.keys()].sort((a,b)=>b.localeCompare(a));
+  const today=urenToday();
+
+  let html=urenRenderSelbar(list);
+
+  /* ── Desktop: spreadsheet ── */
+  html+=`<div class="uren-sheet-card"><table class="uren-sheet">
+    <thead><tr>
+      <th class="uren-col-check"></th>
+      <th class="uren-col-date">Datum</th>
+      <th class="uren-col-klant">Klant</th>
+      <th class="uren-col-uren num">Uren</th>
+      <th>Omschrijving</th>
+      <th class="uren-col-status">Status</th>
+      <th class="uren-col-act"></th>
+    </tr></thead><tbody>`;
+
+  html+=urenRenderDraftRow();
+
+  if(!days.length){
+    html+=`<tr><td colspan="7"><div class="uren-empty">
+      <b>Nog geen uren in deze periode</b>
+      Vul de bovenste regel in of gebruik ‹ › om een andere periode te kiezen.</div></td></tr>`;
+  }
+
+  days.forEach(day=>{
+    const rows=byDay.get(day);
+    const dayTotal=urenSum(rows);
+    const allSel=rows.every(r=>urenSelection.has(r.id));
+    html+=`<tr class="uren-daygrp"><td colspan="7"><div class="in">
+      <input type="checkbox" class="uren-check" ${allSel?'checked':''}
+        data-uren-change="urenDaySelect" data-uren-arg1="${day}"
+        aria-label="Selecteer alle regels van ${urenFormatDayLabel(day)}"/>
+      <span class="dg-date">${urenFormatDayLabel(day)}</span>
+      ${day===today?'<span class="dg-today">Vandaag</span>':''}
+      <button class="dg-add" data-uren-action="urenNewEntryOn" data-uren-arg1="${day}">+ regel</button>
+      <span class="dg-rule"></span>
+      <span class="dg-tot">${urenFmt(dayTotal)} u</span>
+    </div></td></tr>`;
+    rows.forEach(e=>{html+=urenRenderRow(e);});
   });
 
-  // Totals row
-  html+=`<tr class="total-row"><td class="client-col" style="font-size:11px">Totalen</td>`;
-  let grand=0;
-  dates.forEach(d=>{
-    let dt=0;clients.forEach(c=>{const e=urenGetEntry(c.id,d);if(e)dt+=e.hours;});grand+=dt;
-    const isToday=d===today;
-    html+=`<td${isToday?' class="uren-today-col"':''} data-col-total="${d}">${dt>0?urenFmt(dt):''}</td>`;
-  });
-  html+=`<td class="total-col" data-grand-total>${grand>0?urenFmt(grand):''}</td></tr></tbody></table></div>`;
-  html+=`<div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-    <span class="uren-invoiced-badge">✓ Gefactureerd</span>
-    <span style="font-size:12px;color:var(--text-muted)">Typ uren direct in de cel · Klik op ✎ voor omschrijving en opties</span>
+  const total=urenSum(list);
+  const invTotal=urenSum(list.filter(e=>urenStatusOf(e)==='invoiced'));
+  html+=`</tbody><tfoot><tr>
+      <td></td>
+      <td class="lab">Totaal</td>
+      <td class="split">${new Set(list.map(e=>e.clientId)).size} klanten · ${list.length} regels</td>
+      <td class="tot">${urenFmt(total)}</td>
+      <td class="split">waarvan ${urenFmt(invTotal)} u gefactureerd</td>
+      <td colspan="2"></td>
+    </tr></tfoot></table></div>`;
+
+  html+=`<div class="uren-legend">
+    ${UREN_STATUSSEN.map(s=>`<span><span class="uren-pill ${s.cls}" style="cursor:default">${s.icon}${s.label}</span></span>`).join('')}
+    <span class="uren-hint">Tab springt naar de volgende cel · ↑ ↓ stapt 15 min (Shift = 1 uur)</span>
   </div>`;
-  return html;
-}
 
-/* ── Partial updaters (no innerHTML rebuild) ──
-   Called after data mutations so the DOM stays in sync without
-   re-rendering the whole matrix. Only operate on the currently
-   rendered week view. Month view falls back to full rebuild. */
-
-/* Recompute row / column / grand totals in-place. */
-function recalcUrenTotals(){
-  if(urenView!=='week')return;
-  const body=document.getElementById('urenBody');
-  if(!body)return;
-  const clients=kanbanState.clients;
-  const dates=urenWeekDates(urenWeekOffset);
-  let grand=0;
-  clients.forEach(c=>{
-    let rt=0;
-    dates.forEach(d=>{const e=urenGetEntry(c.id,d);if(e)rt+=e.hours;});
-    const cell=body.querySelector(`[data-row-total="${c.id}"]`);
-    if(cell)cell.textContent=rt>0?urenFmt(rt):'';
-    grand+=rt;
-  });
-  dates.forEach(d=>{
-    let dt=0;clients.forEach(c=>{const e=urenGetEntry(c.id,d);if(e)dt+=e.hours;});
-    const cell=body.querySelector(`[data-col-total="${d}"]`);
-    if(cell)cell.textContent=dt>0?urenFmt(dt):'';
-  });
-  const g=body.querySelector('[data-grand-total]');
-  if(g)g.textContent=grand>0?urenFmt(grand):'';
-}
-
-/* Refresh input classes (has-value/invoiced/disabled) and desc button
-   state for a single cell without touching the rest of the table. */
-function updateUrenCellClasses(clientId,date){
-  if(urenView!=='week')return;
-  const body=document.getElementById('urenBody');
-  if(!body)return;
-  const entry=urenGetEntry(clientId,date);
-  const hours=entry?entry.hours:0;
-  const inv=!!(entry&&entry.invoiced);
-  const hasDesc=!!(entry&&entry.description);
-  const input=body.querySelector(`input[data-input-client="${clientId}"][data-input-date="${date}"]`);
-  if(input){
-    input.classList.toggle('has-value',!!hours);
-    input.classList.toggle('invoiced',inv);
-    input.disabled=inv;
-    /* Keep input in sync when hours were cleared server-side. */
-    if(document.activeElement!==input){
-      input.value=hours||'';
-    }
+  /* ── Mobiel: kaarten per dag ── */
+  html+=`<div class="uren-mlist">`;
+  if(!days.length){
+    html+=`<div class="uren-empty"><b>Nog geen uren in deze periode</b>
+      Tik op + om een registratie toe te voegen.</div>`;
   }
-  const btn=body.querySelector(`button[data-desc-client="${clientId}"][data-desc-date="${date}"]`);
-  if(btn){
-    btn.classList.toggle('has-desc',hasDesc);
-    btn.textContent=hasDesc?'💬':'✎';
-    btn.title=hasDesc
-      ?((entry.description||'').substring(0,60))
-      :'Omschrijving / opties';
-  }
-}
-
-function urenFmt(n){return n.toLocaleString('nl-NL',{minimumFractionDigits:0,maximumFractionDigits:2});}
-
-/* ── Month matrix ── */
-function renderUrenMonthMatrix(clients,weeks,year,month){
-  if(!clients.length){
-    return `<div style="color:var(--text-hint);font-size:13px;padding:40px;text-align:center">
-      Nog geen klanten. Voeg klanten toe via de zijbalk.</div>`;
-  }
-  let html=`<div class="uren-matrix-wrap"><table class="uren-month-table"><thead><tr>
-    <th class="client-col">Klant</th>`;
-  weeks.forEach(wk=>{
-    const wn=getISOWeek(new Date(wk[0]+'T00:00:00'));
-    html+=`<th>Wk ${wn}</th>`;
-  });
-  html+=`<th class="total-col">Totaal</th></tr></thead><tbody>`;
-
-  clients.forEach(client=>{
-    const col=CLIENT_COLORS[client.colorIdx%CLIENT_COLORS.length];
-    let rowTotal=0;
-    html+=`<tr><td class="client-col">
-      <div style="display:flex;align-items:center;gap:6px">
-        <span style="width:8px;height:8px;border-radius:2px;background:${col.bg};flex-shrink:0;display:inline-block"></span>
-        ${escapeHtml(client.name)}
-      </div></td>`;
-    weeks.forEach(wk=>{
-      let wt=0,hasAny=false,allInv=true;
-      wk.forEach(d=>{const e=urenGetEntry(client.id,d);if(e){wt+=e.hours;hasAny=true;if(!e.invoiced)allInv=false;}});
-      if(!hasAny)allInv=false;
-      rowTotal+=wt;
-      const inv=hasAny&&allInv;
-      html+=`<td>${wt>0?`<span style="${inv?'color:var(--success);font-weight:600':''}">${urenFmt(wt)}${inv?' ✓':''}</span>`:'—'}</td>`;
+  days.forEach(day=>{
+    const rows=byDay.get(day);
+    html+=`<div class="uren-mday">
+      <em>${urenFormatDayLabel(day)}</em>
+      ${day===today?'<span class="today">Vandaag</span>':''}
+      <span class="rule"></span><b>${urenFmt(urenSum(rows))} u</b></div>`;
+    rows.forEach(e=>{
+      const col=urenClientColor(e.clientId);
+      const st=urenStatusMeta(urenStatusOf(e));
+      html+=`<button class="uren-mcard" style="--c:${col.bg}"
+        data-uren-action="urenEditEntry" data-uren-arg1="${e.id}">
+        <span class="body">
+          <span class="kl"><span class="sw" style="background:${col.bg}"></span>${escapeHtml(urenClientName(e.clientId))}</span>
+          ${e.description?`<span class="ds">${escapeHtml(e.description)}</span>`:''}
+          <span><span class="uren-pill ${st.cls}" style="cursor:default">${st.icon}${st.label}</span></span>
+        </span>
+        <span class="hrs">${urenFmt(e.hours)}<small>u</small></span>
+      </button>`;
     });
-    html+=`<td class="total-col">${rowTotal>0?urenFmt(rowTotal):''}</td></tr>`;
   });
-
-  // Grand totals
-  html+=`<tr class="total-row"><td class="client-col">Totalen</td>`;
-  let grand=0;
-  weeks.forEach(wk=>{
-    let wt=0;clients.forEach(c=>{wk.forEach(d=>{const e=urenGetEntry(c.id,d);if(e)wt+=e.hours;});});grand+=wt;
-    html+=`<td>${wt>0?urenFmt(wt):''}</td>`;
-  });
-  html+=`<td class="total-col">${grand>0?urenFmt(grand):''}</td></tr></tbody></table></div>`;
+  html+=`</div>`;
   return html;
 }
 
-/* ── Cell interaction ──
-   Partial update: mutate state → refresh classes on this cell →
-   recompute totals. Never rebuild the matrix (preserves focus). */
-function urenCellChange(input,clientId,date){
-  urenSetHours(clientId,date,input.value);
-  if(urenView==='week'){
-    updateUrenCellClasses(clientId,date);
-    recalcUrenTotals();
-  } else {
-    urenRenderContent();
-  }
+/* Selectiebalk — alleen zichtbaar zodra er regels aangevinkt zijn. */
+function urenRenderSelbar(list){
+  const ids=list.filter(e=>urenSelection.has(e.id)).map(e=>e.id);
+  if(!ids.length)return '';
+  const sum=urenSum(ids.map(id=>urenEntry(id)).filter(Boolean));
+  return `<div class="uren-selbar">
+    <span class="uren-selbar-count">${ids.length} ${ids.length===1?'regel':'regels'} · <b>${urenFmt(sum)} u</b></span>
+    <span style="flex:1"></span>
+    <button class="btn btn-xs btn-primary" data-uren-action="urenBulkStatus" data-uren-arg1="invoiced">✓ Gefactureerd</button>
+    <button class="btn btn-xs" data-uren-action="urenBulkStatus" data-uren-arg1="open">Open</button>
+    <button class="btn btn-xs" data-uren-action="urenBulkStatus" data-uren-arg1="concept">Concept</button>
+    <button class="btn btn-xs btn-danger" data-uren-action="urenBulkDelete">Verwijderen</button>
+    <button class="btn btn-xs" data-uren-action="urenClearSelection">Deselecteer</button>
+  </div>`;
 }
 
-/* ── Description / options popup ── */
-function urenOpenDesc(event,clientId,date){
-  event.stopPropagation();
-  closeUrenDescPopup();
-  urenDescTarget={clientId,date};
-  const entry=urenGetEntry(clientId,date);
-  const inv=!!(entry&&entry.invoiced);
-  const client=(kanbanState.clients.find(c=>c.id===clientId)||{}).name||'';
-
-  const popup=document.createElement('div');
-  popup.className='uren-desc-popup';popup.id='urenDescPopup';
-  popup.innerHTML=`
-    <div style="font-size:11px;font-weight:600;color:var(--text-muted)">${escapeHtml(client)} · ${urenFormatDateShort(date)}</div>
-    <textarea id="urenDescText" rows="3"
-      placeholder="Omschrijving werkzaamheden..."
-      style="width:100%;font-size:12px;resize:none;padding:6px 8px;border:0.5px solid var(--border-strong);border-radius:var(--radius);background:var(--surface2);color:var(--text);font-family:inherit;outline:none"
-      ${inv?'disabled':''}>${escapeHtml(entry?.description||'')}</textarea>
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
-      <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;user-select:none">
-        <input type="checkbox" id="urenInvCheck" ${inv?'checked':''}
-          data-uren-change="urenToggleInvoicedPopup"/>
-        Gefactureerd
-      </label>
-      <div style="display:flex;gap:4px">
-        ${!inv?`<button class="btn btn-xs btn-primary" data-uren-action="urenSaveDesc">Opslaan</button>`:''}
-        <button class="btn btn-xs" data-uren-action="closeUrenDescPopup">✕</button>
+function urenRenderRow(e){
+  const status=urenStatusOf(e);
+  const locked=status==='invoiced';
+  const st=urenStatusMeta(status);
+  const col=urenClientColor(e.clientId);
+  const sel=urenSelection.has(e.id);
+  const dis=locked?'disabled':'';
+  return `<tr class="uren-row${locked?' is-invoiced':''}${sel?' is-selected':''}" data-uren-row="${e.id}">
+    <td class="uren-cb">
+      <input type="checkbox" class="uren-check" ${sel?'checked':''}
+        data-uren-change="urenRowSelect" data-uren-arg1="${e.id}"
+        aria-label="Selecteer regel ${escapeHtml(urenClientName(e.clientId))} ${e.date}"/>
+    </td>
+    <td><input type="date" class="uren-cell date" value="${e.date}" ${dis}
+      data-uren-change="urenRowDate" data-uren-arg1="${e.id}" aria-label="Datum"/></td>
+    <td>
+      <button class="uren-klant-btn${e.clientId?'':' empty'}" ${dis}
+        data-uren-action="urenOpenClientPicker" data-uren-arg1="${e.id}">
+        <span class="sw" style="background:${col.bg}"></span>
+        <span class="nm">${e.clientId?escapeHtml(urenClientName(e.clientId)):'Kies klant'}</span>
+        ${locked?'':'<span class="cr">▾</span>'}
+      </button>
+    </td>
+    <td>
+      <div class="uren-hours">
+        <button class="uren-step" ${dis} data-uren-action="urenRowStep"
+          data-uren-arg1="${e.id}" data-uren-arg2="-0.25" title="15 min eraf" aria-label="15 minuten eraf">−</button>
+        <input type="text" inputmode="decimal" class="uren-hours-in" value="${urenFmt(e.hours)}" ${dis}
+          data-uren-change="urenRowHours" data-uren-arg1="${e.id}"
+          data-uren-hours="${e.id}" aria-label="Aantal uren"/>
+        <button class="uren-step" ${dis} data-uren-action="urenRowStep"
+          data-uren-arg1="${e.id}" data-uren-arg2="0.25" title="15 min erbij" aria-label="15 minuten erbij">+</button>
       </div>
-    </div>
-  `;
-  document.body.appendChild(popup);
-
-  const r=event.target.getBoundingClientRect();
-  let left=r.left,top=r.bottom+6;
-  if(left+290>window.innerWidth-8)left=window.innerWidth-298;
-  if(top+200>window.innerHeight-8)top=r.top-206;
-  popup.style.left=Math.max(8,left)+'px';
-  popup.style.top=Math.max(8,top)+'px';
-
-  setTimeout(()=>{
-    if(!inv)document.getElementById('urenDescText')?.focus();
-    document.addEventListener('mousedown',urenDescClickOutside);
-  },20);
+    </td>
+    <td><input type="text" class="uren-cell desc" value="${escapeHtml(e.description||'')}" ${dis}
+      placeholder="Waar heb je aan gewerkt?"
+      data-uren-change="urenRowDesc" data-uren-arg1="${e.id}" aria-label="Omschrijving"/></td>
+    <td class="uren-status-td">
+      <button class="uren-pill ${st.cls}" data-uren-action="urenCycleStatus" data-uren-arg1="${e.id}"
+        title="Klik om de status te wijzigen">${st.icon}${st.label}</button>
+    </td>
+    <td>
+      <div class="uren-rowacts">
+        <button data-uren-action="urenDuplicateRow" data-uren-arg1="${e.id}" title="Dupliceren" aria-label="Regel dupliceren">⧉</button>
+        <button data-uren-action="urenDeleteRow" data-uren-arg1="${e.id}" title="Verwijderen" aria-label="Regel verwijderen">✕</button>
+      </div>
+    </td>
+  </tr>`;
 }
 
-function urenDescClickOutside(e){
-  const popup=document.getElementById('urenDescPopup');
-  if(popup&&!popup.contains(e.target)){
-    closeUrenDescPopup();
-    document.removeEventListener('mousedown',urenDescClickOutside);
+/* De altijd-aanwezige lege regel bovenaan: doortypen zoals in Excel. */
+function urenRenderDraftRow(){
+  const d=urenDraft;
+  const col=urenClientColor(d.clientId);
+  return `<tr class="uren-row uren-draft">
+    <td class="uren-cb"><span style="color:var(--mint);font-weight:700;font-size:14px">+</span></td>
+    <td><input type="date" class="uren-cell date" value="${d.date}" id="urenDraftDate"
+      data-uren-change="urenDraftDate" aria-label="Datum nieuwe regel"/></td>
+    <td>
+      <button class="uren-klant-btn${d.clientId?'':' empty'}"
+        data-uren-action="urenOpenClientPicker" data-uren-arg1="__draft__">
+        <span class="sw" style="background:${col.bg}"></span>
+        <span class="nm">${d.clientId?escapeHtml(urenClientName(d.clientId)):'Kies klant'}</span>
+        <span class="cr">▾</span>
+      </button>
+    </td>
+    <td>
+      <div class="uren-hours">
+        <button class="uren-step" data-uren-action="urenDraftStep" data-uren-arg1="-0.25" title="15 min eraf" aria-label="15 minuten eraf">−</button>
+        <input type="text" inputmode="decimal" class="uren-hours-in" id="urenDraftHours"
+          value="${d.hours?urenFmt(d.hours):''}" placeholder="0,00"
+          data-uren-change="urenDraftHours" aria-label="Aantal uren nieuwe regel"/>
+        <button class="uren-step" data-uren-action="urenDraftStep" data-uren-arg1="0.25" title="15 min erbij" aria-label="15 minuten erbij">+</button>
+      </div>
+    </td>
+    <td><input type="text" class="uren-cell desc" id="urenDraftDesc" value="${escapeHtml(d.description||'')}"
+      placeholder="Waar heb je aan gewerkt?" data-uren-change="urenDraftDesc" aria-label="Omschrijving nieuwe regel"/></td>
+    <td class="uren-status-td"><span class="uren-pill uren-pill-open" style="cursor:default;opacity:.6">Open</span></td>
+    <td></td>
+  </tr>`;
+}
+
+/* ══ Weergave: per klant (klant × week binnen de maand) ══ */
+function urenRenderKlantView(){
+  const p=urenPeriod();
+  const weeks=urenMonthWeeks(urenOffset.month);
+  const list=urenVisibleEntries();
+  const total=urenSum(list);
+  const clientIds=[...new Set(list.map(e=>e.clientId))]
+    .sort((a,b)=>urenSum(list.filter(e=>e.clientId===b))-urenSum(list.filter(e=>e.clientId===a)));
+
+  if(!clientIds.length)return urenEmptyPeriod();
+
+  let html=`<div class="uren-sheet-card"><table class="uren-pivot"><thead><tr>
+    <th>Klant</th>
+    ${weeks.map(wk=>`<th>Wk ${getISOWeek(urenDate(wk[0]))}</th>`).join('')}
+    <th>Totaal</th><th>Open</th><th style="width:210px">Aandeel</th>
+  </tr></thead><tbody>`;
+
+  clientIds.forEach(cid=>{
+    const mine=list.filter(e=>e.clientId===cid);
+    const rowTotal=urenSum(mine);
+    const open=urenSum(mine.filter(e=>urenStatusOf(e)==='open'));
+    const col=urenClientColor(cid);
+    const share=total>0?Math.round(rowTotal/total*100):0;
+    html+=`<tr>
+      <td><span class="k"><span class="sw" style="background:${col.bg}"></span>${escapeHtml(urenClientName(cid))}</span></td>
+      ${weeks.map(wk=>{
+        const v=urenSum(mine.filter(e=>wk.includes(e.date)));
+        return `<td class="${v>0?'hot':'muted'}">${v>0?urenFmt(v):'—'}</td>`;
+      }).join('')}
+      <td class="hot">${urenFmt(rowTotal)}</td>
+      <td class="${open>0?'hot':'muted'}">${open>0?urenFmt(open):'—'}</td>
+      <td><div class="uren-meter">
+        ${open>0
+          ? `<button class="uren-inv-btn" data-uren-action="urenInvoiceClient" data-uren-arg1="${cid}"
+               title="Zet alle openstaande uren van deze klant in ${p.label} op gefactureerd">Factureer ${urenFmtShort(open)} u</button>`
+          : `<span style="font-size:11px;color:var(--text-hint);font-family:var(--font-body)">volledig gefactureerd</span>`}
+        <div class="track"><i style="width:${share}%;background:${col.bg}"></i></div>
+        <span style="width:34px">${share}%</span>
+      </div></td>
+    </tr>`;
+  });
+
+  const openTotal=urenSum(list.filter(e=>urenStatusOf(e)==='open'));
+  html+=`</tbody><tfoot><tr>
+    <td>Totaal ${escapeHtml(p.label)}</td>
+    ${weeks.map(wk=>{
+      const v=urenSum(list.filter(e=>wk.includes(e.date)));
+      return `<td>${v>0?urenFmt(v):'—'}</td>`;
+    }).join('')}
+    <td>${urenFmt(total)}</td><td>${urenFmt(openTotal)}</td><td style="text-align:right">100%</td>
+  </tr></tfoot></table></div>`;
+
+  /* Mobiel */
+  html+=`<div class="uren-mlist"><div class="uren-mpiv">`;
+  clientIds.forEach(cid=>{
+    const mine=list.filter(e=>e.clientId===cid);
+    const v=urenSum(mine);
+    const col=urenClientColor(cid);
+    const share=total>0?Math.round(v/total*100):0;
+    html+=`<div class="uren-mpiv-row">
+      <span class="sw" style="background:${col.bg}"></span>
+      <span class="nm">${escapeHtml(urenClientName(cid))}</span>
+      <span class="track"><i style="width:${share}%;background:${col.bg}"></i></span>
+      <span class="v">${urenFmt(v)}</span>
+    </div>`;
+  });
+  html+=`<div class="uren-mpiv-foot">Totaal ${escapeHtml(p.label)}<b>${urenFmt(total)}</b></div></div>`;
+  if(openTotal>0){
+    html+=`<div class="uren-mpiv"><div class="uren-mpiv-row">
+      <span class="nm" style="color:var(--text-muted)">Nog te factureren</span>
+      <span class="v" style="color:var(--warning)">${urenFmt(openTotal)}</span>
+    </div></div>`;
   }
+  html+=`</div>`;
+  return html;
 }
 
-function urenSaveDesc(){
-  const txt=(document.getElementById('urenDescText')?.value||'').trim();
-  const {clientId,date}=urenDescTarget;
-  if(!clientId||!date)return;
-  const entry=urenGetEntry(clientId,date);
-  if(entry){entry.description=txt;scheduleSave();}
-  closeUrenDescPopup();
-  /* Partial update — only the desc button visual changes. */
-  if(urenView==='week')updateUrenCellClasses(clientId,date);
-  else urenRenderContent();
+/* ══ Weergave: per week (week × weekdag binnen de maand) ══ */
+function urenRenderWeekView(){
+  const p=urenPeriod();
+  const weeks=urenMonthWeeks(urenOffset.month);
+  const list=urenVisibleEntries();
+  const total=urenSum(list);
+  if(!list.length)return urenEmptyPeriod();
+
+  let html=`<div class="uren-sheet-card"><table class="uren-pivot"><thead><tr>
+    <th>Week</th>${DAY_LABELS_NL.map(d=>`<th>${d}</th>`).join('')}<th>Totaal</th><th style="width:170px">Aandeel</th>
+  </tr></thead><tbody>`;
+
+  const max=Math.max(...weeks.map(wk=>urenSum(list.filter(e=>wk.includes(e.date)))),1);
+  weeks.forEach(wk=>{
+    const mine=list.filter(e=>wk.includes(e.date));
+    const wkTotal=urenSum(mine);
+    const f=urenDate(wk[0]),l=urenDate(wk[6]);
+    const label='Week '+getISOWeek(f)+' · '+
+      f.toLocaleDateString('nl-NL',{day:'numeric',month:'short'}).replace('.','')+'–'+
+      l.toLocaleDateString('nl-NL',{day:'numeric',month:'short'}).replace('.','');
+    html+=`<tr>
+      <td>${label}</td>
+      ${wk.map(d=>{
+        const v=urenSum(list.filter(e=>e.date===d));
+        return `<td class="${v>0?'hot':'muted'}">${v>0?urenFmt(v):'—'}</td>`;
+      }).join('')}
+      <td class="hot">${urenFmt(wkTotal)}</td>
+      <td><div class="uren-meter">
+        <div class="track"><i style="width:${Math.round(wkTotal/max*100)}%;background:var(--mint)"></i></div>
+      </div></td>
+    </tr>`;
+  });
+
+  html+=`</tbody><tfoot><tr>
+    <td>Totaal ${escapeHtml(p.label)}</td>
+    ${DAY_LABELS_NL.map((_,i)=>{
+      const v=urenSum(list.filter(e=>(urenDate(e.date).getDay()+6)%7===i));
+      return `<td>${v>0?urenFmt(v):'—'}</td>`;
+    }).join('')}
+    <td>${urenFmt(total)}</td><td></td>
+  </tr></tfoot></table></div>`;
+
+  /* Mobiel */
+  html+=`<div class="uren-mlist"><div class="uren-mpiv">`;
+  weeks.forEach(wk=>{
+    const wkTotal=urenSum(list.filter(e=>wk.includes(e.date)));
+    const f=urenDate(wk[0]);
+    html+=`<div class="uren-mpiv-row">
+      <span class="nm" style="font-family:var(--font-mono);font-size:12.5px">Week ${getISOWeek(f)} · ${f.toLocaleDateString('nl-NL',{day:'numeric',month:'short'}).replace('.','')}</span>
+      <span class="track"><i style="width:${Math.round(wkTotal/max*100)}%;background:var(--mint)"></i></span>
+      <span class="v">${urenFmt(wkTotal)}</span>
+    </div>`;
+  });
+  html+=`<div class="uren-mpiv-foot">Totaal ${escapeHtml(p.label)}<b>${urenFmt(total)}</b></div></div></div>`;
+  return html;
 }
 
-function urenToggleInvoicedPopup(checkbox){
-  const txt=(document.getElementById('urenDescText')?.value||'').trim();
-  const {clientId,date}=urenDescTarget;
-  if(!clientId||!date)return;
-  const entry=urenGetEntry(clientId,date);
-  if(entry){entry.description=txt;entry.invoiced=checkbox.checked;scheduleSave();}
-  closeUrenDescPopup();
-  /* Invoiced toggle changes both input styling and (indirectly) cell state. */
-  if(urenView==='week'){
-    updateUrenCellClasses(clientId,date);
-    recalcUrenTotals();
+/* ══ Weergave: per maand (maand × klant binnen het jaar) ══ */
+function urenRenderMaandView(){
+  const p=urenPeriod();
+  const year=p.year;
+  const list=urenVisibleEntries();
+  if(!list.length)return urenEmptyPeriod();
+  const clientIds=[...new Set(list.map(e=>e.clientId))]
+    .sort((a,b)=>urenSum(list.filter(e=>e.clientId===b))-urenSum(list.filter(e=>e.clientId===a)));
+  const months=[];
+  for(let m=0;m<12;m++){
+    const from=`${year}-${String(m+1).padStart(2,'0')}-01`;
+    const to=`${year}-${String(m+1).padStart(2,'0')}-31`;
+    const mine=list.filter(e=>e.date>=from&&e.date<=to);
+    if(mine.length)months.push({m,mine});
+  }
+
+  let html=`<div class="uren-sheet-card"><table class="uren-pivot"><thead><tr>
+    <th>Maand</th>
+    ${clientIds.map(cid=>`<th>${escapeHtml(urenClientName(cid))}</th>`).join('')}
+    <th>Totaal</th><th>Gefactureerd</th><th style="width:190px">Openstaand</th>
+  </tr></thead><tbody>`;
+
+  months.forEach(({m,mine})=>{
+    const tot=urenSum(mine);
+    const inv=urenSum(mine.filter(e=>urenStatusOf(e)==='invoiced'));
+    const open=urenSum(mine.filter(e=>urenStatusOf(e)==='open'));
+    html+=`<tr>
+      <td>${MONTH_LABELS_NL[m]} ${year}</td>
+      ${clientIds.map(cid=>{
+        const v=urenSum(mine.filter(e=>e.clientId===cid));
+        return `<td class="${v>0?'hot':'muted'}">${v>0?urenFmt(v):'—'}</td>`;
+      }).join('')}
+      <td class="hot">${urenFmt(tot)}</td>
+      <td>${inv>0?urenFmt(inv):'—'}</td>
+      <td><div class="uren-meter">
+        ${open>0
+          ? `<button class="uren-inv-btn" data-uren-action="urenInvoiceClient" data-uren-arg1="" data-uren-arg2="${year}-${String(m+1).padStart(2,'0')}"
+               title="Zet alle openstaande uren van ${MONTH_LABELS_NL[m]} ${year} op gefactureerd">Factureer ${urenFmtShort(open)} u</button>`
+          : `<span class="uren-pill uren-pill-invoiced" style="cursor:default">✓ volledig</span>`}
+      </div></td>
+    </tr>`;
+  });
+
+  const tot=urenSum(list);
+  const inv=urenSum(list.filter(e=>urenStatusOf(e)==='invoiced'));
+  const open=urenSum(list.filter(e=>urenStatusOf(e)==='open'));
+  html+=`</tbody><tfoot><tr>
+    <td>Totaal ${year}</td>
+    ${clientIds.map(cid=>`<td>${urenFmt(urenSum(list.filter(e=>e.clientId===cid)))}</td>`).join('')}
+    <td>${urenFmt(tot)}</td><td>${urenFmt(inv)}</td><td style="text-align:right">${urenFmt(open)}</td>
+  </tr></tfoot></table></div>`;
+
+  /* Mobiel */
+  html+=`<div class="uren-mlist"><div class="uren-mpiv">`;
+  const maxM=Math.max(...months.map(x=>urenSum(x.mine)),1);
+  months.forEach(({m,mine})=>{
+    const v=urenSum(mine);
+    html+=`<div class="uren-mpiv-row">
+      <span class="nm">${MONTH_LABELS_NL[m]}</span>
+      <span class="track"><i style="width:${Math.round(v/maxM*100)}%;background:var(--mint)"></i></span>
+      <span class="v">${urenFmt(v)}</span>
+    </div>`;
+  });
+  html+=`<div class="uren-mpiv-foot">Totaal ${year}<b>${urenFmt(tot)}</b></div></div></div>`;
+  return html;
+}
+
+function urenEmptyPeriod(){
+  return `<div class="uren-empty"><b>Geen uren in ${escapeHtml(urenPeriod().label)}</b>
+    Gebruik ‹ › om een andere periode te kiezen, of registreer uren via de tab Registraties.</div>`;
+}
+
+/* ── Rij-interactie ── */
+function urenRowHours(el,id){
+  const parsed=urenParseHours(el.value);
+  if(parsed===null){
+    appToast('Kan "'+el.value+'" niet lezen als tijd. Probeer 3,5 · 3:30 · 90m',{type:'warning'});
+    const e=urenEntry(id);
+    el.value=e?urenFmt(e.hours):'';
+    return;
+  }
+  if(parsed<=0){urenDeleteEntries([id]);return;}
+  urenUpdateEntry(id,{hours:parsed});
+  urenFocusAfterRender=`[data-uren-hours="${id}"]`;
+  urenRenderAll();
+}
+function urenRowStep(id,delta){
+  const e=urenEntry(id);
+  if(!e||urenStatusOf(e)==='invoiced')return;
+  const next=urenClampHours(e.hours+delta);
+  if(next<=0){urenDeleteEntries([id]);return;}
+  urenUpdateEntry(id,{hours:next});
+  urenRenderAll();
+}
+function urenRowSelect(el,id){
+  if(el.checked)urenSelection.add(id);else urenSelection.delete(id);
+  urenRenderAll();
+}
+function urenDaySelect(el,day){
+  urenVisibleEntries().filter(e=>e.date===day).forEach(e=>{
+    if(el.checked)urenSelection.add(e.id);else urenSelection.delete(e.id);
+  });
+  urenRenderAll();
+}
+function urenCycleStatus(id){
+  const e=urenEntry(id);
+  if(!e)return;
+  const order=['open','concept','invoiced'];
+  const next=order[(order.indexOf(urenStatusOf(e))+1)%order.length];
+  urenSetStatus([id],next);
+}
+function urenDuplicateRow(id){
+  const e=urenEntry(id);
+  if(!e)return;
+  urenAddEntry({date:e.date,clientId:e.clientId,hours:e.hours,description:e.description,status:'open'});
+  urenRenderAll();
+  appToast('Regel gedupliceerd');
+}
+function urenBulkStatus(status){
+  const ids=[...urenSelection];
+  if(!ids.length)return;
+  urenSetStatus(ids,status);
+}
+function urenBulkDelete(){
+  const ids=[...urenSelection];
+  if(!ids.length)return;
+  urenDeleteEntries(ids);
+}
+/* Factureer alle openstaande uren van één klant in de huidige maand,
+   of (vanuit het maandoverzicht) van een hele maand. */
+function urenInvoiceClient(clientId,ym){
+  let list;
+  let wat;
+  if(ym){
+    const from=ym+'-01',to=ym+'-31';
+    list=urenState.entries.filter(e=>e.date>=from&&e.date<=to&&urenStatusOf(e)==='open');
+    const [y,m]=ym.split('-');
+    wat=MONTH_LABELS_NL[parseInt(m,10)-1]+' '+y;
   } else {
-    urenRenderContent();
+    const p=urenPeriod();
+    list=urenState.entries.filter(e=>e.clientId===clientId&&e.date>=p.from&&e.date<=p.to&&urenStatusOf(e)==='open');
+    wat=urenClientName(clientId)+' · '+p.label;
   }
+  if(!list.length)return;
+  const sum=urenSum(list);
+  if(!confirm(`${urenFmt(sum)} uur van ${wat} op "gefactureerd" zetten?\n\n${list.length} ${list.length===1?'regel wordt':'regels worden'} vergrendeld. Dit kun je daarna ongedaan maken.`))return;
+  urenSetStatus(list.map(e=>e.id),'invoiced');
 }
 
-function closeUrenDescPopup(){
-  document.getElementById('urenDescPopup')?.remove();
-  document.removeEventListener('mousedown',urenDescClickOutside);
+/* ── Klant-picker (popover bij de klant-cel) ── */
+function urenOpenClientPicker(target,anchorEl){
+  closeUrenClientPicker();
+  if(target!=='__draft__'){
+    const e=urenEntry(target);
+    if(e&&urenStatusOf(e)==='invoiced')return;
+  }
+  const current=target==='__draft__'?(urenDraft&&urenDraft.clientId):(urenEntry(target)||{}).clientId;
+  const pop=document.createElement('div');
+  pop.className='uren-pop';
+  pop.id='urenClientPop';
+  pop.innerHTML=(kanbanState.clients||[]).map(c=>{
+    const col=CLIENT_COLORS[c.colorIdx%CLIENT_COLORS.length];
+    return `<button class="uren-pop-item${current===c.id?' selected':''}"
+      data-uren-action="urenPickClient" data-uren-arg1="${target}" data-uren-arg2="${c.id}">
+      <span class="sw" style="background:${col.bg}"></span>${escapeHtml(c.name)}</button>`;
+  }).join('')||`<div style="padding:12px;font-size:12px;color:var(--text-hint)">Geen klanten</div>`;
+  document.body.appendChild(pop);
+
+  const r=anchorEl.getBoundingClientRect();
+  let left=r.left,top=r.bottom+4;
+  if(left+220>window.innerWidth-8)left=window.innerWidth-228;
+  if(top+pop.offsetHeight>window.innerHeight-8)top=Math.max(8,r.top-pop.offsetHeight-4);
+  pop.style.left=Math.max(8,left)+'px';
+  pop.style.top=top+'px';
+  setTimeout(()=>document.addEventListener('mousedown',urenClientPickerOutside),20);
+}
+function urenClientPickerOutside(e){
+  const pop=document.getElementById('urenClientPop');
+  if(pop&&!pop.contains(e.target))closeUrenClientPicker();
+}
+function closeUrenClientPicker(){
+  document.getElementById('urenClientPop')?.remove();
+  document.removeEventListener('mousedown',urenClientPickerOutside);
+}
+function urenPickClient(target,clientId){
+  closeUrenClientPicker();
+  if(target==='__draft__'){
+    urenDraftEnsure();
+    urenDraft.clientId=clientId;
+    urenDraftCommitIfComplete();
+    urenRenderAll();
+    return;
+  }
+  urenUpdateEntry(target,{clientId});
+  urenRenderAll();
+}
+
+/* ── Draft-regel (de lege regel bovenaan de tabel) ── */
+function urenDraftEnsure(period){
+  if(urenDraft)return;
+  const p=period||urenPeriod();
+  const today=urenToday();
+  /* Vandaag als die in de periode valt, anders de eerste dag ervan. */
+  const date=(today>=p.from&&today<=p.to)?today:p.from;
+  urenDraft={date,clientId:null,hours:0,description:''};
+}
+function urenDraftHours(el){
+  urenDraftEnsure();
+  const parsed=urenParseHours(el.value);
+  if(parsed===null){
+    appToast('Kan "'+el.value+'" niet lezen als tijd. Probeer 3,5 · 3:30 · 90m',{type:'warning'});
+    el.value=urenDraft.hours?urenFmt(urenDraft.hours):'';
+    return;
+  }
+  urenDraft.hours=parsed;
+  urenDraftCommitIfComplete();
+  urenRenderAll();
+}
+function urenDraftStep(delta){
+  urenDraftEnsure();
+  urenDraft.hours=urenClampHours(urenDraft.hours+delta);
+  urenDraftCommitIfComplete();
+  urenRenderAll();
+}
+/* Zodra klant én uren gevuld zijn wordt de draft een echte regel en
+   begint er een nieuwe draft op dezelfde datum — doortypen dus. */
+function urenDraftCommitIfComplete(){
+  if(!urenDraft||!urenDraft.clientId||!urenDraft.hours)return;
+  const date=urenDraft.date;
+  urenAddEntry({
+    date,clientId:urenDraft.clientId,hours:urenDraft.hours,
+    description:urenDraft.description,status:'open'
+  });
+  urenDraft={date,clientId:null,hours:0,description:''};
+  urenFocusAfterRender='#urenDraftHours';
+}
+
+/* ── Invoerblad (modal desktop / bottom sheet mobiel) ── */
+function urenNewEntry(date){
+  const p=urenPeriod();
+  const today=urenToday();
+  urenEntryEditing=null;
+  urenEntryForm={
+    date:date||((today>=p.from&&today<=p.to)?today:p.from),
+    hours:0,
+    clientId:(kanbanState.clients||[]).length===1?kanbanState.clients[0].id:null,
+    description:'',status:'open'
+  };
+  urenRenderEntryModal('Nieuwe registratie');
+}
+function urenEditEntry(id){
+  const e=urenEntry(id);
+  if(!e)return;
+  urenEntryEditing=id;
+  urenEntryForm={
+    date:e.date,hours:e.hours,clientId:e.clientId,
+    description:e.description||'',status:urenStatusOf(e)
+  };
+  urenRenderEntryModal('Registratie bewerken');
+}
+function urenRenderEntryModal(title){
+  const modal=document.getElementById('urenEntryModal');
+  if(!modal)return;
+  document.getElementById('urenEntryTitle').textContent=title;
+  document.getElementById('urenEntryDate').value=urenEntryForm.date;
+  document.getElementById('urenEntryHours').value=urenFmt(urenEntryForm.hours);
+  document.getElementById('urenEntryDesc').value=urenEntryForm.description;
+  document.getElementById('urenEntryDeleteBtn').style.display=urenEntryEditing?'':'none';
+  urenRenderEntryClients();
+  urenRenderEntryStatus();
+  modal.classList.add('open');
+  setTimeout(()=>{
+    const h=document.getElementById('urenEntryHours');
+    if(h&&!urenEntryEditing)h.focus();
+  },50);
+}
+function urenRenderEntryClients(){
+  const box=document.getElementById('urenEntryClients');
+  if(!box)return;
+  box.innerHTML=(kanbanState.clients||[]).map(c=>{
+    const col=CLIENT_COLORS[c.colorIdx%CLIENT_COLORS.length];
+    return `<button class="uren-kchip${urenEntryForm.clientId===c.id?' active':''}"
+      data-uren-action="urenEntryPickClient" data-uren-arg1="${c.id}">
+      <span class="sw" style="background:${col.bg}"></span>${escapeHtml(c.name)}</button>`;
+  }).join('')||`<span style="font-size:12px;color:var(--text-hint)">Voeg eerst een klant toe via de zijbalk.</span>`;
+}
+function urenRenderEntryStatus(){
+  const box=document.getElementById('urenEntryStatus');
+  if(!box)return;
+  box.innerHTML=UREN_STATUSSEN.map(s=>
+    `<button class="uren-kchip${urenEntryForm.status===s.id?' active':''}"
+      data-uren-action="urenEntryPickStatus" data-uren-arg1="${s.id}">${s.label}</button>`).join('');
+}
+function urenEntryPickClient(id){
+  urenEntryForm.clientId=id;
+  urenRenderEntryClients();
+}
+function urenEntryPickStatus(id){
+  urenEntryForm.status=id;
+  urenRenderEntryStatus();
+}
+function urenEntrySyncFromForm(){
+  const d=document.getElementById('urenEntryDate');
+  const h=document.getElementById('urenEntryHours');
+  const t=document.getElementById('urenEntryDesc');
+  if(d&&d.value)urenEntryForm.date=d.value;
+  if(h){
+    const parsed=urenParseHours(h.value);
+    if(parsed!==null)urenEntryForm.hours=parsed;
+  }
+  if(t)urenEntryForm.description=t.value;
+}
+function urenEntryStep(delta){
+  urenEntrySyncFromForm();
+  urenEntryForm.hours=urenClampHours(urenEntryForm.hours+delta);
+  document.getElementById('urenEntryHours').value=urenFmt(urenEntryForm.hours);
+}
+function urenEntryClearHours(){
+  urenEntryForm.hours=0;
+  document.getElementById('urenEntryHours').value=urenFmt(0);
+  document.getElementById('urenEntryHours').focus();
+}
+function urenEntrySetDate(dayOffset){
+  urenEntryForm.date=urenShiftIso(urenToday(),dayOffset);
+  document.getElementById('urenEntryDate').value=urenEntryForm.date;
+}
+function urenEntryShiftDate(delta){
+  urenEntrySyncFromForm();
+  urenEntryForm.date=urenShiftIso(urenEntryForm.date||urenToday(),delta);
+  document.getElementById('urenEntryDate').value=urenEntryForm.date;
+}
+function urenEntrySave(){
+  urenEntrySyncFromForm();
+  if(!urenEntryForm.clientId){
+    appToast('Kies eerst een klant',{type:'warning'});
+    return;
+  }
+  if(!urenEntryForm.hours||urenEntryForm.hours<=0){
+    appToast('Vul een aantal uren in',{type:'warning'});
+    return;
+  }
+  if(urenEntryEditing){
+    urenUpdateEntry(urenEntryEditing,{
+      date:urenEntryForm.date,clientId:urenEntryForm.clientId,
+      hours:urenEntryForm.hours,description:urenEntryForm.description.trim(),
+      status:urenEntryForm.status
+    });
+  } else {
+    urenAddEntry({
+      date:urenEntryForm.date,clientId:urenEntryForm.clientId,
+      hours:urenEntryForm.hours,description:urenEntryForm.description.trim(),
+      status:urenEntryForm.status
+    });
+  }
+  closeUrenEntryModal();
+  /* Spring naar de periode waarin de registratie valt, anders lijkt hij weg. */
+  urenEnsurePeriodContains(urenEntryForm.date);
+  urenRenderAll();
+  appToast(urenEntryEditing?'Registratie bijgewerkt':`${urenFmt(urenEntryForm.hours)} u geregistreerd voor ${urenClientName(urenEntryForm.clientId)}`);
+}
+function urenEntryDelete(){
+  if(!urenEntryEditing)return;
+  const id=urenEntryEditing;
+  closeUrenEntryModal();
+  urenDeleteEntries([id]);
+}
+function closeUrenEntryModal(){
+  document.getElementById('urenEntryModal')?.classList.remove('open');
+  urenEntryEditing=null;
+}
+/* Verschuift de periode-offset zodat `iso` binnen beeld valt. */
+function urenEnsurePeriodContains(iso){
+  const p=urenPeriod();
+  if(iso>=p.from&&iso<=p.to)return;
+  const scope=urenScope();
+  const target=urenDate(iso),now=new Date();
+  if(scope==='week'){
+    urenOffset.week=Math.round((urenMonday(target)-urenMonday(now))/(7*86400000));
+  } else if(scope==='month'){
+    urenOffset.month=(target.getFullYear()-now.getFullYear())*12+(target.getMonth()-now.getMonth());
+  } else {
+    urenOffset.year=target.getFullYear()-now.getFullYear();
+  }
 }
 
 /* ── Templates ── */
 
-/* Apply recurring templates to the current week view */
+/* Vul herhalende templates aan voor de weken die nu in beeld zijn.
+   Voegt niets toe als er al een regel van dezelfde klant op die dag
+   staat — anders zou een handmatig ingevulde dag verdubbelen. */
 function urenApplyRecurring(){
   if(!urenState.templates.length)return;
-  const dates=urenWeekDates(urenWeekOffset);
-  const today=new Date().toISOString().slice(0,10);
+  const p=urenPeriod();
+  const weken=p.scope==='week'
+    ? [urenWeekDates(urenOffset.week)]
+    : (p.scope==='month'?urenMonthWeeks(urenOffset.month):[]);
+  if(!weken.length)return;
+  const today=urenToday();
   let changed=false;
   urenState.templates.filter(t=>t.recurring).forEach(t=>{
-    /* Respect untilDate */
     if(t.untilDate&&today>t.untilDate)return;
     const dayMap=t.days||{};
-    Object.entries(dayMap).forEach(([wd,hrs])=>{
-      const date=dates[Number(wd)-1];
-      if(date&&hrs>0&&!urenGetEntry(t.clientId,date)){
+    weken.forEach(dates=>{
+      Object.entries(dayMap).forEach(([wd,hrs])=>{
+        const date=dates[Number(wd)-1];
+        if(!date||!(hrs>0))return;
+        if(date>today)return;                      /* niet vooruit invullen */
+        if(p.scope==='month'&&(date<p.from||date>p.to))return;
+        const bestaat=urenState.entries.some(e=>e.clientId===t.clientId&&e.date===date);
+        if(bestaat)return;
         urenState.entries.push({id:urenUid(),clientId:t.clientId,date,
-          hours:hrs,description:t.description||'',invoiced:false,templateId:t.id});
+          hours:urenClampHours(hrs),description:t.description||'',status:'open',
+          templateId:t.id,createdAt:Date.now(),updatedAt:Date.now()});
         changed=true;
-      }
+      });
     });
   });
   if(changed)scheduleSave();
@@ -13192,25 +14262,29 @@ function urenSaveTpl(){
   renderUrenTemplatesModal();
 }
 
-/* Apply template to current week */
+/* Pas een template eenmalig toe op de week die nu in beeld is
+   (of, in maandweergave, op de week waarin vandaag valt). */
 function urenApplyTemplate(tplId){
   const t=urenState.templates.find(x=>x.id===tplId);
   if(!t)return;
-  const dates=urenWeekDates(urenWeekOffset);
+  const dates=urenWeekDates(urenScope()==='week'?urenOffset.week:0);
   let applied=0;
   const dayMap=t.days||{};
   Object.entries(dayMap).forEach(([wd,hrs])=>{
     const date=dates[Number(wd)-1];
-    if(date&&hrs>0&&!urenGetEntry(t.clientId,date)){
-      urenState.entries.push({id:urenUid(),clientId:t.clientId,date,
-        hours:hrs,description:t.description||'',invoiced:false,templateId:t.id});
-      applied++;
-    }
+    if(!date||!(hrs>0))return;
+    if(urenState.entries.some(e=>e.clientId===t.clientId&&e.date===date))return;
+    urenState.entries.push({id:urenUid(),clientId:t.clientId,date,
+      hours:urenClampHours(hrs),description:t.description||'',status:'open',
+      templateId:t.id,createdAt:Date.now(),updatedAt:Date.now()});
+    applied++;
   });
   scheduleSave();
   closeUrenTemplatesModal();
-  urenRenderContent();
-  if(!applied)alert('Alle geselecteerde dagen waren al ingevuld voor deze week.');
+  urenRenderAll();
+  appToast(applied
+    ? `${applied} ${applied===1?'regel':'regels'} toegevoegd uit "${t.name||'template'}"`
+    : 'Die dagen stonden al ingevuld voor deze klant',{type:applied?'info':'warning'});
 }
 
 function urenDeleteTemplate(tplId){
@@ -13267,7 +14341,10 @@ function urenTplCalPrev(){urenTplCalMonth--;if(urenTplCalMonth<0){urenTplCalMont
 function urenTplCalNext(){urenTplCalMonth++;if(urenTplCalMonth>11){urenTplCalMonth=0;urenTplCalYear++;}urenTplCalRender();}
 function urenTplCalClear(){urenTplCalSelected=null;urenTplCalRender();}
 
-/* ── Export ── */
+/* ── Export ──
+   Eén datamodel voedt beide formaten: urenBuildExport() levert een
+   platte tabel (titel, koppen, rijen, totaalregel), urenExportXlsx()
+   en urenExportPdf() geven die alleen een andere jas. */
 function urenToggleExportMenu(){
   const menu=document.getElementById('urenExportMenu');
   if(!menu)return;
@@ -13280,56 +14357,213 @@ function urenToggleExportMenu(){
   }
 }
 
-function urenExport(fmt,filter){
-  document.getElementById('urenExportMenu').style.display='none';
-  let entries=[...urenState.entries];
-  let rangeLabel='';
+/* mode: 'view' (de tabel die nu op het scherm staat)
+         'entries' (alle registraties in de periode)
+         'open' (alleen openstaand in de periode) */
+function urenBuildExport(mode){
+  const p=urenPeriod();
+  const stamp=urenPeriodStamp(p);
 
-  if(urenView==='week'){
-    const dates=urenWeekDates(urenWeekOffset);
-    entries=entries.filter(e=>dates.includes(e.date));
-    const f=new Date(dates[0]+'T00:00:00');
-    rangeLabel=`Week${getISOWeek(f)}_${f.getFullYear()}`;
-  } else {
-    const {weeks}=urenMonthInfo(urenMonthOffset);
-    const allDates=weeks.flat();
-    entries=entries.filter(e=>allDates.includes(e.date));
-    const now=new Date();
-    const target=new Date(now.getFullYear(),now.getMonth()+urenMonthOffset,1);
-    rangeLabel=`${target.getFullYear()}_${String(target.getMonth()+1).padStart(2,'0')}`;
+  if(mode==='view'&&urenView==='klant')return urenBuildKlantExport(p,stamp);
+  if(mode==='view'&&urenView==='week') return urenBuildWeekExport(p,stamp);
+  if(mode==='view'&&urenView==='maand')return urenBuildMaandExport(p,stamp);
+
+  /* Registratielijst — ook de fallback voor 'entries' en 'open' */
+  let list=urenVisibleEntries();
+  if(mode==='open')list=list.filter(e=>urenStatusOf(e)==='open');
+  list=[...list].sort((a,b)=>a.date.localeCompare(b.date)||
+    urenClientName(a.clientId).localeCompare(urenClientName(b.clientId)));
+  return {
+    name:'Uren_'+stamp+(mode==='open'?'_openstaand':''),
+    title:mode==='open'?'Openstaande uren':'Urenregistratie',
+    subtitle:p.label+(urenFilterClient?' · '+urenClientName(urenFilterClient):''),
+    headers:['Datum','Klant','Uren','Omschrijving','Status'],
+    numCols:[2],
+    widths:[12,26,8,52,15],
+    rows:list.map(e=>[
+      urenDate(e.date).toLocaleDateString('nl-NL'),
+      urenClientName(e.clientId),
+      e.hours,
+      e.description||'',
+      urenStatusMeta(urenStatusOf(e)).label
+    ]),
+    foot:['Totaal','',urenSum(list),list.length+' regels','']
+  };
+}
+
+function urenBuildKlantExport(p,stamp){
+  const weeks=urenMonthWeeks(urenOffset.month);
+  const list=urenVisibleEntries();
+  const clientIds=[...new Set(list.map(e=>e.clientId))]
+    .sort((a,b)=>urenSum(list.filter(e=>e.clientId===b))-urenSum(list.filter(e=>e.clientId===a)));
+  const wkHeaders=weeks.map(wk=>'Wk '+getISOWeek(urenDate(wk[0])));
+  return {
+    name:'Uren_per_klant_'+stamp,
+    title:'Uren per klant',
+    subtitle:p.label,
+    headers:['Klant',...wkHeaders,'Totaal','Gefactureerd','Openstaand'],
+    numCols:wkHeaders.map((_,i)=>i+1).concat([weeks.length+1,weeks.length+2,weeks.length+3]),
+    widths:[26,...wkHeaders.map(()=>9),10,13,12],
+    rows:clientIds.map(cid=>{
+      const mine=list.filter(e=>e.clientId===cid);
+      return [
+        urenClientName(cid),
+        ...weeks.map(wk=>urenSum(mine.filter(e=>wk.includes(e.date)))),
+        urenSum(mine),
+        urenSum(mine.filter(e=>urenStatusOf(e)==='invoiced')),
+        urenSum(mine.filter(e=>urenStatusOf(e)==='open'))
+      ];
+    }),
+    foot:['Totaal',
+      ...weeks.map(wk=>urenSum(list.filter(e=>wk.includes(e.date)))),
+      urenSum(list),
+      urenSum(list.filter(e=>urenStatusOf(e)==='invoiced')),
+      urenSum(list.filter(e=>urenStatusOf(e)==='open'))]
+  };
+}
+
+function urenBuildWeekExport(p,stamp){
+  const weeks=urenMonthWeeks(urenOffset.month);
+  const list=urenVisibleEntries();
+  return {
+    name:'Uren_per_week_'+stamp,
+    title:'Uren per week',
+    subtitle:p.label,
+    headers:['Week',...DAY_LABELS_NL,'Totaal'],
+    numCols:[1,2,3,4,5,6,7,8],
+    widths:[24,8,8,8,8,8,8,8,10],
+    rows:weeks.map(wk=>{
+      const f=urenDate(wk[0]),l=urenDate(wk[6]);
+      return [
+        'Week '+getISOWeek(f)+' · '+f.toLocaleDateString('nl-NL',{day:'numeric',month:'short'})+
+          '–'+l.toLocaleDateString('nl-NL',{day:'numeric',month:'short'}),
+        ...wk.map(d=>urenSum(list.filter(e=>e.date===d))),
+        urenSum(list.filter(e=>wk.includes(e.date)))
+      ];
+    }),
+    foot:['Totaal',
+      ...DAY_LABELS_NL.map((_,i)=>urenSum(list.filter(e=>(urenDate(e.date).getDay()+6)%7===i))),
+      urenSum(list)]
+  };
+}
+
+function urenBuildMaandExport(p,stamp){
+  const list=urenVisibleEntries();
+  const clientIds=[...new Set(list.map(e=>e.clientId))]
+    .sort((a,b)=>urenSum(list.filter(e=>e.clientId===b))-urenSum(list.filter(e=>e.clientId===a)));
+  const rows=[];
+  for(let m=0;m<12;m++){
+    const from=`${p.year}-${String(m+1).padStart(2,'0')}-01`;
+    const to=`${p.year}-${String(m+1).padStart(2,'0')}-31`;
+    const mine=list.filter(e=>e.date>=from&&e.date<=to);
+    if(!mine.length)continue;
+    rows.push([
+      MONTH_LABELS_NL[m]+' '+p.year,
+      ...clientIds.map(cid=>urenSum(mine.filter(e=>e.clientId===cid))),
+      urenSum(mine),
+      urenSum(mine.filter(e=>urenStatusOf(e)==='invoiced')),
+      urenSum(mine.filter(e=>urenStatusOf(e)==='open'))
+    ]);
   }
+  return {
+    name:'Uren_per_maand_'+stamp,
+    title:'Uren per maand',
+    subtitle:String(p.year),
+    headers:['Maand',...clientIds.map(cid=>urenClientName(cid)),'Totaal','Gefactureerd','Openstaand'],
+    numCols:clientIds.map((_,i)=>i+1).concat([clientIds.length+1,clientIds.length+2,clientIds.length+3]),
+    widths:[18,...clientIds.map(()=>13),10,13,12],
+    rows,
+    foot:['Totaal '+p.year,
+      ...clientIds.map(cid=>urenSum(list.filter(e=>e.clientId===cid))),
+      urenSum(list),
+      urenSum(list.filter(e=>urenStatusOf(e)==='invoiced')),
+      urenSum(list.filter(e=>urenStatusOf(e)==='open'))]
+  };
+}
 
-  if(filter==='open')entries=entries.filter(e=>!e.invoiced);
-  if(!entries.length){alert('Geen uren gevonden voor de geselecteerde periode/filter.');return;}
+function urenPeriodStamp(p){
+  if(p.scope==='year')return String(p.year);
+  if(p.scope==='month'){
+    const d=urenDate(p.from);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  }
+  const f=urenDate(p.from);
+  return f.getFullYear()+'-wk'+String(getISOWeek(f)).padStart(2,'0');
+}
 
-  const headers=['Datum','Klant','Uren','Omschrijving','Status'];
-  const rows=entries
-    .sort((a,b)=>{
-      if(a.date!==b.date)return a.date.localeCompare(b.date);
-      const na=(kanbanState.clients.find(c=>c.id===a.clientId)||{}).name||'';
-      const nb=(kanbanState.clients.find(c=>c.id===b.clientId)||{}).name||'';
-      return na.localeCompare(nb);
-    })
-    .map(e=>{
-      const cname=(kanbanState.clients.find(c=>c.id===e.clientId)||{}).name||'?';
-      return [e.date,cname,e.hours,e.description||'',e.invoiced?'Gefactureerd':'Openstaand'];
+function urenExport(fmt,mode){
+  const menu=document.getElementById('urenExportMenu');
+  if(menu)menu.style.display='none';
+  const data=urenBuildExport(mode);
+  if(!data.rows.length){
+    appToast('Geen uren gevonden voor deze periode of dit filter',{type:'warning'});
+    return;
+  }
+  if(fmt==='pdf')urenExportPdf(data);
+  else urenExportXlsx(data);
+}
+
+function urenExportXlsx(data){
+  if(typeof XLSX==='undefined'){
+    appToast('Excel-export niet beschikbaar — de xlsx-bibliotheek kon niet laden',{type:'error'});
+    return;
+  }
+  const aoa=[
+    [data.title],
+    [data.subtitle],
+    [],
+    data.headers,
+    ...data.rows,
+    data.foot
+  ];
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=(data.widths||data.headers.map(()=>14)).map(w=>({wch:w}));
+  /* Getalcellen als getal wegschrijven, niet als tekst */
+  const numSet=new Set(data.numCols||[]);
+  const headerRow=3;                         /* 0-based: rij 4 in het blad */
+  data.rows.forEach((row,ri)=>{
+    row.forEach((v,ci)=>{
+      if(!numSet.has(ci)||typeof v!=='number')return;
+      const ref=XLSX.utils.encode_cell({r:headerRow+1+ri,c:ci});
+      if(ws[ref]){ws[ref].t='n';ws[ref].z='0.00';}
     });
+  });
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Uren');
+  XLSX.writeFile(wb,data.name+'.xlsx');
+  appToast('Excel-bestand gedownload');
+}
 
-  const filename=`Uren_${rangeLabel}_${filter==='open'?'Openstaand':'Alle'}`;
-
-  if(fmt==='csv'){
-    const csv=[headers,...rows].map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\r\n');
-    const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');a.href=url;a.download=filename+'.csv';a.click();
-    URL.revokeObjectURL(url);
-  } else {
-    const wb=XLSX.utils.book_new();
-    const ws=XLSX.utils.aoa_to_sheet([headers,...rows]);
-    ws['!cols']=[{wch:12},{wch:22},{wch:7},{wch:42},{wch:14}];
-    XLSX.utils.book_append_sheet(wb,ws,'Uren');
-    XLSX.writeFile(wb,filename+'.xlsx');
-  }
+/* PDF loopt via de printdialoog ("Opslaan als PDF"): geen extra
+   dependency, en de opmaak volgt de @media print-regels in de stylesheet. */
+function urenExportPdf(data){
+  const area=document.getElementById('urenPrintArea');
+  if(!area)return;
+  const nf=n=>typeof n==='number'?urenFmt(n):escapeHtml(String(n??''));
+  const numSet=new Set(data.numCols||[]);
+  const isNum=ci=>numSet.has(ci)||(urenView==='reg'&&ci===2);
+  area.innerHTML=`
+    <div class="pr-head">
+      <div class="pr-brand">HERLING<span>ANALYTICS</span></div>
+      <div class="pr-meta">
+        Afgedrukt ${new Date().toLocaleDateString('nl-NL',{day:'numeric',month:'long',year:'numeric'})}<br/>
+        ${escapeHtml(data.subtitle||'')}
+      </div>
+    </div>
+    <h1>${escapeHtml(data.title)}</h1>
+    <p class="pr-sub">${escapeHtml(data.subtitle||'')}</p>
+    <table>
+      <thead><tr>${data.headers.map((h,i)=>
+        `<th class="${isNum(i)?'num':''}">${escapeHtml(h)}</th>`).join('')}</tr></thead>
+      <tbody>${data.rows.map(r=>`<tr>${r.map((v,i)=>
+        `<td class="${isNum(i)?'num':''}">${nf(v)}</td>`).join('')}</tr>`).join('')}</tbody>
+      <tfoot><tr>${data.foot.map((v,i)=>
+        `<td class="${isNum(i)?'num':''}">${nf(v)}</td>`).join('')}</tr></tfoot>
+    </table>
+    <div class="pr-foot">Herling Analytics · urenoverzicht ${escapeHtml(data.subtitle||'')}</div>`;
+  const cleanup=()=>{area.innerHTML='';window.removeEventListener('afterprint',cleanup);};
+  window.addEventListener('afterprint',cleanup);
+  setTimeout(()=>window.print(),60);
 }
 
 /* ═══════════════════════════════════════════════════
