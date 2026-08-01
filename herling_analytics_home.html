@@ -1351,6 +1351,40 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .fac-wizard-klant .nm{flex:1;min-width:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fac-wizard-klant .uren{font-family:var(--font-mono);font-size:12.5px;font-variant-numeric:tabular-nums;color:var(--text-muted);white-space:nowrap}
 
+/* Mobiele kaartweergave — tegenhanger van .fac-table, precies één van
+   beide is zichtbaar. Zonder dit zou de lijst op telefoon wegvallen:
+   de breakpoint verbergt .uren-sheet-card, en die deelt deze module. */
+.fac-mlist{display:none;flex-direction:column;gap:10px}
+.fac-mcard{
+  background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-md);
+  padding:13px 14px;display:flex;flex-direction:column;gap:9px;width:100%;text-align:left;
+  font-family:inherit;color:var(--text);cursor:pointer;box-shadow:var(--shadow-card);
+  position:relative;overflow:hidden;
+}
+.fac-mcard::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c,var(--mint))}
+.fac-mcard:active{background:var(--surface2)}
+.fac-mcard .kop{display:flex;align-items:center;gap:9px}
+.fac-mcard .nr{font-family:var(--font-mono);font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
+.fac-mcard .dat{font-family:var(--font-mono);font-size:11.5px;color:var(--text-muted);margin-left:auto}
+.fac-mcard .klant{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;min-width:0}
+.fac-mcard .klant .sw{width:9px;height:9px;border-radius:2px;flex-shrink:0}
+.fac-mcard .klant span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fac-mcard .betreft{
+  font-size:12.5px;color:var(--text-muted);line-height:1.5;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+}
+.fac-mcard .voet{display:flex;align-items:center;gap:10px;margin-top:1px}
+.fac-mcard .bedrag{
+  margin-left:auto;font-family:var(--font-mono);font-size:17px;font-weight:600;
+  font-variant-numeric:tabular-nums;white-space:nowrap;
+}
+.fac-msom{
+  display:flex;align-items:center;padding:12px 14px;background:var(--surface2);
+  border:0.5px solid var(--border);border-radius:var(--radius-md);
+  font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text);
+}
+.fac-msom b{margin-left:auto;font-family:var(--font-mono);font-size:15px;letter-spacing:0;text-transform:none}
+
 /* ── Print: factuur ── */
 #facPrintArea{display:none}
 
@@ -4246,6 +4280,11 @@ textarea { line-height: 1.6; resize: vertical; }
 
   .uren-sheet-card { display: none; }             /* spreadsheet is desktop-only */
   .uren-mlist { display: flex; }
+  .fac-mlist { display: flex; }
+  .fac-aging { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .fac-klanten { grid-template-columns: 1fr; }
+  #mod-facturen { display: flex; flex-direction: column; --uren-ui: 13px; }
+  #mod-facturen .uren-content { flex: none; overflow: visible; padding: 12px 12px 96px; }
   .uren-fab { display: flex; right: 17px; bottom: calc(80px + env(safe-area-inset-bottom, 0)); width: 56px; height: 56px; font-size: 26px; z-index: 60; }
   .uren-legend { display: none; }
 
@@ -15731,6 +15770,28 @@ function facRenderLijst(){
     <td colspan="4">${lijst.length} factuur${lijst.length===1?'':'en'} · ${factuurFmtBedrag(excl)} excl. btw</td>
     <td colspan="2">${open>0?'waarvan '+factuurFmtBedrag(open)+' openstaand':'alles betaald'}</td>
     <td class="num">${factuurFmtBedrag(incl)}</td></tr></tfoot></table></div>`;
+  return html+facRenderKaarten(lijst,incl);
+}
+
+/* Mobiele tegenhanger van de tabel. Zelfde gegevens, gestapeld. */
+function facRenderKaarten(lijst,totaal){
+  if(!lijst.length)return '';
+  let html=`<div class="fac-mlist">`;
+  lijst.forEach(f=>{
+    const t=factuurTotalen(f);
+    const klant=factuurKlant(f.clientId);
+    const col=klant?CLIENT_COLORS[klant.colorIdx%CLIENT_COLORS.length]:{bg:'var(--surface3)'};
+    html+=`<button class="fac-mcard" style="--c:${col.bg}" data-fac-action="facOpen" data-fac-arg1="${f.id}">
+      <span class="kop"><span class="nr">${escapeHtml(f.nummer)}</span>
+        <span class="dat">${factuurFmtDatum(f.datum)}</span></span>
+      <span class="klant"><span class="sw" style="background:${col.bg}"></span>
+        <span>${escapeHtml(f.klant?f.klant.naam:(klant?(klant.bedrijfsnaam||klant.name):'—'))}</span></span>
+      ${f.betreft?`<span class="betreft">${escapeHtml(f.betreft)}</span>`:''}
+      <span class="voet">${facStatusPil(f)}
+        <span class="bedrag">${factuurFmtBedrag(t.incl)}</span></span>
+    </button>`;
+  });
+  html+=`</div><div class="fac-msom">${lijst.length} factuur${lijst.length===1?'':'en'}<b>${factuurFmtBedrag(totaal)}</b></div>`;
   return html;
 }
 function facStatusPil(f){
