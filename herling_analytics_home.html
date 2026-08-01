@@ -1385,6 +1385,50 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 }
 .fac-msom b{margin-left:auto;font-family:var(--font-mono);font-size:15px;letter-spacing:0;text-transform:none}
 
+/* ── Sjabloon-editor: instellingen naast een live PDF-preview ── */
+.fac-sj-layout{display:grid;grid-template-columns:340px 1fr;flex:1;min-height:0;overflow:hidden}
+.fac-sj-instel{padding:18px 20px;overflow-y:auto;border-right:0.5px solid var(--border);display:flex;flex-direction:column;gap:16px}
+.fac-sj-preview{background:var(--surface2);padding:14px;display:flex;flex-direction:column;gap:8px;min-height:0}
+.fac-sj-preview-lab{
+  font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);
+}
+.fac-sj-preview iframe{
+  flex:1;width:100%;border:0.5px solid var(--border-strong);border-radius:var(--radius);
+  background:#fff;min-height:420px;
+}
+.fac-sj-groep{display:flex;flex-direction:column;gap:9px}
+.fac-sj-groep>h4{
+  font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--text-muted);margin:0;
+}
+.fac-sj-rij{display:flex;align-items:center;gap:10px}
+.fac-sj-rij label{flex:1;font-size:13px;color:var(--text)}
+.fac-sj-rij input[type="color"]{
+  width:44px;height:30px;padding:2px;border:0.5px solid var(--border-strong);
+  border-radius:var(--radius);background:var(--surface);cursor:pointer;
+}
+.fac-sj-rij input[type="range"]{flex:1;accent-color:var(--mint)}
+.fac-sj-rij .val{
+  font-family:var(--font-mono);font-size:12px;font-variant-numeric:tabular-nums;
+  color:var(--text-muted);min-width:44px;text-align:right;
+}
+.fac-sj-toggle{display:flex;align-items:center;gap:9px;font-size:13px;cursor:pointer;user-select:none;color:var(--text)}
+.fac-sj-toggle input{accent-color:var(--mint);width:15px;height:15px;flex-shrink:0}
+.fac-sj-logo{display:flex;align-items:center;gap:11px}
+.fac-sj-logo img{
+  max-width:96px;max-height:46px;object-fit:contain;
+  background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:5px;
+}
+.fac-sj-velden{
+  display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;
+}
+.fac-sj-veld{
+  font-family:var(--font-mono);font-size:10.5px;padding:2px 7px;border-radius:20px;
+  background:var(--surface2);border:0.5px solid var(--border-strong);color:var(--text-muted);
+  cursor:pointer;
+}
+.fac-sj-veld:hover{background:var(--mint-soft);border-color:var(--mint);color:var(--text)}
+
 /* ── Print: factuur ── */
 #facPrintArea{display:none}
 
@@ -5886,6 +5930,32 @@ textarea { line-height: 1.6; resize: vertical; }
       <div class="modal-footer-right">
         <button class="btn btn-sm" data-fac-action="closeKlantModal">Annuleer</button>
         <button class="btn btn-sm btn-primary" data-fac-action="facKlantOpslaan">Opslaan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Factuursjabloon: instellingen links, live PDF-preview rechts ── -->
+<div class="modal-bg" id="facSjabloonModal">
+  <div class="modal" style="max-width:1080px;padding:0;display:flex;flex-direction:column;max-height:94vh">
+    <div style="padding:18px 22px 14px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0">
+      <div style="flex:1">
+        <h3 style="font-size:18px;font-weight:700;margin:0">Factuursjabloon</h3>
+        <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0">Wijzigingen zie je meteen rechts. Geldt voor alle facturen.</p>
+      </div>
+      <button data-fac-action="closeFacSjabloon" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--text-muted);padding:4px 8px;border-radius:var(--radius)">✕</button>
+    </div>
+    <div class="fac-sj-layout">
+      <div class="fac-sj-instel" id="facSjabloonBody"></div>
+      <div class="fac-sj-preview">
+        <div class="fac-sj-preview-lab">Voorbeeld</div>
+        <iframe id="facSjabloonPreview" title="Factuurvoorbeeld"></iframe>
+      </div>
+    </div>
+    <div class="modal-footer" style="padding:14px 22px;border-top:0.5px solid var(--border);flex-shrink:0">
+      <button class="btn btn-sm" data-fac-action="facSjabloonHerstel">Standaard herstellen</button>
+      <div class="modal-footer-right">
+        <button class="btn btn-sm" data-fac-action="closeFacSjabloon">Sluiten</button>
       </div>
     </div>
   </div>
@@ -15290,7 +15360,46 @@ function factuurSettings(){
   if(s.betaaltermijn==null)s.betaaltermijn=30;
   if(s.btwStandaard==null)s.btwStandaard=21;
   if(s.voettekst==null)s.voettekst='';
+  /* Sjabloon: bepaalt hoe facPdfDoc de factuur tekent. De betaalzin is
+     bewerkbaar met invulvelden, zodat de formulering van je is. */
+  if(!s.sjabloon)s.sjabloon={};
+  const t=s.sjabloon;
+  if(t.accent==null)t.accent='#0F1B3D';
+  if(t.font==null)t.font='helvetica';
+  if(t.basis==null)t.basis=9.5;
+  if(t.marge==null)t.marge=20;
+  if(t.logo===undefined)t.logo=null;
+  if(t.logoBreedte==null)t.logoBreedte=34;
+  if(t.betaalzin==null)t.betaalzin=
+    'Gelieve dit bedrag van {bedrag} over te maken voor: {vervaldatum} op rekeningnummer: {iban} '+
+    't.n.v. {bedrijf} o.v.v. "Factuur {nummer}".';
+  if(!t.toon)t.toon={};
+  const d={logo:true,kvk:true,bic:true,tel:true,betaalzin:true,stuksprijs:true,
+           btwPerRegel:true,kolomIncl:true,notitie:true,voettekst:true};
+  Object.keys(d).forEach(k=>{if(t.toon[k]==null)t.toon[k]=d[k];});
   return s;
+}
+/* '#0F1B3D' → [15,27,61] voor jsPDF */
+function facHexRgb(hex){
+  const m=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(String(hex||'').trim());
+  return m?[parseInt(m[1],16),parseInt(m[2],16),parseInt(m[3],16)]:[15,27,61];
+}
+/* Vult {bedrag}, {vervaldatum}, {iban}, {bedrijf}, {nummer}, {klant} in.
+   Onbekende velden blijven staan, zodat een typefout zichtbaar is in
+   plaats van stilletjes te verdwijnen. */
+const FAC_VELDEN=['bedrag','vervaldatum','factuurdatum','iban','bedrijf','nummer','klant'];
+function facVulTekst(sjabloon,f,afz,totalen){
+  const waarden={
+    bedrag:factuurFmtBedrag(totalen.incl),
+    vervaldatum:factuurFmtDatum(f.vervaldatum),
+    factuurdatum:factuurFmtDatum(f.datum),
+    iban:afz.iban||'',
+    bedrijf:(afz.naam||'').replace(/ B\.V\.$/,''),
+    nummer:f.nummer||'',
+    klant:(f.klant&&f.klant.naam)||''
+  };
+  return String(sjabloon||'').replace(/\{(\w+)\}/g,
+    (m,k)=>Object.prototype.hasOwnProperty.call(waarden,k)?waarden[k]:m);
 }
 
 /* Volgend factuurnummer — leest niet alleen de teller maar ook wat er
@@ -15525,6 +15634,21 @@ function factuurUrenKoppelen(f){
     if(e){e.status='invoiced';e.factuurId=f.id;e.updatedAt=Date.now();}
   });
 }
+/* Trekt de urenkoppeling gelijk met de regels zoals ze nu zijn. Nodig
+   omdat een verstuurde factuur bewerkbaar blijft: haal je er een regel
+   af, dan moeten die uren weer als "te factureren" terugkomen. */
+function factuurSyncUren(f){
+  if(!f||f.status==='concept')return;
+  const hoortErbij=new Set(factuurUrenIds(f));
+  /* Losgeraakte uren vrijgeven */
+  (urenState.entries||[]).forEach(e=>{
+    if(e.factuurId===f.id&&!hoortErbij.has(e.id)){
+      e.status='open';delete e.factuurId;e.updatedAt=Date.now();
+    }
+  });
+  /* Nieuw toegevoegde uren vastzetten */
+  factuurUrenKoppelen(f);
+}
 function factuurUrenLoskoppelen(f){
   factuurUrenIds(f).forEach(id=>{
     const e=urenEntry(id);
@@ -15614,6 +15738,12 @@ const FAC_CLICK_ACTIONS={
   facKlantOpslaan:()=>klantModalOpslaan(),
   closeKlantModal:()=>closeKlantModal(),
   openFacInstellingen:()=>openFacInstellingen(),
+  openFacSjabloon:()=>openFacSjabloon(),
+  closeFacSjabloon:()=>closeFacSjabloon(),
+  facSjabloonHerstel:()=>facSjabloonHerstel(),
+  facSjLogoKies:()=>facSjLogoKies(),
+  facSjLogoWeg:()=>facSjLogoWeg(),
+  facSjVeldInvoegen:(a)=>facSjVeldInvoegen(a),
   facInstellingenOpslaan:()=>facInstellingenOpslaan(),
   closeFacInstellingen:()=>closeFacInstellingen(),
   facExportBoekhouding:()=>facExportBoekhouding()
@@ -15623,7 +15753,9 @@ const FAC_CHANGE_ACTIONS={
   facSetFilterClient:(el)=>{facFilterClient=el.value;facRenderAll();},
   facEdVeld:(el,a)=>facEdVeld(el,a),
   facEdRegel:(el,a,b)=>facEdRegel(el,a,b),
-  facWizardVeld:(el,a)=>{if(facWizard){facWizard[a]=el.value;facWizardRenderKlanten();}}
+  facWizardVeld:(el,a)=>{if(facWizard){facWizard[a]=el.value;facWizardRenderKlanten();}},
+  facSjWaarde:(el,a)=>facSjWaarde(el,a),
+  facSjToon:(el,a)=>facSjToon(el,a)
 };
 document.addEventListener('click',e=>{
   const el=e.target.closest('[data-fac-action]');
@@ -15636,6 +15768,21 @@ document.addEventListener('change',e=>{
   if(!el)return;
   const fn=FAC_CHANGE_ACTIONS[el.dataset.facChange];
   if(fn)fn(el,el.dataset.facArg1,el.dataset.facArg2);
+});
+/* Schuifjes en de betaalzin willen meelopen tijdens het slepen/typen,
+   niet pas bij loslaten. Preview-updates worden samengevoegd zodat het
+   genereren van de PDF het typen niet ophoudt. */
+let facSjTimer=null;
+document.addEventListener('input',e=>{
+  const el=e.target.closest('[data-fac-change="facSjWaarde"]');
+  if(!el)return;
+  const t=factuurSettings().sjabloon;
+  const key=el.dataset.facArg1;
+  t[key]=(key==='basis'||key==='marge'||key==='logoBreedte')?Number(el.value):el.value;
+  const val=el.parentElement&&el.parentElement.querySelector('.val');
+  if(val)val.textContent=t[key]+(key==='basis'?' pt':' mm');
+  clearTimeout(facSjTimer);
+  facSjTimer=setTimeout(()=>{scheduleSave();facSjabloonPreview();},220);
 });
 
 /* ── Entry point ── */
@@ -15984,7 +16131,12 @@ function closeFacEditor(){
 function facEditorRender(){
   const f=factuurById(facEditId);
   if(!f)return;
-  const bewerkbaar=f.status==='concept';
+  /* Een verstuurde factuur blijft bewerkbaar — bewust gekozen. De
+     snapshot blijft wél de bron voor het adres, tenzij je van klant
+     wisselt; en de urenkoppeling wordt na elke regelwijziging
+     gelijkgetrokken (factuurSyncUren). */
+  const bewerkbaar=true;
+  const definitief=f.status!=='concept';
   const t=factuurTotalen(f);
   const klant=factuurKlant(f.clientId);
   const klantData=f.klant||factuurKlantSnapshot(klant);
@@ -16098,14 +16250,15 @@ function facEditorRender(){
 
   /* Acties onderin, afhankelijk van de status */
   let acties='';
-  if(bewerkbaar){
+  if(!definitief){
     acties=`<button class="uren-btn" data-fac-action="facVerwijder">Verwijderen</button>
       <div style="flex:1"></div>
       <button class="uren-btn" data-fac-action="facPdf">↧ PDF</button>
       <button class="uren-btn uren-btn-primary" data-fac-action="facVerstuur">Versturen</button>`;
   } else {
-    acties=`<button class="uren-btn" data-fac-action="facTerugConcept">← Terug naar concept</button>
+    acties=`<button class="uren-btn" data-fac-action="facVerwijder">Verwijderen</button>
       <button class="uren-btn" data-fac-action="facDupliceer">Dupliceren</button>
+      <button class="uren-btn" data-fac-action="facTerugConcept">← Terug naar concept</button>
       <div style="flex:1"></div>
       <button class="uren-btn" data-fac-action="facPdf">↧ PDF</button>
       ${f.status!=='betaald'?`<button class="uren-btn uren-btn-primary" data-fac-action="facBetaald">Betaling registreren</button>`:''}`;
@@ -16139,6 +16292,7 @@ function facEdRegel(el,regelId,key){
   if(!r)return;
   r[key]=(key==='aantal'||key==='stuksprijs'||key==='btwTarief')?Number(el.value):el.value;
   factuurUpdate(f.id,{});
+  factuurSyncUren(f);
   facEditorRender();
 }
 function facRegelToevoegen(){
@@ -16156,6 +16310,7 @@ function facRegelVerwijder(id){
   if(!f)return;
   f.regels=(f.regels||[]).filter(r=>r.id!==id);
   factuurUpdate(f.id,{});
+  factuurSyncUren(f);
   facEditorRender();
 }
 /* Haalt (opnieuw) de openstaande uren op voor de periode van de factuur */
@@ -16169,6 +16324,7 @@ function facUrenOphalen(){
   f.regels=(f.regels||[]).filter(r=>!(r.urenIds&&r.urenIds.length)).concat(nieuw);
   f.urenPeriode=p;
   factuurUpdate(f.id,{});
+  factuurSyncUren(f);
   facEditorRender();
   const uren=nieuw.reduce((s,r)=>s+r.aantal,0);
   appToast(`${urenFmt(uren)} uur overgenomen`,{type:'success'});
@@ -16404,6 +16560,206 @@ function facInstellingenOpslaan(){
   appToast('Instellingen opgeslagen',{type:'success'});
 }
 
+/* ── Sjabloon-editor ──
+   Links de instellingen, rechts de echte PDF in een iframe. Preview en
+   eindresultaat komen uit dezelfde facPdfDoc(), dus ze kunnen niet uit
+   elkaar lopen. */
+let facSjabloonPreviewUrl=null;
+function openFacSjabloon(){
+  closeFacMenu();
+  facSjabloonRender();
+  document.getElementById('facSjabloonModal').classList.add('open');
+  setTimeout(facSjabloonPreview,60);
+}
+function closeFacSjabloon(){
+  document.getElementById('facSjabloonModal').classList.remove('open');
+  if(facSjabloonPreviewUrl){URL.revokeObjectURL(facSjabloonPreviewUrl);facSjabloonPreviewUrl=null;}
+}
+/* Een echte factuur als voorbeeld; anders een verzonnen exemplaar zodat
+   je het sjabloon ook kunt instellen vóór je eerste factuur. */
+function facSjabloonVoorbeeld(){
+  const echt=factuurState.invoices.find(f=>(f.regels||[]).length);
+  if(echt)return echt;
+  const s=factuurSettings();
+  return {
+    nummer:s.nummer.prefix+String(s.nummer.volgend||1).padStart(s.nummer.cijfers||6,'0'),
+    status:'concept', datum:new Date().toISOString().slice(0,10),
+    vervaldatum:factuurVervaldatum(new Date().toISOString().slice(0,10),s.betaaltermijn),
+    betreft:'Voorbeeld B.V. Gewerkte uren '+new Date().toLocaleDateString('nl-NL',{month:'long',year:'numeric'}),
+    referentie:'', notitie:'', betalingen:[], btwVerlegd:false,
+    klant:{naam:'Voorbeeld B.V.',adres:'Voorbeeldstraat 1',postcode:'1234AB',plaats:'Amsterdam',
+      btwNummer:'NL123456789B01'},
+    regels:[{id:'v1',omschrijving:'Gewerkte uren',aantal:8.5,eenheid:'uur',
+      stuksprijs:100,btwTarief:s.btwStandaard,urenIds:[]}]
+  };
+}
+function facSjabloonPreview(){
+  const frame=document.getElementById('facSjabloonPreview');
+  if(!frame)return;
+  const doc=facPdfDoc(facSjabloonVoorbeeld());
+  if(!doc)return;
+  if(facSjabloonPreviewUrl)URL.revokeObjectURL(facSjabloonPreviewUrl);
+  facSjabloonPreviewUrl=URL.createObjectURL(doc.output('blob'));
+  frame.src=facSjabloonPreviewUrl+'#toolbar=0&navpanes=0';
+}
+function facSjabloonRender(){
+  const box=document.getElementById('facSjabloonBody');
+  if(!box)return;
+  const t=factuurSettings().sjabloon;
+  const toggle=(key,label)=>`<label class="fac-sj-toggle">
+    <input type="checkbox" ${t.toon[key]?'checked':''} data-fac-change="facSjToon" data-fac-arg1="${key}"/>${label}</label>`;
+  box.innerHTML=`
+    <div class="fac-sj-groep">
+      <h4>Logo</h4>
+      <div class="fac-sj-logo">
+        ${t.logo?`<img src="${t.logo}" alt="Logo"/>`:'<span style="font-size:12.5px;color:var(--text-hint)">Nog geen logo</span>'}
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <button class="uren-btn" data-fac-action="facSjLogoKies">${t.logo?'Vervangen':'Uploaden'}</button>
+          ${t.logo?'<button class="uren-btn" data-fac-action="facSjLogoWeg">Verwijderen</button>':''}
+        </div>
+      </div>
+      <input type="file" id="facSjLogoInput" accept="image/png,image/jpeg,image/svg+xml" style="display:none"/>
+      ${t.logo?`<div class="fac-sj-rij"><label for="facSjLogoBr">Breedte</label>
+        <input type="range" id="facSjLogoBr" min="15" max="70" step="1" value="${t.logoBreedte}"
+          data-fac-change="facSjWaarde" data-fac-arg1="logoBreedte"/>
+        <span class="val">${t.logoBreedte} mm</span></div>`:''}
+    </div>
+
+    <div class="fac-sj-groep">
+      <h4>Stijl</h4>
+      <div class="fac-sj-rij"><label for="facSjAccent">Accentkleur</label>
+        <input type="color" id="facSjAccent" value="${t.accent}" data-fac-change="facSjWaarde" data-fac-arg1="accent"/></div>
+      <div class="fac-sj-rij"><label for="facSjFont">Lettertype</label>
+        <select class="fac-ed-inp" id="facSjFont" style="flex:1" data-fac-change="facSjWaarde" data-fac-arg1="font">
+          <option value="helvetica"${t.font==='helvetica'?' selected':''}>Helvetica (schreefloos)</option>
+          <option value="times"${t.font==='times'?' selected':''}>Times (schreef)</option>
+          <option value="courier"${t.font==='courier'?' selected':''}>Courier (typemachine)</option>
+        </select></div>
+      <div class="fac-sj-rij"><label for="facSjBasis">Tekstgrootte</label>
+        <input type="range" id="facSjBasis" min="8" max="12" step="0.5" value="${t.basis}"
+          data-fac-change="facSjWaarde" data-fac-arg1="basis"/>
+        <span class="val">${t.basis} pt</span></div>
+      <div class="fac-sj-rij"><label for="facSjMarge">Kantlijn</label>
+        <input type="range" id="facSjMarge" min="12" max="30" step="1" value="${t.marge}"
+          data-fac-change="facSjWaarde" data-fac-arg1="marge"/>
+        <span class="val">${t.marge} mm</span></div>
+    </div>
+
+    <div class="fac-sj-groep">
+      <h4>Tonen op de factuur</h4>
+      ${toggle('logo','Logo')}
+      ${toggle('kvk','KVK-nummer')}
+      ${toggle('bic','BIC')}
+      ${toggle('tel','Telefoonnummer')}
+      ${toggle('betaalzin','Betaalzin')}
+      ${toggle('stuksprijs','Stuksprijs per regel')}
+      ${toggle('btwPerRegel','Btw-percentage per regel')}
+      ${toggle('kolomIncl','Kolom “bedrag incl. btw”')}
+      ${toggle('notitie','Notitie')}
+      ${toggle('voettekst','Voettekst')}
+    </div>
+
+    <div class="fac-sj-groep">
+      <h4>Betaalzin</h4>
+      <textarea class="fac-ed-inp" rows="4" data-fac-change="facSjWaarde" data-fac-arg1="betaalzin"
+        id="facSjZin">${escapeHtml(t.betaalzin)}</textarea>
+      <div class="fac-sj-velden">
+        ${FAC_VELDEN.map(v=>`<span class="fac-sj-veld" data-fac-action="facSjVeldInvoegen" data-fac-arg1="${v}">{${v}}</span>`).join('')}
+      </div>
+      <div style="font-size:11px;color:var(--text-muted)">Klik een veld om het in te voegen.</div>
+    </div>`;
+}
+function facSjWaarde(el,key){
+  const t=factuurSettings().sjabloon;
+  t[key]=(key==='basis'||key==='marge'||key==='logoBreedte')?Number(el.value):el.value;
+  scheduleSave();
+  /* Schuifjes: alleen het cijfer bijwerken, niet de hele kolom
+     herbouwen — anders springt de schuif onder je muis weg. */
+  if(el.type==='range'){
+    const val=el.parentElement.querySelector('.val');
+    if(val)val.textContent=t[key]+(key==='basis'?' pt':' mm');
+  } else if(key!=='betaalzin'){
+    facSjabloonRender();
+  }
+  facSjabloonPreview();
+}
+function facSjToon(el,key){
+  const t=factuurSettings().sjabloon;
+  t.toon[key]=el.checked;
+  scheduleSave();
+  if(key==='logo')facSjabloonRender();
+  facSjabloonPreview();
+}
+function facSjVeldInvoegen(veld){
+  const ta=document.getElementById('facSjZin');
+  if(!ta)return;
+  const t=factuurSettings().sjabloon;
+  const pos=ta.selectionStart||ta.value.length;
+  ta.value=ta.value.slice(0,pos)+'{'+veld+'}'+ta.value.slice(ta.selectionEnd||pos);
+  t.betaalzin=ta.value;
+  scheduleSave();
+  ta.focus();
+  ta.selectionStart=ta.selectionEnd=pos+veld.length+2;
+  facSjabloonPreview();
+}
+function facSjLogoKies(){
+  const inp=document.getElementById('facSjLogoInput');
+  if(!inp)return;
+  inp.value='';
+  inp.onchange=()=>{
+    const file=inp.files&&inp.files[0];
+    if(!file)return;
+    if(file.size>3*1024*1024){appToast('Kies een afbeelding kleiner dan 3 MB',{type:'warning'});return;}
+    const reader=new FileReader();
+    reader.onload=()=>facSjLogoVerwerk(String(reader.result));
+    reader.readAsDataURL(file);
+  };
+  inp.click();
+}
+/* Schaalt het logo terug naar max 600px breed. De hele state gaat bij
+   elke wijziging naar de Gist; een foto van 4 MB zou elke save
+   meeslepen. */
+function facSjLogoVerwerk(dataUrl){
+  const img=new Image();
+  img.onload=()=>{
+    const max=600;
+    const schaal=Math.min(1,max/img.width);
+    const w=Math.round(img.width*schaal), h=Math.round(img.height*schaal);
+    const c=document.createElement('canvas');
+    c.width=w;c.height=h;
+    c.getContext('2d').drawImage(img,0,0,w,h);
+    const t=factuurSettings().sjabloon;
+    t.logo=c.toDataURL('image/png');
+    t.logoVerhouding=img.height/img.width;
+    t.toon.logo=true;
+    scheduleSave();
+    facSjabloonRender();
+    facSjabloonPreview();
+    appToast('Logo toegevoegd',{type:'success'});
+  };
+  img.onerror=()=>appToast('Kon deze afbeelding niet lezen',{type:'error'});
+  img.src=dataUrl;
+}
+function facSjLogoWeg(){
+  const t=factuurSettings().sjabloon;
+  t.logo=null;delete t.logoVerhouding;
+  scheduleSave();
+  facSjabloonRender();
+  facSjabloonPreview();
+}
+function facSjabloonHerstel(){
+  if(!confirm('Sjabloon terugzetten naar de standaardinstellingen?\n\nJe logo blijft bewaard.'))return;
+  const s=factuurSettings();
+  const logo=s.sjabloon.logo, verh=s.sjabloon.logoVerhouding;
+  s.sjabloon=null;
+  factuurSettings();
+  s.sjabloon.logo=logo;
+  if(verh)s.sjabloon.logoVerhouding=verh;
+  scheduleSave();
+  facSjabloonRender();
+  facSjabloonPreview();
+}
+
 /* ── Menu + filters ── */
 function facToggleMenu(){
   if(document.getElementById('facMenu')){closeFacMenu();return;}
@@ -16416,6 +16772,9 @@ function facToggleMenu(){
     <button class="uren-menu-item" role="menuitem" data-fac-action="openFacInstellingen">
       <span class="ic" aria-hidden="true">⚙</span>
       <span>Facturatie-instellingen<small>Bedrijfsgegevens en nummering</small></span></button>
+    <button class="uren-menu-item" role="menuitem" data-fac-action="openFacSjabloon">
+      <span class="ic" aria-hidden="true">◫</span>
+      <span>Factuursjabloon<small>Logo, kleur, lettertype en indeling</small></span></button>
     <button class="uren-menu-item" role="menuitem" data-fac-action="facKlantNieuw">
       <span class="ic" aria-hidden="true">+</span><span>Klant toevoegen</span></button>
     <div class="uren-menu-sep"></div>
@@ -16484,29 +16843,47 @@ function facPdfDoc(f){
   if(!window.jspdf||!window.jspdf.jsPDF)return null;
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF({unit:'mm',format:'a4'});
-  const L=20, R=190, breedte=R-L;
+  const sj=factuurSettings().sjabloon;
+  const F=sj.font||'helvetica';
+  const L=Number(sj.marge)||20, R=210-L, breedte=R-L;
   const klant=f.klant||factuurKlantSnapshot(factuurKlant(f.clientId));
   const afz=f.afzender||factuurAfzenderSnapshot();
   const t=factuurTotalen(f);
-  const navy=[15,27,61], grijs=[91,104,118], lijn=[215,222,230];
+  const navy=facHexRgb(sj.accent), grijs=[91,104,118], lijn=[215,222,230];
+  const bs=Number(sj.basis)||9.5;          /* basis-tekstgrootte */
   let y=22;
 
+  /* Logo linksboven (indien ingesteld); de afzender schuift eronder */
+  let logoHoogte=0;
+  if(sj.toon.logo&&sj.logo){
+    try{
+      const bw=Number(sj.logoBreedte)||34;
+      const verh=sj.logoVerhouding||0.35;   /* hoogte/breedte, bij upload bepaald */
+      logoHoogte=bw*verh;
+      doc.addImage(sj.logo,'PNG',L,y-6,bw,logoHoogte);
+    }catch(_){logoHoogte=0;}
+  }
+
   /* Afzender rechtsboven */
-  doc.setFont('helvetica','bold').setFontSize(13).setTextColor(...navy);
+  doc.setFont(F,'bold').setFontSize(bs+3.5).setTextColor(...navy);
   doc.text(afz.naam||'',R,y,{align:'right'});
-  doc.setFont('helvetica','normal').setFontSize(8.5).setTextColor(...grijs);
+  doc.setFont(F,'normal').setFontSize(bs-1).setTextColor(...grijs);
   const afzRegels=[afz.adres,(afz.postcode||'')+' '+(afz.plaats||''),
-    afz.btwNummer?'Btw-nummer: '+afz.btwNummer:'', afz.kvk?'KVK-nummer: '+afz.kvk:'',
-    afz.tel?'Tel.: '+afz.tel:'', afz.iban?'IBAN: '+afz.iban:'', afz.bic?'BIC: '+afz.bic:''
+    afz.btwNummer?'Btw-nummer: '+afz.btwNummer:'',
+    sj.toon.kvk&&afz.kvk?'KVK-nummer: '+afz.kvk:'',
+    sj.toon.tel&&afz.tel?'Tel.: '+afz.tel:'',
+    afz.iban?'IBAN: '+afz.iban:'',
+    sj.toon.bic&&afz.bic?'BIC: '+afz.bic:''
   ].filter(s=>s&&s.trim());
   let ay=y+6;
   afzRegels.forEach(r=>{doc.text(r,R,ay,{align:'right'});ay+=4.2;});
 
-  /* Klantadres links */
-  doc.setFont('helvetica','bold').setFontSize(10.5).setTextColor(...navy);
-  doc.text(klant.naam||'',L,y);
-  doc.setFont('helvetica','normal').setFontSize(9.5).setTextColor(...grijs);
-  let ky=y+5.5;
+  /* Klantadres links, onder een eventueel logo */
+  const ky0=y+(logoHoogte?logoHoogte+2:0);
+  doc.setFont(F,'bold').setFontSize(bs+1).setTextColor(...navy);
+  doc.text(klant.naam||'',L,ky0);
+  doc.setFont(F,'normal').setFontSize(bs).setTextColor(...grijs);
+  let ky=ky0+5.5;
   [klant.adres,(klant.postcode||'')+' '+(klant.plaats||''),klant.land]
     .filter(s=>s&&s.trim()).forEach(r=>{doc.text(r,L,ky);ky+=4.6;});
 
@@ -16515,44 +16892,44 @@ function facPdfDoc(f){
   /* Factuurkop */
   doc.setDrawColor(...navy).setLineWidth(0.5).line(L,y,R,y);
   y+=6;
-  doc.setFontSize(9.5).setTextColor(...navy);
+  doc.setFontSize(bs).setTextColor(...navy);
   const kop=[['Factuurdatum:',factuurFmtDatum(f.datum)],
              ['Vervaldatum:',factuurFmtDatum(f.vervaldatum)],
              ['Factuur:',f.nummer]];
   if(f.referentie)kop.push(['Referentie:',f.referentie]);
   kop.forEach(([k,v])=>{
-    doc.setFont('helvetica','normal').text(k,L,y);
-    doc.setFont('helvetica','bold').text(String(v),L+30,y);
+    doc.setFont(F,'normal').text(k,L,y);
+    doc.setFont(F,'bold').text(String(v),L+30,y);
     y+=4.8;
   });
   if(f.betreft){
-    doc.setFont('helvetica','normal').text('Betreft:',L,y);
+    doc.setFont(F,'normal').text('Betreft:',L,y);
     const bt=doc.splitTextToSize(f.betreft,breedte-30);
-    doc.setFont('helvetica','bold').text(bt,L+30,y);
+    doc.setFont(F,'bold').text(bt,L+30,y);
     y+=4.8*bt.length;
   }
   y+=4;
 
   /* Betaalzin — dezelfde formulering als de bestaande facturen */
-  doc.setFont('helvetica','normal').setFontSize(9.5).setTextColor(...navy);
-  const zin=`Gelieve dit bedrag van ${factuurFmtBedrag(t.incl)} over te maken voor: `+
-    `${factuurFmtDatum(f.vervaldatum)} op rekeningnummer: ${afz.iban||''} t.n.v. `+
-    `${(afz.naam||'').replace(/ B\.V\.$/,'')} o.v.v. "Factuur ${f.nummer}".`;
-  const zinRegels=doc.splitTextToSize(zin,breedte);
-  doc.text(zinRegels,L,y);
-  y+=zinRegels.length*4.6+6;
+  if(sj.toon.betaalzin){
+    doc.setFont(F,'normal').setFontSize(bs).setTextColor(...navy);
+    const zinRegels=doc.splitTextToSize(facVulTekst(sj.betaalzin,f,afz,t),breedte);
+    doc.text(zinRegels,L,y);
+    y+=zinRegels.length*4.6+6;
+  }
 
   /* Regeltabel */
-  const kolAantal=L, kolOms=L+18, kolExcl=R-56, kolIncl=R;
+  const toonIncl=sj.toon.kolomIncl!==false;
+  const kolAantal=L, kolOms=L+18, kolExcl=toonIncl?R-56:R, kolIncl=R;
   doc.setFillColor(240,244,248).rect(L-2,y-4.5,breedte+4,8,'F');
-  doc.setFont('helvetica','bold').setFontSize(8).setTextColor(...navy);
+  doc.setFont(F,'bold').setFontSize(bs-1.5).setTextColor(...navy);
   doc.text('Aantal',kolAantal,y);
   doc.text('Beschrijving',kolOms,y);
   doc.text('Bedrag excl. btw',kolExcl,y,{align:'right'});
-  doc.text('Bedrag incl. btw',kolIncl,y,{align:'right'});
+  if(toonIncl)doc.text('Bedrag incl. btw',kolIncl,y,{align:'right'});
   y+=7;
 
-  doc.setFont('helvetica','normal').setFontSize(9).setTextColor(...navy);
+  doc.setFont(F,'normal').setFontSize(bs-0.5).setTextColor(...navy);
   (f.regels||[]).forEach(r=>{
     if(y>250){doc.addPage();y=25;}
     const bedrag=factuurRegelBedrag(r);
@@ -16562,13 +16939,12 @@ function facPdfDoc(f){
     const oms=doc.splitTextToSize(r.omschrijving||'',kolExcl-kolOms-8);
     doc.text(oms,kolOms,y);
     doc.text(factuurFmtBedrag(bedrag),kolExcl,y,{align:'right'});
-    doc.text(factuurFmtBedrag(inclR),kolIncl,y,{align:'right'});
+    if(toonIncl)doc.text(factuurFmtBedrag(inclR),kolIncl,y,{align:'right'});
     let ry=y+oms.length*4.4;
-    doc.setFontSize(8).setTextColor(...grijs);
-    doc.text(`Stuksprijs: ${factuurFmtBedrag(r.stuksprijs)}`,kolOms,ry);
-    ry+=4;
-    if(!f.btwVerlegd){doc.text(`${pct}% Btw`,kolOms,ry);ry+=4;}
-    doc.setFontSize(9).setTextColor(...navy);
+    doc.setFontSize(bs-1.5).setTextColor(...grijs);
+    if(sj.toon.stuksprijs){doc.text(`Stuksprijs: ${factuurFmtBedrag(r.stuksprijs)}`,kolOms,ry);ry+=4;}
+    if(sj.toon.btwPerRegel&&!f.btwVerlegd){doc.text(`${pct}% Btw`,kolOms,ry);ry+=4;}
+    doc.setFontSize(bs-0.5).setTextColor(...navy);
     y=ry+2.5;
     doc.setDrawColor(...lijn).setLineWidth(0.2).line(L,y-1.5,R,y-1.5);
     y+=3;
@@ -16578,7 +16954,7 @@ function facPdfDoc(f){
   y+=3;
   if(y>245){doc.addPage();y=25;}
   const totRij=(label,waarde,vet)=>{
-    doc.setFont('helvetica',vet?'bold':'normal').setFontSize(vet?10:9.5);
+    doc.setFont(F,vet?'bold':'normal').setFontSize(vet?bs+0.5:bs);
     doc.text(label,kolExcl-42,y);
     doc.text(waarde,kolIncl,y,{align:'right'});
     y+=5.2;
@@ -16593,19 +16969,19 @@ function facPdfDoc(f){
   totRij('Totaalbedrag incl. btw',factuurFmtBedrag(t.incl),true);
   if(f.btwVerlegd){
     y+=2;
-    doc.setFont('helvetica','normal').setFontSize(8.5).setTextColor(...grijs);
+    doc.setFont(F,'normal').setFontSize(bs-1).setTextColor(...grijs);
     doc.text('Btw verlegd naar de afnemer.',L,y);y+=5;
   }
 
   /* Notitie en voettekst */
   const voet=factuurSettings().voettekst;
-  if(f.notitie){
-    y+=5;doc.setFont('helvetica','normal').setFontSize(9).setTextColor(...navy);
+  if(sj.toon.notitie&&f.notitie){
+    y+=5;doc.setFont(F,'normal').setFontSize(bs-0.5).setTextColor(...navy);
     doc.text(doc.splitTextToSize(f.notitie,breedte),L,y);
   }
-  if(voet){
-    doc.setFont('helvetica','normal').setFontSize(8).setTextColor(...grijs);
-    doc.text(doc.splitTextToSize(voet,breedte),L,282);
+  if(sj.toon.voettekst&&voet){
+    doc.setFont(F,'normal').setFontSize(bs-1.5).setTextColor(...grijs);
+    doc.text(doc.splitTextToSize(facVulTekst(voet,f,afz,t),breedte),L,282);
   }
 
   /* Urenspecificatie als bijlage */
