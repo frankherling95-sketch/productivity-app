@@ -13134,7 +13134,7 @@ const UREN_CLICK_ACTIONS={
 const UREN_CHANGE_ACTIONS={
   urenSetFilterClient:(el)=>{urenFilterClient=el.value;urenRenderAll();},
   urenSetFilterStatus:(el)=>{urenFilterStatus=el.value;urenRenderAll();},
-  urenRowDate:(el,a)=>{if(el.value){urenUpdateEntry(a,{date:el.value});urenRenderAll();}},
+  urenRowDate:(el,a)=>urenRowDate(el,a),
   urenRowHours:(el,a)=>urenRowHours(el,a),
   urenRowDesc:(el,a)=>urenUpdateEntry(a,{description:el.value.trim()}),
   urenRowSelect:(el,a)=>urenRowSelect(el,a),
@@ -13184,7 +13184,8 @@ document.addEventListener('keydown',e=>{
     const cur=urenParseHours(el.value);
     el.value=urenFmt(urenClampHours((cur===null?0:cur)+step));
     el.dispatchEvent(new Event('change',{bubbles:true}));
-  } else if(e.key==='Enter'&&isRowHours){
+  } else if(e.key==='Enter'&&isRowHours&&!el.closest('.uren-draft')){
+    /* In de lege regel handelt de draft-handler Enter af (opslaan). */
     e.preventDefault();
     el.blur();
   }
@@ -13237,6 +13238,7 @@ function urenAnchorDate(){
 }
 function urenSetView(view){
   if(!['reg','klant','week','maand'].includes(view))return;
+  urenDraftFlush();
   const anchor=urenAnchorDate();
   urenView=view;
   urenSelection.clear();
@@ -13244,18 +13246,21 @@ function urenSetView(view){
   urenRenderAll();
 }
 function urenSetRegScope(scope){
+  urenDraftFlush();
   const anchor=urenAnchorDate();
   urenRegScope=scope==='month'?'month':'week';
   urenEnsurePeriodContains(anchor);
   urenRenderAll();
 }
 function urenNav(dir){
+  urenDraftFlush();
   const scope=urenScope();
   urenOffset[scope]+=dir;
   urenSelection.clear();
   urenRenderAll();
 }
 function urenNavToday(){
+  urenDraftFlush();
   urenOffset={week:0,month:0,year:0};
   urenSelection.clear();
   urenRenderAll();
@@ -13335,7 +13340,7 @@ function urenRenderBody(){
 function urenRenderRegView(){
   const list=urenVisibleEntries();
   const p=urenPeriod();
-  urenDraftEnsure(p);
+  urenDraftEnsure(p,true);
   /* Groepeer per dag, nieuwste dag eerst */
   const byDay=new Map();
   list.forEach(e=>{
@@ -13379,7 +13384,7 @@ function urenRenderRegView(){
       ${day===today?'<span class="dg-today">Vandaag</span>':''}
       <button class="dg-add" data-uren-action="urenNewEntryOn" data-uren-arg1="${day}">+ regel</button>
       <span class="dg-rule"></span>
-      <span class="dg-tot">${urenFmt(dayTotal)} u</span>
+      <span class="dg-tot" data-uren-daytot="${day}">${urenFmt(dayTotal)} u</span>
     </div></td></tr>`;
     rows.forEach(e=>{html+=urenRenderRow(e);});
   });
@@ -13389,9 +13394,9 @@ function urenRenderRegView(){
   html+=`</tbody><tfoot><tr>
       <td></td>
       <td class="lab">Totaal</td>
-      <td class="split">${new Set(list.map(e=>e.clientId)).size} klanten · ${list.length} regels</td>
-      <td class="tot">${urenFmt(total)}</td>
-      <td class="split">waarvan ${urenFmt(invTotal)} u gefactureerd</td>
+      <td class="split" data-uren-foot="meta">${new Set(list.map(e=>e.clientId)).size} klanten · ${list.length} regels</td>
+      <td class="tot" data-uren-foot="total">${urenFmt(total)}</td>
+      <td class="split" data-uren-foot="inv">waarvan ${urenFmt(invTotal)} u gefactureerd</td>
       <td colspan="2"></td>
     </tr></tfoot></table></div>`;
 
@@ -13735,6 +13740,10 @@ function urenEmptyPeriod(){
 }
 
 /* ── Rij-interactie ── */
+/* Waardewijzigingen (uren, omschrijving) herbouwen de tabel NIET.
+   Een rebuild vervangt de inputs waar je in staat te typen, waardoor
+   Tab naar de volgende cel in het niets valt. Alleen structuur­wijzigingen
+   — datum, status, verwijderen, een nieuwe regel — bouwen opnieuw op. */
 function urenRowHours(el,id){
   const parsed=urenParseHours(el.value);
   if(parsed===null){
@@ -13745,8 +13754,8 @@ function urenRowHours(el,id){
   }
   if(parsed<=0){urenDeleteEntries([id]);return;}
   urenUpdateEntry(id,{hours:parsed});
-  urenFocusAfterRender=`[data-uren-hours="${id}"]`;
-  urenRenderAll();
+  el.value=urenFmt(parsed);          /* normaliseer "3:30" → "3,50" */
+  urenRecalcTotals();
 }
 function urenRowStep(id,delta){
   const e=urenEntry(id);
@@ -13754,7 +13763,38 @@ function urenRowStep(id,delta){
   const next=urenClampHours(e.hours+delta);
   if(next<=0){urenDeleteEntries([id]);return;}
   urenUpdateEntry(id,{hours:next});
+  const el=document.querySelector(`[data-uren-hours="${id}"]`);
+  if(el)el.value=urenFmt(next);
+  urenRecalcTotals();
+}
+/* Werkt dagtotalen, footer en KPI-strip bij zonder de rijen aan te raken. */
+function urenRecalcTotals(){
+  const list=urenVisibleEntries();
+  document.querySelectorAll('[data-uren-daytot]').forEach(el=>{
+    const day=el.dataset.urenDaytot;
+    el.textContent=urenFmt(urenSum(list.filter(e=>e.date===day)))+' u';
+  });
+  const set=(key,txt)=>{
+    const el=document.querySelector(`[data-uren-foot="${key}"]`);
+    if(el)el.textContent=txt;
+  };
+  set('total',urenFmt(urenSum(list)));
+  set('inv','waarvan '+urenFmt(urenSum(list.filter(e=>urenStatusOf(e)==='invoiced')))+' u gefactureerd');
+  set('meta',new Set(list.map(e=>e.clientId)).size+' klanten · '+list.length+' regels');
+  urenRenderKpis();
+  if(typeof updateNavBadges==='function')updateNavBadges();
+}
+/* Datum wijzigen verplaatst de regel naar een andere daggroep — en
+   mogelijk buiten de zichtbare periode. In dat geval schuift de periode
+   mee, zodat de regel niet zonder uitleg uit beeld verdwijnt. */
+function urenRowDate(el,id){
+  if(!el.value)return;
+  const e=urenEntry(id);
+  if(!e)return;
+  urenUpdateEntry(id,{date:el.value});
+  const gesprongen=urenEnsurePeriodContains(el.value);
   urenRenderAll();
+  if(gesprongen)appToast('Verplaatst naar '+urenFormatDayLabel(el.value)+' — '+urenPeriod().label+' in beeld');
 }
 function urenRowSelect(el,id){
   if(el.checked)urenSelection.add(id);else urenSelection.delete(id);
@@ -13851,7 +13891,9 @@ function urenPickClient(target,clientId){
   if(target==='__draft__'){
     urenDraftEnsure();
     urenDraft.clientId=clientId;
-    urenDraftCommitIfComplete();
+    /* Nog niet opslaan — dat gebeurt als de regel verlaten wordt.
+       Focus naar de urencel: dat is de logische volgende stap. */
+    urenFocusAfterRender='#urenDraftHours';
     urenRenderAll();
     return;
   }
@@ -13860,13 +13902,26 @@ function urenPickClient(target,clientId){
 }
 
 /* ── Draft-regel (de lege regel bovenaan de tabel) ── */
-function urenDraftEnsure(period){
-  if(urenDraft)return;
+/* `renderPass` = aangeroepen vanuit de render: dan mag de datum
+   gecorrigeerd worden naar de periode die nu in beeld komt. Tijdens het
+   invullen (renderPass=false) blijft een zelfgekozen datum staan, ook
+   als die buiten de zichtbare week valt — bij opslaan springt de
+   periode mee. */
+function urenDraftEnsure(period,renderPass){
   const p=period||urenPeriod();
   const today=urenToday();
-  /* Vandaag als die in de periode valt, anders de eerste dag ervan. */
-  const date=(today>=p.from&&today<=p.to)?today:p.from;
-  urenDraft={date,clientId:null,hours:0,description:''};
+  const standaard=(today>=p.from&&today<=p.to)?today:p.from;
+  if(!urenDraft){
+    urenDraft={date:standaard,clientId:null,hours:0,description:''};
+    return;
+  }
+  /* Na navigatie naar een andere periode wijst de oude draftdatum nog
+     naar de vorige week/maand. Alleen corrigeren als de gebruiker nog
+     niets had ingevuld — anders zou je zijn invoer overschrijven. */
+  if(renderPass&&(urenDraft.date<p.from||urenDraft.date>p.to)&&
+     !urenDraft.clientId&&!urenDraft.hours&&!urenDraft.description){
+    urenDraft.date=standaard;
+  }
 }
 function urenDraftHours(el){
   urenDraftEnsure();
@@ -13877,26 +13932,63 @@ function urenDraftHours(el){
     return;
   }
   urenDraft.hours=parsed;
-  urenDraftCommitIfComplete();
-  urenRenderAll();
+  el.value=parsed?urenFmt(parsed):'';   /* normaliseren, niet opslaan */
 }
 function urenDraftStep(delta){
   urenDraftEnsure();
   urenDraft.hours=urenClampHours(urenDraft.hours+delta);
-  urenDraftCommitIfComplete();
-  urenRenderAll();
+  const el=document.getElementById('urenDraftHours');
+  if(el)el.value=urenDraft.hours?urenFmt(urenDraft.hours):'';
 }
-/* Zodra klant én uren gevuld zijn wordt de draft een echte regel en
-   begint er een nieuwe draft op dezelfde datum — doortypen dus. */
+
+/* De lege regel wordt pas opgeslagen als je hem verlaat (Tab uit de
+   laatste cel, klik elders) of op Enter drukt. Eerder committen — zodra
+   klant en uren gevuld zijn — zou betekenen dat de omschrijving die je
+   daarna typt in de vólgende lege regel belandt. */
+document.addEventListener('focusout',e=>{
+  if(!e.target.closest||!e.target.closest('.uren-draft'))return;
+  setTimeout(()=>{
+    const actief=document.activeElement;
+    if(actief&&actief.closest&&actief.closest('.uren-draft'))return; /* nog in de regel */
+    if(document.getElementById('urenClientPop'))return;              /* klantkeuze open */
+    urenDraftCommitIfComplete();
+  },0);
+});
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Enter')return;
+  if(!e.target.closest||!e.target.closest('.uren-draft'))return;
+  e.preventDefault();
+  e.target.dispatchEvent(new Event('change',{bubbles:true}));  /* laatste waarde vastleggen */
+  if(!urenDraftCommitIfComplete()){
+    appToast(!urenDraft.clientId?'Kies eerst een klant':'Vul een aantal uren in',{type:'warning'});
+  }
+});
+
+/* Slaat de lege regel op als klant én uren gevuld zijn, en begint een
+   nieuwe lege regel op dezelfde datum — doortypen dus.
+   Geeft true terug als er is opgeslagen (en dus opnieuw gerenderd). */
 function urenDraftCommitIfComplete(){
-  if(!urenDraft||!urenDraft.clientId||!urenDraft.hours)return;
-  const date=urenDraft.date;
-  urenAddEntry({
-    date,clientId:urenDraft.clientId,hours:urenDraft.hours,
-    description:urenDraft.description,status:'open'
-  });
-  urenDraft={date,clientId:null,hours:0,description:''};
+  const entry=urenDraftFlush();
+  if(!entry)return false;
   urenFocusAfterRender='#urenDraftHours';
+  /* Valt de nieuwe regel buiten de zichtbare periode? Spring erheen,
+     anders lijkt het alsof de invoer is weggevallen. */
+  const gesprongen=urenEnsurePeriodContains(entry.date);
+  urenRenderAll();
+  appToast(`${urenFmt(entry.hours)} u · ${urenClientName(entry.clientId)} · ${urenFormatDayLabel(entry.date)}`+
+    (gesprongen?' — '+urenPeriod().label+' in beeld':''),{type:'success',duration:2500});
+  return true;
+}
+/* Bewaart de lege regel zonder te renderen of te melden. Vangnet voor
+   alles wat de tabel opnieuw opbouwt (navigatie, weergavewissel,
+   export): wat is ingevuld gaat nooit verloren, ook niet als het
+   focusout-event uitblijft. Geeft de bewaarde entry terug, of null. */
+function urenDraftFlush(){
+  if(!urenDraft||!urenDraft.clientId||!urenDraft.hours)return null;
+  const {date,clientId,hours,description}=urenDraft;
+  const entry=urenAddEntry({date,clientId,hours,description,status:'open'});
+  urenDraft={date,clientId:null,hours:0,description:''};
+  return entry;
 }
 
 /* ── Invoerblad (modal desktop / bottom sheet mobiel) ── */
@@ -14045,10 +14137,11 @@ function closeUrenEntryModal(){
   document.getElementById('urenEntryModal')?.classList.remove('open');
   urenEntryEditing=null;
 }
-/* Verschuift de periode-offset zodat `iso` binnen beeld valt. */
+/* Verschuift de periode-offset zodat `iso` binnen beeld valt.
+   Geeft true terug als er daadwerkelijk gesprongen is. */
 function urenEnsurePeriodContains(iso){
   const p=urenPeriod();
-  if(iso>=p.from&&iso<=p.to)return;
+  if(iso>=p.from&&iso<=p.to)return false;
   const scope=urenScope();
   const target=urenDate(iso),now=new Date();
   if(scope==='week'){
@@ -14058,6 +14151,7 @@ function urenEnsurePeriodContains(iso){
   } else {
     urenOffset.year=target.getFullYear()-now.getFullYear();
   }
+  return true;
 }
 
 /* ── Templates ── */
@@ -14507,6 +14601,7 @@ function urenPeriodStamp(p){
 function urenExport(fmt,mode){
   const menu=document.getElementById('urenExportMenu');
   if(menu)menu.style.display='none';
+  if(urenDraftFlush())urenRenderAll();   /* half ingevulde regel niet missen */
   const data=urenBuildExport(mode);
   if(!data.rows.length){
     appToast('Geen uren gevonden voor deze periode of dit filter',{type:'warning'});
