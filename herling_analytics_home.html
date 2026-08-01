@@ -709,6 +709,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .uren-periode{
   display:flex;align-items:center;gap:2px;background:var(--surface2);
   border:0.5px solid var(--border);border-radius:var(--radius);padding:2px;
+  height:32px;box-sizing:border-box;
 }
 .uren-periode button{
   background:transparent;border:none;padding:5px 9px;border-radius:6px;
@@ -720,6 +721,24 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
   font-size:12.5px;font-weight:600;padding:0 10px;min-width:180px;
   text-align:center;font-variant-numeric:tabular-nums;color:var(--text);
 }
+/* Periodebreedte — bepaalt wat de ‹ › knoppen doorlopen, dus staat
+   ernaast. Alleen zichtbaar in de registratieweergave; de overzichten
+   hebben een vaste breedte (maand, resp. jaar). */
+.uren-scope{
+  display:flex;align-items:stretch;gap:2px;background:var(--surface2);
+  border:0.5px solid var(--border);border-radius:var(--radius);padding:2px;
+  height:32px;box-sizing:border-box;
+}
+.uren-scope:empty{display:none}
+.uren-scope button{
+  display:flex;align-items:center;background:transparent;border:none;
+  padding:0 12px;border-radius:6px;
+  font-size:12px;font-weight:600;color:var(--text-muted);cursor:pointer;
+  font-family:inherit;transition:background .12s,color .12s;
+}
+.uren-scope button:hover{color:var(--text)}
+.uren-scope button.active{background:var(--surface);color:var(--text);box-shadow:var(--shadow-card)}
+.uren-scope button:focus-visible{outline:2px solid var(--mint);outline-offset:-1px}
 
 /* ── Viewbar: tabs + filters ── */
 .uren-viewbar{
@@ -3952,8 +3971,13 @@ textarea { line-height: 1.6; resize: vertical; }
   /* ── UREN: tabel wijkt voor dag-gegroepeerde kaarten ── */
   .uren-topbar { padding: 10px 12px; gap: 8px; }
   .uren-topbar-title { display: none; }          /* staat al in de mobile-topbar */
-  .uren-periode { flex: 1; justify-content: space-between; }
-  .uren-periode-lbl { min-width: 0; flex: 1; font-size: 12px; }
+  /* Periode + breedte samen op de eerste regel; de knoppen wrappen
+     naar de tweede. Ruimere raakvlakken voor vingers. */
+  .uren-periode { height: 40px; justify-content: space-between; }
+  .uren-periode-lbl { min-width: 0; flex: 1; font-size: 12px; padding: 0 4px; }
+  .uren-periode button { padding: 5px 8px; }
+  .uren-scope { height: 40px; }
+  .uren-scope button { padding: 0 15px; font-size: 13px; }
   .uren-topbar .btn { padding: 7px 10px; font-size: 12px; }
   .uren-viewbar { padding: 9px 12px; gap: 8px; }
   .uren-tabs {
@@ -5369,6 +5393,7 @@ textarea { line-height: 1.6; resize: vertical; }
           <span class="uren-periode-lbl" id="urenPeriodeLabel"></span>
           <button data-uren-action="urenNavNext" title="Volgende periode" aria-label="Volgende periode">›</button>
         </div>
+        <div class="uren-scope" id="urenScope" role="group" aria-label="Periodebreedte"></div>
         <button class="btn btn-xs" data-uren-action="urenNavToday">Vandaag</button>
         <div style="flex:1"></div>
         <button class="btn btn-xs" data-uren-action="openUrenTemplatesModal" title="Weekpatronen en herhaling">⟳ Templates</button>
@@ -13201,6 +13226,7 @@ function renderUrenModule(){
 function urenRenderAll(){
   if(!document.getElementById('urenBody'))return;
   urenRenderPeriodLabel();
+  urenRenderScope();
   urenRenderFilters();
   urenRenderKpis();
   urenRenderBody();
@@ -13267,17 +13293,22 @@ function urenNavToday(){
 }
 
 /* ── Filterchips ── */
+/* Periodebreedte-schakelaar in de topbar. Leeg (en dus verborgen) in de
+   overzichten, waar de breedte vastligt. */
+function urenRenderScope(){
+  const box=document.getElementById('urenScope');
+  if(!box)return;
+  if(urenView!=='reg'){box.innerHTML='';return;}
+  box.innerHTML=[['week','Week'],['month','Maand']].map(([id,label])=>
+    `<button class="${urenRegScope===id?'active':''}" aria-pressed="${urenRegScope===id}"
+      data-uren-action="urenSetRegScope" data-uren-arg1="${id}">${label}</button>`).join('');
+}
+
 function urenRenderFilters(){
   const bar=document.getElementById('urenFilterBar');
   if(!bar)return;
   const clients=kanbanState.clients||[];
   let html='';
-  /* Alleen in de registratie-tab is een periodebreedte zinvol */
-  if(urenView==='reg'){
-    html+=`<button class="uren-sel${urenRegScope==='week'?' active':''}" data-uren-action="urenSetRegScope" data-uren-arg1="week">Week</button>
-      <button class="uren-sel${urenRegScope==='month'?' active':''}" data-uren-action="urenSetRegScope" data-uren-arg1="month">Maand</button>
-      <span style="width:1px;height:18px;background:var(--border)"></span>`;
-  }
   html+=`<select class="uren-sel${urenFilterClient?' active':''}"
       data-uren-change="urenSetFilterClient" aria-label="Filter op klant">
       <option value="">Alle klanten</option>
