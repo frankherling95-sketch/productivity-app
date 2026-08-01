@@ -15566,9 +15566,9 @@ function factuurSettings(){
    'rechts' die naast elkaar staan, delen een strook. */
 const FAC_BLOKTYPEN={
   LOGO:      {label:'Logo',            uniek:true},
-  ZENDER:    {label:'Afzender',        uniek:true},
+  ZENDER:    {label:'Afzender',        uniek:false},
   ONTVANGER: {label:'Klantgegevens',   uniek:true},
-  META:      {label:'Factuurgegevens', uniek:true},
+  META:      {label:'Factuurgegevens', uniek:false},
   RICH_TEXT: {label:'Tekstblok',       uniek:false},
   REGELS:    {label:'Factuurregels',   uniek:true},
   FOOTER:    {label:'Voettekst',       uniek:true}
@@ -15582,25 +15582,36 @@ function facSjabloonId(){return 'tpl_'+Math.random().toString(36).slice(2,9);}
    de regels en de voettekst. */
 function facStandaardBlokken(betaalzin){
   return [
+    /* Kop: logo links, bedrijfsnaam en adres rechts */
     {id:facBlokId(),type:'LOGO',zichtbaar:true,kolom:'links',
-     style:{breedte:34,uitlijning:'links',marge:{boven:0,onder:4}},content:{}},
+     style:{breedte:38,uitlijning:'links',marge:{boven:0,onder:2}},content:{}},
     {id:facBlokId(),type:'ZENDER',zichtbaar:true,kolom:'rechts',
-     style:{uitlijning:'rechts',grootte:-1,marge:{boven:0,onder:4}},
-     content:{velden:{adres:true,btw:true,kvk:true,tel:true,iban:true,bic:true,email:false}}},
+     style:{uitlijning:'rechts',grootte:0,marge:{boven:0,onder:6}},
+     content:{velden:{naam:true,adres:true,btw:false,kvk:false,tel:false,email:false,iban:false,bic:false}}},
+    /* Klantadres links, zakelijke gegevens rechts */
     {id:facBlokId(),type:'ONTVANGER',zichtbaar:true,kolom:'links',
-     style:{uitlijning:'links',grootte:0,marge:{boven:0,onder:8}},
+     style:{uitlijning:'links',grootte:0.5,marge:{boven:6,onder:16}},
      content:{velden:{tav:true,adres:true,land:false,btw:false}}},
-    {id:facBlokId(),type:'META',zichtbaar:true,kolom:'vol',
-     style:{grootte:0,marge:{boven:0,onder:4},lijnBoven:true},
-     content:{velden:{factuurdatum:true,vervaldatum:true,nummer:true,referentie:true,betreft:true}}},
-    {id:facBlokId(),type:'RICH_TEXT',zichtbaar:true,kolom:'vol',
-     style:{grootte:0,marge:{boven:0,onder:6}},
-     content:{tekst:betaalzin}},
+    {id:facBlokId(),type:'ZENDER',zichtbaar:true,kolom:'rechts',
+     style:{uitlijning:'rechts',grootte:-1.5,marge:{boven:0,onder:16}},
+     content:{velden:{naam:false,adres:false,btw:true,kvk:true,tel:true,email:false,iban:true,bic:true}}},
+    /* Factuurnummer links, datums rechts */
+    {id:facBlokId(),type:'META',zichtbaar:true,kolom:'links',
+     style:{uitlijning:'links',grootte:0.5,marge:{boven:0,onder:8},lijnBoven:false},
+     content:{velden:{nummer:true,betreft:true,factuurdatum:false,vervaldatum:false,referentie:true}}},
+    {id:facBlokId(),type:'META',zichtbaar:true,kolom:'rechts',
+     style:{uitlijning:'rechts',grootte:0,marge:{boven:0,onder:8},lijnBoven:false},
+     content:{velden:{nummer:false,betreft:false,factuurdatum:true,vervaldatum:true,referentie:false}}},
+    /* Regels met totalen */
     {id:facBlokId(),type:'REGELS',zichtbaar:true,kolom:'vol',
-     style:{marge:{boven:0,onder:4},kopKleur:'#F0F4F8'},
+     style:{marge:{boven:0,onder:10},kopVulling:false},
      content:{kolommen:{aantal:true,eenheid:false,omschrijving:true,stuksprijs:true,
-                        btw:true,bedragExcl:true,bedragIncl:true},
-              breedtes:{aantal:18,omschrijving:0,bedragExcl:28,bedragIncl:28}}},
+                        btw:true,btwRechts:true,bedragExcl:true,bedragIncl:true},
+              breedtes:{aantal:16,omschrijving:0,bedragExcl:30,bedragIncl:30}}},
+    /* Betaalzin onder de totalen */
+    {id:facBlokId(),type:'RICH_TEXT',zichtbaar:true,kolom:'vol',
+     style:{grootte:0,marge:{boven:6,onder:6}},
+     content:{tekst:betaalzin}},
     {id:facBlokId(),type:'FOOTER',zichtbaar:true,kolom:'vol',
      style:{grootte:-1.5,uitlijning:'links'},content:{tekst:''}}
   ];
@@ -17217,7 +17228,8 @@ function facSjBlokInstellingen(b){
   }
   if(b.type==='ZENDER'){
     const v=c.velden||{};
-    html+=vink('adres','Adres',v.adres!==false)+vink('btw','Btw-nummer',v.btw!==false)+
+    html+=vink('naam','Bedrijfsnaam',v.naam!==false)+
+      vink('adres','Adres',v.adres!==false)+vink('btw','Btw-nummer',v.btw!==false)+
       vink('kvk','KVK-nummer',v.kvk!==false)+vink('tel','Telefoon',v.tel!==false)+
       vink('email','E-mail',!!v.email)+vink('iban','IBAN',v.iban!==false)+vink('bic','BIC',v.bic!==false);
   }
@@ -17243,8 +17255,11 @@ function facSjBlokInstellingen(b){
       vink('stuksprijs','Stuksprijs onder regel',k.stuksprijs!==false)+
       vink('btw','Btw-percentage per regel',k.btw!==false)+
       vink('bedragIncl','Kolom bedrag incl. btw',k.bedragIncl!==false)+
-      `<div class="fac-sj-rij"><label>Kopkleur</label>
-        <input type="color" value="${st.kopKleur||'#F0F4F8'}" data-fac-change="facSjStijl" data-fac-arg1="kopKleur"/></div>
+      vink('btwRechts','Btw-percentage rechts uitlijnen',!!k.btwRechts)+
+      `<label class="fac-sj-toggle"><input type="checkbox" ${st.kopVulling!==false?'checked':''}
+        data-fac-change="facSjStijl" data-fac-arg1="kopVulling"/>Gevulde kopbalk</label>
+      ${st.kopVulling!==false?`<div class="fac-sj-rij"><label>Kopkleur</label>
+        <input type="color" value="${st.kopKleur||'#F0F4F8'}" data-fac-change="facSjStijl" data-fac-arg1="kopKleur"/></div>`:''}
       <div class="fac-sj-rij"><label>Breedte aantal</label>
         <input type="range" min="12" max="40" step="1" value="${(c.breedtes&&c.breedtes.aantal)||18}"
           data-fac-change="facSjBreedte" data-fac-arg1="aantal"/>
@@ -17715,7 +17730,7 @@ function facPdfAdres(ctx,b,x,y,w,soort){
   let regels=[], titel='';
   if(soort==='zender'){
     const z=ctx.afz;
-    titel=z.naam||'';
+    if(v.naam!==false)titel=z.naam||'';
     if(v.adres!==false){regels.push(z.adres);regels.push((z.postcode||'')+' '+(z.plaats||''));}
     if(v.btw!==false&&z.btwNummer)regels.push('Btw-nummer: '+z.btwNummer);
     if(v.kvk!==false&&z.kvk)regels.push('KVK-nummer: '+z.kvk);
@@ -17733,9 +17748,11 @@ function facPdfAdres(ctx,b,x,y,w,soort){
   }
   regels=regels.filter(r=>r&&String(r).trim());
   let h=0;
-  doc.setFont(F,'bold').setFontSize(gr+1).setTextColor(...ctx.accent);
-  doc.text(titel,a.x,y+3.5,opt);
-  h=5.5;
+  if(titel){
+    doc.setFont(F,'bold').setFontSize(gr+1).setTextColor(...ctx.accent);
+    doc.text(titel,a.x,y+3.5,opt);
+    h=5.5;
+  }
   doc.setFont(F,'normal').setFontSize(gr-0.5).setTextColor(...ctx.grijs);
   regels.forEach(r=>{doc.text(String(r),a.x,y+3.5+h,opt);h+=4.4;});
   return h+1;
@@ -17753,19 +17770,39 @@ function facPdfMeta(ctx,b,x,y,w){
   const rijen=[];
   if(v.factuurdatum!==false)rijen.push(['Factuurdatum:',factuurFmtDatum(f.datum)]);
   if(v.vervaldatum!==false)rijen.push(['Vervaldatum:',factuurFmtDatum(f.vervaldatum)]);
-  if(v.nummer!==false)rijen.push(['Factuur:',f.nummer]);
+  if(v.nummer!==false){
+    /* Het factuurnummer is de kop van dit blok: vet en een maat groter */
+    doc.setFont(F,'bold').setFontSize(gr+1.5).setTextColor(...ctx.accent);
+    doc.text('Factuur: '+f.nummer,
+      (b.style||{}).uitlijning==='rechts'?x+w:x, y+h+4,
+      {align:(b.style||{}).uitlijning==='rechts'?'right':'left'});
+    h+=7;
+  }
   if(v.referentie!==false&&f.referentie)rijen.push(['Referentie:',f.referentie]);
+  const rechts=(b.style||{}).uitlijning==='rechts';
   doc.setFontSize(gr).setTextColor(...ctx.accent);
   rijen.forEach(([k,val])=>{
-    doc.setFont(F,'normal').text(k,x,y+h+3.5);
-    doc.setFont(F,'bold').text(String(val),x+30,y+h+3.5);
+    if(rechts){
+      /* Label en waarde als een regel, rechts uitgelijnd */
+      doc.setFont(F,'normal');
+      doc.text(k+' '+String(val),x+w,y+h+3.5,{align:'right'});
+    } else {
+      doc.setFont(F,'normal').text(k,x,y+h+3.5);
+      doc.setFont(F,'bold').text(String(val),x+30,y+h+3.5);
+    }
     h+=4.8;
   });
   if(v.betreft!==false&&f.betreft){
-    doc.setFont(F,'normal').text('Betreft:',x,y+h+3.5);
-    const bt=doc.splitTextToSize(f.betreft,w-30);
-    doc.setFont(F,'bold').text(bt,x+30,y+h+3.5);
-    h+=4.8*bt.length;
+    if(rechts){
+      const bt=doc.splitTextToSize('Betreft: '+f.betreft,w);
+      doc.setFont(F,'normal').text(bt,x+w,y+h+3.5,{align:'right'});
+      h+=4.8*bt.length;
+    } else {
+      doc.setFont(F,'normal').text('Betreft:',x,y+h+3.5);
+      const bt=doc.splitTextToSize(f.betreft,w-18);
+      doc.text(bt,x+18,y+h+3.5);
+      h+=4.8*bt.length;
+    }
   }
   return h;
 }
@@ -17809,15 +17846,25 @@ function facPdfRegels(ctx,b,x,y,w){
   const xIncl=x+w;
   let h=0;
 
-  /* Kop */
-  const kop=b.style.kopKleur?facHexRgb(b.style.kopKleur):[240,244,248];
-  doc.setFillColor(...kop).rect(x-2,y,w+4,8,'F');
-  doc.setFont(F,'bold').setFontSize(ctx.bs-1.5).setTextColor(...ctx.accent);
+  /* Kop: gevulde balk of alleen een lijn eronder */
+  if(b.style.kopVulling!==false){
+    const kop=b.style.kopKleur?facHexRgb(b.style.kopKleur):[240,244,248];
+    doc.setFillColor(...kop).rect(x-2,y,w+4,8,'F');
+  }
+  doc.setFont(F,'normal').setFontSize(ctx.bs-1.5).setTextColor(...ctx.grijs);
   if(toonAantal)doc.text('Aantal',xAantal,y+5.5);
   doc.text('Beschrijving',xOms,y+5.5);
-  doc.text('Bedrag excl. btw',xExcl,y+5.5,{align:'right'});
-  if(toonIncl)doc.text('Bedrag incl. btw',xIncl,y+5.5,{align:'right'});
-  h+=11;
+  /* Tweeregelige koppen rechts, zoals op de bestaande facturen */
+  doc.text('Bedrag',xExcl,y+2.5,{align:'right'});
+  doc.text('excl. btw',xExcl,y+6.5,{align:'right'});
+  if(toonIncl){
+    doc.text('Bedrag',xIncl,y+2.5,{align:'right'});
+    doc.text('incl. btw',xIncl,y+6.5,{align:'right'});
+  }
+  if(b.style.kopVulling===false){
+    doc.setDrawColor(...ctx.lijn).setLineWidth(0.3).line(x,y+9,x+w,y+9);
+  }
+  h+=12;
 
   doc.setFont(F,'normal').setFontSize(ctx.bs-0.5).setTextColor(...ctx.accent);
   (f.regels||[]).forEach(r=>{
@@ -17833,7 +17880,11 @@ function facPdfRegels(ctx,b,x,y,w){
     let ry=y+h+oms.length*4.4;
     doc.setFontSize(ctx.bs-1.5).setTextColor(...ctx.grijs);
     if(k.stuksprijs!==false){doc.text('Stuksprijs: '+factuurFmtBedrag(r.stuksprijs),xOms,ry);ry+=4;}
-    if(k.btw!==false&&!f.btwVerlegd){doc.text(pct+'% Btw',xOms,ry);ry+=4;}
+    if(k.btw!==false&&!f.btwVerlegd){
+      /* btwRechts: percentage onder het incl-bedrag in plaats van links */
+      if(k.btwRechts&&toonIncl)doc.text(pct+'% Btw',xIncl,y+h+4.4,{align:'right'});
+      else {doc.text(pct+'% Btw',xOms,ry);ry+=4;}
+    }
     doc.setFontSize(ctx.bs-0.5).setTextColor(...ctx.accent);
     h=ry-y+2.5;
     doc.setDrawColor(...ctx.lijn).setLineWidth(0.2).line(x,y+h-1.5,x+w,y+h-1.5);
