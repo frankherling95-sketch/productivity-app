@@ -13,6 +13,9 @@
 <link rel="apple-touch-icon" href="herling-icon.svg"/>
 <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<!-- jsPDF: echte PDF-bestanden voor facturen (nodig om te kunnen
+     mailen en archiveren; de uren-export blijft via de printdialoog) -->
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;800;900&family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
@@ -1217,6 +1220,139 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 }
 .uren-tpl-day-input::-webkit-inner-spin-button,.uren-tpl-day-input::-webkit-outer-spin-button{-webkit-appearance:none}
 .uren-tpl-day-input:focus{border-color:var(--accent)}
+
+/* ══ Facturen module ══
+   Deelt de chrome van Uren (.uren-topbar/-viewbar/-tabs/-btn/-kpis):
+   dezelfde module-familie, dus dezelfde bediening. Alleen wat
+   facturen eigen is, staat hieronder. */
+#mod-facturen{flex-direction:column;--uren-ui:12.5px;position:relative}
+.uren-btn-primary{background:var(--mint);border-color:var(--mint);color:var(--navy)}
+.uren-btn-primary:hover{background:var(--mint);border-color:var(--mint);box-shadow:0 4px 14px var(--mint-glow)}
+
+.fac-table{width:100%;border-collapse:separate;border-spacing:0;font-size:13.5px;min-width:880px}
+.fac-table thead th{
+  position:sticky;top:0;z-index:3;background:var(--surface2);
+  font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--text);text-align:left;padding:9px 12px;
+  border-bottom:0.5px solid var(--border-strong);white-space:nowrap;
+}
+.fac-table th.num,.fac-table td.num{text-align:right}
+.fac-table td{
+  padding:11px 12px;border-bottom:0.5px solid var(--border);
+  background:var(--surface);vertical-align:middle;
+}
+.fac-table tbody tr{cursor:pointer}
+.fac-table tbody tr:hover td{background:var(--surface2)}
+.fac-nr{font-family:var(--font-mono);font-weight:600;font-variant-numeric:tabular-nums;color:var(--text)}
+.fac-bedrag{font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-weight:600;color:var(--text)}
+.fac-datum{font-family:var(--font-mono);font-size:12.5px;color:var(--text-muted);white-space:nowrap}
+.fac-klant{display:flex;align-items:center;gap:8px;min-width:0}
+.fac-klant .sw{width:9px;height:9px;border-radius:2px;flex-shrink:0}
+.fac-klant .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.fac-betreft{color:var(--text-muted);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px}
+.fac-table tfoot td{
+  position:sticky;bottom:0;background:var(--surface2);font-weight:700;
+  border-top:0.5px solid var(--border-strong);padding:10px 12px;color:var(--text);
+}
+
+/* Statuspil — kleur in vulling en rand, tekst in --text (leesbaar in
+   beide thema's, net als bij de uren-statussen). */
+.fac-pill{
+  display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;
+  font-size:11px;font-weight:600;white-space:nowrap;color:var(--text);
+  font-family:var(--font-body);border:1px solid transparent;
+}
+.fac-pill-concept{background:var(--surface3);border-color:var(--border-strong)}
+.fac-pill-verstuurd{background:rgba(37,99,235,.16);border-color:rgba(37,99,235,.55)}
+.fac-pill-betaald{background:rgba(10,157,120,.16);border-color:rgba(10,157,120,.6)}
+.fac-pill-telaat{background:rgba(220,38,38,.16);border-color:rgba(220,38,38,.55)}
+.fac-pill-oninbaar{background:var(--surface3);border-color:var(--border-strong);opacity:.7}
+
+/* Debiteuren: ouderdomskolommen */
+.fac-aging{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px}
+.fac-aging-cel{
+  background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-md);
+  padding:12px 13px;position:relative;overflow:hidden;
+}
+.fac-aging-cel::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--k)}
+.fac-aging-lab{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-muted)}
+.fac-aging-val{font-family:var(--font-mono);font-size:19px;font-weight:600;font-variant-numeric:tabular-nums;margin-top:4px;color:var(--text)}
+.fac-aging-sub{font-size:11px;color:var(--text-muted);margin-top:2px}
+
+/* Klantenkaarten */
+.fac-klanten{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.fac-klantkaart{
+  background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-md);
+  padding:14px 15px;display:flex;flex-direction:column;gap:9px;
+  box-shadow:var(--shadow-card);position:relative;overflow:hidden;
+}
+.fac-klantkaart::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c)}
+.fac-klantkaart h4{font-size:14.5px;font-weight:700;margin:0;display:flex;align-items:center;gap:8px}
+.fac-klantkaart .adres{font-size:12.5px;color:var(--text-muted);line-height:1.55}
+.fac-klantkaart .meta{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--text-muted)}
+.fac-klantkaart .meta b{font-family:var(--font-mono);color:var(--text);font-weight:600}
+.fac-klantkaart .acties{display:flex;gap:6px;margin-top:2px}
+.fac-onvolledig{
+  display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:20px;
+  background:rgba(217,119,6,.16);border:1px solid rgba(217,119,6,.55);
+  font-size:10.5px;font-weight:600;color:var(--text);
+}
+
+/* ── Factuur-editor (modal) ── */
+.fac-editor{display:flex;flex-direction:column;gap:16px}
+.fac-ed-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fac-ed-regels{width:100%;border-collapse:separate;border-spacing:0;font-size:13px}
+.fac-ed-regels th{
+  font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--text-muted);text-align:left;padding:0 8px 6px;
+}
+.fac-ed-regels th.num{text-align:right}
+.fac-ed-regels td{padding:0 4px 6px;vertical-align:top}
+.fac-ed-inp{
+  width:100%;background:var(--surface2);border:0.5px solid var(--border-strong);
+  border-radius:var(--radius);padding:8px 10px;font-size:13px;
+  font-family:inherit;color:var(--text);outline:none;box-sizing:border-box;
+}
+.fac-ed-inp:focus{border-color:var(--mint);box-shadow:0 0 0 3px var(--mint-soft)}
+.fac-ed-inp.num{text-align:right;font-family:var(--font-mono);font-variant-numeric:tabular-nums;-moz-appearance:textfield}
+.fac-ed-inp.num::-webkit-inner-spin-button,.fac-ed-inp.num::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.fac-ed-del{
+  background:transparent;border:none;color:var(--text-hint);cursor:pointer;
+  font-size:14px;padding:8px 6px;border-radius:5px;font-family:inherit;line-height:1;
+}
+.fac-ed-del:hover{background:var(--danger-bg);color:var(--danger)}
+.fac-ed-tot{
+  margin-left:auto;min-width:290px;display:flex;flex-direction:column;gap:6px;
+  background:var(--surface2);border-radius:var(--radius-md);padding:13px 15px;
+}
+.fac-ed-tot .rij{display:flex;justify-content:space-between;gap:16px;font-size:13px;color:var(--text-muted)}
+.fac-ed-tot .rij b{font-family:var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text);font-weight:600}
+.fac-ed-tot .eind{
+  border-top:0.5px solid var(--border-strong);padding-top:8px;margin-top:2px;
+  font-size:14.5px;font-weight:700;color:var(--text);
+}
+.fac-ed-tot .eind b{font-size:17px}
+.fac-uren-info{
+  display:flex;align-items:flex-start;gap:10px;padding:11px 13px;border-radius:var(--radius-md);
+  background:var(--mint-soft);border:1px solid var(--mint);font-size:12.5px;line-height:1.55;color:var(--text);
+}
+.fac-uren-info b{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+
+/* Wizard: klant + periode kiezen */
+.fac-wizard-klanten{display:flex;flex-direction:column;gap:8px;max-height:320px;overflow-y:auto}
+.fac-wizard-klant{
+  display:flex;align-items:center;gap:11px;width:100%;padding:11px 13px;text-align:left;
+  background:var(--surface);border:0.5px solid var(--border-strong);border-radius:var(--radius-md);
+  cursor:pointer;font-family:inherit;font-size:13.5px;color:var(--text);transition:all .12s;
+}
+.fac-wizard-klant:hover:not(:disabled){border-color:var(--mint);background:var(--mint-soft)}
+.fac-wizard-klant:disabled{opacity:.5;cursor:not-allowed}
+.fac-wizard-klant .sw{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+.fac-wizard-klant .nm{flex:1;min-width:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fac-wizard-klant .uren{font-family:var(--font-mono);font-size:12.5px;font-variant-numeric:tabular-nums;color:var(--text-muted);white-space:nowrap}
+
+/* ── Print: factuur ── */
+#facPrintArea{display:none}
 
 /* ── Print: uren-overzicht als factuurbijlage ──
    Alleen #urenPrintArea wordt afgedrukt; de rest van de app valt weg.
@@ -5120,6 +5256,9 @@ textarea { line-height: 1.6; resize: vertical; }
       <div class="nav-item" data-mod="uren" onclick="switchModule('uren')">
         <span class="nav-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M8 4.5V8l2.5 1.5"/></svg></span><span class="nav-label">Uren</span><span class="nav-badge" id="navBadgeUren"></span>
       </div>
+      <div class="nav-item" data-mod="facturen" onclick="switchModule('facturen')">
+        <span class="nav-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 1.8h9v12.4l-2.25-1.4-2.25 1.4-2.25-1.4-2.25 1.4z"/><line x1="6" y1="5.6" x2="10" y2="5.6"/><line x1="6" y1="8.4" x2="10" y2="8.4"/></svg></span><span class="nav-label">Facturen</span><span class="nav-badge" id="navBadgeFacturen"></span>
+      </div>
       <div class="nav-item" data-mod="agenda" onclick="switchModule('agenda')">
         <span class="nav-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3.5" width="12" height="10.5" rx="1.5"/><line x1="2" y1="6.5" x2="14" y2="6.5"/><line x1="5.5" y1="2" x2="5.5" y2="5"/><line x1="10.5" y1="2" x2="10.5" y2="5"/></svg></span><span class="nav-label">Agenda</span><span class="nav-badge" id="navBadgeAgenda"></span>
       </div>
@@ -5528,6 +5667,35 @@ textarea { line-height: 1.6; resize: vertical; }
       <button class="uren-fab" data-uren-action="urenNewEntry" aria-label="Nieuwe urenregistratie">+</button>
     </div>
 
+    <!-- ══ Module: Facturen ══ -->
+    <div id="mod-facturen" class="module">
+      <div class="uren-topbar">
+        <span class="uren-topbar-title">Facturen</span>
+        <div class="uren-periode">
+          <button data-fac-action="facNavPrev" title="Vorig jaar" aria-label="Vorig jaar">‹</button>
+          <span class="uren-periode-lbl" id="facPeriodeLabel"></span>
+          <button data-fac-action="facNavNext" title="Volgend jaar" aria-label="Volgend jaar">›</button>
+        </div>
+        <button class="uren-btn" data-fac-action="facNavHuidig">Dit jaar</button>
+        <div style="flex:1"></div>
+        <button class="uren-btn uren-btn-icon" id="facMenuBtn" data-fac-action="facToggleMenu"
+          aria-haspopup="menu" aria-expanded="false" title="Meer acties">⋯</button>
+        <button class="uren-btn uren-btn-primary" data-fac-action="facNieuwStart">+ Nieuwe factuur</button>
+      </div>
+
+      <div class="uren-viewbar">
+        <div class="uren-tabs" role="tablist">
+          <button class="uren-tab active" role="tab" data-fac-action="facSetView" data-fac-arg1="facturen">Facturen</button>
+          <button class="uren-tab" role="tab" data-fac-action="facSetView" data-fac-arg1="debiteuren">Debiteuren</button>
+          <button class="uren-tab" role="tab" data-fac-action="facSetView" data-fac-arg1="klanten">Klanten</button>
+        </div>
+        <div class="uren-filters" id="facFilterBar"></div>
+      </div>
+
+      <div class="uren-kpis" id="facKpis"></div>
+      <div class="uren-content" id="facBody"></div>
+    </div>
+
   </div><!-- /main-area -->
 
   <!-- Mobile bottom tab bar (hidden on desktop) -->
@@ -5612,6 +5780,13 @@ textarea { line-height: 1.6; resize: vertical; }
         <div class="uren-statuspick" id="urenEntryStatus"></div>
       </div>
 
+      <div class="uren-fld">
+        <label for="urenEntryTarief">Afwijkend uurtarief (€)</label>
+        <input type="number" step="0.01" class="inp" id="urenEntryTarief"
+          placeholder="Leeg = tarief van de klant"/>
+        <small style="font-size:11px;color:var(--text-muted)" id="urenEntryTariefHint"></small>
+      </div>
+
     </div>
     <div class="modal-footer" style="margin-top:20px">
       <button class="btn btn-sm btn-danger" id="urenEntryDeleteBtn" data-uren-action="urenEntryDelete" style="display:none">Verwijderen</button>
@@ -5625,6 +5800,75 @@ textarea { line-height: 1.6; resize: vertical; }
 
 <!-- Print-doel voor "Exporteer → PDF"; gevuld door urenExportPdf() -->
 <div id="urenPrintArea" aria-hidden="true"></div>
+
+<!-- ── Facturen: nieuwe factuur (klant + periode) ── -->
+<div class="modal-bg" id="facWizardModal">
+  <div class="modal" style="max-width:560px;padding:22px">
+    <h3 style="font-size:18px;margin:0 0 4px">Nieuwe factuur</h3>
+    <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 16px">
+      Kies een klant; de nog niet gefactureerde uren van de gekozen periode worden als factuurregel overgenomen.</p>
+    <div id="facWizardBody"></div>
+    <div class="modal-footer" style="margin-top:20px">
+      <button class="btn btn-sm" data-fac-action="facWizardLeeg">Lege factuur</button>
+      <div class="modal-footer-right">
+        <button class="btn btn-sm" data-fac-action="closeFacWizard">Annuleer</button>
+        <button class="btn btn-sm btn-primary" data-fac-action="facWizardMaak" id="facWizardMaakBtn" disabled>Factuur opstellen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Facturen: editor ── -->
+<div class="modal-bg" id="facEditorModal">
+  <div class="modal" style="max-width:900px;padding:0;display:flex;flex-direction:column;max-height:92vh">
+    <div style="padding:18px 22px 14px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0">
+      <div style="flex:1;min-width:0">
+        <h3 style="font-size:18px;font-weight:700;margin:0" id="facEditorTitel">Factuur</h3>
+        <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0" id="facEditorSub"></p>
+      </div>
+      <div id="facEditorStatus"></div>
+      <button data-fac-action="facEditorSluit" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--text-muted);padding:4px 8px;border-radius:var(--radius)">✕</button>
+    </div>
+    <div style="padding:20px 22px;overflow-y:auto;flex:1;min-height:0" id="facEditorBody"></div>
+    <div style="padding:14px 22px;border-top:0.5px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex-shrink:0" id="facEditorActies"></div>
+  </div>
+</div>
+
+<!-- ── Klantgegevens ── -->
+<div class="modal-bg" id="klantModal">
+  <div class="modal" style="max-width:620px;padding:0;display:flex;flex-direction:column;max-height:92vh">
+    <div style="padding:18px 22px 14px;border-bottom:0.5px solid var(--border);flex-shrink:0">
+      <h3 style="font-size:18px;font-weight:700;margin:0" id="klantModalTitel">Klantgegevens</h3>
+      <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0">Deze gegevens komen op de factuur en bepalen het tarief bij het overnemen van uren.</p>
+    </div>
+    <div style="padding:20px 22px;overflow-y:auto;flex:1;min-height:0" id="klantModalBody"></div>
+    <div class="modal-footer" style="padding:14px 22px;border-top:0.5px solid var(--border);flex-shrink:0">
+      <div></div>
+      <div class="modal-footer-right">
+        <button class="btn btn-sm" data-fac-action="closeKlantModal">Annuleer</button>
+        <button class="btn btn-sm btn-primary" data-fac-action="facKlantOpslaan">Opslaan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Facturatie-instellingen (eigen bedrijfsgegevens + nummering) ── -->
+<div class="modal-bg" id="facInstellingenModal">
+  <div class="modal" style="max-width:620px;padding:0;display:flex;flex-direction:column;max-height:92vh">
+    <div style="padding:18px 22px 14px;border-bottom:0.5px solid var(--border);flex-shrink:0">
+      <h3 style="font-size:18px;font-weight:700;margin:0">Facturatie-instellingen</h3>
+      <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0">Je eigen gegevens zoals ze op elke factuur komen te staan.</p>
+    </div>
+    <div style="padding:20px 22px;overflow-y:auto;flex:1;min-height:0" id="facInstellingenBody"></div>
+    <div class="modal-footer" style="padding:14px 22px;border-top:0.5px solid var(--border);flex-shrink:0">
+      <div></div>
+      <div class="modal-footer-right">
+        <button class="btn btn-sm" data-fac-action="closeFacInstellingen">Annuleer</button>
+        <button class="btn btn-sm btn-primary" data-fac-action="facInstellingenOpslaan">Opslaan</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <div class="modal-bg" id="urenTemplatesModal">
   <div class="modal" style="max-width:720px;padding:0;overflow:hidden;display:flex;flex-direction:column;max-height:90vh">
@@ -6574,9 +6818,15 @@ const DEFAULT_COLUMNS=[
    STATE
    ═══════════════════════════════════════════════════ */
 let ghToken=null, gistId=null, saveTimer=null;
-let rawState={tasks:{},notes:{},checklist:{},uren:{},agenda:{events:[]},settings:{}};
+let rawState={tasks:{},notes:{},checklist:{},uren:{},facturen:{},agenda:{events:[]},settings:{}};
 let checklistState={items:[],showArchived:false,sortBy:'priority'};
 let clFilters={prio:null,clientId:null,period:null,search:''};
+
+/* Facturatie — invoices[] plus de eigen bedrijfsgegevens en de
+   nummerreeks. Een verstuurde factuur bewaart een snapshot van klant
+   en afzender, zodat een adreswijziging van vandaag een factuur van
+   vorig jaar niet met terugwerkende kracht verandert. */
+let factuurState={invoices:[],settings:{}};
 
 /* Kanban state */
 let kanbanState={projects:{},activeProject:null,clients:[],tags:[],categoryGrouping:'grouped'};
@@ -6612,7 +6862,7 @@ let urenDraft=null;              /* lege invoerregel onderaan de tabel */
 let urenFilterClient='';         /* '' = alle klanten */
 let urenFilterStatus='';         /* '' = alle statussen */
 let urenEntryEditing=null;       /* id bij bewerken via het invoerblad, null bij nieuw */
-let urenEntryForm={date:'',hours:0,clientId:null,description:'',status:'open'};
+let urenEntryForm={date:'',hours:0,clientId:null,description:'',status:'open',tarief:''};
 let urenTplCalYear=new Date().getFullYear();
 let urenTplCalMonth=new Date().getMonth();
 let urenTplCalSelected=null;
@@ -6918,6 +7168,10 @@ async function loadGist(){
       if(!urenState.entries)urenState.entries=[];
       if(!urenState.templates)urenState.templates=[];
       urenMigrateEntries();   /* invoiced-bool → status, ids aanvullen */
+      /* Hydrate facturen */
+      factuurState=rawState.facturen||{invoices:[],settings:{}};
+      if(!factuurState.invoices)factuurState.invoices=[];
+      factuurSettings();      /* vult ontbrekende bedrijfs-/nummervelden aan */
       lastLoadedAt=Date.now();
       lastRemoteUpdatedAt=remoteUpdatedAt;
       setSync('saved','Geladen · '+new Date().toLocaleTimeString('nl-NL'));
@@ -6956,6 +7210,9 @@ async function loadGist(){
           if(!urenState.entries)urenState.entries=[];
           if(!urenState.templates)urenState.templates=[];
           urenMigrateEntries();
+          factuurState=saved.facturen||{invoices:[],settings:{}};
+          if(!factuurState.invoices)factuurState.invoices=[];
+          factuurSettings();
           setSync('error','Gist-fout — hersteld vanuit lokale backup');
           appToast('⚠️ Gist kon niet geladen worden — hersteld vanuit lokale backup. Open de POM-notitie en gebruik de Legen-knop om de grote afbeelding te verwijderen.',{duration:15000});
           renderAll();
@@ -7003,6 +7260,7 @@ function saveLocalBackup(){
     rawState.notes=notesState;
     rawState.checklist=checklistState;
     if(typeof urenState!=='undefined')rawState.uren=urenState;
+    if(typeof factuurState!=='undefined')rawState.facturen=factuurState;
     localStorage.setItem(LS_BACKUP_KEY,JSON.stringify({data:rawState,savedAt:Date.now()}));
   }catch(e){}
 }
@@ -7038,6 +7296,7 @@ async function saveGist(){
   rawState.notes=notesState;
   rawState.checklist=checklistState;
   if(typeof urenState!=='undefined')rawState.uren=urenState;
+  if(typeof factuurState!=='undefined')rawState.facturen=factuurState;
   if(!rawState.agenda)rawState.agenda={events:[]};
   /* Strip grote afbeeldingen uit notes ALLEEN voor de Gist-payload.
      In-memory state (notesState) blijft ongewijzigd zodat de editor
@@ -7291,6 +7550,7 @@ function downloadBackup(){
   rawState.notes=notesState;
   rawState.checklist=checklistState;
   rawState.uren=urenState;
+  rawState.facturen=factuurState;
   if(!rawState.agenda)rawState.agenda={events:[]};
   const payload={
     _backupVersion:1,
@@ -7340,6 +7600,9 @@ async function handleRestoreFile(file){
     if(!urenState.entries)urenState.entries=[];
     if(!urenState.templates)urenState.templates=[];
     urenMigrateEntries();
+    factuurState=incoming.facturen||factuurState;
+    if(!factuurState.invoices)factuurState.invoices=[];
+    factuurSettings();
     if(!rawState.agenda)rawState.agenda={events:[]};
     /* Persist to Gist immediately so the restore propagates to other devices */
     scheduleSave();
@@ -7505,6 +7768,8 @@ function switchModule(mod){
   else if(mod==='agenda')renderAgendaModule();
   else if(mod==='checklist')renderChecklistModule();
   else if(mod==='uren')renderUrenModule();
+  else if(mod==='facturen')renderFacturenModule();
+  else if(mod==='uren')renderUrenModule();
   /* Refresh client-filter dropdowns (each module has its own container) */
   if(typeof renderClientFilters==='function')renderClientFilters();
   if(typeof updateNavBadges==='function')updateNavBadges();
@@ -7538,6 +7803,11 @@ function updateNavBadges(){
   };
   setBadge('navBadgeChecklist',overdue);
   setBadge('navBadgeAgenda',today2);
+  /* Facturen: alleen wat aandacht vraagt — over de vervaldatum */
+  if(typeof factuurState!=='undefined'&&factuurState.invoices){
+    setBadge('navBadgeFacturen',
+      factuurState.invoices.filter(f=>typeof factuurDagenTeLaat==='function'&&factuurDagenTeLaat(f)>0).length);
+  }
   /* Uren: openstaande (nog te factureren) uren — het enige getal dat
      om actie vraagt. Als tekst gezet omdat het een decimaal is. */
   const openUren=(urenState?.entries||[])
@@ -8602,7 +8872,7 @@ function renderAll(){
   if(typeof updateNavBadges==='function')updateNavBadges();
   /* Apply hash-based routing on initial load */
   const hash=(location.hash||'#dashboard').slice(1);
-  const validMods=['dashboard','notes','agenda','checklist','uren'];
+  const validMods=['dashboard','notes','agenda','checklist','uren','facturen'];
   const startMod=validMods.includes(hash)?hash:'dashboard';
   switchModule(startMod);
 }
@@ -14095,6 +14365,23 @@ function urenInvoiceClient(clientId,ym){
   }
   if(!list.length)return;
   const sum=urenSum(list);
+  /* Nu de facturatiemodule bestaat is een factuur opstellen de normale
+     route; alleen de status omzetten blijft mogelijk voor uren die je
+     buiten de app om factureert. */
+  const viaFactuur=typeof factuurNieuw==='function'&&clientId&&!ym;
+  if(viaFactuur){
+    const p=urenPeriod();
+    const keuze=confirm(
+      `${urenFmt(sum)} uur van ${wat}\n\n`+
+      `OK — factuur opstellen (uren gaan mee als factuurregel)\n`+
+      `Annuleren — alleen de status op "gefactureerd" zetten`);
+    if(keuze){
+      const f=factuurNieuw(clientId,p.from,p.to);
+      switchModule('facturen');
+      setTimeout(()=>facOpenEditor(f.id),80);
+      return;
+    }
+  }
   if(!confirm(`${urenFmt(sum)} uur van ${wat} op "gefactureerd" zetten?\n\n${list.length} ${list.length===1?'regel wordt':'regels worden'} vergrendeld. Dit kun je daarna ongedaan maken.`))return;
   urenSetStatus(list.map(e=>e.id),'invoiced');
 }
@@ -14261,7 +14548,7 @@ function urenNewEntry(date){
     date:date||((today>=p.from&&today<=p.to)?today:p.from),
     hours:0,
     clientId:(kanbanState.clients||[]).length===1?kanbanState.clients[0].id:null,
-    description:'',status:'open'
+    description:'',status:'open',tarief:''
   };
   urenRenderEntryModal('Nieuwe registratie');
 }
@@ -14271,7 +14558,8 @@ function urenEditEntry(id){
   urenEntryEditing=id;
   urenEntryForm={
     date:e.date,hours:e.hours,clientId:e.clientId,
-    description:e.description||'',status:urenStatusOf(e)
+    description:e.description||'',status:urenStatusOf(e),
+    tarief:(e.tarief==null?'':e.tarief)
   };
   urenRenderEntryModal('Registratie bewerken');
 }
@@ -14282,6 +14570,18 @@ function urenRenderEntryModal(title){
   document.getElementById('urenEntryDate').value=urenEntryForm.date;
   document.getElementById('urenEntryHours').value=urenFmt(urenEntryForm.hours);
   document.getElementById('urenEntryDesc').value=urenEntryForm.description;
+  const tarInp=document.getElementById('urenEntryTarief');
+  if(tarInp){
+    tarInp.value=urenEntryForm.tarief===''?'':urenEntryForm.tarief;
+    /* Toon waar het standaardtarief vandaan komt, zodat "leeg" duidelijk is */
+    const hint=document.getElementById('urenEntryTariefHint');
+    if(hint){
+      const k=(kanbanState.clients||[]).find(c=>c.id===urenEntryForm.clientId);
+      const std=k&&Number(k.tarief)>0?Number(k.tarief):0;
+      hint.textContent=std?`Standaard voor ${k.bedrijfsnaam||k.name}: ${typeof factuurFmtBedrag==='function'?factuurFmtBedrag(std):'€ '+std}`
+        :(urenEntryForm.clientId?'Deze klant heeft nog geen uurtarief':'');
+    }
+  }
   document.getElementById('urenEntryDeleteBtn').style.display=urenEntryEditing?'':'none';
   urenRenderEntryClients();
   urenRenderEntryStatus();
@@ -14320,6 +14620,8 @@ function urenEntrySyncFromForm(){
   const d=document.getElementById('urenEntryDate');
   const h=document.getElementById('urenEntryHours');
   const t=document.getElementById('urenEntryDesc');
+  const tar=document.getElementById('urenEntryTarief');
+  if(tar)urenEntryForm.tarief=tar.value.trim();
   if(d&&d.value)urenEntryForm.date=d.value;
   if(h){
     const parsed=urenParseHours(h.value);
@@ -14360,13 +14662,15 @@ function urenEntrySave(){
     urenUpdateEntry(urenEntryEditing,{
       date:urenEntryForm.date,clientId:urenEntryForm.clientId,
       hours:urenEntryForm.hours,description:urenEntryForm.description.trim(),
-      status:urenEntryForm.status
+      status:urenEntryForm.status,
+      tarief:urenEntryForm.tarief===''?null:Number(urenEntryForm.tarief)
     });
   } else {
     urenAddEntry({
       date:urenEntryForm.date,clientId:urenEntryForm.clientId,
       hours:urenEntryForm.hours,description:urenEntryForm.description.trim(),
-      status:urenEntryForm.status
+      status:urenEntryForm.status,
+      tarief:urenEntryForm.tarief===''?null:Number(urenEntryForm.tarief)
     });
   }
   closeUrenEntryModal();
@@ -14907,6 +15211,1413 @@ function urenExportPdf(data){
   const cleanup=()=>{area.innerHTML='';window.removeEventListener('afterprint',cleanup);};
   window.addEventListener('afterprint',cleanup);
   setTimeout(()=>window.print(),60);
+}
+
+/* ╔══════════════════════════════════════════════════════════════════╗
+   ║                       FACTURATIE                                 ║
+   ║  Facturen bouwen op de urenregistratie: klant + periode levert   ║
+   ║  één regel (aantal × uurtarief), zoals de bestaande facturen.    ║
+   ║  Handmatige regels blijven mogelijk voor werk buiten de uren om. ║
+   ║                                                                  ║
+   ║  Bewust twee lagen:                                              ║
+   ║   • concept  — leeft mee met klantgegevens en uren               ║
+   ║   • verstuurd— bevroren snapshot; een adreswijziging van vandaag ║
+   ║                verandert een oude factuur niet meer              ║
+   ╚══════════════════════════════════════════════════════════════════╝ */
+
+const FACTUUR_STATUSSEN=[
+  {id:'concept',   label:'Concept'},
+  {id:'verstuurd', label:'Verstuurd'},
+  {id:'betaald',   label:'Betaald'},
+  {id:'oninbaar',  label:'Oninbaar'}
+];
+const BTW_TARIEVEN=[
+  {id:21,     label:'21% (hoog)'},
+  {id:9,      label:'9% (laag)'},
+  {id:0,      label:'0% / vrijgesteld'},
+  {id:'verlegd',label:'Btw verlegd'}
+];
+
+function factuurUid(){return 'fac_'+Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);}
+
+/* ── Instellingen ── */
+function factuurSettings(){
+  const s=factuurState.settings||(factuurState.settings={});
+  if(!s.bedrijf)s.bedrijf={
+    naam:'Herling Analytics B.V.', adres:'', postcode:'', plaats:'',
+    btwNummer:'', kvk:'', tel:'', email:'', iban:'', bic:''
+  };
+  if(!s.nummer)s.nummer={prefix:'F', cijfers:6, volgend:1, perJaar:false};
+  if(s.betaaltermijn==null)s.betaaltermijn=30;
+  if(s.btwStandaard==null)s.btwStandaard=21;
+  if(s.voettekst==null)s.voettekst='';
+  return s;
+}
+
+/* Volgend factuurnummer — leest niet alleen de teller maar ook wat er
+   al ligt, zodat een handmatig aangepast nummer geen duplicaat geeft. */
+/* negeerId: de factuur die zelf een nummer krijgt telt niet mee als
+   "al in gebruik" — anders schuift het nummer dat je in het concept
+   zag bij versturen een plek op. */
+function factuurVolgendNummer(peek,negeerId){
+  const s=factuurSettings(), n=s.nummer;
+  const jaar=new Date().getFullYear();
+  let volg=n.volgend||1;
+  if(n.perJaar&&n.jaar!==jaar&&!peek){n.jaar=jaar;volg=1;}
+  else if(n.perJaar&&n.jaar!==jaar)volg=1;
+  /* Nooit onder een bestaand nummer duiken */
+  const gebruikt=factuurState.invoices
+    .filter(f=>f.id!==negeerId)
+    .map(f=>parseInt(String(f.nummer||'').replace(/\D/g,''),10))
+    .filter(v=>!isNaN(v));
+  if(gebruikt.length)volg=Math.max(volg,Math.max(...gebruikt)+1);
+  const nummer=n.prefix+String(volg).padStart(n.cijfers||6,'0');
+  if(!peek){n.volgend=volg+1;if(n.perJaar)n.jaar=jaar;}
+  return nummer;
+}
+
+/* ── Klantgegevens ──
+   Klanten leven in kanbanState.clients (gedeeld met de andere
+   modules); de factuurvelden hangen er als extra eigenschappen aan. */
+function factuurKlant(id){return (kanbanState.clients||[]).find(c=>c.id===id)||null;}
+function factuurKlantCompleet(c){
+  return !!(c&&c.name&&c.adres&&c.postcode&&c.plaats);
+}
+function factuurKlantSnapshot(c){
+  if(!c)return {naam:'—'};
+  return {
+    naam:c.bedrijfsnaam||c.name, adres:c.adres||'', postcode:c.postcode||'',
+    plaats:c.plaats||'', land:c.land||'', btwNummer:c.btwNummer||'',
+    kvk:c.kvk||'', email:c.email||'', contactpersoon:c.contactpersoon||''
+  };
+}
+function factuurAfzenderSnapshot(){
+  const b=factuurSettings().bedrijf;
+  return {...b};
+}
+
+/* ── Rekenen ──
+   Per regel: aantal × stuksprijs, btw per tarief opgeteld. Afronden op
+   centen gebeurt per regel (zoals de Belastingdienst voorschrijft),
+   niet pas op het eindtotaal — anders loopt het een cent uit de pas. */
+function factuurRegelBedrag(r){
+  return Math.round((Number(r.aantal||0)*Number(r.stuksprijs||0))*100)/100;
+}
+function factuurTotalen(f){
+  const perTarief={};
+  let excl=0;
+  (f.regels||[]).forEach(r=>{
+    const bedrag=factuurRegelBedrag(r);
+    excl+=bedrag;
+    const t=f.btwVerlegd?'verlegd':(r.btwTarief==null?21:r.btwTarief);
+    perTarief[t]=(perTarief[t]||0)+bedrag;
+  });
+  excl=Math.round(excl*100)/100;
+  let btw=0;
+  const staffel=[];
+  Object.keys(perTarief).forEach(k=>{
+    const grondslag=Math.round(perTarief[k]*100)/100;
+    const pct=(k==='verlegd'||k==='0')?0:Number(k);
+    const bedrag=Math.round(grondslag*pct)/100;
+    btw+=bedrag;
+    staffel.push({tarief:k,grondslag,bedrag,pct});
+  });
+  btw=Math.round(btw*100)/100;
+  const incl=Math.round((excl+btw)*100)/100;
+  const betaald=Math.round(((f.betalingen||[]).reduce((s,b)=>s+Number(b.bedrag||0),0))*100)/100;
+  return {excl,btw,incl,staffel,betaald,openstaand:Math.round((incl-betaald)*100)/100};
+}
+
+/* ── Datum & status ── */
+function factuurVervaldatum(datum,termijn){
+  const d=new Date(datum+'T00:00:00');
+  d.setDate(d.getDate()+Number(termijn||30));
+  return d.toISOString().slice(0,10);
+}
+function factuurDagenTeLaat(f){
+  if(f.status!=='verstuurd'||!f.vervaldatum)return 0;
+  const vandaag=new Date().toISOString().slice(0,10);
+  if(vandaag<=f.vervaldatum)return 0;
+  return Math.round((new Date(vandaag)-new Date(f.vervaldatum))/86400000);
+}
+/* Ouderdomsklasse voor het debiteurenoverzicht */
+function factuurOuderdom(f){
+  const d=factuurDagenTeLaat(f);
+  if(d<=0)return 'lopend';
+  if(d<=30)return 'd30';
+  if(d<=60)return 'd60';
+  if(d<=90)return 'd90';
+  return 'd90plus';
+}
+
+function factuurFmtBedrag(n){
+  return '€ '+Number(n||0).toLocaleString('nl-NL',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function factuurFmtDatum(iso){
+  if(!iso)return '';
+  const d=new Date(iso+'T00:00:00');
+  return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
+}
+
+/* ── Uren → factuurregel ──
+   Verzamelt de nog niet gefactureerde uren van één klant binnen een
+   periode en maakt daar één regel van: aantal uur × tarief. Uren met
+   een eigen tarief krijgen een eigen regel, anders zouden ze in het
+   gemiddelde verdwijnen. */
+function factuurUrenVoorKlant(clientId,from,to){
+  return (urenState.entries||[]).filter(e=>
+    e.clientId===clientId&&e.date>=from&&e.date<=to&&
+    urenStatusOf(e)!=='invoiced'&&!e.factuurId);
+}
+function factuurRegelsUitUren(clientId,from,to,omschrijving){
+  const uren=factuurUrenVoorKlant(clientId,from,to);
+  if(!uren.length)return [];
+  const klant=factuurKlant(clientId)||{};
+  const standaard=Number(klant.tarief||0);
+  /* Groeperen op tarief: standaard eerst, afwijkingen daaronder */
+  const groepen={};
+  uren.forEach(e=>{
+    const tarief=(e.tarief!=null&&e.tarief!=='')?Number(e.tarief):standaard;
+    (groepen[tarief]=groepen[tarief]||[]).push(e);
+  });
+  const btw=klant.btwTarief!=null?klant.btwTarief:factuurSettings().btwStandaard;
+  return Object.keys(groepen).map(t=>{
+    const groep=groepen[t];
+    const aantal=Math.round(groep.reduce((s,e)=>s+Number(e.hours||0),0)*100)/100;
+    const afwijkend=Number(t)!==standaard;
+    return {
+      id:factuurUid(),
+      omschrijving:omschrijving+(afwijkend?` (tarief ${factuurFmtBedrag(t)})`:''),
+      aantal, eenheid:'uur', stuksprijs:Number(t), btwTarief:btw,
+      urenIds:groep.map(e=>e.id)
+    };
+  });
+}
+/* Standaardomschrijving in de stijl van de bestaande facturen:
+   "LabsData - Buren Gewerkte uren Mei/Juni 2026" */
+function factuurStandaardBetreft(clientId,from,to){
+  const klant=factuurKlant(clientId);
+  const naam=klant?(klant.bedrijfsnaam||klant.name):'';
+  const mnd=iso=>{const d=new Date(iso+'T00:00:00');
+    const s=d.toLocaleDateString('nl-NL',{month:'long'});return s.charAt(0).toUpperCase()+s.slice(1);};
+  const j=iso=>new Date(iso+'T00:00:00').getFullYear();
+  const periode=mnd(from)===mnd(to)?`${mnd(from)} ${j(to)}`:`${mnd(from)}/${mnd(to)} ${j(to)}`;
+  return `${naam} Gewerkte uren ${periode}`;
+}
+
+/* ── CRUD ── */
+function factuurNieuw(clientId,from,to){
+  const s=factuurSettings();
+  const klant=factuurKlant(clientId);
+  const datum=new Date().toISOString().slice(0,10);
+  const termijn=(klant&&klant.betaaltermijn)||s.betaaltermijn;
+  const betreft=clientId?factuurStandaardBetreft(clientId,from,to):'';
+  const f={
+    id:factuurUid(),
+    nummer:factuurVolgendNummer(true),   /* pas vastzetten bij versturen */
+    status:'concept',
+    clientId:clientId||null,
+    datum, vervaldatum:factuurVervaldatum(datum,termijn),
+    betreft, referentie:'',
+    regels:clientId?factuurRegelsUitUren(clientId,from,to,betreft):[],
+    btwVerlegd:!!(klant&&klant.btwVerlegd),
+    notitie:(klant&&klant.factuurtekst)||'',
+    specificatie:!!(klant&&klant.specificatie),
+    urenPeriode:clientId?{from,to}:null,
+    betalingen:[],
+    createdAt:Date.now(), updatedAt:Date.now()
+  };
+  factuurState.invoices.push(f);
+  scheduleSave();
+  return f;
+}
+function factuurById(id){return factuurState.invoices.find(f=>f.id===id)||null;}
+function factuurUpdate(id,patch){
+  const f=factuurById(id);
+  if(!f)return null;
+  Object.assign(f,patch,{updatedAt:Date.now()});
+  scheduleSave();
+  return f;
+}
+function factuurVerwijder(ids){
+  const weg=factuurState.invoices.filter(f=>ids.includes(f.id));
+  if(!weg.length)return;
+  /* Uren weer vrijgeven */
+  weg.forEach(f=>factuurUrenLoskoppelen(f));
+  factuurState.invoices=factuurState.invoices.filter(f=>!ids.includes(f.id));
+  scheduleSave();
+  factuurRenderAll();
+  appToast(weg.length===1?'Factuur verwijderd':weg.length+' facturen verwijderd',{
+    undo:()=>{factuurState.invoices.push(...weg);
+      weg.forEach(f=>{if(f.status!=='concept')factuurUrenKoppelen(f);});
+      scheduleSave();factuurRenderAll();}
+  });
+}
+function factuurDupliceer(id){
+  const bron=factuurById(id);
+  if(!bron)return null;
+  const datum=new Date().toISOString().slice(0,10);
+  const klant=factuurKlant(bron.clientId);
+  const f=JSON.parse(JSON.stringify(bron));
+  f.id=factuurUid();
+  f.nummer=factuurVolgendNummer(true);
+  f.status='concept';
+  f.datum=datum;
+  f.vervaldatum=factuurVervaldatum(datum,(klant&&klant.betaaltermijn)||factuurSettings().betaaltermijn);
+  f.betalingen=[];
+  delete f.verstuurdOp; delete f.betaaldOp; delete f.klant; delete f.afzender;
+  /* Kopie factureert dezelfde uren niet nog een keer */
+  (f.regels||[]).forEach(r=>{r.id=factuurUid();r.urenIds=[];});
+  f.createdAt=Date.now(); f.updatedAt=Date.now();
+  factuurState.invoices.push(f);
+  scheduleSave();
+  return f;
+}
+
+/* ── Uren koppelen ──
+   Gebeurt bij versturen, niet bij opstellen: een concept dat je weer
+   weggooit mag geen uren op "gefactureerd" laten staan. */
+function factuurUrenIds(f){
+  return (f.regels||[]).flatMap(r=>r.urenIds||[]);
+}
+function factuurUrenKoppelen(f){
+  factuurUrenIds(f).forEach(id=>{
+    const e=urenEntry(id);
+    if(e){e.status='invoiced';e.factuurId=f.id;e.updatedAt=Date.now();}
+  });
+}
+function factuurUrenLoskoppelen(f){
+  factuurUrenIds(f).forEach(id=>{
+    const e=urenEntry(id);
+    if(e&&e.factuurId===f.id){e.status='open';delete e.factuurId;e.updatedAt=Date.now();}
+  });
+}
+
+/* Versturen bevriest de factuur: nummer vastzetten, snapshots maken,
+   uren markeren. Vanaf hier is bewerken niet meer vanzelfsprekend. */
+function factuurMarkeerVerstuurd(id){
+  const f=factuurById(id);
+  if(!f||f.status!=='concept')return f;
+  const nummers=factuurState.invoices.filter(x=>x.id!==f.id).map(x=>x.nummer);
+  if(!f.nummerVast||nummers.includes(f.nummer))f.nummer=factuurVolgendNummer(false,f.id);
+  f.nummerVast=true;
+  f.klant=factuurKlantSnapshot(factuurKlant(f.clientId));
+  f.afzender=factuurAfzenderSnapshot();
+  f.status='verstuurd';
+  f.verstuurdOp=new Date().toISOString();
+  factuurUrenKoppelen(f);
+  scheduleSave();
+  return f;
+}
+function factuurMarkeerBetaald(id,bedrag,datum){
+  const f=factuurById(id);
+  if(!f)return;
+  const t=factuurTotalen(f);
+  const b=bedrag==null?t.openstaand:Number(bedrag);
+  f.betalingen=f.betalingen||[];
+  f.betalingen.push({datum:datum||new Date().toISOString().slice(0,10),bedrag:Math.round(b*100)/100});
+  const na=factuurTotalen(f);
+  if(na.openstaand<=0.004){f.status='betaald';f.betaaldOp=new Date().toISOString();}
+  f.updatedAt=Date.now();
+  scheduleSave();
+}
+/* Terugzetten naar concept — de enige weg om een verstuurde factuur
+   weer te kunnen bewerken. Uren komen vrij, nummer blijft staan. */
+function factuurTerugNaarConcept(id){
+  const f=factuurById(id);
+  if(!f||f.status==='concept')return;
+  factuurUrenLoskoppelen(f);
+  f.status='concept';
+  delete f.verstuurdOp; delete f.betaaldOp;
+  f.betalingen=[];
+  f.updatedAt=Date.now();
+  scheduleSave();
+}
+
+/* ╔══════════════════════════════════════════════════╗
+   ║                 FACTURATIE — VIEW                ║
+   ╚══════════════════════════════════════════════════╝ */
+
+let facView='facturen';
+let facJaar=new Date().getFullYear();
+let facFilterStatus='';
+let facFilterClient='';
+let facEditId=null;       /* factuur die in de editor openstaat */
+let facWizard=null;       /* {clientId,from,to} tijdens "nieuwe factuur" */
+
+/* ── Event-delegatie (zelfde patroon als Uren) ── */
+const FAC_CLICK_ACTIONS={
+  facSetView:(a)=>facSetView(a),
+  facNavPrev:()=>{facJaar--;facRenderAll();},
+  facNavNext:()=>{facJaar++;facRenderAll();},
+  facNavHuidig:()=>{facJaar=new Date().getFullYear();facRenderAll();},
+  facToggleMenu:()=>facToggleMenu(),
+  facToggleFilters:()=>facToggleFilters(),
+  facClearFilter:(a)=>{if(a==='status')facFilterStatus='';else facFilterClient='';facRenderAll();},
+  facNieuwStart:()=>facNieuwStart(),
+  facWizardKies:(a)=>facWizardKies(a),
+  facWizardMaak:()=>facWizardMaak(),
+  facWizardLeeg:()=>facWizardLeeg(),
+  closeFacWizard:()=>closeFacWizard(),
+  facOpen:(a)=>facOpenEditor(a),
+  facRegelToevoegen:()=>facRegelToevoegen(),
+  facRegelVerwijder:(a)=>facRegelVerwijder(a),
+  facUrenOphalen:()=>facUrenOphalen(),
+  facEditorSluit:()=>closeFacEditor(),
+  facVerstuur:()=>facVerstuur(),
+  facPdf:(a)=>facPdfDownload(a||facEditId),
+  facBetaald:(a)=>facBetaaldDialoog(a||facEditId),
+  facTerugConcept:()=>facTerugNaarConcept(),
+  facDupliceer:(a)=>facDupliceerActie(a||facEditId),
+  facVerwijder:(a)=>facVerwijderActie(a||facEditId),
+  facKlantBewerk:(a)=>openKlantModal(a),
+  facKlantNieuw:()=>openKlantModal(null),
+  facKlantOpslaan:()=>klantModalOpslaan(),
+  closeKlantModal:()=>closeKlantModal(),
+  openFacInstellingen:()=>openFacInstellingen(),
+  facInstellingenOpslaan:()=>facInstellingenOpslaan(),
+  closeFacInstellingen:()=>closeFacInstellingen(),
+  facExportBoekhouding:()=>facExportBoekhouding()
+};
+const FAC_CHANGE_ACTIONS={
+  facSetFilterStatus:(el)=>{facFilterStatus=el.value;facRenderAll();},
+  facSetFilterClient:(el)=>{facFilterClient=el.value;facRenderAll();},
+  facEdVeld:(el,a)=>facEdVeld(el,a),
+  facEdRegel:(el,a,b)=>facEdRegel(el,a,b),
+  facWizardVeld:(el,a)=>{if(facWizard){facWizard[a]=el.value;facWizardRenderKlanten();}}
+};
+document.addEventListener('click',e=>{
+  const el=e.target.closest('[data-fac-action]');
+  if(!el)return;
+  const fn=FAC_CLICK_ACTIONS[el.dataset.facAction];
+  if(fn)fn(el.dataset.facArg1,el.dataset.facArg2);
+});
+document.addEventListener('change',e=>{
+  const el=e.target.closest('[data-fac-change]');
+  if(!el)return;
+  const fn=FAC_CHANGE_ACTIONS[el.dataset.facChange];
+  if(fn)fn(el,el.dataset.facArg1,el.dataset.facArg2);
+});
+
+/* ── Entry point ── */
+function renderFacturenModule(){
+  factuurSettings();
+  facRenderAll();
+}
+function facSetView(v){
+  if(!['facturen','debiteuren','klanten'].includes(v))return;
+  facView=v;
+  facRenderAll();
+}
+function facRenderAll(){
+  if(!document.getElementById('facBody'))return;
+  const lbl=document.getElementById('facPeriodeLabel');
+  if(lbl)lbl.textContent=facView==='klanten'?'Alle klanten':String(facJaar);
+  document.querySelectorAll('#mod-facturen .uren-tab').forEach(b=>
+    b.classList.toggle('active',b.dataset.facArg1===facView));
+  facRenderFilters();
+  facRenderKpis();
+  facRenderBody();
+  if(typeof updateNavBadges==='function')updateNavBadges();
+}
+
+/* Facturen van het gekozen jaar, met filters. Klanten-weergave kent
+   geen jaargrens. */
+function facZichtbaar(){
+  return factuurState.invoices.filter(f=>{
+    if(new Date(f.datum+'T00:00:00').getFullYear()!==facJaar)return false;
+    if(facFilterStatus){
+      if(facFilterStatus==='telaat'){if(!factuurDagenTeLaat(f))return false;}
+      else if(f.status!==facFilterStatus)return false;
+    }
+    if(facFilterClient&&f.clientId!==facFilterClient)return false;
+    return true;
+  }).sort((a,b)=>b.datum.localeCompare(a.datum)||String(b.nummer).localeCompare(String(a.nummer)));
+}
+
+function facRenderFilters(){
+  const bar=document.getElementById('facFilterBar');
+  if(!bar)return;
+  if(facView==='klanten'){bar.innerHTML='';return;}
+  const n=(facFilterStatus?1:0)+(facFilterClient?1:0);
+  let html=`<button class="uren-btn" id="facFilterBtn" data-fac-action="facToggleFilters"
+    aria-haspopup="dialog" aria-expanded="false"><span aria-hidden="true">⚟</span>Filter${n?`<span class="cnt">${n}</span>`:''}</button>`;
+  if(facFilterStatus){
+    const s=FACTUUR_STATUSSEN.find(x=>x.id===facFilterStatus);
+    html+=`<span class="uren-fchip">${escapeHtml(s?s.label:'Te laat')}
+      <button data-fac-action="facClearFilter" data-fac-arg1="status" aria-label="Statusfilter wissen">×</button></span>`;
+  }
+  if(facFilterClient){
+    html+=`<span class="uren-fchip">${escapeHtml(urenClientName(facFilterClient))}
+      <button data-fac-action="facClearFilter" data-fac-arg1="client" aria-label="Klantfilter wissen">×</button></span>`;
+  }
+  bar.innerHTML=html;
+  if(document.getElementById('facFilterPop'))
+    document.getElementById('facFilterBtn')?.setAttribute('aria-expanded','true');
+}
+
+function facRenderKpis(){
+  const box=document.getElementById('facKpis');
+  if(!box)return;
+  if(facView==='klanten'){
+    const klanten=kanbanState.clients||[];
+    const compleet=klanten.filter(factuurKlantCompleet).length;
+    box.innerHTML=`
+      ${facKpi('Klanten',klanten.length,'','',  'var(--mint)')}
+      ${facKpi('Factuurklaar',compleet,'',compleet===klanten.length?'alle gegevens compleet':(klanten.length-compleet)+' missen adresgegevens','var(--info)')}
+      ${facKpi('Met uurtarief',klanten.filter(c=>Number(c.tarief)>0).length,'','','var(--success)')}
+      ${facKpi('Actief dit jaar',new Set(facZichtbaar().map(f=>f.clientId)).size,'','gefactureerd in '+facJaar,'var(--warning)')}`;
+    return;
+  }
+  const lijst=facZichtbaar();
+  const som=arr=>arr.reduce((s,f)=>s+factuurTotalen(f).incl,0);
+  const openstaand=factuurState.invoices.filter(f=>f.status==='verstuurd');
+  const teLaat=openstaand.filter(f=>factuurDagenTeLaat(f)>0);
+  const betaald=lijst.filter(f=>f.status==='betaald');
+  const omzet=lijst.filter(f=>f.status!=='concept').reduce((s,f)=>s+factuurTotalen(f).excl,0);
+  box.innerHTML=`
+    ${facKpi('Omzet '+facJaar,factuurFmtBedrag(omzet),'','excl. btw · verstuurd en betaald','var(--mint)')}
+    ${facKpi('Openstaand',factuurFmtBedrag(openstaand.reduce((s,f)=>s+factuurTotalen(f).openstaand,0)),'',
+      openstaand.length+' factuur'+(openstaand.length===1?'':'en')+' onbetaald','var(--info)')}
+    ${facKpi('Te laat',factuurFmtBedrag(teLaat.reduce((s,f)=>s+factuurTotalen(f).openstaand,0)),'',
+      teLaat.length?teLaat.length+' over de vervaldatum':'niets over de vervaldatum',teLaat.length?'var(--danger)':'var(--success)')}
+    ${facKpi('Betaald '+facJaar,factuurFmtBedrag(som(betaald)),'',betaald.length+' factuur'+(betaald.length===1?'':'en'),'var(--success)')}`;
+}
+function facKpi(lab,val,eenheid,sub,kleur){
+  return `<div class="uren-kpi" style="--k:${kleur}">
+    <div class="uren-kpi-lab">${escapeHtml(lab)}</div>
+    <div class="uren-kpi-val">${escapeHtml(String(val))}${eenheid?`<small>${eenheid}</small>`:''}</div>
+    <div class="uren-kpi-sub">${escapeHtml(sub||'')}</div></div>`;
+}
+
+function facRenderBody(){
+  const body=document.getElementById('facBody');
+  if(!body)return;
+  if(facView==='klanten'){body.innerHTML=facRenderKlanten();return;}
+  if(facView==='debiteuren'){body.innerHTML=facRenderDebiteuren();return;}
+  body.innerHTML=facRenderLijst();
+}
+
+/* ── Facturenlijst ── */
+function facRenderLijst(){
+  const lijst=facZichtbaar();
+  if(!lijst.length){
+    return `<div class="uren-empty"><b>Nog geen facturen in ${facJaar}</b>
+      Maak een factuur vanuit je geschreven uren met “+ Nieuwe factuur”.</div>`;
+  }
+  let excl=0,incl=0,open=0;
+  let html=`<div class="uren-sheet-card"><table class="fac-table"><thead><tr>
+    <th style="width:104px">Nummer</th><th style="width:96px">Datum</th>
+    <th style="width:190px">Klant</th><th>Betreft</th>
+    <th style="width:96px">Vervalt</th><th style="width:132px">Status</th>
+    <th class="num" style="width:118px">Bedrag</th></tr></thead><tbody>`;
+  lijst.forEach(f=>{
+    const t=factuurTotalen(f);
+    excl+=t.excl;incl+=t.incl;
+    if(f.status==='verstuurd')open+=t.openstaand;
+    const klant=factuurKlant(f.clientId);
+    const col=klant?CLIENT_COLORS[klant.colorIdx%CLIENT_COLORS.length]:{bg:'var(--surface3)'};
+    html+=`<tr data-fac-action="facOpen" data-fac-arg1="${f.id}">
+      <td><span class="fac-nr">${escapeHtml(f.nummer)}</span></td>
+      <td><span class="fac-datum">${factuurFmtDatum(f.datum)}</span></td>
+      <td><div class="fac-klant"><span class="sw" style="background:${col.bg}"></span>
+        <span class="nm">${escapeHtml(f.klant?f.klant.naam:(klant?(klant.bedrijfsnaam||klant.name):'—'))}</span></div></td>
+      <td><div class="fac-betreft">${escapeHtml(f.betreft||'')}</div></td>
+      <td><span class="fac-datum">${factuurFmtDatum(f.vervaldatum)}</span></td>
+      <td>${facStatusPil(f)}</td>
+      <td class="num"><span class="fac-bedrag">${factuurFmtBedrag(t.incl)}</span></td></tr>`;
+  });
+  html+=`</tbody><tfoot><tr>
+    <td colspan="4">${lijst.length} factuur${lijst.length===1?'':'en'} · ${factuurFmtBedrag(excl)} excl. btw</td>
+    <td colspan="2">${open>0?'waarvan '+factuurFmtBedrag(open)+' openstaand':'alles betaald'}</td>
+    <td class="num">${factuurFmtBedrag(incl)}</td></tr></tfoot></table></div>`;
+  return html;
+}
+function facStatusPil(f){
+  const telaat=factuurDagenTeLaat(f);
+  if(telaat>0)return `<span class="fac-pill fac-pill-telaat">${telaat} dag${telaat===1?'':'en'} te laat</span>`;
+  const t=factuurTotalen(f);
+  if(f.status==='verstuurd'&&t.betaald>0)
+    return `<span class="fac-pill fac-pill-verstuurd">Deels betaald</span>`;
+  const meta=FACTUUR_STATUSSEN.find(s=>s.id===f.status)||FACTUUR_STATUSSEN[0];
+  return `<span class="fac-pill fac-pill-${f.status}">${f.status==='betaald'?'✓ ':''}${meta.label}</span>`;
+}
+
+/* ── Debiteuren met ouderdomsanalyse ──
+   Standaard in dit vak: hoe lang staat een factuur al open. Niet
+   beperkt tot het gekozen jaar — een openstaande factuur uit vorig
+   jaar is juist het interessantst. */
+function facRenderDebiteuren(){
+  const open=factuurState.invoices.filter(f=>f.status==='verstuurd');
+  if(!open.length){
+    return `<div class="uren-empty"><b>Niets openstaand</b>
+      Alle verstuurde facturen zijn betaald.</div>`;
+  }
+  const groepen={lopend:[],d30:[],d60:[],d90:[],d90plus:[]};
+  open.forEach(f=>groepen[factuurOuderdom(f)].push(f));
+  const som=arr=>arr.reduce((s,f)=>s+factuurTotalen(f).openstaand,0);
+  const cel=(lab,key,kleur)=>`<div class="fac-aging-cel" style="--k:${kleur}">
+    <div class="fac-aging-lab">${lab}</div>
+    <div class="fac-aging-val">${factuurFmtBedrag(som(groepen[key]))}</div>
+    <div class="fac-aging-sub">${groepen[key].length} factuur${groepen[key].length===1?'':'en'}</div></div>`;
+  let html=`<div class="fac-aging">
+    ${cel('Nog niet vervallen','lopend','var(--success)')}
+    ${cel('1–30 dagen','d30','var(--warning)')}
+    ${cel('31–60 dagen','d60','var(--warning)')}
+    ${cel('61–90 dagen','d90','var(--danger)')}
+    ${cel('90+ dagen','d90plus','var(--danger)')}</div>`;
+
+  /* Per klant samengevat, want je belt een klant, niet een factuur */
+  const perKlant={};
+  open.forEach(f=>{(perKlant[f.clientId]=perKlant[f.clientId]||[]).push(f);});
+  html+=`<div class="uren-sheet-card"><table class="fac-table"><thead><tr>
+    <th style="width:104px">Nummer</th><th style="width:190px">Klant</th><th>Betreft</th>
+    <th style="width:96px">Vervallen</th><th style="width:132px">Ouderdom</th>
+    <th class="num" style="width:118px">Openstaand</th></tr></thead><tbody>`;
+  Object.keys(perKlant)
+    .sort((a,b)=>som(perKlant[b])-som(perKlant[a]))
+    .forEach(cid=>{
+      perKlant[cid].sort((a,b)=>a.vervaldatum.localeCompare(b.vervaldatum)).forEach(f=>{
+        const klant=factuurKlant(cid);
+        const col=klant?CLIENT_COLORS[klant.colorIdx%CLIENT_COLORS.length]:{bg:'var(--surface3)'};
+        const t=factuurTotalen(f);
+        html+=`<tr data-fac-action="facOpen" data-fac-arg1="${f.id}">
+          <td><span class="fac-nr">${escapeHtml(f.nummer)}</span></td>
+          <td><div class="fac-klant"><span class="sw" style="background:${col.bg}"></span>
+            <span class="nm">${escapeHtml(f.klant?f.klant.naam:(klant?(klant.bedrijfsnaam||klant.name):'—'))}</span></div></td>
+          <td><div class="fac-betreft">${escapeHtml(f.betreft||'')}</div></td>
+          <td><span class="fac-datum">${factuurFmtDatum(f.vervaldatum)}</span></td>
+          <td>${facStatusPil(f)}</td>
+          <td class="num"><span class="fac-bedrag">${factuurFmtBedrag(t.openstaand)}</span></td></tr>`;
+      });
+    });
+  html+=`</tbody><tfoot><tr><td colspan="5">Totaal openstaand</td>
+    <td class="num">${factuurFmtBedrag(som(open))}</td></tr></tfoot></table></div>`;
+  return html;
+}
+
+/* ── Klantbeheer ── */
+function facRenderKlanten(){
+  const klanten=kanbanState.clients||[];
+  if(!klanten.length){
+    return `<div class="uren-empty"><b>Nog geen klanten</b>
+      Voeg een klant toe via de zijbalk of met de knop hieronder.
+      <div style="margin-top:14px"><button class="uren-btn uren-btn-primary" data-fac-action="facKlantNieuw">+ Klant toevoegen</button></div></div>`;
+  }
+  let html=`<div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+    <button class="uren-btn uren-btn-primary" data-fac-action="facKlantNieuw">+ Klant toevoegen</button></div>
+    <div class="fac-klanten">`;
+  klanten.forEach(c=>{
+    const col=CLIENT_COLORS[c.colorIdx%CLIENT_COLORS.length];
+    const compleet=factuurKlantCompleet(c);
+    const facturen=factuurState.invoices.filter(f=>f.clientId===c.id);
+    const omzet=facturen.filter(f=>f.status!=='concept').reduce((s,f)=>s+factuurTotalen(f).excl,0);
+    html+=`<div class="fac-klantkaart" style="--c:${col.bg}">
+      <h4><span style="width:10px;height:10px;border-radius:2px;background:${col.bg};flex-shrink:0"></span>
+        ${escapeHtml(c.bedrijfsnaam||c.name)}</h4>
+      <div class="adres">${compleet
+        ? escapeHtml(c.adres)+'<br>'+escapeHtml((c.postcode||'')+' '+(c.plaats||''))
+        : '<span class="fac-onvolledig">⚠ Adresgegevens ontbreken</span>'}</div>
+      <div class="meta">
+        <span>Tarief <b>${c.tarief?factuurFmtBedrag(c.tarief):'—'}</b></span>
+        <span>Termijn <b>${c.betaaltermijn||factuurSettings().betaaltermijn}d</b></span>
+        <span>Omzet <b>${factuurFmtBedrag(omzet)}</b></span>
+      </div>
+      <div class="acties">
+        <button class="uren-btn" data-fac-action="facKlantBewerk" data-fac-arg1="${c.id}">Gegevens</button>
+        ${facturen.length?`<span style="align-self:center;font-size:11.5px;color:var(--text-muted)">${facturen.length} factuur${facturen.length===1?'':'en'}</span>`:''}
+      </div></div>`;
+  });
+  return html+'</div>';
+}
+
+/* ── Nieuwe factuur: klant + periode ── */
+function facNieuwStart(){
+  const eind=new Date();
+  const start=new Date(eind.getFullYear(),eind.getMonth(),1);
+  facWizard={clientId:null,from:start.toISOString().slice(0,10),to:eind.toISOString().slice(0,10)};
+  facWizardRender();
+  document.getElementById('facWizardModal').classList.add('open');
+}
+function closeFacWizard(){
+  document.getElementById('facWizardModal').classList.remove('open');
+  facWizard=null;
+}
+/* Datumvelden en klantenlijst staan los van elkaar: een datumwijziging
+   ververst alleen de lijst, zodat het datumveld waar je in staat niet
+   onder je handen wordt vervangen. */
+function facWizardRender(){
+  const box=document.getElementById('facWizardBody');
+  if(!box||!facWizard)return;
+  box.innerHTML=`<div class="fac-ed-grid" style="margin-bottom:16px">
+    <div class="uren-fld"><label for="facWizFrom">Uren vanaf</label>
+      <input type="date" class="inp" id="facWizFrom" value="${facWizard.from}"
+        data-fac-change="facWizardVeld" data-fac-arg1="from"/></div>
+    <div class="uren-fld"><label for="facWizTo">Uren tot en met</label>
+      <input type="date" class="inp" id="facWizTo" value="${facWizard.to}"
+        data-fac-change="facWizardVeld" data-fac-arg1="to"/></div></div>
+    <div id="facWizardKlanten"></div>`;
+  facWizardRenderKlanten();
+}
+function facWizardRenderKlanten(){
+  const box=document.getElementById('facWizardKlanten');
+  if(!box||!facWizard)return;
+  const klanten=kanbanState.clients||[];
+  if(!klanten.length){
+    box.innerHTML=`<div class="uren-empty"><b>Nog geen klanten</b>Voeg eerst een klant toe.</div>`;
+  } else {
+    box.innerHTML=`<div class="fac-wizard-klanten">`+klanten.map(c=>{
+      const col=CLIENT_COLORS[c.colorIdx%CLIENT_COLORS.length];
+      const uren=factuurUrenVoorKlant(c.id,facWizard.from,facWizard.to);
+      const aantal=Math.round(uren.reduce((s,e)=>s+Number(e.hours||0),0)*100)/100;
+      const tarief=Number(c.tarief||0);
+      const gekozen=facWizard.clientId===c.id;
+      return `<button class="fac-wizard-klant" data-fac-action="facWizardKies" data-fac-arg1="${c.id}"
+        style="${gekozen?'border-color:var(--mint);background:var(--mint-soft)':''}">
+        <span class="sw" style="background:${col.bg}"></span>
+        <span class="nm">${escapeHtml(c.bedrijfsnaam||c.name)}</span>
+        <span class="uren">${aantal?urenFmt(aantal)+' u'+(tarief?' · '+factuurFmtBedrag(aantal*tarief):''):'geen open uren'}</span>
+      </button>`;
+    }).join('')+`</div>`;
+  }
+  const btn=document.getElementById('facWizardMaakBtn');
+  if(btn)btn.disabled=!facWizard.clientId;
+}
+function facWizardKies(id){
+  if(!facWizard)return;
+  facWizard.clientId=facWizard.clientId===id?null:id;
+  facWizardRender();
+}
+function facWizardMaak(){
+  if(!facWizard||!facWizard.clientId)return;
+  const klant=factuurKlant(facWizard.clientId);
+  const f=factuurNieuw(facWizard.clientId,facWizard.from,facWizard.to);
+  closeFacWizard();
+  facRenderAll();
+  facOpenEditor(f.id);
+  if(!factuurKlantCompleet(klant))
+    appToast('Vul de adresgegevens van deze klant nog aan — ze staan straks op de factuur',{type:'warning'});
+  else if(!f.regels.length)
+    appToast('Geen openstaande uren in deze periode — voeg zelf regels toe',{type:'info'});
+}
+function facWizardLeeg(){
+  const f=factuurNieuw(null,null,null);
+  closeFacWizard();
+  facRenderAll();
+  facOpenEditor(f.id);
+}
+
+/* ── Factuur-editor ── */
+function facOpenEditor(id){
+  const f=factuurById(id);
+  if(!f)return;
+  facEditId=id;
+  facEditorRender();
+  document.getElementById('facEditorModal').classList.add('open');
+}
+function closeFacEditor(){
+  document.getElementById('facEditorModal').classList.remove('open');
+  facEditId=null;
+  facRenderAll();
+}
+function facEditorRender(){
+  const f=factuurById(facEditId);
+  if(!f)return;
+  const bewerkbaar=f.status==='concept';
+  const t=factuurTotalen(f);
+  const klant=factuurKlant(f.clientId);
+  const klantData=f.klant||factuurKlantSnapshot(klant);
+
+  document.getElementById('facEditorTitel').textContent=
+    (bewerkbaar?'Concept ':'Factuur ')+f.nummer;
+  document.getElementById('facEditorSub').textContent=
+    bewerkbaar?'Nummer wordt definitief bij versturen':
+      (f.verstuurdOp?'Verstuurd op '+factuurFmtDatum(f.verstuurdOp.slice(0,10)):'');
+  document.getElementById('facEditorStatus').innerHTML=facStatusPil(f);
+
+  const veld=(label,key,waarde,type)=>`
+    <div class="uren-fld"><label>${label}</label>
+      <input type="${type||'text'}" class="fac-ed-inp" value="${escapeHtml(String(waarde||''))}"
+        data-fac-change="facEdVeld" data-fac-arg1="${key}" ${bewerkbaar?'':'disabled'}/></div>`;
+
+  let html='';
+  /* Klant + kop */
+  html+=`<div class="fac-ed-grid">
+    <div class="uren-fld"><label>Klant</label>
+      <select class="fac-ed-inp" data-fac-change="facEdVeld" data-fac-arg1="clientId" ${bewerkbaar?'':'disabled'}>
+        <option value="">— kies klant —</option>
+        ${(kanbanState.clients||[]).map(c=>`<option value="${c.id}"${f.clientId===c.id?' selected':''}>${escapeHtml(c.bedrijfsnaam||c.name)}</option>`).join('')}
+      </select></div>
+    ${veld('Referentie / inkoopnummer','referentie',f.referentie)}
+    ${veld('Factuurdatum','datum',f.datum,'date')}
+    ${veld('Vervaldatum','vervaldatum',f.vervaldatum,'date')}
+  </div>
+  <div class="uren-fld" style="margin-top:12px">${''}
+    <label>Betreft</label>
+    <input type="text" class="fac-ed-inp" value="${escapeHtml(f.betreft||'')}"
+      data-fac-change="facEdVeld" data-fac-arg1="betreft" ${bewerkbaar?'':'disabled'}
+      placeholder="Bijv. Gewerkte uren juli 2026"/></div>`;
+
+  /* Adres zoals het op de factuur komt */
+  html+=`<div style="margin-top:14px;padding:12px 14px;background:var(--surface2);border-radius:var(--radius-md);font-size:12.5px;line-height:1.6;color:var(--text)">
+    <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);margin-bottom:5px">Factuuradres</div>
+    ${klantData.naam?escapeHtml(klantData.naam):'<span style="color:var(--text-muted)">geen klant gekozen</span>'}
+    ${klantData.adres?'<br>'+escapeHtml(klantData.adres):''}
+    ${klantData.postcode||klantData.plaats?'<br>'+escapeHtml((klantData.postcode||'')+' '+(klantData.plaats||'')):''}
+    ${klantData.btwNummer?'<br>Btw: '+escapeHtml(klantData.btwNummer):''}
+    ${bewerkbaar&&f.clientId&&!factuurKlantCompleet(klant)?
+      `<div style="margin-top:8px"><span class="fac-onvolledig">⚠ Adres onvolledig</span>
+       <button class="uren-btn" style="margin-left:8px" data-fac-action="facKlantBewerk" data-fac-arg1="${f.clientId}">Aanvullen</button></div>`:''}
+  </div>`;
+
+  /* Regels */
+  html+=`<div style="margin-top:18px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+      <div style="font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted)">Factuurregels</div>
+      <div style="flex:1"></div>
+      ${bewerkbaar?`<button class="uren-btn" data-fac-action="facUrenOphalen">↻ Uren ophalen</button>
+      <button class="uren-btn" data-fac-action="facRegelToevoegen">+ Regel</button>`:''}
+    </div>
+    <table class="fac-ed-regels"><thead><tr>
+      <th style="width:44%">Omschrijving</th><th class="num" style="width:82px">Aantal</th>
+      <th style="width:74px">Eenheid</th><th class="num" style="width:104px">Stuksprijs</th>
+      <th style="width:108px">Btw</th><th class="num" style="width:104px">Bedrag</th>
+      ${bewerkbaar?'<th style="width:32px"></th>':''}</tr></thead><tbody>`;
+  (f.regels||[]).forEach(r=>{
+    html+=`<tr>
+      <td><input type="text" class="fac-ed-inp" value="${escapeHtml(r.omschrijving||'')}"
+        data-fac-change="facEdRegel" data-fac-arg1="${r.id}" data-fac-arg2="omschrijving" ${bewerkbaar?'':'disabled'}/></td>
+      <td><input type="number" step="0.01" class="fac-ed-inp num" value="${r.aantal||0}"
+        data-fac-change="facEdRegel" data-fac-arg1="${r.id}" data-fac-arg2="aantal" ${bewerkbaar?'':'disabled'}/></td>
+      <td><input type="text" class="fac-ed-inp" value="${escapeHtml(r.eenheid||'uur')}"
+        data-fac-change="facEdRegel" data-fac-arg1="${r.id}" data-fac-arg2="eenheid" ${bewerkbaar?'':'disabled'}/></td>
+      <td><input type="number" step="0.01" class="fac-ed-inp num" value="${r.stuksprijs||0}"
+        data-fac-change="facEdRegel" data-fac-arg1="${r.id}" data-fac-arg2="stuksprijs" ${bewerkbaar?'':'disabled'}/></td>
+      <td><select class="fac-ed-inp" data-fac-change="facEdRegel" data-fac-arg1="${r.id}" data-fac-arg2="btwTarief" ${bewerkbaar||f.btwVerlegd?'':'disabled'}>
+        ${BTW_TARIEVEN.filter(b=>b.id!=='verlegd').map(b=>`<option value="${b.id}"${Number(r.btwTarief)===b.id?' selected':''}>${b.label}</option>`).join('')}
+      </select></td>
+      <td class="num" style="padding-top:8px"><span class="fac-bedrag">${factuurFmtBedrag(factuurRegelBedrag(r))}</span></td>
+      ${bewerkbaar?`<td><button class="fac-ed-del" data-fac-action="facRegelVerwijder" data-fac-arg1="${r.id}" title="Regel verwijderen">✕</button></td>`:''}
+    </tr>`;
+    if(r.urenIds&&r.urenIds.length){
+      html+=`<tr><td colspan="${bewerkbaar?7:6}" style="padding:0 8px 8px">
+        <span style="font-size:11px;color:var(--text-muted)">↳ ${r.urenIds.length} urenregistratie${r.urenIds.length===1?'':'s'} gekoppeld</span></td></tr>`;
+    }
+  });
+  if(!(f.regels||[]).length){
+    html+=`<tr><td colspan="${bewerkbaar?7:6}" style="padding:20px;text-align:center;color:var(--text-hint);font-size:12.5px">
+      Nog geen regels${bewerkbaar?' — haal uren op of voeg er zelf een toe':''}.</td></tr>`;
+  }
+  html+=`</tbody></table></div>`;
+
+  /* Btw verlegd + totalen */
+  html+=`<div style="display:flex;gap:20px;margin-top:16px;align-items:flex-start;flex-wrap:wrap">
+    <div style="flex:1;min-width:240px;display:flex;flex-direction:column;gap:12px">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:${bewerkbaar?'pointer':'default'};user-select:none">
+        <input type="checkbox" ${f.btwVerlegd?'checked':''} ${bewerkbaar?'':'disabled'}
+          data-fac-change="facEdVeld" data-fac-arg1="btwVerlegd" style="accent-color:var(--mint);width:15px;height:15px"/>
+        Btw verlegd</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:${bewerkbaar?'pointer':'default'};user-select:none">
+        <input type="checkbox" ${f.specificatie?'checked':''} ${bewerkbaar?'':'disabled'}
+          data-fac-change="facEdVeld" data-fac-arg1="specificatie" style="accent-color:var(--mint);width:15px;height:15px"/>
+        Urenspecificatie als bijlage meesturen</label>
+      <div class="uren-fld"><label>Notitie op de factuur</label>
+        <textarea class="fac-ed-inp" rows="3" data-fac-change="facEdVeld" data-fac-arg1="notitie"
+          ${bewerkbaar?'':'disabled'} placeholder="Optionele tekst onder de regels">${escapeHtml(f.notitie||'')}</textarea></div>
+    </div>
+    <div class="fac-ed-tot">
+      <div class="rij"><span>Totaal excl. btw</span><b>${factuurFmtBedrag(t.excl)}</b></div>
+      ${t.staffel.map(s=>`<div class="rij"><span>${s.tarief==='verlegd'?'Btw verlegd':(s.pct?`Btw ${s.pct}%`:'Btw 0%')}</span><b>${factuurFmtBedrag(s.bedrag)}</b></div>`).join('')}
+      <div class="rij eind"><span>Totaal incl. btw</span><b>${factuurFmtBedrag(t.incl)}</b></div>
+      ${t.betaald>0?`<div class="rij"><span>Reeds betaald</span><b>${factuurFmtBedrag(t.betaald)}</b></div>
+        <div class="rij eind"><span>Openstaand</span><b>${factuurFmtBedrag(t.openstaand)}</b></div>`:''}
+    </div></div>`;
+
+  document.getElementById('facEditorBody').innerHTML=html;
+
+  /* Acties onderin, afhankelijk van de status */
+  let acties='';
+  if(bewerkbaar){
+    acties=`<button class="uren-btn" data-fac-action="facVerwijder">Verwijderen</button>
+      <div style="flex:1"></div>
+      <button class="uren-btn" data-fac-action="facPdf">↧ PDF</button>
+      <button class="uren-btn uren-btn-primary" data-fac-action="facVerstuur">Versturen</button>`;
+  } else {
+    acties=`<button class="uren-btn" data-fac-action="facTerugConcept">← Terug naar concept</button>
+      <button class="uren-btn" data-fac-action="facDupliceer">Dupliceren</button>
+      <div style="flex:1"></div>
+      <button class="uren-btn" data-fac-action="facPdf">↧ PDF</button>
+      ${f.status!=='betaald'?`<button class="uren-btn uren-btn-primary" data-fac-action="facBetaald">Betaling registreren</button>`:''}`;
+  }
+  document.getElementById('facEditorActies').innerHTML=acties;
+}
+
+function facEdVeld(el,key){
+  const f=factuurById(facEditId);
+  if(!f)return;
+  let waarde=el.type==='checkbox'?el.checked:el.value;
+  if(key==='clientId'){
+    const klant=factuurKlant(waarde);
+    factuurUpdate(f.id,{clientId:waarde||null});
+    if(klant&&klant.betaaltermijn)factuurUpdate(f.id,{vervaldatum:factuurVervaldatum(f.datum,klant.betaaltermijn)});
+    facEditorRender();return;
+  }
+  if(key==='datum'){
+    const klant=factuurKlant(f.clientId);
+    const termijn=(klant&&klant.betaaltermijn)||factuurSettings().betaaltermijn;
+    factuurUpdate(f.id,{datum:waarde,vervaldatum:factuurVervaldatum(waarde,termijn)});
+    facEditorRender();return;
+  }
+  factuurUpdate(f.id,{[key]:waarde});
+  if(key==='btwVerlegd'||key==='specificatie')facEditorRender();
+}
+function facEdRegel(el,regelId,key){
+  const f=factuurById(facEditId);
+  if(!f)return;
+  const r=(f.regels||[]).find(x=>x.id===regelId);
+  if(!r)return;
+  r[key]=(key==='aantal'||key==='stuksprijs'||key==='btwTarief')?Number(el.value):el.value;
+  factuurUpdate(f.id,{});
+  facEditorRender();
+}
+function facRegelToevoegen(){
+  const f=factuurById(facEditId);
+  if(!f)return;
+  f.regels=f.regels||[];
+  f.regels.push({id:factuurUid(),omschrijving:'',aantal:1,eenheid:'uur',
+    stuksprijs:Number((factuurKlant(f.clientId)||{}).tarief||0),
+    btwTarief:factuurSettings().btwStandaard,urenIds:[]});
+  factuurUpdate(f.id,{});
+  facEditorRender();
+}
+function facRegelVerwijder(id){
+  const f=factuurById(facEditId);
+  if(!f)return;
+  f.regels=(f.regels||[]).filter(r=>r.id!==id);
+  factuurUpdate(f.id,{});
+  facEditorRender();
+}
+/* Haalt (opnieuw) de openstaande uren op voor de periode van de factuur */
+function facUrenOphalen(){
+  const f=factuurById(facEditId);
+  if(!f||!f.clientId){appToast('Kies eerst een klant',{type:'warning'});return;}
+  const p=f.urenPeriode||{from:f.datum.slice(0,8)+'01',to:f.datum};
+  const nieuw=factuurRegelsUitUren(f.clientId,p.from,p.to,f.betreft||factuurStandaardBetreft(f.clientId,p.from,p.to));
+  if(!nieuw.length){appToast('Geen openstaande uren in deze periode',{type:'info'});return;}
+  /* Bestaande urenregels vervangen, handmatige regels behouden */
+  f.regels=(f.regels||[]).filter(r=>!(r.urenIds&&r.urenIds.length)).concat(nieuw);
+  f.urenPeriode=p;
+  factuurUpdate(f.id,{});
+  facEditorRender();
+  const uren=nieuw.reduce((s,r)=>s+r.aantal,0);
+  appToast(`${urenFmt(uren)} uur overgenomen`,{type:'success'});
+}
+
+/* ── Statusacties ── */
+function facVerstuur(){
+  const f=factuurById(facEditId);
+  if(!f)return;
+  const klant=factuurKlant(f.clientId);
+  if(!f.clientId){appToast('Kies eerst een klant',{type:'warning'});return;}
+  if(!factuurKlantCompleet(klant)){
+    appToast('Adresgegevens van de klant zijn niet compleet',{type:'warning'});
+    openKlantModal(f.clientId);return;
+  }
+  if(!(f.regels||[]).length){appToast('Voeg eerst een factuurregel toe',{type:'warning'});return;}
+  const t=factuurTotalen(f);
+  const urenAantal=factuurUrenIds(f).length;
+  const bevestig=`Factuur versturen?\n\n`+
+    `${klant.bedrijfsnaam||klant.name}\n`+
+    `${factuurFmtBedrag(t.incl)} incl. btw · vervalt ${factuurFmtDatum(f.vervaldatum)}\n\n`+
+    (urenAantal?`${urenAantal} urenregistratie${urenAantal===1?'':'s'} gaan op "gefactureerd".\n`:'')+
+    `Het factuurnummer wordt definitief vastgelegd.`;
+  if(!confirm(bevestig))return;
+  factuurMarkeerVerstuurd(f.id);
+  facEditorRender();
+  facRenderAll();
+  if(typeof renderUrenModule==='function'&&activeModule==='uren')renderUrenModule();
+  appToast(`${f.nummer} verstuurd · ${factuurFmtBedrag(t.incl)}`,{type:'success'});
+}
+function facTerugNaarConcept(){
+  const f=factuurById(facEditId);
+  if(!f)return;
+  if(!confirm(`${f.nummer} terugzetten naar concept?\n\nDe gekoppelde uren komen weer vrij om te factureren.`))return;
+  factuurTerugNaarConcept(f.id);
+  facEditorRender();
+  facRenderAll();
+}
+function facBetaaldDialoog(id){
+  const f=factuurById(id||facEditId);
+  if(!f)return;
+  const t=factuurTotalen(f);
+  const inp=prompt(`Betaling registreren voor ${f.nummer}\n\nOpenstaand: ${factuurFmtBedrag(t.openstaand)}\n\nBedrag (leeg = volledig):`,'');
+  if(inp===null)return;
+  const bedrag=inp.trim()===''?null:Number(inp.replace(',','.'));
+  if(bedrag!==null&&(isNaN(bedrag)||bedrag<=0)){appToast('Ongeldig bedrag',{type:'warning'});return;}
+  factuurMarkeerBetaald(f.id,bedrag,null);
+  facEditorRender();
+  facRenderAll();
+  appToast('Betaling geregistreerd',{type:'success'});
+}
+function facDupliceerActie(id){
+  const nieuw=factuurDupliceer(id||facEditId);
+  if(!nieuw)return;
+  closeFacEditor();
+  facRenderAll();
+  facOpenEditor(nieuw.id);
+  appToast('Kopie gemaakt als concept',{type:'success'});
+}
+function facVerwijderActie(id){
+  const f=factuurById(id||facEditId);
+  if(!f)return;
+  if(f.status!=='concept'&&!confirm(`${f.nummer} is al verstuurd. Toch verwijderen?\n\nVoor de administratie is crediteren meestal juister dan verwijderen.`))return;
+  const fid=f.id;
+  closeFacEditor();
+  factuurVerwijder([fid]);
+}
+
+/* ── Klantgegevens ── */
+let klantModalId=null;
+function openKlantModal(id){
+  klantModalId=id||null;
+  const c=id?factuurKlant(id):null;
+  document.getElementById('klantModalTitel').textContent=c?('Klantgegevens · '+(c.bedrijfsnaam||c.name)):'Nieuwe klant';
+  const v=(k,d)=>escapeHtml(String((c&&c[k])||d||''));
+  const s=factuurSettings();
+  document.getElementById('klantModalBody').innerHTML=`
+    <div class="fac-ed-grid">
+      <div class="uren-fld"><label>Weergavenaam (in de app)</label>
+        <input type="text" class="fac-ed-inp" id="kmNaam" value="${v('name')}" placeholder="Korte naam"/></div>
+      <div class="uren-fld"><label>Bedrijfsnaam (op de factuur)</label>
+        <input type="text" class="fac-ed-inp" id="kmBedrijf" value="${v('bedrijfsnaam')}" placeholder="Volledige tenaamstelling"/></div>
+    </div>
+    <div class="uren-fld" style="margin-top:12px"><label>Adres</label>
+      <input type="text" class="fac-ed-inp" id="kmAdres" value="${v('adres')}" placeholder="Straat en huisnummer"/></div>
+    <div class="fac-ed-grid" style="margin-top:12px">
+      <div class="uren-fld"><label>Postcode</label>
+        <input type="text" class="fac-ed-inp" id="kmPostcode" value="${v('postcode')}"/></div>
+      <div class="uren-fld"><label>Plaats</label>
+        <input type="text" class="fac-ed-inp" id="kmPlaats" value="${v('plaats')}"/></div>
+    </div>
+    <div class="fac-ed-grid" style="margin-top:12px">
+      <div class="uren-fld"><label>Btw-nummer</label>
+        <input type="text" class="fac-ed-inp" id="kmBtw" value="${v('btwNummer')}" placeholder="NL..."/></div>
+      <div class="uren-fld"><label>KVK-nummer</label>
+        <input type="text" class="fac-ed-inp" id="kmKvk" value="${v('kvk')}"/></div>
+    </div>
+    <div class="fac-ed-grid" style="margin-top:12px">
+      <div class="uren-fld"><label>E-mail (facturen)</label>
+        <input type="email" class="fac-ed-inp" id="kmEmail" value="${v('email')}"/></div>
+      <div class="uren-fld"><label>Contactpersoon</label>
+        <input type="text" class="fac-ed-inp" id="kmContact" value="${v('contactpersoon')}"/></div>
+    </div>
+    <div style="height:1px;background:var(--border);margin:18px 0"></div>
+    <div class="fac-ed-grid">
+      <div class="uren-fld"><label>Uurtarief (€)</label>
+        <input type="number" step="0.01" class="fac-ed-inp num" id="kmTarief" value="${v('tarief')}" placeholder="0,00"/></div>
+      <div class="uren-fld"><label>Betaaltermijn (dagen)</label>
+        <input type="number" class="fac-ed-inp num" id="kmTermijn" value="${v('betaaltermijn',s.betaaltermijn)}"/></div>
+    </div>
+    <div class="fac-ed-grid" style="margin-top:12px">
+      <div class="uren-fld"><label>Btw-tarief</label>
+        <select class="fac-ed-inp" id="kmBtwTarief">
+          ${BTW_TARIEVEN.filter(b=>b.id!=='verlegd').map(b=>{
+            const huidig=c&&c.btwTarief!=null?Number(c.btwTarief):s.btwStandaard;
+            return `<option value="${b.id}"${huidig===b.id?' selected':''}>${b.label}</option>`;}).join('')}
+        </select></div>
+      <div class="uren-fld"><label>Standaard op factuur</label>
+        <div style="display:flex;flex-direction:column;gap:7px;padding-top:5px">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="kmVerlegd" ${c&&c.btwVerlegd?'checked':''} style="accent-color:var(--mint);width:15px;height:15px"/>Btw verlegd</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="kmSpec" ${c&&c.specificatie?'checked':''} style="accent-color:var(--mint);width:15px;height:15px"/>Urenspecificatie meesturen</label>
+        </div></div>
+    </div>
+    <div class="uren-fld" style="margin-top:12px"><label>Vaste tekst op facturen</label>
+      <textarea class="fac-ed-inp" id="kmTekst" rows="2" placeholder="Optioneel">${v('factuurtekst')}</textarea></div>`;
+  document.getElementById('klantModal').classList.add('open');
+  setTimeout(()=>document.getElementById('kmNaam')?.focus(),40);
+}
+function closeKlantModal(){
+  document.getElementById('klantModal').classList.remove('open');
+  klantModalId=null;
+}
+function klantModalOpslaan(){
+  const g=id=>document.getElementById(id);
+  const naam=g('kmNaam').value.trim();
+  if(!naam){appToast('Vul een naam in',{type:'warning'});g('kmNaam').focus();return;}
+  const data={
+    name:naam,
+    bedrijfsnaam:g('kmBedrijf').value.trim(),
+    adres:g('kmAdres').value.trim(),
+    postcode:g('kmPostcode').value.trim(),
+    plaats:g('kmPlaats').value.trim(),
+    btwNummer:g('kmBtw').value.trim(),
+    kvk:g('kmKvk').value.trim(),
+    email:g('kmEmail').value.trim(),
+    contactpersoon:g('kmContact').value.trim(),
+    tarief:Number(g('kmTarief').value)||0,
+    betaaltermijn:Number(g('kmTermijn').value)||factuurSettings().betaaltermijn,
+    btwTarief:Number(g('kmBtwTarief').value),
+    btwVerlegd:g('kmVerlegd').checked,
+    specificatie:g('kmSpec').checked,
+    factuurtekst:g('kmTekst').value.trim()
+  };
+  if(klantModalId){
+    const c=factuurKlant(klantModalId);
+    if(c)Object.assign(c,data);
+  } else {
+    kanbanState.clients=kanbanState.clients||[];
+    kanbanState.clients.push({id:uid(),colorIdx:kanbanState.clients.length%CLIENT_COLORS.length,...data});
+  }
+  scheduleSave();
+  closeKlantModal();
+  facRenderAll();
+  if(typeof renderClientFilters==='function')renderClientFilters();
+  if(facEditId)facEditorRender();
+  appToast('Klantgegevens opgeslagen',{type:'success'});
+}
+
+/* ── Instellingen ── */
+function openFacInstellingen(){
+  closeFacMenu();
+  const s=factuurSettings(), b=s.bedrijf;
+  const v=(k)=>escapeHtml(String(b[k]||''));
+  document.getElementById('facInstellingenBody').innerHTML=`
+    <div class="uren-fld"><label>Bedrijfsnaam</label>
+      <input type="text" class="fac-ed-inp" id="fiNaam" value="${v('naam')}"/></div>
+    <div class="uren-fld" style="margin-top:12px"><label>Adres</label>
+      <input type="text" class="fac-ed-inp" id="fiAdres" value="${v('adres')}"/></div>
+    <div class="fac-ed-grid" style="margin-top:12px">
+      <div class="uren-fld"><label>Postcode</label><input type="text" class="fac-ed-inp" id="fiPostcode" value="${v('postcode')}"/></div>
+      <div class="uren-fld"><label>Plaats</label><input type="text" class="fac-ed-inp" id="fiPlaats" value="${v('plaats')}"/></div>
+    </div>
+    <div class="fac-ed-grid" style="margin-top:12px">
+      <div class="uren-fld"><label>Btw-nummer</label><input type="text" class="fac-ed-inp" id="fiBtw" value="${v('btwNummer')}"/></div>
+      <div class="uren-fld"><label>KVK-nummer</label><input type="text" class="fac-ed-inp" id="fiKvk" value="${v('kvk')}"/></div>
+    </div>
+    <div class="fac-ed-grid" style="margin-top:12px">
+      <div class="uren-fld"><label>Telefoon</label><input type="text" class="fac-ed-inp" id="fiTel" value="${v('tel')}"/></div>
+      <div class="uren-fld"><label>E-mail</label><input type="email" class="fac-ed-inp" id="fiEmail" value="${v('email')}"/></div>
+    </div>
+    <div class="fac-ed-grid" style="margin-top:12px">
+      <div class="uren-fld"><label>IBAN</label><input type="text" class="fac-ed-inp" id="fiIban" value="${v('iban')}"/></div>
+      <div class="uren-fld"><label>BIC</label><input type="text" class="fac-ed-inp" id="fiBic" value="${v('bic')}"/></div>
+    </div>
+    <div style="height:1px;background:var(--border);margin:18px 0"></div>
+    <div class="fac-ed-grid">
+      <div class="uren-fld"><label>Nummer-voorvoegsel</label>
+        <input type="text" class="fac-ed-inp" id="fiPrefix" value="${escapeHtml(s.nummer.prefix)}"/></div>
+      <div class="uren-fld"><label>Volgend nummer</label>
+        <input type="number" class="fac-ed-inp num" id="fiVolgend" value="${s.nummer.volgend}"/></div>
+    </div>
+    <div style="font-size:11.5px;color:var(--text-muted);margin-top:6px">
+      Eerstvolgende factuur wordt <b style="font-family:var(--font-mono);color:var(--text)">${escapeHtml(factuurVolgendNummer(true))}</b></div>
+    <div class="fac-ed-grid" style="margin-top:12px">
+      <div class="uren-fld"><label>Standaard betaaltermijn (dagen)</label>
+        <input type="number" class="fac-ed-inp num" id="fiTermijn" value="${s.betaaltermijn}"/></div>
+      <div class="uren-fld"><label>Standaard btw-tarief</label>
+        <select class="fac-ed-inp" id="fiBtwStandaard">
+          ${BTW_TARIEVEN.filter(x=>x.id!=='verlegd').map(x=>`<option value="${x.id}"${s.btwStandaard===x.id?' selected':''}>${x.label}</option>`).join('')}
+        </select></div>
+    </div>
+    <div class="uren-fld" style="margin-top:12px"><label>Voettekst op de factuur</label>
+      <textarea class="fac-ed-inp" id="fiVoet" rows="2">${escapeHtml(s.voettekst||'')}</textarea></div>`;
+  document.getElementById('facInstellingenModal').classList.add('open');
+}
+function closeFacInstellingen(){document.getElementById('facInstellingenModal').classList.remove('open');}
+function facInstellingenOpslaan(){
+  const g=id=>document.getElementById(id).value;
+  const s=factuurSettings();
+  s.bedrijf={naam:g('fiNaam').trim(),adres:g('fiAdres').trim(),postcode:g('fiPostcode').trim(),
+    plaats:g('fiPlaats').trim(),btwNummer:g('fiBtw').trim(),kvk:g('fiKvk').trim(),
+    tel:g('fiTel').trim(),email:g('fiEmail').trim(),iban:g('fiIban').trim(),bic:g('fiBic').trim()};
+  s.nummer.prefix=g('fiPrefix').trim()||'F';
+  s.nummer.volgend=Number(g('fiVolgend'))||1;
+  s.betaaltermijn=Number(g('fiTermijn'))||30;
+  s.btwStandaard=Number(g('fiBtwStandaard'));
+  s.voettekst=g('fiVoet').trim();
+  scheduleSave();
+  closeFacInstellingen();
+  facRenderAll();
+  appToast('Instellingen opgeslagen',{type:'success'});
+}
+
+/* ── Menu + filters ── */
+function facToggleMenu(){
+  if(document.getElementById('facMenu')){closeFacMenu();return;}
+  closeFacFilterPop();
+  const btn=document.getElementById('facMenuBtn');
+  if(!btn)return;
+  const m=document.createElement('div');
+  m.className='uren-menu';m.id='facMenu';m.setAttribute('role','menu');
+  m.innerHTML=`
+    <button class="uren-menu-item" role="menuitem" data-fac-action="openFacInstellingen">
+      <span class="ic" aria-hidden="true">⚙</span>
+      <span>Facturatie-instellingen<small>Bedrijfsgegevens en nummering</small></span></button>
+    <button class="uren-menu-item" role="menuitem" data-fac-action="facKlantNieuw">
+      <span class="ic" aria-hidden="true">+</span><span>Klant toevoegen</span></button>
+    <div class="uren-menu-sep"></div>
+    <button class="uren-menu-item" role="menuitem" data-fac-action="facExportBoekhouding">
+      <span class="ic" aria-hidden="true">↧</span>
+      <span>Export voor boekhouding<small>Alle facturen van ${facJaar} als Excel</small></span></button>`;
+  document.body.appendChild(m);
+  urenPlacePopover(m,btn);
+  btn.setAttribute('aria-expanded','true');
+  setTimeout(()=>document.addEventListener('mousedown',facMenuOutside),20);
+}
+function facMenuOutside(e){
+  const m=document.getElementById('facMenu');
+  if(m&&!m.contains(e.target)&&!e.target.closest('#facMenuBtn'))closeFacMenu();
+}
+function closeFacMenu(){
+  document.getElementById('facMenu')?.remove();
+  document.getElementById('facMenuBtn')?.setAttribute('aria-expanded','false');
+  document.removeEventListener('mousedown',facMenuOutside);
+}
+function facToggleFilters(){
+  if(document.getElementById('facFilterPop')){closeFacFilterPop();return;}
+  closeFacMenu();
+  const btn=document.getElementById('facFilterBtn');
+  if(!btn)return;
+  const pop=document.createElement('div');
+  pop.className='uren-filterpop';pop.id='facFilterPop';pop.setAttribute('role','dialog');
+  pop.innerHTML=`
+    <div><label for="facFilterStatusSel">Status</label>
+      <select id="facFilterStatusSel" data-fac-change="facSetFilterStatus">
+        <option value="">Alle statussen</option>
+        ${FACTUUR_STATUSSEN.map(s=>`<option value="${s.id}"${facFilterStatus===s.id?' selected':''}>${s.label}</option>`).join('')}
+        <option value="telaat"${facFilterStatus==='telaat'?' selected':''}>Over de vervaldatum</option>
+      </select></div>
+    <div><label for="facFilterClientSel">Klant</label>
+      <select id="facFilterClientSel" data-fac-change="facSetFilterClient">
+        <option value="">Alle klanten</option>
+        ${(kanbanState.clients||[]).map(c=>`<option value="${c.id}"${facFilterClient===c.id?' selected':''}>${escapeHtml(c.bedrijfsnaam||c.name)}</option>`).join('')}
+      </select></div>`;
+  document.body.appendChild(pop);
+  urenPlacePopover(pop,btn);
+  btn.setAttribute('aria-expanded','true');
+  setTimeout(()=>document.addEventListener('mousedown',facFilterPopOutside),20);
+}
+function facFilterPopOutside(e){
+  const pop=document.getElementById('facFilterPop');
+  if(pop&&!pop.contains(e.target)&&!e.target.closest('#facFilterBtn'))closeFacFilterPop();
+}
+function closeFacFilterPop(){
+  document.getElementById('facFilterPop')?.remove();
+  document.getElementById('facFilterBtn')?.setAttribute('aria-expanded','false');
+  document.removeEventListener('mousedown',facFilterPopOutside);
+}
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Escape')return;
+  closeFacMenu();closeFacFilterPop();
+});
+window.addEventListener('resize',()=>{closeFacMenu();closeFacFilterPop();});
+
+/* ── PDF ──
+   Indeling volgt de bestaande facturen: afzender rechtsboven, klant
+   links, dan de kop met nummers/datums, de betaalzin, de regeltabel en
+   de btw-staffel. Handmatig getekend met jsPDF; geen autotable-plugin,
+   want de tabel is smal en voorspelbaar. */
+function facPdfDoc(f){
+  if(!window.jspdf||!window.jspdf.jsPDF)return null;
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:'mm',format:'a4'});
+  const L=20, R=190, breedte=R-L;
+  const klant=f.klant||factuurKlantSnapshot(factuurKlant(f.clientId));
+  const afz=f.afzender||factuurAfzenderSnapshot();
+  const t=factuurTotalen(f);
+  const navy=[15,27,61], grijs=[91,104,118], lijn=[215,222,230];
+  let y=22;
+
+  /* Afzender rechtsboven */
+  doc.setFont('helvetica','bold').setFontSize(13).setTextColor(...navy);
+  doc.text(afz.naam||'',R,y,{align:'right'});
+  doc.setFont('helvetica','normal').setFontSize(8.5).setTextColor(...grijs);
+  const afzRegels=[afz.adres,(afz.postcode||'')+' '+(afz.plaats||''),
+    afz.btwNummer?'Btw-nummer: '+afz.btwNummer:'', afz.kvk?'KVK-nummer: '+afz.kvk:'',
+    afz.tel?'Tel.: '+afz.tel:'', afz.iban?'IBAN: '+afz.iban:'', afz.bic?'BIC: '+afz.bic:''
+  ].filter(s=>s&&s.trim());
+  let ay=y+6;
+  afzRegels.forEach(r=>{doc.text(r,R,ay,{align:'right'});ay+=4.2;});
+
+  /* Klantadres links */
+  doc.setFont('helvetica','bold').setFontSize(10.5).setTextColor(...navy);
+  doc.text(klant.naam||'',L,y);
+  doc.setFont('helvetica','normal').setFontSize(9.5).setTextColor(...grijs);
+  let ky=y+5.5;
+  [klant.adres,(klant.postcode||'')+' '+(klant.plaats||''),klant.land]
+    .filter(s=>s&&s.trim()).forEach(r=>{doc.text(r,L,ky);ky+=4.6;});
+
+  y=Math.max(ay,ky)+8;
+
+  /* Factuurkop */
+  doc.setDrawColor(...navy).setLineWidth(0.5).line(L,y,R,y);
+  y+=6;
+  doc.setFontSize(9.5).setTextColor(...navy);
+  const kop=[['Factuurdatum:',factuurFmtDatum(f.datum)],
+             ['Vervaldatum:',factuurFmtDatum(f.vervaldatum)],
+             ['Factuur:',f.nummer]];
+  if(f.referentie)kop.push(['Referentie:',f.referentie]);
+  kop.forEach(([k,v])=>{
+    doc.setFont('helvetica','normal').text(k,L,y);
+    doc.setFont('helvetica','bold').text(String(v),L+30,y);
+    y+=4.8;
+  });
+  if(f.betreft){
+    doc.setFont('helvetica','normal').text('Betreft:',L,y);
+    const bt=doc.splitTextToSize(f.betreft,breedte-30);
+    doc.setFont('helvetica','bold').text(bt,L+30,y);
+    y+=4.8*bt.length;
+  }
+  y+=4;
+
+  /* Betaalzin — dezelfde formulering als de bestaande facturen */
+  doc.setFont('helvetica','normal').setFontSize(9.5).setTextColor(...navy);
+  const zin=`Gelieve dit bedrag van ${factuurFmtBedrag(t.incl)} over te maken voor: `+
+    `${factuurFmtDatum(f.vervaldatum)} op rekeningnummer: ${afz.iban||''} t.n.v. `+
+    `${(afz.naam||'').replace(/ B\.V\.$/,'')} o.v.v. "Factuur ${f.nummer}".`;
+  const zinRegels=doc.splitTextToSize(zin,breedte);
+  doc.text(zinRegels,L,y);
+  y+=zinRegels.length*4.6+6;
+
+  /* Regeltabel */
+  const kolAantal=L, kolOms=L+18, kolExcl=R-56, kolIncl=R;
+  doc.setFillColor(240,244,248).rect(L-2,y-4.5,breedte+4,8,'F');
+  doc.setFont('helvetica','bold').setFontSize(8).setTextColor(...navy);
+  doc.text('Aantal',kolAantal,y);
+  doc.text('Beschrijving',kolOms,y);
+  doc.text('Bedrag excl. btw',kolExcl,y,{align:'right'});
+  doc.text('Bedrag incl. btw',kolIncl,y,{align:'right'});
+  y+=7;
+
+  doc.setFont('helvetica','normal').setFontSize(9).setTextColor(...navy);
+  (f.regels||[]).forEach(r=>{
+    if(y>250){doc.addPage();y=25;}
+    const bedrag=factuurRegelBedrag(r);
+    const pct=f.btwVerlegd?0:Number(r.btwTarief||0);
+    const inclR=Math.round(bedrag*(100+pct))/100;
+    doc.text(urenFmt(Number(r.aantal||0)),kolAantal,y);
+    const oms=doc.splitTextToSize(r.omschrijving||'',kolExcl-kolOms-8);
+    doc.text(oms,kolOms,y);
+    doc.text(factuurFmtBedrag(bedrag),kolExcl,y,{align:'right'});
+    doc.text(factuurFmtBedrag(inclR),kolIncl,y,{align:'right'});
+    let ry=y+oms.length*4.4;
+    doc.setFontSize(8).setTextColor(...grijs);
+    doc.text(`Stuksprijs: ${factuurFmtBedrag(r.stuksprijs)}`,kolOms,ry);
+    ry+=4;
+    if(!f.btwVerlegd){doc.text(`${pct}% Btw`,kolOms,ry);ry+=4;}
+    doc.setFontSize(9).setTextColor(...navy);
+    y=ry+2.5;
+    doc.setDrawColor(...lijn).setLineWidth(0.2).line(L,y-1.5,R,y-1.5);
+    y+=3;
+  });
+
+  /* Totalen */
+  y+=3;
+  if(y>245){doc.addPage();y=25;}
+  const totRij=(label,waarde,vet)=>{
+    doc.setFont('helvetica',vet?'bold':'normal').setFontSize(vet?10:9.5);
+    doc.text(label,kolExcl-42,y);
+    doc.text(waarde,kolIncl,y,{align:'right'});
+    y+=5.2;
+  };
+  totRij('Totaalbedrag excl. btw',factuurFmtBedrag(t.excl));
+  t.staffel.forEach(s=>{
+    const lab=s.tarief==='verlegd'?'Btw verlegd':(s.pct?`Btw ${s.pct===21?'hoog':'laag'} (${s.pct}.0%)`:'Btw 0%');
+    totRij(lab,factuurFmtBedrag(s.bedrag));
+  });
+  doc.setDrawColor(...navy).setLineWidth(0.4).line(kolExcl-42,y-3.4,R,y-3.4);
+  y+=1;
+  totRij('Totaalbedrag incl. btw',factuurFmtBedrag(t.incl),true);
+  if(f.btwVerlegd){
+    y+=2;
+    doc.setFont('helvetica','normal').setFontSize(8.5).setTextColor(...grijs);
+    doc.text('Btw verlegd naar de afnemer.',L,y);y+=5;
+  }
+
+  /* Notitie en voettekst */
+  const voet=factuurSettings().voettekst;
+  if(f.notitie){
+    y+=5;doc.setFont('helvetica','normal').setFontSize(9).setTextColor(...navy);
+    doc.text(doc.splitTextToSize(f.notitie,breedte),L,y);
+  }
+  if(voet){
+    doc.setFont('helvetica','normal').setFontSize(8).setTextColor(...grijs);
+    doc.text(doc.splitTextToSize(voet,breedte),L,282);
+  }
+
+  /* Urenspecificatie als bijlage */
+  if(f.specificatie){
+    const ids=factuurUrenIds(f);
+    const uren=(urenState.entries||[]).filter(e=>ids.includes(e.id))
+      .sort((a,b)=>a.date.localeCompare(b.date));
+    if(uren.length){
+      doc.addPage();
+      let sy=25;
+      doc.setFont('helvetica','bold').setFontSize(12).setTextColor(...navy);
+      doc.text('Urenspecificatie',L,sy);
+      doc.setFont('helvetica','normal').setFontSize(9).setTextColor(...grijs);
+      doc.text(`Bij factuur ${f.nummer} · ${klant.naam||''}`,L,sy+5.5);
+      sy+=14;
+      doc.setFillColor(240,244,248).rect(L-2,sy-4.5,breedte+4,8,'F');
+      doc.setFont('helvetica','bold').setFontSize(8).setTextColor(...navy);
+      doc.text('Datum',L,sy);doc.text('Omschrijving',L+26,sy);
+      doc.text('Uren',R,sy,{align:'right'});
+      sy+=7;
+      doc.setFont('helvetica','normal').setFontSize(9);
+      uren.forEach(e=>{
+        if(sy>272){doc.addPage();sy=25;}
+        doc.text(factuurFmtDatum(e.date),L,sy);
+        const oms=doc.splitTextToSize(e.description||'—',R-L-46);
+        doc.text(oms,L+26,sy);
+        doc.text(urenFmt(e.hours),R,sy,{align:'right'});
+        sy+=Math.max(4.6,oms.length*4.4)+1.4;
+      });
+      doc.setDrawColor(...navy).setLineWidth(0.4).line(L,sy-1,R,sy-1);
+      sy+=4;
+      doc.setFont('helvetica','bold');
+      doc.text('Totaal',L,sy);
+      doc.text(urenFmt(uren.reduce((s,e)=>s+Number(e.hours||0),0))+' uur',R,sy,{align:'right'});
+    }
+  }
+  return doc;
+}
+function facPdfBestandsnaam(f){
+  const klant=(f.klant||factuurKlantSnapshot(factuurKlant(f.clientId))).naam||'';
+  return `${f.nummer}_${klant.replace(/[^\w\s-]/g,'').replace(/\s+/g,'_')}.pdf`;
+}
+function facPdfDownload(id){
+  const f=factuurById(id);
+  if(!f)return;
+  const doc=facPdfDoc(f);
+  if(!doc){appToast('PDF-bibliotheek nog niet geladen — probeer het zo nog eens',{type:'error'});return;}
+  doc.save(facPdfBestandsnaam(f));
+  appToast('PDF opgeslagen · '+f.nummer,{type:'success'});
+}
+
+/* ── Export voor de boekhouder ── */
+function facExportBoekhouding(){
+  closeFacMenu();
+  const lijst=facZichtbaar();
+  if(!lijst.length){appToast('Geen facturen in '+facJaar,{type:'warning'});return;}
+  const kop=['Factuurnummer','Datum','Vervaldatum','Klant','Btw-nummer','Betreft','Referentie',
+    'Bedrag excl. btw','Btw','Bedrag incl. btw','Betaald','Openstaand','Status'];
+  const rijen=lijst.slice().reverse().map(f=>{
+    const t=factuurTotalen(f);
+    const k=f.klant||factuurKlantSnapshot(factuurKlant(f.clientId));
+    return [f.nummer,f.datum,f.vervaldatum,k.naam||'',k.btwNummer||'',f.betreft||'',f.referentie||'',
+      t.excl,t.btw,t.incl,t.betaald,t.openstaand,
+      (FACTUUR_STATUSSEN.find(s=>s.id===f.status)||{}).label||f.status];
+  });
+  if(typeof XLSX==='undefined'){appToast('Excel-bibliotheek niet geladen',{type:'error'});return;}
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.aoa_to_sheet([kop,...rijen]);
+  ws['!cols']=[{wch:12},{wch:11},{wch:11},{wch:26},{wch:16},{wch:34},{wch:14},
+    {wch:13},{wch:11},{wch:13},{wch:11},{wch:12},{wch:11}];
+  XLSX.utils.book_append_sheet(wb,ws,'Facturen '+facJaar);
+  XLSX.writeFile(wb,`Facturen_${facJaar}.xlsx`);
+  appToast(`${rijen.length} facturen geëxporteerd`,{type:'success'});
 }
 
 /* ═══════════════════════════════════════════════════
