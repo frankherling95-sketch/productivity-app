@@ -13903,6 +13903,19 @@ function urenDraftCommitIfComplete(){
 function urenNewEntry(date){
   const p=urenPeriod();
   const today=urenToday();
+  /* Op desktop staat de lege regel al bovenaan de tabel: spring daarheen
+     in plaats van een formulier te openen. Mobiel (geen tabel) en de
+     overzicht-tabs gebruiken wél het invoerblad. */
+  const heeftTabel=urenView==='reg'&&document.getElementById('urenDraftHours')&&
+    getComputedStyle(document.querySelector('.uren-sheet-card')).display!=='none';
+  if(heeftTabel){
+    urenDraftEnsure(p);
+    if(date)urenDraft.date=date;
+    urenRenderAll();
+    const h=document.getElementById('urenDraftHours');
+    if(h){h.focus();h.scrollIntoView({block:'nearest'});}
+    return;
+  }
   urenEntryEditing=null;
   urenEntryForm={
     date:date||((today>=p.from&&today<=p.to)?today:p.from),
