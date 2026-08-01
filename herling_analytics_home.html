@@ -1386,7 +1386,8 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .fac-msom b{margin-left:auto;font-family:var(--font-mono);font-size:15px;letter-spacing:0;text-transform:none}
 
 /* ── Sjabloon-editor: instellingen naast een live PDF-preview ── */
-.fac-sj-layout{display:grid;grid-template-columns:340px 1fr;flex:1;min-height:0;overflow:hidden}
+.fac-sj-layout{display:grid;grid-template-columns:392px 1fr;flex:1;min-height:0;overflow:hidden}
+@media (max-width:1100px){.fac-sj-layout{grid-template-columns:340px 1fr}}
 .fac-sj-instel{padding:18px 20px;overflow-y:auto;border-right:0.5px solid var(--border);display:flex;flex-direction:column;gap:16px}
 .fac-sj-preview{background:var(--surface2);padding:14px;display:flex;flex-direction:column;gap:8px;min-height:0}
 .fac-sj-preview-lab{
@@ -1418,6 +1419,54 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .fac-sj-logo img{
   max-width:96px;max-height:46px;object-fit:contain;
   background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:5px;
+}
+/* -- Plattegrond: schematische A4 waarin je blokken sleept --
+   Bewust een wireframe en geen kopie van de PDF: de PDF ernaast is het
+   echte document. Hier gaat het om waar iets staat, niet hoe het eruit
+   ziet. */
+.fac-plan{
+  background:#fff;border:0.5px solid var(--border-strong);border-radius:var(--radius);
+  padding:10px;display:flex;flex-direction:column;gap:5px;
+  box-shadow:0 1px 3px rgba(15,27,61,.06);min-height:260px;
+}
+:root[data-theme="dark"] .fac-plan{background:var(--surface2)}
+.fac-strook{display:flex;gap:6px;position:relative}
+.fac-strook.dubbel::after{
+  content:'naast elkaar';position:absolute;right:2px;top:-7px;
+  font-size:8px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-hint);
+  background:var(--surface);padding:0 4px;
+}
+.fac-pblok{
+  flex:1;min-width:0;border:1px dashed var(--border-strong);border-radius:5px;
+  padding:7px 9px;cursor:grab;background:var(--surface);
+  display:flex;align-items:center;gap:7px;transition:border-color .12s,background .12s;
+}
+.fac-pblok:hover{border-color:var(--text-hint)}
+.fac-pblok.is-sel{border-style:solid;border-color:var(--mint);background:var(--mint-soft)}
+.fac-pblok.is-uit{opacity:.42}
+.fac-pblok.is-sleep{opacity:.35}
+.fac-pblok .lab{
+  flex:1;min-width:0;font-size:11.5px;font-weight:600;color:var(--text);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.fac-pblok .sub{font-size:9.5px;font-weight:400;color:var(--text-muted);display:block;margin-top:1px}
+.fac-pblok .oog{
+  background:transparent;border:none;color:var(--text-muted);cursor:pointer;
+  font-size:10px;padding:2px 4px;border-radius:4px;font-family:inherit;line-height:1;flex-shrink:0;
+}
+.fac-pblok .oog:hover{background:var(--surface3);color:var(--text)}
+/* Neerzetstrepen tussen en naast de blokken */
+.fac-drop{
+  height:6px;border-radius:3px;margin:-3px 0;transition:background .1s;
+}
+.fac-drop.actief{background:var(--mint)}
+.fac-pblok.drop-links{box-shadow:inset 3px 0 0 var(--mint)}
+.fac-pblok.drop-rechts{box-shadow:inset -3px 0 0 var(--mint)}
+.fac-plan-hint{
+  font-size:10.5px;color:var(--text-muted);line-height:1.5;padding:2px 2px 0;
+}
+.fac-plan-voet{
+  border-top:1px dashed var(--border-strong);margin-top:4px;padding-top:7px;
 }
 .fac-blokken{display:flex;flex-direction:column;gap:4px}
 .fac-blok{
@@ -5987,7 +6036,7 @@ textarea { line-height: 1.6; resize: vertical; }
 
 <!-- ── Factuursjabloon: instellingen links, live PDF-preview rechts ── -->
 <div class="modal-bg" id="facSjabloonModal">
-  <div class="modal" style="max-width:1080px;padding:0;display:flex;flex-direction:column;max-height:94vh">
+  <div class="modal" style="max-width:1180px;padding:0;display:flex;flex-direction:column;max-height:94vh">
     <div style="padding:18px 22px 14px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0">
       <div style="flex:1">
         <h3 style="font-size:18px;font-weight:700;margin:0">Factuursjabloon</h3>
@@ -17068,31 +17117,64 @@ function facSjabloonRender(){
   </div>
 
   <div class="fac-sj-groep">
-    <h4>Blokken <span style="font-weight:400;text-transform:none;letter-spacing:0">— sleep om te ordenen</span></h4>
-    <div class="fac-blokken" id="facBlokken">`;
-
-  (t.blocks||[]).forEach(b=>{
-    const meta=FAC_BLOKTYPEN[b.type]||{label:b.type};
-    html+=`<div class="fac-blok${b.id===facSjBlokId?' is-sel':''}${b.zichtbaar===false?' is-uit':''}"
-      draggable="true" data-blok="${b.id}">
-      <span class="greep" aria-hidden="true">⠿</span>
-      <button class="naam" data-fac-action="facSjKiesBlok" data-fac-arg1="${b.id}">
-        ${escapeHtml(meta.label)}${b.kolom!=='vol'?`<em>${b.kolom}</em>`:''}</button>
-      <button class="oog" data-fac-action="facSjToggleBlok" data-fac-arg1="${b.id}"
-        title="${b.zichtbaar===false?'Tonen':'Verbergen'}">${b.zichtbaar===false?'○':'●'}</button>
-      ${!FAC_BLOKTYPEN[b.type].uniek?`<button class="oog" data-fac-action="facSjVerwijderBlok" data-fac-arg1="${b.id}" title="Verwijderen">✕</button>`:''}
-    </div>`;
-  });
-  html+=`</div>
+    <h4>Indeling</h4>
+    <div class="fac-plan-hint">Sleep een blok omhoog of omlaag om de volgorde te wijzigen,
+      of naar de zijkant van een ander blok om ze naast elkaar te zetten.</div>
+    <div class="fac-plan" id="facPlan">` + facSjPlattegrond(t) + `</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
       ${Object.keys(FAC_BLOKTYPEN).filter(k=>!FAC_BLOKTYPEN[k].uniek||!(t.blocks||[]).some(b=>b.type===k))
         .map(k=>`<button class="uren-btn" data-fac-action="facSjVoegBlokToe" data-fac-arg1="${k}">+ ${FAC_BLOKTYPEN[k].label}</button>`).join('')}
+      <button class="uren-btn" data-fac-action="facSjabloonHerstel">Indeling herstellen</button>
     </div>
   </div>`;
 
   if(blok)html+=facSjBlokInstellingen(blok);
   box.innerHTML=html;
   facSjSleepKoppelen();
+}
+
+/* Bouwt de plattegrond: blokken in stroken, met neerzetstrepen ertussen.
+   Een links-blok direct gevolgd door een rechts-blok deelt een strook —
+   dat is hier zichtbaar in plaats van een verborgen regel. */
+function facSjPlattegrond(t){
+  const blokken=(t.blocks||[]);
+  let html='';
+  let i=0;
+  const leeg='<div style="flex:1"></div>';
+  html+=`<div class="fac-drop" data-drop-index="0"></div>`;
+  while(i<blokken.length){
+    const b=blokken[i];
+    const volgende=blokken[i+1];
+    const samen=b.kolom==='links'&&volgende&&volgende.kolom==='rechts';
+    const voet=b.type==='FOOTER';
+    /* Strookinhoud eerst samenstellen, dan pas omhullen — zodat een los
+       rechts-blok de lege helft ervoor krijgt in plaats van erna. */
+    let inhoud;
+    if(samen)inhoud=facSjPlanBlok(b)+facSjPlanBlok(volgende);
+    else if(b.kolom==='rechts')inhoud=leeg+facSjPlanBlok(b);
+    else if(b.kolom==='links')inhoud=facSjPlanBlok(b)+leeg;
+    else inhoud=facSjPlanBlok(b);
+    html+=`<div class="fac-strook${samen?' dubbel':''}${voet?' fac-plan-voet':''}">${inhoud}</div>`;
+    i+=samen?2:1;
+    html+=`<div class="fac-drop" data-drop-index="${i}"></div>`;
+  }
+  if(!blokken.length)html+=`<div class="fac-plan-hint">Nog geen blokken — voeg er hieronder een toe.</div>`;
+  return html;
+}
+function facSjPlanBlok(b){
+  const meta=FAC_BLOKTYPEN[b.type]||{label:b.type};
+  const sub={
+    LOGO:'afbeelding', ZENDER:'jouw gegevens', ONTVANGER:'klantadres',
+    META:'nummer en datums', RICH_TEXT:(b.content.tekst||'').slice(0,34)||'lege tekst',
+    REGELS:'tabel + totalen', FOOTER:'onderaan de pagina'
+  }[b.type]||'';
+  return `<div class="fac-pblok${b.id===facSjBlokId?' is-sel':''}${b.zichtbaar===false?' is-uit':''}"
+    draggable="true" data-blok="${b.id}" data-fac-action="facSjKiesBlok" data-fac-arg1="${b.id}">
+    <span class="lab">${escapeHtml(meta.label)}<span class="sub">${escapeHtml(sub)}</span></span>
+    <button class="oog" data-fac-action="facSjToggleBlok" data-fac-arg1="${b.id}"
+      title="${b.zichtbaar===false?'Tonen':'Verbergen'}">${b.zichtbaar===false?'○':'●'}</button>
+    ${!meta.uniek?`<button class="oog" data-fac-action="facSjVerwijderBlok" data-fac-arg1="${b.id}" title="Verwijderen">✕</button>`:''}
+  </div>`;
 }
 
 /* Instellingen van het geselecteerde blok */
@@ -17178,11 +17260,14 @@ function facSjBlokInstellingen(b){
   return html+`</div>`;
 }
 
-/* -- Slepen om blokken te ordenen -- */
+/* -- Slepen op de plattegrond --
+   Twee soorten neerzetplekken: een streep tussen twee stroken (volgorde
+   wijzigen) of de zijkant van een bestaand blok (ernaast zetten). */
 function facSjSleepKoppelen(){
-  const lijst=document.getElementById('facBlokken');
-  if(!lijst)return;
-  lijst.querySelectorAll('.fac-blok').forEach(el=>{
+  const plan=document.getElementById('facPlan');
+  if(!plan)return;
+
+  plan.querySelectorAll('.fac-pblok').forEach(el=>{
     el.addEventListener('dragstart',e=>{
       facSjSleep=el.dataset.blok;
       el.classList.add('is-sleep');
@@ -17191,37 +17276,83 @@ function facSjSleepKoppelen(){
     });
     el.addEventListener('dragend',()=>{
       facSjSleep=null;
-      lijst.querySelectorAll('.fac-blok').forEach(x=>x.classList.remove('is-sleep','drop-boven','drop-onder'));
+      plan.querySelectorAll('.fac-pblok').forEach(x=>x.classList.remove('is-sleep','drop-links','drop-rechts'));
+      plan.querySelectorAll('.fac-drop').forEach(x=>x.classList.remove('actief'));
     });
+    /* Naast een blok laten vallen = kolom links/rechts */
     el.addEventListener('dragover',e=>{
-      e.preventDefault();
       if(!facSjSleep||el.dataset.blok===facSjSleep)return;
+      e.preventDefault();
       const r=el.getBoundingClientRect();
-      const na=e.clientY>r.top+r.height/2;
-      el.classList.toggle('drop-onder',na);
-      el.classList.toggle('drop-boven',!na);
+      const rechts=e.clientX>r.left+r.width/2;
+      el.classList.toggle('drop-rechts',rechts);
+      el.classList.toggle('drop-links',!rechts);
     });
-    el.addEventListener('dragleave',()=>el.classList.remove('drop-boven','drop-onder'));
+    el.addEventListener('dragleave',()=>el.classList.remove('drop-links','drop-rechts'));
     el.addEventListener('drop',e=>{
-      e.preventDefault();
       if(!facSjSleep||el.dataset.blok===facSjSleep)return;
+      e.preventDefault();e.stopPropagation();
       const r=el.getBoundingClientRect();
-      const na=e.clientY>r.top+r.height/2;
-      facSjVerplaatsBlok(facSjSleep,el.dataset.blok,na);
+      facSjZetNaast(facSjSleep,el.dataset.blok,e.clientX>r.left+r.width/2);
+    });
+  });
+
+  plan.querySelectorAll('.fac-drop').forEach(el=>{
+    el.addEventListener('dragover',e=>{
+      if(!facSjSleep)return;
+      e.preventDefault();
+      el.classList.add('actief');
+    });
+    el.addEventListener('dragleave',()=>el.classList.remove('actief'));
+    el.addEventListener('drop',e=>{
+      if(!facSjSleep)return;
+      e.preventDefault();
+      facSjZetOpIndex(facSjSleep,Number(el.dataset.dropIndex));
     });
   });
 }
-function facSjVerplaatsBlok(sleepId,doelId,erna){
+
+/* Blok naar een plek in de volgorde; wordt volle breedte, want het
+   staat op een eigen rij. */
+function facSjZetOpIndex(sleepId,index){
   const t=facSjTpl();
   const van=t.blocks.findIndex(b=>b.id===sleepId);
   if(van<0)return;
   const [blok]=t.blocks.splice(van,1);
+  if(van<index)index--;
+  /* Stond het blok in een strook? Dan mag zijn partner weer volle breedte */
+  facSjHerstelWees(t);
+  blok.kolom='vol';
+  t.blocks.splice(Math.max(0,Math.min(index,t.blocks.length)),0,blok);
+  scheduleSave();facSjabloonRender();facSjabloonPreview();
+}
+/* Blok naast een ander zetten: samen een strook, links/rechts bepaald
+   door aan welke kant je losliet. */
+function facSjZetNaast(sleepId,doelId,rechts){
+  const t=facSjTpl();
+  const van=t.blocks.findIndex(b=>b.id===sleepId);
+  if(van<0)return;
+  const [blok]=t.blocks.splice(van,1);
+  facSjHerstelWees(t);
+  const doel=t.blocks.find(b=>b.id===doelId);
   let naar=t.blocks.findIndex(b=>b.id===doelId);
-  if(naar<0)naar=t.blocks.length-1;
-  t.blocks.splice(erna?naar+1:naar,0,blok);
-  scheduleSave();
-  facSjabloonRender();
-  facSjabloonPreview();
+  if(naar<0){t.blocks.push(blok);}
+  else if(rechts){
+    doel.kolom='links'; blok.kolom='rechts';
+    t.blocks.splice(naar+1,0,blok);
+  } else {
+    blok.kolom='links'; doel.kolom='rechts';
+    t.blocks.splice(naar,0,blok);
+  }
+  scheduleSave();facSjabloonRender();facSjabloonPreview();
+}
+/* Een blok dat 'links' of 'rechts' staat maar geen partner meer heeft,
+   zou een halve kolom leeg laten. Zet die terug op volle breedte. */
+function facSjHerstelWees(t){
+  t.blocks.forEach((b,i)=>{
+    if(b.kolom==='links'&&!(t.blocks[i+1]&&t.blocks[i+1].kolom==='rechts'))b.kolom='vol';
+    if(b.kolom==='rechts'&&!(t.blocks[i-1]&&t.blocks[i-1].kolom==='links'))b.kolom='vol';
+  });
 }
 
 /* -- Acties -- */
