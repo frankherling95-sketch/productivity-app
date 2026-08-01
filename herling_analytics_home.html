@@ -4610,7 +4610,7 @@ textarea { line-height: 1.6; resize: vertical; }
 /* ── KPI strip (clickable buttons) ───────────────────────────────────────── */
 .dash-kpis {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 16px;
 }
 @media (max-width: 900px) { .dash-kpis { grid-template-columns: 1fr; } }
@@ -4697,6 +4697,12 @@ textarea { line-height: 1.6; resize: vertical; }
 .dash-grid.dash-grid-3 > .card:nth-child(3) {
   grid-column: 1 / -1 !important;
 }
+/* Facturenkaart verschijnt alleen als er iets openstaat; volle breedte
+   onder de agenda, met een eigen rijhoogte. */
+#dashFacturenCard { grid-column: 1 / -1 !important; }
+.dash-grid.dash-grid-3 > .card:nth-child(4) { grid-column: 1 / -1 !important; }
+.dash-grid { grid-auto-rows: minmax(240px, auto); }
+#dashFacturenCard .card-body { overflow-y: auto; }
 @media (max-width: 900px) {
   .dash-grid { grid-template-columns: 1fr !important; grid-template-rows: 220px 220px 440px 440px !important; }
   .dash-grid.dash-grid-3 { grid-template-rows: 280px 280px 440px !important; }
@@ -5499,6 +5505,14 @@ textarea { line-height: 1.6; resize: vertical; }
             <div class="dash-kpi-val">–</div>
             <div class="dash-kpi-trend"></div>
           </button>
+          <button type="button" class="dash-kpi" id="dashKpiOpenstaand" onclick="switchModule('facturen')" title="Open Facturen">
+            <div class="dash-kpi-top">
+              <span class="dash-kpi-label">Openstaand</span>
+              <span class="dash-kpi-icon" style="background:var(--info-bg);color:var(--info)">€</span>
+            </div>
+            <div class="dash-kpi-val">–</div>
+            <div class="dash-kpi-trend"></div>
+          </button>
         </div>
 
         <!-- 3-card grid (Notes top-left, Checklist top-right, Agenda full-width below) -->
@@ -5526,6 +5540,13 @@ textarea { line-height: 1.6; resize: vertical; }
                 onkeydown="if(event.key==='Enter')dashClAdd()"/>
               <button class="btn btn-sm btn-primary" onclick="dashClAdd()">+</button>
             </div>
+          </div>
+          <div class="card" id="dashFacturenCard" style="display:none">
+            <div class="card-hdr">
+              <h2>Openstaande facturen</h2>
+              <button class="btn btn-xs btn-primary" onclick="switchModule('facturen')">Bekijk ↗</button>
+            </div>
+            <div class="card-body" id="dashFacturenBody"></div>
           </div>
           <div class="card">
             <div class="card-hdr">
@@ -8620,6 +8641,7 @@ function renderDashboard(){
   renderDashNotes();
   renderDashCal();
   renderDashChecklist();
+  renderDashFacturen();
 }
 
 /* ─── Dashboard: Hero + KPI derived values ───────────────────────────────── */
@@ -8820,6 +8842,66 @@ function renderDashKpis(){
   set('dashKpiOpen',    s.openClCount,                          s.totalCl?`van ${s.totalCl} totaal`:null, 'flat');
   set('dashKpiDue',     s.overdueCl,                            s.openClCount?`van ${s.openClCount} open`:null, s.overdueCl>0?'down':'flat');
   set('dashKpiMeetings',s.meetingsToday!==null?s.meetingsToday:'—', s.meetingsToday===null?'geen agenda data':'vandaag', 'flat');
+  /* Openstaand bedrag; te laat is het signaal dat aandacht vraagt. */
+  const fac=dashFacturenStats();
+  set('dashKpiOpenstaand',
+    fac.aantal?factuurFmtBedrag(fac.openstaand):'—',
+    fac.teLaatAantal
+      ? `${factuurFmtBedrag(fac.teLaat)} te laat`
+      : (fac.aantal?`${fac.aantal} factuur${fac.aantal===1?'':'en'} open`:'niets openstaand'),
+    fac.teLaatAantal?'down':'flat');
+}
+
+/* Openstaande facturen over alle jaren — een onbetaalde factuur uit
+   vorig jaar is juist het interessantst. */
+function dashFacturenStats(){
+  if(typeof factuurState==='undefined'||!factuurState.invoices)
+    return {aantal:0,openstaand:0,teLaat:0,teLaatAantal:0,lijst:[]};
+  const open=factuurState.invoices.filter(f=>f.status==='verstuurd');
+  const teLaat=open.filter(f=>factuurDagenTeLaat(f)>0);
+  const som=arr=>arr.reduce((s,f)=>s+factuurTotalen(f).openstaand,0);
+  return {
+    aantal:open.length,
+    openstaand:som(open),
+    teLaat:som(teLaat),
+    teLaatAantal:teLaat.length,
+    /* Meest urgent bovenaan: eerst wat te laat is, dan op vervaldatum */
+    lijst:open.sort((a,b)=>a.vervaldatum.localeCompare(b.vervaldatum))
+  };
+}
+
+function renderDashFacturen(){
+  const card=document.getElementById('dashFacturenCard');
+  const body=document.getElementById('dashFacturenBody');
+  if(!card||!body)return;
+  const s=dashFacturenStats();
+  /* Geen openstaande facturen? Dan ook geen kaart — het dashboard toont
+     wat aandacht vraagt, niet wat er allemaal bestaat. */
+  if(!s.aantal){card.style.display='none';return;}
+  card.style.display='';
+  body.innerHTML=`<div style="display:flex;flex-direction:column;gap:8px">`+
+    s.lijst.slice(0,6).map(f=>{
+      const t=factuurTotalen(f);
+      const dagen=factuurDagenTeLaat(f);
+      const klant=factuurKlant(f.clientId);
+      const col=klant?CLIENT_COLORS[klant.colorIdx%CLIENT_COLORS.length]:{bg:'var(--surface3)'};
+      return `<button type="button" onclick="switchModule('facturen')"
+        style="display:flex;align-items:center;gap:11px;width:100%;padding:9px 11px;text-align:left;
+               background:var(--surface2);border:0.5px solid var(--border);border-radius:var(--radius-md);
+               cursor:pointer;font-family:inherit;color:var(--text)">
+        <span style="width:9px;height:9px;border-radius:2px;background:${col.bg};flex-shrink:0"></span>
+        <span style="font-family:var(--font-mono);font-size:12px;font-weight:600">${escapeHtml(f.nummer)}</span>
+        <span style="flex:1;min-width:0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+          ${escapeHtml(f.klant?f.klant.naam:(klant?(klant.bedrijfsnaam||klant.name):'—'))}</span>
+        ${dagen>0
+          ? `<span class="fac-pill fac-pill-telaat">${dagen}d te laat</span>`
+          : `<span style="font-size:11.5px;color:var(--text-muted);white-space:nowrap">vervalt ${factuurFmtDatum(f.vervaldatum)}</span>`}
+        <span style="font-family:var(--font-mono);font-size:13px;font-weight:600;white-space:nowrap">
+          ${factuurFmtBedrag(t.openstaand)}</span></button>`;
+    }).join('')+
+    (s.lijst.length>6?`<div style="font-size:11.5px;color:var(--text-muted);padding:2px 4px">
+      en nog ${s.lijst.length-6} andere</div>`:'')+
+    `</div>`;
 }
 
 function renderDashChecklist(){
