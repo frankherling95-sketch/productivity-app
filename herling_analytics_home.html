@@ -15434,11 +15434,30 @@ function factuurUid(){return 'fac_'+Math.random().toString(36).slice(2,10)+Date.
 /* ── Instellingen ── */
 function factuurSettings(){
   const s=factuurState.settings||(factuurState.settings={});
-  if(!s.bedrijf)s.bedrijf={
-    naam:'Herling Analytics B.V.', adres:'', postcode:'', plaats:'',
-    btwNummer:'', kvk:'', tel:'', email:'', iban:'', bic:''
-  };
-  if(!s.nummer)s.nummer={prefix:'F', cijfers:6, volgend:1, perJaar:false};
+  /* Meerdere afzenders: je kunt vanuit verschillende bedrijven
+     factureren. Elk bedrijf heeft een eigen nummerreeks — een
+     doorlopende reeks hoort bij één administratie, dus die mag je niet
+     delen. */
+  if(!Array.isArray(s.bedrijven)){
+    const oud=s.bedrijf;
+    s.bedrijven=[{
+      id:'bd_eerste',
+      naam:(oud&&oud.naam)||'Herling Analytics B.V.',
+      adres:(oud&&oud.adres)||'', postcode:(oud&&oud.postcode)||'',
+      plaats:(oud&&oud.plaats)||'', btwNummer:(oud&&oud.btwNummer)||'',
+      kvk:(oud&&oud.kvk)||'', tel:(oud&&oud.tel)||'', email:(oud&&oud.email)||'',
+      iban:(oud&&oud.iban)||'', bic:(oud&&oud.bic)||'',
+      nummer:s.nummer||{prefix:'F', cijfers:6, volgend:1, perJaar:false}
+    }];
+    delete s.bedrijf; delete s.nummer;
+  }
+  s.bedrijven.forEach(b=>{
+    if(!b.id)b.id='bd_'+Math.random().toString(36).slice(2,9);
+    if(!b.nummer)b.nummer={prefix:'F', cijfers:6, volgend:1, perJaar:false};
+  });
+  if(!s.bedrijven.length)s.bedrijven.push({id:'bd_eerste',naam:'Mijn bedrijf',
+    nummer:{prefix:'F',cijfers:6,volgend:1,perJaar:false}});
+  if(!s.bedrijven.some(b=>b.id===s.standaardBedrijf))s.standaardBedrijf=s.bedrijven[0].id;
   if(s.betaaltermijn==null)s.betaaltermijn=30;
   if(s.btwStandaard==null)s.btwStandaard=21;
   if(s.voettekst==null)s.voettekst='';
@@ -15489,15 +15508,17 @@ function facVulTekst(sjabloon,f,afz,totalen){
 /* negeerId: de factuur die zelf een nummer krijgt telt niet mee als
    "al in gebruik" — anders schuift het nummer dat je in het concept
    zag bij versturen een plek op. */
-function factuurVolgendNummer(peek,negeerId){
-  const s=factuurSettings(), n=s.nummer;
+function factuurVolgendNummer(peek,negeerId,bedrijfId){
+  const bedrijf=factuurBedrijf(bedrijfId);
+  const n=bedrijf.nummer;
   const jaar=new Date().getFullYear();
   let volg=n.volgend||1;
   if(n.perJaar&&n.jaar!==jaar&&!peek){n.jaar=jaar;volg=1;}
   else if(n.perJaar&&n.jaar!==jaar)volg=1;
-  /* Nooit onder een bestaand nummer duiken */
+  /* Nooit onder een bestaand nummer van hetzelfde bedrijf duiken;
+     andere bedrijven hebben hun eigen reeks. */
   const gebruikt=factuurState.invoices
-    .filter(f=>f.id!==negeerId)
+    .filter(f=>f.id!==negeerId&&factuurBedrijfIdVan(f)===bedrijf.id)
     .map(f=>parseInt(String(f.nummer||'').replace(/\D/g,''),10))
     .filter(v=>!isNaN(v));
   if(gebruikt.length)volg=Math.max(volg,Math.max(...gebruikt)+1);
@@ -15521,9 +15542,22 @@ function factuurKlantSnapshot(c){
     kvk:c.kvk||'', email:c.email||'', contactpersoon:c.contactpersoon||''
   };
 }
-function factuurAfzenderSnapshot(){
-  const b=factuurSettings().bedrijf;
-  return {...b};
+/* Het bedrijf waar een factuur vanuit gaat. Facturen van vóór de
+   meerdere-bedrijven-stap hebben geen bedrijfId; die horen bij het
+   eerste bedrijf. */
+function factuurBedrijfIdVan(f){
+  return (f&&f.bedrijfId)||factuurSettings().bedrijven[0].id;
+}
+function factuurBedrijf(id){
+  const s=factuurSettings();
+  return s.bedrijven.find(b=>b.id===id)||
+         s.bedrijven.find(b=>b.id===s.standaardBedrijf)||
+         s.bedrijven[0];
+}
+function factuurAfzenderSnapshot(bedrijfId){
+  const b=factuurBedrijf(bedrijfId);
+  const {nummer,...rest}=b;      /* de reeks hoort niet in de snapshot */
+  return {...rest};
 }
 
 /* ── Rekenen ──
@@ -15642,9 +15676,11 @@ function factuurNieuw(clientId,from,to){
   const datum=new Date().toISOString().slice(0,10);
   const termijn=(klant&&klant.betaaltermijn)||s.betaaltermijn;
   const betreft=clientId?factuurStandaardBetreft(clientId,from,to):'';
+  const bedrijfId=(klant&&klant.bedrijfId)||s.standaardBedrijf;
   const f={
     id:factuurUid(),
-    nummer:factuurVolgendNummer(true),   /* pas vastzetten bij versturen */
+    bedrijfId,
+    nummer:factuurVolgendNummer(true,null,bedrijfId), /* pas vast bij versturen */
     status:'concept',
     clientId:clientId||null,
     datum, vervaldatum:factuurVervaldatum(datum,termijn),
@@ -15690,7 +15726,7 @@ function factuurDupliceer(id){
   const klant=factuurKlant(bron.clientId);
   const f=JSON.parse(JSON.stringify(bron));
   f.id=factuurUid();
-  f.nummer=factuurVolgendNummer(true);
+  f.nummer=factuurVolgendNummer(true,null,factuurBedrijfIdVan(bron));
   f.status='concept';
   f.datum=datum;
   f.vervaldatum=factuurVervaldatum(datum,(klant&&klant.betaaltermijn)||factuurSettings().betaaltermijn);
@@ -15743,11 +15779,14 @@ function factuurUrenLoskoppelen(f){
 function factuurMarkeerVerstuurd(id){
   const f=factuurById(id);
   if(!f||f.status!=='concept')return f;
-  const nummers=factuurState.invoices.filter(x=>x.id!==f.id).map(x=>x.nummer);
-  if(!f.nummerVast||nummers.includes(f.nummer))f.nummer=factuurVolgendNummer(false,f.id);
+  const bedrijfId=factuurBedrijfIdVan(f);
+  const nummers=factuurState.invoices
+    .filter(x=>x.id!==f.id&&factuurBedrijfIdVan(x)===bedrijfId).map(x=>x.nummer);
+  if(!f.nummerVast||nummers.includes(f.nummer))
+    f.nummer=factuurVolgendNummer(false,f.id,bedrijfId);
   f.nummerVast=true;
   f.klant=factuurKlantSnapshot(factuurKlant(f.clientId));
-  f.afzender=factuurAfzenderSnapshot();
+  f.afzender=factuurAfzenderSnapshot(bedrijfId);
   f.status='verstuurd';
   f.verstuurdOp=new Date().toISOString();
   factuurUrenKoppelen(f);
@@ -15821,6 +15860,9 @@ const FAC_CLICK_ACTIONS={
   closeKlantModal:()=>closeKlantModal(),
   openFacInstellingen:()=>openFacInstellingen(),
   openFacSjabloon:()=>openFacSjabloon(),
+  facInstelKiesBedrijf:(a)=>facInstelKiesBedrijf(a),
+  facInstelNieuwBedrijf:()=>facInstelNieuwBedrijf(),
+  facInstelVerwijderBedrijf:()=>facInstelVerwijderBedrijf(),
   closeFacSjabloon:()=>closeFacSjabloon(),
   facSjabloonHerstel:()=>facSjabloonHerstel(),
   facSjLogoKies:()=>facSjLogoKies(),
@@ -15837,7 +15879,12 @@ const FAC_CHANGE_ACTIONS={
   facEdRegel:(el,a,b)=>facEdRegel(el,a,b),
   facWizardVeld:(el,a)=>{if(facWizard){facWizard[a]=el.value;facWizardRenderKlanten();}},
   facSjWaarde:(el,a)=>facSjWaarde(el,a),
-  facSjToon:(el,a)=>facSjToon(el,a)
+  facSjToon:(el,a)=>facSjToon(el,a),
+  facInstelStandaard:(el)=>{
+    const s=factuurSettings();
+    if(el.checked)s.standaardBedrijf=facInstelBedrijfId;
+    scheduleSave();facInstellingenRender();
+  }
 };
 document.addEventListener('click',e=>{
   const el=e.target.closest('[data-fac-action]');
@@ -16237,6 +16284,14 @@ function facEditorRender(){
 
   let html='';
   /* Klant + kop */
+  const bedrijven=factuurSettings().bedrijven;
+  if(bedrijven.length>1){
+    html+=`<div class="uren-fld" style="margin-bottom:12px">
+      <label>Factureren vanuit</label>
+      <select class="fac-ed-inp" data-fac-change="facEdVeld" data-fac-arg1="bedrijfId">
+        ${bedrijven.map(b=>`<option value="${b.id}"${factuurBedrijfIdVan(f)===b.id?' selected':''}>${escapeHtml(b.naam)}</option>`).join('')}
+      </select></div>`;
+  }
   html+=`<div class="fac-ed-grid">
     <div class="uren-fld"><label>Klant</label>
       <select class="fac-ed-inp" data-fac-change="facEdVeld" data-fac-arg1="clientId" ${bewerkbaar?'':'disabled'}>
@@ -16352,6 +16407,14 @@ function facEdVeld(el,key){
   const f=factuurById(facEditId);
   if(!f)return;
   let waarde=el.type==='checkbox'?el.checked:el.value;
+  if(key==='bedrijfId'){
+    factuurUpdate(f.id,{bedrijfId:waarde});
+    /* Concept? Dan hoort het voorgestelde nummer bij de reeks van het
+       nieuwe bedrijf. Een verstuurde factuur houdt zijn nummer. */
+    if(f.status==='concept'&&!f.nummerVast)
+      factuurUpdate(f.id,{nummer:factuurVolgendNummer(true,f.id,waarde)});
+    facEditorRender();return;
+  }
   if(key==='clientId'){
     const klant=factuurKlant(waarde);
     factuurUpdate(f.id,{clientId:waarde||null});
@@ -16578,11 +16641,86 @@ function klantModalOpslaan(){
 }
 
 /* ── Instellingen ── */
+/* -- Instellingen: meerdere bedrijven --
+   Je kunt vanuit meerdere bedrijven factureren. Bovenaan kies je welk
+   bedrijf je bewerkt; elk heeft een eigen adres en een eigen
+   nummerreeks (een doorlopende reeks hoort bij een administratie). */
+let facInstelBedrijfId=null;
 function openFacInstellingen(){
   closeFacMenu();
-  const s=factuurSettings(), b=s.bedrijf;
+  const s=factuurSettings();
+  facInstelBedrijfId=s.standaardBedrijf||s.bedrijven[0].id;
+  facInstellingenRender();
+  document.getElementById('facInstellingenModal').classList.add('open');
+}
+function facInstelKiesBedrijf(id){
+  facInstellingenBewaarVeldenNaarState();
+  facInstelBedrijfId=id;
+  facInstellingenRender();
+}
+function facInstelNieuwBedrijf(){
+  facInstellingenBewaarVeldenNaarState();
+  const s=factuurSettings();
+  const b={id:'bd_'+Math.random().toString(36).slice(2,9),naam:'Nieuw bedrijf',
+    adres:'',postcode:'',plaats:'',btwNummer:'',kvk:'',tel:'',email:'',iban:'',bic:'',
+    nummer:{prefix:'F',cijfers:6,volgend:1,perJaar:false}};
+  s.bedrijven.push(b);
+  facInstelBedrijfId=b.id;
+  scheduleSave();
+  facInstellingenRender();
+  setTimeout(()=>{const el=document.getElementById('fiNaam');if(el){el.focus();el.select();}},40);
+}
+function facInstelVerwijderBedrijf(){
+  const s=factuurSettings();
+  if(s.bedrijven.length<2){appToast('Je hebt minstens een bedrijf nodig',{type:'warning'});return;}
+  const b=factuurBedrijf(facInstelBedrijfId);
+  const gebruikt=factuurState.invoices.filter(f=>factuurBedrijfIdVan(f)===b.id).length;
+  if(gebruikt){
+    appToast(b.naam+' staat op '+gebruikt+' factuur'+(gebruikt===1?'':'en')+' en kan niet weg',{type:'warning'});
+    return;
+  }
+  if(!confirm(b.naam+' verwijderen?'))return;
+  s.bedrijven=s.bedrijven.filter(x=>x.id!==b.id);
+  if(s.standaardBedrijf===b.id)s.standaardBedrijf=s.bedrijven[0].id;
+  facInstelBedrijfId=s.bedrijven[0].id;
+  scheduleSave();
+  facInstellingenRender();
+}
+/* Wat er in de velden staat naar de state schrijven, zodat wisselen van
+   bedrijf je invoer niet weggooit. */
+function facInstellingenBewaarVeldenNaarState(){
+  if(!document.getElementById('fiNaam'))return;
+  const g=id=>{const el=document.getElementById(id);return el?el.value:'';};
+  const s=factuurSettings();
+  const b=factuurBedrijf(facInstelBedrijfId);
+  if(b){
+    Object.assign(b,{
+      naam:g('fiNaam').trim(),adres:g('fiAdres').trim(),postcode:g('fiPostcode').trim(),
+      plaats:g('fiPlaats').trim(),btwNummer:g('fiBtw').trim(),kvk:g('fiKvk').trim(),
+      tel:g('fiTel').trim(),email:g('fiEmail').trim(),iban:g('fiIban').trim(),bic:g('fiBic').trim()});
+    b.nummer.prefix=g('fiPrefix').trim()||'F';
+    b.nummer.volgend=Number(g('fiVolgend'))||1;
+  }
+  s.betaaltermijn=Number(g('fiTermijn'))||30;
+  s.btwStandaard=Number(g('fiBtwStandaard'));
+  s.voettekst=g('fiVoet').trim();
+}
+function facInstellingenRender(){
+  const s=factuurSettings();
+  const b=factuurBedrijf(facInstelBedrijfId);
+  facInstelBedrijfId=b.id;
   const v=(k)=>escapeHtml(String(b[k]||''));
+  const meerdere=s.bedrijven.length>1;
   document.getElementById('facInstellingenBody').innerHTML=`
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+      ${s.bedrijven.map(x=>`<button class="uren-btn${x.id===b.id?' uren-btn-primary':''}"
+        data-fac-action="facInstelKiesBedrijf" data-fac-arg1="${x.id}">${escapeHtml(x.naam||'Naamloos')}</button>`).join('')}
+      <button class="uren-btn" data-fac-action="facInstelNieuwBedrijf" title="Bedrijf toevoegen">+ Bedrijf</button>
+    </div>
+    ${meerdere?`<label class="fac-sj-toggle" style="margin-bottom:14px">
+      <input type="checkbox" ${s.standaardBedrijf===b.id?'checked':''} data-fac-change="facInstelStandaard"/>
+      Standaard voor nieuwe facturen</label>`:''}
+
     <div class="uren-fld"><label>Bedrijfsnaam</label>
       <input type="text" class="fac-ed-inp" id="fiNaam" value="${v('naam')}"/></div>
     <div class="uren-fld" style="margin-top:12px"><label>Adres</label>
@@ -16603,16 +16741,21 @@ function openFacInstellingen(){
       <div class="uren-fld"><label>IBAN</label><input type="text" class="fac-ed-inp" id="fiIban" value="${v('iban')}"/></div>
       <div class="uren-fld"><label>BIC</label><input type="text" class="fac-ed-inp" id="fiBic" value="${v('bic')}"/></div>
     </div>
+
     <div style="height:1px;background:var(--border);margin:18px 0"></div>
+    <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);margin-bottom:9px">
+      Nummerreeks van ${escapeHtml(b.naam||'dit bedrijf')}</div>
     <div class="fac-ed-grid">
-      <div class="uren-fld"><label>Nummer-voorvoegsel</label>
-        <input type="text" class="fac-ed-inp" id="fiPrefix" value="${escapeHtml(s.nummer.prefix)}"/></div>
+      <div class="uren-fld"><label>Voorvoegsel</label>
+        <input type="text" class="fac-ed-inp" id="fiPrefix" value="${escapeHtml(b.nummer.prefix)}"/></div>
       <div class="uren-fld"><label>Volgend nummer</label>
-        <input type="number" class="fac-ed-inp num" id="fiVolgend" value="${s.nummer.volgend}"/></div>
+        <input type="number" class="fac-ed-inp num" id="fiVolgend" value="${b.nummer.volgend}"/></div>
     </div>
     <div style="font-size:11.5px;color:var(--text-muted);margin-top:6px">
-      Eerstvolgende factuur wordt <b style="font-family:var(--font-mono);color:var(--text)">${escapeHtml(factuurVolgendNummer(true))}</b></div>
-    <div class="fac-ed-grid" style="margin-top:12px">
+      Eerstvolgende factuur wordt <b style="font-family:var(--font-mono);color:var(--text)">${escapeHtml(factuurVolgendNummer(true,null,b.id))}</b>${meerdere?' &mdash; elk bedrijf heeft een eigen doorlopende reeks':''}</div>
+
+    <div style="height:1px;background:var(--border);margin:18px 0"></div>
+    <div class="fac-ed-grid">
       <div class="uren-fld"><label>Standaard betaaltermijn (dagen)</label>
         <input type="number" class="fac-ed-inp num" id="fiTermijn" value="${s.betaaltermijn}"/></div>
       <div class="uren-fld"><label>Standaard btw-tarief</label>
@@ -16621,24 +16764,17 @@ function openFacInstellingen(){
         </select></div>
     </div>
     <div class="uren-fld" style="margin-top:12px"><label>Voettekst op de factuur</label>
-      <textarea class="fac-ed-inp" id="fiVoet" rows="2">${escapeHtml(s.voettekst||'')}</textarea></div>`;
-  document.getElementById('facInstellingenModal').classList.add('open');
+      <textarea class="fac-ed-inp" id="fiVoet" rows="2">${escapeHtml(s.voettekst||'')}</textarea></div>
+    ${meerdere?`<div style="margin-top:18px">
+      <button class="uren-btn" data-fac-action="facInstelVerwijderBedrijf">${escapeHtml(b.naam)} verwijderen</button></div>`:''}`;
 }
 function closeFacInstellingen(){document.getElementById('facInstellingenModal').classList.remove('open');}
 function facInstellingenOpslaan(){
-  const g=id=>document.getElementById(id).value;
-  const s=factuurSettings();
-  s.bedrijf={naam:g('fiNaam').trim(),adres:g('fiAdres').trim(),postcode:g('fiPostcode').trim(),
-    plaats:g('fiPlaats').trim(),btwNummer:g('fiBtw').trim(),kvk:g('fiKvk').trim(),
-    tel:g('fiTel').trim(),email:g('fiEmail').trim(),iban:g('fiIban').trim(),bic:g('fiBic').trim()};
-  s.nummer.prefix=g('fiPrefix').trim()||'F';
-  s.nummer.volgend=Number(g('fiVolgend'))||1;
-  s.betaaltermijn=Number(g('fiTermijn'))||30;
-  s.btwStandaard=Number(g('fiBtwStandaard'));
-  s.voettekst=g('fiVoet').trim();
+  facInstellingenBewaarVeldenNaarState();
   scheduleSave();
   closeFacInstellingen();
   facRenderAll();
+  if(facEditId)facEditorRender();
   appToast('Instellingen opgeslagen',{type:'success'});
 }
 
@@ -16929,7 +17065,7 @@ function facPdfDoc(f){
   const F=sj.font||'helvetica';
   const L=Number(sj.marge)||20, R=210-L, breedte=R-L;
   const klant=f.klant||factuurKlantSnapshot(factuurKlant(f.clientId));
-  const afz=f.afzender||factuurAfzenderSnapshot();
+  const afz=f.afzender||factuurAfzenderSnapshot(factuurBedrijfIdVan(f));
   const t=factuurTotalen(f);
   const navy=facHexRgb(sj.accent), grijs=[91,104,118], lijn=[215,222,230];
   const bs=Number(sj.basis)||9.5;          /* basis-tekstgrootte */
