@@ -5,9 +5,9 @@ Single-page productivity app voor Frank Herling. Single-file HTML SPA, gehost op
 ## Snel oriënteren
 
 - **Repo**: `frankherling95-sketch/productivity-app` · branch `main`
-- **Live URL**: https://frankherling95-sketch.github.io/productivity-app/
+- **Live URL**: https://app.herling-analytics.nl (eigen domein via GitHub Pages)
 - **Auto-deploy**: elke push naar `main` → Pages-build (~30s)
-- **Hoofd-bestand**: `herling_analytics_home.html` (~580KB, ~12k regels) — alles inline, geen build step
+- **Hoofd-bestand**: `index.html` (~580KB, ~12k regels) — alles inline, geen build step
 - **Diepe duik agenda**: zie [`docs/agenda.md`](docs/agenda.md)
 - **Beslissingen-log**: zie [`docs/decisions.md`](docs/decisions.md) — waarom keuzes gemaakt zijn (lees vóór je iets ongedaan maakt)
 
@@ -21,8 +21,8 @@ Single-page productivity app voor Frank Herling. Single-file HTML SPA, gehost op
 
 ```
 .
-├── herling_analytics_home.html   ← DE app (alle wijzigingen hier)
-├── index.html, bi_checklist_kanban.html  ← redirect-stubs
+├── index.html   ← DE app (alle wijzigingen hier)
+├── herling_analytics_home.html, bi_checklist_kanban.html  ← redirect-stubs (oude URLs)
 ├── herling-icon.svg              ← logo + favicon
 ├── manifest.json, sw.js          ← PWA + Service Worker (zie ⚠️ hieronder)
 ├── CLAUDE.md                     ← dit bestand
@@ -148,12 +148,12 @@ Bij CDN-falen: app crasht niet hard, alleen die feature werkt niet (Excel-export
 # Voor elke wijziging:
 git fetch origin main
 git log HEAD..origin/main --oneline    # MOET LEEG ZIJN, anders pull eerst
-grep -n "<symbol>" herling_analytics_home.html   # check refs voor je iets wijzigt
+grep -n "<symbol>" index.html   # check refs voor je iets wijzigt
 
-# Edit herling_analytics_home.html
+# Edit index.html
 node validate.mjs                       # MOET groen zijn
 
-git add herling_analytics_home.html
+git add index.html
 git commit -m "Korte Nederlandse beschrijving"
 git push origin main                    # pre-push hook draait validate
 ```
@@ -201,7 +201,7 @@ Afgedwongen door git hooks (`.githooks/pre-push`) en Claude Code hooks (`.claude
 
 1. **Lees deze CLAUDE.md** als je het deze sessie nog niet hebt gedaan
 2. `git fetch origin main` + `git log HEAD..origin/main --oneline` — als output niet leeg: STOP, pull eerst
-3. **Grep alle referenties** voor je iets wijzigt of verwijdert: `grep -n "<naam>" herling_analytics_home.html`
+3. **Grep alle referenties** voor je iets wijzigt of verwijdert: `grep -n "<naam>" index.html`
 4. **Lees het hele blok** dat je gaat aanraken — niet alleen het stukje (CSS is cascade, JS is hoist/scope-gevoelig)
 
 ### Vóór elke push

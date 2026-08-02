@@ -12,7 +12,7 @@
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
-const FILE = 'herling_analytics_home.html';
+const FILE = 'index.html';
 const html = readFileSync(FILE, 'utf8');
 const errors = [];
 const warnings = [];

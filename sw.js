@@ -6,11 +6,11 @@
      never gets stale-cached.
    Bump CACHE_NAME when shipping a new release to invalidate old caches. */
 
-const CACHE_NAME = 'herling-v5';
+const CACHE_NAME = 'herling-v6';
 
 const PRECACHE_URLS = [
   './',
-  './herling_analytics_home.html',
+  './index.html',
   './herling-icon.svg',
   './manifest.json'
 ];
