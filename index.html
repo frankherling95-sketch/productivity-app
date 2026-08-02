@@ -9652,7 +9652,17 @@ async function driveApi(pad,opties){
   });
   if(!r.ok){
     const tekst=await r.text().catch(()=>'');
-    throw new Error('Drive '+r.status+': '+tekst.slice(0,200));
+    /* Google verpakt de reden diep in een JSON-structuur; haal het
+       leesbare deel eruit in plaats van de ruwe tekst af te kappen. */
+    let reden=tekst.slice(0,300);
+    try{
+      const j=JSON.parse(tekst);
+      reden=(j.error&&j.error.message)||reden;
+    }catch(_){}
+    const e=new Error('Drive '+r.status+': '+reden);
+    e.status=r.status;
+    e.ruw=tekst;
+    throw e;
   }
   return r;
 }
@@ -9729,8 +9739,20 @@ async function driveKopieerVanuitGist(){
       {type:'success',duration:10000});
     return telling;
   }catch(e){
-    appToast('Kopiëren mislukt: '+e.message,{type:'error',duration:12000});
-    console.error(e);
+    /* De twee fouten die je in de praktijk krijgt, met wat eraan te doen is */
+    let uitleg=e.message;
+    if(/has not been used in project|is disabled/i.test(e.message)){
+      uitleg='De Drive API staat nog uit in je Google Cloud-project. '+
+        'Schakel hem in en wacht een paar minuten -- Google heeft even nodig '+
+        'om dat door te voeren.';
+    } else if(e.status===401||/invalid_token|unauthorized/i.test(e.message)){
+      uitleg='Je toegang tot Drive is verlopen. Log uit en weer in, en probeer opnieuw.';
+    } else if(/access_denied|Toestemming geweigerd/i.test(e.message)){
+      uitleg='Toestemming voor Drive is geweigerd. Probeer opnieuw en sta de '+
+        'toegang tot de app-map toe.';
+    }
+    appToast('Kopiëren mislukt · '+uitleg,{type:'error',duration:15000});
+    console.error('Drive-fout:',e.message,e.ruw||'');
   }
 }
 /* Handige controle vanuit de console: wat staat er in Drive? */
