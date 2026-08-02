@@ -1390,9 +1390,12 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 @media (max-width:1100px){.fac-sj-layout{grid-template-columns:340px 1fr}}
 .fac-sj-instel{padding:18px 20px;overflow-y:auto;border-right:0.5px solid var(--border);display:flex;flex-direction:column;gap:16px}
 .fac-sj-preview{background:var(--surface2);padding:14px;display:flex;flex-direction:column;gap:8px;min-height:0}
+.fac-sj-preview-kop{display:flex;align-items:center;gap:10px}
 .fac-sj-preview-lab{
   font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);
+  flex-shrink:0;
 }
+.fac-sj-preview-kop select{flex:1;min-width:0;height:32px;padding:0 9px;font-size:12.5px}
 .fac-sj-preview iframe{
   flex:1;width:100%;border:0.5px solid var(--border-strong);border-radius:var(--radius);
   background:#fff;min-height:420px;
@@ -6047,7 +6050,11 @@ textarea { line-height: 1.6; resize: vertical; }
     <div class="fac-sj-layout">
       <div class="fac-sj-instel" id="facSjabloonBody"></div>
       <div class="fac-sj-preview">
-        <div class="fac-sj-preview-lab">Voorbeeld</div>
+        <div class="fac-sj-preview-kop">
+          <span class="fac-sj-preview-lab">Voorbeeld</span>
+          <select class="fac-ed-inp" id="facSjVoorbeeldKeuze" data-fac-change="facSjKiesVoorbeeld"
+            aria-label="Kies waarop het voorbeeld gebaseerd is"></select>
+        </div>
         <iframe id="facSjabloonPreview" title="Factuurvoorbeeld"></iframe>
       </div>
     </div>
@@ -16103,6 +16110,8 @@ const FAC_CHANGE_ACTIONS={
   facSjPagina:(el,a)=>facSjPagina(el,a),
   facSjMarge:(el,a)=>facSjMarge(el,a),
   facSjKiesTpl:(el)=>facSjKiesTpl(el),
+  facSjKiesVoorbeeld:(el)=>facSjKiesVoorbeeld(el),
+  facSjLogoBreedteZet:(el)=>facSjLogoBreedteZet(el),
   facSjTplNaam:(el)=>facSjTplNaam(el),
   facInstelStandaard:(el)=>{
     const s=factuurSettings();
@@ -16129,7 +16138,7 @@ document.addEventListener('input',e=>{
   const el=e.target.closest('[data-fac-change]');
   if(!el)return;
   const soort=el.dataset.facChange;
-  if(!['facSjStijl','facSjPagina','facSjMarge','facSjBreedte','facSjTekst'].includes(soort))return;
+  if(!['facSjStijl','facSjPagina','facSjMarge','facSjBreedte','facSjTekst','facSjLogoBreedteZet'].includes(soort))return;
   if(el.type!=='range'&&el.tagName!=='TEXTAREA')return;
   const fn=FAC_CHANGE_ACTIONS[soort];
   if(fn)fn(el,el.dataset.facArg1,el.dataset.facArg2);
@@ -17007,6 +17016,7 @@ let facSjabloonPreviewUrl=null;
 let facSjTplId=null;      /* sjabloon dat openstaat */
 let facSjBlokId=null;     /* geselecteerd blok */
 let facSjSleep=null;      /* id van het blok dat versleept wordt */
+let facSjVoorbeeld=null;  /* waarop de preview gebaseerd is: factuur-id of 'klant:<id>' */
 
 function openFacSjabloon(){
   closeFacMenu();
@@ -17014,6 +17024,7 @@ function openFacSjabloon(){
   facSjTplId=factuurSettings().standaardSjabloon||lijst[0].id;
   facSjBlokId=null;
   facSjabloonRender();
+  facSjVulVoorbeeldKeuze();
   document.getElementById('facSjabloonModal').classList.add('open');
   setTimeout(facSjabloonPreview,60);
 }
@@ -17033,24 +17044,87 @@ function facSjBlok(){
 /* Voorbeeldfactuur: een echte als die er is, anders een verzonnen
    exemplaar zodat je het sjabloon ook kunt inrichten voor je eerste
    factuur. Krijgt het sjabloon mee dat nu openstaat. */
+/* De bronnen waaruit je een voorbeeld kunt kiezen: elke bestaande
+   factuur, en elke klant (opgebouwd uit hun openstaande uren, of anders
+   een enkele regel tegen hun uurtarief). Zo controleer je het sjabloon
+   tegen echte gegevens in plaats van een verzonnen klant. */
+function facSjVoorbeeldBronnen(){
+  const uit=[];
+  factuurState.invoices
+    .slice().sort((a,b)=>String(b.nummer).localeCompare(String(a.nummer)))
+    .forEach(f=>{
+      const naam=(f.klant&&f.klant.naam)||urenClientName(f.clientId)||'zonder klant';
+      uit.push({id:f.id,label:f.nummer+' \u00b7 '+naam});
+    });
+  (kanbanState.clients||[]).forEach(c=>{
+    uit.push({id:'klant:'+c.id,label:'Voorbeeld \u00b7 '+(c.bedrijfsnaam||c.name)});
+  });
+  if(!uit.length)uit.push({id:'leeg',label:'Voorbeeldfactuur'});
+  return uit;
+}
 function facSjabloonVoorbeeld(){
-  const echt=factuurState.invoices.find(f=>(f.regels||[]).length);
   const s=factuurSettings();
-  const basis=echt?JSON.parse(JSON.stringify(echt)):{
-    id:'voorbeeld',
-    bedrijfId:s.standaardBedrijf,
-    nummer:factuurVolgendNummer(true,null,s.standaardBedrijf),
-    status:'concept', datum:new Date().toISOString().slice(0,10),
-    vervaldatum:factuurVervaldatum(new Date().toISOString().slice(0,10),s.betaaltermijn),
-    betreft:'Voorbeeld B.V. Gewerkte uren '+new Date().toLocaleDateString('nl-NL',{month:'long',year:'numeric'}),
-    referentie:'PO-2026-014', notitie:'', betalingen:[], btwVerlegd:false,
-    klant:{naam:'Voorbeeld B.V.',contactpersoon:'Afdeling Inkoop',adres:'Voorbeeldstraat 1',
-      postcode:'1234AB',plaats:'Amsterdam',btwNummer:'NL123456789B01'},
-    regels:[{id:'v1',omschrijving:'Gewerkte uren',aantal:8.5,eenheid:'uur',
-      stuksprijs:100,btwTarief:s.btwStandaard,urenIds:[]}]
-  };
-  basis.sjabloonId=facSjTplId;
+  const bronnen=facSjVoorbeeldBronnen();
+  if(!facSjVoorbeeld||!bronnen.some(b=>b.id===facSjVoorbeeld))facSjVoorbeeld=bronnen[0].id;
+
+  let basis;
+  if(facSjVoorbeeld.startsWith('klant:')){
+    /* Voorbeeld voor een echte klant: neem zijn openstaande uren, of
+       anders een dag tegen zijn eigen tarief. */
+    const klant=factuurKlant(facSjVoorbeeld.slice(6));
+    const vandaag=new Date().toISOString().slice(0,10);
+    const maand=vandaag.slice(0,8)+'01';
+    const regels=klant?factuurRegelsUitUren(klant.id,'1970-01-01',vandaag,
+      factuurStandaardBetreft(klant.id,maand,vandaag)):[];
+    const tarief=Number((klant||{}).tarief)||100;
+    basis={
+      id:'voorbeeld',
+      bedrijfId:(klant&&klant.bedrijfId)||s.standaardBedrijf,
+      clientId:klant?klant.id:null,
+      nummer:factuurVolgendNummer(true,null,(klant&&klant.bedrijfId)||s.standaardBedrijf),
+      status:'concept', datum:vandaag,
+      vervaldatum:factuurVervaldatum(vandaag,(klant&&klant.betaaltermijn)||s.betaaltermijn),
+      betreft:klant?factuurStandaardBetreft(klant.id,maand,vandaag):'Gewerkte uren',
+      referentie:'', notitie:(klant&&klant.factuurtekst)||'',
+      betalingen:[], btwVerlegd:!!(klant&&klant.btwVerlegd),
+      klant:factuurKlantSnapshot(klant),
+      regels:regels.length?regels:[{id:'v1',
+        omschrijving:klant?factuurStandaardBetreft(klant.id,maand,vandaag):'Gewerkte uren',
+        aantal:8,eenheid:'uur',stuksprijs:tarief,
+        btwTarief:(klant&&klant.btwTarief!=null)?klant.btwTarief:s.btwStandaard,urenIds:[]}]
+    };
+  } else if(facSjVoorbeeld==='leeg'){
+    const vandaag=new Date().toISOString().slice(0,10);
+    basis={
+      id:'voorbeeld', bedrijfId:s.standaardBedrijf,
+      nummer:factuurVolgendNummer(true,null,s.standaardBedrijf),
+      status:'concept', datum:vandaag,
+      vervaldatum:factuurVervaldatum(vandaag,s.betaaltermijn),
+      betreft:'Voorbeeld B.V. Gewerkte uren '+new Date().toLocaleDateString('nl-NL',{month:'long',year:'numeric'}),
+      referentie:'', notitie:'', betalingen:[], btwVerlegd:false,
+      klant:{naam:'Voorbeeld B.V.',contactpersoon:'Afdeling Inkoop',adres:'Voorbeeldstraat 1',
+        postcode:'1234AB',plaats:'Amsterdam',btwNummer:'NL123456789B01'},
+      regels:[{id:'v1',omschrijving:'Gewerkte uren',aantal:8.5,eenheid:'uur',
+        stuksprijs:100,btwTarief:s.btwStandaard,urenIds:[]}]
+    };
+  } else {
+    const echt=factuurById(facSjVoorbeeld);
+    basis=echt?JSON.parse(JSON.stringify(echt)):{regels:[]};
+  }
+  basis.sjabloonId=facSjTplId;   /* altijd het sjabloon dat nu openstaat */
   return basis;
+}
+function facSjVulVoorbeeldKeuze(){
+  const sel=document.getElementById('facSjVoorbeeldKeuze');
+  if(!sel)return;
+  const bronnen=facSjVoorbeeldBronnen();
+  if(!facSjVoorbeeld||!bronnen.some(b=>b.id===facSjVoorbeeld))facSjVoorbeeld=bronnen[0].id;
+  sel.innerHTML=bronnen.map(b=>
+    `<option value="${escapeHtml(b.id)}"${b.id===facSjVoorbeeld?' selected':''}>${escapeHtml(b.label)}</option>`).join('');
+}
+function facSjKiesVoorbeeld(el){
+  facSjVoorbeeld=el.value;
+  facSjabloonPreview();
 }
 function facSjabloonPreview(){
   const frame=document.getElementById('facSjabloonPreview');
@@ -17124,6 +17198,9 @@ function facSjabloonRender(){
         ${t.settings.logo?'<button class="uren-btn" data-fac-action="facSjLogoWeg">Verwijderen</button>':''}
       </div>
     </div>
+    ${t.settings.logo?`<div class="fac-sj-rij"><label>Logoformaat</label>
+      <input type="range" min="12" max="90" step="1" value="${facSjLogoBreedte(t)}"
+        data-fac-change="facSjLogoBreedteZet"/><span class="val">${facSjLogoBreedte(t)} mm</span></div>`:''}
     <input type="file" id="facSjLogoInput" accept="image/png,image/jpeg" style="display:none"/>
   </div>
 
@@ -17142,6 +17219,7 @@ function facSjabloonRender(){
   if(blok)html+=facSjBlokInstellingen(blok);
   box.innerHTML=html;
   facSjSleepKoppelen();
+  facSjVulVoorbeeldKeuze();
 }
 
 /* Bouwt de plattegrond: blokken in stroken, met neerzetstrepen ertussen.
@@ -17371,6 +17449,21 @@ function facSjHerstelWees(t){
 }
 
 /* -- Acties -- */
+/* De logobreedte hoort bij het LOGO-blok, maar is ook direct onder de
+   upload te bedienen -- daar zoek je hem. */
+function facSjLogoBreedte(t){
+  const blok=(t.blocks||[]).find(b=>b.type==='LOGO');
+  return (blok&&Number(blok.style.breedte))||34;
+}
+function facSjLogoBreedteZet(el){
+  const t=facSjTpl();
+  const blok=(t.blocks||[]).find(b=>b.type==='LOGO');
+  if(!blok)return;
+  blok.style.breedte=Number(el.value);
+  const v=el.parentElement.querySelector('.val');
+  if(v)v.textContent=el.value+' mm';
+  scheduleSave();facSjabloonPreviewTraag();
+}
 function facSjKiesBlok(id){facSjBlokId=facSjBlokId===id?null:id;facSjabloonRender();}
 function facSjToggleBlok(id){
   const b=(facSjTpl().blocks||[]).find(x=>x.id===id);
