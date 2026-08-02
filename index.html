@@ -9505,6 +9505,159 @@ function toonLoginScherm(){
     }
   },6000);
 }
+/* ╔══════════════════════════════════════════════════════════════════╗
+   ║              OPSLAG IN GOOGLE DRIVE (appDataFolder)              ║
+   ║                                                                  ║
+   ║  Een verborgen map per gebruiker die alleen deze app kan lezen.   ║
+   ║  Anders dan de Gist is er geen URL en geen losse token: Google    ║
+   ║  dwingt af dat alleen het ingelogde account erbij kan. Daarmee    ║
+   ║  wordt de login pas echt een beveiligingslaag.                    ║
+   ║                                                                  ║
+   ║  Deze laag draait voorlopig NAAST de Gist. Zolang                 ║
+   ║  DRIVE_ACTIEF false is blijft de Gist de bron van waarheid en     ║
+   ║  verandert er niets aan het opslaan. Pas na een geslaagde         ║
+   ║  overzetting en controle gaat dit aan.                            ║
+   ╚══════════════════════════════════════════════════════════════════╝ */
+
+const DRIVE_SCOPE='https://www.googleapis.com/auth/drive.appdata';
+const DRIVE_BESTAND='herling-analytics.json';
+let DRIVE_ACTIEF=false;        /* nog niet in gebruik -- zie kop */
+let driveToken=null;           /* {token, tot} zolang de app open is */
+let driveTokenClient=null;
+
+/* Toegangstoken opvragen. De login levert alleen een identiteitsbewijs;
+   voor Drive is een apart toegangstoken nodig. Google vernieuwt dat
+   stil zolang je bent ingelogd; alleen de eerste keer is er een
+   toestemmingsvenster. */
+function driveVraagToken(interactief){
+  return new Promise((res,rej)=>{
+    if(driveToken&&Date.now()<driveToken.tot-60000)return res(driveToken.token);
+    if(!(window.google&&google.accounts&&google.accounts.oauth2))
+      return rej(new Error('Google-bibliotheek nog niet geladen'));
+    const gebruiker=ingelogdeGebruiker();
+    try{
+      driveTokenClient=google.accounts.oauth2.initTokenClient({
+        client_id:GOOGLE_CLIENT_ID,
+        scope:DRIVE_SCOPE,
+        hint:gebruiker?gebruiker.email:undefined,
+        hd:TOEGESTAAN_DOMEIN,
+        callback:(r)=>{
+          if(r.error)return rej(new Error(r.error_description||r.error));
+          driveToken={token:r.access_token,tot:Date.now()+(Number(r.expires_in||3600)*1000)};
+          res(driveToken.token);
+        },
+        error_callback:(e)=>rej(new Error((e&&e.message)||'Toestemming geweigerd'))
+      });
+      driveTokenClient.requestAccessToken({prompt:interactief?'consent':''});
+    }catch(e){rej(e);}
+  });
+}
+
+async function driveApi(pad,opties){
+  const token=await driveVraagToken(false);
+  const r=await fetch('https://www.googleapis.com/'+pad,{
+    ...opties,
+    headers:{Authorization:'Bearer '+token,...(opties&&opties.headers||{})}
+  });
+  if(!r.ok){
+    const tekst=await r.text().catch(()=>'');
+    throw new Error('Drive '+r.status+': '+tekst.slice(0,200));
+  }
+  return r;
+}
+
+/* Zoekt het databestand in de verborgen app-map. */
+async function driveZoekBestand(){
+  const r=await driveApi('drive/v3/files?spaces=appDataFolder'+
+    '&q='+encodeURIComponent("name='"+DRIVE_BESTAND+"'")+
+    '&fields=files(id,name,modifiedTime,size)&orderBy=modifiedTime desc');
+  const d=await r.json();
+  return (d.files||[])[0]||null;
+}
+
+async function driveLees(){
+  const bestand=await driveZoekBestand();
+  if(!bestand)return null;
+  const r=await driveApi('drive/v3/files/'+bestand.id+'?alt=media');
+  const tekst=await r.text();
+  return {inhoud:JSON.parse(tekst),meta:bestand};
+}
+
+/* Schrijft (of vervangt) het databestand. Multipart, zodat naam en
+   inhoud in een verzoek meegaan. */
+async function driveSchrijf(obj){
+  const bestand=await driveZoekBestand();
+  const inhoud=JSON.stringify(obj);
+  const grens='herling'+Math.random().toString(36).slice(2);
+  const metadata=bestand?{name:DRIVE_BESTAND}:{name:DRIVE_BESTAND,parents:['appDataFolder']};
+  const body=
+    '--'+grens+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+
+    JSON.stringify(metadata)+'\r\n'+
+    '--'+grens+'\r\nContent-Type: application/json\r\n\r\n'+
+    inhoud+'\r\n'+
+    '--'+grens+'--';
+  const pad='upload/drive/v3/files'+(bestand?'/'+bestand.id:'')+'?uploadType=multipart&fields=id,modifiedTime,size';
+  const r=await driveApi(pad,{
+    method:bestand?'PATCH':'POST',
+    headers:{'Content-Type':'multipart/related; boundary='+grens},
+    body
+  });
+  return r.json();
+}
+
+/* -- Overzetten vanuit de Gist --
+   Kopieert wat er nu in de app zit naar Drive en leest het meteen terug
+   ter controle. Verandert niets aan de Gist: die blijft de bron van
+   waarheid tot jij besluit om te wisselen. */
+async function driveKopieerVanuitGist(){
+  if(!ghToken){appToast('Log eerst in bij GitHub',{type:'warning'});return;}
+  try{
+    appToast('Bezig met kopiëren naar Drive...',{type:'info',duration:4000});
+    /* Neem de state zoals hij nu in het geheugen staat -- dat is wat je
+       in de app ziet en dus wat je verwacht over te zetten. */
+    rawState.tasks=kanbanState;
+    rawState.notes=notesState;
+    rawState.checklist=checklistState;
+    if(typeof urenState!=='undefined')rawState.uren=urenState;
+    if(typeof factuurState!=='undefined')rawState.facturen=factuurState;
+    const payload={_bron:'gist',_gekopieerdOp:new Date().toISOString(),state:rawState};
+    await driveSchrijf(payload);
+    /* Meteen teruglezen: alleen als dat lukt is de kopie echt gelukt. */
+    const terug=await driveLees();
+    if(!terug||!terug.inhoud||!terug.inhoud.state)throw new Error('Teruglezen mislukte');
+    const t=terug.inhoud.state;
+    const telling={
+      klanten:(t.tasks&&t.tasks.clients||[]).length,
+      uren:(t.uren&&t.uren.entries||[]).length,
+      facturen:(t.facturen&&t.facturen.invoices||[]).length,
+      notities:(t.notes&&t.notes.tree||[]).length,
+      checklist:(t.checklist&&t.checklist.items||[]).length
+    };
+    console.log('Drive-kopie geverifieerd:',telling,terug.meta);
+    appToast(`Kopie in Drive geverifieerd · ${telling.klanten} klanten, `+
+      `${telling.uren} uren, ${telling.facturen} facturen`,{type:'success',duration:10000});
+    return telling;
+  }catch(e){
+    appToast('Kopiëren mislukt: '+e.message,{type:'error',duration:12000});
+    console.error(e);
+  }
+}
+/* Handige controle vanuit de console: wat staat er in Drive? */
+async function driveStatus(){
+  try{
+    const b=await driveZoekBestand();
+    if(!b){console.log('Nog geen bestand in Drive');return null;}
+    const d=await driveLees();
+    const t=(d.inhoud&&d.inhoud.state)||{};
+    const info={bestand:b.name,gewijzigd:b.modifiedTime,bytes:Number(b.size||0),
+      klanten:(t.tasks&&t.tasks.clients||[]).length,
+      uren:(t.uren&&t.uren.entries||[]).length,
+      facturen:(t.facturen&&t.facturen.invoices||[]).length};
+    console.log('Drive-status:',info);
+    return info;
+  }catch(e){console.error('Drive-status mislukt:',e);}
+}
+
 function startNaLogin(){
   document.getElementById('loginScreen').style.display='none';
   const g=ingelogdeGebruiker();
@@ -16520,6 +16673,7 @@ const FAC_CLICK_ACTIONS={
   closeFacInstellingen:()=>closeFacInstellingen(),
   facExportBoekhouding:()=>facExportBoekhouding(),
   facBackup:()=>{closeFacMenu();downloadBackup();},
+  driveKopie:()=>{closeFacMenu();driveKopieerVanuitGist();},
   openPinInstellen:()=>openPinModal('instellen'),
   openPinUit:()=>openPinModal('uit'),
   openPinOntgrendel:()=>openPinModal('ontgrendel'),
@@ -18285,6 +18439,9 @@ function facToggleMenu(){
           ? (pinDagenResterend()?'Dit apparaat onthoudt de code nog '+pinDagenResterend()+' dagen':'Vraagt om je pincode')
           : 'Facturen en klantgegevens versleuteld opslaan'}</small></span></button>
     <div class="uren-menu-sep"></div>
+    <button class="uren-menu-item" role="menuitem" data-fac-action="driveKopie">
+      <span class="ic" aria-hidden="true">☁</span>
+      <span>Kopie naar Google Drive<small>Test de nieuwe opslag — Gist blijft leidend</small></span></button>
     <button class="uren-menu-item" role="menuitem" data-fac-action="facBackup">
       <span class="ic" aria-hidden="true">⛁</span>
       <span>Back-up downloaden<small id="facBackupSub"></small></span></button>
