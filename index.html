@@ -9357,11 +9357,21 @@ function renderAll(){
   renderClientFilters();
   if(typeof updateNavBadges==='function')updateNavBadges();
   /* Apply hash-based routing on initial load */
-  const hash=(location.hash||'#dashboard').slice(1);
-  const validMods=['dashboard','notes','agenda','checklist','uren','facturen'];
-  const startMod=validMods.includes(hash)?hash:'dashboard';
-  switchModule(startMod);
+  switchModule(moduleUitHash());
 }
+
+const GELDIGE_MODULES=['dashboard','notes','agenda','checklist','uren','facturen'];
+function moduleUitHash(){
+  const h=(location.hash||'#dashboard').slice(1);
+  return GELDIGE_MODULES.includes(h)?h:'dashboard';
+}
+/* Reageer ook op een hash die later verandert: een geplakte link naar
+   #facturen in een al geopende tab, of de terug-knop van de browser.
+   Zonder dit zou de URL wel wijzigen maar het scherm niet. */
+window.addEventListener('hashchange',()=>{
+  const doel=moduleUitHash();
+  if(doel!==activeModule)switchModule(doel);
+});
 
 /* ─ Event delegation registrations (Dashboard + Sidebar clients) ─ */
 Object.assign(APP_ACTIONS,{
@@ -15988,6 +15998,32 @@ function factuurVolgendNummer(peek,negeerId,bedrijfId){
    Klanten leven in kanbanState.clients (gedeeld met de andere
    modules); de factuurvelden hangen er als extra eigenschappen aan. */
 function factuurKlant(id){return (kanbanState.clients||[]).find(c=>c.id===id)||null;}
+
+/* -- Werk voor de een, factuur naar de ander --
+   Je werkt voor een klant, maar factureert soms een tussenpersoon die
+   meerdere van die klanten vertegenwoordigt. Een klant kan daarom
+   verwijzen naar de partij die de rekening krijgt (factuurPartijId).
+   Staat dat leeg, dan factureer je de klant zelf. */
+function factuurPartijIdVan(clientId){
+  const c=factuurKlant(clientId);
+  if(!c)return clientId;
+  const partij=c.factuurPartijId&&factuurKlant(c.factuurPartijId);
+  return partij?partij.id:c.id;
+}
+function factuurPartijVan(clientId){
+  return factuurKlant(factuurPartijIdVan(clientId));
+}
+/* Alle klanten waarvan het werk bij deze partij op de rekening komt
+   (de partij zelf inbegrepen, want die kan ook eigen uren hebben). */
+function factuurKlantenVanPartij(partijId){
+  return (kanbanState.clients||[]).filter(c=>factuurPartijIdVan(c.id)===partijId);
+}
+/* Ketens voorkomen: A factureert aan B, B factureert aan A. */
+function factuurPartijToegestaan(clientId,partijId){
+  if(!partijId||partijId===clientId)return false;
+  const partij=factuurKlant(partijId);
+  return !!(partij&&!partij.factuurPartijId);
+}
 function factuurKlantCompleet(c){
   return !!(c&&c.name&&c.adres&&c.postcode&&c.plaats);
 }
@@ -16090,40 +16126,64 @@ function factuurUrenVoorKlant(clientId,from,to){
     e.clientId===clientId&&e.date>=from&&e.date<=to&&
     urenStatusOf(e)!=='invoiced'&&!e.factuurId);
 }
-function factuurRegelsUitUren(clientId,from,to,omschrijving){
-  const uren=factuurUrenVoorKlant(clientId,from,to);
-  if(!uren.length)return [];
-  const klant=factuurKlant(clientId)||{};
-  const standaard=Number(klant.tarief||0);
-  /* Groeperen op tarief: standaard eerst, afwijkingen daaronder */
-  const groepen={};
-  uren.forEach(e=>{
-    const tarief=(e.tarief!=null&&e.tarief!=='')?Number(e.tarief):standaard;
-    (groepen[tarief]=groepen[tarief]||[]).push(e);
-  });
-  const btw=klant.btwTarief!=null?klant.btwTarief:factuurSettings().btwStandaard;
-  return Object.keys(groepen).map(t=>{
-    const groep=groepen[t];
-    const aantal=Math.round(groep.reduce((s,e)=>s+Number(e.hours||0),0)*100)/100;
-    const afwijkend=Number(t)!==standaard;
-    return {
-      id:factuurUid(),
-      omschrijving:omschrijving+(afwijkend?` (tarief ${factuurFmtBedrag(t)})`:''),
-      aantal, eenheid:'uur', stuksprijs:Number(t), btwTarief:btw,
-      urenIds:groep.map(e=>e.id)
-    };
-  });
+/* Alle openstaande uren die op de rekening van deze partij komen, over
+   al haar klanten heen. */
+function factuurUrenVoorPartij(partijId,from,to){
+  return factuurKlantenVanPartij(partijId)
+    .flatMap(c=>factuurUrenVoorKlant(c.id,from,to));
 }
+function factuurRegelsUitUren(partijId,from,to,omschrijving){
+  const klanten=factuurKlantenVanPartij(partijId);
+  const regels=[];
+  klanten.forEach(klant=>{
+    const uren=factuurUrenVoorKlant(klant.id,from,to);
+    if(!uren.length)return;
+    const standaard=Number(klant.tarief||0);
+    /* Groeperen op tarief: afwijkingen krijgen een eigen regel, anders
+       verdwijnen ze in een gemiddelde. */
+    const groepen={};
+    uren.forEach(e=>{
+      const tarief=(e.tarief!=null&&e.tarief!=='')?Number(e.tarief):standaard;
+      (groepen[tarief]=groepen[tarief]||[]).push(e);
+    });
+    const btw=klant.btwTarief!=null?klant.btwTarief:factuurSettings().btwStandaard;
+    /* Factureer je via een tussenpersoon, dan moet op de regel staan
+       voor wie het werk was -- anders weet de ontvanger niet waar het
+       over gaat. */
+    const viaPartij=factuurPartijIdVan(klant.id)!==klant.id;
+    const basis=viaPartij
+      ? (klant.bedrijfsnaam||klant.name)+' \u2014 '+(omschrijving||'Gewerkte uren')
+      : (omschrijving||'Gewerkte uren');
+    Object.keys(groepen).forEach(t=>{
+      const groep=groepen[t];
+      const aantal=Math.round(groep.reduce((s,e)=>s+Number(e.hours||0),0)*100)/100;
+      const afwijkend=Number(t)!==standaard;
+      regels.push({
+        id:factuurUid(),
+        omschrijving:basis+(afwijkend?` (tarief ${factuurFmtBedrag(t)})`:''),
+        aantal, eenheid:'uur', stuksprijs:Number(t), btwTarief:btw,
+        klantId:klant.id,
+        urenIds:groep.map(e=>e.id)
+      });
+    });
+  });
+  return regels;
+}
+
 /* Standaardomschrijving in de stijl van de bestaande facturen:
    "LabsData - Buren Gewerkte uren Mei/Juni 2026" */
 function factuurStandaardBetreft(clientId,from,to){
   const klant=factuurKlant(clientId);
-  const naam=klant?(klant.bedrijfsnaam||klant.name):'';
+  /* Meerdere klanten op een factuur? Dan zegt een klantnaam in het
+     onderwerp niets; de regels vermelden ze afzonderlijk. */
+  const meerdere=factuurKlantenVanPartij(clientId).filter(c=>
+    factuurUrenVoorKlant(c.id,from||'1970-01-01',to||'2999-12-31').length).length>1;
+  const naam=meerdere?'':(klant?(klant.bedrijfsnaam||klant.name):'');
   const mnd=iso=>{const d=new Date(iso+'T00:00:00');
     const s=d.toLocaleDateString('nl-NL',{month:'long'});return s.charAt(0).toUpperCase()+s.slice(1);};
   const j=iso=>new Date(iso+'T00:00:00').getFullYear();
   const periode=mnd(from)===mnd(to)?`${mnd(from)} ${j(to)}`:`${mnd(from)}/${mnd(to)} ${j(to)}`;
-  return `${naam} Gewerkte uren ${periode}`;
+  return `${naam?naam+' ':''}Gewerkte uren ${periode}`;
 }
 
 /* ── CRUD ── */
@@ -16654,6 +16714,13 @@ function facRenderKlanten(){
       <div class="adres">${compleet
         ? escapeHtml(c.adres)+'<br>'+escapeHtml((c.postcode||'')+' '+(c.plaats||''))
         : '<span class="fac-onvolledig">⚠ Adresgegevens ontbreken</span>'}</div>
+      ${c.factuurPartijId&&factuurKlant(c.factuurPartijId)
+        ? `<div style="font-size:11.5px;color:var(--text-muted)">Factuur gaat naar
+             <b style="color:var(--text)">${escapeHtml((factuurKlant(c.factuurPartijId).bedrijfsnaam)||factuurKlant(c.factuurPartijId).name)}</b></div>`
+        : (factuurKlantenVanPartij(c.id).length>1
+            ? `<div style="font-size:11.5px;color:var(--text-muted)">Ontvangt ook de facturen van
+                 <b style="color:var(--text)">${factuurKlantenVanPartij(c.id).length-1} andere klant${factuurKlantenVanPartij(c.id).length===2?'':'en'}</b></div>`
+            : '')}
       <div class="meta">
         <span>Tarief <b>${c.tarief?factuurFmtBedrag(c.tarief):'—'}</b></span>
         <span>Termijn <b>${c.betaaltermijn||factuurSettings().betaaltermijn}d</b></span>
@@ -16698,21 +16765,35 @@ function facWizardRender(){
 function facWizardRenderKlanten(){
   const box=document.getElementById('facWizardKlanten');
   if(!box||!facWizard)return;
-  const klanten=kanbanState.clients||[];
-  if(!klanten.length){
+  /* Je kiest wie de rekening krijgt, niet voor wie je werkte. Onder
+     elke partij staat welke klanten daar op meeliften. */
+  const partijen=(kanbanState.clients||[]).filter(c=>!c.factuurPartijId);
+  if(!partijen.length){
     box.innerHTML=`<div class="uren-empty"><b>Nog geen klanten</b>Voeg eerst een klant toe.</div>`;
   } else {
-    box.innerHTML=`<div class="fac-wizard-klanten">`+klanten.map(c=>{
-      const col=CLIENT_COLORS[c.colorIdx%CLIENT_COLORS.length];
-      const uren=factuurUrenVoorKlant(c.id,facWizard.from,facWizard.to);
+    box.innerHTML=`<div class="fac-wizard-klanten">`+partijen.map(partij=>{
+      const col=CLIENT_COLORS[partij.colorIdx%CLIENT_COLORS.length];
+      const uren=factuurUrenVoorPartij(partij.id,facWizard.from,facWizard.to);
       const aantal=Math.round(uren.reduce((s,e)=>s+Number(e.hours||0),0)*100)/100;
-      const tarief=Number(c.tarief||0);
-      const gekozen=facWizard.clientId===c.id;
-      return `<button class="fac-wizard-klant" data-fac-action="facWizardKies" data-fac-arg1="${c.id}"
+      const bedrag=uren.reduce((s,e)=>{
+        const k=factuurKlant(e.clientId)||{};
+        const t=(e.tarief!=null&&e.tarief!=='')?Number(e.tarief):Number(k.tarief||0);
+        return s+Number(e.hours||0)*t;
+      },0);
+      /* Welke klanten leveren uren aan deze partij? */
+      const namen=[...new Set(uren.map(e=>{
+        const k=factuurKlant(e.clientId);
+        return k?(k.bedrijfsnaam||k.name):'';
+      }).filter(Boolean))];
+      const via=namen.filter(n=>n!==(partij.bedrijfsnaam||partij.name));
+      const gekozen=facWizard.clientId===partij.id;
+      return `<button class="fac-wizard-klant" data-fac-action="facWizardKies" data-fac-arg1="${partij.id}"
         style="${gekozen?'border-color:var(--mint);background:var(--mint-soft)':''}">
         <span class="sw" style="background:${col.bg}"></span>
-        <span class="nm">${escapeHtml(c.bedrijfsnaam||c.name)}</span>
-        <span class="uren">${aantal?urenFmt(aantal)+' u'+(tarief?' · '+factuurFmtBedrag(aantal*tarief):''):'geen open uren'}</span>
+        <span class="nm">${escapeHtml(partij.bedrijfsnaam||partij.name)}
+          ${via.length?`<em style="display:block;font-style:normal;font-size:11px;font-weight:400;color:var(--text-muted);margin-top:2px">
+            werk voor ${escapeHtml(via.join(', '))}</em>`:''}</span>
+        <span class="uren">${aantal?urenFmt(aantal)+' u'+(bedrag?' \u00b7 '+factuurFmtBedrag(bedrag):''):'geen open uren'}</span>
       </button>`;
     }).join('')+`</div>`;
   }
@@ -17073,7 +17154,14 @@ function openKlantModal(id){
         <input type="text" class="fac-ed-inp" id="kmContact" value="${v('contactpersoon')}"/></div>
     </div>
     <div style="height:1px;background:var(--border);margin:18px 0"></div>
-    <div class="fac-ed-grid">
+    <div class="uren-fld"><label>Factureren aan</label>
+      <select class="fac-ed-inp" id="kmPartij">
+        <option value="">Deze klant zelf</option>
+        ${(kanbanState.clients||[]).filter(x=>(!c||x.id!==c.id)&&!x.factuurPartijId)
+          .map(x=>`<option value="${x.id}"${c&&c.factuurPartijId===x.id?' selected':''}>${escapeHtml(x.bedrijfsnaam||x.name)}</option>`).join('')}
+      </select>
+      <small style="font-size:11px;color:var(--text-muted)">Werk je voor deze klant maar stuur je de rekening naar een tussenpersoon, kies die dan hier. De uren komen dan op de factuur van die partij, met deze klantnaam op de regel.</small></div>
+    <div class="fac-ed-grid" style="margin-top:12px">
       <div class="uren-fld"><label>Uurtarief (€)</label>
         <input type="number" step="0.01" class="fac-ed-inp num" id="kmTarief" value="${v('tarief')}" placeholder="0,00"/></div>
       <div class="uren-fld"><label>Betaaltermijn (dagen)</label>
@@ -17117,6 +17205,7 @@ function klantModalOpslaan(){
     kvk:g('kmKvk').value.trim(),
     email:g('kmEmail').value.trim(),
     contactpersoon:g('kmContact').value.trim(),
+    factuurPartijId:g('kmPartij').value||null,
     tarief:Number(g('kmTarief').value)||0,
     betaaltermijn:Number(g('kmTermijn').value)||factuurSettings().betaaltermijn,
     btwTarief:Number(g('kmBtwTarief').value),
