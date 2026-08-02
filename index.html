@@ -740,6 +740,13 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 }
 
 /* ── Overloopmenu (templates + export) ── */
+/* Twee knoppen naast elkaar onderin de zijbalk; bij een ingeklapte
+   zijbalk vallen ze onder elkaar zodat de iconen zichtbaar blijven. */
+.sidebar-btn-rij{display:flex;gap:6px}
+.sidebar-btn-rij .sidebar-theme-btn{flex:1;min-width:0}
+.sidebar-btn-rij .theme-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sidebar.collapsed .sidebar-btn-rij{flex-direction:column}
+
 .uren-menu{
   position:fixed;z-index:9999;min-width:248px;padding:5px;
   background:var(--surface);border:0.5px solid var(--border-strong);
@@ -5475,10 +5482,16 @@ textarea { line-height: 1.6; resize: vertical; }
         <span class="theme-icon-dark"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M13.5 9.2A6 6 0 0 1 6.8 2.5a6 6 0 1 0 6.7 6.7z"/></svg></span>
         <span class="theme-label" id="themeLabel">Licht</span>
       </button>
-      <button class="sidebar-theme-btn" id="loginBtn" onclick="logUit()" title="Uitloggen" style="display:none">
-        <span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M6 14H3.5a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1H6"/><polyline points="10.5 11 13.5 8 10.5 5"/><line x1="13.5" y1="8" x2="6" y2="8"/></svg></span>
-        <span class="theme-label" id="loginLabel">Uitloggen</span>
-      </button>
+      <div class="sidebar-btn-rij">
+        <button class="sidebar-theme-btn" id="instellingenBtn" onclick="toggleAppInstellingen(event)" title="Instellingen">
+          <span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="8" cy="8" r="2.4"/><path d="M13 9.6a1.2 1.2 0 0 0 .24 1.32l.04.05a1.45 1.45 0 1 1-2.06 2.06l-.05-.05a1.2 1.2 0 0 0-1.32-.24 1.2 1.2 0 0 0-.73 1.1v.13a1.45 1.45 0 1 1-2.9 0v-.07a1.2 1.2 0 0 0-.79-1.1 1.2 1.2 0 0 0-1.32.24l-.05.05a1.45 1.45 0 1 1-2.06-2.06l.05-.05a1.2 1.2 0 0 0 .24-1.32 1.2 1.2 0 0 0-1.1-.73H1.1a1.45 1.45 0 1 1 0-2.9h.07a1.2 1.2 0 0 0 1.1-.79 1.2 1.2 0 0 0-.24-1.32l-.05-.05A1.45 1.45 0 1 1 4.04 1.7l.05.05a1.2 1.2 0 0 0 1.32.24h.06a1.2 1.2 0 0 0 .73-1.1V.8a1.45 1.45 0 1 1 2.9 0v.07a1.2 1.2 0 0 0 .73 1.1 1.2 1.2 0 0 0 1.32-.24l.05-.05a1.45 1.45 0 1 1 2.06 2.06l-.05.05a1.2 1.2 0 0 0-.24 1.32v.06a1.2 1.2 0 0 0 1.1.73h.13a1.45 1.45 0 1 1 0 2.9h-.07a1.2 1.2 0 0 0-1.1.73z"/></svg></span>
+          <span class="theme-label">Instellingen</span>
+        </button>
+        <button class="sidebar-theme-btn" id="loginBtn" onclick="logUit()" title="Uitloggen" style="display:none">
+          <span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M6 14H3.5a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1H6"/><polyline points="10.5 11 13.5 8 10.5 5"/><line x1="13.5" y1="8" x2="6" y2="8"/></svg></span>
+          <span class="theme-label" id="loginLabel">Uitloggen</span>
+        </button>
+      </div>
       <button class="sidebar-collapse-btn" onclick="toggleSidebar()">
         <span class="collapse-icon">◀</span>
         <span class="collapse-lbl">Inklappen</span>
@@ -9522,6 +9535,67 @@ function toonLoginScherm(){
     }
   },6000);
 }
+/* -- Instellingen: app-breed, vanuit elk scherm bereikbaar --
+   Opslag en beveiliging hoorden niet thuis in het facturen-menu; dat
+   gaat over de hele app. */
+function toggleAppInstellingen(e){
+  if(e)e.stopPropagation();
+  if(document.getElementById('appInstelMenu')){closeAppInstellingen();return;}
+  const btn=document.getElementById('instellingenBtn');
+  if(!btn)return;
+  const m=document.createElement('div');
+  m.className='uren-menu';m.id='appInstelMenu';m.setAttribute('role','menu');
+  const pinAan=typeof pinIngeschakeld==='function'&&pinIngeschakeld();
+  const dagen=typeof facBackupLeeftijd==='function'?facBackupLeeftijd():null;
+  m.innerHTML=`
+    <div class="uren-menu-lab">Opslag</div>
+    <button class="uren-menu-item" role="menuitem" data-app-instel="backup">
+      <span class="ic" aria-hidden="true">&#9739;</span>
+      <span>Back-up downloaden<small>${dagen===null?'Nog nooit gedaan':dagen===0?'Vandaag gedaan':'Laatst '+dagen+' '+(dagen===1?'dag':'dagen')+' geleden'}</small></span></button>
+    <button class="uren-menu-item" role="menuitem" data-app-instel="drive">
+      <span class="ic" aria-hidden="true">&#9729;</span>
+      <span>Kopie naar Google Drive<small>Test de nieuwe opslag — Gist blijft leidend</small></span></button>
+    <div class="uren-menu-sep"></div>
+    <div class="uren-menu-lab">Beveiliging</div>
+    <button class="uren-menu-item" role="menuitem" data-app-instel="pin">
+      <span class="ic" aria-hidden="true">&#9663;</span>
+      <span>${pinAan?'Versleuteling uitschakelen':'Beveiligen met pincode'}<small>${
+        pinAan?(typeof pinDagenResterend==='function'&&pinDagenResterend()
+          ? 'Dit apparaat onthoudt de code nog '+pinDagenResterend()+' dagen'
+          : 'Vraagt om je pincode')
+        :'Facturen en klantgegevens versleuteld opslaan'}</small></span></button>
+    <div class="uren-menu-sep"></div>
+    <div class="uren-menu-lab">Verbinding</div>
+    <button class="uren-menu-item" role="menuitem" data-app-instel="token">
+      <span class="ic" aria-hidden="true">&#9670;</span>
+      <span>GitHub-token wijzigen</span></button>`;
+  document.body.appendChild(m);
+  /* Boven de knop uitlijnen; de zijbalk staat onderaan het scherm. */
+  const r=btn.getBoundingClientRect();
+  m.style.left=Math.max(8,r.left)+'px';
+  m.style.top=Math.max(8,r.top-m.offsetHeight-6)+'px';
+  setTimeout(()=>document.addEventListener('mousedown',appInstelBuiten),20);
+}
+function appInstelBuiten(e){
+  const m=document.getElementById('appInstelMenu');
+  if(m&&!m.contains(e.target)&&!e.target.closest('#instellingenBtn'))closeAppInstellingen();
+}
+function closeAppInstellingen(){
+  document.getElementById('appInstelMenu')?.remove();
+  document.removeEventListener('mousedown',appInstelBuiten);
+}
+document.addEventListener('click',e=>{
+  const el=e.target.closest('[data-app-instel]');
+  if(!el)return;
+  const wat=el.dataset.appInstel;
+  closeAppInstellingen();
+  if(wat==='backup')downloadBackup();
+  else if(wat==='drive')driveKopieerVanuitGist();
+  else if(wat==='pin')openPinModal(pinIngeschakeld()?'uit':'instellen');
+  else if(wat==='token')showTokenSettings();
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeAppInstellingen();});
+
 /* ╔══════════════════════════════════════════════════════════════════╗
    ║              OPSLAG IN GOOGLE DRIVE (appDataFolder)              ║
    ║                                                                  ║
@@ -18448,20 +18522,7 @@ function facToggleMenu(){
     <button class="uren-menu-item" role="menuitem" data-fac-action="facKlantNieuw">
       <span class="ic" aria-hidden="true">+</span><span>Klant toevoegen</span></button>
     <div class="uren-menu-sep"></div>
-    <button class="uren-menu-item" role="menuitem"
-      data-fac-action="${pinIngeschakeld()?'openPinUit':'openPinInstellen'}">
-      <span class="ic" aria-hidden="true">\u26bf</span>
-      <span>${pinIngeschakeld()?'Versleuteling uitschakelen':'Beveiligen met pincode'}<small>${
-        pinIngeschakeld()
-          ? (pinDagenResterend()?'Dit apparaat onthoudt de code nog '+pinDagenResterend()+' dagen':'Vraagt om je pincode')
-          : 'Facturen en klantgegevens versleuteld opslaan'}</small></span></button>
     <div class="uren-menu-sep"></div>
-    <button class="uren-menu-item" role="menuitem" data-fac-action="driveKopie">
-      <span class="ic" aria-hidden="true">☁</span>
-      <span>Kopie naar Google Drive<small>Test de nieuwe opslag — Gist blijft leidend</small></span></button>
-    <button class="uren-menu-item" role="menuitem" data-fac-action="facBackup">
-      <span class="ic" aria-hidden="true">⛁</span>
-      <span>Back-up downloaden<small id="facBackupSub"></small></span></button>
     <button class="uren-menu-item" role="menuitem" data-fac-action="facExportBoekhouding">
       <span class="ic" aria-hidden="true">↧</span>
       <span>Export voor boekhouding<small>Alle facturen van ${facJaar} als Excel</small></span></button>`;
