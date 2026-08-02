@@ -7993,9 +7993,11 @@ window.addEventListener('load',()=>{
    BACKUP / RESTORE — local JSON file (Gist-independent)
    ═══════════════════════════════════════════════════ */
 /* Korte opsomming van wat er in een back-up of kopie zit. */
-function backupInhoud(st){
+function backupInhoud(st,toonNullen){
   const d=[];
-  const tel=(n,enk,mv)=>{if(n)d.push(n+' '+(n===1?enk:mv));};
+  /* toonNullen: bij het controleren van een kopie wil je juist zien wat
+     er ONTBREEKT. Een weggelaten nul ziet eruit als "alles is goed". */
+  const tel=(n,enk,mv)=>{if(n||toonNullen)d.push(n+' '+(n===1?enk:mv));};
   tel(((st.tasks||{}).clients||[]).length,'klant','klanten');
   tel(((st.uren||{}).entries||[]).length,'urenregel','urenregels');
   tel(((st.facturen||{}).invoices||[]).length,'factuur','facturen');
@@ -9735,8 +9737,17 @@ async function driveKopieerVanuitGist(){
       checklist:(t.checklist&&t.checklist.items||[]).length
     };
     console.log('Drive-kopie geverifieerd:',telling,terug.meta);
-    appToast('Kopie in Drive geverifieerd · '+backupInhoud(t),
-      {type:'success',duration:10000});
+    /* Vergelijk met wat er in het geheugen zit: elk verschil is een
+       reden om NIET om te schakelen. */
+    const hier=backupInhoud(rawState,true);
+    const daar=backupInhoud(t,true);
+    if(hier!==daar){
+      appToast('Let op · de kopie wijkt af. Hier: '+hier+' — in Drive: '+daar,
+        {type:'error',duration:20000});
+      console.warn('Verschil tussen app en Drive:',{hier,daar});
+    } else {
+      appToast('Kopie in Drive geverifieerd · '+daar,{type:'success',duration:12000});
+    }
     return telling;
   }catch(e){
     /* De twee fouten die je in de praktijk krijgt, met wat eraan te doen is */
