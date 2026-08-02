@@ -7979,6 +7979,22 @@ window.addEventListener('load',()=>{
 /* ═══════════════════════════════════════════════════
    BACKUP / RESTORE — local JSON file (Gist-independent)
    ═══════════════════════════════════════════════════ */
+/* Korte opsomming van wat er in een back-up of kopie zit. */
+function backupInhoud(st){
+  const d=[];
+  const tel=(n,enk,mv)=>{if(n)d.push(n+' '+(n===1?enk:mv));};
+  tel(((st.tasks||{}).clients||[]).length,'klant','klanten');
+  tel(((st.uren||{}).entries||[]).length,'urenregel','urenregels');
+  tel(((st.facturen||{}).invoices||[]).length,'factuur','facturen');
+  const telNotities=(nodes)=>(nodes||[]).reduce((n,x)=>
+    n+(x.type==='folder'?0:1)+telNotities(x.children),0);
+  tel(telNotities((st.notes||{}).tree),'notitie','notities');
+  tel(((st.checklist||{}).items||[]).length,'checklist-item','checklist-items');
+  const projecten=Object.keys((st.tasks||{}).projects||{}).length;
+  tel(projecten,'project','projecten');
+  return d.length?d.join(', '):'nog geen gegevens';
+}
+
 function downloadBackup(){
   /* Sync the latest module state into rawState before serializing */
   rawState.tasks=kanbanState;
@@ -8007,9 +8023,10 @@ function downloadBackup(){
   document.body.appendChild(a);a.click();a.remove();
   URL.revokeObjectURL(url);
   try{localStorage.setItem(LS_BACKUP_DATUM,new Date().toISOString());}catch(_){}
-  const n=(factuurState&&factuurState.invoices||[]).length;
-  appToast('Back-up gedownload'+(n?` · ${n} factuur${n===1?'':'en'} inbegrepen`:''),
-    {type:'success',duration:4000});
+  /* Noem alles wat erin zit: alleen het aantal facturen tonen wekt de
+     indruk dat de rest niet is meegenomen. */
+  appToast('Back-up gedownload · '+backupInhoud(backupState),
+    {type:'success',duration:7000});
   if(typeof facRenderAll==='function'&&activeModule==='facturen')facRenderAll();
 }
 async function handleRestoreFile(file){
@@ -9634,8 +9651,8 @@ async function driveKopieerVanuitGist(){
       checklist:(t.checklist&&t.checklist.items||[]).length
     };
     console.log('Drive-kopie geverifieerd:',telling,terug.meta);
-    appToast(`Kopie in Drive geverifieerd · ${telling.klanten} klanten, `+
-      `${telling.uren} uren, ${telling.facturen} facturen`,{type:'success',duration:10000});
+    appToast('Kopie in Drive geverifieerd · '+backupInhoud(t),
+      {type:'success',duration:10000});
     return telling;
   }catch(e){
     appToast('Kopiëren mislukt: '+e.message,{type:'error',duration:12000});
