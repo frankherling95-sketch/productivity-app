@@ -6070,6 +6070,23 @@ textarea { line-height: 1.6; resize: vertical; }
   </div>
 </div>
 
+<!-- ── Pincode: instellen en ontgrendelen ── -->
+<div class="modal-bg" id="pinModal">
+  <div class="modal" style="max-width:420px;padding:26px 24px">
+    <h3 id="pinTitel" style="font-size:18px;font-weight:700;margin:0 0 6px">Administratie ontgrendelen</h3>
+    <p id="pinUitleg" style="font-size:13px;color:var(--text-muted);margin:0 0 18px;line-height:1.55"></p>
+    <div id="pinVelden"></div>
+    <div id="pinFout" style="color:var(--danger);font-size:12.5px;min-height:18px;margin-top:8px"></div>
+    <div class="modal-footer" style="margin-top:14px">
+      <div id="pinLinks"></div>
+      <div class="modal-footer-right">
+        <button class="btn btn-sm" id="pinAnnuleer" data-fac-action="closePinModal">Annuleer</button>
+        <button class="btn btn-sm btn-primary" id="pinBevestig" data-fac-action="pinBevestig">Ontgrendelen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ── Facturatie-instellingen (eigen bedrijfsgegevens + nummering) ── -->
 <div class="modal-bg" id="facInstellingenModal">
   <div class="modal" style="max-width:620px;padding:0;display:flex;flex-direction:column;max-height:92vh">
@@ -6903,6 +6920,157 @@ const LS_TOKEN_KEY='bi_checklist_gh_token';
    moeten zeven jaar bewaard blijven; een Gist is een klik van
    verwijderen en de localStorage-kopie hangt aan een browser. */
 const LS_BACKUP_DATUM='herling_laatste_backup';
+/* Versleuteling: de afgeleide sleutel wordt per apparaat bewaard met een
+   vervaldatum, zodat je de pincode niet elke sessie hoeft in te typen. */
+const LS_PIN_SLEUTEL='herling_pin_sleutel';
+const PIN_ONTHOUD_DAGEN=30;
+
+/* ╔══════════════════════════════════════════════════════════════════╗
+   ║              VERSLEUTELING VAN DE ADMINISTRATIE                  ║
+   ║                                                                  ║
+   ║  Waarom: een "secret" GitHub Gist is niet privé maar onvindbaar. ║
+   ║  Iedereen met de URL leest hem zonder in te loggen. Versleuteld  ║
+   ║  is die URL alleen nog een blok ruis.                            ║
+   ║                                                                  ║
+   ║  Wat wel: facturen, uren en de gevoelige klantvelden (adres,     ║
+   ║  btw, kvk, e-mail, tarief) plus de eigen bedrijfsgegevens.       ║
+   ║  Wat niet: klantnaam en kleur — die heeft de rest van de app     ║
+   ║  nodig, en notities/checklist/agenda blijven zo bruikbaar        ║
+   ║  zonder pincode.                                                 ║
+   ║                                                                  ║
+   ║  Grens: een pincode is kort. Daarom 600k PBKDF2-rondes, wat een  ║
+   ║  poging ~0,5s kost. Zes cijfers zijn dan weken werk; vier        ║
+   ║  cijfers een paar uur. Het beschermt tegen een gevonden URL,     ║
+   ║  niet tegen een vastberaden aanvaller met veel tijd.             ║
+   ╚══════════════════════════════════════════════════════════════════╝ */
+
+/* Gemeten: 600k rondes kostten 64ms in Chromium (hardware-versneld).
+   Zes cijfers zouden dan in ~18 uur af te lopen zijn. Op 5M komt een
+   poging rond 0,5s uit, waarmee een miljoen codes maanden kost. Het
+   gebruikte aantal gaat mee in de data, zodat een latere verhoging
+   bestaande versleuteling niet onleesbaar maakt. */
+const PIN_RONDES=5000000;
+let pinSleutel=null;      /* CryptoKey zolang de app open is */
+let pinVergrendeld=false; /* true = data staat versleuteld te wachten */
+
+function pinCryptoBeschikbaar(){
+  return !!(window.crypto&&window.crypto.subtle&&window.TextEncoder);
+}
+function pinB64(buf){
+  return btoa(String.fromCharCode(...new Uint8Array(buf)));
+}
+function pinVanB64(str){
+  return Uint8Array.from(atob(str),c=>c.charCodeAt(0));
+}
+/* Pincode + salt -> AES-sleutel. Expres traag: dat is de enige rem op
+   het aflopen van alle mogelijke pincodes. */
+async function pinLeidAf(pin,saltB64,rondes){
+  const salt=pinVanB64(saltB64);
+  const basis=await crypto.subtle.importKey('raw',new TextEncoder().encode(pin),
+    {name:'PBKDF2'},false,['deriveKey']);
+  return crypto.subtle.deriveKey(
+    {name:'PBKDF2',salt,iterations:Number(rondes)||PIN_RONDES,hash:'SHA-256'},
+    basis,{name:'AES-GCM',length:256},true,['encrypt','decrypt']);
+}
+async function pinVersleutel(sleutel,obj){
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const data=new TextEncoder().encode(JSON.stringify(obj));
+  const cipher=await crypto.subtle.encrypt({name:'AES-GCM',iv},sleutel,data);
+  return {v:1,iv:pinB64(iv),data:pinB64(cipher)};
+}
+async function pinOntsleutel(sleutel,pakket){
+  const iv=pinVanB64(pakket.iv);
+  const cipher=pinVanB64(pakket.data);
+  const plat=await crypto.subtle.decrypt({name:'AES-GCM',iv},sleutel,cipher);
+  return JSON.parse(new TextDecoder().decode(plat));
+}
+
+/* Welke velden gaan mee. Klantnaam en kleur blijven leesbaar omdat
+   todo, notities en checklist ermee werken. */
+const KLANT_GEHEIM=['adres','postcode','plaats','land','btwNummer','kvk','email',
+                    'contactpersoon','tarief','betaaltermijn','factuurtekst','bedrijfId'];
+
+function pinIngeschakeld(){
+  return !!(rawState.settings&&rawState.settings.versleuteld);
+}
+/* Haalt de geheime delen uit rawState en levert ze als één blok. */
+function pinPakGeheimen(){
+  const geheim={facturen:rawState.facturen,uren:rawState.uren,klanten:{}};
+  (kanbanState.clients||[]).forEach(c=>{
+    const stuk={};
+    KLANT_GEHEIM.forEach(k=>{if(c[k]!==undefined)stuk[k]=c[k];});
+    if(Object.keys(stuk).length)geheim.klanten[c.id]=stuk;
+  });
+  return geheim;
+}
+/* Zet een ontsleuteld blok terug op zijn plek. */
+function pinZetGeheimenTerug(geheim){
+  if(!geheim)return;
+  if(geheim.facturen){
+    rawState.facturen=geheim.facturen;
+    factuurState=geheim.facturen;
+    if(!factuurState.invoices)factuurState.invoices=[];
+  }
+  if(geheim.uren){
+    rawState.uren=geheim.uren;
+    urenState=geheim.uren;
+    if(!urenState.entries)urenState.entries=[];
+    if(!urenState.templates)urenState.templates=[];
+  }
+  Object.entries(geheim.klanten||{}).forEach(([id,stuk])=>{
+    const c=(kanbanState.clients||[]).find(x=>x.id===id);
+    if(c)Object.assign(c,stuk);
+  });
+}
+/* Verwijdert de geheime velden uit de payload die naar de Gist gaat. */
+function pinStripGeheimen(payload){
+  delete payload.facturen;
+  delete payload.uren;
+  if(payload.tasks&&payload.tasks.clients){
+    payload.tasks={...payload.tasks,
+      clients:payload.tasks.clients.map(c=>{
+        const kaal={...c};
+        KLANT_GEHEIM.forEach(k=>delete kaal[k]);
+        return kaal;
+      })};
+  }
+  return payload;
+}
+
+/* -- Sleutel per apparaat onthouden -- */
+async function pinBewaarSleutel(sleutel){
+  try{
+    const ruw=await crypto.subtle.exportKey('raw',sleutel);
+    localStorage.setItem(LS_PIN_SLEUTEL,JSON.stringify({
+      k:pinB64(ruw),
+      tot:Date.now()+PIN_ONTHOUD_DAGEN*86400000
+    }));
+  }catch(_){}
+}
+async function pinLeesBewaardeSleutel(){
+  try{
+    const v=JSON.parse(localStorage.getItem(LS_PIN_SLEUTEL)||'null');
+    if(!v||!v.k)return null;
+    if(Date.now()>v.tot){localStorage.removeItem(LS_PIN_SLEUTEL);return null;}
+    return await crypto.subtle.importKey('raw',pinVanB64(v.k),
+      {name:'AES-GCM'},true,['encrypt','decrypt']);
+  }catch(_){return null;}
+}
+function pinVergeetApparaat(){
+  try{localStorage.removeItem(LS_PIN_SLEUTEL);}catch(_){}
+  pinSleutel=null;
+}
+/* Dagen dat dit apparaat de code nog onthoudt (null = niet onthouden) */
+function pinDagenResterend(){
+  try{
+    const v=JSON.parse(localStorage.getItem(LS_PIN_SLEUTEL)||'null');
+    if(!v||!v.tot)return null;
+    const d=Math.ceil((v.tot-Date.now())/86400000);
+    return d>0?d:null;
+  }catch(_){return null;}
+}
+
+
 const LS_GIST_KEY='bi_checklist_gist_id_kanban';
 const LS_BACKUP_KEY='herling_analytics_local_backup';
 const CORS_PROXY='https://corsproxy.io/?';
@@ -7390,6 +7558,20 @@ async function loadGist(){
       if(!urenState.entries)urenState.entries=[];
       if(!urenState.templates)urenState.templates=[];
       urenMigrateEntries();   /* invoiced-bool → status, ids aanvullen */
+      /* Versleutelde administratie? Dan wacht die op de pincode.
+         Lukt ontsleutelen met de bewaarde apparaatsleutel, dan merkt de
+         gebruiker er niets van. */
+      if(rawState.geheim){
+        pinVergrendeld=true;
+        const bewaard=await pinLeesBewaardeSleutel();
+        if(bewaard){
+          try{
+            pinZetGeheimenTerug(await pinOntsleutel(bewaard,rawState.geheim));
+            pinSleutel=bewaard;
+            pinVergrendeld=false;
+          }catch(_){ pinVergeetApparaat(); }
+        }
+      }
       /* Hydrate facturen */
       factuurState=rawState.facturen||{invoices:[],settings:{}};
       if(!factuurState.invoices)factuurState.invoices=[];
@@ -7523,7 +7705,19 @@ async function saveGist(){
   /* Strip grote afbeeldingen uit notes ALLEEN voor de Gist-payload.
      In-memory state (notesState) blijft ongewijzigd zodat de editor
      de afbeeldingen nog toont. Dit voorkomt Gist-truncatie (>1 MB). */
-  const gistState={...rawState,notes:sanitizeNotesStateForGist(notesState)};
+  let gistState={...rawState,notes:sanitizeNotesStateForGist(notesState)};
+  /* Staat er een pincode op, dan gaan facturen, uren en de gevoelige
+     klantvelden als een versleuteld blok mee in plaats van leesbaar. */
+  if(pinIngeschakeld()){
+    if(!pinSleutel){
+      /* Vergrendeld en toch opslaan zou de geheimen wissen. Niet doen. */
+      setSync('error','Vergrendeld - voer je pincode in om op te slaan');
+      return;
+    }
+    const geheim=await pinVersleutel(pinSleutel,pinPakGeheimen());
+    gistState=pinStripGeheimen({...gistState});
+    gistState.geheim=geheim;
+  }
   const content=JSON.stringify(gistState,null,2);
   try{
     /* Single-user setup: always overwrite, no conflict check.
@@ -7774,11 +7968,16 @@ function downloadBackup(){
   rawState.uren=urenState;
   rawState.facturen=factuurState;
   if(!rawState.agenda)rawState.agenda={events:[]};
+  /* De back-up gaat bewust onversleuteld: hij is je vangnet als je de
+     pincode kwijtraakt. Bewaar hem dus ergens waar je hem vertrouwt. */
+  const backupState={...rawState};
+  delete backupState.geheim;
   const payload={
     _backupVersion:1,
     _exportedAt:new Date().toISOString(),
     _appVersion:'herling-analytics',
-    state:rawState
+    _versleuteldInGist:pinIngeschakeld(),
+    state:backupState
   };
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);
@@ -16137,7 +16336,14 @@ const FAC_CLICK_ACTIONS={
   facInstellingenOpslaan:()=>facInstellingenOpslaan(),
   closeFacInstellingen:()=>closeFacInstellingen(),
   facExportBoekhouding:()=>facExportBoekhouding(),
-  facBackup:()=>{closeFacMenu();downloadBackup();}
+  facBackup:()=>{closeFacMenu();downloadBackup();},
+  openPinInstellen:()=>openPinModal('instellen'),
+  openPinUit:()=>openPinModal('uit'),
+  openPinOntgrendel:()=>openPinModal('ontgrendel'),
+  pinBevestig:()=>pinBevestig(),
+  closePinModal:()=>closePinModal(),
+  pinVergeetApparaat:()=>{pinVergeetApparaat();closeFacMenu();
+    appToast('Dit apparaat vraagt voortaan weer om je pincode',{type:'info'});}
 };
 const FAC_CHANGE_ACTIONS={
   facSetFilterStatus:(el)=>{facFilterStatus=el.value;facRenderAll();},
@@ -16188,6 +16394,7 @@ document.addEventListener('input',e=>{
 
 /* ── Entry point ── */
 function renderFacturenModule(){
+  if(!pinControleerToegang())return;
   factuurSettings();
   facRenderAll();
   facBackupHerinnering();
@@ -17704,6 +17911,142 @@ function facSjabloonHerstel(){
   scheduleSave();facSjabloonRender();facSjabloonPreview();
 }
 
+/* -- Pincode: instellen, ontgrendelen, uitschakelen -- */
+let pinModus='ontgrendel';   /* 'instellen' | 'ontgrendel' | 'uit' */
+
+function openPinModal(modus){
+  if(!pinCryptoBeschikbaar()){
+    appToast('Deze browser ondersteunt geen versleuteling',{type:'error'});
+    return;
+  }
+  closeFacMenu();
+  pinModus=modus||'ontgrendel';
+  const t=document.getElementById('pinTitel');
+  const u=document.getElementById('pinUitleg');
+  const v=document.getElementById('pinVelden');
+  const links=document.getElementById('pinLinks');
+  const bev=document.getElementById('pinBevestig');
+  const ann=document.getElementById('pinAnnuleer');
+  document.getElementById('pinFout').textContent='';
+  const inp=(id,ph)=>`<input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="12"
+    id="${id}" placeholder="${ph}" autocomplete="off"
+    style="width:100%;text-align:center;font-size:22px;letter-spacing:8px;padding:12px;
+           border:0.5px solid var(--border-strong);border-radius:var(--radius-md);
+           background:var(--surface2);color:var(--text);font-family:var(--font-mono);
+           outline:none;margin-bottom:9px"/>`;
+
+  if(pinModus==='instellen'){
+    t.textContent='Pincode instellen';
+    u.innerHTML='Facturen, uren en klantgegevens gaan hierna versleuteld naar GitHub. '+
+      '<b>Zes cijfers of meer</b> \u2014 korter is met een gevonden Gist-URL te kraken. '+
+      'Raak je de code kwijt, dan is je administratie alleen nog uit een back-up terug te halen.';
+    v.innerHTML=inp('pinA','Nieuwe pincode')+inp('pinB','Nogmaals');
+    links.innerHTML='';
+    bev.textContent='Inschakelen';
+    ann.style.display='';
+  } else if(pinModus==='uit'){
+    t.textContent='Versleuteling uitschakelen';
+    u.textContent='Je administratie komt daarna weer leesbaar in de Gist te staan. Voer je pincode in ter bevestiging.';
+    v.innerHTML=inp('pinA','Pincode');
+    links.innerHTML='';
+    bev.textContent='Uitschakelen';
+    ann.style.display='';
+  } else {
+    t.textContent='Administratie ontgrendelen';
+    const d=pinDagenResterend();
+    u.textContent=d
+      ? `Dit apparaat onthoudt je code nog ${d} ${d===1?'dag':'dagen'}.`
+      : 'Voer je pincode in om facturen, uren en klantgegevens te openen.';
+    v.innerHTML=inp('pinA','Pincode')+
+      `<label style="display:flex;align-items:center;gap:8px;font-size:12.5px;cursor:pointer;user-select:none;margin-top:2px">
+        <input type="checkbox" id="pinOnthoud" checked style="accent-color:var(--mint);width:15px;height:15px"/>
+        Dit apparaat een maand onthouden</label>`;
+    links.innerHTML='';
+    bev.textContent='Ontgrendelen';
+    ann.style.display='';
+  }
+  document.getElementById('pinModal').classList.add('open');
+  setTimeout(()=>{
+    const a=document.getElementById('pinA');
+    if(a){a.focus();a.onkeydown=e=>{if(e.key==='Enter')pinBevestig();};}
+    const b=document.getElementById('pinB');
+    if(b)b.onkeydown=e=>{if(e.key==='Enter')pinBevestig();};
+  },50);
+}
+function closePinModal(){document.getElementById('pinModal').classList.remove('open');}
+
+async function pinBevestig(){
+  const fout=document.getElementById('pinFout');
+  const knop=document.getElementById('pinBevestig');
+  const pin=(document.getElementById('pinA')||{}).value||'';
+  if(!/^\d{4,}$/.test(pin)){fout.textContent='Minimaal 4 cijfers';return;}
+
+  const bezig=(aan)=>{knop.disabled=aan;knop.textContent=aan?'Even geduld\u2026':
+    (pinModus==='instellen'?'Inschakelen':pinModus==='uit'?'Uitschakelen':'Ontgrendelen');};
+
+  if(pinModus==='instellen'){
+    const pin2=(document.getElementById('pinB')||{}).value||'';
+    if(pin!==pin2){fout.textContent='De codes zijn niet gelijk';return;}
+    if(pin.length<6&&!confirm('Een pincode van '+pin.length+' cijfers is met een gevonden '+
+        'Gist-URL binnen enkele uren te kraken.\n\nToch doorgaan?'))return;
+    bezig(true);
+    try{
+      const salt=pinB64(crypto.getRandomValues(new Uint8Array(16)));
+      pinSleutel=await pinLeidAf(pin,salt,PIN_RONDES);
+      rawState.settings=rawState.settings||{};
+      rawState.settings.versleuteld={v:1,salt,rondes:PIN_RONDES};
+      pinVergrendeld=false;
+      await pinBewaarSleutel(pinSleutel);
+      scheduleSave();
+      closePinModal();
+      appToast('Versleuteling ingeschakeld \u00b7 bewaar je pincode goed',{type:'success',duration:8000});
+    }catch(e){fout.textContent='Kon de sleutel niet maken: '+e.message;}
+    bezig(false);
+    return;
+  }
+
+  const cfg=(rawState.settings||{}).versleuteld;
+  if(!cfg){fout.textContent='Er staat geen pincode ingesteld';return;}
+  bezig(true);
+  try{
+    const sleutel=await pinLeidAf(pin,cfg.salt,cfg.rondes);
+    /* De enige echte controle: lukt het ontsleutelen? */
+    if(rawState.geheim){
+      pinZetGeheimenTerug(await pinOntsleutel(sleutel,rawState.geheim));
+    }
+    pinSleutel=sleutel;
+    pinVergrendeld=false;
+
+    if(pinModus==='uit'){
+      delete rawState.settings.versleuteld;
+      delete rawState.geheim;
+      pinVergeetApparaat();
+      pinSleutel=null;
+      scheduleSave();
+      closePinModal();
+      appToast('Versleuteling uitgeschakeld',{type:'info'});
+    } else {
+      const onthoud=document.getElementById('pinOnthoud');
+      if(onthoud&&onthoud.checked)await pinBewaarSleutel(sleutel);
+      closePinModal();
+      renderAll();
+      appToast('Ontgrendeld',{type:'success',duration:2500});
+    }
+  }catch(e){
+    fout.textContent='Onjuiste pincode';
+    const a=document.getElementById('pinA');
+    if(a){a.value='';a.focus();}
+  }
+  bezig(false);
+}
+
+/* Facturenmodule vraagt om de code zodra de administratie vergrendeld is */
+function pinControleerToegang(){
+  if(!pinVergrendeld)return true;
+  openPinModal('ontgrendel');
+  return false;
+}
+
 /* ── Menu + filters ── */
 function facToggleMenu(){
   if(document.getElementById('facMenu')){closeFacMenu();return;}
@@ -17721,6 +18064,14 @@ function facToggleMenu(){
       <span>Factuursjabloon<small>Logo, kleur, lettertype en indeling</small></span></button>
     <button class="uren-menu-item" role="menuitem" data-fac-action="facKlantNieuw">
       <span class="ic" aria-hidden="true">+</span><span>Klant toevoegen</span></button>
+    <div class="uren-menu-sep"></div>
+    <button class="uren-menu-item" role="menuitem"
+      data-fac-action="${pinIngeschakeld()?'openPinUit':'openPinInstellen'}">
+      <span class="ic" aria-hidden="true">\u26bf</span>
+      <span>${pinIngeschakeld()?'Versleuteling uitschakelen':'Beveiligen met pincode'}<small>${
+        pinIngeschakeld()
+          ? (pinDagenResterend()?'Dit apparaat onthoudt de code nog '+pinDagenResterend()+' dagen':'Vraagt om je pincode')
+          : 'Facturen en klantgegevens versleuteld opslaan'}</small></span></button>
     <div class="uren-menu-sep"></div>
     <button class="uren-menu-item" role="menuitem" data-fac-action="facBackup">
       <span class="ic" aria-hidden="true">⛁</span>
