@@ -6899,6 +6899,10 @@ textarea { line-height: 1.6; resize: vertical; }
    ═══════════════════════════════════════════════════ */
 const GIST_FILENAME='bi_checklist_kanban.json';
 const LS_TOKEN_KEY='bi_checklist_gh_token';
+/* Wanneer je voor het laatst een back-up hebt gedownload. Facturen
+   moeten zeven jaar bewaard blijven; een Gist is een klik van
+   verwijderen en de localStorage-kopie hangt aan een browser. */
+const LS_BACKUP_DATUM='herling_laatste_backup';
 const LS_GIST_KEY='bi_checklist_gist_id_kanban';
 const LS_BACKUP_KEY='herling_analytics_local_backup';
 const CORS_PROXY='https://corsproxy.io/?';
@@ -7784,7 +7788,11 @@ function downloadBackup(){
   a.download=`herling-backup-${ts}.json`;
   document.body.appendChild(a);a.click();a.remove();
   URL.revokeObjectURL(url);
-  appToast('Backup gedownload',{type:'success',duration:3000});
+  try{localStorage.setItem(LS_BACKUP_DATUM,new Date().toISOString());}catch(_){}
+  const n=(factuurState&&factuurState.invoices||[]).length;
+  appToast('Back-up gedownload'+(n?` · ${n} factuur${n===1?'':'en'} inbegrepen`:''),
+    {type:'success',duration:4000});
+  if(typeof facRenderAll==='function'&&activeModule==='facturen')facRenderAll();
 }
 async function handleRestoreFile(file){
   if(!file)return;
@@ -16128,7 +16136,8 @@ const FAC_CLICK_ACTIONS={
   facSjMaakStandaard:()=>facSjMaakStandaard(),
   facInstellingenOpslaan:()=>facInstellingenOpslaan(),
   closeFacInstellingen:()=>closeFacInstellingen(),
-  facExportBoekhouding:()=>facExportBoekhouding()
+  facExportBoekhouding:()=>facExportBoekhouding(),
+  facBackup:()=>{closeFacMenu();downloadBackup();}
 };
 const FAC_CHANGE_ACTIONS={
   facSetFilterStatus:(el)=>{facFilterStatus=el.value;facRenderAll();},
@@ -16181,6 +16190,26 @@ document.addEventListener('input',e=>{
 function renderFacturenModule(){
   factuurSettings();
   facRenderAll();
+  facBackupHerinnering();
+}
+/* Herinnering zodra er verstuurde facturen zijn en de laatste back-up
+   te lang geleden is. Alleen bij verstuurde facturen: een concept dat
+   je nog aan het bouwen bent is geen administratie. Hooguit een keer
+   per week, anders wordt het behang. */
+function facBackupHerinnering(){
+  const echte=factuurState.invoices.filter(f=>f.status!=='concept').length;
+  if(!echte)return;
+  const d=facBackupLeeftijd();
+  if(d!==null&&d<30)return;
+  try{
+    const laatst=localStorage.getItem('herling_backup_herinnerd');
+    if(laatst&&Date.now()-new Date(laatst).getTime()<7*86400000)return;
+    localStorage.setItem('herling_backup_herinnerd',new Date().toISOString());
+  }catch(_){}
+  appToast(d===null
+      ? `${echte} verstuurde factuur${echte===1?'':'en'} en nog geen back-up gemaakt`
+      : `Laatste back-up is ${d} dagen geleden`,
+    {type:'warning',duration:9000});
 }
 function facSetView(v){
   if(!['facturen','debiteuren','klanten'].includes(v))return;
@@ -17693,13 +17722,31 @@ function facToggleMenu(){
     <button class="uren-menu-item" role="menuitem" data-fac-action="facKlantNieuw">
       <span class="ic" aria-hidden="true">+</span><span>Klant toevoegen</span></button>
     <div class="uren-menu-sep"></div>
+    <button class="uren-menu-item" role="menuitem" data-fac-action="facBackup">
+      <span class="ic" aria-hidden="true">⛁</span>
+      <span>Back-up downloaden<small id="facBackupSub"></small></span></button>
     <button class="uren-menu-item" role="menuitem" data-fac-action="facExportBoekhouding">
       <span class="ic" aria-hidden="true">↧</span>
       <span>Export voor boekhouding<small>Alle facturen van ${facJaar} als Excel</small></span></button>`;
   document.body.appendChild(m);
+  const sub=document.getElementById('facBackupSub');
+  if(sub){
+    const d=facBackupLeeftijd();
+    sub.textContent=d===null?'Nog nooit gedaan'
+      :d===0?'Vandaag gedaan'
+      :`Laatst ${d} ${d===1?'dag':'dagen'} geleden`;
+  }
   urenPlacePopover(m,btn);
   btn.setAttribute('aria-expanded','true');
   setTimeout(()=>document.addEventListener('mousedown',facMenuOutside),20);
+}
+/* Dagen sinds de laatste back-up, of null als er nooit een was. */
+function facBackupLeeftijd(){
+  try{
+    const v=localStorage.getItem(LS_BACKUP_DATUM);
+    if(!v)return null;
+    return Math.floor((Date.now()-new Date(v).getTime())/86400000);
+  }catch(_){return null;}
 }
 function facMenuOutside(e){
   const m=document.getElementById('facMenu');
