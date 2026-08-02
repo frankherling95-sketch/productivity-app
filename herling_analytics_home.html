@@ -13,6 +13,9 @@
 <link rel="apple-touch-icon" href="herling-icon.svg"/>
 <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<!-- DOMPurify: notitie-HTML wordt met innerHTML in de pagina gezet; zonder
+     sanitizer is dat een route naar de GitHub-token in localStorage -->
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
 <!-- jsPDF: echte PDF-bestanden voor facturen (nodig om te kunnen
      mailen en archiveren; de uren-export blijft via de printdialoog) -->
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
@@ -10360,8 +10363,38 @@ function setNoteClient(id,clientId){
    Strips blob:-URLs (verlopen na reload) en oversized data:-afbeeldingen
    (>2 MB base64) die localStorage/Gist doen overlopen.
    Regex-aanpak is veiliger dan DOM-parsing bij grote strings. */
+/* -- Echte HTML-sanitizer --
+   Notitie-inhoud is rich text die als HTML wordt opgeslagen en met
+   innerHTML wordt teruggezet. Alles wat daar binnenkomt -- geplakt uit
+   een mail, van een website, of ingeladen uit de Gist -- moet eerst
+   langs DOMPurify. Zonder deze stap is een geplakte <img onerror=...>
+   genoeg om de GitHub-token uit localStorage te lezen.
+
+   sanitizeNoteContent() hieronder doet ondanks zijn naam geen
+   beveiliging: dat ruimt alleen blob-URLs en te grote afbeeldingen op.
+
+   Valt DOMPurify uit (CDN onbereikbaar), dan strippen we zelf het
+   gevaarlijkste: scripts, frames, event-handlers en javascript:-URLs.
+   Grover dan DOMPurify, maar beter dan ruwe HTML doorlaten. */
+function veiligeHtml(html){
+  if(!html)return '';
+  if(window.DOMPurify&&DOMPurify.sanitize){
+    /* data:-afbeeldingen moeten door: geplakte screenshots in notities
+       en het factuurlogo worden zo opgeslagen. */
+    return DOMPurify.sanitize(String(html),{ADD_ATTR:['target']});
+  }
+  return String(html)
+    .replace(/<\s*(script|iframe|object|embed|link|meta|base)\b[\s\S]*?<\s*\/\s*\1\s*>/gi,'')
+    .replace(/<\s*(script|iframe|object|embed|link|meta|base)\b[^>]*>/gi,'')
+    .replace(/\son\w+\s*=\s*"[^"]*"/gi,'')
+    .replace(/\son\w+\s*=\s*'[^']*'/gi,'')
+    .replace(/\son\w+\s*=\s*[^\s>]+/gi,'')
+    .replace(/(href|src|xlink:href)\s*=\s*(["']?)\s*javascript:[^"'>\s]*/gi,'$1=$2#');
+}
+
 function sanitizeNoteContent(html){
   if(!html)return html;
+  html=veiligeHtml(html);
   /* blob: URLs zijn altijd tijdelijk — verwijder de volledige <img>-tag */
   html=html.replace(/<img\b[^>]*\bsrc="blob:[^"]*"[^>]*\/?>/gi,'');
   /* data: URLs groter dan 400 KB — vervang door placeholder.
@@ -18897,7 +18930,7 @@ async function generateWeeklyReview(){
       /* Throttle marked.parse calls naar max 10 fps voor performance */
       const now=Date.now();
       if(now-lastRender>100){
-        const html=(typeof marked!=='undefined'&&marked.parse)?marked.parse(fullText):escapeHtml(fullText).replace(/\n/g,'<br>');
+        const html=(typeof marked!=='undefined'&&marked.parse)?veiligeHtml(marked.parse(fullText)):escapeHtml(fullText).replace(/\n/g,'<br>');
         contentEl.innerHTML=html;
         lastRender=now;
       }
@@ -18905,7 +18938,7 @@ async function generateWeeklyReview(){
     if(!fullText)throw new Error('Lege response van Gemini');
     _weeklyReviewMarkdown=fullText;
     /* Finale render */
-    const html=(typeof marked!=='undefined'&&marked.parse)?marked.parse(fullText):escapeHtml(fullText).replace(/\n/g,'<br>');
+    const html=(typeof marked!=='undefined'&&marked.parse)?veiligeHtml(marked.parse(fullText)):escapeHtml(fullText).replace(/\n/g,'<br>');
     contentEl.innerHTML=html;
     contentEl.classList.remove('streaming');
     copyBtn.style.display='';
@@ -18949,7 +18982,7 @@ function saveWeeklyReviewAsNote(){
   }
   /* Convert markdown to HTML voor opslag (notes verwacht HTML in .content) */
   const html=(typeof marked!=='undefined'&&marked.parse)
-    ?marked.parse(_weeklyReviewMarkdown)
+    ?veiligeHtml(marked.parse(_weeklyReviewMarkdown))
     :escapeHtml(_weeklyReviewMarkdown).replace(/\n/g,'<br>');
   const note={
     id:(typeof ntuid==='function'?ntuid():uid()),
