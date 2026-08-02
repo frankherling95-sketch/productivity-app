@@ -7512,8 +7512,71 @@ function migrateOldKanban(loaded){
   return loaded;
 }
 
+/* Zet de bron met de nieuwste gegevens voorop.
+   De gevaarlijkste fout bij twee opslagplekken is dat een oudere kopie
+   een nieuwere overschrijft. Daarom kijken we naar het tijdstip van
+   beide en nemen we de meest recente -- en zeggen we het als ze
+   uiteenlopen, in plaats van stilletjes te kiezen. */
+async function driveProbeerLaden(){
+  if(!DRIVE_ACTIEF)return null;
+  try{
+    const d=await driveLees();
+    if(!d||!d.inhoud)return null;
+    const st=d.inhoud.state||d.inhoud;
+    return {state:st,tijd:new Date(d.meta.modifiedTime).getTime(),bron:'drive'};
+  }catch(e){
+    console.warn('Drive laden mislukt, val terug op de Gist:',e.message);
+    return null;
+  }
+}
+
+/* Vergelijkt de Drive-versie met wat er zojuist uit de Gist kwam en
+   neemt de nieuwste. Loopt het meer dan een minuut uiteen, dan meldt
+   hij welke gekozen is -- zodat een verkeerde keuze opvalt in plaats
+   van dat je het pas merkt als er iets weg is. */
+function verwerkDriveVersie(uitDrive,gistTijdstip){
+  const gistTijd=gistTijdstip?new Date(gistTijdstip).getTime():0;
+  const verschil=uitDrive.tijd-gistTijd;
+  if(verschil<=0){
+    /* Gist is even oud of nieuwer: laat staan wat er al geladen is. */
+    if(verschil<-60000){
+      console.warn('Gist is nieuwer dan Drive',{gist:new Date(gistTijd),drive:new Date(uitDrive.tijd)});
+      appToast('De Gist bevat nieuwere gegevens dan Drive — die zijn gebruikt.',
+        {type:'warning',duration:10000});
+    }
+    return;
+  }
+  /* Drive is nieuwer: neem die state over. */
+  const st=uitDrive.state;
+  if(!st||!st.tasks){
+    console.warn('Drive-versie mist verwachte structuur, genegeerd');
+    return;
+  }
+  rawState=st;
+  kanbanState=st.tasks||kanbanState;
+  notesState=st.notes||notesState;
+  if(!notesState.tree)notesState.tree=[];
+  checklistState=st.checklist||checklistState;
+  if(!checklistState.items)checklistState.items=[];
+  urenState=st.uren||{entries:[],templates:[]};
+  if(!urenState.entries)urenState.entries=[];
+  if(!urenState.templates)urenState.templates=[];
+  urenMigrateEntries();
+  factuurState=st.facturen||{invoices:[],settings:{}};
+  if(!factuurState.invoices)factuurState.invoices=[];
+  factuurSettings();
+  if(!rawState.agenda)rawState.agenda={events:[]};
+  if(verschil>60000&&gistTijd){
+    console.log('Drive-versie gebruikt (nieuwer dan de Gist)',
+      {drive:new Date(uitDrive.tijd),gist:new Date(gistTijd)});
+  }
+}
+
 async function loadGist(){
   setSync('saving','Verbinden...');
+  /* Drive eerst opvragen; de Gist wordt hieronder alsnog opgehaald,
+     zodat we kunnen vergelijken welke van de twee recenter is. */
+  const uitDrive=await driveProbeerLaden();
   try{
     let content=null;
     let remoteUpdatedAt=null;
@@ -7590,6 +7653,8 @@ async function loadGist(){
       if(!urenState.entries)urenState.entries=[];
       if(!urenState.templates)urenState.templates=[];
       urenMigrateEntries();   /* invoiced-bool → status, ids aanvullen */
+      /* Drive nieuwer dan de Gist? Dan die gebruiken. */
+      if(uitDrive)verwerkDriveVersie(uitDrive,remoteUpdatedAt);
       /* Versleutelde administratie? Dan wacht die op de pincode.
          Lukt ontsleutelen met de bewaarde apparaatsleutel, dan merkt de
          gebruiker er niets van. */
@@ -7751,6 +7816,23 @@ async function saveGist(){
     gistState.geheim=geheim;
   }
   const content=JSON.stringify(gistState,null,2);
+  /* Naar Drive schrijven gaat voorop, maar mag het opslaan niet
+     blokkeren: mislukt het, dan houdt de Gist de gegevens vast en
+     probeert de volgende opslag het opnieuw. */
+  if(DRIVE_ACTIEF){
+    try{
+      await driveSchrijf({_bron:'app',_opgeslagenOp:new Date().toISOString(),state:gistState});
+      driveLaatsteFout=null;
+    }catch(e){
+      console.warn('Drive opslaan mislukt:',e.message);
+      /* Alleen de eerste keer melden; niet bij elke toetsaanslag. */
+      if(driveLaatsteFout!==e.message){
+        driveLaatsteFout=e.message;
+        appToast('Opslaan naar Drive lukt niet — de Gist houdt je gegevens vast.',
+          {type:'warning',duration:8000});
+      }
+    }
+  }
   try{
     /* Single-user setup: always overwrite, no conflict check.
        Conflict detection caused false positives due to GitHub's
@@ -9614,9 +9696,10 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeAppInstellingen
 
 const DRIVE_SCOPE='https://www.googleapis.com/auth/drive.appdata';
 const DRIVE_BESTAND='herling-analytics.json';
-let DRIVE_ACTIEF=false;        /* nog niet in gebruik -- zie kop */
+let DRIVE_ACTIEF=true;         /* fase 1: Drive leidend, Gist loopt mee */
 let driveToken=null;           /* {token, tot} zolang de app open is */
 let driveTokenClient=null;
+let driveLaatsteFout=null;     /* voorkomt dezelfde waarschuwing bij elke opslag */
 
 /* Toegangstoken opvragen. De login levert alleen een identiteitsbewijs;
    voor Drive is een apart toegangstoken nodig. Google vernieuwt dat
