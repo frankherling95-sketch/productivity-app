@@ -1016,6 +1016,18 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .uren-row.is-selected td{background:var(--mint-soft)!important}
 
 .uren-draft td{border-bottom:0.5px solid var(--border)}
+/* Zolang er iets in de lege regel staat dat nog geen registratie is,
+   moet dat zichtbaar zijn -- anders sluit je de tab in de veronder-
+   stelling dat het opgeslagen was. */
+.uren-draft.heeft-invoer td{background:rgba(217,119,6,.10)}
+.uren-draft.heeft-invoer td:first-child{box-shadow:inset 3px 0 0 var(--warning)}
+.uren-draft.is-compleet td{background:var(--mint-soft)}
+.uren-draft.is-compleet td:first-child{box-shadow:inset 3px 0 0 var(--mint)}
+#urenDraftHint{
+  font-size:11.5px;font-weight:600;color:var(--warning);
+  padding:6px 2px 0;min-height:18px;
+}
+.uren-draft.is-compleet ~ tr #urenDraftHint{color:var(--text)}
 .uren-draft:hover td{background:var(--mint-soft)}
 .uren-draft .uren-rn{color:var(--mint);font-weight:700}
 
@@ -7653,6 +7665,7 @@ async function loadGist(){
       if(!urenState.entries)urenState.entries=[];
       if(!urenState.templates)urenState.templates=[];
       urenMigrateEntries();   /* invoiced-bool → status, ids aanvullen */
+      if(urenState.draft)urenDraft={...urenState.draft};
       /* Drive nieuwer dan de Gist? Dan die gebruiken. */
       if(uitDrive)verwerkDriveVersie(uitDrive,remoteUpdatedAt);
       /* Versleutelde administratie? Dan wacht die op de pincode.
@@ -7893,7 +7906,19 @@ function scheduleSave(){
   if(typeof updateNavBadges==='function')updateNavBadges();
 }
 /* Capture in-flight pending save when the tab closes */
-window.addEventListener('beforeunload',()=>{if(saveTimer)saveLocalBackup();});
+window.addEventListener('beforeunload',()=>{
+  /* Een complete regel die je liet staan alsnog vastleggen; een
+     halfingevulde blijft als concept bewaard via urenState.draft. */
+  if(typeof urenDraftFlush==='function'){try{urenDraftFlush();}catch(_){}}
+  if(saveTimer)saveLocalBackup();
+});
+/* Ook als je naar een ander tabblad gaat -- op mobiel is dat vaak het
+   laatste moment voordat de pagina wordt weggegooid. */
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState!=='hidden')return;
+  if(typeof urenDraftFlush==='function'){try{urenDraftFlush();}catch(_){}}
+  if(saveTimer)saveLocalBackup();
+});
 
 /* ─ Manual 'Ververs' button — pulls from remote and re-renders ─ */
 async function refreshGist(){
@@ -8323,6 +8348,12 @@ function switchModule(mod){
   /* Removed modules — silently redirect to dashboard so old hash URLs
      and any leftover internal switchModule calls don't crash. */
   if(mod==='todo')mod='dashboard';
+  /* Verlaat je de uren-module met een complete regel open, leg die dan
+     vast. Moet vóór activeModule wordt bijgewerkt, anders is niet meer
+     te zien waar je vandaan komt. */
+  if(activeModule==='uren'&&mod!=='uren'&&typeof urenDraftFlush==='function'){
+    try{urenDraftFlush();}catch(_){}
+  }
   activeModule=mod;
   /* Update nav items */
   document.querySelectorAll('.nav-item').forEach(el=>
@@ -14556,9 +14587,9 @@ const UREN_CHANGE_ACTIONS={
   urenRowDesc:(el,a)=>urenUpdateEntry(a,{description:el.value.trim()}),
   urenRowSelect:(el,a)=>urenRowSelect(el,a),
   urenDaySelect:(el,a)=>urenDaySelect(el,a),
-  urenDraftDate:(el)=>{urenDraftEnsure();urenDraft.date=el.value||urenToday();},
+  urenDraftDate:(el)=>{urenDraftEnsure();urenDraft.date=el.value||urenToday();urenDraftBewaar();},
   urenDraftHours:(el)=>urenDraftHours(el),
-  urenDraftDesc:(el)=>{urenDraftEnsure();urenDraft.description=el.value;},
+  urenDraftDesc:(el)=>{urenDraftEnsure();urenDraft.description=el.value;urenDraftBewaar();},
   urenToggleTplRepeat:()=>urenToggleTplRepeat()
 };
 
@@ -14630,6 +14661,7 @@ function urenRenderAll(){
     urenFocusAfterRender=null;
     if(el){el.focus();try{el.select();}catch(_){/* geen tekstveld */}}
   }
+  urenMarkeerDraftOnopgeslagen();
 }
 
 function urenRenderTabs(){
@@ -14941,6 +14973,7 @@ function urenRenderRegView(){
 
   html+=`<div class="uren-legend">
     ${UREN_STATUSSEN.map(s=>`<span><span class="uren-pill ${s.cls}" style="cursor:default">${s.icon}${s.label}</span></span>`).join('')}
+    <span id="urenDraftHint"></span>
     <span class="uren-hint">Tab springt naar de volgende cel · ↑ ↓ stapt 15 min (Shift = 1 uur)</span>
   </div>`;
 
@@ -15463,6 +15496,31 @@ function urenPickClient(target,clientId){
    invullen (renderPass=false) blijft een zelfgekozen datum staan, ook
    als die buiten de zichtbare week valt — bij opslaan springt de
    periode mee. */
+/* De halfingevulde regel wordt meegeschreven naar de opslag. Sluit je
+   de tab terwijl je cursor er nog in staat, dan staat hij er de
+   volgende keer gewoon weer -- ook op een ander apparaat. Zonder dit
+   was invoer weg zodra de pagina sloot. */
+function urenDraftBewaar(){
+  if(!urenState)return;
+  if(urenDraft&&(urenDraft.clientId||urenDraft.hours||urenDraft.description))
+    urenState.draft={...urenDraft};
+  else delete urenState.draft;
+  scheduleSave();
+  urenMarkeerDraftOnopgeslagen();
+}
+/* Laat zien dat er iets in de regel staat dat nog geen registratie is. */
+function urenMarkeerDraftOnopgeslagen(){
+  const rij=document.querySelector('.uren-draft');
+  if(!rij)return;
+  const iets=!!(urenDraft&&(urenDraft.clientId||urenDraft.hours||urenDraft.description));
+  const compleet=!!(urenDraft&&urenDraft.clientId&&urenDraft.hours);
+  rij.classList.toggle('heeft-invoer',iets);
+  rij.classList.toggle('is-compleet',compleet);
+  const hint=document.getElementById('urenDraftHint');
+  if(hint)hint.textContent=compleet?'Druk op Enter om vast te leggen'
+    :iets?'Nog niet vastgelegd — kies klant en uren':'';
+}
+
 function urenDraftEnsure(period,renderPass){
   const p=period||urenPeriod();
   const today=urenToday();
@@ -15488,7 +15546,8 @@ function urenDraftHours(el){
     return;
   }
   urenDraft.hours=parsed;
-  el.value=parsed?urenFmt(parsed):'';   /* normaliseren, niet opslaan */
+  el.value=parsed?urenFmt(parsed):'';   /* normaliseren, niet vastleggen */
+  urenDraftBewaar();
 }
 function urenDraftStep(delta){
   urenDraftEnsure();
@@ -15544,6 +15603,7 @@ function urenDraftFlush(){
   const {date,clientId,hours,description}=urenDraft;
   const entry=urenAddEntry({date,clientId,hours,description,status:'open'});
   urenDraft={date,clientId:null,hours:0,description:''};
+  if(urenState)delete urenState.draft;
   return entry;
 }
 
