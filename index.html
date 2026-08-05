@@ -7818,10 +7818,22 @@ async function saveGist(){
   const content=JSON.stringify(gistState,null,2);
   /* Naar Drive schrijven gaat voorop, maar mag het opslaan niet
      blokkeren: mislukt het, dan houdt de Gist de gegevens vast en
-     probeert de volgende opslag het opnieuw. */
+     probeert de volgende opslag het opnieuw.
+
+     Belangrijk: Drive krijgt de VOLLEDIGE notities. Het uitkleden van
+     grote afbeeldingen bestaat alleen omdat GitHub Gists boven 1 MB
+     afkapt; Drive kent die grens niet. Zou Drive dezelfde uitgeklede
+     versie krijgen, dan waren die afbeeldingen na het opheffen van de
+     Gist voorgoed weg. */
   if(DRIVE_ACTIEF){
     try{
-      await driveSchrijf({_bron:'app',_opgeslagenOp:new Date().toISOString(),state:gistState});
+      let driveState={...rawState,notes:notesState};
+      if(pinIngeschakeld()&&pinSleutel){
+        const geheimDrive=await pinVersleutel(pinSleutel,pinPakGeheimen());
+        driveState=pinStripGeheimen({...driveState});
+        driveState.geheim=geheimDrive;
+      }
+      await driveSchrijf({_bron:'app',_opgeslagenOp:new Date().toISOString(),state:driveState});
       driveLaatsteFout=null;
     }catch(e){
       console.warn('Drive opslaan mislukt:',e.message);
