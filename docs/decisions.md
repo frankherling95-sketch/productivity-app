@@ -321,3 +321,17 @@ Aandachtspunt: bepaal expliciet of je op factuurdatum of op betaaldatum aangifte
 **Bestanden**: `index.html` — CSS `#facMailModal`, `FAC_MAIL_STANDAARD`, `FAC_MAIL_STANDAARD_OUD`, `facMailSjabloon`, `facMailSjabloonBewaar`, `facMailVul`, `googleGereed`, `driveVraagToken`, `mailVraagToken`
 
 **Niet doen**: standaardwaarden in de instellingen schrijven op het moment dat je ze leest. Dan is niet meer te zien of iets een keuze was of een bijwerking.
+
+## 2026-08-09 · Verzonden berichten als logboek, en de mailtekst instelbaar
+
+**Probleem**: er was geen overzicht van wat er gemaild was, en de standaardtekst was alleen aan te passen op het moment dat je een factuur verstuurde — precies het moment waarop je daar geen zin in hebt.
+
+**Beslissing**:
+1. Tab "Verzonden" in de facturenmodule, met een **logboek** `factuurState.mails[]` — `{id, factuurId, nummer, datum, aan, cc, onderwerp}` — en niet een veld op de factuur. Een factuur kan meer dan eens de deur uit gaan: een correctie, een herinnering. `f.gemaildOp` blijft bestaan als "laatst gemaild"-markering voor de knop in de editor.
+2. Facturen die al gemaild waren voordat het logboek bestond krijgen bij het laden alsnog een regel, gemarkeerd met een `*` en een uitleg eronder. Datum en ontvanger komen uit de factuur; het onderwerp is achteraf samengesteld en dat staat er ook. Zonder die aanvulling begint het overzicht met een gat dat eruitziet als "nooit verstuurd".
+3. Venster "Standaardtekst mail" in het facturen-menu, naast Factuursjabloon. Met klikbare plaatshouders die op de cursorpositie invoegen, en een voorbeeld dat meeloopt op je **meest recente echte factuur** — dan zie je meteen of `{betreft}` leest zoals je wilt. Is er nog geen factuur, dan een verzonnen exemplaar, en dat staat erbij.
+4. "Terug naar standaard" vult alleen de velden; opslaan blijft een aparte handeling.
+
+**Bestanden**: `index.html` — `facMailsVanJaar`, `factuurMailsAanvullen`, `facRenderMails`, `FAC_MAIL_PLAATSHOUDERS`, `facMailVoorbeeldFactuur`, `openFacMailInstel`/`facMailInstelPlaatshouder`/`facMailInstelVoorbeeld`/`facMailInstelOpslaan`/`facMailInstelStandaard`, modaal `#facMailInstelModal`, CSS `.fac-mail-plh*`, `.fac-mail-voorbeeld`, `.fac-mail-aan`
+
+**Niet doen**: het logboek afleiden uit `f.gemaildOp` in plaats van het bij te houden — dan verdwijnt elke eerdere verzending zodra je opnieuw mailt. En: de afgeleide regels tonen alsof ze volwaardig zijn; het onderwerp daarvan is een gok.

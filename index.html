@@ -1349,6 +1349,33 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 }
 .fac-mail-info b{font-weight:600;color:var(--text);word-break:break-word;min-width:0}
 
+/* Verzonden berichten + het instelvenster voor de standaardtekst */
+.fac-mail-aan{display:flex;flex-direction:column;gap:1px;min-width:0}
+.fac-mail-aan span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fac-mail-aan small{font-size:10.5px;color:var(--text-muted)}
+#facMailInstelModal{z-index:260}
+.fac-mail-plh-lab{
+  font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--text-muted);margin-bottom:7px;
+}
+.fac-mail-plh{display:flex;flex-wrap:wrap;gap:6px}
+.fac-mail-plh-btn{
+  font-family:var(--font-mono);font-size:11.5px;padding:4px 8px;cursor:pointer;
+  background:var(--surface2);border:0.5px solid var(--border);border-radius:var(--radius);
+  color:var(--text);
+}
+.fac-mail-plh-btn:hover{background:var(--mint);border-color:var(--mint);color:var(--navy)}
+.fac-mail-voorbeeld{
+  background:var(--surface2);border:0.5px solid var(--border);border-radius:var(--radius-md);
+  padding:13px 15px;font-size:12.5px;line-height:1.6;color:var(--text);
+}
+.fac-mail-voorbeeld .vb-ond{font-weight:700;margin-bottom:9px}
+.fac-mail-voorbeeld .vb-tekst{white-space:pre-wrap}
+.fac-mail-voorbeeld .vb-bron{
+  margin-top:11px;padding-top:9px;border-top:0.5px solid var(--border);
+  font-size:11px;color:var(--text-muted);
+}
+
 /* Klantenkaarten */
 .fac-klanten{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
 .fac-klantkaart{
@@ -5931,6 +5958,7 @@ textarea { line-height: 1.6; resize: vertical; }
           <button class="uren-tab active" role="tab" data-fac-action="facSetView" data-fac-arg1="facturen">Facturen</button>
           <button class="uren-tab" role="tab" data-fac-action="facSetView" data-fac-arg1="debiteuren">Debiteuren</button>
           <button class="uren-tab" role="tab" data-fac-action="facSetView" data-fac-arg1="btw">Btw</button>
+          <button class="uren-tab" role="tab" data-fac-action="facSetView" data-fac-arg1="mails">Verzonden</button>
           <button class="uren-tab" role="tab" data-fac-action="facSetView" data-fac-arg1="klanten">Klanten</button>
         </div>
         <div class="uren-filters" id="facFilterBar"></div>
@@ -6073,6 +6101,23 @@ textarea { line-height: 1.6; resize: vertical; }
       <div class="modal-footer-right">
         <button class="btn btn-sm" data-fac-action="closeFacMail">Annuleer</button>
         <button class="btn btn-sm btn-primary" data-fac-action="facMailVerstuur" id="facMailVerstuurBtn">Versturen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Facturen: standaardtekst voor mails ── -->
+<div class="modal-bg" id="facMailInstelModal">
+  <div class="modal" style="max-width:760px;padding:22px;display:flex;flex-direction:column;max-height:92vh">
+    <h3 style="font-size:18px;margin:0 0 4px">Standaardtekst voor factuurmails</h3>
+    <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 16px">
+      Deze tekst staat klaar zodra je een factuur mailt. Daar kun je hem per factuur nog aanpassen voordat je verstuurt.</p>
+    <div id="facMailInstelBody" style="overflow:auto;flex:1;min-height:0"></div>
+    <div class="modal-footer" style="margin-top:18px">
+      <button class="btn btn-sm" data-fac-action="facMailInstelStandaard">Terug naar standaard</button>
+      <div class="modal-footer-right">
+        <button class="btn btn-sm" data-fac-action="closeFacMailInstel">Annuleer</button>
+        <button class="btn btn-sm btn-primary" data-fac-action="facMailInstelOpslaan">Opslaan</button>
       </div>
     </div>
   </div>
@@ -7522,6 +7567,7 @@ function hydrateerState(){
   factuurState=rawState.facturen||{invoices:[],settings:{}};
   if(!factuurState.invoices)factuurState.invoices=[];
   factuurSettings();
+  factuurMailsAanvullen();
   if(!rawState.agenda)rawState.agenda={events:[]};
   if(!rawState.settings)rawState.settings={};
   if(typeof migrateCalSettings==='function')migrateCalSettings();
@@ -16548,6 +16594,10 @@ const FAC_CLICK_ACTIONS={
   facMail:(a)=>openFacMail(a||facEditId),
   closeFacMail:()=>closeFacMail(),
   facMailVerstuur:()=>facMailVerstuurActie(),
+  openFacMailInstel:()=>openFacMailInstel(),
+  closeFacMailInstel:()=>closeFacMailInstel(),
+  facMailInstelOpslaan:()=>facMailInstelOpslaan(),
+  facMailInstelStandaard:()=>facMailInstelStandaard(),
   facBetaald:(a)=>facBetaaldDialoog(a||facEditId),
   facTerugConcept:()=>facTerugNaarConcept(),
   facDupliceer:(a)=>facDupliceerActie(a||facEditId),
@@ -16660,7 +16710,7 @@ function facBackupHerinnering(){
     {type:'warning',duration:9000});
 }
 function facSetView(v){
-  if(!['facturen','debiteuren','btw','klanten'].includes(v))return;
+  if(!['facturen','debiteuren','btw','mails','klanten'].includes(v))return;
   facView=v;
   facRenderAll();
 }
@@ -16697,6 +16747,7 @@ function facRenderFilters(){
   if(!bar)return;
   if(facView==='klanten'){bar.innerHTML='';return;}
   if(facView==='btw'){bar.innerHTML=facBtwKiezer();return;}
+  if(facView==='mails'){bar.innerHTML='';return;}
   const n=(facFilterStatus?1:0)+(facFilterClient?1:0);
   let html=`<button class="uren-btn" id="facFilterBtn" data-fac-action="facToggleFilters"
     aria-haspopup="dialog" aria-expanded="false"><span aria-hidden="true">⚟</span>Filter${n?`<span class="cnt">${n}</span>`:''}</button>`;
@@ -16725,6 +16776,23 @@ function facRenderKpis(){
       ${facKpi('Factuurklaar',compleet,'',compleet===klanten.length?'alle gegevens compleet':(klanten.length-compleet)+' missen adresgegevens','var(--info)')}
       ${facKpi('Met uurtarief',klanten.filter(c=>Number(c.tarief)>0).length,'','','var(--success)')}
       ${facKpi('Actief dit jaar',new Set(facZichtbaar().map(f=>f.clientId)).size,'','gefactureerd in '+facJaar,'var(--warning)')}`;
+    return;
+  }
+  if(facView==='mails'){
+    const lijst=facMailsVanJaar();
+    const laatste=lijst[0];
+    /* Verstuurde facturen die nog niet de deur uit zijn -- dat is waar je
+       dit overzicht voor opent. */
+    const open=facZichtbaar().filter(f=>f.status!=='concept'&&!f.gemaildOp);
+    box.innerHTML=`
+      ${facKpi('Verstuurd '+facJaar,lijst.length,'',lijst.length===1?'bericht':'berichten','var(--mint)')}
+      ${facKpi('Laatste verzending',laatste?factuurFmtDatum(String(laatste.datum).slice(0,10)):'—','',
+        laatste?('aan '+(laatste.aan||'')):'nog niets verstuurd','var(--info)')}
+      ${facKpi('Facturen gemaild',new Set(lijst.map(m=>m.factuurId)).size,'',
+        'losse facturen in '+facJaar,'var(--success)')}
+      ${facKpi('Nog niet gemaild',open.length,'',
+        open.length?open.map(f=>f.nummer).slice(0,3).join(', '):'alles is de deur uit',
+        open.length?'var(--warning)':'var(--success)')}`;
     return;
   }
   if(facView==='btw'){
@@ -16764,6 +16832,7 @@ function facRenderBody(){
   if(facView==='klanten'){body.innerHTML=facRenderKlanten();return;}
   if(facView==='debiteuren'){body.innerHTML=facRenderDebiteuren();return;}
   if(facView==='btw'){body.innerHTML=facRenderBtw();return;}
+  if(facView==='mails'){body.innerHTML=facRenderMails();return;}
   body.innerHTML=facRenderLijst();
 }
 
@@ -17053,6 +17122,167 @@ function facRenderBtw(){
     <td class="num">${factuurFmtBedrag(o.btwTotaal)}</td></tr></tfoot></table></div>`;
   return html;
 }
+
+/* ── Verzonden berichten ──
+   Een factuur kan meer dan eens de deur uit gaan (een correctie, een
+   herinnering), dus dit is een logboek en niet een veld op de factuur.
+   `f.gemaildOp` blijft bestaan als "laatst gemaild"-markering. */
+function facMailsVanJaar(){
+  return (factuurState.mails||[])
+    .filter(m=>m.datum&&new Date(m.datum).getFullYear()===facJaar)
+    .sort((a,b)=>String(b.datum).localeCompare(String(a.datum)));
+}
+/* Facturen die al gemaild waren voordat dit logboek bestond krijgen
+   alsnog een regel -- anders begint het overzicht met een gat. */
+function factuurMailsAanvullen(){
+  if(!Array.isArray(factuurState.mails))factuurState.mails=[];
+  const bekend=new Set(factuurState.mails.map(m=>m.factuurId));
+  (factuurState.invoices||[]).forEach(f=>{
+    if(!f.gemaildOp||bekend.has(f.id))return;
+    factuurState.mails.push({id:factuurUid(),factuurId:f.id,nummer:f.nummer||'',
+      datum:f.gemaildOp,aan:f.gemaildAan||'',cc:'',
+      onderwerp:'Factuur '+(f.nummer||''),afgeleid:true});
+  });
+}
+function facRenderMails(){
+  const lijst=facMailsVanJaar();
+  if(!lijst.length){
+    return `<div class="uren-empty"><b>Nog niets verstuurd in ${facJaar}</b>
+      Zodra je een factuur mailt, komt het bericht hier te staan.</div>`;
+  }
+  let html=`<div class="uren-sheet-card"><table class="fac-table"><thead><tr>
+    <th style="width:100px">Datum</th><th style="width:118px">Nummer</th>
+    <th style="width:270px">Aan</th><th>Onderwerp</th>
+    <th style="width:118px">Status</th></tr></thead><tbody>`;
+  lijst.forEach(m=>{
+    const f=factuurById(m.factuurId);
+    html+=`<tr${f?` data-fac-action="facOpen" data-fac-arg1="${f.id}"`:''}>
+      <td><span class="fac-datum">${factuurFmtDatum(String(m.datum).slice(0,10))}</span></td>
+      <td><span class="fac-nr">${escapeHtml(m.nummer||'')}</span></td>
+      <td><div class="fac-mail-aan"><span>${escapeHtml(m.aan||'')}</span>${
+        m.cc?`<small>cc ${escapeHtml(m.cc)}</small>`:''}</div></td>
+      <td><div class="fac-betreft">${escapeHtml(m.onderwerp||'')}</div></td>
+      <td><span class="fac-pill fac-pill-verstuurd"${m.afgeleid
+        ? ' title="Afgeleid uit de factuur; van v\u00f3\u00f3r dit overzicht"':''
+        }>Verzonden${m.afgeleid?' *':''}</span></td></tr>`;
+  });
+  html+=`</tbody><tfoot><tr><td colspan="4">${lijst.length} bericht${lijst.length===1?'':'en'}</td>
+    <td></td></tr></tfoot></table></div>`;
+  if(lijst.some(m=>m.afgeleid))
+    html+=`<div class="fac-btw-let" style="margin-top:14px"><b>* afgeleid uit de factuur</b>
+      Deze berichten zijn verstuurd voordat dit overzicht bestond. Datum en ontvanger kloppen;
+      het onderwerp is achteraf samengesteld.</div>`;
+  return html;
+}
+
+/* ── Standaardtekst instellen ── */
+const FAC_MAIL_PLAATSHOUDERS=[
+  {sleutel:'nummer',uitleg:'Factuurnummer'},
+  {sleutel:'betreft',uitleg:'Waar de factuur over gaat'},
+  {sleutel:'datum',uitleg:'Factuurdatum'},
+  {sleutel:'vervaldatum',uitleg:'Uiterste betaaldatum'},
+  {sleutel:'bedrag',uitleg:'Totaal inclusief btw'},
+  {sleutel:'bedragExcl',uitleg:'Totaal exclusief btw'},
+  {sleutel:'klant',uitleg:'Naam van de klant'},
+  {sleutel:'contactpersoon',uitleg:'Contactpersoon, anders de klantnaam'},
+  {sleutel:'afzender',uitleg:'Jouw naam uit je Google-account'},
+  {sleutel:'bedrijf',uitleg:'Bedrijf waar de factuur vandaan komt'},
+  {sleutel:'iban',uitleg:'Rekeningnummer van dat bedrijf'}
+];
+/* Voorbeeld op een echte factuur -- dan zie je meteen of het klopt.
+   Is er nog geen, dan een verzonnen exemplaar, en dat staat erbij. */
+function facMailVoorbeeldFactuur(){
+  const echt=(factuurState.invoices||[]).filter(f=>f.status!=='concept')
+    .sort((a,b)=>String(b.datum).localeCompare(String(a.datum)))[0];
+  if(echt)return echt;
+  const vandaag=new Date().toISOString().slice(0,10);
+  return {id:'voorbeeld',nummer:'F000001',datum:vandaag,
+    vervaldatum:factuurVervaldatum(vandaag,30),betreft:'Werkzaamheden mei',
+    clientId:null,betalingen:[],regels:[{aantal:10,stuksprijs:100,btwTarief:21}],
+    klant:{naam:'Voorbeeld B.V.',contactpersoon:'Jan Jansen'}};
+}
+let facMailInstelVeld='facMailInstelTekst';
+function openFacMailInstel(){
+  closeFacMenu();
+  const sj=facMailSjabloon();
+  document.getElementById('facMailInstelBody').innerHTML=`
+    <div class="fac-mail-form">
+      <div class="uren-fld"><label>Onderwerp</label>
+        <input class="fac-ed-inp" id="facMailInstelOnderwerp" type="text" value="${escapeHtml(sj.onderwerp)}"></div>
+      <div class="uren-fld"><label>Cc <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-muted)">(optioneel, gaat mee bij elke factuur)</span></label>
+        <input class="fac-ed-inp" id="facMailInstelCc" type="text" value="${escapeHtml(sj.cc||'')}"
+          placeholder="Meerdere adressen scheiden met een komma"></div>
+      <div class="uren-fld"><label>Bericht</label>
+        <textarea class="fac-ed-inp" id="facMailInstelTekst" rows="12">${escapeHtml(sj.tekst)}</textarea></div>
+      <div>
+        <div class="fac-mail-plh-lab">Plaatshouders \u2014 klik om in te voegen</div>
+        <div class="fac-mail-plh">${FAC_MAIL_PLAATSHOUDERS.map(x=>
+          `<button type="button" class="fac-mail-plh-btn" data-plh="${x.sleutel}"
+            title="${escapeHtml(x.uitleg)}">{${x.sleutel}}</button>`).join('')}</div>
+      </div>
+      <div class="uren-fld"><label>Voorbeeld</label>
+        <div class="fac-mail-voorbeeld" id="facMailInstelVoorbeeld"></div></div>
+    </div>`;
+  const ond=document.getElementById('facMailInstelOnderwerp');
+  const tk=document.getElementById('facMailInstelTekst');
+  facMailInstelVeld='facMailInstelTekst';
+  ond.addEventListener('focus',()=>{facMailInstelVeld='facMailInstelOnderwerp';});
+  tk.addEventListener('focus',()=>{facMailInstelVeld='facMailInstelTekst';});
+  ond.addEventListener('input',facMailInstelVoorbeeld);
+  tk.addEventListener('input',facMailInstelVoorbeeld);
+  document.querySelectorAll('#facMailInstelBody .fac-mail-plh-btn').forEach(b=>{
+    /* mousedown, niet click: anders is de cursorpositie in het veld al weg. */
+    b.addEventListener('mousedown',e=>{e.preventDefault();facMailInstelPlaatshouder(b.dataset.plh);});
+  });
+  facMailInstelVoorbeeld();
+  document.getElementById('facMailInstelModal').classList.add('open');
+  setTimeout(()=>tk.focus(),50);
+}
+function facMailInstelPlaatshouder(sleutel){
+  const el=document.getElementById(facMailInstelVeld);
+  if(!el)return;
+  const t='{'+sleutel+'}';
+  const a=el.selectionStart==null?el.value.length:el.selectionStart;
+  const b=el.selectionEnd==null?a:el.selectionEnd;
+  el.value=el.value.slice(0,a)+t+el.value.slice(b);
+  el.focus();
+  el.setSelectionRange(a+t.length,a+t.length);
+  facMailInstelVoorbeeld();
+}
+function facMailInstelVoorbeeld(){
+  const doel=document.getElementById('facMailInstelVoorbeeld');
+  if(!doel)return;
+  const f=facMailVoorbeeldFactuur();
+  const ond=document.getElementById('facMailInstelOnderwerp').value;
+  const tk=document.getElementById('facMailInstelTekst').value;
+  doel.innerHTML=`<div class="vb-ond">${escapeHtml(facMailVul(ond,f))}</div>
+    <div class="vb-tekst">${escapeHtml(facMailVul(tk,f))}</div>
+    <div class="vb-bron">Voorbeeld op ${escapeHtml(f.nummer||'')}${
+      f.id==='voorbeeld'?' \u2014 een verzonnen factuur, want er is er nog geen verstuurd':''}</div>`;
+}
+function closeFacMailInstel(){
+  document.getElementById('facMailInstelModal').classList.remove('open');
+}
+function facMailInstelStandaard(){
+  document.getElementById('facMailInstelOnderwerp').value=FAC_MAIL_STANDAARD.onderwerp;
+  document.getElementById('facMailInstelTekst').value=FAC_MAIL_STANDAARD.tekst;
+  facMailInstelVoorbeeld();
+  appToast('Standaardtekst teruggezet \u2014 klik op Opslaan om het vast te leggen',{type:'info'});
+}
+function facMailInstelOpslaan(){
+  const ond=document.getElementById('facMailInstelOnderwerp').value.trim();
+  const tk=document.getElementById('facMailInstelTekst').value;
+  const cc=document.getElementById('facMailInstelCc').value.trim();
+  if(!ond){appToast('Een onderwerp is verplicht',{type:'warning'});return;}
+  facMailSjabloonBewaar(ond,tk,cc);
+  scheduleSave();
+  closeFacMailInstel();
+  appToast('Standaardtekst opgeslagen',{type:'success'});
+}
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Escape')return;
+  if(document.getElementById('facMailInstelModal')?.classList.contains('open'))closeFacMailInstel();
+});
 
 /* ── Klantbeheer ── */
 function facRenderKlanten(){
@@ -18515,9 +18745,11 @@ function facToggleMenu(){
     <button class="uren-menu-item" role="menuitem" data-fac-action="openFacSjabloon">
       <span class="ic" aria-hidden="true">◫</span>
       <span>Factuursjabloon<small>Logo, kleur, lettertype en indeling</small></span></button>
+    <button class="uren-menu-item" role="menuitem" data-fac-action="openFacMailInstel">
+      <span class="ic" aria-hidden="true">\u2709</span>
+      <span>Standaardtekst mail<small>Onderwerp en bericht bij het versturen</small></span></button>
     <button class="uren-menu-item" role="menuitem" data-fac-action="facKlantNieuw">
       <span class="ic" aria-hidden="true">+</span><span>Klant toevoegen</span></button>
-    <div class="uren-menu-sep"></div>
     <div class="uren-menu-sep"></div>
     <button class="uren-menu-item" role="menuitem" data-fac-action="facExportBoekhouding">
       <span class="ic" aria-hidden="true">↧</span>
@@ -19238,6 +19470,9 @@ async function facMailVerstuurActie(){
     f.gemaildOp=new Date().toISOString();
     f.gemaildAan=aan;
     f.updatedAt=Date.now();
+    if(!Array.isArray(factuurState.mails))factuurState.mails=[];
+    factuurState.mails.push({id:factuurUid(),factuurId:f.id,nummer:f.nummer||'',
+      datum:f.gemaildOp,aan,cc,onderwerp});
     if(document.getElementById('facMailBewaar').checked)
       facMailSjabloonBewaar(onderwerp,tekst,cc);
     scheduleSave();
