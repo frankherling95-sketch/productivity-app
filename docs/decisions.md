@@ -197,3 +197,28 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 **Waarom eigen reeks**: een doorlopende factuurnummering hoort bij één administratie. Twee bedrijven uit één reeks laten tellen geeft gaten in beide — de Belastingdienst ziet dat als een onvolledige reeks. `factuurVolgendNummer(peek,negeerId,bedrijfId)` kijkt alleen naar facturen van hetzelfde bedrijf.
 **Bestanden**: `factuurSettings` (migratie), `factuurBedrijf`, `factuurBedrijfIdVan`, `factuurAfzenderSnapshot(bedrijfId)`, instellingenmodal
 **Niet doen**: één gedeelde teller voor alle bedrijven.
+
+## 2026-08-05 · Opslag naar Google Drive (fase 1 afgerond, fase 2 open)
+
+**Probleem**: data stond in een "secret" GitHub Gist. Dat is niet privé maar *onvindbaar* — iedereen met de URL leest hem zonder in te loggen. Daarnaast stond de PAT leesbaar in localStorage, met XSS als route ernaartoe.
+**Beslissing**: overstap naar Google Drive `appDataFolder` — een verborgen map per gebruiker die alleen deze app kan benaderen. Geen URL, geen losse token; Google dwingt de toegang af op basis van het ingelogde account. Daarmee wordt de Google-login pas een echte beveiligingslaag in plaats van een drempel.
+**Waarom niet Supabase**: dat wint pas als je relationele queries wilt. Voor opslag en toegang is Drive genoeg, tegen een fractie van het werk en zonder extra dienst.
+**Fase 1 (gereed, `DRIVE_ACTIEF=true`)**: schrijven naar Drive én Gist; bij het laden worden beide opgehaald en wint de nieuwste (`driveProbeerLaden` + `verwerkDriveVersie`). Nooit een moment met één kopie.
+**Twee stille fouten die dit opleverde** — beide gevonden door gerichte vragen van Frank, niet door tests:
+1. De verversknop zei nog "van GitHub" terwijl de app beide bronnen ophaalt.
+2. Drive kreeg de *uitgeklede* notities (`sanitizeNotesStateForGist`). Die strip bestaat alleen vanwege GitHub's 1 MB-limiet; Drive kent die niet. Na fase 2 waren geplakte afbeeldingen dus voorgoed weg. Drive krijgt nu de volledige state.
+
+### Fase 2 — nog te doen
+Voorwaarden vooraf: enkele dagen zonder waarschuwingen, `driveStatus()` beweegt mee, getest op een tweede apparaat, en het bestand in Drive is gegroeid voorbij de 401 KB van de eerste kopie.
+
+Stappen:
+1. `loadGist()` → Drive-only; Gist-tak en `fetchGistContent` eruit.
+2. `saveGist()` → Drive-only; `gistState`/`sanitizeNotesStateForGist` vervalt (die bestond voor de 1 MB-grens).
+3. `refreshGist()` → alleen Drive herladen.
+4. Setup-scherm: token-invoer weg. De Google-login is de toegangspoort; toon hooguit een Drive-toestemmingsknop.
+5. "GitHub-token wijzigen" uit het instellingen-menu.
+6. Opruimen: `LS_TOKEN_KEY`, `LS_GIST_KEY`, `ghToken`, `gistId`, `gistRequest`, `sanitizeToken`, Gist-diagnose.
+7. Teksten nalopen op resterende verwijzingen naar GitHub.
+
+**Niet doen**: de Gist zelf verwijderen — laat hem staan als bevroren archief; kost niets en is de laatste terugvaloptie. Fase 2 uitvoeren zonder verse back-up. De stappen half afmaken: zonder werkende opslag is er na het weghalen van de Gist geen vangnet meer.
+**Bestanden**: `index.html` — `driveLees`/`driveSchrijf`/`driveVraagToken`, `driveProbeerLaden`, `verwerkDriveVersie`, `loadGist`, `saveGist`
