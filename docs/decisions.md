@@ -222,3 +222,24 @@ Stappen:
 
 **Niet doen**: de Gist zelf verwijderen — laat hem staan als bevroren archief; kost niets en is de laatste terugvaloptie. Fase 2 uitvoeren zonder verse back-up. De stappen half afmaken: zonder werkende opslag is er na het weghalen van de Gist geen vangnet meer.
 **Bestanden**: `index.html` — `driveLees`/`driveSchrijf`/`driveVraagToken`, `driveProbeerLaden`, `verwerkDriveVersie`, `loadGist`, `saveGist`
+
+## Open werk na 2026-08-05
+
+### Facturen mailen via Gmail
+Voorwaarden liggen klaar: Workspace-account (dus OAuth-app op *Internal*, geen 7-dagen tokenlimiet), client-ID `815519330750-...`, en `facPdfDoc()` levert al een echt PDF-bestand.
+
+Stappen:
+1. Scope `https://www.googleapis.com/auth/gmail.send` toevoegen in Cloud Console én aan `driveVraagToken` (of een tweede tokenclient — scopes mogen gecombineerd).
+2. MIME-bericht opbouwen: multipart/mixed, de PDF base64 als bijlage, afzender `app@herling-analytics.nl`.
+3. `POST /gmail/v1/users/me/messages/send` met `raw` = base64url van het MIME-bericht.
+4. Verzendknop op de factuur, met bevestigingsdialoog vooraf (ontvanger, bedrag, bijlage) — Frank koos direct versturen, maar een factuur die weg is kun je alleen nog crediteren.
+5. Na verzenden: `f.verzondenOp` vastleggen en tonen in de factuurlijst.
+
+Let op: het e-mailadres van de klant staat in `klant.email`; bij factureren via een tussenpersoon moet dat het adres van de **factuurpartij** zijn (`factuurPartijVan`).
+
+### Btw-overzicht per kwartaal
+Doel: vier keer per jaar de aangifte kunnen invullen zonder uit de Excel-export te puzzelen.
+
+Aanpak: vijfde tab in de facturen-module ("Btw"), kwartaalkiezer (Q1–Q4 + jaar). Per kwartaal de verstuurde en betaalde facturen optellen, gegroepeerd per btw-tarief — `factuurTotalen()` levert de staffel al per factuur. Tonen: omzet excl. per tarief, af te dragen btw per tarief, totaal. Btw verlegd apart vermelden (telt niet mee in af te dragen).
+
+Aandachtspunt: bepaal expliciet of je op factuurdatum of op betaaldatum aangifte doet. Nederland kent beide (factuurstelsel vs kasstelsel); voor een B.V. is het factuurstelsel de norm — dus `f.datum`, niet `f.betaaldOp`. Dit is een keuze die met Frank afgestemd moet worden voordat de cijfers ergens op gebaseerd worden.
