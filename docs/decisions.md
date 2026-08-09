@@ -335,3 +335,13 @@ Aandachtspunt: bepaal expliciet of je op factuurdatum of op betaaldatum aangifte
 **Bestanden**: `index.html` — `facMailsVanJaar`, `factuurMailsAanvullen`, `facRenderMails`, `FAC_MAIL_PLAATSHOUDERS`, `facMailVoorbeeldFactuur`, `openFacMailInstel`/`facMailInstelPlaatshouder`/`facMailInstelVoorbeeld`/`facMailInstelOpslaan`/`facMailInstelStandaard`, modaal `#facMailInstelModal`, CSS `.fac-mail-plh*`, `.fac-mail-voorbeeld`, `.fac-mail-aan`
 
 **Niet doen**: het logboek afleiden uit `f.gemaildOp` in plaats van het bij te houden — dan verdwijnt elke eerdere verzending zodra je opnieuw mailt. En: de afgeleide regels tonen alsof ze volwaardig zijn; het onderwerp daarvan is een gok.
+
+## 2026-08-09 · Verstuurde factuur heette nog "Concept"
+
+**Probleem**: de kop van de factuureditor zei "Concept F000001 — nummer wordt definitief bij versturen" terwijl de statuspil ernaast "Verstuurd" toonde.
+
+**Oorzaak**: de kop keek naar `bewerkbaar`. Toen besloten werd dat een verstuurde factuur bewerkbaar blijft, werd die variabele een constante `true` — en de kop bleef eraan hangen. Een vlag die van betekenis verandert neemt zijn gebruikers mee; hier bleef er één achter.
+
+**Beslissing**: de kop kijkt naar `definitief` (`status !== 'concept'`). De ondertitel toont voor een verstuurde factuur de verzenddatum, en als hij gemaild is ook die datum.
+
+**Bestanden**: `index.html` — `facEditorRender`

@@ -17442,11 +17442,18 @@ function facEditorRender(){
   const klant=factuurKlant(f.clientId);
   const klantData=f.klant||factuurKlantSnapshot(klant);
 
+  /* Op `definitief` en niet op `bewerkbaar`: dat laatste staat sinds
+     "verstuurde facturen blijven bewerkbaar" altijd op true, waardoor
+     de kop een verstuurde factuur nog steeds Concept noemde. */
   document.getElementById('facEditorTitel').textContent=
-    (bewerkbaar?'Concept ':'Factuur ')+f.nummer;
-  document.getElementById('facEditorSub').textContent=
-    bewerkbaar?'Nummer wordt definitief bij versturen':
-      (f.verstuurdOp?'Verstuurd op '+factuurFmtDatum(f.verstuurdOp.slice(0,10)):'');
+    (definitief?'Factuur ':'Concept ')+f.nummer;
+  const sub=[];
+  if(!definitief)sub.push('Nummer wordt definitief bij versturen');
+  else{
+    if(f.verstuurdOp)sub.push('Verstuurd op '+factuurFmtDatum(f.verstuurdOp.slice(0,10)));
+    if(f.gemaildOp)sub.push('gemaild op '+factuurFmtDatum(String(f.gemaildOp).slice(0,10)));
+  }
+  document.getElementById('facEditorSub').textContent=sub.join(' · ');
   document.getElementById('facEditorStatus').innerHTML=facStatusPil(f);
 
   const veld=(label,key,waarde,type)=>`
