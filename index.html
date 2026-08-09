@@ -7586,174 +7586,76 @@ function verwerkDriveVersie(uitDrive,gistTijdstip){
 
 async function loadGist(){
   setSync('saving','Verbinden...');
-  /* Drive eerst opvragen; de Gist wordt hieronder alsnog opgehaald,
-     zodat we kunnen vergelijken welke van de twee recenter is. */
-  const uitDrive=await driveProbeerLaden();
   try{
-    let content=null;
-    let remoteUpdatedAt=null;
-    /* Helper: als GitHub de file afkapt (>1 MB), haal volledige content op via raw_url */
-    const fetchGistContent=async(f)=>{
-      if(!f)return null;
-      if(f.truncated&&f.raw_url){
-        /* GitHub kapt Gist-bestanden > 1 MB af in de API-response.
-           raw_url bevat de volledige inhoud — haal die rechtstreeks op. */
-        const tok=localStorage.getItem(LS_TOKEN_KEY);
-        try{
-          const r=await fetch(f.raw_url,{headers:tok?{Authorization:'token '+sanitizeToken(tok)}:{}});
-          if(r.ok)return await r.text();
-        }catch(e){console.warn('raw_url fetch mislukt, val terug op truncated content',e);}
-      }
-      return f.content||null;
-    };
-    if(gistId){
-      try{
-        const g=await gistRequest('GET','/gists/'+gistId);
-        const f=g.files[GIST_FILENAME];
-        content=await fetchGistContent(f);
-        remoteUpdatedAt=g.updated_at;
-      }catch(e){gistId=null;localStorage.removeItem(LS_GIST_KEY);}
-    }
-    if(!content){
-      /* When no gistId is cached, find ALL gists with our filename
-         and pick the most recently updated one. This is more
-         deterministic than 'first match' which is what the old code did. */
-      const gists=await gistRequest('GET','/gists?per_page=100');
-      const matches=gists.filter(g=>g.files&&g.files[GIST_FILENAME]);
-      if(matches.length){
-        matches.sort((a,b)=>(new Date(b.updated_at))-(new Date(a.updated_at)));
-        const found=matches[0];
-        if(matches.length>1){
-          /* Warn the user about duplicates so they can clean up */
-          console.warn(`Found ${matches.length} gists with ${GIST_FILENAME} — using most recent (${found.id}). Other IDs:`,matches.slice(1).map(g=>g.id));
-          if(typeof appToast==='function'){
-            appToast(`Let op: ${matches.length} dubbele Gists gevonden. Gebruik nu de nieuwste (${found.id.slice(0,7)}). Open Instellingen → Gist diagnose om de andere op te ruimen.`,{type:'warning',duration:9000});
-          }
-        }
-        gistId=found.id;localStorage.setItem(LS_GIST_KEY,gistId);
-        const g=await gistRequest('GET','/gists/'+gistId);
-        content=await fetchGistContent(g.files[GIST_FILENAME]);
-        remoteUpdatedAt=g.updated_at;
-      }
-    }
-    if(content){
-      const parsed=JSON.parse(content);
-      /* Detect wrapper vs flat format */
-      if(parsed.tasks||parsed.notes){
-        rawState=parsed;
+    const d=await driveProbeerLaden();
+    if(!d){
+      /* Nog niets in Drive: eerste keer op dit account, of de toestemming
+         ontbreekt. De lokale kopie vangt dat laatste op. */
+      if(loadLocalBackup()){
+        hydrateerState();
+        setSync('error','Drive onbereikbaar - lokale kopie geladen');
+        appToast('Drive kon niet gelezen worden. Je lokale kopie is geladen; '+
+          'controleer je gegevens voordat je verder werkt.',{type:'warning',duration:15000});
       } else {
-        /* legacy flat kanban-only file */
-        rawState={tasks:parsed,notes:{tree:[],activeId:null,collapsed:{}},settings:{}};
+        rawState={tasks:{},notes:{tree:[],activeId:null,collapsed:{}},checklist:{},
+                  uren:{entries:[],templates:[]},facturen:{},agenda:{events:[]},settings:{}};
+        hydrateerState();
+        setSync('saved','Nieuwe administratie');
       }
-      /* Hydrate kanban state */
-      const ts=rawState.tasks||{};
-      kanbanState=migrateOldKanban(ts.projects?ts:{projects:{},activeProject:null,clients:[],tags:[],categoryGrouping:'grouped'});
-      if(!kanbanState.projects||!Object.keys(kanbanState.projects).length)initDefaultKanban();
-      if(!kanbanState.activeProject||!kanbanState.projects[kanbanState.activeProject])
-        kanbanState.activeProject=Object.keys(kanbanState.projects)[0];
-      if(!kanbanState.clients)kanbanState.clients=[];
-      if(!kanbanState.tags)kanbanState.tags=[];
-      if(!kanbanState.categoryGrouping)kanbanState.categoryGrouping='grouped';
-      /* Hydrate notes */
-      notesState=rawState.notes||{tree:[],activeId:null,collapsed:{}};
-      if(!notesState.tree)notesState.tree=[];
-      /* Hydrate checklist */
-      checklistState=rawState.checklist||{items:[],showArchived:false,sortBy:'priority'};
-      if(!checklistState.items)checklistState.items=[];
-      /* Hydrate uren */
-      urenState=rawState.uren||{entries:[],templates:[]};
-      if(!urenState.entries)urenState.entries=[];
-      if(!urenState.templates)urenState.templates=[];
-      urenMigrateEntries();   /* invoiced-bool → status, ids aanvullen */
-      if(urenState.draft)urenDraft={...urenState.draft};
-      /* Drive nieuwer dan de Gist? Dan die gebruiken. */
-      if(uitDrive)verwerkDriveVersie(uitDrive,remoteUpdatedAt);
-      /* Versleutelde administratie? Dan wacht die op de pincode.
-         Lukt ontsleutelen met de bewaarde apparaatsleutel, dan merkt de
-         gebruiker er niets van. */
-      if(rawState.geheim){
-        pinVergrendeld=true;
-        const bewaard=await pinLeesBewaardeSleutel();
-        if(bewaard){
-          try{
-            pinZetGeheimenTerug(await pinOntsleutel(bewaard,rawState.geheim));
-            pinSleutel=bewaard;
-            pinVergrendeld=false;
-          }catch(_){ pinVergeetApparaat(); }
-        }
-      }
-      /* Hydrate facturen */
-      factuurState=rawState.facturen||{invoices:[],settings:{}};
-      if(!factuurState.invoices)factuurState.invoices=[];
-      factuurSettings();      /* vult ontbrekende bedrijfs-/nummervelden aan */
-      lastLoadedAt=Date.now();
-      lastRemoteUpdatedAt=remoteUpdatedAt;
-      setSync('saved','Geladen · '+new Date().toLocaleTimeString('nl-NL'));
-    } else {
-      rawState={tasks:{},notes:{tree:[],activeId:null,collapsed:{}},checklist:{},settings:{}};
-      initDefaultKanban();
-      notesState=rawState.notes;
-      checklistState={items:[],showArchived:false,sortBy:'priority'};
-      lastLoadedAt=Date.now();
-      lastRemoteUpdatedAt=null;
-      setSync('idle','Nieuw bestand');
+      renderAll();
+      return;
     }
+    rawState=d.state||{};
+    hydrateerState();
+    lastLoadedAt=Date.now();
+    setSync('saved','Geladen · '+new Date().toLocaleTimeString('nl-NL'));
+    renderAll();
   }catch(e){
-    console.error(e);
-    const isBadCreds=e.message&&e.message.toLowerCase().includes('bad credentials');
-    /* Probeer eerst herstel vanuit localStorage-backup voordat we lege state tonen.
-       saveLocalBackup() slaat op als {data: rawState, savedAt: ...} — gebruik loadLocalBackup(). */
-    if(!isBadCreds){
-      try{
-        const saved=loadLocalBackup(); /* geeft rawState terug of null */
-        if(saved&&(saved.checklist||saved.tasks||saved.notes)){
-          rawState=saved;
-          const ts=saved.tasks||{};
-          kanbanState=migrateOldKanban(ts.projects?ts:{projects:{},activeProject:null,clients:[],tags:[],categoryGrouping:'grouped'});
-          if(!kanbanState.projects||!Object.keys(kanbanState.projects).length)initDefaultKanban();
-          if(!kanbanState.activeProject||!kanbanState.projects[kanbanState.activeProject])
-            kanbanState.activeProject=Object.keys(kanbanState.projects)[0];
-          if(!kanbanState.clients)kanbanState.clients=[];
-          if(!kanbanState.tags)kanbanState.tags=[];
-          if(!kanbanState.categoryGrouping)kanbanState.categoryGrouping='grouped';
-          notesState=saved.notes||{tree:[],activeId:null,collapsed:{}};
-          if(!notesState.tree)notesState.tree=[];
-          checklistState=saved.checklist||{items:[],showArchived:false,sortBy:'priority'};
-          if(!checklistState.items)checklistState.items=[];
-          urenState=saved.uren||{entries:[],templates:[]};
-          if(!urenState.entries)urenState.entries=[];
-          if(!urenState.templates)urenState.templates=[];
-          urenMigrateEntries();
-          factuurState=saved.facturen||{invoices:[],settings:{}};
-          if(!factuurState.invoices)factuurState.invoices=[];
-          factuurSettings();
-          setSync('error','Opslag onbereikbaar — hersteld vanuit lokale backup');
-          appToast('⚠️ Gist kon niet geladen worden — hersteld vanuit lokale backup. Open de POM-notitie en gebruik de Legen-knop om de grote afbeelding te verwijderen.',{duration:15000});
-          renderAll();
-          return;
-        }
-      }catch(e2){console.warn('Backup-herstel mislukt',e2);}
-    }
-    /* Geen bruikbare backup — lege state */
-    rawState={tasks:{},notes:{tree:[],activeId:null,collapsed:{}},checklist:{},settings:{}};
-    initDefaultKanban();notesState=rawState.notes;
-    checklistState={items:[],showArchived:false,sortBy:'priority'};
-    if(isBadCreds){
-      setSync('error','Token ongeldig — klik ⚙');
-      if(typeof appToast==='function'){
-        appToast('GitHub token afgewezen — kun je niet inladen. Open Instellingen om token te testen of een nieuwe in te voeren.',{
-          type:'error',
-          duration:12000,
-          undo:()=>showTokenSettings()
-        });
-        const btn=document.getElementById('undoToastUndoBtn');
-        if(btn)btn.textContent='⚙ Open instellingen';
-      }
+    console.error('Laden mislukt:',e);
+    if(loadLocalBackup()){
+      hydrateerState();
+      setSync('error','Laden mislukt - lokale kopie gebruikt');
+      appToast('Laden uit Drive mislukte: '+e.message+'. Je lokale kopie is geladen.',
+        {type:'error',duration:15000});
+      renderAll();
     } else {
-      setSync('error','Fout: '+e.message);
+      setSync('error','Laden mislukt: '+e.message);
     }
   }
-  renderAll();
+}
+
+/* Bouwt alle modules op uit rawState. Stond eerder verspreid door
+   loadGist; nu op een plek zodat elk laadpad hetzelfde doet. */
+function hydrateerState(){
+  kanbanState=rawState.tasks||{projects:{},activeProject:null,clients:[],tags:[],categoryGrouping:'grouped'};
+  if(!kanbanState.clients)kanbanState.clients=[];
+  if(!kanbanState.projects)kanbanState.projects={};
+  if(!kanbanState.categoryGrouping)kanbanState.categoryGrouping='grouped';
+  notesState=rawState.notes||{tree:[],activeId:null,collapsed:{}};
+  if(!notesState.tree)notesState.tree=[];
+  checklistState=rawState.checklist||{items:[],showArchived:false,sortBy:'priority'};
+  if(!checklistState.items)checklistState.items=[];
+  urenState=rawState.uren||{entries:[],templates:[]};
+  if(!urenState.entries)urenState.entries=[];
+  if(!urenState.templates)urenState.templates=[];
+  urenMigrateEntries();
+  if(urenState.draft)urenDraft={...urenState.draft};
+  if(rawState.geheim){
+    pinVergrendeld=true;
+    pinLeesBewaardeSleutel().then(async(bewaard)=>{
+      if(!bewaard)return;
+      try{
+        pinZetGeheimenTerug(await pinOntsleutel(bewaard,rawState.geheim));
+        pinSleutel=bewaard; pinVergrendeld=false; renderAll();
+      }catch(_){ pinVergeetApparaat(); }
+    });
+  }
+  factuurState=rawState.facturen||{invoices:[],settings:{}};
+  if(!factuurState.invoices)factuurState.invoices=[];
+  factuurSettings();
+  if(!rawState.agenda)rawState.agenda={events:[]};
+  if(!rawState.settings)rawState.settings={};
+  if(typeof migrateCalSettings==='function')migrateCalSettings();
 }
 
 function initDefaultKanban(){
@@ -7802,98 +7704,40 @@ function sanitizeNotesStateForGist(state){
 }
 
 async function saveGist(){
-  /* Always persist to localStorage first — instant, no network */
-  saveLocalBackup();
-  if(!ghToken){setSync('error','Geen token');return;}
+  saveLocalBackup();   /* eerst lokaal: dat is het directe vangnet */
   setSync('saving','Opslaan...');
   rawState.tasks=kanbanState;
   rawState.notes=notesState;
   rawState.checklist=checklistState;
-  if(typeof urenState!=='undefined')rawState.uren=urenState;
-  if(typeof factuurState!=='undefined')rawState.facturen=factuurState;
+  rawState.uren=urenState;
+  rawState.facturen=factuurState;
   if(!rawState.agenda)rawState.agenda={events:[]};
-  /* Strip grote afbeeldingen uit notes ALLEEN voor de Gist-payload.
-     In-memory state (notesState) blijft ongewijzigd zodat de editor
-     de afbeeldingen nog toont. Dit voorkomt Gist-truncatie (>1 MB). */
-  let gistState={...rawState,notes:sanitizeNotesStateForGist(notesState)};
-  /* Staat er een pincode op, dan gaan facturen, uren en de gevoelige
-     klantvelden als een versleuteld blok mee in plaats van leesbaar. */
+
+  let payload={...rawState};
+  /* Met een pincode gaan facturen, uren en de gevoelige klantvelden als
+     versleuteld blok mee in plaats van leesbaar. */
   if(pinIngeschakeld()){
     if(!pinSleutel){
-      /* Vergrendeld en toch opslaan zou de geheimen wissen. Niet doen. */
       setSync('error','Vergrendeld - voer je pincode in om op te slaan');
       return;
     }
     const geheim=await pinVersleutel(pinSleutel,pinPakGeheimen());
-    gistState=pinStripGeheimen({...gistState});
-    gistState.geheim=geheim;
-  }
-  const content=JSON.stringify(gistState,null,2);
-  /* Naar Drive schrijven gaat voorop, maar mag het opslaan niet
-     blokkeren: mislukt het, dan houdt de Gist de gegevens vast en
-     probeert de volgende opslag het opnieuw.
-
-     Belangrijk: Drive krijgt de VOLLEDIGE notities. Het uitkleden van
-     grote afbeeldingen bestaat alleen omdat GitHub Gists boven 1 MB
-     afkapt; Drive kent die grens niet. Zou Drive dezelfde uitgeklede
-     versie krijgen, dan waren die afbeeldingen na het opheffen van de
-     Gist voorgoed weg. */
-  if(DRIVE_ACTIEF){
-    try{
-      let driveState={...rawState,notes:notesState};
-      if(pinIngeschakeld()&&pinSleutel){
-        const geheimDrive=await pinVersleutel(pinSleutel,pinPakGeheimen());
-        driveState=pinStripGeheimen({...driveState});
-        driveState.geheim=geheimDrive;
-      }
-      await driveSchrijf({_bron:'app',_opgeslagenOp:new Date().toISOString(),state:driveState});
-      driveLaatsteFout=null;
-    }catch(e){
-      console.warn('Drive opslaan mislukt:',e.message);
-      /* Alleen de eerste keer melden; niet bij elke toetsaanslag. */
-      if(driveLaatsteFout!==e.message){
-        driveLaatsteFout=e.message;
-        appToast('Opslaan naar Drive lukt niet — de Gist houdt je gegevens vast.',
-          {type:'warning',duration:8000});
-      }
-    }
+    payload=pinStripGeheimen({...payload});
+    payload.geheim=geheim;
   }
   try{
-    /* Single-user setup: always overwrite, no conflict check.
-       Conflict detection caused false positives due to GitHub's
-       eventual consistency between read replicas after a PATCH. */
-    if(gistId){
-      const r=await gistRequest('PATCH','/gists/'+gistId,{files:{[GIST_FILENAME]:{content}}});
-      lastRemoteUpdatedAt=r.updated_at;
-      lastLoadedAt=Date.now();
-    } else {
-      const g=await gistRequest('POST','/gists',{
-        description:'Herling Analytics — Dashboard data',public:false,
-        files:{[GIST_FILENAME]:{content}}
-      });
-      gistId=g.id;localStorage.setItem(LS_GIST_KEY,gistId);
-      lastRemoteUpdatedAt=g.updated_at;
-      lastLoadedAt=Date.now();
-    }
+    await driveSchrijf({_bron:'app',_opgeslagenOp:new Date().toISOString(),state:payload});
+    driveLaatsteFout=null;
     setSync('saved','Opgeslagen · '+new Date().toLocaleTimeString('nl-NL'));
+    if(typeof updateNavBadges==='function')updateNavBadges();
   }catch(e){
-    console.error(e);
-    const isBadCreds=e.message&&e.message.toLowerCase().includes('bad credentials');
-    setSync('error',isBadCreds?'Token ongeldig — klik ↻':'Opslaan mislukt: '+e.message);
-    if(typeof appToast==='function'){
-      if(isBadCreds){
-        appToast('GitHub token afgewezen (Bad credentials). Maak een nieuwe token aan of test de huidige.',{
-          type:'error',
-          duration:12000,
-          undo:()=>showTokenSettings()
-        });
-        const btn=document.getElementById('undoToastUndoBtn');
-        if(btn)btn.textContent='⚙ Open instellingen';
-      } else {
-        appToast(`Opslaan naar de reservekopie mislukt: ${e.message}`,{type:'error',duration:8000,undo:()=>saveGist()});
-        const btn=document.getElementById('undoToastUndoBtn');
-        if(btn)btn.textContent='↻ Opnieuw proberen';
-      }
+    console.error('Opslaan naar Drive mislukt:',e);
+    setSync('error','Opslaan mislukt - lokaal bewaard');
+    if(driveLaatsteFout!==e.message){
+      driveLaatsteFout=e.message;
+      appToast('Opslaan naar Drive mislukt: '+e.message+
+        ' — je wijzigingen staan lokaal bewaard.',
+        {type:'error',duration:12000,undo:()=>saveGist()});
     }
   }
 }
@@ -7922,14 +7766,11 @@ document.addEventListener('visibilitychange',()=>{
 
 /* ─ Manual 'Ververs' button — pulls from remote and re-renders ─ */
 async function refreshGist(){
-  if(!ghToken){appToast('Geen token ingesteld',{type:'warning'});return;}
-  /* If there are unsaved local changes, warn the user */
   if(saveTimer){
-    if(!confirm('Er zijn lokale wijzigingen die nog niet zijn opgeslagen. Bij verversen gaan ze verloren. Doorgaan?'))return;
+    if(!confirm('Er zijn wijzigingen die nog niet zijn opgeslagen. Bij verversen gaan ze verloren. Doorgaan?'))return;
     clearTimeout(saveTimer);saveTimer=null;
   }
   await loadGist();
-  /* loadGist calls renderAll() which re-renders everything */
   appToast('Gegevens opnieuw opgehaald',{type:'success',duration:2500});
 }
 
@@ -8247,7 +8088,7 @@ document.addEventListener('visibilitychange',()=>{
   } else if(document.visibilityState==='visible'&&_hiddenSince){
     const awayMs=Date.now()-_hiddenSince;
     _hiddenSince=null;
-    if(awayMs>30000&&ghToken&&!saveTimer){
+    if(awayMs>30000&&!saveTimer){
       console.log(`[gist] Tab visible again after ${Math.round(awayMs/1000)}s, refreshing…`);
       loadGist();
     }
@@ -9839,7 +9680,7 @@ async function driveSchrijf(obj){
    ter controle. Verandert niets aan de Gist: die blijft de bron van
    waarheid tot jij besluit om te wisselen. */
 async function driveKopieerVanuitGist(){
-  if(!ghToken){appToast('Log eerst in bij GitHub',{type:'warning'});return;}
+
   try{
     appToast('Bezig met kopiëren naar Drive...',{type:'info',duration:4000});
     /* Neem de state zoals hij nu in het geheugen staat -- dat is wat je
@@ -9918,13 +9759,11 @@ function startNaLogin(){
     const lbl=document.getElementById('loginLabel');
     if(lbl)lbl.textContent=(g.email||'').split('@')[0]||'Uitloggen';
   }
-  loadToken();
-  if(ghToken){
-    document.getElementById('appScreen').style.display='flex';
-    boot();
-  } else {
-    document.getElementById('setupScreen').style.display='flex';
-  }
+  /* Sinds de overstap naar Drive is de Google-login de toegangspoort;
+     er is geen GitHub-token meer nodig om te starten. */
+  document.getElementById('setupScreen').style.display='none';
+  document.getElementById('appScreen').style.display='flex';
+  boot();
 }
 
 if(ingelogdeGebruiker())startNaLogin();
