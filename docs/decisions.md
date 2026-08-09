@@ -286,3 +286,24 @@ Doel: vier keer per jaar de aangifte kunnen invullen zonder uit de Excel-export 
 Aanpak: vijfde tab in de facturen-module ("Btw"), kwartaalkiezer (Q1–Q4 + jaar). Per kwartaal de verstuurde en betaalde facturen optellen, gegroepeerd per btw-tarief — `factuurTotalen()` levert de staffel al per factuur. Tonen: omzet excl. per tarief, af te dragen btw per tarief, totaal. Btw verlegd apart vermelden (telt niet mee in af te dragen).
 
 Aandachtspunt: bepaal expliciet of je op factuurdatum of op betaaldatum aangifte doet. Nederland kent beide (factuurstelsel vs kasstelsel); voor een B.V. is het factuurstelsel de norm — dus `f.datum`, niet `f.betaaldOp`. Dit is een keuze die met Frank afgestemd moet worden voordat de cijfers ergens op gebaseerd worden.
+
+## 2026-08-09 · Verversen viel terug op de lokale kopie — twee oorzaken
+
+**Probleem**: na een pagina-verversing meldde de app "Drive onbereikbaar — lokale kopie geladen" en stond er een lege administratie op het scherm. Klikken op ↻ (opnieuw laden) werkte wél.
+
+**Oorzaak 1 — het toestemmingsvenster werd geblokkeerd.** Google vernieuwt het Drive-toegangstoken via een popup. Bij het laden van de pagina gaat daar geen klik aan vooraf, dus de browser blokkeert hem; bij een klik op ↻ wel, en dan lukt het. Precies het verschil dat je zag.
+
+**Oorzaak 2 — de terugval laadde niets.** In `loadGist` stond `if(loadLocalBackup()){ hydrateerState(); … }`. De kopie werd opgehaald en op waarheid getest, maar nooit aan `rawState` toegekend, waarna `hydrateerState()` de ongewijzigde (lege) `rawState` opbouwde. Vandaar het lege scherm. Dit zat er sinds fase 2 in en gold voor beide terugvalpaden.
+
+**Beslissing**:
+1. Het toegangstoken wordt bewaard in `sessionStorage` (`herling_drive_token`), met het account erbij. Een verversing hergebruikt het en heeft dus geen venster nodig. Niet in `localStorage`: zo verdwijnt het als het tabblad dichtgaat. Het token is een uur geldig en geeft alleen toegang tot de verborgen app-map. Bij een 401 en bij uitloggen wordt het gewist, en een token van een ander account wordt genegeerd.
+2. `driveProbeerLaden` slikt de fout niet meer in. "Er staat nog niets in Drive" en "ik kon Drive niet bereiken" zijn verschillende situaties en werden hiervoor allebei als het eerste behandeld.
+3. `rawState` wordt nu wél toegekend in beide terugvalpaden.
+4. **Zolang Drive deze sessie niet is gelezen, schrijft de app er niets naartoe** (`driveGelezen`). Anders kan een terugval-versie — of erger, een lege — de goede administratie in Drive overschrijven. Lokaal bewaren gaat door, dus er gaat niets verloren.
+5. De melding zegt wat er aan de hand is en wat je moet doen ("klik op ↻"), in plaats van "Drive onbereikbaar", wat je de verkeerde kant op stuurt.
+
+**Waarom punt 4 los van punt 1**: het venster kan om meer redenen mislukken dan alleen een verversing — verlopen sessie, geweigerde toestemming, geen netwerk. De opslag moet in al die gevallen veilig zijn, niet alleen in het geval dat nu is opgelost.
+
+**Bestanden**: `index.html` — `driveTokenUitSessie`/`driveTokenBewaar`/`driveTokenVergeet`, `driveVraagToken`, `driveApi`, `driveProbeerLaden`, `loadGist`, `saveGist`, `logUit`
+
+**Niet doen**: het token in `localStorage` zetten om ook nieuwe tabbladen te dekken — dan blijft een geldige sleutel op schijf staan nadat je de app hebt gesloten. En: de schrijfblokkade weghalen omdat "het nu toch werkt".

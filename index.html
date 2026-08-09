@@ -7421,17 +7421,18 @@ function migrateOldKanban(loaded){
    een nieuwere overschrijft. Daarom kijken we naar het tijdstip van
    beide en nemen we de meest recente -- en zeggen we het als ze
    uiteenlopen, in plaats van stilletjes te kiezen. */
+/* Leest Drive. Fouten gaan bewust NAAR de aanroeper: "er staat nog
+   niets in Drive" en "ik kon Drive niet bereiken" vragen om een
+   verschillende afhandeling, en dat onderscheid ging hier eerder
+   verloren. Lukt het lezen, dan staat driveGelezen op true -- ook als
+   het bestand er nog niet is, want de verbinding stond dan wel. */
 async function driveProbeerLaden(){
   if(!DRIVE_ACTIEF)return null;
-  try{
-    const d=await driveLees();
-    if(!d||!d.inhoud)return null;
-    const st=d.inhoud.state||d.inhoud;
-    return {state:st,tijd:new Date(d.meta.modifiedTime).getTime(),bron:'drive'};
-  }catch(e){
-    console.warn('Drive laden mislukt:',e.message);
-    return null;
-  }
+  const d=await driveLees();
+  driveGelezen=true;
+  if(!d||!d.inhoud)return null;
+  const st=d.inhoud.state||d.inhoud;
+  return {state:st,tijd:new Date(d.meta.modifiedTime).getTime(),bron:'drive'};
 }
 
 async function loadGist(){
@@ -7439,13 +7440,16 @@ async function loadGist(){
   try{
     const d=await driveProbeerLaden();
     if(!d){
-      /* Nog niets in Drive: eerste keer op dit account, of de toestemming
-         ontbreekt. De lokale kopie vangt dat laatste op. */
-      if(loadLocalBackup()){
+      /* De verbinding stond, maar er staat nog niets in Drive. Is er wel
+         een lokale kopie, dan is die het startpunt -- anders zou een lege
+         app-map je administratie wissen. */
+      const lokaal=loadLocalBackup();
+      if(lokaal){
+        rawState=lokaal;
         hydrateerState();
-        setSync('error','Drive onbereikbaar - lokale kopie geladen');
-        appToast('Drive kon niet gelezen worden. Je lokale kopie is geladen; '+
-          'controleer je gegevens voordat je verder werkt.',{type:'warning',duration:15000});
+        setSync('saved','Lokale kopie geladen - nog niets in Drive');
+        appToast('In Drive staat nog niets; je lokale kopie is geladen en gaat '+
+          'bij de eerstvolgende wijziging mee naar Drive.',{type:'info',duration:9000});
       } else {
         rawState={tasks:{},notes:{tree:[],activeId:null,collapsed:{}},checklist:{},
                   uren:{entries:[],templates:[]},facturen:{},agenda:{events:[]},settings:{}};
@@ -7462,15 +7466,26 @@ async function loadGist(){
     renderAll();
   }catch(e){
     console.error('Laden mislukt:',e);
-    if(loadLocalBackup()){
+    driveGelezen=false;
+    /* Blokkeert de browser het venster waarmee Google de toegang
+       vernieuwt, dan zegt de melding dat -- "Drive onbereikbaar" stuurt
+       je anders de verkeerde kant op. */
+    const geblokkeerd=/popup|blocked|window/i.test(e.message||'');
+    const uitleg=geblokkeerd
+      ? 'Je browser blokkeerde het venster waarmee Google de toegang vernieuwt.'
+      : 'Drive kon niet gelezen worden: '+e.message;
+    const lokaal=loadLocalBackup();
+    if(lokaal){
+      rawState=lokaal;
       hydrateerState();
-      setSync('error','Laden mislukt - lokale kopie gebruikt');
-      appToast('Laden uit Drive mislukte: '+e.message+'. Je lokale kopie is geladen.',
-        {type:'error',duration:15000});
       renderAll();
-    } else {
-      setSync('error','Laden mislukt: '+e.message);
     }
+    setSync('error','Niet verbonden met Drive - klik op \u21bb');
+    appToast(uitleg+' Klik op \u21bb in de zijbalk om te verbinden. '+
+      (lokaal?'Zolang dat niet is gelukt werk je met je lokale kopie en '+
+              'wordt er niets naar Drive geschreven.'
+            :'Er is nog niets geladen.'),
+      {type:'error',duration:18000});
   }
 }
 
@@ -7559,6 +7574,20 @@ async function saveGist(){
     const geheim=await pinVersleutel(pinSleutel,pinPakGeheimen());
     payload=pinStripGeheimen({...payload});
     payload.geheim=geheim;
+  }
+  /* Is Drive deze sessie niet gelezen, dan werk je met een terugval.
+     Die naar Drive schrijven zou de goede administratie kunnen
+     overschrijven met een oudere of lege versie. Lokaal bewaren is al
+     gebeurd, dus er gaat niets verloren. */
+  if(!driveGelezen){
+    setSync('error','Niet verbonden met Drive - alleen lokaal bewaard');
+    if(driveLaatsteFout!=='niet-verbonden'){
+      driveLaatsteFout='niet-verbonden';
+      appToast('Je wijzigingen staan lokaal bewaard. Klik op \u21bb in de zijbalk om met '+
+        'Drive te verbinden; tot dat lukt wordt er niets naar Drive geschreven.',
+        {type:'warning',duration:14000});
+    }
+    return;
   }
   try{
     await driveSchrijf({_bron:'app',_opgeslagenOp:new Date().toISOString(),state:payload});
@@ -9210,6 +9239,7 @@ function ingelogdeGebruiker(){
 }
 function logUit(){
   try{localStorage.removeItem(LS_LOGIN);}catch(_){}
+  if(typeof driveTokenVergeet==='function')driveTokenVergeet();
   if(window.google&&google.accounts&&google.accounts.id)google.accounts.id.disableAutoSelect();
   location.reload();
 }
@@ -9330,6 +9360,39 @@ const DRIVE_BESTAND='herling-analytics.json';
 let DRIVE_ACTIEF=true;         /* enige opslag sinds fase 2 */
 let driveToken=null;           /* {token, tot} zolang de app open is */
 let driveTokenClient=null;
+let driveGelezen=false;        /* is Drive deze sessie minstens één keer gelezen? */
+
+/* Het toegangstoken overleeft een pagina-verversing in sessionStorage.
+   Zonder dat moet Google bij elke refresh een venster openen om het
+   token te vernieuwen -- en dat blokkeert de browser, omdat er geen
+   klik aan voorafging. Dat was precies de "Drive onbereikbaar" die je
+   bij verversen zag, terwijl de knop \u21bb (wél een klik) het wel deed.
+
+   sessionStorage en niet localStorage: het token verdwijnt zodra je het
+   tabblad sluit. Het geeft alleen toegang tot de verborgen app-map en
+   is een uur geldig. */
+const DRIVE_TOKEN_SESSIE='herling_drive_token';
+function driveTokenUitSessie(){
+  try{
+    const v=JSON.parse(sessionStorage.getItem(DRIVE_TOKEN_SESSIE)||'null');
+    const g=ingelogdeGebruiker();
+    /* Alleen hergebruiken voor hetzelfde account, anders kijk je na een
+       accountwissel in de map van de vorige gebruiker. */
+    if(v&&v.token&&v.tot>Date.now()+60000&&(!g||v.account===g.email))return v;
+  }catch(_){}
+  return null;
+}
+function driveTokenBewaar(t){
+  const g=ingelogdeGebruiker();
+  try{
+    sessionStorage.setItem(DRIVE_TOKEN_SESSIE,
+      JSON.stringify({token:t.token,tot:t.tot,account:g?g.email:''}));
+  }catch(_){}
+}
+function driveTokenVergeet(){
+  driveToken=null;
+  try{sessionStorage.removeItem(DRIVE_TOKEN_SESSIE);}catch(_){}
+}
 let driveLaatsteFout=null;     /* voorkomt dezelfde waarschuwing bij elke opslag */
 
 /* Toegangstoken opvragen. De login levert alleen een identiteitsbewijs;
@@ -9338,6 +9401,7 @@ let driveLaatsteFout=null;     /* voorkomt dezelfde waarschuwing bij elke opslag
    toestemmingsvenster. */
 function driveVraagToken(interactief){
   return new Promise((res,rej)=>{
+    if(!driveToken)driveToken=driveTokenUitSessie();
     if(driveToken&&Date.now()<driveToken.tot-60000)return res(driveToken.token);
     if(!(window.google&&google.accounts&&google.accounts.oauth2))
       return rej(new Error('Google-bibliotheek nog niet geladen'));
@@ -9351,6 +9415,7 @@ function driveVraagToken(interactief){
         callback:(r)=>{
           if(r.error)return rej(new Error(r.error_description||r.error));
           driveToken={token:r.access_token,tot:Date.now()+(Number(r.expires_in||3600)*1000)};
+          driveTokenBewaar(driveToken);
           res(driveToken.token);
         },
         error_callback:(e)=>rej(new Error((e&&e.message)||'Toestemming geweigerd'))
@@ -9375,6 +9440,9 @@ async function driveApi(pad,opties){
       const j=JSON.parse(tekst);
       reden=(j.error&&j.error.message)||reden;
     }catch(_){}
+    /* Een afgewezen token is niets meer waard: weggooien, zodat de
+       volgende poging een verse ophaalt in plaats van dezelfde fout. */
+    if(r.status===401)driveTokenVergeet();
     const e=new Error('Drive '+r.status+': '+reden);
     e.status=r.status;
     e.ruw=tekst;
