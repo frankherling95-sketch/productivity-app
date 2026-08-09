@@ -262,7 +262,11 @@ Stappen:
 
 ## Open werk na 2026-08-05
 
-> Btw-overzicht en Gmail-verzending: **gebouwd op 2026-08-09**, zie de entries hierboven. De hieronder beschreven stappen zijn daarmee gedekt; wat nog openstaat is het opruimen van de Gist-resten (punt 6 en 7 hierboven bij de opslagmigratie).
+> **Afgerond op 2026-08-09**: btw-overzicht en Gmail-verzending (zie de entries hierboven), en het opruimen van de Gist-resten — punt 4 t/m 7 van de opslagmigratie. Weg zijn: het setup-scherm met de GitHub-token, `loadToken`/`sanitizeToken`/`saveToken`/`showTokenSettings`/`testGitHubToken`, `gistRequest`, `gistDiagnose`, de achtergrond-ververser die elke vijf minuten de Gist opvroeg, het conflictvenster, `verwerkDriveVersie` (de bronvergelijking uit fase 1), `driveKopieerVanuitGist` en `sanitizeNotesStateForGist`. Die laatste stripte grote afbeeldingen vanwege de 1 MB-grens van GitHub; Drive kent die grens niet. Er stond nog een aanroep op het verdwenen setup-scherm in de opstartcode — die zou bij elke start een fout hebben gegeven.
+>
+> De Gist zelf blijft staan als bevroren archief, zoals afgesproken. De functienamen `loadGist`/`saveGist`/`refreshGist` zijn bewust niet hernoemd: ze komen op tientallen plekken voor en hernoemen levert alleen risico op.
+>
+> De onderstaande beschrijvingen zijn de oorspronkelijke opzet; ze blijven staan omdat dit een append-only log is.
 
 ### Facturen mailen via Gmail *(gebouwd — hieronder staat de oorspronkelijke opzet)*
 Voorwaarden liggen klaar: Workspace-account (dus OAuth-app op *Internal*, geen 7-dagen tokenlimiet), client-ID `815519330750-...`, en `facPdfDoc()` levert al een echt PDF-bestand.

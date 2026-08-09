@@ -1,6 +1,7 @@
 # Herling Analytics — Productivity App
 
-Single-page productivity app voor Frank Herling. Single-file HTML SPA, gehost op GitHub Pages, data in een private GitHub Gist.
+Single-page productivity app voor Frank Herling. Single-file HTML SPA, gehost op GitHub Pages.
+Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Google Drive `appDataFolder`.
 
 ## Snel oriënteren
 
@@ -43,9 +44,10 @@ Single-page productivity app voor Frank Herling. Single-file HTML SPA, gehost op
 | `#notes` | Notes | Boomstructuur (folders/pages) met rich-text editor (marked.js) |
 | `#agenda` | Agenda | iCal multi-source (week/dag/maand), zie `docs/agenda.md` |
 | `#checklist` | Checklist | Taken met subtaken, filters (prio/klant/periode), drag-drop, archief |
-| `#uren` | Uren | Timesheets, weekpatronen, herhaling, Excel export |
+| `#uren` | Uren | Urenregistratie per regel, week/maand, Excel export |
+| `#facturen` | Facturen | Facturen uit geschreven uren, sjabloonbouwer, debiteuren, btw-overzicht, mailen via Gmail |
 
-Entry render functions: `renderDashboard()`, `renderTodoModule()`, `renderNotesModule()`, `renderAgendaModule()`, `renderChecklistModule()`, `renderUrenModule()`. `renderAll()` wordt aangeroepen na elke `loadGist()`.
+Entry render functions: `renderDashboard()`, `renderTodoModule()`, `renderNotesModule()`, `renderAgendaModule()`, `renderChecklistModule()`, `renderUrenModule()`, `renderFacturenModule()`. `renderAll()` wordt aangeroepen na elke `loadGist()`.
 
 ## State & persistence
 
@@ -71,24 +73,26 @@ rawState = {
 
 | Constant | Doel |
 |----------|------|
-| `GIST_FILENAME` = `bi_checklist_kanban.json` | File in de Gist (legacy naam) |
-| `LS_TOKEN_KEY` = `bi_checklist_gh_token` | GitHub PAT |
-| `LS_GIST_KEY` = `bi_checklist_gist_id_kanban` | Gist ID |
+| `DRIVE_BESTAND` = `herling-analytics.json` | Bestand in Drive `appDataFolder` |
+| `LS_LOGIN` = `herling_login` | Ingelogde gebruiker (e-mail + geldigheid) |
 | `LS_BACKUP_KEY` = `herling_analytics_local_backup` | Volledige rawState backup |
 | `LS_ICAL_EVENT_CACHE` = `herling_ical_event_cache_v2` | Per-feed parsed events (5mo window) |
 | `LS_PROXY_CACHE_KEY` = `herling_ical_proxy_cache` | Per-feed werkende proxy |
 
 ### Save flow
 
+De functienamen zijn historisch (`loadGist`/`saveGist`/`refreshGist`); ze praten met Google Drive, niet met GitHub.
+
 1. State-mutatie → `scheduleSave()` → direct naar `localStorage` (vangnet) → 1500ms debounce → `saveGist()`
-2. `saveGist()` doet `PATCH /gists/:id` **zonder conflict-check** (single-user → altijd overschrijven)
-3. Bij netwerkfout: 5s retry; data blijft veilig in localStorage
-4. Bij Gist-load fout: fallback naar localStorage backup
+2. `saveGist()` schrijft altijd eerst de lokale kopie, daarna het hele bestand naar Drive — **zonder conflict-check** (single-user → altijd overschrijven)
+3. Bij een fout: de melding komt één keer, de wijziging staat lokaal en gaat mee met de volgende poging
+4. Bij een laadfout: terugvallen op de lokale back-up, met een waarschuwing
 5. `beforeunload` flusht pending saves naar localStorage
+6. Staat er een pincode op, dan gaan facturen, uren en gevoelige klantvelden als versleuteld blok mee (`rawState.geheim`)
 
 ### Migratie functies
 
-Lopen elke `loadGist()`. Bij toevoegen van een nieuw state-veld: voeg een hydratie-stap toe in `loadGist()` (zoek `if(!checklistState.items)` als voorbeeld).
+Lopen elke `loadGist()`. Bij toevoegen van een nieuw state-veld: voeg een hydratie-stap toe in `hydrateerState()` (zoek `if(!checklistState.items)` als voorbeeld) — dat is het enige laadpad.
 
 | Functie | Wat |
 |---------|-----|
@@ -136,7 +140,7 @@ Bij CDN-falen: app crasht niet hard, alleen die feature werkt niet (Excel-export
 - **Geen externe build step** — alles inline.
 - **Vanilla JS** — geen frameworks (jQuery/React/Vue NIET).
 - ⚠️ **Service Worker bestaat (`sw.js`)** — was eerder verwijderd vanwege caching-bugs, is nu (door pwa-feature-commits) terug. Stale-while-revalidate strategie. Bij "ik zie de oude versie" altijd eerst SW + caches in DevTools clearen.
-- **Geen analytics, geen cookies**. Alle data privé in Gist + localStorage.
+- **Geen analytics, geen cookies**. Alle data privé in Drive + localStorage.
 - **CORS-proxy** voor iCal: zie `docs/agenda.md` voor de 4-proxy chain.
 - **Drag-and-drop**: HTML5 native (`draggable="true"`).
 - **Token-format**: `ghp_`/`github_pat_`/`gho_` prefixes; `sanitizeToken()` strips zero-width chars.
@@ -166,7 +170,7 @@ Daarna: vraag Frank om **Ctrl+Shift+R** op de live site. Optioneel `test.html` o
 
 **Nieuwe modaal**: `<div class="modal-bg" id="<naam>Modal"><div class="modal">...</div></div>` + `openXModal()`/`closeXModal()` JS functies. CSS classes bestaan al.
 
-**Nieuw state-veld**: voeg toe aan initiële state, dan hydratie-stap in `loadGist()`. `saveGist()` neemt rawState in zijn geheel mee.
+**Nieuw state-veld**: voeg toe aan initiële state, dan hydratie-stap in `hydrateerState()`. `saveGist()` neemt rawState in zijn geheel mee.
 
 **Nieuwe checklist filter**: voeg sleutel toe aan `clFilters`, render-knop in `renderClFilterBar()`, filter-logica in `renderChecklistModule()`.
 
@@ -246,10 +250,11 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 
 ## Privacy & security
 
-- Alle data in **private GitHub Gist** (alleen toegankelijk met PAT)
-- GitHub PAT in localStorage — acceptabel single-user, **niet** in repo committen
+- Toegang via Google-login; alleen accounts van `herling-analytics.nl` komen binnen
+- Data in Drive `appDataFolder`: een verborgen map per gebruiker die alleen deze app kan lezen — geen URL, geen losse token
+- Optionele pincode versleutelt facturen, uren en gevoelige klantvelden (PBKDF2 + AES-GCM); de sleutel staat per apparaat en verloopt na een maand
 - iCal feeds via CORS-proxies — feed-URLs passeren een derde partij
-- Geen telemetrie, geen externe API-calls behalve GitHub + Google Fonts CDNs + iCal feeds
+- Geen telemetrie, geen externe API-calls behalve Google (Drive, Gmail, Fonts) + iCal feeds
 - Tokens NIET in `.git/config` URL — gebruik Git Credential Manager (`git config --global credential.helper manager`)
 
 ## Glossarium
