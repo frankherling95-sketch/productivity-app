@@ -1330,7 +1330,11 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
   .fac-btw-kop{flex-direction:column;gap:6px}
 }
 
-/* Mailvenster */
+/* Mailvenster.
+   Alle .modal-bg's delen z-index 200, dus zonder dit beslist de volgorde
+   in de HTML wie er bovenop ligt — en dan verdween dit venster achter de
+   factuureditor waar je het vandaan opende. */
+#facMailModal{z-index:260}
 .fac-mail-form{display:flex;flex-direction:column;gap:14px}
 .fac-mail-check{display:flex;align-items:center;gap:8px;font-size:12.5px;cursor:pointer;user-select:none;color:var(--text)}
 .fac-mail-check input{accent-color:var(--mint);width:15px;height:15px}
@@ -9395,16 +9399,33 @@ function driveTokenVergeet(){
 }
 let driveLaatsteFout=null;     /* voorkomt dezelfde waarschuwing bij elke opslag */
 
+/* De Google-bibliotheek staat met async/defer in de pagina. Bij een
+   verversing kan boot() eerder klaar zijn dan dat script, en dan gaf
+   het opvragen van een token meteen "Google-bibliotheek nog niet
+   geladen" -- wat op het scherm aankwam als "Drive onbereikbaar".
+   Even wachten in plaats van direct opgeven. */
+function googleGereed(maxMs){
+  const klaar=()=>!!(window.google&&google.accounts&&google.accounts.oauth2);
+  if(klaar())return Promise.resolve(true);
+  return new Promise(res=>{
+    const eind=Date.now()+(maxMs||8000);
+    const t=setInterval(()=>{
+      if(klaar()){clearInterval(t);res(true);}
+      else if(Date.now()>eind){clearInterval(t);res(false);}
+    },100);
+  });
+}
+
 /* Toegangstoken opvragen. De login levert alleen een identiteitsbewijs;
    voor Drive is een apart toegangstoken nodig. Google vernieuwt dat
    stil zolang je bent ingelogd; alleen de eerste keer is er een
    toestemmingsvenster. */
-function driveVraagToken(interactief){
+async function driveVraagToken(interactief){
+  if(!driveToken)driveToken=driveTokenUitSessie();
+  if(driveToken&&Date.now()<driveToken.tot-60000)return driveToken.token;
+  if(!(await googleGereed(8000)))
+    throw new Error('Google-bibliotheek kon niet geladen worden');
   return new Promise((res,rej)=>{
-    if(!driveToken)driveToken=driveTokenUitSessie();
-    if(driveToken&&Date.now()<driveToken.tot-60000)return res(driveToken.token);
-    if(!(window.google&&google.accounts&&google.accounts.oauth2))
-      return rej(new Error('Google-bibliotheek nog niet geladen'));
     const gebruiker=ingelogdeGebruiker();
     try{
       driveTokenClient=google.accounts.oauth2.initTokenClient({
@@ -18945,11 +18966,11 @@ const GMAIL_SCOPE='https://www.googleapis.com/auth/gmail.send';
 let mailToken=null;
 let mailTokenClient=null;
 
-function mailVraagToken(interactief){
+async function mailVraagToken(interactief){
+  if(mailToken&&Date.now()<mailToken.tot-60000)return mailToken.token;
+  if(!(await googleGereed(8000)))
+    throw new Error('Google-bibliotheek kon niet geladen worden');
   return new Promise((res,rej)=>{
-    if(mailToken&&Date.now()<mailToken.tot-60000)return res(mailToken.token);
-    if(!(window.google&&google.accounts&&google.accounts.oauth2))
-      return rej(new Error('Google-bibliotheek nog niet geladen'));
     const gebruiker=ingelogdeGebruiker();
     try{
       mailTokenClient=google.accounts.oauth2.initTokenClient({
@@ -19042,20 +19063,46 @@ async function mailApiVerstuur(bericht){
 /* ── Onderwerp en tekst ──
    Bewaard in de instellingen, zodat je hem één keer naar je eigen toon
    zet. De ingevulde versie is vóór verzenden nog te wijzigen. */
-function facMailSjabloon(){
-  const s=factuurSettings();
-  if(!s.mail||typeof s.mail!=='object')s.mail={};
-  if(!s.mail.onderwerp)s.mail.onderwerp='Factuur {nummer} van {bedrijf}';
-  if(!s.mail.tekst)s.mail.tekst=
+const FAC_MAIL_STANDAARD={
+  onderwerp:'Factuur {nummer} van {bedrijf}',
+  tekst:
+    '{datum}\n\n'+
     'Beste {contactpersoon},\n\n'+
-    'In de bijlage vind je factuur {nummer} van {datum} ter hoogte van {bedrag} inclusief btw.\n\n'+
-    'Wij verzoeken je vriendelijk het bedrag vóór {vervaldatum} over te maken op {iban}, '+
-    'onder vermelding van {nummer}.\n\n'+
-    'Met vriendelijke groet,\n{bedrijf}';
-  return s.mail;
+    'Hierbij de factuur met factuurnummer {nummer}: {betreft}.\n\n'+
+    'De factuur treft u in de bijlage aan in PDF-formaat. Mocht u vragen hebben '+
+    'over deze factuur, neem gerust contact met mij op.\n\n'+
+    'Met vriendelijke groet,\n\n'+
+    '{afzender}\n{bedrijf}'
+};
+/* De eerste versie van de standaardtekst. Stond die in de instellingen
+   zonder dat je hem zelf bewaard had, dan was dat geen keuze maar een
+   bijwerking: hij werd bij het openen van het mailvenster weggeschreven.
+   Zo'n exemplaar wordt hieronder opgeruimd. */
+const FAC_MAIL_STANDAARD_OUD=
+  'Beste {contactpersoon},\n\n'+
+  'In de bijlage vind je factuur {nummer} van {datum} ter hoogte van {bedrag} inclusief btw.\n\n'+
+  'Wij verzoeken je vriendelijk het bedrag vóór {vervaldatum} over te maken op {iban}, '+
+  'onder vermelding van {nummer}.\n\n'+
+  'Met vriendelijke groet,\n{bedrijf}';
+
+/* Leest alleen; schrijft niets in de instellingen. Zo blijft de
+   standaardtekst in de code aanpasbaar en telt alleen wat je zelf met
+   het vinkje bewaard hebt. */
+function facMailSjabloon(){
+  const s=factuurSettings().mail;
+  if(s&&s.tekst===FAC_MAIL_STANDAARD_OUD)delete s.tekst;
+  return {
+    onderwerp:(s&&s.onderwerp)||FAC_MAIL_STANDAARD.onderwerp,
+    tekst:(s&&s.tekst)||FAC_MAIL_STANDAARD.tekst,
+    cc:(s&&s.cc)||''
+  };
+}
+function facMailSjabloonBewaar(onderwerp,tekst,cc){
+  factuurSettings().mail={onderwerp,tekst,cc};
 }
 function facMailVul(sjabloon,f){
   const t=factuurTotalen(f);
+  const gebruiker=ingelogdeGebruiker();
   const b=factuurBedrijf(factuurBedrijfIdVan(f));
   const klant=f.klant||factuurKlantSnapshot(factuurPartijVan(f.clientId));
   const velden={
@@ -19063,7 +19110,9 @@ function facMailVul(sjabloon,f){
     vervaldatum:factuurFmtDatum(f.vervaldatum),
     bedrag:factuurFmtBedrag(t.incl), bedragExcl:factuurFmtBedrag(t.excl),
     klant:klant.naam||'', contactpersoon:klant.contactpersoon||klant.naam||'',
-    betreft:f.betreft||'', bedrijf:(b&&b.naam)||'', iban:(b&&b.iban)||''
+    betreft:f.betreft||'', bedrijf:(b&&b.naam)||'', iban:(b&&b.iban)||'',
+    /* Wie er ondertekent: de naam uit je Google-account. */
+    afzender:(gebruiker&&gebruiker.naam)||(b&&b.naam)||''
   };
   return String(sjabloon||'').replace(/\{(\w+)\}/g,(m,k)=>
     Object.prototype.hasOwnProperty.call(velden,k)?velden[k]:m);
@@ -19189,12 +19238,8 @@ async function facMailVerstuurActie(){
     f.gemaildOp=new Date().toISOString();
     f.gemaildAan=aan;
     f.updatedAt=Date.now();
-    if(document.getElementById('facMailBewaar').checked){
-      const sj=facMailSjabloon();
-      sj.cc=cc;
-      sj.onderwerp=document.getElementById('facMailOnderwerp').value.trim();
-      sj.tekst=tekst;
-    }
+    if(document.getElementById('facMailBewaar').checked)
+      facMailSjabloonBewaar(onderwerp,tekst,cc);
     scheduleSave();
     closeFacMail();
     facEditorRender();

@@ -307,3 +307,17 @@ Aandachtspunt: bepaal expliciet of je op factuurdatum of op betaaldatum aangifte
 **Bestanden**: `index.html` — `driveTokenUitSessie`/`driveTokenBewaar`/`driveTokenVergeet`, `driveVraagToken`, `driveApi`, `driveProbeerLaden`, `loadGist`, `saveGist`, `logUit`
 
 **Niet doen**: het token in `localStorage` zetten om ook nieuwe tabbladen te dekken — dan blijft een geldige sleutel op schijf staan nadat je de app hebt gesloten. En: de schrijfblokkade weghalen omdat "het nu toch werkt".
+
+## 2026-08-09 · Mailvenster achter de editor, en de standaardtekst
+
+**Probleem**: het mailvenster opende ónder de factuureditor waar je het vandaan klikte. Het leek alsof de knop niets deed. Verder sloot de standaardtekst niet aan bij hoe Frank zijn facturen verstuurt.
+
+**Beslissing**:
+1. `#facMailModal` krijgt `z-index:260`. Alle `.modal-bg`'s delen 200, dus zonder dat beslist de volgorde in de HTML wie bovenop ligt. Dit geldt voor elk venster dat vanuit een ander venster opent — kom je er nog een tegen, geef die dezelfde behandeling.
+2. Nieuwe standaardtekst: datum, aanhef, "Hierbij de factuur met factuurnummer {nummer}: {betreft}", verwijzing naar de bijlage, ondertekening met `{afzender}` (de naam uit het Google-account) en `{bedrijf}`.
+3. **`facMailSjabloon()` schrijft niets meer in de instellingen.** Hij zette de standaard bij het openen van het venster in `settings.mail`, waarna die bij de eerstvolgende opslag werd vastgelegd — je zat dus aan een standaard vast die je nooit gekozen had, en een betere standaard in de code bereikte je niet meer. Nu telt alleen wat je met het vinkje bewaart. Een opgeslagen exemplaar van de oude standaardtekst wordt herkend en opgeruimd.
+4. `driveVraagToken`/`mailVraagToken` wachten tot 8 seconden op de Google-bibliotheek in plaats van meteen op te geven. Die staat met `async defer` in de pagina en kan bij een verversing later klaar zijn dan `boot()` — dat kwam op het scherm aan als "Drive onbereikbaar", terwijl er alleen nog niets geladen was. Dit is een derde oorzaak van hetzelfde klachtbeeld, naast de twee van vandaag.
+
+**Bestanden**: `index.html` — CSS `#facMailModal`, `FAC_MAIL_STANDAARD`, `FAC_MAIL_STANDAARD_OUD`, `facMailSjabloon`, `facMailSjabloonBewaar`, `facMailVul`, `googleGereed`, `driveVraagToken`, `mailVraagToken`
+
+**Niet doen**: standaardwaarden in de instellingen schrijven op het moment dat je ze leest. Dan is niet meer te zien of iets een keuze was of een bijwerking.
