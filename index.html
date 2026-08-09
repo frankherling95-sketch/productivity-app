@@ -1303,6 +1303,33 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .fac-aging-val{font-family:var(--font-mono);font-size:19px;font-weight:600;font-variant-numeric:tabular-nums;margin-top:4px;color:var(--text)}
 .fac-aging-sub{font-size:11px;color:var(--text-muted);margin-top:2px}
 
+/* Btw-overzicht: kwartaalkiezer in de filterbalk, kop en waarschuwing */
+.fac-btw-kiezer{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+/* Zelfde markering als de primaire knop: in beide thema's leesbaar,
+   en het maakt zichtbaar waar de getallen op gebaseerd zijn. */
+.fac-btw-k.active{background:var(--mint);border-color:var(--mint);color:var(--navy);font-weight:650}
+.fac-btw-sep{width:1px;height:20px;background:var(--border);margin:0 4px}
+.fac-btw-kop{
+  display:flex;align-items:baseline;justify-content:space-between;gap:16px;
+  flex-wrap:wrap;margin-bottom:14px;
+}
+.fac-btw-kop b{font-size:15px;color:var(--text)}
+.fac-btw-kop span{font-size:12px;color:var(--text-muted);margin-left:8px}
+.fac-btw-uitleg{font-size:12px;color:var(--text-muted);max-width:520px;line-height:1.5}
+.fac-btw-nb{font-size:10.5px;color:var(--text-muted);font-weight:500}
+.fac-btw-let{
+  margin-top:14px;padding:12px 14px;border-radius:var(--radius-md);
+  background:var(--warning-bg);border-left:3px solid var(--warning);
+  font-size:12.5px;line-height:1.55;color:var(--text);
+}
+/* Kop in de gewone tekstkleur: --warning op --warning-bg haalt maar
+   2,3:1 en is daarmee slecht leesbaar. De rand en de tint dragen het
+   signaal al. */
+.fac-btw-let b{display:block;margin-bottom:3px;color:var(--text)}
+@media (max-width:768px){
+  .fac-btw-kop{flex-direction:column;gap:6px}
+}
+
 /* Klantenkaarten */
 .fac-klanten{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
 .fac-klantkaart{
@@ -5919,6 +5946,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <div class="uren-tabs" role="tablist">
           <button class="uren-tab active" role="tab" data-fac-action="facSetView" data-fac-arg1="facturen">Facturen</button>
           <button class="uren-tab" role="tab" data-fac-action="facSetView" data-fac-arg1="debiteuren">Debiteuren</button>
+          <button class="uren-tab" role="tab" data-fac-action="facSetView" data-fac-arg1="btw">Btw</button>
           <button class="uren-tab" role="tab" data-fac-action="facSetView" data-fac-arg1="klanten">Klanten</button>
         </div>
         <div class="uren-filters" id="facFilterBar"></div>
@@ -9160,7 +9188,7 @@ function renderDashKpis(){
     fac.aantal?factuurFmtBedrag(fac.openstaand):'—',
     fac.teLaatAantal
       ? `${factuurFmtBedrag(fac.teLaat)} te laat`
-      : (fac.aantal?`${fac.aantal} factuur${fac.aantal===1?'':'en'} open`:'niets openstaand'),
+      : (fac.aantal?`${fac.aantal} factu${fac.aantal===1?'ur':'ren'} open`:'niets openstaand'),
     fac.teLaatAantal?'down':'flat');
 }
 
@@ -16735,6 +16763,7 @@ function factuurTerugNaarConcept(id){
 
 let facView='facturen';
 let facJaar=new Date().getFullYear();
+let facBtwKwartaal=Math.floor(new Date().getMonth()/3)+1;  /* 1-4, of 0 voor heel jaar */
 let facFilterStatus='';
 let facFilterClient='';
 let facEditId=null;       /* factuur die in de editor openstaat */
@@ -16745,7 +16774,14 @@ const FAC_CLICK_ACTIONS={
   facSetView:(a)=>facSetView(a),
   facNavPrev:()=>{facJaar--;facRenderAll();},
   facNavNext:()=>{facJaar++;facRenderAll();},
-  facNavHuidig:()=>{facJaar=new Date().getFullYear();facRenderAll();},
+  facNavHuidig:()=>{
+    const nu=new Date();
+    facJaar=nu.getFullYear();
+    if(facView==='btw')facBtwKwartaal=Math.floor(nu.getMonth()/3)+1;
+    facRenderAll();
+  },
+  facBtwKwartaalZet:(a)=>{facBtwKwartaal=Number(a)||0;facRenderAll();},
+  facBtwStelselZet:(a)=>facBtwStelselZet(a),
   facToggleMenu:()=>facToggleMenu(),
   facToggleFilters:()=>facToggleFilters(),
   facClearFilter:(a)=>{if(a==='status')facFilterStatus='';else facFilterClient='';facRenderAll();},
@@ -16868,19 +16904,21 @@ function facBackupHerinnering(){
     localStorage.setItem('herling_backup_herinnerd',new Date().toISOString());
   }catch(_){}
   appToast(d===null
-      ? `${echte} verstuurde factuur${echte===1?'':'en'} en nog geen back-up gemaakt`
+      ? `${echte} verstuurde factu${echte===1?'ur':'ren'} en nog geen back-up gemaakt`
       : `Laatste back-up is ${d} dagen geleden`,
     {type:'warning',duration:9000});
 }
 function facSetView(v){
-  if(!['facturen','debiteuren','klanten'].includes(v))return;
+  if(!['facturen','debiteuren','btw','klanten'].includes(v))return;
   facView=v;
   facRenderAll();
 }
 function facRenderAll(){
   if(!document.getElementById('facBody'))return;
   const lbl=document.getElementById('facPeriodeLabel');
-  if(lbl)lbl.textContent=facView==='klanten'?'Alle klanten':String(facJaar);
+  if(lbl)lbl.textContent=facView==='klanten'?'Alle klanten'
+    :facView==='btw'?(facBtwKwartaal?`Q${facBtwKwartaal} ${facJaar}`:String(facJaar))
+    :String(facJaar);
   document.querySelectorAll('#mod-facturen .uren-tab').forEach(b=>
     b.classList.toggle('active',b.dataset.facArg1===facView));
   facRenderFilters();
@@ -16907,6 +16945,7 @@ function facRenderFilters(){
   const bar=document.getElementById('facFilterBar');
   if(!bar)return;
   if(facView==='klanten'){bar.innerHTML='';return;}
+  if(facView==='btw'){bar.innerHTML=facBtwKiezer();return;}
   const n=(facFilterStatus?1:0)+(facFilterClient?1:0);
   let html=`<button class="uren-btn" id="facFilterBtn" data-fac-action="facToggleFilters"
     aria-haspopup="dialog" aria-expanded="false"><span aria-hidden="true">⚟</span>Filter${n?`<span class="cnt">${n}</span>`:''}</button>`;
@@ -16937,6 +16976,16 @@ function facRenderKpis(){
       ${facKpi('Actief dit jaar',new Set(facZichtbaar().map(f=>f.clientId)).size,'','gefactureerd in '+facJaar,'var(--warning)')}`;
     return;
   }
+  if(facView==='btw'){
+    const o=factuurBtwOverzicht(facJaar,facBtwKwartaal,facBtwStelsel());
+    const per=t=>o.perTarief[t]||{grondslag:0,btw:0};
+    box.innerHTML=`
+      ${facKpi('Omzet',factuurFmtBedrag(o.grondslagTotaal),'','excl. btw · '+o.aantal+' factu'+(o.aantal===1?'ur':'ren'),'var(--mint)')}
+      ${facKpi('Btw 21%',factuurFmtBedrag(per('21').btw),'','rubriek 1a · over '+factuurFmtBedrag(per('21').grondslag),'var(--info)')}
+      ${facKpi('Btw 9%',factuurFmtBedrag(per('9').btw),'','rubriek 1b · over '+factuurFmtBedrag(per('9').grondslag),'var(--info)')}
+      ${facKpi('Af te dragen',factuurFmtBedrag(o.btwTotaal),'','vóór aftrek voorbelasting','var(--warning)')}`;
+    return;
+  }
   const lijst=facZichtbaar();
   const som=arr=>arr.reduce((s,f)=>s+factuurTotalen(f).incl,0);
   const openstaand=factuurState.invoices.filter(f=>f.status==='verstuurd');
@@ -16946,10 +16995,10 @@ function facRenderKpis(){
   box.innerHTML=`
     ${facKpi('Omzet '+facJaar,factuurFmtBedrag(omzet),'','excl. btw · verstuurd en betaald','var(--mint)')}
     ${facKpi('Openstaand',factuurFmtBedrag(openstaand.reduce((s,f)=>s+factuurTotalen(f).openstaand,0)),'',
-      openstaand.length+' factuur'+(openstaand.length===1?'':'en')+' onbetaald','var(--info)')}
+      openstaand.length+' factu'+(openstaand.length===1?'ur':'ren')+' onbetaald','var(--info)')}
     ${facKpi('Te laat',factuurFmtBedrag(teLaat.reduce((s,f)=>s+factuurTotalen(f).openstaand,0)),'',
       teLaat.length?teLaat.length+' over de vervaldatum':'niets over de vervaldatum',teLaat.length?'var(--danger)':'var(--success)')}
-    ${facKpi('Betaald '+facJaar,factuurFmtBedrag(som(betaald)),'',betaald.length+' factuur'+(betaald.length===1?'':'en'),'var(--success)')}`;
+    ${facKpi('Betaald '+facJaar,factuurFmtBedrag(som(betaald)),'',betaald.length+' factu'+(betaald.length===1?'ur':'ren'),'var(--success)')}`;
 }
 function facKpi(lab,val,eenheid,sub,kleur){
   return `<div class="uren-kpi" style="--k:${kleur}">
@@ -16963,6 +17012,7 @@ function facRenderBody(){
   if(!body)return;
   if(facView==='klanten'){body.innerHTML=facRenderKlanten();return;}
   if(facView==='debiteuren'){body.innerHTML=facRenderDebiteuren();return;}
+  if(facView==='btw'){body.innerHTML=facRenderBtw();return;}
   body.innerHTML=facRenderLijst();
 }
 
@@ -16996,7 +17046,7 @@ function facRenderLijst(){
       <td class="num"><span class="fac-bedrag">${factuurFmtBedrag(t.incl)}</span></td></tr>`;
   });
   html+=`</tbody><tfoot><tr>
-    <td colspan="4">${lijst.length} factuur${lijst.length===1?'':'en'} · ${factuurFmtBedrag(excl)} excl. btw</td>
+    <td colspan="4">${lijst.length} factu${lijst.length===1?'ur':'ren'} · ${factuurFmtBedrag(excl)} excl. btw</td>
     <td colspan="2">${open>0?'waarvan '+factuurFmtBedrag(open)+' openstaand':'alles betaald'}</td>
     <td class="num">${factuurFmtBedrag(incl)}</td></tr></tfoot></table></div>`;
   return html+facRenderKaarten(lijst,incl);
@@ -17020,7 +17070,7 @@ function facRenderKaarten(lijst,totaal){
         <span class="bedrag">${factuurFmtBedrag(t.incl)}</span></span>
     </button>`;
   });
-  html+=`</div><div class="fac-msom">${lijst.length} factuur${lijst.length===1?'':'en'}<b>${factuurFmtBedrag(totaal)}</b></div>`;
+  html+=`</div><div class="fac-msom">${lijst.length} factu${lijst.length===1?'ur':'ren'}<b>${factuurFmtBedrag(totaal)}</b></div>`;
   return html;
 }
 function facStatusPil(f){
@@ -17049,7 +17099,7 @@ function facRenderDebiteuren(){
   const cel=(lab,key,kleur)=>`<div class="fac-aging-cel" style="--k:${kleur}">
     <div class="fac-aging-lab">${lab}</div>
     <div class="fac-aging-val">${factuurFmtBedrag(som(groepen[key]))}</div>
-    <div class="fac-aging-sub">${groepen[key].length} factuur${groepen[key].length===1?'':'en'}</div></div>`;
+    <div class="fac-aging-sub">${groepen[key].length} factu${groepen[key].length===1?'ur':'ren'}</div></div>`;
   let html=`<div class="fac-aging">
     ${cel('Nog niet vervallen','lopend','var(--success)')}
     ${cel('1–30 dagen','d30','var(--warning)')}
@@ -17083,6 +17133,173 @@ function facRenderDebiteuren(){
     });
   html+=`</tbody><tfoot><tr><td colspan="5">Totaal openstaand</td>
     <td class="num">${factuurFmtBedrag(som(open))}</td></tr></tfoot></table></div>`;
+  return html;
+}
+
+/* ╔══════════════════════════════════════════════════╗
+   ║           BTW-OVERZICHT PER KWARTAAL             ║
+   ╚══════════════════════════════════════════════════╝
+   Doel: de aangifte omzetbelasting kunnen invullen zonder in de
+   Excel-export te puzzelen.
+
+   Twee stelsels, en het verschil is niet cosmetisch:
+   · factuurstelsel — je draagt af in het tijdvak van de FACTUURDATUM,
+     ook als de klant nog niet betaald heeft. Norm voor een B.V.
+   · kasstelsel — je draagt af in het tijdvak waarin je het GELD
+     ontvangt. Dan telt elke deelbetaling mee, naar rato over de staffel.
+
+   Wat hier NIET in zit: de voorbelasting (rubriek 5b), de btw op je
+   eigen inkopen. Die administratie zit niet in deze app. Dit overzicht
+   geeft dus de af te dragen btw, niet het bedrag dat je overmaakt --
+   dat staat ook met zoveel woorden op het scherm. */
+
+function facBtwStelsel(){
+  return factuurSettings().btwStelsel==='kas'?'kas':'factuur';
+}
+function facBtwStelselZet(v){
+  factuurSettings().btwStelsel=(v==='kas'?'kas':'factuur');
+  scheduleSave();
+  facRenderAll();
+}
+/* Kwartaalgrenzen. kwartaal 0 = heel jaar. */
+function facBtwPeriode(jaar,kwartaal){
+  const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  if(!kwartaal)return {van:jaar+'-01-01',tot:jaar+'-12-31',label:'Heel '+jaar};
+  const m=(kwartaal-1)*3;
+  return {van:iso(new Date(jaar,m,1)),tot:iso(new Date(jaar,m+3,0)),label:`Q${kwartaal} ${jaar}`};
+}
+/* Tarief → rubriek op het aangifteformulier. */
+function facBtwRubriek(tarief){
+  if(tarief==='verlegd')return {code:'1e',oms:'Btw verlegd naar de afnemer'};
+  if(tarief==='0')return {code:'1e',oms:'Belast met 0%'};
+  if(tarief==='21')return {code:'1a',oms:'Belast met het hoge tarief (21%)'};
+  if(tarief==='9')return {code:'1b',oms:'Belast met het lage tarief (9%)'};
+  return {code:'1c',oms:`Belast met een overig tarief (${escapeHtml(String(tarief))}%)`};
+}
+
+function factuurBtwOverzicht(jaar,kwartaal,stelsel){
+  const p=facBtwPeriode(jaar,kwartaal);
+  const perTarief={};
+  const regels=[];
+  const tel=(tarief,grondslag,btw)=>{
+    const g=perTarief[tarief]||(perTarief[tarief]={grondslag:0,btw:0});
+    g.grondslag+=grondslag; g.btw+=btw;
+  };
+  factuurState.invoices.forEach(f=>{
+    if(f.status==='concept')return;   /* een concept is nog geen factuur */
+    const t=factuurTotalen(f);
+    if(stelsel==='kas'){
+      /* Elke ontvangst telt in zijn eigen tijdvak. Bij een deelbetaling
+         verdelen we naar rato over de staffel, anders zou je de btw van
+         een heel tarief in het verkeerde kwartaal boeken. */
+      if(t.incl<=0)return;
+      (f.betalingen||[]).forEach(b=>{
+        if(!b.datum||b.datum<p.van||b.datum>p.tot)return;
+        const deel=Number(b.bedrag||0)/t.incl;
+        let g=0,btw=0;
+        t.staffel.forEach(s=>{
+          const sg=Math.round(s.grondslag*deel*100)/100;
+          const sb=Math.round(s.bedrag*deel*100)/100;
+          tel(s.tarief,sg,sb); g+=sg; btw+=sb;
+        });
+        regels.push({f,datum:b.datum,grondslag:Math.round(g*100)/100,btw:Math.round(btw*100)/100,
+          deel:Math.abs(Number(b.bedrag||0)-t.incl)>0.004?'deelbetaling':''});
+      });
+      return;
+    }
+    if(!f.datum||f.datum<p.van||f.datum>p.tot)return;
+    t.staffel.forEach(s=>tel(s.tarief,s.grondslag,s.bedrag));
+    regels.push({f,datum:f.datum,grondslag:t.excl,btw:t.btw,deel:''});
+  });
+  Object.keys(perTarief).forEach(k=>{
+    perTarief[k].grondslag=Math.round(perTarief[k].grondslag*100)/100;
+    perTarief[k].btw=Math.round(perTarief[k].btw*100)/100;
+  });
+  const tot=(veld)=>Math.round(Object.keys(perTarief)
+    .reduce((s,k)=>s+perTarief[k][veld],0)*100)/100;
+  regels.sort((a,b)=>a.datum.localeCompare(b.datum)||String(a.f.nummer).localeCompare(String(b.f.nummer)));
+  return {periode:p,perTarief,regels,stelsel,
+    grondslagTotaal:tot('grondslag'), btwTotaal:tot('btw'),
+    aantal:new Set(regels.map(r=>r.f.id)).size};
+}
+
+/* Kwartaalkiezer + stelselkeuze; staat in de filterbalk naast de tabs. */
+function facBtwKiezer(){
+  const st=facBtwStelsel();
+  const kw=(k,lab)=>`<button class="uren-btn fac-btw-k${facBtwKwartaal===k?' active':''}"
+    data-fac-action="facBtwKwartaalZet" data-fac-arg1="${k}">${lab}</button>`;
+  const sk=(v,lab,tip)=>`<button class="uren-btn fac-btw-k${st===v?' active':''}"
+    data-fac-action="facBtwStelselZet" data-fac-arg1="${v}" title="${tip}">${lab}</button>`;
+  return `<div class="fac-btw-kiezer">
+    ${kw(1,'Q1')}${kw(2,'Q2')}${kw(3,'Q3')}${kw(4,'Q4')}${kw(0,'Heel jaar')}
+    <span class="fac-btw-sep"></span>
+    ${sk('factuur','Factuurstelsel','Aangifte op factuurdatum — gebruikelijk voor een B.V.')}
+    ${sk('kas','Kasstelsel','Aangifte op de datum waarop je de betaling ontvangt')}
+  </div>`;
+}
+
+function facRenderBtw(){
+  const stelsel=facBtwStelsel();
+  const o=factuurBtwOverzicht(facJaar,facBtwKwartaal,stelsel);
+  const p=o.periode;
+  const uitleg=stelsel==='kas'
+    ? 'Kasstelsel: een factuur telt mee in het tijdvak waarin je de betaling ontvangt. Deelbetalingen tellen naar rato mee.'
+    : 'Factuurstelsel: een factuur telt mee in het tijdvak van de factuurdatum, ook als de klant nog niet heeft betaald.';
+  let html=`<div class="fac-btw-kop">
+    <div><b>${escapeHtml(p.label)}</b><span>${factuurFmtDatum(p.van)} t/m ${factuurFmtDatum(p.tot)}</span></div>
+    <div class="fac-btw-uitleg">${escapeHtml(uitleg)}</div></div>`;
+
+  if(!o.regels.length){
+    return html+`<div class="uren-empty"><b>Niets aan te geven in ${escapeHtml(p.label)}</b>
+      ${stelsel==='kas'
+        ? 'In dit tijdvak zijn geen betalingen ontvangen.'
+        : 'In dit tijdvak zijn geen facturen verstuurd. Concepten tellen niet mee.'}</div>`;
+  }
+
+  /* Rubriektabel: de regels die je op het aangifteformulier overneemt. */
+  const volgorde=['21','9','0','verlegd'];
+  const rang=k=>{const i=volgorde.indexOf(k);return i<0?99:i;};
+  html+=`<div class="uren-sheet-card"><table class="fac-table"><thead><tr>
+    <th style="width:82px">Rubriek</th><th>Omschrijving</th>
+    <th class="num" style="width:150px">Omzet excl. btw</th>
+    <th class="num" style="width:150px">Btw</th></tr></thead><tbody>`;
+  Object.keys(o.perTarief).sort((a,b)=>rang(a)-rang(b)).forEach(k=>{
+    const r=facBtwRubriek(k), v=o.perTarief[k];
+    html+=`<tr><td><span class="fac-nr">${r.code}</span></td>
+      <td>${r.oms}${(k==='verlegd'||k==='0')?' <small class="fac-btw-nb">— geen btw af te dragen</small>':''}</td>
+      <td class="num"><span class="fac-bedrag">${factuurFmtBedrag(v.grondslag)}</span></td>
+      <td class="num"><span class="fac-bedrag">${factuurFmtBedrag(v.btw)}</span></td></tr>`;
+  });
+  html+=`</tbody><tfoot><tr><td colspan="2">Totaal — de btw-kolom is rubriek 5a</td>
+    <td class="num">${factuurFmtBedrag(o.grondslagTotaal)}</td>
+    <td class="num">${factuurFmtBedrag(o.btwTotaal)}</td></tr></tfoot></table></div>`;
+
+  html+=`<div class="fac-btw-let"><b>Dit is niet het bedrag dat je overmaakt.</b>
+    Hierboven staat alleen de btw die jij in rekening hebt gebracht. De voorbelasting
+    op je eigen inkopen (rubriek 5b) zit niet in deze app — die trek je zelf af in de aangifte.</div>`;
+
+  /* Onderbouwing: welke facturen zitten erin. Klikbaar naar de factuur. */
+  html+=`<div class="uren-sheet-card" style="margin-top:16px"><table class="fac-table"><thead><tr>
+    <th style="width:118px">Nummer</th><th style="width:100px">${stelsel==='kas'?'Ontvangen':'Factuurdatum'}</th>
+    <th style="width:190px">Klant</th><th>Betreft</th>
+    <th class="num" style="width:130px">Excl. btw</th>
+    <th class="num" style="width:120px">Btw</th></tr></thead><tbody>`;
+  o.regels.forEach(r=>{
+    const f=r.f, klant=factuurKlant(f.clientId);
+    const col=klant?CLIENT_COLORS[klant.colorIdx%CLIENT_COLORS.length]:{bg:'var(--surface3)'};
+    html+=`<tr data-fac-action="facOpen" data-fac-arg1="${f.id}">
+      <td><span class="fac-nr">${escapeHtml(f.nummer)}</span>${
+        r.deel?` <small class="fac-btw-nb">${r.deel}</small>`:''}</td>
+      <td><span class="fac-datum">${factuurFmtDatum(r.datum)}</span></td>
+      <td><div class="fac-klant"><span class="sw" style="background:${col.bg}"></span>
+        <span class="nm">${escapeHtml(f.klant?f.klant.naam:(klant?(klant.bedrijfsnaam||klant.name):'—'))}</span></div></td>
+      <td><div class="fac-betreft">${escapeHtml(f.betreft||'')}</div></td>
+      <td class="num"><span class="fac-bedrag">${factuurFmtBedrag(r.grondslag)}</span></td>
+      <td class="num"><span class="fac-bedrag">${factuurFmtBedrag(r.btw)}</span></td></tr>`;
+  });
+  html+=`</tbody><tfoot><tr><td colspan="4">Totaal</td>
+    <td class="num">${factuurFmtBedrag(o.grondslagTotaal)}</td>
+    <td class="num">${factuurFmtBedrag(o.btwTotaal)}</td></tr></tfoot></table></div>`;
   return html;
 }
 
@@ -17122,7 +17339,7 @@ function facRenderKlanten(){
       </div>
       <div class="acties">
         <button class="uren-btn" data-fac-action="facKlantBewerk" data-fac-arg1="${c.id}">Gegevens</button>
-        ${facturen.length?`<span style="align-self:center;font-size:11.5px;color:var(--text-muted)">${facturen.length} factuur${facturen.length===1?'':'en'}</span>`:''}
+        ${facturen.length?`<span style="align-self:center;font-size:11.5px;color:var(--text-muted)">${facturen.length} factu${facturen.length===1?'ur':'ren'}</span>`:''}
       </div></div>`;
   });
   return html+'</div>';
@@ -17658,7 +17875,7 @@ function facInstelVerwijderBedrijf(){
   const b=factuurBedrijf(facInstelBedrijfId);
   const gebruikt=factuurState.invoices.filter(f=>factuurBedrijfIdVan(f)===b.id).length;
   if(gebruikt){
-    appToast(b.naam+' staat op '+gebruikt+' factuur'+(gebruikt===1?'':'en')+' en kan niet weg',{type:'warning'});
+    appToast(b.naam+' staat op '+gebruikt+' factu'+(gebruikt===1?'ur':'ren')+' en kan niet weg',{type:'warning'});
     return;
   }
   if(!confirm(b.naam+' verwijderen?'))return;
@@ -18323,7 +18540,7 @@ function facSjVerwijderTpl(){
   if(s.sjablonen.length<2)return;
   const t=facSjTpl();
   const gebruikt=factuurState.invoices.filter(f=>f.sjabloonId===t.id).length;
-  if(!confirm(`"${t.naam}" verwijderen?`+(gebruikt?`\n\n${gebruikt} factuur${gebruikt===1?'':'en'} gebruikt dit sjabloon en valt terug op de standaard.`:'')))return;
+  if(!confirm(`"${t.naam}" verwijderen?`+(gebruikt?`\n\n${gebruikt} factu${gebruikt===1?'ur':'ren'} gebruikt dit sjabloon en valt terug op de standaard.`:'')))return;
   s.sjablonen=s.sjablonen.filter(x=>x.id!==t.id);
   if(s.standaardSjabloon===t.id)s.standaardSjabloon=s.sjablonen[0].id;
   facSjTplId=s.sjablonen[0].id;facSjBlokId=null;

@@ -223,7 +223,27 @@ Stappen:
 **Niet doen**: de Gist zelf verwijderen — laat hem staan als bevroren archief; kost niets en is de laatste terugvaloptie. Fase 2 uitvoeren zonder verse back-up. De stappen half afmaken: zonder werkende opslag is er na het weghalen van de Gist geen vangnet meer.
 **Bestanden**: `index.html` — `driveLees`/`driveSchrijf`/`driveVraagToken`, `driveProbeerLaden`, `verwerkDriveVersie`, `loadGist`, `saveGist`
 
+## 2026-08-09 · Btw-overzicht per kwartaal — factuurstelsel als standaard
+
+**Probleem**: vier keer per jaar de aangifte omzetbelasting invullen betekende puzzelen in de Excel-export. De cijfers waren er wel, maar niet in de vorm van het aangifteformulier.
+
+**Beslissing**: vijfde tab "Btw" in de facturenmodule, met kwartaalkiezer (Q1–Q4 + heel jaar) en een expliciete keuze tussen **factuurstelsel** (standaard) en **kasstelsel**. De rubriektabel volgt het aangifteformulier: 1a (21%), 1b (9%), 1e (0% en btw verlegd), 1c (overige tarieven). Daaronder de onderbouwing: welke facturen erin zitten, klikbaar naar de factuur zelf.
+
+**Waarom**:
+- *Factuurstelsel als standaard, niet als stille aanname.* Voor een B.V. is het factuurstelsel de norm — je draagt af in het tijdvak van de factuurdatum, ook als de klant nog niet betaald heeft. Maar deze keuze bepaalt welke bedragen naar de Belastingdienst gaan, dus hij staat als knop op het scherm in plaats van verstopt in de code. De stand wordt bewaard in `factuurState.settings.btwStelsel`.
+- *Kasstelsel rekent per betaling, niet per factuur.* Bij een deelbetaling gaat het bedrag naar rato over de btw-staffel. Anders zou de btw van een heel tarief in het verkeerde kwartaal terechtkomen.
+- *Concepten tellen niet mee.* Een concept is nog geen factuur; alleen `status !== 'concept'` telt.
+- *Het overzicht zegt zelf wat het niet is.* De voorbelasting (rubriek 5b, de btw op eigen inkopen) zit niet in deze app — er is geen inkoopadministratie. Er staat daarom letterlijk op het scherm dat dit niet het over te maken bedrag is. Een overzicht dat eruitziet als een complete aangifte terwijl het de helft mist, is gevaarlijker dan geen overzicht.
+
+**Bestanden**: `index.html` — `factuurBtwOverzicht`, `facBtwPeriode`, `facBtwRubriek`, `facBtwStelsel(Zet)`, `facBtwKiezer`, `facRenderBtw`, CSS `.fac-btw-*`
+
+**Niet doen**: het totaal presenteren als "te betalen btw" zonder de waarschuwing over rubriek 5b. Het stelsel stil omzetten of laten afleiden uit de data — dat is een fiscale keuze, geen instelling die de app mag raden.
+
+**Meegenomen**: het meervoud van "factuur" is "facturen", niet "factuuren". Stond op elf plekken fout.
+
 ## Open werk na 2026-08-05
+
+> Btw-overzicht: **gebouwd op 2026-08-09**, zie de entry hierboven. De rest van deze lijst staat nog open.
 
 ### Facturen mailen via Gmail
 Voorwaarden liggen klaar: Workspace-account (dus OAuth-app op *Internal*, geen 7-dagen tokenlimiet), client-ID `815519330750-...`, en `facPdfDoc()` levert al een echt PDF-bestand.
