@@ -1330,6 +1330,21 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
   .fac-btw-kop{flex-direction:column;gap:6px}
 }
 
+/* Mailvenster */
+.fac-mail-form{display:flex;flex-direction:column;gap:14px}
+.fac-mail-check{display:flex;align-items:center;gap:8px;font-size:12.5px;cursor:pointer;user-select:none;color:var(--text)}
+.fac-mail-check input{accent-color:var(--mint);width:15px;height:15px}
+.fac-mail-info{
+  background:var(--surface2);border:0.5px solid var(--border);border-radius:var(--radius-md);
+  padding:11px 13px;display:flex;flex-direction:column;gap:5px;font-size:12px;
+}
+.fac-mail-info div{display:flex;gap:10px;align-items:baseline}
+.fac-mail-info span{
+  flex:0 0 106px;font-size:10.5px;font-weight:700;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--text-muted);
+}
+.fac-mail-info b{font-weight:600;color:var(--text);word-break:break-word;min-width:0}
+
 /* Klantenkaarten */
 .fac-klanten{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
 .fac-klantkaart{
@@ -6078,6 +6093,22 @@ textarea { line-height: 1.6; resize: vertical; }
   </div>
 </div>
 
+<!-- ── Facturen: mailen ── -->
+<div class="modal-bg" id="facMailModal">
+  <div class="modal" style="max-width:640px;padding:22px;display:flex;flex-direction:column;max-height:92vh">
+    <h3 style="font-size:18px;margin:0 0 4px">Factuur mailen</h3>
+    <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 16px" id="facMailSub"></p>
+    <div id="facMailBody" style="overflow:auto;flex:1;min-height:0"></div>
+    <div class="modal-footer" style="margin-top:18px">
+      <span id="facMailStatus" style="font-size:12px;color:var(--text-muted)"></span>
+      <div class="modal-footer-right">
+        <button class="btn btn-sm" data-fac-action="closeFacMail">Annuleer</button>
+        <button class="btn btn-sm btn-primary" data-fac-action="facMailVerstuur" id="facMailVerstuurBtn">Versturen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ── Facturen: editor ── -->
 <div class="modal-bg" id="facEditorModal">
   <div class="modal" style="max-width:900px;padding:0;display:flex;flex-direction:column;max-height:92vh">
@@ -9600,15 +9631,14 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeAppInstellingen
    ║  dwingt af dat alleen het ingelogde account erbij kan. Daarmee    ║
    ║  wordt de login pas echt een beveiligingslaag.                    ║
    ║                                                                  ║
-   ║  Deze laag draait voorlopig NAAST de Gist. Zolang                 ║
-   ║  DRIVE_ACTIEF false is blijft de Gist de bron van waarheid en     ║
-   ║  verandert er niets aan het opslaan. Pas na een geslaagde         ║
-   ║  overzetting en controle gaat dit aan.                            ║
+   ║  Sinds fase 2 (2026-08-05) is dit de enige opslag; de Gist is     ║
+   ║  weg. Het vangnet is de lokale kopie in localStorage, die vóór    ║
+   ║  elke schrijfactie naar Drive wordt bijgewerkt.                   ║
    ╚══════════════════════════════════════════════════════════════════╝ */
 
 const DRIVE_SCOPE='https://www.googleapis.com/auth/drive.appdata';
 const DRIVE_BESTAND='herling-analytics.json';
-let DRIVE_ACTIEF=true;         /* fase 1: Drive leidend, Gist loopt mee */
+let DRIVE_ACTIEF=true;         /* enige opslag sinds fase 2 */
 let driveToken=null;           /* {token, tot} zolang de app open is */
 let driveTokenClient=null;
 let driveLaatsteFout=null;     /* voorkomt dezelfde waarschuwing bij elke opslag */
@@ -16797,6 +16827,9 @@ const FAC_CLICK_ACTIONS={
   facEditorSluit:()=>closeFacEditor(),
   facVerstuur:()=>facVerstuur(),
   facPdf:(a)=>facPdfDownload(a||facEditId),
+  facMail:(a)=>openFacMail(a||facEditId),
+  closeFacMail:()=>closeFacMail(),
+  facMailVerstuur:()=>facMailVerstuurActie(),
   facBetaald:(a)=>facBetaaldDialoog(a||facEditId),
   facTerugConcept:()=>facTerugNaarConcept(),
   facDupliceer:(a)=>facDupliceerActie(a||facEditId),
@@ -17589,7 +17622,9 @@ function facEditorRender(){
       <button class="uren-btn" data-fac-action="facTerugConcept">← Terug naar concept</button>
       <div style="flex:1"></div>
       <button class="uren-btn" data-fac-action="facPdf">↧ PDF</button>
-      ${f.status!=='betaald'?`<button class="uren-btn uren-btn-primary" data-fac-action="facBetaald">Betaling registreren</button>`:''}`;
+      <button class="uren-btn${f.gemaildOp?'':' uren-btn-primary'}" data-fac-action="facMail"
+        title="${f.gemaildOp?'Opnieuw mailen':'Mailen met de PDF als bijlage'}">✉ ${f.gemaildOp?'Opnieuw mailen':'Mailen'}</button>
+      ${f.status!=='betaald'?`<button class="uren-btn${f.gemaildOp?' uren-btn-primary':''}" data-fac-action="facBetaald">Betaling registreren</button>`:''}`;
   }
   document.getElementById('facEditorActies').innerHTML=acties;
 }
@@ -19193,6 +19228,292 @@ function facPdfDownload(id){
   if(!doc){appToast('PDF-bibliotheek nog niet geladen — probeer het zo nog eens',{type:'error'});return;}
   doc.save(facPdfBestandsnaam(f));
   appToast('PDF opgeslagen · '+f.nummer,{type:'success'});
+}
+
+/* ╔══════════════════════════════════════════════════════════════════╗
+   ║                 FACTUUR MAILEN VIA GMAIL                         ║
+   ║                                                                  ║
+   ║  Gmail krijgt een eigen toegangstoken, los van dat voor Drive.    ║
+   ║  Wie de app alleen opent hoeft dan geen toestemming te geven om   ║
+   ║  namens hem te mailen -- die vraag komt pas als je voor het       ║
+   ║  eerst een factuur verstuurt. Het scheelt ook dat een geweigerde  ║
+   ║  mailtoestemming de opslag niet raakt.                            ║
+   ║                                                                  ║
+   ║  Vereist in de Cloud Console: scope gmail.send toevoegen aan het  ║
+   ║  OAuth-scherm. Zonder dat komt er een 403 met "insufficient       ║
+   ║  authentication scopes".                                          ║
+   ╚══════════════════════════════════════════════════════════════════╝ */
+
+const GMAIL_SCOPE='https://www.googleapis.com/auth/gmail.send';
+let mailToken=null;
+let mailTokenClient=null;
+
+function mailVraagToken(interactief){
+  return new Promise((res,rej)=>{
+    if(mailToken&&Date.now()<mailToken.tot-60000)return res(mailToken.token);
+    if(!(window.google&&google.accounts&&google.accounts.oauth2))
+      return rej(new Error('Google-bibliotheek nog niet geladen'));
+    const gebruiker=ingelogdeGebruiker();
+    try{
+      mailTokenClient=google.accounts.oauth2.initTokenClient({
+        client_id:GOOGLE_CLIENT_ID,
+        scope:GMAIL_SCOPE,
+        hint:gebruiker?gebruiker.email:undefined,
+        hd:TOEGESTAAN_DOMEIN,
+        callback:(r)=>{
+          if(r.error)return rej(new Error(r.error_description||r.error));
+          mailToken={token:r.access_token,tot:Date.now()+(Number(r.expires_in||3600)*1000)};
+          res(mailToken.token);
+        },
+        error_callback:(e)=>rej(new Error((e&&e.message)||'Toestemming geweigerd'))
+      });
+      mailTokenClient.requestAccessToken({prompt:interactief?'consent':''});
+    }catch(e){rej(e);}
+  });
+}
+
+/* ── Een MIME-bericht in elkaar zetten ──
+   btoa werkt alleen op bytes, dus tekst gaat eerst door TextEncoder.
+   In blokken, want String.fromCharCode struikelt over hele grote
+   arrays -- en een PDF is groot. */
+function mailB64(tekst){
+  const bytes=new TextEncoder().encode(String(tekst));
+  let s='';
+  for(let i=0;i<bytes.length;i+=0x8000)
+    s+=String.fromCharCode.apply(null,bytes.subarray(i,i+0x8000));
+  return btoa(s);
+}
+/* Kopregels mogen alleen ASCII bevatten. Alles daarbuiten (é, €, …)
+   gaat als encoded-word mee, anders komt er onzin aan. */
+function mailKop(tekst){
+  const t=String(tekst||'');
+  return /^[\x20-\x7E]*$/.test(t)?t:'=?UTF-8?B?'+mailB64(t)+'?=';
+}
+function mailAdres(naam,email){
+  return naam?`${mailKop(naam)} <${email}>`:email;
+}
+/* MIME wil base64 in regels van maximaal 76 tekens */
+function mailBreek(b64){
+  return String(b64).replace(/(.{76})/g,'$1\r\n');
+}
+function mailBouwBericht(o){
+  const grens='hla_'+Math.random().toString(36).slice(2,10)+Date.now().toString(36);
+  const kop=[
+    'To: '+o.aan,
+    'From: '+mailAdres(o.vanNaam,o.van),
+    o.cc?'Cc: '+o.cc:'',
+    o.antwoordNaar?'Reply-To: '+o.antwoordNaar:'',
+    'Subject: '+mailKop(o.onderwerp),
+    'MIME-Version: 1.0',
+    'Content-Type: multipart/mixed; boundary="'+grens+'"'
+  ].filter(Boolean).join('\r\n');
+  let m=kop+'\r\n\r\n';
+  m+='--'+grens+'\r\n'+
+     'Content-Type: text/plain; charset="UTF-8"\r\n'+
+     'Content-Transfer-Encoding: base64\r\n\r\n'+
+     mailBreek(mailB64(o.tekst))+'\r\n';
+  if(o.bijlageB64){
+    m+='--'+grens+'\r\n'+
+       'Content-Type: application/pdf; name="'+o.bijlageNaam+'"\r\n'+
+       'Content-Disposition: attachment; filename="'+o.bijlageNaam+'"\r\n'+
+       'Content-Transfer-Encoding: base64\r\n\r\n'+
+       mailBreek(o.bijlageB64)+'\r\n';
+  }
+  m+='--'+grens+'--\r\n';
+  return m;
+}
+/* Gmail wil het hele bericht als base64url in het veld raw */
+function mailRaw(bericht){
+  return mailB64(bericht).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+async function mailApiVerstuur(bericht){
+  const token=await mailVraagToken(false);
+  const r=await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send',{
+    method:'POST',
+    headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
+    body:JSON.stringify({raw:mailRaw(bericht)})
+  });
+  if(!r.ok){
+    const tekst=await r.text().catch(()=>'');
+    let reden=tekst.slice(0,300);
+    try{const j=JSON.parse(tekst);reden=(j.error&&j.error.message)||reden;}catch(_){}
+    throw new Error('Gmail '+r.status+': '+reden);
+  }
+  return r.json();
+}
+
+/* ── Onderwerp en tekst ──
+   Bewaard in de instellingen, zodat je hem één keer naar je eigen toon
+   zet. De ingevulde versie is vóór verzenden nog te wijzigen. */
+function facMailSjabloon(){
+  const s=factuurSettings();
+  if(!s.mail||typeof s.mail!=='object')s.mail={};
+  if(!s.mail.onderwerp)s.mail.onderwerp='Factuur {nummer} van {bedrijf}';
+  if(!s.mail.tekst)s.mail.tekst=
+    'Beste {contactpersoon},\n\n'+
+    'In de bijlage vind je factuur {nummer} van {datum} ter hoogte van {bedrag} inclusief btw.\n\n'+
+    'Wij verzoeken je vriendelijk het bedrag vóór {vervaldatum} over te maken op {iban}, '+
+    'onder vermelding van {nummer}.\n\n'+
+    'Met vriendelijke groet,\n{bedrijf}';
+  return s.mail;
+}
+function facMailVul(sjabloon,f){
+  const t=factuurTotalen(f);
+  const b=factuurBedrijf(factuurBedrijfIdVan(f));
+  const klant=f.klant||factuurKlantSnapshot(factuurPartijVan(f.clientId));
+  const velden={
+    nummer:f.nummer||'', datum:factuurFmtDatum(f.datum),
+    vervaldatum:factuurFmtDatum(f.vervaldatum),
+    bedrag:factuurFmtBedrag(t.incl), bedragExcl:factuurFmtBedrag(t.excl),
+    klant:klant.naam||'', contactpersoon:klant.contactpersoon||klant.naam||'',
+    betreft:f.betreft||'', bedrijf:(b&&b.naam)||'', iban:(b&&b.iban)||''
+  };
+  return String(sjabloon||'').replace(/\{(\w+)\}/g,(m,k)=>
+    Object.prototype.hasOwnProperty.call(velden,k)?velden[k]:m);
+}
+/* Bij factureren via een tussenpersoon staat de factuur al op naam van
+   die partij; het adres uit de momentopname is dus het juiste. */
+function facMailOntvanger(f){
+  if(f.klant&&f.klant.email)return f.klant.email;
+  const partij=factuurPartijVan(f.clientId);
+  return (partij&&partij.email)||'';
+}
+function facPdfBase64(f){
+  const doc=facPdfDoc(f);
+  if(!doc)return null;
+  const uri=doc.output('datauristring');
+  const komma=uri.indexOf(',');
+  return komma<0?null:uri.slice(komma+1);
+}
+
+/* ── Het venster ── */
+let facMailId=null;
+function openFacMail(id){
+  const f=factuurById(id||facEditId);
+  if(!f)return;
+  if(f.status==='concept'){
+    appToast('Maak de factuur eerst definitief; dan ligt het nummer vast',{type:'warning'});
+    return;
+  }
+  if(!window.jspdf||!window.jspdf.jsPDF){
+    appToast('PDF-bibliotheek nog niet geladen — probeer het zo nog eens',{type:'error'});
+    return;
+  }
+  facMailId=f.id;
+  const sj=facMailSjabloon();
+  const t=factuurTotalen(f);
+  const gebruiker=ingelogdeGebruiker();
+  const bedrijf=factuurBedrijf(factuurBedrijfIdVan(f));
+  const aan=facMailOntvanger(f);
+  document.getElementById('facMailSub').textContent=
+    `${f.nummer} · ${factuurFmtBedrag(t.incl)} incl. btw · vervalt ${factuurFmtDatum(f.vervaldatum)}`;
+  document.getElementById('facMailBody').innerHTML=`
+    <div class="fac-mail-form">
+    <div class="uren-fld"><label>Aan</label>
+      <input class="fac-ed-inp" id="facMailAan" type="email" value="${escapeHtml(aan)}"
+        placeholder="naam@bedrijf.nl"></div>
+    ${aan?'':`<div class="fac-btw-let" style="margin:0 0 12px"><b>Geen e-mailadres bij deze klant.</b>
+      Vul het hier in, of zet het bij de klantgegevens zodat het de volgende keer klaarstaat.</div>`}
+    <div class="uren-fld"><label>Cc <span style="font-weight:400;color:var(--text-muted)">(optioneel)</span></label>
+      <input class="fac-ed-inp" id="facMailCc" type="text" value="${escapeHtml(sj.cc||'')}"
+        placeholder="Meerdere adressen scheiden met een komma"></div>
+    <div class="uren-fld"><label>Onderwerp</label>
+      <input class="fac-ed-inp" id="facMailOnderwerp" type="text"
+        value="${escapeHtml(facMailVul(sj.onderwerp,f))}"></div>
+    <div class="uren-fld"><label>Bericht</label>
+      <textarea class="fac-ed-inp" id="facMailTekst" rows="10">${escapeHtml(facMailVul(sj.tekst,f))}</textarea></div>
+    <label class="fac-mail-check"><input type="checkbox" id="facMailBewaar">
+      Deze tekst als standaard bewaren voor volgende facturen</label>
+    <div class="fac-mail-info">
+      <div><span>Bijlage</span><b>${escapeHtml(facPdfBestandsnaam(f))}</b></div>
+      <div><span>Afzender</span><b>${escapeHtml((bedrijf&&bedrijf.naam)||'')} &lt;${escapeHtml(gebruiker?gebruiker.email:'—')}&gt;</b></div>
+      ${bedrijf&&bedrijf.email&&gebruiker&&bedrijf.email!==gebruiker.email
+        ? `<div><span>Antwoord naar</span><b>${escapeHtml(bedrijf.email)}</b></div>`:''}
+      ${f.gemaildOp?`<div><span>Eerder gemaild</span><b>${factuurFmtDatum(String(f.gemaildOp).slice(0,10))} aan ${escapeHtml(f.gemaildAan||'')}</b></div>`:''}
+    </div></div>`;
+  document.getElementById('facMailStatus').textContent='';
+  document.getElementById('facMailVerstuurBtn').disabled=false;
+  document.getElementById('facMailModal').classList.add('open');
+  setTimeout(()=>document.getElementById(aan?'facMailOnderwerp':'facMailAan')?.focus(),50);
+}
+function closeFacMail(){
+  document.getElementById('facMailModal').classList.remove('open');
+  facMailId=null;
+}
+/* Escape en een klik naast het venster sluiten -- maar niet terwijl er
+   verstuurd wordt, want dan weet je niet meer of de mail weg is. */
+function facMailBezig(){
+  const b=document.getElementById('facMailVerstuurBtn');
+  return !!(b&&b.disabled);
+}
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Escape'||!facMailId||facMailBezig())return;
+  closeFacMail();
+});
+document.getElementById('facMailModal')?.addEventListener('mousedown',e=>{
+  if(e.target.id==='facMailModal'&&!facMailBezig())closeFacMail();
+});
+
+async function facMailVerstuurActie(){
+  const f=factuurById(facMailId);
+  if(!f)return;
+  const aan=document.getElementById('facMailAan').value.trim();
+  const cc=document.getElementById('facMailCc').value.trim();
+  const onderwerp=document.getElementById('facMailOnderwerp').value.trim();
+  const tekst=document.getElementById('facMailTekst').value;
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(aan)){
+    appToast('Vul een geldig e-mailadres in bij "Aan"',{type:'warning'});
+    document.getElementById('facMailAan').focus();
+    return;
+  }
+  if(!onderwerp){appToast('Een onderwerp is verplicht',{type:'warning'});return;}
+  const gebruiker=ingelogdeGebruiker();
+  if(!gebruiker){appToast('Je bent niet meer ingelogd',{type:'error'});return;}
+
+  const knop=document.getElementById('facMailVerstuurBtn');
+  const status=document.getElementById('facMailStatus');
+  knop.disabled=true;
+  status.textContent='PDF maken…';
+  try{
+    const b64=facPdfBase64(f);
+    if(!b64)throw new Error('De PDF kon niet worden gemaakt');
+    const bedrijf=factuurBedrijf(factuurBedrijfIdVan(f));
+    status.textContent='Versturen…';
+    await mailApiVerstuur(mailBouwBericht({
+      aan, cc,
+      van:gebruiker.email,
+      vanNaam:(bedrijf&&bedrijf.naam)||'',
+      antwoordNaar:(bedrijf&&bedrijf.email&&bedrijf.email!==gebruiker.email)?bedrijf.email:'',
+      onderwerp, tekst,
+      bijlageNaam:facPdfBestandsnaam(f),
+      bijlageB64:b64
+    }));
+    /* Pas vastleggen als Gmail bevestigt dat het weg is. */
+    f.gemaildOp=new Date().toISOString();
+    f.gemaildAan=aan;
+    f.updatedAt=Date.now();
+    if(document.getElementById('facMailBewaar').checked){
+      const sj=facMailSjabloon();
+      sj.cc=cc;
+      sj.onderwerp=document.getElementById('facMailOnderwerp').value.trim();
+      sj.tekst=tekst;
+    }
+    scheduleSave();
+    closeFacMail();
+    facEditorRender();
+    facRenderAll();
+    appToast(`${f.nummer} gemaild naar ${aan}`,{type:'success'});
+  }catch(e){
+    console.error('Mailen mislukt:',e);
+    knop.disabled=false;
+    status.textContent='';
+    /* De meest voorkomende oorzaak eerst: de scope staat nog niet in
+       het OAuth-scherm, of de toestemming is geweigerd. */
+    const uitleg=/scope|insufficient|permission|403/i.test(e.message)
+      ? ' — controleer of gmail.send bij de OAuth-toestemmingen staat'
+      : '';
+    appToast('Mailen mislukt: '+e.message+uitleg,{type:'error',duration:14000});
+  }
 }
 
 /* ── Export voor de boekhouder ── */

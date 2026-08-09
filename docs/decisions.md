@@ -241,11 +241,30 @@ Stappen:
 
 **Meegenomen**: het meervoud van "factuur" is "facturen", niet "factuuren". Stond op elf plekken fout.
 
+## 2026-08-09 · Facturen mailen via Gmail — eigen token, pas bij het eerste verzoek
+
+**Probleem**: een factuur ging als PDF naar de download-map en moest daarna met de hand in een mail. Dat is precies de stap waar een factuur blijft liggen.
+
+**Beslissing**: knop "✉ Mailen" op elke definitieve factuur. Er opent een venster met ontvanger, cc, onderwerp en bericht — allemaal nog te wijzigen — en de PDF als bijlage. Versturen gaat via `POST /gmail/v1/users/me/messages/send` met een zelf opgebouwd MIME-bericht.
+
+**Waarom**:
+- *Gmail krijgt een eigen toegangstoken, los van Drive.* Wie de app alleen opent hoeft dan geen toestemming te geven om namens hem te mailen; die vraag komt pas bij de eerste verzending. Het scheelt ook dat een geweigerde mailtoestemming de opslag niet raakt. De prijs is een tweede `initTokenClient` — bewust, want de opslaglaag was net gemigreerd en die wilde ik niet aanraken.
+- *`gemaildOp` wordt pas gezet als Gmail bevestigt.* Anders staat er "verstuurd" bij een mail die nooit is aangekomen. Bij een fout blijft het venster open met de ingevulde tekst, zodat je het opnieuw kunt proberen zonder alles over te typen.
+- *Afzender is het ingelogde account, niet het bedrijfsadres.* Gmail weigert een `From` die geen alias van het account is. Staat er een afwijkend bedrijfsadres in de instellingen, dan gaat dat mee als `Reply-To`.
+- *Bij een tussenpersoon gaat de mail naar de factuurpartij.* Die staat al in de momentopname `f.klant`, die bij het versturen van de factuur is vastgelegd.
+- *Onderwerp en tekst zijn een sjabloon met plaatshouders* (`{nummer}`, `{bedrag}`, `{vervaldatum}`, `{iban}`, …), te bewaren via een vinkje. Zonder dat typ je elke maand hetzelfde.
+
+**Nog te doen door Frank**: in de Cloud Console de scope `https://www.googleapis.com/auth/gmail.send` aan het OAuth-toestemmingsscherm toevoegen. Zonder dat volgt een 403 "insufficient authentication scopes" — de foutmelding in de app wijst daar zelf op.
+
+**Bestanden**: `index.html` — `mailVraagToken`, `mailB64`/`mailKop`/`mailBreek`/`mailBouwBericht`/`mailRaw`, `mailApiVerstuur`, `facMailSjabloon`/`facMailVul`/`facMailOntvanger`, `facPdfBase64`, `openFacMail`/`facMailVerstuurActie`, modaal `#facMailModal`, CSS `.fac-mail-*`
+
+**Niet doen**: automatisch mailen bij "Versturen". Het definitief maken van een factuur en het versturen van de mail zijn twee besluiten; ze samenvoegen betekent dat een verkeerd adres of een verkeerde bijlage niet meer te onderscheppen is. Ook niet: `gemaildOp` alvast zetten en bij een fout terugdraaien.
+
 ## Open werk na 2026-08-05
 
-> Btw-overzicht: **gebouwd op 2026-08-09**, zie de entry hierboven. De rest van deze lijst staat nog open.
+> Btw-overzicht en Gmail-verzending: **gebouwd op 2026-08-09**, zie de entries hierboven. De hieronder beschreven stappen zijn daarmee gedekt; wat nog openstaat is het opruimen van de Gist-resten (punt 6 en 7 hierboven bij de opslagmigratie).
 
-### Facturen mailen via Gmail
+### Facturen mailen via Gmail *(gebouwd — hieronder staat de oorspronkelijke opzet)*
 Voorwaarden liggen klaar: Workspace-account (dus OAuth-app op *Internal*, geen 7-dagen tokenlimiet), client-ID `815519330750-...`, en `facPdfDoc()` levert al een echt PDF-bestand.
 
 Stappen:
@@ -257,7 +276,7 @@ Stappen:
 
 Let op: het e-mailadres van de klant staat in `klant.email`; bij factureren via een tussenpersoon moet dat het adres van de **factuurpartij** zijn (`factuurPartijVan`).
 
-### Btw-overzicht per kwartaal
+### Btw-overzicht per kwartaal *(gebouwd — hieronder staat de oorspronkelijke opzet)*
 Doel: vier keer per jaar de aangifte kunnen invullen zonder uit de Excel-export te puzzelen.
 
 Aanpak: vijfde tab in de facturen-module ("Btw"), kwartaalkiezer (Q1–Q4 + jaar). Per kwartaal de verstuurde en betaalde facturen optellen, gegroepeerd per btw-tarief — `factuurTotalen()` levert de staffel al per factuur. Tonen: omzet excl. per tarief, af te dragen btw per tarief, totaal. Btw verlegd apart vermelden (telt niet mee in af te dragen).
