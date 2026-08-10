@@ -438,3 +438,19 @@ Het btw-tarief van de regel volgt dat van de klant, niet een eigen tarief: een d
 **Wat je hiermee niet hebt**: kilometers per dag bijhouden zoals je uren bijhoudt. Je vult per factuur één totaal in. Wil je dat later wel, dan is de vorige entry nog steeds het ontwerp om op verder te bouwen.
 
 **Bestanden**: `index.html` — `factuurKmTarief`, `facKmToevoegen`, `KLANT_ERFT`, `factuurSettings` (`kilometerTarief`), klantvenster (`kmKmTarief`), facturatie-instellingen (`fiKmTarief`)
+
+## 2026-08-10 · Bedragen weg van het dashboard, en Uren/Facturen onder Administratie
+
+**Probleem**: Frank opent deze app op zijn laptop terwijl hij bij klanten zit. Het dashboard was het eerste scherm na inloggen en toonde daar een KPI-tegel "Openstaand" met het totaalbedrag plus een kaart "Openstaande facturen" met nummers, klantnamen en bedragen. Wie meekijkt ziet meteen wat hij nog te vorderen heeft, en bij welke andere klant.
+
+**Beslissing**: beide weg van het dashboard. De KPI-strip gaat van vier naar drie tegels (open taken, vervallende taken, afspraken vandaag) — allemaal getallen zonder geldwaarde. De inhoud verdwijnt niet: de facturenmodule heeft onder **Debiteuren** al hetzelfde en meer (ouderdomsklassen, per klant, per factuur). Die module open je bewust.
+
+**Waarom niet verbergen achter een knop of de pincode**: dan staat het er nog steeds en is één misklik genoeg. Een dashboard is per definitie wat je laat zien zodra je inlogt; financiële cijfers horen daar niet thuis. De pincode beschermt de opslag, niet de blik over je schouder.
+
+**Wat er nog wel staat**: de nav-badges. Naast Uren staat het aantal nog niet gefactureerde uren ("5u"), naast Facturen het aantal facturen dat over de vervaldatum is ("2"). Geen bedragen, wel een signaal. Bewust laten staan, maar het is een keuze om te herzien als dat te veel zegt.
+
+**Daarnaast**: Uren en Facturen staan niet meer onder "Navigatie" maar onder een eigen kop **Administratie**, samen met Externe tools. Dat scheelt een sectie in de zijbalk en zet de administratieve modules bij elkaar.
+
+**Bestanden**: `index.html` — `#dashKpiOpenstaand` en `#dashFacturenCard` verwijderd, `dashFacturenStats`/`renderDashFacturen` verwijderd, `.dash-kpis` naar 3 kolommen, zijbalk-secties in `.sidebar-scroll`
+
+**Niet doen**: de facturenkaart terugzetten op het dashboard "omdat hij handig is". Handig was hij ook.
