@@ -1348,6 +1348,10 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
   text-transform:uppercase;color:var(--text-muted);
 }
 .fac-mail-info b{font-weight:600;color:var(--text);word-break:break-word;min-width:0}
+.fac-mail-info .waarschuwing{
+  background:var(--warning-bg);border-left:3px solid var(--danger);
+  margin:2px -7px;padding:7px 8px;border-radius:var(--radius);
+}
 
 /* Verzonden berichten + het instelvenster voor de standaardtekst */
 .fac-mail-aan{display:flex;flex-direction:column;gap:1px;min-width:0}
@@ -16479,6 +16483,26 @@ function factuurDupliceer(id){
 function factuurUrenIds(f){
   return (f.regels||[]).flatMap(r=>r.urenIds||[]);
 }
+/* De urenregels die daadwerkelijk in de specificatie belanden. Een
+   factuur bewaart alleen ids; staat de registratie er niet meer, dan
+   komt er niets uit -- en dat moet je kunnen zien vóór je verstuurt,
+   niet achteraf van je klant horen. */
+function factuurSpecificatieUren(f){
+  const ids=factuurUrenIds(f);
+  if(!ids.length)return [];
+  return (urenState.entries||[]).filter(e=>ids.includes(e.id))
+    .sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+}
+/* Wat er van de urenspecificatie terechtkomt: 'uit', 'geen-uren',
+   'ontbreekt' (wel gekoppeld, niet meer te vinden) of 'ok'. */
+function factuurSpecificatieStaat(f){
+  if(!f||!f.specificatie)return {staat:'uit',gevonden:0,gekoppeld:0};
+  const gekoppeld=factuurUrenIds(f).length;
+  const gevonden=factuurSpecificatieUren(f).length;
+  if(!gekoppeld)return {staat:'geen-uren',gevonden:0,gekoppeld:0};
+  if(!gevonden)return {staat:'ontbreekt',gevonden:0,gekoppeld};
+  return {staat:'ok',gevonden,gekoppeld};
+}
 function factuurUrenKoppelen(f){
   factuurUrenIds(f).forEach(id=>{
     const e=urenEntry(id);
@@ -17529,8 +17553,13 @@ function facEditorRender(){
       ${bewerkbaar?`<td><button class="fac-ed-del" data-fac-action="facRegelVerwijder" data-fac-arg1="${r.id}" title="Regel verwijderen">✕</button></td>`:''}
     </tr>`;
     if(r.urenIds&&r.urenIds.length){
+      /* Tel de registraties die er echt nog zijn: het aantal ids zei
+         eerder "3 gekoppeld" terwijl er niets meer achter zat. */
+      const bestaat=r.urenIds.filter(id=>urenEntry(id)).length;
+      const kwijt=r.urenIds.length-bestaat;
       html+=`<tr><td colspan="${bewerkbaar?7:6}" style="padding:0 8px 8px">
-        <span style="font-size:11px;color:var(--text-muted)">↳ ${r.urenIds.length} urenregistratie${r.urenIds.length===1?'':'s'} gekoppeld</span></td></tr>`;
+        <span style="font-size:11px;color:var(--${kwijt?'danger':'text-muted'})">↳ ${bestaat} urenregistratie${bestaat===1?'':'s'} gekoppeld${
+          kwijt?` · ${kwijt} niet meer te vinden`:''}</span></td></tr>`;
     }
   });
   if(!(f.regels||[]).length){
@@ -17546,10 +17575,10 @@ function facEditorRender(){
         <input type="checkbox" ${f.btwVerlegd?'checked':''} ${bewerkbaar?'':'disabled'}
           data-fac-change="facEdVeld" data-fac-arg1="btwVerlegd" style="accent-color:var(--mint);width:15px;height:15px"/>
         Btw verlegd</label>
-      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:${bewerkbaar?'pointer':'default'};user-select:none">
+      <label style="display:flex;align-items:flex-start;gap:8px;font-size:13px;cursor:${bewerkbaar?'pointer':'default'};user-select:none">
         <input type="checkbox" ${f.specificatie?'checked':''} ${bewerkbaar?'':'disabled'}
-          data-fac-change="facEdVeld" data-fac-arg1="specificatie" style="accent-color:var(--mint);width:15px;height:15px"/>
-        Urenspecificatie als bijlage meesturen</label>
+          data-fac-change="facEdVeld" data-fac-arg1="specificatie" style="accent-color:var(--mint);width:15px;height:15px;margin-top:2px"/>
+        <span>Urenspecificatie als bijlage meesturen${facSpecUitleg(f)}</span></label>
       <div class="uren-fld"><label>Notitie op de factuur</label>
         <textarea class="fac-ed-inp" rows="3" data-fac-change="facEdVeld" data-fac-arg1="notitie"
           ${bewerkbaar?'':'disabled'} placeholder="Optionele tekst onder de regels">${escapeHtml(f.notitie||'')}</textarea></div>
@@ -17584,6 +17613,21 @@ function facEditorRender(){
   document.getElementById('facEditorActies').innerHTML=acties;
 }
 
+/* Eén zin onder het vinkje: wat komt er straks in de PDF? Zonder dit
+   is een lege specificatie pas te zien als de klant de bijlage opent. */
+function facSpecUitleg(f){
+  const st=factuurSpecificatieStaat(f);
+  if(st.staat==='uit')return '';
+  if(st.staat==='geen-uren')
+    return `<small style="display:block;color:var(--danger);font-size:11.5px;margin-top:2px">
+      Er zijn geen urenregistraties aan deze factuur gekoppeld — er komt geen specificatie mee.</small>`;
+  if(st.staat==='ontbreekt')
+    return `<small style="display:block;color:var(--danger);font-size:11.5px;margin-top:2px">
+      De ${st.gekoppeld} gekoppelde registraties zijn niet meer te vinden in de urenmodule —
+      er komt geen specificatie mee.</small>`;
+  return `<small style="display:block;color:var(--text-muted);font-size:11.5px;margin-top:2px">
+    ${st.gevonden} registratie${st.gevonden===1?'':'s'} op een extra pagina achter de factuur.</small>`;
+}
 function facEdVeld(el,key){
   const f=factuurById(facEditId);
   if(!f)return;
@@ -19142,9 +19186,7 @@ function facPdfFooter(ctx,b){
 
 function facPdfSpecificatie(ctx){
   const {doc,F,f}=ctx;
-  const ids=factuurUrenIds(f);
-  const uren=(urenState.entries||[]).filter(e=>ids.includes(e.id))
-    .sort((a,b)=>a.date.localeCompare(b.date));
+  const uren=factuurSpecificatieUren(f);
   if(!uren.length)return;
   doc.addPage();
   let sy=ctx.boven;
@@ -19184,6 +19226,14 @@ function facPdfDownload(id){
   const doc=facPdfDoc(f);
   if(!doc){appToast('PDF-bibliotheek nog niet geladen — probeer het zo nog eens',{type:'error'});return;}
   doc.save(facPdfBestandsnaam(f));
+  const st=factuurSpecificatieStaat(f);
+  if(st.staat==='geen-uren'||st.staat==='ontbreekt'){
+    appToast('PDF opgeslagen, maar zonder urenspecificatie: '+
+      (st.staat==='geen-uren'?'er zijn geen uren gekoppeld aan deze factuur.'
+        :'de gekoppelde registraties zijn niet meer te vinden.'),
+      {type:'warning',duration:10000});
+    return;
+  }
   appToast('PDF opgeslagen · '+f.nummer,{type:'success'});
 }
 
@@ -19371,6 +19421,21 @@ function facPdfBase64(f){
   return komma<0?null:uri.slice(komma+1);
 }
 
+/* Regel in het mailvenster over de urenspecificatie. Staat er vlak
+   boven de verstuurknop, want dat is het laatste moment waarop je het
+   nog kunt herstellen. */
+function facMailSpecRegel(f){
+  const st=factuurSpecificatieStaat(f);
+  if(st.staat==='uit')return '';
+  if(st.staat==='ok')
+    return `<div><span>Specificatie</span><b>${st.gevonden} urenregistratie${
+      st.gevonden===1?'':'s'} als extra pagina</b></div>`;
+  const reden=st.staat==='geen-uren'
+    ? 'er zijn geen uren aan deze factuur gekoppeld'
+    : `de ${st.gekoppeld} gekoppelde registraties zijn niet meer te vinden`;
+  return `<div class="waarschuwing"><span>Specificatie</span><b>Gaat niet mee — ${reden}</b></div>`;
+}
+
 /* ── Het venster ── */
 let facMailId=null;
 function openFacMail(id){
@@ -19411,6 +19476,7 @@ function openFacMail(id){
       Deze tekst als standaard bewaren voor volgende facturen</label>
     <div class="fac-mail-info">
       <div><span>Bijlage</span><b>${escapeHtml(facPdfBestandsnaam(f))}</b></div>
+      ${facMailSpecRegel(f)}
       <div><span>Afzender</span><b>${escapeHtml((bedrijf&&bedrijf.naam)||'')} &lt;${escapeHtml(gebruiker?gebruiker.email:'—')}&gt;</b></div>
       ${bedrijf&&bedrijf.email&&gebruiker&&bedrijf.email!==gebruiker.email
         ? `<div><span>Antwoord naar</span><b>${escapeHtml(bedrijf.email)}</b></div>`:''}

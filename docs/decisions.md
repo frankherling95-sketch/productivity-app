@@ -345,3 +345,22 @@ Aandachtspunt: bepaal expliciet of je op factuurdatum of op betaaldatum aangifte
 **Beslissing**: de kop kijkt naar `definitief` (`status !== 'concept'`). De ondertitel toont voor een verstuurde factuur de verzenddatum, en als hij gemaild is ook die datum.
 
 **Bestanden**: `index.html` — `facEditorRender`
+
+## 2026-08-10 · Urenspecificatie kon stilzwijgend wegblijven
+
+**Probleem**: het vinkje "Urenspecificatie als bijlage meesturen" leek bij het mailen niets te doen.
+
+**Onderzoek**: het mailpad zelf is in orde. Een factuur met gekoppelde uren levert een PDF van twee pagina's, en die bijlage overleeft het MIME-bericht byte voor byte — teruggedecodeerd zoals Gmail dat doet zitten er twee pagina-objecten in en staat het woord "Urenspecificatie" erin. Wat wél misgaat: `facPdfSpecificatie` stopt zonder een woord als de gekoppelde urenregistraties niet meer in `urenState.entries` staan. Een factuur bewaart alleen ids. De teller onder de factuurregel telde die **ids** en zei dus "3 urenregistraties gekoppeld" terwijl er niets meer achter zat.
+
+**Beslissing**: `factuurSpecificatieStaat(f)` geeft één antwoord — `uit`, `geen-uren`, `ontbreekt` of `ok` — en dat antwoord is nu op drie plekken zichtbaar:
+- onder het vinkje in de editor ("3 registraties op een extra pagina achter de factuur", of waaróm er niets meegaat);
+- in het mailvenster als eigen regel bij de bijlage, met een getinte waarschuwing als er niets meegaat — dat is het laatste moment waarop je het nog kunt herstellen;
+- als toast bij het downloaden van de PDF.
+
+De teller onder de regel telt nu de registraties die er echt nog zijn, met "· n niet meer te vinden" erachter.
+
+**Waarom niet automatisch herstellen**: welke urenregels bij een verstuurde factuur hoorden is niet af te leiden zodra de registraties weg zijn. Gokken op klant en periode zou een specificatie opleveren die niet klopt met het bedrag. Zeggen dat het niet lukt is hier beter dan iets verzinnen.
+
+**Bestanden**: `index.html` — `factuurSpecificatieUren`, `factuurSpecificatieStaat`, `facSpecUitleg`, `facMailSpecRegel`, `facPdfSpecificatie`, `facPdfDownload`, `facEditorRender`
+
+**Niet doen**: een tekenfunctie zelf laten waarschuwen. `facPdfSpecificatie` geeft alleen niets terug; de melding hoort bij wie de PDF opvraagt.
