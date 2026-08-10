@@ -387,3 +387,15 @@ De teller onder de regel telt nu de registraties die er echt nog zijn, met "· n
 **Bestanden**: `index.html` — `syncStand`/`syncMarkeerLokaal`/`syncMarkeerDrive`/`syncOngesynct`, `loadLocalBackupMeta`, `saveLocalBackup`, `loadGist`, `saveGist`, `scheduleSave`, de `visibilitychange`-handler
 
 **Niet doen**: de vraag bij het laden vervangen door "lokaal wint altijd" — dan overschrijft een oud tabblad het werk van je andere pc.
+
+## 2026-08-10 · Klant erft de gegevens van zijn factuurpartij
+
+**Probleem**: klanten die via een tussenpersoon gefactureerd worden (POM, Staedion, Gemeente Buren → LabsData) stonden met "⚠ Adresgegevens ontbreken" in het overzicht. Die gegevens hoeven daar ook niet te staan — de rekening gaat naar de tussenpersoon — maar de app deed alsof er iets miste.
+
+**Beslissing**: `factuurKlantVol(klant)` vult lege velden aan met die van de factuurpartij: adres, postcode, plaats, land, btw-nummer, kvk, e-mail, contactpersoon, telefoon, betaaltermijn, uurtarief en btw-tarief. **De naam niet** — die blijft staan waaronder jij de klant kent, ook op de factuurregel. Alleen lege velden erven; een eigen tarief of adres bij de klant wint altijd.
+
+Gebruikt in `factuurKlantCompleet`, `factuurKlantSnapshot` (dus ook op de factuur en in de PDF), bij het opstellen van factuurregels (uurtarief) en bij `factuurNieuw` (betaaltermijn, bedrijf). Op de klantkaart staat het geërfde adres met "van LabsData B.V." eronder, zodat zichtbaar blijft dat het niet van de klant zelf komt.
+
+**Waarom niet kopiëren bij het opslaan van de klant**: dan is de koppeling weg en loopt de klant achter zodra de tussenpersoon verhuist. Erven bij het lezen houdt één plek de waarheid.
+
+**Bestanden**: `index.html` — `KLANT_ERFT`, `factuurKlantVol`, `factuurKlantCompleet`, `factuurKlantSnapshot`, `factuurRegelsVanUren`, `factuurNieuw`, `facRenderKlanten`, CSS `.fac-geerfd`

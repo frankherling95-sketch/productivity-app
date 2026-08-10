@@ -1382,6 +1382,9 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 
 /* Klantenkaarten */
 .fac-klanten{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+/* Adres dat van de factuurpartij komt: wel tonen, maar zichtbaar niet
+   van de klant zelf. */
+.fac-geerfd{font-size:11px;color:var(--text-muted);font-style:italic}
 .fac-klantkaart{
   background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-md);
   padding:14px 15px;display:flex;flex-direction:column;gap:9px;
@@ -16329,15 +16332,37 @@ function factuurPartijToegestaan(clientId,partijId){
   const partij=factuurKlant(partijId);
   return !!(partij&&!partij.factuurPartijId);
 }
+/* ── Gegevens van de factuurpartij overnemen ──
+   Factureer je een klant via een tussenpersoon, dan staan het adres, het
+   btw-nummer en het mailadres bij die tussenpersoon. De klant zelf hoeft
+   ze niet nog eens te hebben; lege velden komen daar vandaan. De naam
+   niet: die blijft staan waaronder jij de klant kent. */
+const KLANT_ERFT=['adres','postcode','plaats','land','btwNummer','kvk','email',
+                  'contactpersoon','tel','betaaltermijn','tarief','btwTarief'];
+function factuurKlantVol(c){
+  const klant=(typeof c==='string')?factuurKlant(c):c;
+  if(!klant)return klant;
+  const partij=klant.factuurPartijId&&factuurKlant(klant.factuurPartijId);
+  if(!partij||partij.id===klant.id)return klant;
+  const uit={...klant};
+  KLANT_ERFT.forEach(k=>{
+    const eigen=uit[k];
+    if(eigen===''||eigen==null)uit[k]=partij[k];
+  });
+  uit.viaPartijNaam=partij.bedrijfsnaam||partij.name;
+  return uit;
+}
 function factuurKlantCompleet(c){
-  return !!(c&&c.name&&c.adres&&c.postcode&&c.plaats);
+  const v=factuurKlantVol(c);
+  return !!(v&&v.name&&v.adres&&v.postcode&&v.plaats);
 }
 function factuurKlantSnapshot(c){
   if(!c)return {naam:'—'};
+  const v=factuurKlantVol(c);
   return {
-    naam:c.bedrijfsnaam||c.name, adres:c.adres||'', postcode:c.postcode||'',
-    plaats:c.plaats||'', land:c.land||'', btwNummer:c.btwNummer||'',
-    kvk:c.kvk||'', email:c.email||'', contactpersoon:c.contactpersoon||''
+    naam:c.bedrijfsnaam||c.name, adres:v.adres||'', postcode:v.postcode||'',
+    plaats:v.plaats||'', land:v.land||'', btwNummer:v.btwNummer||'',
+    kvk:v.kvk||'', email:v.email||'', contactpersoon:v.contactpersoon||''
   };
 }
 /* Het bedrijf waar een factuur vanuit gaat. Facturen van vóór de
@@ -16440,9 +16465,12 @@ function factuurUrenVoorPartij(partijId,from,to){
 function factuurRegelsUitUren(partijId,from,to,omschrijving){
   const klanten=factuurKlantenVanPartij(partijId);
   const regels=[];
-  klanten.forEach(klant=>{
-    const uren=factuurUrenVoorKlant(klant.id,from,to);
+  klanten.forEach(klant0=>{
+    const uren=factuurUrenVoorKlant(klant0.id,from,to);
     if(!uren.length)return;
+    /* Ontbreekt het tarief bij de klant, dan geldt dat van de partij
+       waar de rekening naartoe gaat. */
+    const klant=factuurKlantVol(klant0);
     const standaard=Number(klant.tarief||0);
     /* Groeperen op tarief: afwijkingen krijgen een eigen regel, anders
        verdwijnen ze in een gemiddelde. */
@@ -16494,7 +16522,7 @@ function factuurStandaardBetreft(clientId,from,to){
 /* ── CRUD ── */
 function factuurNieuw(clientId,from,to){
   const s=factuurSettings();
-  const klant=factuurKlant(clientId);
+  const klant=factuurKlantVol(clientId);
   const datum=new Date().toISOString().slice(0,10);
   const termijn=(klant&&klant.betaaltermijn)||s.betaaltermijn;
   const betreft=clientId?factuurStandaardBetreft(clientId,from,to):'';
@@ -17406,14 +17434,17 @@ function facRenderKlanten(){
     <div class="fac-klanten">`;
   klanten.forEach(c=>{
     const col=CLIENT_COLORS[c.colorIdx%CLIENT_COLORS.length];
+    const v=factuurKlantVol(c);
     const compleet=factuurKlantCompleet(c);
+    const geerfd=v.viaPartijNaam&&!c.adres&&v.adres;
     const facturen=factuurState.invoices.filter(f=>f.clientId===c.id);
     const omzet=facturen.filter(f=>f.status!=='concept').reduce((s,f)=>s+factuurTotalen(f).excl,0);
     html+=`<div class="fac-klantkaart" style="--c:${col.bg}">
       <h4><span style="width:10px;height:10px;border-radius:2px;background:${col.bg};flex-shrink:0"></span>
         ${escapeHtml(c.bedrijfsnaam||c.name)}</h4>
       <div class="adres">${compleet
-        ? escapeHtml(c.adres)+'<br>'+escapeHtml((c.postcode||'')+' '+(c.plaats||''))
+        ? escapeHtml(v.adres)+'<br>'+escapeHtml((v.postcode||'')+' '+(v.plaats||''))+
+          (geerfd?`<br><span class="fac-geerfd">van ${escapeHtml(v.viaPartijNaam)}</span>`:'')
         : '<span class="fac-onvolledig">⚠ Adresgegevens ontbreken</span>'}</div>
       ${c.factuurPartijId&&factuurKlant(c.factuurPartijId)
         ? `<div style="font-size:11.5px;color:var(--text-muted)">Factuur gaat naar
@@ -17423,8 +17454,8 @@ function facRenderKlanten(){
                  <b style="color:var(--text)">${factuurKlantenVanPartij(c.id).length-1} andere klant${factuurKlantenVanPartij(c.id).length===2?'':'en'}</b></div>`
             : '')}
       <div class="meta">
-        <span>Tarief <b>${c.tarief?factuurFmtBedrag(c.tarief):'—'}</b></span>
-        <span>Termijn <b>${c.betaaltermijn||factuurSettings().betaaltermijn}d</b></span>
+        <span>Tarief <b>${v.tarief?factuurFmtBedrag(v.tarief):'—'}</b></span>
+        <span>Termijn <b>${v.betaaltermijn||factuurSettings().betaaltermijn}d</b></span>
         <span>Omzet <b>${factuurFmtBedrag(omzet)}</b></span>
       </div>
       <div class="acties">
