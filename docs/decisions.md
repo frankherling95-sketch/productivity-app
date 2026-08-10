@@ -399,3 +399,26 @@ Gebruikt in `factuurKlantCompleet`, `factuurKlantSnapshot` (dus ook op de factuu
 **Waarom niet kopiëren bij het opslaan van de klant**: dan is de koppeling weg en loopt de klant achter zodra de tussenpersoon verhuist. Erven bij het lezen houdt één plek de waarheid.
 
 **Bestanden**: `index.html` — `KLANT_ERFT`, `factuurKlantVol`, `factuurKlantCompleet`, `factuurKlantSnapshot`, `factuurRegelsVanUren`, `factuurNieuw`, `facRenderKlanten`, CSS `.fac-geerfd`
+
+## Open werk na 2026-08-10
+
+### Kilometervergoeding (nog te bouwen)
+Frank rijdt voor sommige klanten en wil die kilometers kunnen doorbelasten, in dezelfde stroom als de uren.
+
+**Ontwerp — km worden géén urenregels.** Verleidelijk is een veld `soort:'uur'|'km'` op de bestaande registratie, maar dan moet elke optelling in de app leren dat sommige regels geen uren zijn: de KPI-strip, Per klant, Per week, Per maand, de Excel-export, de factuurregels en de urenspecificatie in de PDF. Eén gemiste plek en er staan kilometers bij de uren opgeteld. Daarom een eigen lijst:
+
+```js
+urenState.kilometers = [{id, date, clientId, km, description, status:'open'|'concept'|'invoiced', factuurId, createdAt, updatedAt}]
+```
+
+Bestaande optellingen raken die lijst niet aan, dus ze kunnen ook niet stilletjes fout gaan.
+
+**Tarief**: `klant.kmTarief`, met `settings.kmTarief` als standaard (2026: € 0,23 belastingvrij). Erft van de factuurpartij via `KLANT_ERFT` — zet `kmTarief` in die lijst.
+
+**Invoer**: eigen tab "Kilometers" naast Registraties in de urenmodule, met dezelfde tabelopzet (datum, klant, aantal km, omschrijving) en dezelfde draft-regel-afhandeling — inclusief `urenEnsurePeriodContains` en committen op focusout/Enter, want daar zijn de valkuilen al bekend.
+
+**Facturatie**: `factuurRegelsVanUren` krijgt een tegenhanger die per klant de niet-gefactureerde km in de periode optelt tot één regel: `omschrijving:'Kilometervergoeding', aantal:<km>, eenheid:'km', stuksprijs:<kmTarief>`. Koppelen via een tweede veld op de factuurregel (`kmIds`) naast `urenIds`, zodat `factuurUrenKoppelen`/`factuurSyncUren`/`factuurSpecificatieUren` gescheiden blijven. Let op de bestaande valkuil: `factuurSpecificatieStaat` moet ook voor km kunnen zeggen dat er niets meegaat.
+
+**Btw**: hetzelfde tarief als de uren van die klant — een doorbelaste kilometer is onderdeel van de dienst, niet een aparte post met eigen tarief.
+
+**Waarom niet in deze sessie gebouwd**: de contextruimte was op. Half af zou hier betekenen dat kilometers ergens als uren meetellen, en dat is in een administratie erger dan de functie missen.
