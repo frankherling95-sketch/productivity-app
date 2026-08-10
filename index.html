@@ -7512,6 +7512,29 @@ async function loadGist(){
       renderAll();
       return;
     }
+    /* Staat er op dit apparaat werk dat Drive nooit heeft gekregen, en
+       is dat nieuwer dan wat er in Drive ligt? Dan is het weggooien
+       ervan een keuze die jij moet maken, niet de app. */
+    const lokaal=loadLocalBackupMeta();
+    if(syncOngesynct()&&lokaal&&lokaal.savedAt>d.tijd){
+      const kies=confirm(
+        'Op dit apparaat staan wijzigingen van '+new Date(lokaal.savedAt).toLocaleString('nl-NL')+
+        ' die nooit in Drive zijn opgeslagen.\nIn Drive staat een versie van '+
+        new Date(d.tijd).toLocaleString('nl-NL')+'.\n\n'+
+        'OK  = de versie van dit apparaat gebruiken en alsnog naar Drive schrijven\n'+
+        'Annuleren = de versie uit Drive gebruiken (het lokale werk gaat verloren)');
+      if(kies){
+        rawState=lokaal.data;
+        hydrateerState();
+        lastLoadedAt=Date.now();
+        setSync('saving','Lokale wijzigingen wegschrijven...');
+        renderAll();
+        scheduleSave();
+        return;
+      }
+      /* Bewust voor Drive gekozen: het lokale werk is daarmee afgedaan. */
+      syncMarkeerDrive(Date.now());
+    }
     rawState=d.state||{};
     hydrateerState();
     lastLoadedAt=Date.now();
@@ -7587,6 +7610,36 @@ function initDefaultKanban(){
   };
 }
 
+/* ── Is het lokale werk al in Drive aangekomen? ──
+   De lokale kopie werd bij elke wijziging bijgewerkt, maar niemand hield
+   bij of die wijziging ook wegkwam. Sluit je het tabblad binnen de
+   1,5 seconde bedenktijd, of mislukt de schrijfactie, dan stond je werk
+   alleen op dát apparaat -- en bij de volgende start overschreef de
+   versie uit Drive het zonder een woord. Twee tijdstempels lossen dat
+   op: wanneer er lokaal iets veranderde, en tot wanneer Drive bij is. */
+const LS_SYNC_KEY='herling_analytics_sync';
+function syncStand(){
+  try{return JSON.parse(localStorage.getItem(LS_SYNC_KEY)||'{}')||{};}catch(_){return {};}
+}
+function syncMarkeerLokaal(){
+  try{
+    const v=syncStand(); v.gewijzigdOp=Date.now();
+    localStorage.setItem(LS_SYNC_KEY,JSON.stringify(v));
+  }catch(_){}
+}
+/* `stempel` is het moment waarop de payload werd samengesteld. Alles wat
+   daarna veranderde zit er niet in en telt dus nog als ongesynct. */
+function syncMarkeerDrive(stempel){
+  try{
+    const v=syncStand(); v.naarDriveOp=stempel||Date.now();
+    localStorage.setItem(LS_SYNC_KEY,JSON.stringify(v));
+  }catch(_){}
+}
+function syncOngesynct(){
+  const v=syncStand();
+  return !!(v.gewijzigdOp&&(!v.naarDriveOp||v.gewijzigdOp>v.naarDriveOp));
+}
+
 /* Local backup — instant, no network. Single source of truth fallback
    als Drive onbereikbaar is. */
 function saveLocalBackup(){
@@ -7597,7 +7650,17 @@ function saveLocalBackup(){
     if(typeof urenState!=='undefined')rawState.uren=urenState;
     if(typeof factuurState!=='undefined')rawState.facturen=factuurState;
     localStorage.setItem(LS_BACKUP_KEY,JSON.stringify({data:rawState,savedAt:Date.now()}));
+    syncMarkeerLokaal();
   }catch(e){}
+}
+/* Met tijdstempel erbij, om te kunnen vergelijken met wat Drive heeft. */
+function loadLocalBackupMeta(){
+  try{
+    const raw=localStorage.getItem(LS_BACKUP_KEY);
+    if(!raw)return null;
+    const v=JSON.parse(raw);
+    return v&&v.data?{data:v.data,savedAt:Number(v.savedAt)||0}:null;
+  }catch(e){return null;}
 }
 function loadLocalBackup(){
   try{
@@ -7643,25 +7706,42 @@ async function saveGist(){
     }
     return;
   }
+  /* Het moment waarop deze payload is samengesteld; alles wat daarna
+     verandert hoort niet bij deze schrijfactie. */
+  const stempel=Date.now();
   try{
     await driveSchrijf({_bron:'app',_opgeslagenOp:new Date().toISOString(),state:payload});
     driveLaatsteFout=null;
+    saveRetryStap=0;
+    clearTimeout(saveRetryTimer); saveRetryTimer=null;
+    syncMarkeerDrive(stempel);
     setSync('saved','Opgeslagen · '+new Date().toLocaleTimeString('nl-NL'));
     if(typeof updateNavBadges==='function')updateNavBadges();
   }catch(e){
     console.error('Opslaan naar Drive mislukt:',e);
-    setSync('error','Opslaan mislukt - lokaal bewaard');
+    /* Zelf opnieuw proberen. Eerder bleef een mislukte schrijfactie
+       liggen tot je toevallig weer iets wijzigde -- en tot die tijd
+       stond je werk alleen op dit apparaat. */
+    const wacht=[5000,15000,60000,180000];
+    const stap=Math.min(saveRetryStap,wacht.length-1);
+    saveRetryStap++;
+    clearTimeout(saveRetryTimer);
+    saveRetryTimer=setTimeout(saveGist,wacht[stap]);
+    setSync('error','Opslaan mislukt - opnieuw over '+Math.round(wacht[stap]/1000)+'s');
     if(driveLaatsteFout!==e.message){
       driveLaatsteFout=e.message;
       appToast('Opslaan naar Drive mislukt: '+e.message+
-        ' — je wijzigingen staan lokaal bewaard.',
+        ' — je wijzigingen staan lokaal bewaard en worden opnieuw geprobeerd.',
         {type:'error',duration:12000,undo:()=>saveGist()});
     }
   }
 }
+let saveRetryTimer=null, saveRetryStap=0;
 function scheduleSave(){
   saveLocalBackup(); /* instant local snapshot on every state change */
   clearTimeout(saveTimer);
+  /* Een nieuwe wijziging vervangt een wachtende herkansing. */
+  clearTimeout(saveRetryTimer); saveRetryTimer=null; saveRetryStap=0;
   setSync('saving','Wijzigingen...');
   saveTimer=setTimeout(saveGist,1500);
   /* Refresh nav badges on every state change so counts stay current */
@@ -7679,7 +7759,12 @@ window.addEventListener('beforeunload',()=>{
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState!=='hidden')return;
   if(typeof urenDraftFlush==='function'){try{urenDraftFlush();}catch(_){}}
-  if(saveTimer)saveLocalBackup();
+  if(!saveTimer)return;
+  saveLocalBackup();
+  /* Meteen wegschrijven in plaats van de 1,5 seconde af te wachten: dit
+     is vaak het laatste moment waarop het verzoek nog de deur uit kan. */
+  clearTimeout(saveTimer); saveTimer=null;
+  saveGist();
 });
 
 /* ─ Manual 'Ververs' button — pulls from remote and re-renders ─ */

@@ -364,3 +364,26 @@ De teller onder de regel telt nu de registraties die er echt nog zijn, met "· n
 **Bestanden**: `index.html` — `factuurSpecificatieUren`, `factuurSpecificatieStaat`, `facSpecUitleg`, `facMailSpecRegel`, `facPdfSpecificatie`, `facPdfDownload`, `facEditorRender`
 
 **Niet doen**: een tekenfunctie zelf laten waarschuwen. `facPdfSpecificatie` geeft alleen niets terug; de melding hoort bij wie de PDF opvraagt.
+
+## 2026-08-10 · Uren die op één apparaat bleven staan
+
+**Probleem**: uren die op de ene pc waren geschreven, waren op de andere niet te zien.
+
+**Oorzaken** — drie gaten in de opslagketen, die elkaar versterkten:
+1. **De 1,5 seconde bedenktijd.** Een wijziging ging meteen naar `localStorage` en pas na 1500 ms naar Drive. Sloot je het tabblad daarvóór, dan stond het werk alleen op dat apparaat. `beforeunload` en `visibilitychange` schreven alleen de lokale kopie weg, nooit naar Drive.
+2. **Een mislukte schrijfactie bleef liggen.** Er was geen herkansing; de melding had een knop, maar als je die niet aanklikte gebeurde er niets tot je toevallig weer iets wijzigde.
+3. **Bij de volgende start won Drive altijd.** `loadGist` verving de state door wat er in Drive stond. Werk dat Drive nooit had gekregen verdween daarmee zonder een woord — juist het werk uit punt 1 en 2.
+
+**Beslissing**:
+- Twee tijdstempels in `localStorage` (`herling_analytics_sync`): wanneer er lokaal iets veranderde, en tot wanneer Drive bij is. Het tweede is het moment waarop de payload werd samengesteld, niet het moment van bevestigen — wat je tijdens een lopende schrijfactie wijzigt telt dus nog als ongesynct.
+- Bij het laden: staat er lokaal werk dat Drive nooit heeft gekregen én is dat nieuwer dan de versie in Drive, dan volgt een expliciete vraag met beide tijdstippen. Kies je lokaal, dan wordt het meteen alsnog weggeschreven.
+- Mislukte schrijfacties proberen zichzelf opnieuw: 5 s, 15 s, 60 s, 3 min. Een nieuwe wijziging vervangt de wachtende herkansing.
+- Bij het verbergen van het tabblad wordt niet meer op de bedenktijd gewacht maar meteen geschreven.
+
+**Waarom een `confirm()` en geen automatische keuze**: welke van twee versies de juiste is, weet de app niet. Samenvoegen kan niet zonder te raden welke urenregel bij welke sessie hoorde. De vraag komt alleen in het geval dat er echt iets te verliezen valt, en dat hoort zeldzaam te zijn.
+
+**Bekende grens**: staat er lokaal ongesynct werk terwijl Drive intussen *nieuwer* is (een andere pc schreef later), dan wint Drive zonder vraag. Samenvoegen zou hier nodig zijn en dat kan deze app niet.
+
+**Bestanden**: `index.html` — `syncStand`/`syncMarkeerLokaal`/`syncMarkeerDrive`/`syncOngesynct`, `loadLocalBackupMeta`, `saveLocalBackup`, `loadGist`, `saveGist`, `scheduleSave`, de `visibilitychange`-handler
+
+**Niet doen**: de vraag bij het laden vervangen door "lokaal wint altijd" — dan overschrijft een oud tabblad het werk van je andere pc.
