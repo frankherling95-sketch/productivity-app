@@ -16103,6 +16103,8 @@ function factuurSettings(){
   if(!s.bedrijven.some(b=>b.id===s.standaardBedrijf))s.standaardBedrijf=s.bedrijven[0].id;
   if(s.betaaltermijn==null)s.betaaltermijn=30;
   if(s.btwStandaard==null)s.btwStandaard=21;
+  /* Onbelaste kilometervergoeding; per 2026 € 0,23 per kilometer. */
+  if(s.kilometerTarief==null)s.kilometerTarief=0.23;
   if(s.voettekst==null)s.voettekst='';
   /* Sjabloon: bepaalt hoe facPdfDoc de factuur tekent. De betaalzin is
      bewerkbaar met invulvelden, zodat de formulering van je is. */
@@ -16338,7 +16340,8 @@ function factuurPartijToegestaan(clientId,partijId){
    ze niet nog eens te hebben; lege velden komen daar vandaan. De naam
    niet: die blijft staan waaronder jij de klant kent. */
 const KLANT_ERFT=['adres','postcode','plaats','land','btwNummer','kvk','email',
-                  'contactpersoon','tel','betaaltermijn','tarief','btwTarief'];
+                  'contactpersoon','tel','betaaltermijn','tarief','btwTarief',
+                  'kilometerTarief'];
 function factuurKlantVol(c){
   const klant=(typeof c==='string')?factuurKlant(c):c;
   if(!klant)return klant;
@@ -16723,6 +16726,7 @@ const FAC_CLICK_ACTIONS={
   closeFacWizard:()=>closeFacWizard(),
   facOpen:(a)=>facOpenEditor(a),
   facRegelToevoegen:()=>facRegelToevoegen(),
+  facKmToevoegen:()=>facKmToevoegen(),
   facRegelVerwijder:(a)=>facRegelVerwijder(a),
   facUrenOphalen:()=>facUrenOphalen(),
   facEditorSluit:()=>closeFacEditor(),
@@ -17645,6 +17649,7 @@ function facEditorRender(){
       <div style="font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted)">Factuurregels</div>
       <div style="flex:1"></div>
       ${bewerkbaar?`<button class="uren-btn" data-fac-action="facUrenOphalen">↻ Uren ophalen</button>
+      <button class="uren-btn" data-fac-action="facKmToevoegen" title="Regel voor gereden kilometers">+ Kilometers</button>
       <button class="uren-btn" data-fac-action="facRegelToevoegen">+ Regel</button>`:''}
     </div>
     <table class="fac-ed-regels"><thead><tr>
@@ -17780,6 +17785,32 @@ function facEdRegel(el,regelId,key){
   factuurUpdate(f.id,{});
   factuurSyncUren(f);
   facEditorRender();
+}
+/* Kilometervergoeding: het tarief van de klant, anders dat van de
+   factuurpartij (via factuurKlantVol), anders de instelling. */
+function factuurKmTarief(clientId){
+  const k=factuurKlantVol(clientId);
+  const eigen=k&&k.kilometerTarief;
+  return Number((eigen===''||eigen==null)?factuurSettings().kilometerTarief:eigen)||0;
+}
+/* Losse regel voor gereden kilometers. Bewust geen eigen registratie-
+   module: kilometers zijn een post op de factuur, en zo kunnen ze ook
+   nergens per ongeluk bij de uren opgeteld worden. */
+function facKmToevoegen(){
+  const f=factuurById(facEditId);
+  if(!f)return;
+  const klant=factuurKlantVol(f.clientId);
+  f.regels=f.regels||[];
+  f.regels.push({id:factuurUid(),omschrijving:'Kilometervergoeding',aantal:0,eenheid:'km',
+    stuksprijs:factuurKmTarief(f.clientId),
+    /* Doorbelaste kilometers horen bij de dienst, dus hetzelfde
+       btw-tarief als de uren van deze klant. */
+    btwTarief:(klant&&klant.btwTarief!=null)?klant.btwTarief:factuurSettings().btwStandaard,
+    urenIds:[]});
+  factuurUpdate(f.id,{});
+  facEditorRender();
+  appToast('Kilometerregel toegevoegd · '+factuurFmtBedrag(factuurKmTarief(f.clientId))+' per km',
+    {type:'success',duration:4000});
 }
 function facRegelToevoegen(){
   const f=factuurById(facEditId);
@@ -17927,6 +17958,9 @@ function openKlantModal(id){
         <input type="number" step="0.01" class="fac-ed-inp num" id="kmTarief" value="${v('tarief')}" placeholder="0,00"/></div>
       <div class="uren-fld"><label>Betaaltermijn (dagen)</label>
         <input type="number" class="fac-ed-inp num" id="kmTermijn" value="${v('betaaltermijn',s.betaaltermijn)}"/></div>
+      <div class="uren-fld"><label>Kilometervergoeding (€)</label>
+        <input type="number" step="0.01" class="fac-ed-inp num" id="kmKmTarief"
+          value="${v('kilometerTarief')}" placeholder="${String(s.kilometerTarief).replace('.',',')}"/></div>
     </div>
     <div class="fac-ed-grid" style="margin-top:12px">
       <div class="uren-fld"><label>Btw-tarief</label>
@@ -17968,6 +18002,9 @@ function klantModalOpslaan(){
     contactpersoon:g('kmContact').value.trim(),
     factuurPartijId:g('kmPartij').value||null,
     tarief:Number(g('kmTarief').value)||0,
+    /* Leeg laten betekent: de instelling gebruiken, of het tarief van
+       de factuurpartij. Daarom null en geen 0. */
+    kilometerTarief:g('kmKmTarief').value===''?null:Number(g('kmKmTarief').value),
     betaaltermijn:Number(g('kmTermijn').value)||factuurSettings().betaaltermijn,
     btwTarief:Number(g('kmBtwTarief').value),
     btwVerlegd:g('kmVerlegd').checked,
@@ -18052,6 +18089,7 @@ function facInstellingenBewaarVeldenNaarState(){
   }
   s.betaaltermijn=Number(g('fiTermijn'))||30;
   s.btwStandaard=Number(g('fiBtwStandaard'));
+  s.kilometerTarief=Number(String(g('fiKmTarief')).replace(',','.'))||0;
   s.voettekst=g('fiVoet').trim();
 }
 function facInstellingenRender(){
@@ -18111,6 +18149,12 @@ function facInstellingenRender(){
         <select class="fac-ed-inp" id="fiBtwStandaard">
           ${BTW_TARIEVEN.filter(x=>x.id!=='verlegd').map(x=>`<option value="${x.id}"${s.btwStandaard===x.id?' selected':''}>${x.label}</option>`).join('')}
         </select></div>
+    </div>
+    <div class="fac-ed-grid" style="margin-top:12px">
+      <div class="uren-fld"><label>Kilometervergoeding (€ per km)</label>
+        <input type="number" step="0.01" class="fac-ed-inp num" id="fiKmTarief" value="${s.kilometerTarief}"/>
+        <small style="font-size:11px;color:var(--text-muted)">Geldt als je bij een klant niets invult. Onbelast is 2026 € 0,23.</small></div>
+      <div></div>
     </div>
     <div class="uren-fld" style="margin-top:12px"><label>Voettekst op de factuur</label>
       <textarea class="fac-ed-inp" id="fiVoet" rows="2">${escapeHtml(s.voettekst||'')}</textarea></div>

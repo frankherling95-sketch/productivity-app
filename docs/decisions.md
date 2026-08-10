@@ -422,3 +422,19 @@ Bestaande optellingen raken die lijst niet aan, dus ze kunnen ook niet stilletje
 **Btw**: hetzelfde tarief als de uren van die klant — een doorbelaste kilometer is onderdeel van de dienst, niet een aparte post met eigen tarief.
 
 **Waarom niet in deze sessie gebouwd**: de contextruimte was op. Half af zou hier betekenen dat kilometers ergens als uren meetellen, en dat is in een administratie erger dan de functie missen.
+
+## 2026-08-10 · Kilometervergoeding als factuurregel (vervangt het ontwerp hierboven)
+
+**Wijziging op de vorige entry.** Daar stond een eigen registratielijst `urenState.kilometers` met een tab in de urenmodule. Frank koos voor iets kleiners: *"Je mag het ook beschikbaar maken als losse regel die we kunnen toevoegen bij het bouwen van de factuur."* Dat is gebouwd; de aparte registratiemodule niet.
+
+**Beslissing**: knop **+ Kilometers** in de factuureditor, naast "Uren ophalen" en "+ Regel". Die zet een regel neer met omschrijving "Kilometervergoeding", eenheid `km`, aantal 0 en het juiste tarief; het aantal vul je zelf in.
+
+Het tarief komt in deze volgorde: `klant.kilometerTarief` → het tarief van de factuurpartij (via `KLANT_ERFT`, dus dezelfde erving als adres en uurtarief) → `settings.kilometerTarief`, standaard € 0,23 (onbelast in 2026). Leeg laten bij een klant betekent "gebruik de standaard" — daarom wordt het veld als `null` bewaard en niet als 0.
+
+Het btw-tarief van de regel volgt dat van de klant, niet een eigen tarief: een doorbelaste kilometer is onderdeel van de dienst.
+
+**Waarom dit veiliger is dan het vorige ontwerp**: kilometers raken de urenregistratie niet aan. Er is geen enkele optelling in de app die hoeft te leren dat sommige regels geen uren zijn — de zorg die het vorige ontwerp met een aparte lijst probeerde te ondervangen, bestaat hier niet.
+
+**Wat je hiermee niet hebt**: kilometers per dag bijhouden zoals je uren bijhoudt. Je vult per factuur één totaal in. Wil je dat later wel, dan is de vorige entry nog steeds het ontwerp om op verder te bouwen.
+
+**Bestanden**: `index.html` — `factuurKmTarief`, `facKmToevoegen`, `KLANT_ERFT`, `factuurSettings` (`kilometerTarief`), klantvenster (`kmKmTarief`), facturatie-instellingen (`fiKmTarief`)
