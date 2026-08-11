@@ -454,3 +454,25 @@ Het btw-tarief van de regel volgt dat van de klant, niet een eigen tarief: een d
 **Bestanden**: `index.html` — `#dashKpiOpenstaand` en `#dashFacturenCard` verwijderd, `dashFacturenStats`/`renderDashFacturen` verwijderd, `.dash-kpis` naar 3 kolommen, zijbalk-secties in `.sidebar-scroll`
 
 **Niet doen**: de facturenkaart terugzetten op het dashboard "omdat hij handig is". Handig was hij ook.
+
+## 2026-08-11 · Factuur verwijderen deed niets zichtbaars (en de validator kon dat niet zien)
+
+**Probleem**: een factuur verwijderen leek niet te werken. De factuur bleef in de lijst staan, er kwam geen toast, en pas na een herlaad (plus "annuleren" in de editor) was hij echt weg. De verwijdering zélf werkte wel — die stond al in Drive.
+
+**Oorzaak**: `factuurVerwijder()` riep `factuurRenderAll()` aan. Die functie bestaat niet; de facturenmodule heet `facRenderAll()`. De aanroep gooide een `ReferenceError` en dát is het echte probleem: de functie stopte daar. Alles ná die regel liep niet meer — geen hertekening, en ook de `appToast()` met "Ongedaan maken" niet. Dezelfde typefout stond in de undo-callback, dus terugdraaien was net zo stil kapot. De fout was alleen in de console te zien.
+
+Waarom het "half" leek te werken: `scheduleSave()` stond er nog vóór, dus de state klopte al. Alleen het scherm liep achter — vandaar dat een herlaad het "oploste".
+
+**Beslissing**: beide aanroepen omgezet naar `facRenderAll()`.
+
+**De tweede helft: `validate.mjs` controleerde dit niet.** Die keek alleen of functies in `onclick=""`-handlers bestonden. Een typefout in gewone JS kwam er ongehinderd doorheen — precies het geval hier. De validator kijkt nu naar álle aanroepen in de inline scripts en faalt (blokkerend, niet als waarschuwing) op een naam die nergens gebonden is.
+
+Om dat zonder vals alarm te doen worden strings en commentaar eerst weggehaald, maar **wél** de code binnen `${...}` in template literals — daar staan echte aanroepen in. Nesting telt: een string ín een interpolatie wordt weer gestript, anders leest de checker `rgba(` uit een inline `style=""` als functieaanroep. Bindingen worden ruim verzameld (parameters, destructuring, `let a,b,c`, object-methodes, arrow-parameters): een gemiste binding is vals alarm, en vals alarm in een pre-push hook leert je de hook negeren.
+
+**Waarom blokkerend en geen waarschuwing**: de bestaande onclick-check is een waarschuwing, en waarschuwingen scroll je voorbij. Deze fout is stil in productie en kost een herlaad om te ontdekken — die hoort de push tegen te houden.
+
+**Ook nagelopen**: alle 785 top-level functies langs de vraag "muteert state, maar tekent niets bij". De 26 treffers bleken allemaal terecht — lage helpers waarvan de aanroeper wél hertekent (`factuurNieuw` ← `facWizardMaak`), of gerichte DOM-updates (`refreshTagCell`), of een module-wissel die zelf rendert (`urenInvoiceClient`). `factuurRenderAll` was de enige echte. Verder was er geen ongedefinieerde aanroep in het hele bestand.
+
+**Bestanden**: `index.html` — `factuurVerwijder()`; `validate.mjs` — `stripLiterals()` + bindingen-check
+
+**Niet doen**: de nieuwe check terugzetten naar een waarschuwing als hij ooit vals alarm geeft. Vul dan de bindingen-verzameling of `BROWSER_GLOBALS` aan — de check is alleen iets waard zolang hij tegenhoudt.
