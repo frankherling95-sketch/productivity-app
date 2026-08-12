@@ -78,17 +78,22 @@ rawState = {
 | `LS_BACKUP_KEY` = `herling_analytics_local_backup` | Volledige rawState backup |
 | `LS_ICAL_EVENT_CACHE` = `herling_ical_event_cache_v2` | Per-feed parsed events (5mo window) |
 | `LS_PROXY_CACHE_KEY` = `herling_ical_proxy_cache` | Per-feed werkende proxy |
+| `LS_SYNC_KEY` = `herling_analytics_sync` | `gewijzigdOp`/`naarDriveOp` (lokale klok) + `driveTijd` (server-klok) |
+| `LS_HERSTEL_KEY` = `herling_analytics_herstel` | Niet-gekozen versie na een conflict; ophalen met `herstelDownload()` |
 
 ### Save flow
 
 De functienamen zijn historisch (`loadGist`/`saveGist`/`refreshGist`); ze praten met Google Drive, niet met GitHub.
 
 1. State-mutatie → `scheduleSave()` → direct naar `localStorage` (vangnet) → 1500ms debounce → `saveGist()`
-2. `saveGist()` schrijft altijd eerst de lokale kopie, daarna het hele bestand naar Drive — **zonder conflict-check** (single-user → altijd overschrijven)
-3. Bij een fout: de melding komt één keer, de wijziging staat lokaal en gaat mee met de volgende poging
-4. Bij een laadfout: terugvallen op de lokale back-up, met een waarschuwing
-5. `beforeunload` flusht pending saves naar localStorage
-6. Staat er een pincode op, dan gaan facturen, uren en gevoelige klantvelden als versleuteld blok mee (`rawState.geheim`)
+2. `saveGist()` is een wrapper met in-flight guard; het echte werk zit in `saveGistIntern()`. Er loopt er **hooguit één tegelijk** — een verzoek dat ondertussen binnenkomt wordt na afloop één keer ingehaald
+3. Geschreven wordt het hele bestand, zonder merge (single-user). Wél wordt Drive's `modifiedTime` onthouden, zodat de volgende start weet of Drive sindsdien veranderd is
+4. Bij een fout: de melding komt één keer, de wijziging staat lokaal en een herkansing loopt met backoff (5s/15s/60s/180s)
+5. Bij een laadfout: terugvallen op de lokale back-up. `driveGelezen` wordt daarbij **niet** gereset — is Drive deze sessie al gelezen, dan blijft schrijven veilig
+6. `beforeunload` en `visibilitychange` flushen pending saves
+7. Staat er een pincode op, dan gaan facturen, uren en gevoelige klantvelden als versleuteld blok mee (`rawState.geheim`) — óók in de lokale kopie
+
+⚠️ **De poort `geheimenKlaar()`**: tussen laden en ontsleutelen is `factuurState`/`urenState` leeg. Zolang die poort dicht is mag niets die state wegschrijven — anders wist een versleutelde lege state de administratie in Drive. Zie de entry van 2026-08-12 in `docs/decisions.md`.
 
 ### Migratie functies
 
@@ -191,9 +196,9 @@ Daarna: vraag Frank om **Ctrl+Shift+R** op de live site. Optioneel `test.html` o
 
 Top-3 meest recent. Volledige log + *waarom* per beslissing: [`docs/decisions.md`](docs/decisions.md).
 
-- **2026-05-10**: Agenda — instant render vanuit localStorage-cache, geen spinner-flash bij stale data
-- **2026-05-04**: Agenda — duplicate events fix (UID/RECURRENCE-ID/EXDATE) + 4-proxy chain met 5-maands cache (25s → 0ms cold load)
-- **2026-05-03**: MSAL + Google OAuth **volledig verwijderd** (geen Entra-rechten). Outlook agenda's via gepubliceerde iCal-link
+- **2026-08-12**: Drive-sync naadloos gemaakt — poort op de geheimen (lege state kon Drive wissen), token vooruit vernieuwen, saves serialiseren, server-klok i.p.v. lokale klok, herstelkopie bij conflict
+- **2026-08-11**: Factuur verwijderen werkte niet zichtbaar (`factuurRenderAll` bestond niet); `validate.mjs` controleert nu álle JS-aanroepen, niet alleen `onclick`
+- **2026-08-10**: Bedragen weg van het dashboard, Uren/Facturen onder Administratie
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 

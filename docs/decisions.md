@@ -476,3 +476,33 @@ Om dat zonder vals alarm te doen worden strings en commentaar eerst weggehaald, 
 **Bestanden**: `index.html` — `factuurVerwijder()`; `validate.mjs` — `stripLiterals()` + bindingen-check
 
 **Niet doen**: de nieuwe check terugzetten naar een waarschuwing als hij ooit vals alarm geeft. Vul dan de bindingen-verzameling of `BROWSER_GLOBALS` aan — de check is alleen iets waard zolang hij tegenhoudt.
+
+## 2026-08-12 · Drive-sync: naadloos maken zonder verlies
+
+**Probleem**: Frank kreeg regelmatig "niet verbonden met Drive — klik op ↻", zag soms de vraag of hij de lokale of de cloud-versie wilde, en raakte bij "lokaal" wijzigingen kwijt. De data werd wél steeds weggeschreven — lokaal. Vijf losse oorzaken die elkaar versterkten.
+
+**1. Een leeg versleuteld blok kon Drive overschrijven.** Dit was het echte dataverlies. Met een pincode komen facturen, uren en de gevoelige klantvelden versleuteld uit Drive; tussen laden en ontsleutelen zijn `factuurState` en `urenState` leeg, terwijl `pinSleutel` uit een eerdere sessie nog gevuld kan zijn. Viel er een save in dat gat, dan versleutelde `pinPakGeheimen()` die lege state en schreef die over de administratie heen. `refreshGist()` wiste bovendien wel `saveTimer` maar niet `saveRetryTimer` — dus de melding "klik op ↻" stuurde je regelrecht dat gat in: herkansing ingepland, jij ververst, herkansing vuurt over verse gegevens.
+
+*Beslissing*: één vlag `geheimenGeladen`, en `geheimenKlaar()` als enige poort. Staat die uit, dan schrijft `saveGist` niet naar Drive en laat `saveLocalBackup` de geheime delen van de vorige kopie staan in plaats van ze met leeg te overschrijven (`houdGeheimeDelenUitVorige`). Plus `refreshGist` wist nu ook de herkansing. De regel erachter: *nooit een onvolledige state wegschrijven alsof het de hele waarheid is.*
+
+**2. Het token verliep na een uur en werd pas op het laatste moment vernieuwd.** Een save die 1,5 seconde ná je laatste toetsaanslag vuurt heeft geen klik-context, en zonder klik blokkeert de browser het venster waarmee Google stil vernieuwt. Een schrijfactie doet bovendien twee API-calls die bij een verlopen token allebei tegelijk een token aanvroegen.
+
+*Beslissing*: één gedeelde promise per lopende aanvraag (`driveTokenBezig`), en vernieuwen op ~50 minuten terwijl het tabblad zichtbaar is — ruim vóór het nodig is, zodat een mislukking nog tien minuten speling heeft. Terugkomen op een lang weggeweest tabblad haalt meteen een vers token.
+
+**3. Eén hapering zette alle schrijfacties stil.** `loadGist` zette bij elke fout `driveGelezen=false`, en `saveGist` weigert dan te schrijven. Dat is terecht zolang Drive nog nóóit gelezen is — je zou goede data met een terugval kunnen overschrijven — maar niet daarna: is de state eenmaal van Drive afkomstig, dan is wegschrijven veilig. Die reset is weg.
+
+**4. De conflictvraag vergeleek twee verschillende klokken.** `lokaal.savedAt` (`Date.now()` van de laptop) tegen `d.tijd` (`modifiedTime` van Google). Loopt je klok voor, dan is "lokaal is nieuwer" structureel waar en krijg je de vraag bij elke start.
+
+*Beslissing*: bij elke geslaagde schrijfactie onthouden wélke `modifiedTime` Drive teruggaf, en bij het laden alleen kijken of die string nog gelijk is. Staat Drive stil sinds ónze laatste schrijfactie, dan is er geen conflict — dan wint lokaal stilletjes, zonder vraag. Alleen als een ander apparaat schreef komt de vraag nog.
+
+**5. De vraag zelf was onomkeerbaar.** Beide antwoorden gooiden een kant weg. Nu gaat de niet-gekozen versie eerst naar een herstelkopie in localStorage, met `herstelDownload()` in de console om hem als bestand op te halen.
+
+**Daarnaast: twee saves konden elkaar inhalen.** Er was geen in-flight guard, dus een oudere payload kon als laatste aankomen terwijl beide "opgeslagen" meldden. Nu loopt er hooguit één; een verzoek dat ondertussen binnenkomt wordt na afloop één keer ingehaald (samenvoegen, geen wachtrij).
+
+**Ook: de lokale kopie is niet langer leesbaar.** Met een pincode aan stonden facturen en uren onversleuteld in localStorage. De kopie wordt nu net zo gestript als die in Drive, met hetzelfde versleutelde blok ernaast — `saveGist` maakt dat toch al, dus geen extra rekenwerk in het directe pad. Bijgewerkt zodra de ciphertext klaar is en niet pas ná een geslaagde Drive-save, anders zou juist het vangnet voor "Drive onbereikbaar" achterlopen. **Eerlijk over de grens**: onthoudt dit apparaat je pincode, dan staat de sleutel in dezelfde localStorage. Dit helpt pas echt als je "onthoud dit apparaat" uit laat.
+
+**Waarom geen per-module timestamps en echte merge**: dat is de structurele oplossing voor twee apparaten die tegelijk schrijven. Frank werkt nooit gelijktijdig, dus dat koopt veel complexiteit voor een probleem dat er niet is. Deze zes ingrepen maken het bestaande model (heel bestand, last-write-wins) betrouwbaar in plaats van het te vervangen.
+
+**Bestanden**: `index.html` — `geheimenGeladen`/`geheimenKlaar`/`houdGeheimeDelenUitVorige`, `saveGist`+`saveGistIntern`, `saveLocalBackup(markeer)`, `syncMarkeerDrive(stempel,driveTijd)`, `syncOnthoudDriveTijd`, `bewaarHerstelkopie`/`herstelDownload`, `driveNieuwToken`/`driveVraagToken`/`drivePlanTokenVerversing`, `refreshGist`, `loadGist`
+
+**Niet doen**: `driveGelezen=false` terugzetten in de catch van `loadGist` "voor de zekerheid" — dat was precies wat Drive uren liet achterlopen terwijl de app "opgeslagen" bleef zeggen. En de poort `geheimenKlaar()` niet omzeilen om "toch even" te kunnen opslaan terwijl er nog ontsleuteld wordt.

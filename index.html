@@ -7023,6 +7023,25 @@ const PIN_RONDES=5000000;
 let pinSleutel=null;      /* CryptoKey zolang de app open is */
 let pinVergrendeld=false; /* true = data staat versleuteld te wachten */
 
+/* ── De poort op de geheimen ──
+   Staat er een pincode op, dan komen facturen, uren en de gevoelige
+   klantvelden versleuteld uit Drive. Tussen het laden en het ontsleutelen
+   zit een async gat waarin factuurState en urenState leeg zijn, terwijl
+   pinSleutel uit een eerdere sessie nog gewoon gevuld kan zijn. Werd er in
+   dat gat opgeslagen, dan versleutelde pinPakGeheimen() die lege state en
+   schreef die over je administratie in Drive heen -- onherstelbaar.
+
+   Deze vlag is de enige plek waar dat wordt tegengehouden: hij staat pas
+   op true als de geheimen daadwerkelijk in het geheugen staan. */
+let geheimenGeladen=true;
+/* Mag de huidige state als volledige waarheid worden weggeschreven? */
+function geheimenKlaar(){
+  return !pinIngeschakeld()||geheimenGeladen;
+}
+/* Laatst bekende versleutelde blok. Wordt hergebruikt voor de lokale kopie,
+   zodat die dezelfde bescherming krijgt als Drive zonder extra rekenwerk. */
+let laatsteGeheimBlob=null;
+
 function pinCryptoBeschikbaar(){
   return !!(window.crypto&&window.crypto.subtle&&window.TextEncoder);
 }
@@ -7469,7 +7488,8 @@ async function driveProbeerLaden(){
   driveGelezen=true;
   if(!d||!d.inhoud)return null;
   const st=d.inhoud.state||d.inhoud;
-  return {state:st,tijd:new Date(d.meta.modifiedTime).getTime(),bron:'drive'};
+  return {state:st,tijd:new Date(d.meta.modifiedTime).getTime(),
+          tijdISO:d.meta.modifiedTime,bron:'drive'};
 }
 
 async function loadGist(){
@@ -7496,37 +7516,78 @@ async function loadGist(){
       renderAll();
       return;
     }
-    /* Staat er op dit apparaat werk dat Drive nooit heeft gekregen, en
-       is dat nieuwer dan wat er in Drive ligt? Dan is het weggooien
-       ervan een keuze die jij moet maken, niet de app. */
+    /* Staat er op dit apparaat werk dat Drive nooit heeft gekregen?
+       Dan zijn er twee heel verschillende gevallen, en die werden eerder
+       op één hoop gegooid door de lokale klok met die van Google te
+       vergelijken -- loopt je laptop een paar minuten voor, dan was
+       "lokaal is nieuwer" altijd waar en kreeg je de vraag bij elke start.
+
+       Nu telt alleen: is het bestand in Drive nog precies dat wat wij er
+       zelf als laatste in schreven? Dat is een vergelijking van twee
+       server-tijden, zonder klok van dit apparaat ertussen. */
     const lokaal=loadLocalBackupMeta();
-    if(syncOngesynct()&&lokaal&&lokaal.savedAt>d.tijd){
+    if(syncOngesynct()&&lokaal){
+      const stand=syncStand();
+      const driveIsVanOns=!!(stand.driveTijd&&d.tijdISO&&stand.driveTijd===d.tijdISO);
+      if(driveIsVanOns){
+        /* Geen conflict: Drive staat stil sinds onze laatste schrijfactie en
+           hier ligt nieuwer werk. Gewoon doorgaan en alsnog wegschrijven --
+           hier hoort geen vraag bij. */
+        rawState=lokaal.data;
+        hydrateerState();
+        lastLoadedAt=Date.now();
+        setSync('saving','Niet-opgeslagen wijzigingen wegschrijven...');
+        renderAll();
+        scheduleSave();
+        return;
+      }
+      /* Drive is wél veranderd sinds onze laatste schrijfactie: een ander
+         apparaat heeft geschreven. Nu is het een echte keuze. Wat je niet
+         kiest wordt eerst als herstelkopie bewaard, zodat geen van beide
+         antwoorden onomkeerbaar is. */
       const kies=confirm(
         'Op dit apparaat staan wijzigingen van '+new Date(lokaal.savedAt).toLocaleString('nl-NL')+
-        ' die nooit in Drive zijn opgeslagen.\nIn Drive staat een versie van '+
-        new Date(d.tijd).toLocaleString('nl-NL')+'.\n\n'+
+        ' die nooit in Drive zijn opgeslagen.\nIn Drive staat een nieuwere versie van '+
+        new Date(d.tijd).toLocaleString('nl-NL')+', van een ander apparaat.\n\n'+
         'OK  = de versie van dit apparaat gebruiken en alsnog naar Drive schrijven\n'+
-        'Annuleren = de versie uit Drive gebruiken (het lokale werk gaat verloren)');
+        'Annuleren = de versie uit Drive gebruiken\n\n'+
+        'Wat je niet kiest wordt als herstelkopie bewaard.');
       if(kies){
+        bewaarHerstelkopie('drive',d.state);
         rawState=lokaal.data;
         hydrateerState();
         lastLoadedAt=Date.now();
         setSync('saving','Lokale wijzigingen wegschrijven...');
         renderAll();
         scheduleSave();
+        meldHerstelkopie('de versie uit Drive');
         return;
       }
-      /* Bewust voor Drive gekozen: het lokale werk is daarmee afgedaan. */
-      syncMarkeerDrive(Date.now());
+      bewaarHerstelkopie('lokaal',lokaal.data);
+      /* Bewust voor Drive gekozen: het lokale werk is afgedaan, maar staat
+         nog wel in de herstelkopie. */
+      syncMarkeerDrive(Date.now(),d.tijdISO);
+      meldHerstelkopie('het werk van dit apparaat');
     }
     rawState=d.state||{};
     hydrateerState();
     lastLoadedAt=Date.now();
+    /* Vastleggen welke versie van Drive we nu in handen hebben. Zonder dit
+       had een apparaat dat nog nooit succesvol schreef geen ijkpunt, en
+       viel het bij het eerste onverzonden werk terug op de conflictvraag. */
+    syncOnthoudDriveTijd(d.tijdISO);
     setSync('saved','Geladen · '+new Date().toLocaleTimeString('nl-NL'));
     renderAll();
   }catch(e){
     console.error('Laden mislukt:',e);
-    driveGelezen=false;
+    /* driveGelezen wordt hier bewust NIET meer op false gezet. Was Drive
+       deze sessie al een keer gelezen, dan is de state in het geheugen van
+       Drive afkomstig en is wegschrijven veilig. Eerder zette één hapering
+       -- een netwerkblip, een traag token -- alle schrijfacties stil tot je
+       handmatig op ↻ klikte, en liep Drive uren achter terwijl de app
+       "opgeslagen" bleef zeggen. De vlag beschermt tegen het overschrijven
+       van goede data met een terugval; dat risico bestaat alleen zolang
+       Drive nog nooit gelezen is, en dan staat de vlag al op false. */
     /* Blokkeert de browser het venster waarmee Google de toegang
        vernieuwt, dan zegt de melding dat -- "Drive onbereikbaar" stuurt
        je anders de verkeerde kant op. */
@@ -7567,13 +7628,24 @@ function hydrateerState(){
   if(urenState.draft)urenDraft={...urenState.draft};
   if(rawState.geheim){
     pinVergrendeld=true;
+    /* Vanaf hier is de state in het geheugen onvolledig: facturen, uren en
+       de gevoelige klantvelden staan leeg tot het ontsleutelen klaar is.
+       Zolang die vlag uit staat mag niets deze state als volledige
+       waarheid wegschrijven -- zie geheimenKlaar(). */
+    geheimenGeladen=false;
+    /* Het net geladen blok is geldige ciphertext voor de huidige geheimen.
+       Meteen onthouden, zodat ook de eerste lokale kopie van deze sessie
+       al versleuteld is in plaats van pas na de eerste save. */
+    laatsteGeheimBlob=rawState.geheim;
     pinLeesBewaardeSleutel().then(async(bewaard)=>{
       if(!bewaard)return;
       try{
         pinZetGeheimenTerug(await pinOntsleutel(bewaard,rawState.geheim));
-        pinSleutel=bewaard; pinVergrendeld=false; renderAll();
+        pinSleutel=bewaard; pinVergrendeld=false; geheimenGeladen=true; renderAll();
       }catch(_){ pinVergeetApparaat(); }
     });
+  } else {
+    geheimenGeladen=true;
   }
   factuurState=rawState.facturen||{invoices:[],settings:{}};
   if(!factuurState.invoices)factuurState.invoices=[];
@@ -7613,9 +7685,13 @@ function syncMarkeerLokaal(){
 }
 /* `stempel` is het moment waarop de payload werd samengesteld. Alles wat
    daarna veranderde zit er niet in en telt dus nog als ongesynct. */
-function syncMarkeerDrive(stempel){
+function syncMarkeerDrive(stempel,driveTijd){
   try{
     const v=syncStand(); v.naarDriveOp=stempel||Date.now();
+    /* De modifiedTime die Drive zelf teruggaf. Alleen server-tijden worden
+       met server-tijden vergeleken -- de klok van dit apparaat komt er niet
+       meer aan te pas. */
+    if(driveTijd)v.driveTijd=driveTijd;
     localStorage.setItem(LS_SYNC_KEY,JSON.stringify(v));
   }catch(_){}
 }
@@ -7623,18 +7699,107 @@ function syncOngesynct(){
   const v=syncStand();
   return !!(v.gewijzigdOp&&(!v.naarDriveOp||v.gewijzigdOp>v.naarDriveOp));
 }
+/* Alleen onthouden wélke versie van Drive we gezien hebben, zonder te
+   beweren dat ons werk is weggeschreven. Dat tweede doet syncMarkeerDrive. */
+function syncOnthoudDriveTijd(tijdISO){
+  try{
+    if(!tijdISO)return;
+    const v=syncStand(); v.driveTijd=tijdISO;
+    localStorage.setItem(LS_SYNC_KEY,JSON.stringify(v));
+  }catch(_){}
+}
+
+/* ── Herstelkopie ──
+   Bij een echt conflict moest je vroeger één kant weggooien zonder weg
+   terug. Wat je niet kiest gaat nu eerst hierheen. Het is bewust één slot:
+   een tweede conflict overschrijft het vorige, maar de kans dat je twee
+   conflicten achter elkaar hebt én de eerste nog nodig hebt is klein
+   genoeg om die complexiteit niet te bouwen. */
+const LS_HERSTEL_KEY='herling_analytics_herstel';
+function bewaarHerstelkopie(bron,data){
+  try{
+    localStorage.setItem(LS_HERSTEL_KEY,JSON.stringify({
+      bron,bewaardOp:Date.now(),data
+    }));
+  }catch(_){}
+}
+function meldHerstelkopie(wat){
+  appToast('De niet-gekozen versie ('+wat+') is als herstelkopie bewaard. '+
+    'Typ herstelDownload() in de console om hem als bestand op te halen.',
+    {type:'info',duration:15000});
+}
+/* Vanuit de console op te roepen: zet de herstelkopie als bestand op je
+   schijf, zodat je er buiten de app om bij kunt. */
+function herstelDownload(){
+  const raw=localStorage.getItem(LS_HERSTEL_KEY);
+  if(!raw){console.log('Er staat geen herstelkopie klaar.');return null;}
+  const v=JSON.parse(raw);
+  const blob=new Blob([JSON.stringify(v.data,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='herling-herstelkopie-'+v.bron+'-'+
+    new Date(v.bewaardOp).toISOString().slice(0,19).replace(/[:T]/g,'-')+'.json';
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+  console.log('Herstelkopie van',v.bron,'bewaard op',new Date(v.bewaardOp).toLocaleString('nl-NL'));
+  return v;
+}
 
 /* Local backup — instant, no network. Single source of truth fallback
    als Drive onbereikbaar is. */
-function saveLocalBackup(){
+
+/* Zolang de geheimen niet ontsleuteld zijn staan facturen, uren en de
+   gevoelige klantvelden leeg in het geheugen. Die mogen de vorige kopie
+   niet overschrijven: dan bewaar je leeg over goed heen. De rest van de
+   state (taken, notities, checklist, agenda) is wél compleet en gaat
+   gewoon mee. */
+function houdGeheimeDelenUitVorige(nieuw,vorig){
+  if(!vorig)return nieuw;
+  const uit={...nieuw};
+  uit.facturen=vorig.facturen;
+  uit.uren=vorig.uren;
+  if(vorig.geheim)uit.geheim=vorig.geheim;
+  if(uit.tasks&&uit.tasks.clients&&vorig.tasks&&vorig.tasks.clients){
+    const oud=new Map(vorig.tasks.clients.map(c=>[c.id,c]));
+    uit.tasks={...uit.tasks,clients:uit.tasks.clients.map(c=>{
+      const o=oud.get(c.id);
+      if(!o)return c;
+      const heel={...c};
+      KLANT_GEHEIM.forEach(k=>{if(o[k]!==undefined)heel[k]=o[k];});
+      return heel;
+    })};
+  }
+  return uit;
+}
+
+/* Met een pincode aan gaat de lokale kopie er net zo uit als die in Drive:
+   de geheime delen eruit gestript, en het versleutelde blok dat saveGist
+   toch al maakte ernaast. Geen extra rekenwerk in het directe pad, en de
+   lokale kopie ligt niet meer leesbaar op de schijf.
+
+   Wel eerlijk zijn over de grens: onthoudt dit apparaat je pincode, dan
+   staat de sleutel in dezelfde localStorage. Dit helpt pas echt als je
+   "onthoud dit apparaat" uit laat. */
+/* `markeer=false` bij het herschrijven direct ná een geslaagde save: dan is
+   dit geen nieuwe wijziging, en zou het stempel de kopie ten onrechte als
+   ongesynct bestempelen. */
+function saveLocalBackup(markeer){
   try{
     rawState.tasks=kanbanState;
     rawState.notes=notesState;
     rawState.checklist=checklistState;
     if(typeof urenState!=='undefined')rawState.uren=urenState;
     if(typeof factuurState!=='undefined')rawState.facturen=factuurState;
-    localStorage.setItem(LS_BACKUP_KEY,JSON.stringify({data:rawState,savedAt:Date.now()}));
-    syncMarkeerLokaal();
+
+    let teBewaren=rawState;
+    if(!geheimenKlaar()){
+      teBewaren=houdGeheimeDelenUitVorige(rawState,loadLocalBackup());
+    } else if(pinIngeschakeld()&&laatsteGeheimBlob){
+      teBewaren=pinStripGeheimen({...rawState});
+      teBewaren.geheim=laatsteGeheimBlob;
+    }
+    localStorage.setItem(LS_BACKUP_KEY,JSON.stringify({data:teBewaren,savedAt:Date.now()}));
+    if(markeer!==false)syncMarkeerLokaal();
   }catch(e){}
 }
 /* Met tijdstempel erbij, om te kunnen vergelijken met wat Drive heeft. */
@@ -7654,7 +7819,23 @@ function loadLocalBackup(){
   }catch(e){return null;}
 }
 
+/* Twee saves tegelijk laten lopen kon een oudere versie als laatste bij
+   Drive laten aankomen -- en beide meldden daarna "opgeslagen". Er loopt er
+   nu hooguit één; komt er ondertussen een nieuw verzoek, dan wordt dat na
+   afloop één keer ingehaald. Samenvoegen in plaats van naast elkaar. */
+let saveBezig=false, saveNogmaals=false;
 async function saveGist(){
+  if(saveBezig){saveNogmaals=true;return;}
+  saveBezig=true;
+  try{
+    await saveGistIntern();
+  } finally {
+    saveBezig=false;
+    if(saveNogmaals){saveNogmaals=false;setTimeout(saveGist,0);}
+  }
+}
+
+async function saveGistIntern(){
   saveLocalBackup();   /* eerst lokaal: dat is het directe vangnet */
   setSync('saving','Opslaan...');
   rawState.tasks=kanbanState;
@@ -7672,9 +7853,26 @@ async function saveGist(){
       setSync('error','Vergrendeld - voer je pincode in om op te slaan');
       return;
     }
+    /* De poort: staat de sleutel er wel, maar zijn de geheimen nog niet
+       teruggezet, dan is factuurState/urenState leeg. Dat versleutelen en
+       wegschrijven wist je administratie in Drive. Liever niets doen en
+       het bij de volgende wijziging opnieuw proberen. */
+    if(!geheimenGeladen){
+      setSync('error','Nog aan het ontsleutelen - even niet opgeslagen');
+      return;
+    }
     const geheim=await pinVersleutel(pinSleutel,pinPakGeheimen());
     payload=pinStripGeheimen({...payload});
     payload.geheim=geheim;
+    /* Dezelfde ciphertext hergebruiken voor de lokale kopie, en die meteen
+       bijwerken -- niet pas ná een geslaagde schrijfactie. Anders zou de
+       lokale kopie van je facturen en uren zo oud zijn als je laatste
+       gelukte Drive-save, terwijl dit juist het vangnet is voor het geval
+       Drive níet bereikbaar is. */
+    laatsteGeheimBlob=geheim;
+    saveLocalBackup(false);
+  } else {
+    laatsteGeheimBlob=null;
   }
   /* Is Drive deze sessie niet gelezen, dan werk je met een terugval.
      Die naar Drive schrijven zou de goede administratie kunnen
@@ -7694,11 +7892,14 @@ async function saveGist(){
      verandert hoort niet bij deze schrijfactie. */
   const stempel=Date.now();
   try{
-    await driveSchrijf({_bron:'app',_opgeslagenOp:new Date().toISOString(),state:payload});
+    const res=await driveSchrijf({_bron:'app',_opgeslagenOp:new Date().toISOString(),state:payload});
     driveLaatsteFout=null;
     saveRetryStap=0;
     clearTimeout(saveRetryTimer); saveRetryTimer=null;
-    syncMarkeerDrive(stempel);
+    /* Drive's eigen modifiedTime meenemen. Daarmee kan de volgende start
+       "is Drive veranderd sinds ik schreef?" beantwoorden zonder de klok
+       van dit apparaat met die van Google te vergelijken. */
+    syncMarkeerDrive(stempel,res&&res.modifiedTime);
     setSync('saved','Opgeslagen · '+new Date().toLocaleTimeString('nl-NL'));
     if(typeof updateNavBadges==='function')updateNavBadges();
   }catch(e){
@@ -7753,9 +7954,14 @@ document.addEventListener('visibilitychange',()=>{
 
 /* ─ Manual 'Ververs' button — pulls from remote and re-renders ─ */
 async function refreshGist(){
-  if(saveTimer){
+  /* Ook een wachtende herkansing telt als onopgeslagen werk. Die werd hier
+     eerder niet gewist: dan verving loadGist de state, waarna de herkansing
+     alsnog vuurde over verse gegevens heen. Met een pincode erop was dat
+     het pad waarlangs een leeg versleuteld blok in Drive belandde. */
+  if(saveTimer||saveRetryTimer||syncOngesynct()){
     if(!confirm('Er zijn wijzigingen die nog niet zijn opgeslagen. Bij verversen gaan ze verloren. Doorgaan?'))return;
     clearTimeout(saveTimer);saveTimer=null;
+    clearTimeout(saveRetryTimer);saveRetryTimer=null;saveRetryStap=0;
   }
   await loadGist();
   appToast('Gegevens opnieuw opgehaald',{type:'success',duration:2500});
@@ -9481,11 +9687,9 @@ function googleGereed(maxMs){
    voor Drive is een apart toegangstoken nodig. Google vernieuwt dat
    stil zolang je bent ingelogd; alleen de eerste keer is er een
    toestemmingsvenster. */
-async function driveVraagToken(interactief){
-  if(!driveToken)driveToken=driveTokenUitSessie();
-  if(driveToken&&Date.now()<driveToken.tot-60000)return driveToken.token;
-  if(!(await googleGereed(8000)))
-    throw new Error('Google-bibliotheek kon niet geladen worden');
+/* Eén ruwe tokenaanvraag bij Google. Levert het tokenobject; de aanroeper
+   bepaalt of het het huidige token mag vervangen. */
+function driveNieuwToken(interactief){
   return new Promise((res,rej)=>{
     const gebruiker=ingelogdeGebruiker();
     try{
@@ -9496,9 +9700,7 @@ async function driveVraagToken(interactief){
         hd:TOEGESTAAN_DOMEIN,
         callback:(r)=>{
           if(r.error)return rej(new Error(r.error_description||r.error));
-          driveToken={token:r.access_token,tot:Date.now()+(Number(r.expires_in||3600)*1000)};
-          driveTokenBewaar(driveToken);
-          res(driveToken.token);
+          res({token:r.access_token,tot:Date.now()+(Number(r.expires_in||3600)*1000)});
         },
         error_callback:(e)=>rej(new Error((e&&e.message)||'Toestemming geweigerd'))
       });
@@ -9506,6 +9708,69 @@ async function driveVraagToken(interactief){
     }catch(e){rej(e);}
   });
 }
+
+/* Eén lopende aanvraag tegelijk. Een schrijfactie doet twee API-calls
+   (zoeken + uploaden) en die vroegen bij een verlopen token allebei
+   tegelijk een nieuwe aan -- twee vensters, waarvan de browser er meestal
+   één blokkeerde. Dat kwam op het scherm aan als "opnieuw verbinden". */
+let driveTokenBezig=null;
+async function driveVraagToken(interactief){
+  if(!driveToken)driveToken=driveTokenUitSessie();
+  if(driveToken&&Date.now()<driveToken.tot-60000)return driveToken.token;
+  if(driveTokenBezig)return driveTokenBezig;
+  driveTokenBezig=(async()=>{
+    if(!(await googleGereed(8000)))
+      throw new Error('Google-bibliotheek kon niet geladen worden');
+    const t=await driveNieuwToken(interactief);
+    driveToken=t;
+    driveTokenBewaar(t);
+    drivePlanTokenVerversing();
+    return t.token;
+  })();
+  try{ return await driveTokenBezig; }
+  finally{ driveTokenBezig=null; }
+}
+
+/* ── Vooruit vernieuwen ──
+   Het token is een uur geldig en werd pas vernieuwd op het moment dat er
+   geschreven moest worden. Een opslag die 1,5 seconde ná je laatste
+   toetsaanslag vuurt heeft geen klik-context, en zonder klik blokkeert de
+   browser het venster waarmee Google stil vernieuwt. Daarom nu ruim
+   vooraf, terwijl het tabblad zichtbaar is en het huidige token nog werkt:
+   mislukt het, dan is er nog tien minuten om het opnieuw te proberen
+   zonder dat jij er iets van merkt. */
+let driveVerversTimer=null;
+function drivePlanTokenVerversing(){
+  clearTimeout(driveVerversTimer);
+  if(!driveToken)return;
+  const marge=10*60*1000;
+  const wacht=Math.max(60000,driveToken.tot-Date.now()-marge);
+  driveVerversTimer=setTimeout(driveVerversToken,wacht);
+}
+async function driveVerversToken(){
+  /* Een verborgen tabblad krijgt geen venster van Google; dan liever
+     wachten tot je terug bent dan de gebruiker een blokkade opleveren. */
+  if(document.visibilityState==='hidden'){
+    driveVerversTimer=setTimeout(driveVerversToken,60000);
+    return;
+  }
+  try{
+    if(!(await googleGereed(8000)))return;
+    const t=await driveNieuwToken(false);
+    driveToken=t;
+    driveTokenBewaar(t);
+  }catch(_){
+    /* Stil laten: het huidige token is nog geldig. Lukt het straks weer
+       niet, dan merkt de schrijfactie het en volgt de gewone herkansing. */
+  }
+  drivePlanTokenVerversing();
+}
+/* Kom je terug op een tabblad dat lang weg is geweest, dan kan het token
+   inmiddels verlopen zijn. Meteen ophalen, nu er wél een gebruiker is. */
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState!=='visible'||!DRIVE_ACTIEF)return;
+  if(driveToken&&Date.now()>driveToken.tot-10*60*1000)driveVerversToken();
+});
 
 async function driveApi(pad,opties){
   const token=await driveVraagToken(false);
@@ -18813,6 +19078,7 @@ async function pinBevestig(){
       rawState.settings=rawState.settings||{};
       rawState.settings.versleuteld={v:1,salt,rondes:PIN_RONDES};
       pinVergrendeld=false;
+      geheimenGeladen=true;  /* de geheimen stonden al leesbaar in het geheugen */
       await pinBewaarSleutel(pinSleutel);
       scheduleSave();
       closePinModal();
@@ -18833,6 +19099,7 @@ async function pinBevestig(){
     }
     pinSleutel=sleutel;
     pinVergrendeld=false;
+    geheimenGeladen=true;  /* ontsleuteld: de state is weer compleet */
 
     if(pinModus==='uit'){
       delete rawState.settings.versleuteld;
