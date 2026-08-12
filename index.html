@@ -15997,7 +15997,7 @@ function urenTplCalRender(){
   if(!titleEl||!daysEl)return;
   const MONTHS=['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'];
   titleEl.textContent=MONTHS[urenTplCalMonth]+' '+urenTplCalYear;
-  const today=new Date().toISOString().slice(0,10);
+  const today=dateStr(new Date());
   const firstDow=new Date(urenTplCalYear,urenTplCalMonth,1).getDay();
   const startOffset=(firstDow===0?6:firstDow-1);
   const daysInMonth=new Date(urenTplCalYear,urenTplCalMonth+1,0).getDate();
@@ -16487,10 +16487,31 @@ function facVulTekst(sjabloon,f,afz,totalen){
 /* negeerId: de factuur die zelf een nummer krijgt telt niet mee als
    "al in gebruik" — anders schuift het nummer dat je in het concept
    zag bij versturen een plek op. */
-function factuurVolgendNummer(peek,negeerId,bedrijfId){
+/* ── Het volgnummer uit een bestaand factuurnummer halen ──
+   Dit deed eerder `replace(/\D/g,'')` over het hele nummer, dus cijfers in
+   de prefix telden gewoon mee. Met prefix "2026-" werd na 2026-000001 het
+   volgende nummer 2026-2026000002: de reeks was stuk en er stond onzin op
+   een juridisch document. Met de standaardprefix "F" viel het niet op,
+   waardoor je het pas merkt als je hem aanpast -- en een jaartal in het
+   factuurnummer is nou juist het meest voor de hand liggende.
+
+   Nu: eerst de prefix eraf, dan alleen de aaneengesloten cijfers aan het
+   eind. Staat er een oud nummer met een andere prefix tussen, dan valt het
+   terug op diezelfde staart en blijft de uitkomst bruikbaar. */
+function factuurVolgnummerUit(nummer,prefix){
+  let s=String(nummer||'');
+  const p=String(prefix||'');
+  if(p&&s.startsWith(p))s=s.slice(p.length);
+  const m=s.match(/(\d+)\s*$/);
+  return m?parseInt(m[1],10):NaN;
+}
+/* `datum` is de factuurdatum. Zonder die parameter keek de reeks naar het
+   jaar van vandaag: een factuur die je op 2 januari maakt maar op 31
+   december dateert, belandde dan in de verkeerde jaarreeks. */
+function factuurVolgendNummer(peek,negeerId,bedrijfId,datum){
   const bedrijf=factuurBedrijf(bedrijfId);
   const n=bedrijf.nummer;
-  const jaar=new Date().getFullYear();
+  const jaar=datum?new Date(datum+'T00:00:00').getFullYear():new Date().getFullYear();
   let volg=n.volgend||1;
   if(n.perJaar&&n.jaar!==jaar&&!peek){n.jaar=jaar;volg=1;}
   else if(n.perJaar&&n.jaar!==jaar)volg=1;
@@ -16498,7 +16519,7 @@ function factuurVolgendNummer(peek,negeerId,bedrijfId){
      andere bedrijven hebben hun eigen reeks. */
   const gebruikt=factuurState.invoices
     .filter(f=>f.id!==negeerId&&factuurBedrijfIdVan(f)===bedrijf.id)
-    .map(f=>parseInt(String(f.nummer||'').replace(/\D/g,''),10))
+    .map(f=>factuurVolgnummerUit(f.nummer,n.prefix))
     .filter(v=>!isNaN(v));
   if(gebruikt.length)volg=Math.max(volg,Math.max(...gebruikt)+1);
   const nummer=n.prefix+String(volg).padStart(n.cijfers||6,'0');
@@ -16621,14 +16642,22 @@ function factuurTotalen(f){
 }
 
 /* ── Datum & status ── */
+/* ── Datums zijn kalenderdagen, geen tijdstippen ──
+   `new Date('2026-08-12T00:00:00')` is lokale middernacht; in Nederland is
+   dat 22:00 of 23:00 UTC de dág ervoor. Werd dat teruggelezen met
+   toISOString(), dan ging er overal een dag vanaf: elke factuur kreeg een
+   vervaldatum die één dag te vroeg was, en dat werkte door in de mailtekst,
+   in "dagen te laat" en in het debiteurenoverzicht. dateStr() leest de
+   lokale kalenderdag en doet die omweg via UTC niet. */
+function factuurVandaag(){return dateStr(new Date());}
 function factuurVervaldatum(datum,termijn){
   const d=new Date(datum+'T00:00:00');
   d.setDate(d.getDate()+Number(termijn||30));
-  return d.toISOString().slice(0,10);
+  return dateStr(d);
 }
 function factuurDagenTeLaat(f){
   if(f.status!=='verstuurd'||!f.vervaldatum)return 0;
-  const vandaag=new Date().toISOString().slice(0,10);
+  const vandaag=factuurVandaag();
   if(vandaag<=f.vervaldatum)return 0;
   return Math.round((new Date(vandaag)-new Date(f.vervaldatum))/86400000);
 }
@@ -16728,14 +16757,14 @@ function factuurStandaardBetreft(clientId,from,to){
 function factuurNieuw(clientId,from,to){
   const s=factuurSettings();
   const klant=factuurKlantVol(clientId);
-  const datum=new Date().toISOString().slice(0,10);
+  const datum=dateStr(new Date());
   const termijn=(klant&&klant.betaaltermijn)||s.betaaltermijn;
   const betreft=clientId?factuurStandaardBetreft(clientId,from,to):'';
   const bedrijfId=(klant&&klant.bedrijfId)||s.standaardBedrijf;
   const f={
     id:factuurUid(),
     bedrijfId,
-    nummer:factuurVolgendNummer(true,null,bedrijfId), /* pas vast bij versturen */
+    nummer:factuurVolgendNummer(true,null,bedrijfId,datum), /* pas vast bij versturen */
     status:'concept',
     clientId:clientId||null,
     datum, vervaldatum:factuurVervaldatum(datum,termijn),
@@ -16777,11 +16806,11 @@ function factuurVerwijder(ids){
 function factuurDupliceer(id){
   const bron=factuurById(id);
   if(!bron)return null;
-  const datum=new Date().toISOString().slice(0,10);
+  const datum=dateStr(new Date());
   const klant=factuurKlant(bron.clientId);
   const f=JSON.parse(JSON.stringify(bron));
   f.id=factuurUid();
-  f.nummer=factuurVolgendNummer(true,null,factuurBedrijfIdVan(bron));
+  f.nummer=factuurVolgendNummer(true,null,factuurBedrijfIdVan(bron),datum);
   f.status='concept';
   f.datum=datum;
   f.vervaldatum=factuurVervaldatum(datum,(klant&&klant.betaaltermijn)||factuurSettings().betaaltermijn);
@@ -16858,7 +16887,7 @@ function factuurMarkeerVerstuurd(id){
   const nummers=factuurState.invoices
     .filter(x=>x.id!==f.id&&factuurBedrijfIdVan(x)===bedrijfId).map(x=>x.nummer);
   if(!f.nummerVast||nummers.includes(f.nummer))
-    f.nummer=factuurVolgendNummer(false,f.id,bedrijfId);
+    f.nummer=factuurVolgendNummer(false,f.id,bedrijfId,f.datum);
   f.nummerVast=true;
   f.klant=factuurKlantSnapshot(factuurKlant(f.clientId));
   f.afzender=factuurAfzenderSnapshot(bedrijfId);
@@ -16874,7 +16903,7 @@ function factuurMarkeerBetaald(id,bedrag,datum){
   const t=factuurTotalen(f);
   const b=bedrag==null?t.openstaand:Number(bedrag);
   f.betalingen=f.betalingen||[];
-  f.betalingen.push({datum:datum||new Date().toISOString().slice(0,10),bedrag:Math.round(b*100)/100});
+  f.betalingen.push({datum:datum||dateStr(new Date()),bedrag:Math.round(b*100)/100});
   const na=factuurTotalen(f);
   if(na.openstaand<=0.004){f.status='betaald';f.betaaldOp=new Date().toISOString();}
   f.updatedAt=Date.now();
@@ -17538,7 +17567,7 @@ function facMailVoorbeeldFactuur(){
   const echt=(factuurState.invoices||[]).filter(f=>f.status!=='concept')
     .sort((a,b)=>String(b.datum).localeCompare(String(a.datum)))[0];
   if(echt)return echt;
-  const vandaag=new Date().toISOString().slice(0,10);
+  const vandaag=dateStr(new Date());
   return {id:'voorbeeld',nummer:'F000001',datum:vandaag,
     vervaldatum:factuurVervaldatum(vandaag,30),betreft:'Werkzaamheden mei',
     clientId:null,betalingen:[],regels:[{aantal:10,stuksprijs:100,btwTarief:21}],
@@ -17676,7 +17705,7 @@ function facRenderKlanten(){
 function facNieuwStart(){
   const eind=new Date();
   const start=new Date(eind.getFullYear(),eind.getMonth(),1);
-  facWizard={clientId:null,from:start.toISOString().slice(0,10),to:eind.toISOString().slice(0,10)};
+  facWizard={clientId:null,from:dateStr(start),to:dateStr(eind)};
   facWizardRender();
   document.getElementById('facWizardModal').classList.add('open');
 }
@@ -17960,7 +17989,7 @@ function facEdVeld(el,key){
     /* Concept? Dan hoort het voorgestelde nummer bij de reeks van het
        nieuwe bedrijf. Een verstuurde factuur houdt zijn nummer. */
     if(f.status==='concept'&&!f.nummerVast)
-      factuurUpdate(f.id,{nummer:factuurVolgendNummer(true,f.id,waarde)});
+      factuurUpdate(f.id,{nummer:factuurVolgendNummer(true,f.id,waarde,f.datum)});
     facEditorRender();return;
   }
   if(key==='clientId'){
@@ -18437,7 +18466,7 @@ function facSjabloonVoorbeeld(){
     /* Voorbeeld voor een echte klant: neem zijn openstaande uren, of
        anders een dag tegen zijn eigen tarief. */
     const klant=factuurKlant(facSjVoorbeeld.slice(6));
-    const vandaag=new Date().toISOString().slice(0,10);
+    const vandaag=dateStr(new Date());
     const maand=vandaag.slice(0,8)+'01';
     const regels=klant?factuurRegelsUitUren(klant.id,'1970-01-01',vandaag,
       factuurStandaardBetreft(klant.id,maand,vandaag)):[];
@@ -18459,7 +18488,7 @@ function facSjabloonVoorbeeld(){
         btwTarief:(klant&&klant.btwTarief!=null)?klant.btwTarief:s.btwStandaard,urenIds:[]}]
     };
   } else if(facSjVoorbeeld==='leeg'){
-    const vandaag=new Date().toISOString().slice(0,10);
+    const vandaag=dateStr(new Date());
     basis={
       id:'voorbeeld', bedrijfId:s.standaardBedrijf,
       nummer:factuurVolgendNummer(true,null,s.standaardBedrijf),
@@ -19358,7 +19387,11 @@ function facPdfAdres(ctx,b,x,y,w,soort){
     if(v.tav!==false&&k.contactpersoon)regels.push('t.a.v. '+k.contactpersoon);
     if(v.adres!==false){regels.push(k.adres);regels.push((k.postcode||'')+' '+(k.plaats||''));}
     if(v.land&&k.land)regels.push(k.land);
-    if(v.btw&&k.btwNummer)regels.push('Btw: '+k.btwNummer);
+    /* Bij verlegde btw is het btw-nummer van de afnemer wettelijk verplicht
+       op de factuur. Dat mag dus niet afhangen van een vinkje in de
+       sjabloonbouwer -- stond dat uit, dan ging er een onvolledige factuur
+       de deur uit zonder dat iets het zei. */
+    if((v.btw||ctx.f&&ctx.f.btwVerlegd)&&k.btwNummer)regels.push('Btw: '+k.btwNummer);
   }
   regels=regels.filter(r=>r&&String(r).trim());
   let h=0;

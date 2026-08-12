@@ -528,3 +528,29 @@ En de herstelkopie zette met een pincode aan alles leesbaar op schijf: in het ge
 **Bestanden**: `index.html` — `loadGist` (conflicttak vervangen door herstelkopie + melding), `meldLokaalTerugzetbaar`, `herstelLokaalTerug`, `bewaarHerstelkopie`, `refreshGist`, `appToast` (`actieLabel`)
 
 **Niet doen**: de blokkerende vraag terugzetten "omdat de gebruiker het dan zeker weet". Dat was precies de klacht. Wil je iets veiliger maken, maak dan de terugzet-knop beter vindbaar — niet het laden trager.
+
+## 2026-08-12 · Facturatie klaarmaken voor echte klanten: datums en nummerreeks
+
+**Aanleiding**: Frank gaat de facturatiemodule daadwerkelijk gebruiken om facturen naar klanten te sturen. Een doorloop van de uren- en facturatiemodule met die bril op leverde twee fouten op die élke verstuurde factuur zouden raken, plus twee die pas bij bepaalde instellingen opspelen.
+
+**1. De vervaldatum stond structureel één dag te vroeg op de factuur.** `factuurVervaldatum` maakte `new Date(datum+'T00:00:00')` — lokale middernacht — en las dat terug met `toISOString().slice(0,10)`. In Nederland is lokale middernacht 22:00 of 23:00 UTC de dág ervoor, dus er ging overal een dag vanaf. `2026-08-12 + 30` gaf `2026-09-10` in plaats van `2026-09-11`.
+
+Het werkte door in de mailtekst (`{vervaldatum}`), in `factuurDagenTeLaat` en in het debiteurenoverzicht. Dezelfde omweg zat op nog acht plekken in de facturen- en urenmodule, waaronder `facNieuwStart`: daar werd de eerste van de maand de laatste dag van de vórige maand, zodat de wizard een dag te veel uren ophaalde.
+
+*Beslissing*: overal `dateStr()` gebruiken — die stond er al voor de agenda en leest de lokale kalenderdag zonder omweg via UTC. Een factuurdatum is een kalenderdag, geen tijdstip; die hoort niet door een tijdzone te reizen.
+
+**2. Een prefix met cijfers vernielde de nummerreeks.** Het volgnummer werd uit een bestaand factuurnummer gehaald met `replace(/\D/g,'')`, wat álle niet-cijfers strípt — dus de prefix telde mee. Met prefix `2026-` werd na `2026-000001` het volgende nummer `2026-2026000002`.
+
+Met de standaardprefix `F` valt dat niet op, waardoor je het pas merkt als je hem aanpast — en een jaartal in het factuurnummer is nou juist het meest voor de hand liggende dat je instelt. Op een document met een wettelijk doorlopende reeks is dat geen schoonheidsfoutje.
+
+*Beslissing*: `factuurVolgnummerUit(nummer,prefix)` haalt eerst de prefix eraf en pakt dan alleen de aaneengesloten cijfers aan het eind. Staat er een oud nummer met een andere prefix tussen, dan valt het terug op diezelfde staart en blijft de uitkomst bruikbaar.
+
+**3. De jaarreeks keek naar het jaar van vandaag, niet naar de factuurdatum.** Met "per jaar opnieuw nummeren" aan belandde een factuur die je op 2 januari maakt maar op 31 december dateert, in de verkeerde reeks. `factuurVolgendNummer` krijgt nu de factuurdatum mee; alle aanroepen die bij een echte factuur horen geven hem door. De voorbeelden in het instellingenscherm niet — die tonen bewust wat er *vandaag* uit zou komen.
+
+**4. Bij verlegde btw werd het btw-nummer van de klant niet gegarandeerd afgedrukt.** Dat hing af van het vinkje "btw" in de sjabloonbouwer. Bij verlegging is het btw-nummer van de afnemer wettelijk verplicht; stond het vinkje uit, dan ging er een onvolledige factuur de deur uit zonder dat iets het zei. Nu wordt het afgedwongen zodra `f.btwVerlegd` aanstaat, ongeacht het sjabloon.
+
+**Bestanden**: `index.html` — `factuurVandaag`, `factuurVervaldatum`, `factuurDagenTeLaat`, `factuurVolgnummerUit`, `factuurVolgendNummer` (+ vier aanroepen), `facNieuwStart`, `facPdfBlokAdres`
+
+**Wat hiermee nog níet is opgelost** (besproken, bewust uitgesteld): er is geen creditfactuur, terwijl de verwijderdialoog zelf zegt dat crediteren juister is; een verstuurde factuur blijft volledig bewerkbaar; uren die op een verstuurde factuur staan kun je zonder waarschuwing verwijderen, waarna de specificatie niet meer klopt met wat de klant kreeg; en er zijn geen betalingsherinneringen. Van die vier is de creditfactuur de belangrijkste zodra er echt facturen de deur uit gaan.
+
+**Niet doen**: `toISOString().slice(0,10)` opnieuw gebruiken voor een kalenderdatum. Voor tijdstippen is het prima, voor datums schuift het een dag.
