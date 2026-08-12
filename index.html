@@ -7516,59 +7516,19 @@ async function loadGist(){
       renderAll();
       return;
     }
-    /* Staat er op dit apparaat werk dat Drive nooit heeft gekregen?
-       Dan zijn er twee heel verschillende gevallen, en die werden eerder
-       op één hoop gegooid door de lokale klok met die van Google te
-       vergelijken -- loopt je laptop een paar minuten voor, dan was
-       "lokaal is nieuwer" altijd waar en kreeg je de vraag bij elke start.
+    /* ── Drive wint, altijd ──
+       Hier stond een confirm() die je bij elke start kon tegenkomen en die
+       je dwong te kiezen voordat je iets zag. Dat is precies verkeerd om:
+       verversen hoort te betekenen dat je de versie uit de cloud krijgt,
+       zonder eerst een vraag te beantwoorden.
 
-       Nu telt alleen: is het bestand in Drive nog precies dat wat wij er
-       zelf als laatste in schreven? Dat is een vergelijking van twee
-       server-tijden, zonder klok van dit apparaat ertussen. */
+       Dus: Drive is de bron, punt. Stond er lokaal werk dat Drive nooit
+       heeft gekregen, dan gaat dat niet verloren maar naar de herstelkopie,
+       met een melding die het met één klik terugzet. Niets blokkeert en
+       niets wordt weggegooid. */
     const lokaal=loadLocalBackupMeta();
-    if(syncOngesynct()&&lokaal){
-      const stand=syncStand();
-      const driveIsVanOns=!!(stand.driveTijd&&d.tijdISO&&stand.driveTijd===d.tijdISO);
-      if(driveIsVanOns){
-        /* Geen conflict: Drive staat stil sinds onze laatste schrijfactie en
-           hier ligt nieuwer werk. Gewoon doorgaan en alsnog wegschrijven --
-           hier hoort geen vraag bij. */
-        rawState=lokaal.data;
-        hydrateerState();
-        lastLoadedAt=Date.now();
-        setSync('saving','Niet-opgeslagen wijzigingen wegschrijven...');
-        renderAll();
-        scheduleSave();
-        return;
-      }
-      /* Drive is wél veranderd sinds onze laatste schrijfactie: een ander
-         apparaat heeft geschreven. Nu is het een echte keuze. Wat je niet
-         kiest wordt eerst als herstelkopie bewaard, zodat geen van beide
-         antwoorden onomkeerbaar is. */
-      const kies=confirm(
-        'Op dit apparaat staan wijzigingen van '+new Date(lokaal.savedAt).toLocaleString('nl-NL')+
-        ' die nooit in Drive zijn opgeslagen.\nIn Drive staat een nieuwere versie van '+
-        new Date(d.tijd).toLocaleString('nl-NL')+', van een ander apparaat.\n\n'+
-        'OK  = de versie van dit apparaat gebruiken en alsnog naar Drive schrijven\n'+
-        'Annuleren = de versie uit Drive gebruiken\n\n'+
-        'Wat je niet kiest wordt als herstelkopie bewaard.');
-      if(kies){
-        bewaarHerstelkopie('drive',d.state);
-        rawState=lokaal.data;
-        hydrateerState();
-        lastLoadedAt=Date.now();
-        setSync('saving','Lokale wijzigingen wegschrijven...');
-        renderAll();
-        scheduleSave();
-        meldHerstelkopie('de versie uit Drive');
-        return;
-      }
-      bewaarHerstelkopie('lokaal',lokaal.data);
-      /* Bewust voor Drive gekozen: het lokale werk is afgedaan, maar staat
-         nog wel in de herstelkopie. */
-      syncMarkeerDrive(Date.now(),d.tijdISO);
-      meldHerstelkopie('het werk van dit apparaat');
-    }
+    const lokaalOnverzonden=!!(syncOngesynct()&&lokaal);
+    if(lokaalOnverzonden)bewaarHerstelkopie('lokaal',lokaal.data);
     rawState=d.state||{};
     hydrateerState();
     lastLoadedAt=Date.now();
@@ -7578,6 +7538,15 @@ async function loadGist(){
     syncOnthoudDriveTijd(d.tijdISO);
     setSync('saved','Geladen · '+new Date().toLocaleTimeString('nl-NL'));
     renderAll();
+    if(lokaalOnverzonden){
+      /* Het lokale werk is niet weg -- het staat in de herstelkopie. Deze
+         markering zorgt dat dezelfde melding niet bij élke volgende start
+         terugkomt: de keuze is gemaakt, Drive is nu de basis. */
+      syncMarkeerDrive(Date.now(),d.tijdISO);
+      meldLokaalTerugzetbaar(lokaal.savedAt,d.tijd);
+      return 'gemeld';   /* er staat al een melding; niet overschrijven */
+    }
+    return 'ok';
   }catch(e){
     console.error('Laden mislukt:',e);
     /* driveGelezen wordt hier bewust NIET meer op false gezet. Was Drive
@@ -7718,15 +7687,54 @@ function syncOnthoudDriveTijd(tijdISO){
 const LS_HERSTEL_KEY='herling_analytics_herstel';
 function bewaarHerstelkopie(bron,data){
   try{
+    let bewaren=data;
+    /* Met een pincode aan hoort ook de herstelkopie niet leesbaar op de
+       schijf te staan. In het geheugen zijn de geheimen ontsleuteld, dus een
+       kale kopie zou juist hier alles alsnog uitlekken. Alleen strippen als
+       er een versleuteld blok is om te bewaren -- anders gooi je ze weg. */
+    if(pinIngeschakeld()&&data&&data.geheim){
+      bewaren=pinStripGeheimen({...data});
+      bewaren.geheim=data.geheim;
+    }
     localStorage.setItem(LS_HERSTEL_KEY,JSON.stringify({
-      bron,bewaardOp:Date.now(),data
+      bron,bewaardOp:Date.now(),data:bewaren
     }));
   }catch(_){}
 }
-function meldHerstelkopie(wat){
-  appToast('De niet-gekozen versie ('+wat+') is als herstelkopie bewaard. '+
-    'Typ herstelDownload() in de console om hem als bestand op te halen.',
-    {type:'info',duration:15000});
+/* Drive is geladen, maar er stond hier werk dat daar nooit aankwam. Geen
+   dialoog die het laden ophoudt: een melding die zegt wat er is gebeurd,
+   met een knop die het alsnog terugzet. De keuze blijft, de blokkade niet. */
+function meldLokaalTerugzetbaar(savedAt,driveTijd){
+  const t=ms=>new Date(ms).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});
+  /* Beide tijden noemen. De versie uit Drive kan ouder zijn dan wat hier
+     stond -- dat is juist het geval waarin je wilt weten dat er een knop
+     naast staat, en de oude tekst noemde Drive dan ten onrechte "nieuwer". */
+  const lokaalNieuwer=savedAt>driveTijd;
+  appToast('Geladen uit Drive ('+t(driveTijd)+'). Op dit apparaat stond werk van '+
+    t(savedAt)+' dat Drive nooit heeft gekregen'+
+    (lokaalNieuwer?' — dat is dus nieuwer':'')+
+    '. Het is bewaard; hiernaast zet je het alsnog terug.',
+    {type:'warning',duration:20000,
+     actieLabel:'↺ Werk van dit apparaat gebruiken',
+     undo:herstelLokaalTerug});
+}
+/* Zet de bewaarde lokale versie alsnog terug en schrijf hem naar Drive. */
+function herstelLokaalTerug(){
+  const raw=localStorage.getItem(LS_HERSTEL_KEY);
+  if(!raw){appToast('Er staat geen herstelkopie klaar',{type:'warning'});return;}
+  let v;
+  try{v=JSON.parse(raw);}catch(_){appToast('De herstelkopie is onleesbaar',{type:'error'});return;}
+  if(!v||!v.data){appToast('De herstelkopie is leeg',{type:'warning'});return;}
+  /* Wat nu op het scherm staat komt uit Drive; die kant bewaren we op zijn
+     beurt, zodat ook deze stap terug te draaien is. */
+  bewaarHerstelkopie('drive',JSON.parse(JSON.stringify(rawState)));
+  rawState=v.data;
+  hydrateerState();
+  lastLoadedAt=Date.now();
+  renderAll();
+  scheduleSave();
+  appToast('De versie van dit apparaat is teruggezet en gaat naar Drive. '+
+    'De versie uit Drive staat nu in de herstelkopie.',{type:'success',duration:10000});
 }
 /* Vanuit de console op te roepen: zet de herstelkopie als bestand op je
    schijf, zodat je er buiten de app om bij kunt. */
@@ -7954,17 +7962,20 @@ document.addEventListener('visibilitychange',()=>{
 
 /* ─ Manual 'Ververs' button — pulls from remote and re-renders ─ */
 async function refreshGist(){
-  /* Ook een wachtende herkansing telt als onopgeslagen werk. Die werd hier
-     eerder niet gewist: dan verving loadGist de state, waarna de herkansing
-     alsnog vuurde over verse gegevens heen. Met een pincode erop was dat
-     het pad waarlangs een leeg versleuteld blok in Drive belandde. */
-  if(saveTimer||saveRetryTimer||syncOngesynct()){
-    if(!confirm('Er zijn wijzigingen die nog niet zijn opgeslagen. Bij verversen gaan ze verloren. Doorgaan?'))return;
-    clearTimeout(saveTimer);saveTimer=null;
-    clearTimeout(saveRetryTimer);saveRetryTimer=null;saveRetryStap=0;
-  }
-  await loadGist();
-  appToast('Gegevens opnieuw opgehaald',{type:'success',duration:2500});
+  /* Geen vraag meer vooraf. Verversen betekent: haal de versie uit Drive,
+     nu. Wat hier nog niet verzonden was gaat naar de herstelkopie en is met
+     één klik terug te zetten -- dus er valt niets te bevestigen.
+
+     Wél eerst de wachtende herkansing wissen. Die werd hier eerder niet
+     gewist: dan verving loadGist de state, waarna de herkansing alsnog
+     vuurde over verse gegevens heen. Met een pincode erop was dat het pad
+     waarlangs een leeg versleuteld blok in Drive belandde. */
+  clearTimeout(saveTimer);saveTimer=null;
+  clearTimeout(saveRetryTimer);saveRetryTimer=null;saveRetryStap=0;
+  /* Alleen bevestigen als loadGist niet al iets belangrijkers meldde --
+     anders overschrijft "opgehaald" net de waarschuwing die ertoe doet. */
+  if(await loadGist()==='ok')
+    appToast('Gegevens opnieuw opgehaald',{type:'success',duration:2500});
 }
 
 /* ═══════════════════════════════════════════════════
@@ -10345,6 +10356,9 @@ function appToast(msg,opts){
   const undoBtn=document.getElementById('undoToastUndoBtn');
   if(opts.undo&&typeof opts.undo==='function'){
     undoBtn.style.display='';
+    /* De knop is niet altijd "ongedaan maken" -- soms is het een keuze die
+       je alsnog kunt maken. Dan hoort er ook te staan wat hij doet. */
+    undoBtn.textContent=opts.actieLabel||'↩ Ongedaan maken';
     _appToastUndo=opts.undo;
   } else {
     undoBtn.style.display='none';

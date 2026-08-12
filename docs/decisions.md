@@ -506,3 +506,25 @@ Om dat zonder vals alarm te doen worden strings en commentaar eerst weggehaald, 
 **Bestanden**: `index.html` — `geheimenGeladen`/`geheimenKlaar`/`houdGeheimeDelenUitVorige`, `saveGist`+`saveGistIntern`, `saveLocalBackup(markeer)`, `syncMarkeerDrive(stempel,driveTijd)`, `syncOnthoudDriveTijd`, `bewaarHerstelkopie`/`herstelDownload`, `driveNieuwToken`/`driveVraagToken`/`drivePlanTokenVerversing`, `refreshGist`, `loadGist`
 
 **Niet doen**: `driveGelezen=false` terugzetten in de catch van `loadGist` "voor de zekerheid" — dat was precies wat Drive uren liet achterlopen terwijl de app "opgeslagen" bleef zeggen. En de poort `geheimenKlaar()` niet omzeilen om "toch even" te kunnen opslaan terwijl er nog ontsleuteld wordt.
+
+## 2026-08-12 · Verversen haalt altijd uit de cloud, lokaal blijft een knop
+
+**Wijziging op de entry hierboven, dezelfde dag.** Daar loste ik de conflictvraag op door hem zeldzamer te maken. Frank kreeg hem alsnog, en het punt was niet de frequentie: *"Ik wil in principe altijd dat die de informatie uit de cloud haalt als ik de data ververs. Ik vind het op deze manier niet prettig werken wanneer ik de pagina ververs."*
+
+Terecht. Een `confirm()` bij het laden houdt de app tegen voordat je iets ziet, en dwingt je een beslissing te nemen op het moment dat je alleen maar wilde verversen. Dat is de verkeerde volgorde: eerst laden, dan pas eventueel iets vragen.
+
+**Beslissing**: Drive is bij het laden altijd de bron. Geen vraag vooraf, ook niet als er lokaal onverzonden werk staat. Dat werk gaat naar de herstelkopie en er verschijnt een melding met een knop **"↺ Werk van dit apparaat gebruiken"** die het alsnog terugzet — en die stap bewaart op zijn beurt de Drive-versie, dus ook dat is terug te draaien. De keuze blijft dus bestaan, alleen niet meer als blokkade.
+
+Daarmee verviel ook de bevestigingsvraag in `refreshGist` ("wijzigingen gaan verloren, doorgaan?"). Er gaat niets meer verloren, dus valt er niets te bevestigen. De ↻-knop is nu meteen raak.
+
+**Wat hiermee verandert ten opzichte van vanochtend**: de regel "Drive staat stil sinds onze schrijfactie, dus lokaal wint stilletjes" is weg. Werd een save onderbroken, dan krijg je nu de Drive-versie te zien met een knop ernaast, in plaats van dat je werk automatisch terugkomt. Eén klik meer, in ruil voor één voorspelbare regel in plaats van twee gevallen die je uit elkaar moet houden. Bewuste ruil, op verzoek.
+
+**Twee fouten die hierbij aan het licht kwamen:**
+
+De tekst zei "In Drive staat een nieuwere versie", maar de voorwaarde was *"Drive is veranderd sinds onze laatste schrijfactie"* — en dat is iets anders dan nieuwer. In Franks geval was de Drive-versie van 15:03 en het lokale werk van 15:08, dus de melding noemde de oudere versie "nieuwer". De nieuwe melding noemt beide tijdstippen en zegt het expliciet als het lokale werk nieuwer is.
+
+En de herstelkopie zette met een pincode aan alles leesbaar op schijf: in het geheugen zijn de geheimen ontsleuteld, dus een kale kopie lekte precies wat de versleuteling moest beschermen. `bewaarHerstelkopie` stript nu zelf, maar alleen als er een versleuteld blok is om te bewaren — anders zou je de data weggooien zonder iets om hem mee terug te halen.
+
+**Bestanden**: `index.html` — `loadGist` (conflicttak vervangen door herstelkopie + melding), `meldLokaalTerugzetbaar`, `herstelLokaalTerug`, `bewaarHerstelkopie`, `refreshGist`, `appToast` (`actieLabel`)
+
+**Niet doen**: de blokkerende vraag terugzetten "omdat de gebruiker het dan zeker weet". Dat was precies de klacht. Wil je iets veiliger maken, maak dan de terugzet-knop beter vindbaar — niet het laden trager.
