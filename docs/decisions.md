@@ -10,6 +10,26 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-08-13 · Mobiele pop-upschermen — brede tabellen worden blokjes
+
+**Probleem**: de factuur-editor zette de regels als tabel van zes kolommen naast elkaar (ruim 450px in een blad van 342px). Je moest opzij schuiven om bij het bedrag te komen, en dat gold ook voor het sjabloonvenster (vaste kolom van 392px naast de preview). Verder vielen voetknoppen net buiten de rand, en schreeuwde de grijze hulptekst in invoervelden even hard als je eigen invoer.
+
+**Beslissing**:
+- Brede tabellen worden op mobiel een blokje per rij: `thead` verdwijnt, elke `tr` wordt een raster van zes kolommen. De kolomkop reist mee als `data-lab` en komt via `td::before` terug bij het veld zelf.
+- Indeling per factuurregel: omschrijving over de volle breedte, dan aantal/eenheid/stuksprijs, dan btw/bedrag/✕. Drie smalle velden op één regel scheelt een hele rij (254px → 206px).
+- `.modal-footer` en zijn twee kinderen krijgen `flex-wrap: wrap` — generiek, want dit trof meerdere vensters.
+- Grid-kolommen in modals gebruiken `minmax(0,1fr)` in plaats van `1fr`.
+- Tabstrips passen weer op één regel doordat de filterknop op mobiel alleen het trechtertje toont (`.uren-btn-lab` verborgen, `aria-label` op de knop).
+- Uren-periodelabel krijgt een korte schrijfwijze op smalle schermen; het label is zelf de weg terug naar vandaag.
+
+**Waarom**: `1fr` krimpt niet onder de eigen minimumbreedte van een `select` of datumveld, dus één lange klantnaam duwde het hele blad breder. En de 16px op invoervelden moest blijven staan — iOS zoomt in bij focus op alles daaronder — maar iOS kijkt niet naar de maat van de `::placeholder`, dus daar kon de hulptekst wél kleiner (13,5px).
+
+**Bestanden**: `index.html` (`.fac-ed-*` rond 1414, mobiele media-query rond 4250 en 4790, `facEditorRender`, `urenRenderFilters`, `facRenderFilters`, `urenRenderPeriodLabel`, `urenToggleMenu`)
+
+**Niet doen**: horizontaal scrollen als oplossing voor een te brede tabel op mobiel — Frank wil niet opzij schuiven. En een knop weghalen zonder hem elders terug te zetten: "Vandaag" verdween uit de balk maar staat nu in het ⋯-menu én op het label.
+
+**Nagemeten**: op 393px geen horizontale overloop in 23 modals en 6 modules; desktop (1280px) ongewijzigd — daar is de factuurregel weer een echte tabelrij.
+
 ## 2026-08-13 · Mobiele weergave — modules gescheiden, bediening ingeklapt
 
 **Probleem**: op telefoonbreedte stonden Uren en Facturen onder *elke* module doorheen; op het dashboard zag je stukken van de urenbalk en de factuurtabs. Daarnaast kostte de bediening zoveel hoogte dat de eerste inhoudsregel pas ver onder de vouw begon (Uren 394px, Checklist ~770px), en was de ↻-knop voor Drive alleen via de zijbalk bereikbaar terwijl "niet verbonden" regelmatig langskomt.
