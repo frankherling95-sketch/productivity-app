@@ -15156,6 +15156,15 @@ document.addEventListener('keydown',e=>{
 
 /* ── Entry point ── */
 function renderUrenModule(){
+  /* Uren zitten in hetzelfde versleutelde blok als de facturen -- zie
+     pinPakGeheimen(). Zonder deze poort toonde de module een lege lijst
+     op een apparaat dat de pincode niet bewaard heeft, en dat is niet te
+     onderscheiden van "er staan geen uren": op je telefoon leek je
+     administratie weg terwijl hij op je laptop gewoon stond. Vragen om
+     de code dus, net als bij Facturen.
+
+     Ook vóór de migraties: die liepen anders over een lege state. */
+  if(!pinControleerToegang())return;
   urenMigrateEntries();
   urenApplyRecurring();
   urenRenderAll();
@@ -19751,7 +19760,8 @@ async function pinBevestig(){
   bezig(false);
 }
 
-/* Facturenmodule vraagt om de code zodra de administratie vergrendeld is */
+/* Facturen én Uren vragen om de code zodra de administratie vergrendeld
+   is: beide staan in hetzelfde versleutelde blok. */
 function pinControleerToegang(){
   if(!pinVergrendeld)return true;
   openPinModal('ontgrendel');

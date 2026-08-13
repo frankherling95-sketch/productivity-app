@@ -10,6 +10,22 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-08-13 · Uren toonde een lege lijst in plaats van het pincodeslot
+
+**Probleem**: op een telefoon leek de urenadministratie leeg terwijl dezelfde uren op de laptop gewoon stonden — zelfde account, zelfde Drive-bestand. Dat leest als dataverlies en is het niet.
+
+**Oorzaak**: facturen én uren zitten samen in één versleuteld blok (`pinPakGeheimen()` levert `{facturen, uren, klanten}`). De sleutel wordt per apparaat bewaard en verloopt na een maand. Staat er geen sleutel, dan eindigt de ontsleutel-stap in `hydrateerState()` op `if(!bewaard) return;` — stil, en `urenState` blijft leeg. `pinControleerToegang()` werd alleen aangeroepen in `renderFacturenModule()`, niet in `renderUrenModule()`. Facturen vroeg dus netjes om de code; Uren rende door en toonde nul regels.
+
+**Beslissing**: `renderUrenModule()` roept `pinControleerToegang()` aan als eerste stap — vóór `urenMigrateEntries()` en `urenApplyRecurring()`, die anders over een lege state liepen.
+
+**Waarom**: één versleuteld blok hoort één poort te hebben. Twee modules die uit dezelfde ciphertext lezen en maar één die om de sleutel vraagt, betekent dat de andere de vergrendelde toestand als "leeg" presenteert — en dat is precies de melding die je niet wilt zien over je administratie.
+
+**Bestanden**: `index.html` (`renderUrenModule`, comment bij `pinControleerToegang`)
+
+**Niet doen**: een module die uit `rawState.geheim` leest zonder `pinControleerToegang()` als eerste regel. Komt er een derde bij, dan hoort die poort daar ook.
+
+**Wat níét misging**: wegschrijven. `geheimenKlaar()` staat op `false` zolang het slot dicht is, dus de lege state kon Drive niet overschrijven — nagemeten in de preview.
+
 ## 2026-08-13 · Mobiele pop-upschermen — brede tabellen worden blokjes
 
 **Probleem**: de factuur-editor zette de regels als tabel van zes kolommen naast elkaar (ruim 450px in een blad van 342px). Je moest opzij schuiven om bij het bedrag te komen, en dat gold ook voor het sjabloonvenster (vaste kolom van 392px naast de preview). Verder vielen voetknoppen net buiten de rand, en schreeuwde de grijze hulptekst in invoervelden even hard als je eigen invoer.
