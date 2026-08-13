@@ -4384,14 +4384,42 @@ textarea { line-height: 1.6; resize: vertical; }
      de knop 'Voeg toe' viel buiten het scherm. Expliciet op de volle
      breedte zetten, en het invoerveld mag krimpen (min-width:auto is de
      standaard voor flex-items en houdt de intrinsieke breedte vast). */
-  .dash-hero-left { width: 100% !important; }
-  .dash-quickadd { width: 100% !important; box-sizing: border-box !important; }
-  /* Het invoerveld blijft op 16px staan: onder die maat zoomt iOS bij het
-     focussen in en verspringt de hele pagina. Alleen de tijdelijke tekst
-     mag kleiner -- die telt niet mee voor die regel en stond er te dik in. */
-  .dash-quickadd input { min-width: 0 !important; font-size: 16px !important; }
-  .dash-quickadd input::placeholder { font-size: 13px !important; }
-  .dash-quickadd-hint { width: 100% !important; }
+  .dash-hero-left { width: 100% !important; padding-right: 48px; }
+
+  /* ── Snel toevoegen wordt een plusje ──
+     De balk plus zijn hulpregel ("@klant koppelt klant · !datum = …")
+     kostte samen ruim 80px van de hero, voor een manier van invoeren die
+     op een telefoon nauwelijks werkt: die syntax tik je niet uit op een
+     schermtoetsenbord, en de placeholder werd toch afgekapt. Het plusje
+     rechtsboven opent hetzelfde venster waar datum, prioriteit en klant
+     gewone velden zijn. Op desktop blijft de balk staan. */
+  .dash-quickadd,
+  .dash-quickadd-hint { display: none !important; }
+  .dash-hero-add {
+    /* !important omdat de basisregel (.dash-hero-add{display:none}) verderop
+       in dit bestand staat en bij gelijke specificiteit dus wint. Zelfde
+       reden als bij de andere regels in dit blok. */
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    z-index: 2;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    font-size: 22px;
+    line-height: 1;
+    font-family: inherit;
+    color: var(--navy);
+    background: #fff;
+    border: none;
+    border-radius: 50%;
+    box-shadow: 0 2px 10px rgba(10,19,48,0.28);
+    cursor: pointer;
+  }
+  .dash-hero-add:active { transform: scale(0.94); }
   /* Drie KPI's in drie gelijke kolommen. Twee-plus-één liet de derde
      alleen op een tweede rij staan; even breed naast elkaar leest als één
      strip. Labels breken netjes over twee regels, en alles is gecentreerd
@@ -5090,6 +5118,9 @@ textarea { line-height: 1.6; resize: vertical; }
   position: relative;
   overflow: hidden;
 }
+/* Zichtbaar vanaf de 768px-breakpoint; op een breed scherm staat de
+   snel-toevoegbalk er nog gewoon en is dit plusje overbodig. */
+.dash-hero-add { display: none; }
 .dash-hero::after {
   content: "";
   position: absolute;
@@ -6036,6 +6067,13 @@ textarea { line-height: 1.6; resize: vertical; }
       <div class="dash-scroll">
         <!-- Hero -->
         <div class="dash-hero">
+          <!-- Alleen op telefoonbreedte zichtbaar. Daar vervangt dit plusje de
+               hele snel-toevoegbalk: die kostte met zijn hulpregel ruim 80px
+               en vroeg om een syntax (@klant, !morgen) die je op een telefoon
+               toch niet uittikt. Eén tik opent hetzelfde venster met datum,
+               prioriteit en klant als echte velden. -->
+          <button type="button" class="dash-hero-add" onclick="openChecklistItemModal(null)"
+            aria-label="Nieuwe taak" title="Nieuwe taak">＋</button>
           <div class="dash-hero-left">
             <div class="dash-hero-eyebrow">Vandaag</div>
             <div class="dash-hero-headline" id="dashHeroHeadline">Laden…</div>
