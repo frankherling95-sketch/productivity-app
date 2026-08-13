@@ -10,6 +10,23 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-08-13 · Mobiele weergave — modules gescheiden, bediening ingeklapt
+
+**Probleem**: op telefoonbreedte stonden Uren en Facturen onder *elke* module doorheen; op het dashboard zag je stukken van de urenbalk en de factuurtabs. Daarnaast kostte de bediening zoveel hoogte dat de eerste inhoudsregel pas ver onder de vouw begon (Uren 394px, Checklist ~770px), en was de ↻-knop voor Drive alleen via de zijbalk bereikbaar terwijl "niet verbonden" regelmatig langskomt.
+
+**Beslissing**:
+- `#mod-uren` / `#mod-facturen` mogen geen `display` meer zetten in de mobiele media-query. Zichtbaarheid hoort uitsluitend bij `.module.active`.
+- Dashboard-kaarten zijn op mobiel uitklapbaar (`[data-dash-card]` + `.dash-card-open`), bovenste open; de kop draagt titel, aantal en pijl.
+- Terugkerend patroon voor hoogte: wat je zelden gebruikt gaat achter een `:focus-within` (nieuwe taak) of naar het ⚙-menu (nieuwe klant, wekelijkse review); wat blijft staan krijgt één tikmaat van 36px.
+- `viewport-fit=cover` in de meta-viewport, zodat de bestaande `env(safe-area-inset-*)`-regels op iOS werkelijk iets doen.
+- Verbinden met Drive staat als vaste knop rechtsboven in `.mobile-topbar`; `setSync()` spiegelt de status naar een stip, rood bij een fout.
+
+**Waarom**: een ID-selector (1-0-0) wint van `.module.active` (0-2-0) — dat is geen randgeval maar de regel, dus `display` op een module-ID is per definitie fout. En zonder `viewport-fit=cover` geeft iOS altijd 0 terug voor de safe-area, waardoor die CSS er wel stond maar niets deed.
+
+**Bestanden**: `index.html` (meta-viewport, `.mobile-topbar`, `.mobile-bottom-nav`, mobiele media-query vanaf ~4236, `setSync`, `renderDashboard`, `renderNotesTree`)
+
+**Niet doen**: `display` zetten op `#mod-<naam>` binnen een media-query — scope het aan `.module.active` of laat het weg. En inputs onder 16px zetten op mobiel: dan zoomt iOS bij focus in. Wil je hulptekst kleiner, gebruik `::placeholder`.
+
 ## 2026-08-01 · Uren-module herbouwd — registratieregels i.p.v. matrix
 
 **Probleem**: de oude Uren-module was een matrix (klant × dag) waarin per klant per dag precies één getal paste. Een omschrijving zat verstopt achter een ✎-popup, en er was geen manier om een reeks uren in één keer op "gefactureerd" te zetten. De module stond bovendien niet meer in de navigatie (`switchModule` redirectte `uren` → `dashboard`), dus was hij feitelijk onbereikbaar.

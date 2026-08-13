@@ -2,7 +2,10 @@
 <html lang="nl">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<!-- viewport-fit=cover is nodig om env(safe-area-inset-*) te laten werken.
+     Zonder die vlag geeft iOS overal 0 terug en verdwijnt de onderste
+     tabbalk achter de home-indicator van de iPhone. -->
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
 <title>Herling Analytics</title>
 <link rel="icon" type="image/svg+xml" href="herling-icon.svg"/>
 <link rel="manifest" href="manifest.json"/>
@@ -240,6 +243,10 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-lg);display:flex;flex-direction:column;overflow:hidden;min-height:0}
 .card-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:0.5px solid var(--border);flex-shrink:0}
 .card-hdr h2{font-size:14px;font-weight:600;margin:0;letter-spacing:.02em}
+/* Uitklap-affordance op de dashboard-kaarten. Alleen zichtbaar onder de
+   mobiele breakpoint; op desktop staan de kaarten naast elkaar en valt er
+   niets in te klappen. */
+.dash-card-chevron,.dash-card-count{display:none}
 .card-body{flex:1;overflow:auto;padding:12px 16px;min-height:0}
 .big-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
 .big-stat{background:var(--surface2);border-radius:var(--radius-md);padding:12px}
@@ -1404,7 +1411,17 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 
 /* ── Factuur-editor (modal) ── */
 .fac-editor{display:flex;flex-direction:column;gap:16px}
-.fac-ed-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+/* minmax(0,1fr) en niet 1fr: een select met een lange klantnaam of een
+   datumveld heeft een eigen minimumbreedte, en met 1fr duwt die de kolom
+   breder dan het blad. Zo mag de kolom wel krimpen. */
+.fac-ed-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+.fac-ed-grid>*{min-width:0}
+.fac-ed-regelbalk{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.fac-ed-regelbalk-tit{
+  font-size:10.5px;font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--text-muted);
+}
+.fac-ed-regelbalk-vul{flex:1}
 .fac-ed-regels{width:100%;border-collapse:separate;border-spacing:0;font-size:13px}
 .fac-ed-regels th{
   font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
@@ -4087,6 +4104,32 @@ textarea { line-height: 1.6; resize: vertical; }
   }
   .mobile-topbar-action { width: 40px; min-width: 40px; }
 
+  /* ── Verbinden met Drive, altijd rechtsboven ──
+     De stip draagt de status; bij een fout kleurt de hele knop mee, want
+     dát is het moment waarop je hem moet vinden. */
+  .mobile-sync-btn {
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+    width: 40px; height: 40px;
+    border: 0.5px solid var(--border); border-radius: 10px;
+    background: var(--surface); color: var(--text-muted);
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+  }
+  .mobile-sync-btn:active { background: var(--surface2); }
+  .mobile-sync-dot {
+    position: absolute; top: 5px; right: 5px;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--text-hint);
+    border: 1.5px solid var(--surface);
+  }
+  .mobile-sync-btn.saved  .mobile-sync-dot { background: var(--success); }
+  .mobile-sync-btn.saving .mobile-sync-dot { background: var(--warning); animation: mobileSyncPulse 1.1s ease-in-out infinite; }
+  .mobile-sync-btn.error  .mobile-sync-dot { background: var(--danger); }
+  .mobile-sync-btn.error {
+    background: var(--danger-bg); border-color: var(--danger); color: var(--danger);
+  }
+  @keyframes mobileSyncPulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+
   .mobile-backdrop {
     display: block !important;
     position: fixed;
@@ -4214,6 +4257,13 @@ textarea { line-height: 1.6; resize: vertical; }
   /* Small confirm-style modals stay centered with their natural width */
   .modal-bg #renameModal { /* keep small modals centered if needed */ }
 
+  /* Voetknoppen mogen afbreken. Drie knoppen naast elkaar passen niet
+     altijd op 393px; zonder dit duwt de laatste net buiten het blad en
+     krijg je een horizontale schuifbalk voor een paar pixels. */
+  .modal-footer,
+  .modal-footer-left,
+  .modal-footer-right { flex-wrap: wrap; gap: 8px; }
+
   /* ── Type bumps for readability ── */
   body { font-size: 15px; }
   .btn-xs { padding: 6px 10px !important; font-size: 12px !important; min-height: 36px; }
@@ -4225,6 +4275,27 @@ textarea { line-height: 1.6; resize: vertical; }
     min-height: 44px;
   }
   textarea { min-height: 88px; }
+  /* De 16px hierboven moet blijven staan -- iOS zoomt bij focus in op elk
+     veld dat kleiner is. Maar die maat gold ook voor de grijze hulptekst,
+     en die schreeuwde daardoor even hard als je eigen invoer. De
+     placeholder mag wél kleiner: iOS kijkt naar de maat van het veld,
+     niet naar die van de placeholder. */
+  input::placeholder,
+  textarea::placeholder {
+    font-size: 13.5px;
+    opacity: 1;
+    color: var(--text-hint);
+  }
+  /* ── Hulptekst weegt lichter dan wat je zelf typt ──
+     De 16px hierboven is niet vrijblijvend: onder die maat zoomt iOS bij
+     het focussen in en verspringt het hele scherm. Maar die maat hoeft
+     alleen te gelden voor wat je intikt. De vooraf ingevulde tekst
+     ('Waar heb je aan gewerkt?', 'Leeg = tarief van de klant') stond er
+     even zwaar in als een ingevulde waarde; op 13px leest het als een
+     hint. Het bijschrift erboven gaat van 10,5 naar 11px, zodat label en
+     hint dichter bij elkaar liggen dan label en invoer. */
+  input::placeholder, textarea::placeholder { font-size: 13px !important; opacity: .75; }
+  .uren-form label, .modal label { font-size: 11px !important; }
 
   /* ── Universal touch-target bump for icon buttons ── */
   .cl2-iconbtn,
@@ -4244,35 +4315,60 @@ textarea { line-height: 1.6; resize: vertical; }
     align-items: stretch !important;
     gap: 8px !important;
   }
-  /* Action row as a 2×2 grid:
-       [Alle klanten ▾]   [+ Nieuw item ▾]
-       [+ Klant]          [⚙ Instellingen]
-     Left column = client management, right column = item/system.
-     Each cell stretches its button to fill — uniform widths, neat
-     alignment, no raggedness from flex-wrap math. */
+  /* ── Actierij: één rij van drie gelijke kolommen ──
+       [Alle klanten ▾] [+ Nieuw item ▾] [⚙ Instellingen]
+     Er stonden er vijf, in een 2×2 raster met een vijfde knop die alleen
+     op rij 3 belandde -- zichtbaar scheef. 'Nieuwe klant' en 'Wekelijkse
+     review' zijn naar het ⚙-menu verhuisd (zie de HTML daar): dat zijn de
+     twee die je zelden midden in je werk nodig hebt. Wat overblijft is
+     filteren, toevoegen en instellen -- drie gelijke cellen, dus
+     symmetrisch bij elke schermbreedte. */
   .dash-topbar > div:last-child {
     display: grid !important;
-    grid-template-columns: 1fr 1fr !important;
+    /* minmax(0,1fr) en niet 1fr: anders krijgt de cel met het langste
+       label ('+ Nieuw item') extra breedte van zijn min-content en zijn
+       de drie kolommen alsnog ongelijk. */
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
     gap: 6px !important;
     align-items: stretch !important;
   }
   .dash-topbar .client-filter        { grid-column: 1; grid-row: 1; }
   .dash-topbar .ha-newitem           { grid-column: 2; grid-row: 1; margin-left: 0 !important; }
-  .dash-topbar .client-new-btn       { grid-column: 1; grid-row: 2; }
-  .dash-topbar .dash-mobile-settings { grid-column: 2; grid-row: 2; }
-  /* Stretch each button to fill its cell so widths line up nicely */
+  .dash-topbar .dash-mobile-settings { grid-column: 3; grid-row: 1; }
+  .dash-topbar .btn-ai,
+  .dash-topbar .client-new-btn { display: none !important; }
+  /* Elke cel vult zijn kolom: gelijke breedtes, gecentreerde labels.
+     36px hoog i.p.v. 40 -- de knoppen zijn nu breder, dus de raakvlakken
+     blijven ruim boven de 44px-diagonaal die je met een duim nodig hebt. */
   .dash-topbar .client-filter .client-filter-btn,
-  .dash-topbar .client-new-btn,
   .dash-topbar .ha-newitem,
   .dash-topbar .ha-newitem .ha-newitem-trigger,
   .dash-topbar .dash-mobile-settings,
   .dash-topbar .dash-mobile-settings > button {
     width: 100% !important;
     justify-content: center !important;
+    min-height: 36px !important;
+    height: 36px !important;
+    padding: 0 6px !important;
+    font-size: 12px !important;
+    gap: 4px !important;
   }
+  /* Labels mogen niet afbreken in een smalle cel */
+  .dash-topbar .client-filter .client-filter-btn,
+  .dash-topbar .ha-newitem .ha-newitem-trigger,
+  .dash-topbar .dash-mobile-settings > button {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+  }
+  .dash-topbar .dash-mobile-settings > button svg { margin-right: 2px !important; }
   .dash-topbar .module-title { font-size: 17px !important; }
   .dash-topbar .module-sub { font-size: 11.5px !important; }
   .dash-scroll { padding: 16px 12px !important; gap: 14px !important; }
+  /* .dash-scroll is een flex-kolom; zonder dit krimpen de kinderen om in
+     de zichtbare hoogte te passen. De hero werd zo tot 36px platgedrukt
+     terwijl zijn inhoud 176px is -- met overflow:hidden erop verdwenen de
+     kop en het snel-toevoegen-veld gewoon uit beeld. */
+  .dash-scroll > * { flex-shrink: 0 !important; }
   .dash-hero {
     flex-direction: column !important;
     align-items: flex-start !important;
@@ -4283,17 +4379,106 @@ textarea { line-height: 1.6; resize: vertical; }
   .dash-hero-headline { font-size: 19px !important; line-height: 1.35 !important; }
   .dash-hero-right { width: 100%; align-items: flex-start !important; }
   .dash-hero-spark { width: 100%; max-width: 280px; }
-  .dash-kpis { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
-  .dash-kpi { padding: 12px !important; }
-  .dash-kpi-val { font-size: 22px !important; }
-  .dash-grid {
+  /* align-items:flex-start laat de kolom op zijn natuurlijke breedte
+     staan; het snel-toevoegen-veld werd daardoor breder dan de hero en
+     de knop 'Voeg toe' viel buiten het scherm. Expliciet op de volle
+     breedte zetten, en het invoerveld mag krimpen (min-width:auto is de
+     standaard voor flex-items en houdt de intrinsieke breedte vast). */
+  .dash-hero-left { width: 100% !important; }
+  .dash-quickadd { width: 100% !important; box-sizing: border-box !important; }
+  /* Het invoerveld blijft op 16px staan: onder die maat zoomt iOS bij het
+     focussen in en verspringt de hele pagina. Alleen de tijdelijke tekst
+     mag kleiner -- die telt niet mee voor die regel en stond er te dik in. */
+  .dash-quickadd input { min-width: 0 !important; font-size: 16px !important; }
+  .dash-quickadd input::placeholder { font-size: 13px !important; }
+  .dash-quickadd-hint { width: 100% !important; }
+  /* Drie KPI's in drie gelijke kolommen. Twee-plus-één liet de derde
+     alleen op een tweede rij staan; even breed naast elkaar leest als één
+     strip. Labels breken netjes over twee regels, en alles is gecentreerd
+     zodat de tegels ook bij ongelijke labellengtes symmetrisch ogen. */
+  .dash-kpis { grid-template-columns: repeat(3, 1fr) !important; gap: 8px !important; }
+  .dash-kpi {
+    padding: 10px 6px !important;
+    align-items: center !important;
+    text-align: center !important;
+  }
+  .dash-kpi-top { flex-direction: column !important; align-items: center !important; gap: 4px !important; }
+  /* Twee regels hoog vastzetten: 'Afspraken vandaag' brak wél en de twee
+     andere labels niet, waardoor de cijfers eronder 12px uit de pas
+     liepen. Met een vaste labelhoogte staan de drie waarden op één lijn. */
+  .dash-kpi-label {
+    font-size: 9.5px !important;
+    line-height: 1.25 !important;
+    min-height: 24px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  .dash-kpi-val { font-size: 20px !important; }
+  .dash-kpi-trend { font-size: 9.5px !important; text-align: center !important; }
+  /* #mod-dashboard ervoor omdat `.dash-grid.dash-grid-3` verderop vaste
+     rijhoogtes (280px/440px) zet; die zijn hier juist fout, want een
+     ingeklapte kaart moet tot zijn kop kunnen krimpen. */
+  #mod-dashboard .dash-grid,
+  #mod-dashboard .dash-grid.dash-grid-3 {
     grid-template-columns: 1fr !important;
     grid-template-rows: none !important;
-    gap: 12px !important;
+    grid-auto-rows: min-content !important;
+    gap: 10px !important;
     overflow: visible !important;
     min-height: 0 !important;
   }
-  .dash-grid .card { min-height: 280px; max-height: 480px; }
+
+  /* ── Dashboard-kaarten als uitklapbare blokken ──
+     Ingeklapt is elke kaart één ruim aantikbaar blok van 56px met titel,
+     aantal en pijl; open groeit hij tot maximaal 340px met eigen scroll.
+     Zo staan de drie samen op één scherm in plaats van over drie
+     schermlengtes verspreid. */
+  .dash-grid .card { min-height: 0 !important; max-height: none !important; }
+  .dash-grid [data-dash-card] > .card-hdr {
+    min-height: 56px;
+    padding: 12px 14px !important;
+    cursor: pointer;
+    gap: 8px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .dash-grid [data-dash-card] > .card-hdr h2 { flex: 1; font-size: 15px !important; }
+  .dash-grid [data-dash-card] > .card-hdr:active { background: var(--surface2); }
+  /* 'Bekijk ↗' verdwijnt: elke module heeft al een eigen tab in de
+     onderbalk, dus die knop was een derde weg naar dezelfde plek. */
+  .dash-grid [data-dash-card] > .card-hdr .btn { display: none !important; }
+  .dash-card-count {
+    display: inline-flex !important;
+    align-items: center; justify-content: center;
+    min-width: 22px; height: 22px; padding: 0 6px;
+    border-radius: 11px;
+    background: var(--surface2); color: var(--text-muted);
+    font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums;
+  }
+  .dash-card-count:empty { display: none !important; }
+  .dash-card-chevron {
+    display: inline-flex !important;
+    align-items: center; justify-content: center;
+    width: 22px; height: 22px; flex-shrink: 0;
+    color: var(--text-muted);
+    transition: transform .18s ease;
+  }
+  .dash-grid [data-dash-card].dash-card-open > .card-hdr .dash-card-chevron { transform: rotate(180deg); }
+  .dash-grid [data-dash-card]:not(.dash-card-open) > *:not(.card-hdr) { display: none !important; }
+  .dash-grid [data-dash-card].dash-card-open > .card-body {
+    max-height: 340px;
+    overflow-y: auto;
+  }
+
+  /* ── Checklist-kaart: overzicht, geen werkblad ──
+     Elke regel droeg drie invoervelden (prioriteit, datum, klant) plus
+     alle subtaken; op telefoonbreedte wikkelden die naar 130-195px per
+     taak, zodat er nog geen twee taken in beeld pasten. Op mobiel toont
+     de kaart alleen het vinkje en de titel -- bewerken doe je in de
+     Checklist zelf, die één tik verderop in de onderbalk zit. */
+  #dashChecklistBody .dash-cl-edit,
+  #dashChecklistBody .dash-cl-subs { display: none !important; }
+  #dashChecklistBody .dash-cl-row { padding: 10px 4px !important; }
 
   /* ── TODO / KANBAN: snap-scroll one column at a time ── */
   .kanban-topbar {
@@ -4439,21 +4624,99 @@ textarea { line-height: 1.6; resize: vertical; }
   }
   .cl-topbar > div:last-child { flex-wrap: wrap !important; gap: 6px !important; }
   .cl2-scroll { padding: 14px 12px 24px !important; }
+  /* ── Voortgangskaart: ring naast de tekst, niet erboven ──
+     In een kolom stond de ring van 58px op een eigen regel met de halve
+     kaartbreedte leeg ernaast, en groeide het blok naar ~250px -- meer
+     dan de eerste twee taken samen. Als raster staat de ring links van
+     de tekst (die ruimte was er toch) en liggen de drie knoppen op één
+     regel eronder. Zelfde informatie, ruim de helft minder hoogte. */
   .cl2-hero {
-    padding: 14px !important;
-    flex-direction: column !important;
-    align-items: stretch !important;
-    gap: 12px !important;
+    padding: 12px 14px !important;
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr) !important;
+    align-items: center !important;
+    gap: 10px 12px !important;
   }
-  .cl2-hero-actions { justify-content: flex-end; }
+  .cl2-hero-ring { grid-column: 1; grid-row: 1; width: 46px !important; height: 46px !important; }
+  .cl2-hero-ring svg { width: 46px !important; height: 46px !important; }
+  .cl2-hero-ring-pct { font-size: 11px !important; }
+  .cl2-hero-text { grid-column: 2; grid-row: 1; }
+  .cl2-hero-eyebrow { font-size: 9.5px !important; }
+  .cl2-hero-meta { font-size: 11px !important; }
+  /* De drie knoppen passen samen op één regel zodra ze hun ruime
+     desktop-padding inleveren (~275px van de 364 beschikbaar). */
+  .cl2-hero-actions {
+    grid-column: 1 / -1; grid-row: 2;
+    display: flex !important; gap: 4px !important;
+    justify-content: stretch !important;
+  }
+  .cl2-hero-actions .btn {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    padding: 0 5px !important;
+    font-size: 11px !important;
+    min-height: 34px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+  }
+  /* ── Nieuwe taak: pas uitklappen als je erin tikt ──
+     Prioriteit, klant, datum en de knop stonden altijd open en kostten
+     166px, elke keer dat je de lijst bekeek. Ingeklapt is het één
+     invoerregel; zodra je hem aanraakt verschijnt de rest. :focus-within
+     doet dat zonder JS, en omdat de knop binnen hetzelfde blok staat
+     blijft het open terwijl je 'Toevoegen' aantikt. */
   .cl2-newitem {
-    padding: 10px !important;
+    padding: 8px 10px !important;
     flex-wrap: wrap !important;
     gap: 6px !important;
   }
-  .cl2-newitem-input { flex-basis: 100% !important; order: -1 !important; }
-  .cl2-filter { gap: 6px !important; }
-  .cl2-row-head { padding: 10px 12px !important; }
+  .cl2-newitem-input { flex-basis: 0 !important; order: 0 !important; }
+  .cl2-newitem > .cl2-newitem-select,
+  .cl2-newitem > .cl2-newitem-date,
+  .cl2-newitem > .btn { display: none !important; }
+  .cl2-newitem:focus-within { padding: 10px !important; }
+  .cl2-newitem:focus-within > .cl2-newitem-input { flex-basis: 100% !important; order: -1 !important; }
+  .cl2-newitem:focus-within > .cl2-newitem-select { display: inline-flex !important; }
+  .cl2-newitem:focus-within > .cl2-newitem-date  { display: inline-block !important; }
+  .cl2-newitem:focus-within > .btn { display: inline-flex !important; }
+
+  /* Filterbalk: label weg (de knoppen spreken voor zich) en de teller
+     achter het zoekveld op dezelfde regel. Scheelt twee regels. */
+  .cl2-filter { gap: 5px !important; }
+  .cl2-filter-lbl { display: none !important; }
+  /* De twee keuzegroepen delen één regel: minder ruimte per knop en de
+     tekst mag niet afbreken. Zoekveld en teller vullen samen de tweede
+     regel. Drie regels worden er zo twee. */
+  /* Samen 383px breed in een container van 364 -- dus braken ze over twee
+     regels. Met krappere knoppen passen beide groepen op één regel. */
+  .cl2-seg { padding: 2px !important; gap: 1px !important; }
+  .cl2-seg-btn { padding: 4px 5px !important; font-size: 10.5px !important; white-space: nowrap !important; min-height: 28px !important; }
+  .cl2-filter-search {
+    flex: 1 1 auto !important; min-width: 0 !important;
+    font-size: 16px !important;   /* iOS-zoom bij focus voorkomen */
+    min-height: 34px !important;
+  }
+  .cl2-filter-search::placeholder { font-size: 13px !important; }
+  .cl2-filter-counter { flex-shrink: 0 !important; margin-left: 0 !important; }
+  /* ── Taakrij: titel eerst, knoppen eronder ──
+     Naast elkaar hielden vier icoonknoppen plus greep en vinkje ruim 200
+     van de 393px bezet; wat overbleef voor de titel was zo smal dat
+     'Factuur POM Groep versturen' over drie regels brak. De knoppen
+     verhuizen naar een eigen regel rechts uitgelijnd, zodat de titel de
+     volle breedte krijgt en de rij één regel hoog blijft. */
+  .cl2-row-head {
+    padding: 10px 12px !important;
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr) !important;
+    align-items: start !important;
+    gap: 6px 10px !important;
+  }
+  /* De sleepgreep is op touch niet te bedienen; sorteren gaat via de
+     'Prioriteit ↓'-keuze in de topbalk. */
+  .cl2-drag { display: none !important; }
+  .cl2-check        { grid-column: 1; grid-row: 1; }
+  .cl2-title-col    { grid-column: 2; grid-row: 1; min-width: 0 !important; }
+  .cl2-item-actions { grid-column: 2; grid-row: 2; justify-self: end; gap: 2px !important; }
   .cl2-item-meta { gap: 6px !important; }
   /* Item action icons sit on a wider tap area */
   #clBody .cl-item .cl2-iconbtn { width: 36px; height: 36px; }
@@ -4463,37 +4726,60 @@ textarea { line-height: 1.6; resize: vertical; }
   .uren-topbar-title { display: none; }          /* staat al in de mobile-topbar */
   /* Periode + breedte samen op de eerste regel; de knoppen wrappen
      naar de tweede. Eén tikmaat (40px) en één tekstmaat voor alles. */
-  #mod-uren { --uren-ui: 13px; }
-  .uren-periode { height: 40px; justify-content: space-between; }
+  /* Eén tikmaat van 36px voor de hele bediening. Dat was 40px op twee
+     rijen; met de tabs eronder (ook 36px) staat er nu één ritme in
+     plaats van twee, en scheelt het een kleine 20px boven de lijst.
+     Lager dan 36 ga ik niet: deze knoppen zijn breed maar je raakt ze
+     met een duim, en dan is 36px de ondergrens die comfortabel blijft. */
+  #mod-uren { --uren-ui: 12.5px; }
+  .uren-periode { height: 36px; justify-content: space-between; }
   .uren-periode-lbl { min-width: 0; flex: 1; padding: 0 4px; }
-  .uren-periode button { padding: 5px 8px; }
-  .uren-scope { height: 40px; }
-  .uren-scope button { padding: 0 15px; }
-  .uren-btn { height: 40px; padding: 0 15px; }
-  .uren-btn-icon { width: 40px; padding: 0; }
-  .uren-topbar .btn { padding: 7px 10px; font-size: 12px; }
-  /* Tabs en filter delen één regel: de tabs scrollen horizontaal in de
-     ruimte die overblijft, in plaats van de filterknop naar beneden te
-     duwen. Scheelt een hele regel boven de lijst. */
+  .uren-periode button { padding: 4px 7px; }
+  .uren-scope { height: 36px; }
+  .uren-scope button { padding: 0 12px; }
+  .uren-btn { height: 36px; padding: 0 12px; }
+  .uren-btn-icon { width: 36px; padding: 0; }
+  .uren-topbar { gap: 6px !important; padding: 8px 12px !important; }
+  .uren-topbar .btn { padding: 6px 9px; font-size: 12px; }
+  /* ── Tabstrip: alles zichtbaar, niets om naar opzij te schuiven ──
+     Eerst deelden de tabs een regel met de filterknop en scrolden ze in
+     de 285px die overbleef. Bij Facturen zijn het er vijf (samen 403px)
+     en stonden 'Verzonden' en 'Klanten' dus altijd buiten beeld. Nu
+     krijgt de strip de volle regel en zijn de tabs zo gemaakt dat ze
+     samen passen: krap in de breedte, maar de tikhoogte blijft 36px. */
   .uren-viewbar { padding: 9px 12px; gap: 8px; flex-wrap: nowrap; }
   .uren-tabs {
-    flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none;
-    background: transparent; border: 0; padding: 0; gap: 6px;
+    flex: 1; min-width: 0;
+    background: transparent; border: 0; padding: 0; gap: 4px;
+    display: flex;
   }
   .uren-filters { flex-shrink: 0; }
-  .uren-tabs::-webkit-scrollbar { display: none; }
   .uren-tab {
     border: 0.5px solid var(--border-strong); border-radius: 20px;
-    padding: 7px 14px; min-height: 36px;
+    padding: 7px 4px; min-height: 36px; white-space: nowrap;
+    font-size: 12px; flex: 1 1 auto; text-align: center;
   }
+  /* De filterknop wordt een trechtertje zonder woord. Dat scheelt 41px --
+     precies genoeg om alle vijf de facturentabs naast elkaar te laten
+     passen, zodat er niets meer opzij geschoven hoeft te worden. Het
+     aria-label op de knop houdt hem leesbaar voor een schermlezer. */
+  .uren-btn-lab { display: none; }
+  #urenFilterBtn, #facFilterBtn { padding: 0 10px; gap: 4px; }
   .uren-tab.active { background: var(--navy); color: #fff; border-color: var(--navy); box-shadow: none; }
   /* Compactere KPI's: op een telefoon telt elke pixel die de lijst
      naar beneden duwt. De balkjes vervallen, de tekst blijft. */
-  .uren-kpis { grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px 12px 0; }
-  .uren-kpi { padding: 9px 11px; }
-  .uren-kpi-lab { font-size: 9.5px; }
-  .uren-kpi-val { font-size: 19px; margin-top: 2px; }
-  .uren-kpi-sub { font-size: 10.5px; }
+  /* ── KPI's: één rij van vier in plaats van een 2×2-blok ──
+     Het blok was 163px hoog en duwde de eerste urenregel naar 394px --
+     bijna een half scherm bediening voordat je je eigen uren zag. Vier
+     smalle tegels naast elkaar geven dezelfde vier getallen in ~70px.
+     De toelichtingsregel eronder ('4 registraties · 3 klanten') valt weg:
+     die past niet in 90px en het getal is waar je voor komt. */
+  .uren-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; padding: 10px 12px 0; }
+  .uren-kpi { padding: 8px 4px 9px 7px; }
+  .uren-kpi-lab { font-size: 8.5px; letter-spacing: .04em; line-height: 1.2; min-height: 20px; }
+  .uren-kpi-val { font-size: 17px; margin-top: 2px; }
+  .uren-kpi-val small { font-size: 10px; }
+  .uren-kpi-sub { display: none; }
   .uren-kpi-bar { display: none; }
 
   /* ── Eén scrollgebied in plaats van twee ──
@@ -4502,7 +4788,11 @@ textarea { line-height: 1.6; resize: vertical; }
      venstertje van een paar honderd pixels waarin de lijst moet passen.
      Hier geeft de lijst zijn eigen scroll op en groeit hij mee met de
      pagina, zodat je gewoon de hele module doorscrollt. */
-  #mod-uren { display: flex; flex-direction: column; }
+  /* Geen `display:flex` hier: een ID-selector wint van `.module.active`,
+     waardoor Uren en Facturen op mobiel altijd zichtbaar bleven en onder
+     élke module doorliepen. Het zichtbaar maken hoort bij .module.active;
+     hier staat alleen wat de module zelf eigen is. */
+  #mod-uren { flex-direction: column; }
   .uren-content { flex: none; overflow: visible; padding: 12px 12px 96px; display: flex; flex-direction: column; gap: 12px; }
   .uren-content > * { flex-shrink: 0; }
   .uren-topbar, .uren-viewbar, .uren-kpis { flex-shrink: 0; }
@@ -4512,7 +4802,7 @@ textarea { line-height: 1.6; resize: vertical; }
   .fac-mlist { display: flex; }
   .fac-aging { grid-template-columns: 1fr 1fr; gap: 8px; }
   .fac-klanten { grid-template-columns: 1fr; }
-  #mod-facturen { display: flex; flex-direction: column; --uren-ui: 13px; }
+  #mod-facturen { flex-direction: column; --uren-ui: 13px; }
   #mod-facturen .uren-content { flex: none; overflow: visible; padding: 12px 12px 96px; }
   .uren-fab { display: flex; right: 17px; bottom: calc(80px + env(safe-area-inset-bottom, 0)); width: 56px; height: 56px; font-size: 26px; z-index: 60; }
   .uren-legend { display: none; }
@@ -4526,6 +4816,93 @@ textarea { line-height: 1.6; resize: vertical; }
   .uren-dur-in { font-size: 26px; padding: 12px 8px; }
   .uren-chip { padding: 9px 14px; font-size: 13px; }
   .uren-kchip { padding: 9px 15px; font-size: 13px; }
+
+  /* ── Factuurregels: van tabel naar blokjes ──
+     Zes kolommen naast elkaar zijn samen ruim 450px; op een telefoon
+     betekende dat zijwaarts schuiven om bij het bedrag te komen. Elke
+     regel wordt hier een eigen blokje van twee kolommen. De kop
+     verdwijnt en komt via data-lab terug bij het veld zelf, zodat je
+     nog steeds ziet wat je invult. */
+  /* Velden mogen nooit breder worden dan het blad. */
+  .fac-ed-inp { min-width: 0; max-width: 100%; }
+
+  /* ── Factuursjabloon: instellingen boven, voorbeeld eronder ──
+     Op een breed scherm staan die naast elkaar met een vaste kolom van
+     392px. Die kolom alleen al is breder dan een telefoon, dus hier
+     onder elkaar. Het voorbeeld blijft staan -- je wilt kunnen zien wat
+     je verandert -- maar lager, zodat de knoppen eerst in beeld komen. */
+  .fac-sj-layout {
+    grid-template-columns: minmax(0, 1fr);
+    overflow-y: auto;
+  }
+  .fac-sj-instel {
+    border-right: 0;
+    border-bottom: 0.5px solid var(--border);
+    overflow: visible;
+    padding: 14px 16px;
+  }
+  .fac-sj-preview { padding: 12px 16px 16px; }
+  .fac-sj-preview iframe { min-height: 320px; }
+  /* Klant + referentie onder elkaar: een keuzelijst met klantnamen wordt
+     naast een tekstveld te smal om te lezen. Datumparen blijven wel naast
+     elkaar staan, die passen. */
+  #facEditorBody .fac-ed-grid:first-of-type { grid-template-columns: minmax(0, 1fr); }
+
+  .fac-ed-regelbalk { flex-wrap: wrap; gap: 6px; }
+  .fac-ed-regelbalk-vul { display: none; }
+  .fac-ed-regelbalk-tit { width: 100%; margin-bottom: 2px; }
+  .fac-ed-regelbalk .uren-btn { flex: 1; min-width: 0; justify-content: center; font-size: 12px; }
+
+  .fac-ed-regels, .fac-ed-regels tbody, .fac-ed-regels tr, .fac-ed-regels td { display: block; }
+  .fac-ed-regels thead { display: none; }
+  .fac-ed-regels {
+    display: flex; flex-direction: column; gap: 8px;
+    width: 100%; font-size: 12.5px;
+  }
+  /* Zes kolommen als raster, zodat drie smalle velden op één regel
+     passen. Dat scheelt een hele rij per factuurregel -- bij een factuur
+     van vier regels ruim 200px minder scrollen. */
+  .fac-ed-regels tr {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 8px;
+    background: var(--surface2);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 10px 12px;
+  }
+  .fac-ed-regels td { padding: 0; }
+  .fac-ed-regels td[data-lab="Omschrijving"] { grid-column: span 6; }
+  .fac-ed-regels td[data-lab="Aantal"],
+  .fac-ed-regels td[data-lab="Eenheid"],
+  .fac-ed-regels td[data-lab="Stuksprijs"] { grid-column: span 2; }
+  .fac-ed-regels td[data-lab="Btw"] { grid-column: span 3; }
+  .fac-ed-regels td[data-lab="Bedrag"] { grid-column: span 2; }
+  .fac-ed-regels .fac-ed-del-cel { grid-column: span 1; }
+  .fac-ed-regels td[data-lab]::before {
+    content: attr(data-lab);
+    display: block;
+    font-size: 9.5px; font-weight: 700; letter-spacing: .07em;
+    text-transform: uppercase; color: var(--text-muted);
+    margin-bottom: 3px;
+  }
+  .fac-ed-regels .fac-ed-inp { font-size: 13px; padding: 7px 9px; }
+  /* Bedrag en de verwijderknop delen de laatste rij: bedrag links
+     uitgelijnd bij zijn label, knop rechts op tikformaat. */
+  .fac-ed-regels .fac-ed-bedrag-cel {
+    padding-top: 0 !important;
+    text-align: left;
+    align-self: end;
+  }
+  .fac-ed-regels .fac-ed-bedrag-cel .fac-bedrag { font-size: 15px; font-weight: 700; }
+  .fac-ed-regels .fac-ed-del-cel { align-self: end; justify-self: end; }
+  .fac-ed-regels .fac-ed-del { font-size: 16px; padding: 8px 12px; }
+  /* De "↳ x urenregistraties gekoppeld"-regel en de lege staat vullen
+     het hele blokje in plaats van één kolom. */
+  .fac-ed-regels td[colspan] { grid-column: 1 / -1; padding: 0 !important; }
+  .fac-ed-regels tr:has(td[colspan]) {
+    background: transparent; border: 0; padding: 0 2px;
+  }
 
   /* ── Hide mobile-only chrome on desktop is handled at base.
      Hide desktop-only chrome on mobile: ── */
@@ -5480,7 +5857,17 @@ textarea { line-height: 1.6; resize: vertical; }
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" width="20" height="20"><line x1="3" y1="4.5" x2="13" y2="4.5"/><line x1="3" y1="8" x2="13" y2="8"/><line x1="3" y1="11.5" x2="13" y2="11.5"/></svg>
     </button>
     <div class="mobile-topbar-title" id="mobileTopbarTitle">Dashboard</div>
-    <div class="mobile-topbar-action" id="mobileTopbarAction"></div>
+    <div class="mobile-topbar-action" id="mobileTopbarAction">
+      <!-- Verbinden met Drive hoort op elk scherm binnen bereik: de melding
+           "niet verbonden" komt regelmatig langs, en de ↻ zat alleen in de
+           zijbalk -- die je op een telefoon eerst moet openslaan. Het
+           stipje spiegelt de sync-status uit setSync(). -->
+      <button class="mobile-sync-btn" id="mobileSyncBtn" onclick="refreshGist()"
+              aria-label="Verbinden met Drive" title="Verbinden met Drive">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M14 8a6 6 0 1 1-1.8-4.3"/><path d="M14 2v4h-4"/></svg>
+        <span class="mobile-sync-dot" id="mobileSyncDot" aria-hidden="true"></span>
+      </button>
+    </div>
   </div>
 
   <!-- Mobile sidebar backdrop (hidden on desktop) -->
@@ -5615,6 +6002,13 @@ textarea { line-height: 1.6; resize: vertical; }
               Instellingen
             </button>
             <div class="dash-mobile-settings-menu" id="dashMobileSettingsMenu">
+              <!-- Op mobiel staan 'Nieuwe klant' en 'Wekelijkse review' hier in
+                   plaats van in de topbalk: vijf knoppen naast elkaar pasten
+                   niet symmetrisch op telefoonbreedte, en dit zijn de twee die
+                   je zelden midden in je werk nodig hebt. -->
+              <button type="button" onclick="closeDashMobileSettings();openNewClientModal()">＋ Nieuwe klant</button>
+              <button type="button" onclick="closeDashMobileSettings();openWeeklyReviewModal()">📊 Wekelijkse review</button>
+              <div class="dash-mobile-settings-divider"></div>
               <button type="button" onclick="closeDashMobileSettings();refreshGist()">↻ Data opnieuw laden</button>
               <div class="dash-mobile-settings-divider"></div>
               <button type="button" onclick="closeDashMobileSettings();downloadBackup()">↓ Backup downloaden (JSON)</button>
@@ -5637,7 +6031,7 @@ textarea { line-height: 1.6; resize: vertical; }
             <!-- Quick-add: parses 'tekst @klant !morgen' and creates a checklist task -->
             <form class="dash-quickadd" id="dashQuickAddForm" onsubmit="dashQuickAdd(event)">
               <span class="dash-quickadd-icon">＋</span>
-              <input type="text" id="dashQuickAddInput" placeholder='Snel toevoegen: "Bel klant @POM !morgen"' autocomplete="off"/>
+              <input type="text" id="dashQuickAddInput" placeholder='Snel toevoegen — "Bel klant @POM !morgen"' autocomplete="off"/>
               <button type="submit" class="btn btn-xs btn-primary" title="Voeg toe (Enter)">Voeg toe</button>
             </form>
             <div class="dash-quickadd-hint">
@@ -5680,19 +6074,27 @@ textarea { line-height: 1.6; resize: vertical; }
 
         <!-- 3-card grid (Notes top-left, Checklist top-right, Agenda full-width below) -->
         <div class="dash-grid dash-grid-3">
-          <div class="card">
-            <div class="card-hdr">
+          <div class="card" data-dash-card="notes">
+            <div class="card-hdr" onclick="dashCardToggle(event,this)">
               <h2>Recente notities</h2>
+              <span class="dash-card-count" id="dashCountNotes"></span>
               <button class="btn btn-xs btn-primary" onclick="switchModule('notes')">Bekijk ↗</button>
+              <span class="dash-card-chevron" aria-hidden="true">
+                <svg viewBox="0 0 12 12" fill="none" width="12" height="12"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
             </div>
             <div class="card-body" id="dashNotesBody">
               <div class="loading-state"><div class="spinner"></div><span>Laden...</span></div>
             </div>
           </div>
-          <div class="card">
-            <div class="card-hdr">
+          <div class="card" data-dash-card="checklist">
+            <div class="card-hdr" onclick="dashCardToggle(event,this)">
               <h2>Checklist</h2>
+              <span class="dash-card-count" id="dashCountChecklist"></span>
               <button class="btn btn-xs btn-primary" onclick="switchModule('checklist')">Bekijk ↗</button>
+              <span class="dash-card-chevron" aria-hidden="true">
+                <svg viewBox="0 0 12 12" fill="none" width="12" height="12"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
             </div>
             <div class="card-body" id="dashChecklistBody" style="display:flex;flex-direction:column;gap:0">
               <div class="loading-state"><div class="spinner"></div><span>Laden...</span></div>
@@ -5704,13 +6106,17 @@ textarea { line-height: 1.6; resize: vertical; }
               <button class="btn btn-sm btn-primary" onclick="dashClAdd()">+</button>
             </div>
           </div>
-          <div class="card">
-            <div class="card-hdr">
+          <div class="card" data-dash-card="agenda">
+            <div class="card-hdr" onclick="dashCardToggle(event,this)">
               <h2>Agenda</h2>
+              <span class="dash-card-count" id="dashCountAgenda"></span>
               <div style="display:flex;gap:4px">
                 <button class="btn btn-xs" id="dashCalSettingsBtn" onclick="toggleDashCalSettings()" style="display:none">⚙</button>
                 <button class="btn btn-xs btn-primary" onclick="switchModule('agenda')">Bekijk ↗</button>
               </div>
+              <span class="dash-card-chevron" aria-hidden="true">
+                <svg viewBox="0 0 12 12" fill="none" width="12" height="12"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
             </div>
             <div class="card-body" id="dashCalBody" style="padding:0;overflow:hidden">
               <div class="placeholder">
@@ -5981,6 +6387,10 @@ textarea { line-height: 1.6; resize: vertical; }
     <button class="mobile-nav-tab" data-mod="uren" onclick="switchModule('uren')" aria-label="Uren">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><circle cx="8" cy="8" r="6"/><path d="M8 4.5V8l2.5 1.5"/></svg>
       <span>Uren</span>
+    </button>
+    <button class="mobile-nav-tab" data-mod="facturen" onclick="switchModule('facturen')" aria-label="Facturen">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M3.5 1.5h6L13 5v9.5a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5v-12a.5.5 0 0 1 .5-.5z"/><path d="M9.5 1.5V5H13"/><path d="M9.5 8h-3a1.25 1.25 0 0 0 0 2.5h2a1.25 1.25 0 0 1 0 2.5h-3"/></svg>
+      <span>Facturen</span>
     </button>
   </nav>
 </div><!-- /appScreen -->
@@ -7442,6 +7852,15 @@ function setSync(type,msg){
   bar.className='sidebar-sync '+type;
   dot.className='sync-dot'+(type==='saving'?' pulse':'');
   document.getElementById('syncMsg').textContent=msg;
+  /* Spiegelen naar de knop rechtsboven op mobiel. Daar is geen ruimte voor
+     de tekst, dus draagt een stip de status en staat de melding in de
+     tooltip / aria-label. */
+  const mob=document.getElementById('mobileSyncBtn');
+  if(mob){
+    mob.className='mobile-sync-btn '+type;
+    mob.title=msg||'Verbinden met Drive';
+    mob.setAttribute('aria-label',(msg?msg+' — ':'')+'Verbinden met Drive');
+  }
 }
 
 /* Wanneer de administratie voor het laatst uit Drive kwam. */
@@ -8528,7 +8947,8 @@ function toggleSidebarMobile(force){
 /* ─ Update mobile top bar title + bottom-nav active state ─ */
 const MOBILE_MODULE_TITLES={
   dashboard:'Dashboard',notes:'Notities',
-  agenda:'Agenda',checklist:'Checklist'
+  agenda:'Agenda',checklist:'Checklist',
+  uren:'Uren',facturen:'Facturen'
 };
 function updateMobileChrome(mod){
   const title=document.getElementById('mobileTopbarTitle');
@@ -9079,6 +9499,66 @@ function renderDashboard(){
   renderDashNotes();
   renderDashCal();
   renderDashChecklist();
+  dashCardsInit();
+  renderDashCardCounts();
+}
+
+/* ── Dashboard-kaarten in- en uitklappen (alleen mobiel) ──────────────────
+   Naast elkaar in een grid werkt op een breed scherm; op een telefoon
+   worden het drie panelen van 280-480px onder elkaar en scrol je langs
+   alles heen voor je iets vindt. Ingeklapt passen de drie samen op één
+   scherm en kies je zelf wat je openzet.
+
+   De kop is de schakelaar en toont het aantal, zodat dicht net zo
+   informatief is als open. Boven de breakpoint doet dit niets: daar staan
+   de kaarten naast elkaar en is inklappen betekenisloos. */
+const DASH_MOBIEL_MAX=768;
+
+function dashCardToggle(e,hdr){
+  if(window.innerWidth>DASH_MOBIEL_MAX)return;
+  /* De kop bevat ook eigen knoppen ('Bekijk ↗', het tandwiel bij Agenda).
+     Een tik daarop hoort zijn eigen actie te doen, niet in te klappen. */
+  if(e&&e.target&&e.target.closest&&e.target.closest('button'))return;
+  const card=hdr.closest('.card');
+  if(!card)return;
+  const open=card.classList.toggle('dash-card-open');
+  hdr.setAttribute('aria-expanded',open?'true':'false');
+}
+
+/* Beginstand: de bovenste kaart open, de rest dicht. Eén keer zetten --
+   renderDashboard() loopt na elke wijziging, en dat mag de keuze van de
+   gebruiker niet telkens terugdraaien. */
+let dashCardsGezet=false;
+function dashCardsInit(){
+  if(dashCardsGezet)return;
+  const kaarten=document.querySelectorAll('.dash-grid [data-dash-card]');
+  if(!kaarten.length)return;
+  kaarten.forEach((c,i)=>{
+    c.classList.toggle('dash-card-open',i===0);
+    const h=c.querySelector('.card-hdr');
+    if(!h)return;
+    h.setAttribute('role','button');
+    h.setAttribute('tabindex','0');
+    h.setAttribute('aria-expanded',i===0?'true':'false');
+    h.addEventListener('keydown',ev=>{
+      if(ev.key!=='Enter'&&ev.key!==' ')return;
+      ev.preventDefault();
+      dashCardToggle(ev,h);
+    });
+  });
+  dashCardsGezet=true;
+}
+
+function renderDashCardCounts(){
+  const s=dashDerivedStats();
+  const set=(id,n)=>{
+    const el=document.getElementById(id);
+    if(!el)return;
+    el.textContent=(n===null||n===undefined||n===0)?'':n;
+  };
+  set('dashCountNotes',(s.allPages||[]).length);
+  set('dashCountChecklist',s.openClCount);
+  set('dashCountAgenda',s.meetingsToday);
 }
 
 /* ─── Dashboard: Hero + KPI derived values ───────────────────────────────── */
@@ -9306,13 +9786,13 @@ function renderDashChecklist(){
     const cfg=CL_PRIORITY_CFG[item.priority]||CL_PRIORITY_CFG.middel;
     const today=new Date().toISOString().slice(0,10);
     const overdue=item.deadline&&item.deadline<today;
-    return `<div style="padding:7px 4px;border-bottom:0.5px solid var(--border)">
+    return `<div class="dash-cl-row" style="padding:7px 4px;border-bottom:0.5px solid var(--border)">
       <div style="display:flex;align-items:center;gap:8px">
         <div data-action="dashClToggle" data-arg1="${item.id}" style="width:18px;height:18px;border-radius:4px;border:1.5px solid var(--border-strong);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s"
           onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border-strong)'"></div>
         <span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(item.text)}</span>
       </div>
-      <div style="display:flex;align-items:center;gap:6px;margin-top:5px;padding-left:26px;flex-wrap:wrap">
+      <div class="dash-cl-edit" style="display:flex;align-items:center;gap:6px;margin-top:5px;padding-left:26px;flex-wrap:wrap">
         <select style="${selStyle};background:${cfg.bg};color:${cfg.tx};font-weight:600;border-color:${cfg.tx}40" data-change="dashClSetPriority" data-arg1="${item.id}">
           ${['hoog','middel','laag'].map(p=>`<option value="${p}"${item.priority===p?' selected':''}>${CL_PRIORITY_CFG[p].label}</option>`).join('')}
         </select>
@@ -9321,7 +9801,7 @@ function renderDashChecklist(){
           ${clientOpts.replace(`value="${item.clientId||''}"`,`value="${item.clientId||''}" selected`)}
         </select>
       </div>
-      ${(item.subtasks&&item.subtasks.length)?`<div style="padding-left:26px;margin-top:6px;display:flex;flex-direction:column;gap:3px">
+      ${(item.subtasks&&item.subtasks.length)?`<div class="dash-cl-subs" style="padding-left:26px;margin-top:6px;display:flex;flex-direction:column;gap:3px">
         ${item.subtasks.map(st=>`<div style="display:flex;align-items:center;gap:6px">
           <div data-action="dashClToggleSubtask" data-arg1="${item.id}" data-arg2="${st.id}" style="width:14px;height:14px;border-radius:3px;border:1.5px solid var(--border-strong);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;${st.done?'background:var(--accent);border-color:var(--accent)':''};transition:all .15s"
             onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='${st.done?'var(--accent)':'var(--border-strong)'}'">
@@ -11268,10 +11748,32 @@ function renderRecentNotes(){
     }).join('')}`;
 }
 
+/* ── Klantvolgorde in de notitieboom ──
+   De lijst stond in de volgorde waarin klanten ooit zijn aangemaakt, dus
+   scrolde je langs klanten zonder notities voor je bij je lopende werk
+   was. Nu staat bovenaan waar het meeste ligt, en bij een gelijk aantal
+   de klant waar je het laatst in werkte (notesState.recentIds, waarvan de
+   laagste index het meest recent is). Klanten zonder notities zakken
+   vanzelf naar onderen. */
+function notesClientVolgorde(clients){
+  const recent=notesState.recentIds||[];
+  return [...clients].map(c=>{
+    const paginas=flattenNotes(filterNoteTree(notesState.tree,c.id));
+    const ids=new Set(paginas.map(n=>n.id));
+    let rang=Infinity;
+    for(let i=0;i<recent.length;i++){ if(ids.has(recent[i])){rang=i;break;} }
+    return {c, aantal:paginas.filter(n=>n.type==='page').length, rang};
+  }).sort((a,b)=>
+    (b.aantal-a.aantal) ||
+    (a.rang-b.rang) ||
+    a.c.name.localeCompare(b.c.name,'nl')
+  ).map(x=>x.c);
+}
+
 /* ─ Render tree ─ */
 function renderNotesTree(){
   const el=document.getElementById('notesTree');if(!el)return;
-  const clients=kanbanState?.clients||[];
+  const clients=notesClientVolgorde(kanbanState?.clients||[]);
 
   /* Apply text search FIRST — overrides client grouping with a flat result list */
   if(notesSearchQuery){
@@ -14690,9 +15192,11 @@ function urenRenderFilters(){
   const bar=document.getElementById('urenFilterBar');
   if(!bar)return;
   const actief=(urenFilterClient?1:0)+(urenFilterStatus?1:0);
+  /* Het woord "Filter" zit in een eigen span zodat het op telefoonbreedte
+     kan wegvallen; het trechtertje en de teller blijven staan. */
   let html=`<button class="uren-btn" id="urenFilterBtn" data-uren-action="urenToggleFilters"
-      aria-haspopup="dialog" aria-expanded="false">
-      <span aria-hidden="true">⚟</span>Filter${actief?`<span class="cnt">${actief}</span>`:''}</button>`;
+      aria-haspopup="dialog" aria-expanded="false" aria-label="Filter">
+      <span aria-hidden="true">⚟</span><span class="uren-btn-lab">Filter</span>${actief?`<span class="cnt">${actief}</span>`:''}</button>`;
   if(urenFilterClient){
     html+=`<span class="uren-fchip">${escapeHtml(urenClientName(urenFilterClient))}
       <button data-uren-action="urenClearFilter" data-uren-arg1="client" aria-label="Klantfilter wissen">×</button></span>`;
@@ -17122,7 +17626,7 @@ function facRenderFilters(){
   if(facView==='mails'){bar.innerHTML='';return;}
   const n=(facFilterStatus?1:0)+(facFilterClient?1:0);
   let html=`<button class="uren-btn" id="facFilterBtn" data-fac-action="facToggleFilters"
-    aria-haspopup="dialog" aria-expanded="false"><span aria-hidden="true">⚟</span>Filter${n?`<span class="cnt">${n}</span>`:''}</button>`;
+    aria-haspopup="dialog" aria-expanded="false" aria-label="Filter"><span aria-hidden="true">⚟</span><span class="uren-btn-lab">Filter</span>${n?`<span class="cnt">${n}</span>`:''}</button>`;
   if(facFilterStatus){
     const s=FACTUUR_STATUSSEN.find(x=>x.id===facFilterStatus);
     html+=`<span class="uren-fchip">${escapeHtml(s?s.label:'Te laat')}
@@ -17876,9 +18380,9 @@ function facEditorRender(){
 
   /* Regels */
   html+=`<div style="margin-top:18px">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-      <div style="font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted)">Factuurregels</div>
-      <div style="flex:1"></div>
+    <div class="fac-ed-regelbalk">
+      <div class="fac-ed-regelbalk-tit">Factuurregels</div>
+      <div class="fac-ed-regelbalk-vul"></div>
       ${bewerkbaar?`<button class="uren-btn" data-fac-action="facUrenOphalen">↻ Uren ophalen</button>
       <button class="uren-btn" data-fac-action="facKmToevoegen" title="Regel voor gereden kilometers">+ Kilometers</button>
       <button class="uren-btn" data-fac-action="facRegelToevoegen">+ Regel</button>`:''}
@@ -17889,20 +18393,23 @@ function facEditorRender(){
       <th style="width:108px">Btw</th><th class="num" style="width:104px">Bedrag</th>
       ${bewerkbaar?'<th style="width:32px"></th>':''}</tr></thead><tbody>`;
   (f.regels||[]).forEach(r=>{
+    /* data-lab draagt de kolomkop mee. Op telefoonbreedte verdwijnt de
+       thead en wordt elke regel een blokje; het label komt dan via
+       CSS (::before) terug bij het veld waar het bij hoort. */
     html+=`<tr>
-      <td><input type="text" class="fac-ed-inp" value="${escapeHtml(r.omschrijving||'')}"
+      <td data-lab="Omschrijving"><input type="text" class="fac-ed-inp" value="${escapeHtml(r.omschrijving||'')}"
         data-fac-change="facEdRegel" data-fac-arg1="${r.id}" data-fac-arg2="omschrijving" ${bewerkbaar?'':'disabled'}/></td>
-      <td><input type="number" step="0.01" class="fac-ed-inp num" value="${r.aantal||0}"
+      <td data-lab="Aantal"><input type="number" step="0.01" class="fac-ed-inp num" value="${r.aantal||0}"
         data-fac-change="facEdRegel" data-fac-arg1="${r.id}" data-fac-arg2="aantal" ${bewerkbaar?'':'disabled'}/></td>
-      <td><input type="text" class="fac-ed-inp" value="${escapeHtml(r.eenheid||'uur')}"
+      <td data-lab="Eenheid"><input type="text" class="fac-ed-inp" value="${escapeHtml(r.eenheid||'uur')}"
         data-fac-change="facEdRegel" data-fac-arg1="${r.id}" data-fac-arg2="eenheid" ${bewerkbaar?'':'disabled'}/></td>
-      <td><input type="number" step="0.01" class="fac-ed-inp num" value="${r.stuksprijs||0}"
+      <td data-lab="Stuksprijs"><input type="number" step="0.01" class="fac-ed-inp num" value="${r.stuksprijs||0}"
         data-fac-change="facEdRegel" data-fac-arg1="${r.id}" data-fac-arg2="stuksprijs" ${bewerkbaar?'':'disabled'}/></td>
-      <td><select class="fac-ed-inp" data-fac-change="facEdRegel" data-fac-arg1="${r.id}" data-fac-arg2="btwTarief" ${bewerkbaar||f.btwVerlegd?'':'disabled'}>
+      <td data-lab="Btw"><select class="fac-ed-inp" data-fac-change="facEdRegel" data-fac-arg1="${r.id}" data-fac-arg2="btwTarief" ${bewerkbaar||f.btwVerlegd?'':'disabled'}>
         ${BTW_TARIEVEN.filter(b=>b.id!=='verlegd').map(b=>`<option value="${b.id}"${Number(r.btwTarief)===b.id?' selected':''}>${b.label}</option>`).join('')}
       </select></td>
-      <td class="num" style="padding-top:8px"><span class="fac-bedrag">${factuurFmtBedrag(factuurRegelBedrag(r))}</span></td>
-      ${bewerkbaar?`<td><button class="fac-ed-del" data-fac-action="facRegelVerwijder" data-fac-arg1="${r.id}" title="Regel verwijderen">✕</button></td>`:''}
+      <td class="num fac-ed-bedrag-cel" data-lab="Bedrag" style="padding-top:8px"><span class="fac-bedrag">${factuurFmtBedrag(factuurRegelBedrag(r))}</span></td>
+      ${bewerkbaar?`<td class="fac-ed-del-cel"><button class="fac-ed-del" data-fac-action="facRegelVerwijder" data-fac-arg1="${r.id}" title="Regel verwijderen">✕</button></td>`:''}
     </tr>`;
     if(r.urenIds&&r.urenIds.length){
       /* Tel de registraties die er echt nog zijn: het aantal ids zei
