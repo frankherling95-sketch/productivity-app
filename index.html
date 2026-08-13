@@ -4732,9 +4732,21 @@ textarea { line-height: 1.6; resize: vertical; }
      Lager dan 36 ga ik niet: deze knoppen zijn breed maar je raakt ze
      met een duim, en dan is 36px de ondergrens die comfortabel blijft. */
   #mod-uren { --uren-ui: 12.5px; }
-  .uren-periode { height: 36px; justify-content: space-between; }
-  .uren-periode-lbl { min-width: 0; flex: 1; padding: 0 4px; }
+  /* ── Eén regel in plaats van twee ──
+     Periode, breedte-keuze en het ⋯-menu stonden op twee regels omdat
+     het lange periodelabel en de Vandaag-knop er samen niet naast
+     pasten. Met het korte label en het label zelf als "naar vandaag"
+     past alles op één regel: 42px minder boven de lijst. */
+  .uren-periode { height: 36px; justify-content: space-between; flex: 0 1 auto; }
+  .uren-periode-lbl {
+    min-width: 0; flex: 1; padding: 0 4px;
+    cursor: pointer; text-decoration: underline;
+    text-decoration-style: dotted;
+    text-decoration-color: var(--text-hint);
+    text-underline-offset: 3px;
+  }
   .uren-periode button { padding: 4px 7px; }
+  .uren-btn-vandaag { display: none; }
   .uren-scope { height: 36px; }
   .uren-scope button { padding: 0 12px; }
   .uren-btn { height: 36px; padding: 0 12px; }
@@ -6031,7 +6043,10 @@ textarea { line-height: 1.6; resize: vertical; }
             <!-- Quick-add: parses 'tekst @klant !morgen' and creates a checklist task -->
             <form class="dash-quickadd" id="dashQuickAddForm" onsubmit="dashQuickAdd(event)">
               <span class="dash-quickadd-icon">＋</span>
-              <input type="text" id="dashQuickAddInput" placeholder='Snel toevoegen — "Bel klant @POM !morgen"' autocomplete="off"/>
+              <!-- Korte placeholder: het voorbeeld erin werd op telefoonbreedte
+                   toch afgekapt ("Snel toevoegen — \"Bel klant"), en de regel
+                   eronder legt de @- en !-syntax al uit. -->
+              <input type="text" id="dashQuickAddInput" placeholder="Snel toevoegen…" autocomplete="off"/>
               <button type="submit" class="btn btn-xs btn-primary" title="Voeg toe (Enter)">Voeg toe</button>
             </form>
             <div class="dash-quickadd-hint">
@@ -6306,11 +6321,16 @@ textarea { line-height: 1.6; resize: vertical; }
         <span class="uren-topbar-title">Uren</span>
         <div class="uren-periode">
           <button data-uren-action="urenNavPrev" title="Vorige periode" aria-label="Vorige periode">‹</button>
-          <span class="uren-periode-lbl" id="urenPeriodeLabel"></span>
+          <!-- Het label is zelf de weg terug naar vandaag. Op een telefoon
+               paste de losse Vandaag-knop er niet meer bij zonder een
+               tweede regel; dit houdt hem bereikbaar zonder die regel.
+               In het ⋯-menu staat hij ook, voor wie het tikken niet ziet. -->
+          <span class="uren-periode-lbl" id="urenPeriodeLabel" role="button" tabindex="0"
+            data-uren-action="urenNavToday" title="Terug naar vandaag"></span>
           <button data-uren-action="urenNavNext" title="Volgende periode" aria-label="Volgende periode">›</button>
         </div>
         <div class="uren-scope" id="urenScope" role="group" aria-label="Periodebreedte"></div>
-        <button class="uren-btn" data-uren-action="urenNavToday">Vandaag</button>
+        <button class="uren-btn uren-btn-vandaag" data-uren-action="urenNavToday">Vandaag</button>
         <div style="flex:1"></div>
         <button class="uren-btn uren-btn-icon" id="urenMenuBtn" data-uren-action="urenToggleMenu"
           aria-haspopup="menu" aria-expanded="false" title="Meer acties">⋯</button>
@@ -15127,9 +15147,24 @@ function urenRenderTabs(){
   });
 }
 
+/* Kortere schrijfwijze van dezelfde periode, voor smalle schermen.
+   "Week 33 · 10 aug – 16 aug 2026" is 252px breed en duwde de knoppen
+   ernaast naar een tweede regel. "wk 33 · 10–16 aug" zegt hetzelfde in
+   ruim de helft: het jaar staat er zelden toe te doen bij een week, en
+   de maand hoeft niet twee keer als de week er niet overheen loopt. */
+function urenPeriodLabelKort(p){
+  if(p.scope!=='week')return p.label;
+  const f=urenDate(p.from),l=urenDate(p.to);
+  const dag=d=>d.toLocaleDateString('nl-NL',{day:'numeric',month:'short'});
+  const start=f.getMonth()===l.getMonth()?String(f.getDate()):dag(f);
+  return 'wk '+getISOWeek(f)+' · '+start+'–'+dag(l);
+}
 function urenRenderPeriodLabel(){
   const el=document.getElementById('urenPeriodeLabel');
-  if(el)el.textContent=urenPeriod().label;
+  if(!el)return;
+  const p=urenPeriod();
+  const smal=window.matchMedia&&window.matchMedia('(max-width:768px)').matches;
+  el.textContent=smal?urenPeriodLabelKort(p):p.label;
 }
 
 /* ── Navigatie ── */
@@ -15266,6 +15301,10 @@ function urenToggleMenu(){
   const menu=document.createElement('div');
   menu.className='uren-menu';menu.id='urenMenu';menu.setAttribute('role','menu');
   menu.innerHTML=`
+    <button class="uren-menu-item" role="menuitem" data-uren-action="urenNavToday">
+      <span class="ic" aria-hidden="true">◎</span>
+      <span>Vandaag<small>Terug naar de huidige periode</small></span></button>
+    <div class="uren-menu-sep"></div>
     <button class="uren-menu-item" role="menuitem" data-uren-action="openUrenTemplatesModal">
       <span class="ic" aria-hidden="true">⟳</span>
       <span>Templates &amp; herhaling<small>Vaste weekpatronen per klant</small></span></button>
