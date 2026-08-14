@@ -717,7 +717,18 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 /* ── Typografische schaal voor de bediening ──
    Eén maat voor alles wat je aanklikt (tabs, knoppen, schakelaars,
    menu-items): 12.5px/600. De globale .btn-xs (11px) week daarvan af,
-   vandaar dat de module zijn eigen knopklasse heeft. */
+   vandaar dat de module zijn eigen knopklasse heeft.
+
+   Deze maat staat op :root en niet alleen op de module. Menu's en
+   popovers worden aan document.body gehangen (anders knippen ze af tegen
+   een overflow:hidden ergens in de module), en stonden daarmee buiten het
+   bereik van een variabele die alleen binnen #mod-uren bestond. Een
+   font-size die naar een onbekende variabele verwijst is ongeldig en
+   valt terug op wat de ouder heeft -- de body, 15px op een telefoon.
+   Zo werden de knoppen in de filter-popover een kwart groter dan
+   dezelfde knoppen tien pixels ernaast. Overal staat nu ook een
+   terugvalwaarde in de var() zelf, zodat dit niet stil terug kan komen. */
+:root{--uren-ui:12.5px}
 #mod-uren{--uren-ui:12.5px}
 
 /* ── Topbar ── */
@@ -732,7 +743,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
   height:32px;padding:0 13px;box-sizing:border-box;
   background:var(--surface);border:0.5px solid var(--border-strong);
   border-radius:var(--radius);color:var(--text);cursor:pointer;
-  font-family:var(--font-body);font-size:var(--uren-ui);font-weight:600;
+  font-family:var(--font-body);font-size:var(--uren-ui,12.5px);font-weight:600;
   white-space:nowrap;transition:background .12s,border-color .12s,color .12s;
 }
 .uren-btn:hover{background:var(--surface2);border-color:var(--text-hint)}
@@ -818,7 +829,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 }
 .uren-periode button:hover{background:var(--surface3);color:var(--text)}
 .uren-periode-lbl{
-  font-size:var(--uren-ui);font-weight:600;padding:0 10px;min-width:180px;
+  font-size:var(--uren-ui,12.5px);font-weight:600;padding:0 10px;min-width:180px;
   text-align:center;font-variant-numeric:tabular-nums;color:var(--text);
 }
 /* Periodebreedte — bepaalt wat de ‹ › knoppen doorlopen, dus staat
@@ -833,7 +844,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .uren-scope button{
   display:flex;align-items:center;background:transparent;border:none;
   padding:0 12px;border-radius:6px;
-  font-size:var(--uren-ui);font-weight:600;color:var(--text-muted);cursor:pointer;
+  font-size:var(--uren-ui,12.5px);font-weight:600;color:var(--text-muted);cursor:pointer;
   font-family:inherit;transition:background .12s,color .12s;
 }
 .uren-scope button:hover{color:var(--text)}
@@ -852,7 +863,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 }
 .uren-tab{
   background:transparent;border:none;padding:6px 13px;border-radius:6px;
-  font-size:var(--uren-ui);font-weight:600;color:var(--text-muted);cursor:pointer;
+  font-size:var(--uren-ui,12.5px);font-weight:600;color:var(--text-muted);cursor:pointer;
   font-family:inherit;white-space:nowrap;transition:all .15s;
 }
 .uren-tab:hover{color:var(--text)}
@@ -4365,6 +4376,33 @@ textarea { line-height: 1.6; resize: vertical; }
     min-height: 44px;
   }
   textarea { min-height: 88px; }
+
+  /* ── Invoervelden in de geïnstalleerde app ──
+     Die 16px hierboven bestaat om één reden: Safari zoomt in zodra je een
+     veld aanraakt dat kleiner is, en dan verspringt het hele scherm. In
+     een app vanaf het beginscherm gebeurt dat niet -- daar ligt de
+     schaal vast en is er geen zoom om in te schieten. De maat kostte daar
+     dus alleen maar leesbaarheid: een keuzelijst en een datumveld
+     schreeuwden harder dan de kop erboven, en stonden een kwart groter in
+     beeld dan de knoppen ernaast.
+
+     Vandaar dit blok. In een browsertab blijft alles zoals het was; in de
+     app zakken velden naar dezelfde 13,5px als de rest van de bediening.
+     Werkt de mediaquery onverhoopt niet, dan valt het netjes terug op het
+     gedrag hierboven -- niet op iets kapots. */
+  @media (display-mode: standalone) {
+    /* Aankruisvakjes en keuzerondjes blijven buiten schot: die hebben
+       geen tekst in het veld, en hun maat wordt elders bepaald. */
+    input:not([type="checkbox"]):not([type="radio"]), select, textarea {
+      font-size: 13.5px !important;
+      padding: 8px 11px !important;
+      min-height: 38px;
+    }
+    textarea { min-height: 78px; }
+    input::placeholder, textarea::placeholder { font-size: 12.5px; }
+    /* Het knopje van een datumveld schaalt met de tekst mee. */
+    input[type="date"], input[type="time"] { padding-right: 8px !important; }
+  }
   /* De 16px hierboven moet blijven staan -- iOS zoomt bij focus in op elk
      veld dat kleiner is. Maar die maat gold ook voor de grijze hulptekst,
      en die schreeuwde daardoor even hard als je eigen invoer. De
@@ -4899,6 +4937,12 @@ textarea { line-height: 1.6; resize: vertical; }
      aria-label op de knop houdt hem leesbaar voor een schermlezer. */
   .uren-btn-lab { display: none; }
   #urenFilterBtn, #facFilterBtn { padding: 0 11px; gap: 5px; font-size: 12px; }
+  /* De popover zelf mag ook compacter: hij stond op de maten van een
+     desktopvenster terwijl hij op een telefoon bijna een derde van het
+     scherm vulde. */
+  .uren-filterpop { padding: 11px; gap: 9px; min-width: 208px; }
+  .uren-filterpop label { font-size: 9.5px; margin-bottom: 4px; }
+  .uren-scope-pop { height: 34px; }
 
   /* ── Btw: de tijdvakkiezer krijgt zijn eigen regel ──
      Zeven knoppen naast vijf tabs op 393px gaf een rij waarin niets meer
@@ -4954,7 +4998,9 @@ textarea { line-height: 1.6; resize: vertical; }
   .fac-msom { display: flex; }
   .fac-aging { grid-template-columns: 1fr 1fr; gap: 8px; }
   .fac-klanten { grid-template-columns: 1fr; }
-  #mod-facturen { flex-direction: column; --uren-ui: 13px; }
+  /* 12,5px en niet 13: Uren en Facturen delen dezelfde chrome, dus een
+     tab of knop hoort in beide modules even groot te zijn. */
+  #mod-facturen { flex-direction: column; --uren-ui: 12.5px; }
   #mod-facturen .uren-content { flex: none; overflow: visible; padding: 12px 12px 96px; }
   .uren-fab { display: flex; right: 17px; bottom: calc(80px + env(safe-area-inset-bottom, 0)); width: 56px; height: 56px; font-size: 26px; z-index: 60; }
   .uren-legend { display: none; }

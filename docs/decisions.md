@@ -655,3 +655,19 @@ Meegenomen omdat het anders stil fout gaat: de Excel-export voor de boekhouding 
 **Bestanden**: `index.html` — `facScope`/`facAnker`, `facActieveScope`, `facPeriode`, `facAnkerZet`, `facNav`, `facScopeZet`, `facZichtbaar`, `facRenderAll`, `facRenderKpis`, `facRenderLijst`, `facRenderFilters`, `facToggleFilters`, `facBtwKiezer`, `facRenderBtw`, `facBtwRubriekKaarten`, `facBtwRegelKaarten`, `facExportBoekhouding`, `FILTER_ICOON`, `urenRenderFilters`; CSS `.fac-btw-groep`, `.fac-mrub`, `.fac-mkop`, `.fac-mlab`, `.fac-msom`, `.uren-scope-pop`, `.viewbar-btw`
 
 **Niet doen**: `facJaar` weggooien ten gunste van de periode. Btw-aangifte gaat per kwartaal binnen een jaar en de mails per jaar; die hebben een jaartal nodig, geen willekeurig venster. En de periodekeuze niet alsnog in de topbalk zetten: daar past hij op een telefoon niet zonder een tweede regel, en die is er in augustus juist uitgehaald.
+
+## 2026-08-14 · Invoervelden en popovers op hun eigen maat
+
+**Probleem**: Frank meldde het drie keer achter elkaar, op drie schermen: de filter-popover in Facturen, de datumvelden in de factuurwizard, en vrijwel elk veld in de factuureditor stonden te groot in beeld. Het bleken twee losse oorzaken die op hetzelfde neerkwamen.
+
+**1. Een variabele die buiten haar bereik werd gebruikt.** `--uren-ui` (12,5px, de maat voor alles wat je aanklikt in Uren en Facturen) stond alleen op `#mod-uren` en `#mod-facturen`. Menu's en popovers worden aan `document.body` gehangen — nodig, anders knippen ze af tegen een `overflow:hidden` in de module — en vielen daarmee buiten dat bereik. Een `font-size` die naar een onbekende variabele verwijst is ongeldig en valt terug op de ouder: de body, 15px op een telefoon. De knoppen in de filter-popover stonden zo een kwart groter dan dezelfde knoppen tien pixels ernaast.
+
+*Beslissing*: `--uren-ui` staat nu ook op `:root`, en elke `var(--uren-ui)` heeft een terugvalwaarde. Twee sloten op dezelfde deur, want dit soort fout is onzichtbaar tot iemand het opmerkt. `#mod-facturen` ging op mobiel van 13px naar 12,5px: de twee modules delen hun chrome en horen dus dezelfde maat te hebben.
+
+**2. De 16px-regel voor invoervelden.** `input, select, textarea { font-size: 16px !important }` op mobiel bestaat om één reden: Safari zoomt in zodra je een veld aanraakt dat kleiner is, en dan verspringt het hele scherm. Terecht — in een browsertab. Maar Frank gebruikt de app vanaf zijn beginscherm, en daar ligt de schaal vast en is er geen zoom om in te schieten. De maat kostte daar alleen leesbaarheid: een keuzelijst schreeuwde harder dan de kop erboven.
+
+*Beslissing*: de regel blijft staan, met een `@media (display-mode: standalone)` eronder die velden in de geïnstalleerde app op 13,5px zet met een hoogte van 38px. In een browsertab verandert er niets. Werkt de mediaquery onverhoopt niet, dan is de uitkomst het gedrag van vandaag — niet iets kapots. Aankruisvakjes en keuzerondjes zijn uitgesloten: die hebben geen tekst in het veld en hun maat komt ergens anders vandaan.
+
+**Bestanden**: `index.html` — `:root{--uren-ui}`, alle `var(--uren-ui,12.5px)`, `#mod-facturen` (mobiel), `input/select/textarea` in de mobiele media-query + het `display-mode: standalone`-blok, `.uren-filterpop` (mobiel)
+
+**Niet doen**: de 16px onvoorwaardelijk verlagen. Dat is precies de wissel die de zoom-sprong in Safari terugbrengt, en die is erger dan een veld dat een halve punt te groot staat. En `--uren-ui` niet weer alleen op de module zetten: popovers leven buiten de module.
