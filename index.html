@@ -3680,7 +3680,8 @@ textarea { line-height: 1.6; resize: vertical; }
    ════════════════════════════════════════════════════════════════════════════ */
 .mobile-topbar,
 .mobile-bottom-nav,
-.mobile-backdrop { display: none; }
+.mobile-backdrop,
+.ptr-pil { display: none; }
 /* Mobile-only dashboard settings dropdown — hidden on desktop */
 .dash-mobile-settings { display: none; position: relative; }
 .dash-mobile-settings-menu {
@@ -4130,6 +4131,48 @@ textarea { line-height: 1.6; resize: vertical; }
   }
   @keyframes mobileSyncPulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
 
+  /* ── Trek omlaag om te verversen ──
+     Als bladwijzer-app op de iPhone is er geen adresbalk en geen eigen
+     ververs-gebaar van Safari: de pagina scrollt hier in .module, niet in
+     body, dus iOS ziet nooit een overscroll aan de bovenkant. Dit pilletje
+     zakt onder de topbalk vandaan mee met je vinger. */
+  .ptr-pil {
+    display: flex !important;
+    align-items: center;
+    gap: 7px;
+    position: fixed;
+    top: 52px;
+    left: 50%;
+    padding: 7px 14px;
+    border-radius: 999px;
+    background: var(--surface);
+    border: 0.5px solid var(--border-strong);
+    box-shadow: 0 3px 14px rgba(15,27,61,0.18);
+    color: var(--text-muted);
+    font-size: 12.5px;
+    font-weight: 500;
+    white-space: nowrap;
+    z-index: 75;
+    opacity: 0;
+    transform: translate(-50%, -52px);
+    pointer-events: none;
+    transition: opacity .18s var(--ease), transform .22s var(--ease),
+                color .15s var(--ease), border-color .15s var(--ease);
+  }
+  /* Tijdens het slepen volgt het pilletje de vinger — geen vertraging. */
+  .ptr-pil.ptr-slepen { transition: color .15s var(--ease), border-color .15s var(--ease); }
+  .ptr-pil.ptr-klaar { color: var(--accent); border-color: var(--accent); }
+  .ptr-pil.ptr-klaar .ptr-pijl { transform: rotate(180deg); }
+  .ptr-pil.ptr-bezig {
+    opacity: 1 !important;
+    transform: translate(-50%, 14px) !important;
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+  .ptr-pijl { flex-shrink: 0; transition: transform .2s var(--ease); }
+  .ptr-pil.ptr-bezig .ptr-pijl { animation: ptrDraai .8s linear infinite; transform: none; }
+  @keyframes ptrDraai { to { transform: rotate(360deg); } }
+
   .mobile-backdrop {
     display: block !important;
     position: fixed;
@@ -4241,7 +4284,13 @@ textarea { line-height: 1.6; resize: vertical; }
   }
   /* Module containers: scroll their own content (the parent reserves
      space above for top bar and below for bottom bar). */
-  .module { overflow-y: auto !important; min-height: 0 !important; }
+  .module {
+    overflow-y: auto !important;
+    min-height: 0 !important;
+    /* Houdt de stuiter binnen de module, zodat het ververs-gebaar erboven
+       niet vecht met iOS' rubber-band. */
+    overscroll-behavior-y: contain;
+  }
 
   /* ── Modals become full-width with margin and slide up ── */
   .modal-bg { align-items: flex-end !important; padding: 0 !important; }
@@ -5911,6 +5960,12 @@ textarea { line-height: 1.6; resize: vertical; }
         <span class="mobile-sync-dot" id="mobileSyncDot" aria-hidden="true"></span>
       </button>
     </div>
+  </div>
+
+  <!-- Trek omlaag om te verversen — alleen zichtbaar op mobiel -->
+  <div class="ptr-pil" id="ptrPil" aria-hidden="true">
+    <svg class="ptr-pijl" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M8 2.5v11"/><path d="M3.5 9L8 13.5 12.5 9"/></svg>
+    <span id="ptrTekst">Trek omlaag om te verversen</span>
   </div>
 
   <!-- Mobile sidebar backdrop (hidden on desktop) -->
@@ -8990,6 +9045,150 @@ if(window.visualViewport){
   window.visualViewport.addEventListener('resize',checkKb);
   window.visualViewport.addEventListener('scroll',checkKb);
 }
+
+/* ─ Trek omlaag om te verversen (mobiel) ─
+   Als bladwijzer-app op de iPhone is er geen adresbalk, en het ververs-
+   gebaar van Safari werkt hier niet: dat vraagt om een pagina die zelf
+   scrollt, terwijl body op overflow:hidden staat en het schuiven binnen
+   .module gebeurt. Vandaar dit gebaar in de app zelf.
+
+   Dit doet een échte herstart van de pagina — inclusief het opruimen van
+   de service-worker-cache, want die serveert index.html uit de cache en
+   een gewone reload levert dan dezelfde oude versie op. De ↻ in de
+   topbalk blijft wat hij was: alleen de gegevens opnieuw uit Drive. */
+(function(){
+  const AANSLAG=70;   /* zoveel px rekken voordat loslaten ververst */
+  const MAX=120;      /* verder rekt het niet mee */
+  let startY=0,startX=0,rek=0,volgt=false,trekt=false,bezig=false;
+
+  const pil=()=>document.getElementById('ptrPil');
+
+  function mobiel(){
+    return window.matchMedia('(max-width: 768px)').matches;
+  }
+  /* Het gebaar hoort alleen te starten als er verder niets openstaat dat
+     de aandacht heeft -- een modaal, de zijlade of het toetsenbord. */
+  function magStarten(){
+    if(bezig||!mobiel())return false;
+    const app=document.getElementById('appScreen');
+    if(!app||app.style.display==='none')return false;
+    if(document.querySelector('.modal-bg.open'))return false;
+    if(document.getElementById('sidebar')?.classList.contains('mobile-open'))return false;
+    if(document.body.classList.contains('keyboard-open'))return false;
+    return true;
+  }
+  /* Alles tussen het aangeraakte element en de body moet al bovenaan
+     staan. Anders scrolt je vinger een lijst omhoog en is dat wat je
+     bedoelde -- niet verversen. */
+  function allesBovenaan(el){
+    let n=el;
+    while(n&&n!==document.body){
+      if(n.nodeType===1&&n.scrollTop>0){
+        const o=getComputedStyle(n).overflowY;
+        if(o==='auto'||o==='scroll')return false;
+      }
+      n=n.parentElement;
+    }
+    return true;
+  }
+  function toon(px){
+    const p=pil();if(!p)return;
+    p.classList.add('ptr-slepen');
+    p.style.opacity=Math.min(1,px/34).toFixed(3);
+    p.style.transform='translate(-50%,'+Math.round(-52+px*0.62)+'px)';
+    const klaar=px>=AANSLAG;
+    p.classList.toggle('ptr-klaar',klaar);
+    const t=document.getElementById('ptrTekst');
+    if(t)t.textContent=klaar?'Loslaten om te verversen':'Trek omlaag om te verversen';
+  }
+  function verberg(){
+    const p=pil();if(!p)return;
+    p.classList.remove('ptr-slepen','ptr-klaar');
+    p.style.opacity='';p.style.transform='';
+    const t=document.getElementById('ptrTekst');
+    if(t)t.textContent='Trek omlaag om te verversen';
+  }
+  function stop(){
+    volgt=false;trekt=false;rek=0;
+  }
+
+  /* Een belofte die hoe dan ook afloopt: bij een haperende verbinding mag
+     het wachten op Drive de herstart niet tegenhouden. De lokale kopie is
+     dan al geschreven, dus er gaat niets verloren. */
+  function hooguit(belofte,ms){
+    return Promise.race([
+      Promise.resolve(belofte).catch(()=>null),
+      new Promise(r=>setTimeout(r,ms))
+    ]);
+  }
+
+  async function verversen(){
+    bezig=true;
+    const p=pil();
+    if(p){
+      p.classList.remove('ptr-slepen','ptr-klaar');
+      p.style.opacity='';p.style.transform='';
+      p.classList.add('ptr-bezig');
+    }
+    const t=document.getElementById('ptrTekst');
+    if(t)t.textContent='Vernieuwen…';
+    try{
+      /* Eerst wat nog openstaat vastleggen, dan pas herstarten. */
+      if(typeof urenDraftFlush==='function'){try{urenDraftFlush();}catch(_){}}
+      saveLocalBackup();
+      if(saveTimer&&typeof forceSave==='function')await hooguit(forceSave(),6000);
+      /* De service worker geeft index.html uit zijn cache; zonder deze
+         opruiming laadt de herstart precies dezelfde oude versie terug. */
+      if(window.caches){
+        await hooguit(caches.keys().then(ks=>Promise.all(ks.map(k=>caches.delete(k)))),3000);
+      }
+      if(navigator.serviceWorker){
+        await hooguit(navigator.serviceWorker.getRegistration().then(r=>r&&r.update()),3000);
+      }
+    }catch(_){/* wat er ook misgaat: herstarten blijft de bedoeling */}
+    location.reload();
+  }
+
+  const zone=document.querySelector('.main-area');
+  if(!zone)return;
+
+  zone.addEventListener('touchstart',e=>{
+    stop();
+    if(e.touches.length!==1||!magStarten())return;
+    if(!allesBovenaan(e.target))return;
+    startY=e.touches[0].clientY;
+    startX=e.touches[0].clientX;
+    volgt=true;
+  },{passive:true});
+
+  zone.addEventListener('touchmove',e=>{
+    if(!volgt)return;
+    if(e.touches.length!==1){stop();verberg();return;}
+    const dy=e.touches[0].clientY-startY;
+    const dx=e.touches[0].clientX-startX;
+    if(!trekt){
+      /* Omhoog of overwegend zijwaarts (kanban schuift horizontaal):
+         dan is dit gewoon scrollen en bemoeien we ons er niet mee. */
+      if(dy<6||Math.abs(dx)>Math.abs(dy)){if(dy<-4||Math.abs(dx)>10)stop();return;}
+      trekt=true;
+    }
+    if(dy<=0){rek=0;verberg();e.preventDefault();return;}
+    /* Steeds zwaarder: de laatste pixels kosten meer vinger dan de eerste. */
+    rek=Math.min(MAX,dy*0.55);
+    toon(rek);
+    e.preventDefault();
+  },{passive:false});
+
+  const loslaten=()=>{
+    if(!trekt){stop();return;}
+    const genoeg=rek>=AANSLAG;
+    stop();
+    if(genoeg)verversen();
+    else verberg();
+  };
+  zone.addEventListener('touchend',loslaten,{passive:true});
+  zone.addEventListener('touchcancel',()=>{stop();verberg();},{passive:true});
+})();
 
 /* ─ Mobile sidebar drawer (off-canvas) ─ */
 function toggleSidebarMobile(force){

@@ -607,3 +607,17 @@ Met de standaardprefix `F` valt dat niet op, waardoor je het pas merkt als je he
 **Wat hiermee nog níet is opgelost** (besproken, bewust uitgesteld): er is geen creditfactuur, terwijl de verwijderdialoog zelf zegt dat crediteren juister is; een verstuurde factuur blijft volledig bewerkbaar; uren die op een verstuurde factuur staan kun je zonder waarschuwing verwijderen, waarna de specificatie niet meer klopt met wat de klant kreeg; en er zijn geen betalingsherinneringen. Van die vier is de creditfactuur de belangrijkste zodra er echt facturen de deur uit gaan.
 
 **Niet doen**: `toISOString().slice(0,10)` opnieuw gebruiken voor een kalenderdatum. Voor tijdstippen is het prima, voor datums schuift het een dag.
+
+## 2026-08-14 · Trek omlaag om te verversen op mobiel
+
+**Probleem**: Frank gebruikt de app op de iPhone als bladwijzer-app (vanaf het beginscherm, `display: standalone`). Daar is geen adresbalk en dus geen verversknop, en het ververs-gebaar dat je in Safari kent werkt niet. Dat laatste is geen instelling die aan of uit kan staan: iOS toont dat gebaar alleen als de *pagina zelf* aan de bovenkant doorschiet. Hier staat `body` op `overflow:hidden` en scrolt `.module` — iOS ziet aan de bovenkant van het venster nooit een overscroll en heeft dus niets om op te reageren. Gevolg: na een nieuwe versie zag Frank de oude, zonder makkelijke weg terug.
+
+**Beslissing**: het gebaar zelf inbouwen. Een sleep omlaag vanaf de bovenkant laat een pilletje onder de topbalk vandaan zakken; voorbij ~70px betekent loslaten: herstarten. Het gebaar start alleen als élke scrollbare voorouder van het aangeraakte element al bovenaan staat, en niet als er een modaal, de zijlade of het toetsenbord openstaat.
+
+**Verversen is hier een échte herstart van de pagina**, niet alleen de gegevens ophalen. Dat is precies wat de ↻ in de topbalk níet doet, en het onderscheid is bewust: de knop haalt Drive op, het gebaar haalt de app op. Voor die herstart wordt eerst een openstaande save weggeschreven (met een tijdslot van 6s, zodat een haperende verbinding de herstart niet gijzelt) en daarna de service-worker-cache geleegd. Zonder die laatste stap is de herstart zinloos: `sw.js` serveert `index.html` uit de cache, dus je krijgt dezelfde oude versie terug — exact de klacht waarmee dit begon.
+
+**Waarom een sleep-gebaar en niet nog een knop**: er staat al een ↻ in de topbalk. Een tweede knop ernaast met een net iets andere betekenis is niet uit te leggen. Het sleep-gebaar is bovendien wat iedereen op een telefoon al probeert.
+
+**Bestanden**: `index.html` — `.ptr-pil` CSS in de mobiele media-query, `#ptrPil` in de topbalk-sectie, de IIFE "Trek omlaag om te verversen" vlak vóór `toggleSidebarMobile`; `.module` kreeg `overscroll-behavior-y: contain`. `sw.js` — `CACHE_NAME` naar `herling-v7`.
+
+**Niet doen**: het gebaar op `document` hangen in plaats van op `.main-area` — een niet-passieve `touchmove` over de hele pagina kost scroll-vloeiendheid. En het gebaar niet laten neerkomen op `refreshGist()`: dan doet het hetzelfde als de knop en blijft het probleem (de oude versie) staan.
