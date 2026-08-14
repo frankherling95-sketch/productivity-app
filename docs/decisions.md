@@ -635,3 +635,23 @@ Met de standaardprefix `F` valt dat niet op, waardoor je het pas merkt als je he
 **Bestanden**: `index.html` — `.mobile-topbar`, `.sidebar` (mobiel), `.ptr-pil`, `.dash-topbar .module-title`/`.module-sub` (mobiel), `MOBILE_MODULE_TITLES`
 
 **Niet doen**: `padding-top` op de topbalk zetten zonder de hoogte mee te laten groeien — met `box-sizing: border-box` wordt de inhoud dan platgedrukt in plaats van omlaag geduwd.
+
+## 2026-08-14 · Facturen per week/maand/jaar, en de btw-weergave op een telefoon
+
+**Aanleiding**: drie klachten van Frank over de facturenmodule op de iPhone.
+
+**1. Je kon alleen per jaar kijken.** De module kende alleen `facJaar`; Uren had wél een breedte-schakelaar. Nu is er `facScope` (week/maand/jaar) met `facAnker`, de dag waar je naar kijkt. `facJaar` blijft bestaan en loopt mee met het anker — bewust, want btw-aangifte, de verzonden mails en de kwartaalkiezer werken per jaar en hadden anders allemaal een periode moeten leren kennen die ze niet nodig hebben. `facActieveScope()` geeft alleen in de facturenlijst de gekozen breedte terug; op de andere tabbladen valt hij terug op het jaar, zodat een week-knop daar niets belooft wat niet gebeurt.
+
+De keuze staat **in de filter-popover**, niet als knoppenrij in de topbalk. Op 393px is daar geen regel meer over, en het is een instelling die je één keer zet. Het periodelabel is nu ook de weg terug naar nu (`facNavHuidig`), dezelfde afspraak als bij Uren — daardoor kan de losse knop op mobiel weg.
+
+Meegenomen omdat het anders stil fout gaat: de Excel-export voor de boekhouding gebruikt `facZichtbaar()` en volgt dus de periode. Melding, tabnaam en bestandsnaam noemen nu die periode, in plaats van "Alle facturen van 2026" boven een bestand met alleen augustus erin.
+
+**2. De filterknop viel half weg.** Daar stond `⚟` (U+269F) als tekst. Dat teken zit in lang niet elk lettertype; op iOS viel het terug op een vervanger die boven de regel uitstak en onderaan werd afgeknipt. Vervangen door `FILTER_ICOON`, een inline `<svg>` die met de knop meeschaalt. Uren gebruikte hetzelfde teken en is meegegaan.
+
+**3. Het btw-tabblad klopte niet op mobiel.** Twee dingen tegelijk. De kwartaalkiezer (zeven knoppen) werd in de filtersleuf naast vijf tabs geduwd op een regel die niet mag afbreken — niets had daar nog zijn eigen breedte. Hij staat nu op een eigen regel onder de tabs, als twee rasters: vijf tijdvakken boven, twee stelsels eronder. Daarnaast zitten beide btw-tabellen in een `.uren-sheet-card`, en die is op mobiel verborgen (afspraak van 2026-08-13) — maar ze hadden nooit een kaart-tegenhanger gekregen. Tussen de kop en de waarschuwing stond dus letterlijk niets. `facBtwRubriekKaarten()` en `facBtwRegelKaarten()` vullen dat gat.
+
+**Ook gerepareerd**: `.fac-msom` (de totaalbalk onder de kaartenlijst) stond op `display:flex` zonder mobiele grens en was dus óók op desktop zichtbaar, onder een tabel die in zijn `tfoot` al dezelfde totalen toont.
+
+**Bestanden**: `index.html` — `facScope`/`facAnker`, `facActieveScope`, `facPeriode`, `facAnkerZet`, `facNav`, `facScopeZet`, `facZichtbaar`, `facRenderAll`, `facRenderKpis`, `facRenderLijst`, `facRenderFilters`, `facToggleFilters`, `facBtwKiezer`, `facRenderBtw`, `facBtwRubriekKaarten`, `facBtwRegelKaarten`, `facExportBoekhouding`, `FILTER_ICOON`, `urenRenderFilters`; CSS `.fac-btw-groep`, `.fac-mrub`, `.fac-mkop`, `.fac-mlab`, `.fac-msom`, `.uren-scope-pop`, `.viewbar-btw`
+
+**Niet doen**: `facJaar` weggooien ten gunste van de periode. Btw-aangifte gaat per kwartaal binnen een jaar en de mails per jaar; die hebben een jaartal nodig, geen willekeurig venster. En de periodekeuze niet alsnog in de topbalk zetten: daar past hij op een telefoon niet zonder een tweede regel, en die is er in augustus juist uitgehaald.

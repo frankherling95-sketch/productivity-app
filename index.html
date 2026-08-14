@@ -1312,6 +1312,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 
 /* Btw-overzicht: kwartaalkiezer in de filterbalk, kop en waarschuwing */
 .fac-btw-kiezer{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.fac-btw-groep{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 /* Zelfde markering als de primaire knop: in beide thema's leesbaar,
    en het maakt zichtbaar waar de getallen op gebaseerd zijn. */
 .fac-btw-k.active{background:var(--mint);border-color:var(--mint);color:var(--navy);font-weight:650}
@@ -1499,12 +1500,42 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
   margin-left:auto;font-family:var(--font-mono);font-size:17px;font-weight:600;
   font-variant-numeric:tabular-nums;white-space:nowrap;
 }
+/* Hoort bij de kaartenlijst hierboven en is dus net zo mobiel-only. Dit
+   stond op display:flex, waardoor de balk op desktop ónder de tabel bleef
+   staan die in zijn tfoot al dezelfde totalen toont. */
 .fac-msom{
-  display:flex;align-items:center;padding:12px 14px;background:var(--surface2);
+  display:none;align-items:center;padding:12px 14px;background:var(--surface2);
   border:0.5px solid var(--border);border-radius:var(--radius-md);
   font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text);
 }
 .fac-msom b{margin-left:auto;font-family:var(--font-mono);font-size:15px;letter-spacing:0;text-transform:none}
+/* Kopje boven een tweede kaartenlijst binnen dezelfde weergave (btw). */
+.fac-mkop{
+  display:none;font-size:11px;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--text-muted);margin:18px 0 -2px;
+}
+/* Rubriekkaart: geen knop, want er valt niets te openen -- dit zijn de
+   regels die je op het aangifteformulier overneemt. */
+.fac-mrub{
+  background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-md);
+  padding:12px 14px;display:flex;flex-direction:column;gap:7px;box-shadow:var(--shadow-card);
+}
+.fac-mrub .kop{display:flex;align-items:center;gap:9px}
+.fac-mrub .oms{font-size:13px;font-weight:600;line-height:1.35}
+.fac-mrub .rij{display:flex;align-items:baseline;gap:10px;font-size:12.5px;color:var(--text-muted)}
+.fac-mrub .rij b{
+  margin-left:auto;font-family:var(--font-mono);font-size:14px;font-weight:600;
+  font-variant-numeric:tabular-nums;color:var(--text);
+}
+.fac-mrub .nb{font-size:11px;color:var(--text-muted)}
+/* Twee bedragen onder elkaar in één kaart hebben een naampje nodig,
+   anders weet je niet welk getal de btw is. */
+.fac-mlab{font-size:12px;color:var(--text-muted);font-weight:500}
+.fac-mcard .voet .fac-mlab+.bedrag{font-size:15px}
+/* Periodebreedte in de filter-popover: drie gelijke knoppen op volle
+   breedte, in plaats van de compacte variant uit de topbalk. */
+.uren-scope-pop{width:100%;height:36px}
+.uren-scope-pop button{flex:1;justify-content:center;padding:0}
 
 /* ── Sjabloon-editor: instellingen naast een live PDF-preview ── */
 .fac-sj-layout{display:grid;grid-template-columns:392px 1fr;flex:1;min-height:0;overflow:hidden}
@@ -4867,7 +4898,23 @@ textarea { line-height: 1.6; resize: vertical; }
      passen, zodat er niets meer opzij geschoven hoeft te worden. Het
      aria-label op de knop houdt hem leesbaar voor een schermlezer. */
   .uren-btn-lab { display: none; }
-  #urenFilterBtn, #facFilterBtn { padding: 0 10px; gap: 4px; }
+  #urenFilterBtn, #facFilterBtn { padding: 0 11px; gap: 5px; font-size: 12px; }
+
+  /* ── Btw: de tijdvakkiezer krijgt zijn eigen regel ──
+     Zeven knoppen naast vijf tabs op 393px gaf een rij waarin niets meer
+     zijn eigen breedte had. Onder de tabs is ruimte voor twee nette
+     rasters: de vijf tijdvakken boven, de twee stelsels eronder. */
+  .uren-viewbar.viewbar-btw { flex-wrap: wrap; }
+  .uren-viewbar.viewbar-btw .uren-filters { flex: 1 0 100%; }
+  .viewbar-btw .fac-btw-kiezer { width: 100%; flex-direction: column; gap: 6px; }
+  .viewbar-btw .fac-btw-sep { display: none; }
+  .viewbar-btw .fac-btw-groep { display: grid; width: 100%; gap: 5px; }
+  .viewbar-btw .fac-btw-groep-kw { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .viewbar-btw .fac-btw-groep-st { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .viewbar-btw .fac-btw-k {
+    width: 100%; height: 34px; padding: 0 3px;
+    font-size: 11.5px; overflow: hidden;
+  }
   .uren-tab.active { background: var(--navy); color: #fff; border-color: var(--navy); box-shadow: none; }
   /* Compactere KPI's: op een telefoon telt elke pixel die de lijst
      naar beneden duwt. De balkjes vervallen, de tekst blijft. */
@@ -4903,6 +4950,8 @@ textarea { line-height: 1.6; resize: vertical; }
   .uren-sheet-card { display: none; }             /* spreadsheet is desktop-only */
   .uren-mlist { display: flex; }
   .fac-mlist { display: flex; }
+  .fac-mkop { display: block; }
+  .fac-msom { display: flex; }
   .fac-aging { grid-template-columns: 1fr 1fr; gap: 8px; }
   .fac-klanten { grid-template-columns: 1fr; }
   #mod-facturen { flex-direction: column; --uren-ui: 13px; }
@@ -6463,11 +6512,14 @@ textarea { line-height: 1.6; resize: vertical; }
       <div class="uren-topbar">
         <span class="uren-topbar-title">Facturen</span>
         <div class="uren-periode">
-          <button data-fac-action="facNavPrev" title="Vorig jaar" aria-label="Vorig jaar">‹</button>
-          <span class="uren-periode-lbl" id="facPeriodeLabel"></span>
-          <button data-fac-action="facNavNext" title="Volgend jaar" aria-label="Volgend jaar">›</button>
+          <button id="facNavPrevBtn" data-fac-action="facNavPrev" title="Vorig jaar" aria-label="Vorig jaar">‹</button>
+          <!-- Zelfde afspraak als bij Uren: het label is zelf de weg terug
+               naar nu, zodat de losse knop op een telefoon weg kan. -->
+          <span class="uren-periode-lbl" id="facPeriodeLabel" role="button" tabindex="0"
+            data-fac-action="facNavHuidig" title="Terug naar nu"></span>
+          <button id="facNavNextBtn" data-fac-action="facNavNext" title="Volgend jaar" aria-label="Volgend jaar">›</button>
         </div>
-        <button class="uren-btn" data-fac-action="facNavHuidig">Dit jaar</button>
+        <button class="uren-btn uren-btn-vandaag" id="facNavHuidigBtn" data-fac-action="facNavHuidig">Dit jaar</button>
         <div style="flex:1"></div>
         <button class="uren-btn uren-btn-icon" id="facMenuBtn" data-fac-action="facToggleMenu"
           aria-haspopup="menu" aria-expanded="false" title="Meer acties">⋯</button>
@@ -15480,6 +15532,14 @@ function urenRenderScope(){
       data-uren-action="urenSetRegScope" data-uren-arg1="${id}">${label}</button>`).join('');
 }
 
+/* Een trechter als tekening, niet als teken. Hier stond ⚟ (U+269F), en
+   dat teken zit in lang niet elk lettertype: op iOS viel het terug op een
+   vervanger die boven de regel uitstak en aan de onderkant werd afgeknipt.
+   Een <svg> tekent altijd hetzelfde en schaalt met de knop mee. */
+const FILTER_ICOON='<svg viewBox="0 0 16 16" width="13" height="13" fill="none" '+
+  'stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" '+
+  'aria-hidden="true" focusable="false"><path d="M2 3.5h12L9.5 8.6V13L6.5 11.4V8.6z"/></svg>';
+
 /* Filters zitten achter één knop; twee altijd-zichtbare dropdowns namen
    meer breedte in beslag dan ze verdienden. Wat wél actief is staat als
    wisbare chip naast de knop, zodat een filter nooit stilletijd aanstaat. */
@@ -15491,7 +15551,7 @@ function urenRenderFilters(){
      kan wegvallen; het trechtertje en de teller blijven staan. */
   let html=`<button class="uren-btn" id="urenFilterBtn" data-uren-action="urenToggleFilters"
       aria-haspopup="dialog" aria-expanded="false" aria-label="Filter">
-      <span aria-hidden="true">⚟</span><span class="uren-btn-lab">Filter</span>${actief?`<span class="cnt">${actief}</span>`:''}</button>`;
+      ${FILTER_ICOON}<span class="uren-btn-lab">Filter</span>${actief?`<span class="cnt">${actief}</span>`:''}</button>`;
   if(urenFilterClient){
     html+=`<span class="uren-fchip">${escapeHtml(urenClientName(urenFilterClient))}
       <button data-uren-action="urenClearFilter" data-uren-arg1="client" aria-label="Klantfilter wissen">×</button></span>`;
@@ -17731,6 +17791,18 @@ function factuurTerugNaarConcept(id){
 
 let facView='facturen';
 let facJaar=new Date().getFullYear();
+/* ── Periodebreedte van de facturenlijst ──
+   Het jaar blijft de standaard: dat is de eenheid waarin je boekhoudt.
+   Maar "wat heb ik deze maand gefactureerd" was een vraag die je hier
+   niet kon stellen. facScope zet de breedte, facAnker houdt bij naar
+   welke periode je kijkt (een willekeurige dag daarbinnen).
+
+   facJaar loopt mee met het anker en blijft de bron voor alles wat per
+   jaar werkt -- btw-aangifte, de Excel-export en de verzonden mails.
+   Die hebben een jaar nodig, geen willekeurige periode, dus die zijn
+   hier bewust buiten gehouden. */
+let facScope='jaar';                /* week | maand | jaar */
+let facAnker=dateStr(new Date());   /* ISO-dag binnen de getoonde periode */
 let facBtwKwartaal=Math.floor(new Date().getMonth()/3)+1;  /* 1-4, of 0 voor heel jaar */
 let facFilterStatus='';
 let facFilterClient='';
@@ -17740,14 +17812,15 @@ let facWizard=null;       /* {clientId,from,to} tijdens "nieuwe factuur" */
 /* ── Event-delegatie (zelfde patroon als Uren) ── */
 const FAC_CLICK_ACTIONS={
   facSetView:(a)=>facSetView(a),
-  facNavPrev:()=>{facJaar--;facRenderAll();},
-  facNavNext:()=>{facJaar++;facRenderAll();},
+  facNavPrev:()=>facNav(-1),
+  facNavNext:()=>facNav(1),
   facNavHuidig:()=>{
     const nu=new Date();
-    facJaar=nu.getFullYear();
+    facAnkerZet(nu);
     if(facView==='btw')facBtwKwartaal=Math.floor(nu.getMonth()/3)+1;
     facRenderAll();
   },
+  facScopeZet:(a)=>facScopeZet(a),
   facBtwKwartaalZet:(a)=>{facBtwKwartaal=Number(a)||0;facRenderAll();},
   facBtwStelselZet:(a)=>facBtwStelselZet(a),
   facToggleMenu:()=>facToggleMenu(),
@@ -17839,6 +17912,17 @@ document.addEventListener('click',e=>{
   const fn=FAC_CLICK_ACTIONS[el.dataset.facAction];
   if(fn)fn(el.dataset.facArg1,el.dataset.facArg2);
 });
+/* Wat er als knop uitziet moet ook op Enter en spatie reageren; het
+   periodelabel is een <span> met role="button" en krijgt van de browser
+   niets gratis. */
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Enter'&&e.key!==' ')return;
+  const el=e.target.closest?.('[data-fac-action][role="button"]');
+  if(!el)return;
+  e.preventDefault();
+  const fn=FAC_CLICK_ACTIONS[el.dataset.facAction];
+  if(fn)fn(el.dataset.facArg1,el.dataset.facArg2);
+});
 document.addEventListener('change',e=>{
   const el=e.target.closest('[data-fac-change]');
   if(!el)return;
@@ -17889,12 +17973,93 @@ function facSetView(v){
   facView=v;
   facRenderAll();
 }
+
+/* ── Periode ──
+   De gekozen breedte geldt alleen in de facturenlijst. De btw-aangifte
+   werkt per kwartaal, de verzonden mails per jaar en de debiteuren
+   kennen geen grens -- daar zou een week-knop alleen maar iets beloven
+   dat niet gebeurt. Vandaar dat de rest terugvalt op het jaar. */
+function facActieveScope(){
+  return facView==='facturen'?facScope:'jaar';
+}
+function facPeriode(){
+  const d=new Date(facAnker+'T00:00:00');
+  const scope=facActieveScope();
+  /* Drie schrijfwijzen: `label` voluit, `kort` voor een KPI-kop en de
+     bestandsnaam van de export, `mobiel` voor de smalle topbalk. */
+  if(scope==='week'){
+    const ma=new Date(d);ma.setDate(ma.getDate()-((ma.getDay()+6)%7));
+    const zo=new Date(ma);zo.setDate(zo.getDate()+6);
+    const dag=x=>x.toLocaleDateString('nl-NL',{day:'numeric',month:'short'});
+    const wk=getISOWeek(ma);
+    /* Bij welk jaar hoort week 53? Bij dat van de donderdag -- zo is een
+       ISO-week gedefinieerd. Een week die 28 december begint is week 53
+       van dít jaar, niet week 53 van het volgende. */
+    const don=new Date(ma);don.setDate(don.getDate()+3);
+    return {scope,van:dateStr(ma),tot:dateStr(zo),
+      label:'Week '+wk+' · '+dag(ma)+' – '+dag(zo)+' '+zo.getFullYear(),
+      kort:'wk '+wk+' '+don.getFullYear(),
+      mobiel:'wk '+wk+' · '+(ma.getMonth()===zo.getMonth()?ma.getDate():dag(ma))+'–'+dag(zo)};
+  }
+  if(scope==='maand'){
+    const van=new Date(d.getFullYear(),d.getMonth(),1);
+    const tot=new Date(d.getFullYear(),d.getMonth()+1,0);
+    const naam=MONTH_LABELS_NL[d.getMonth()];
+    const k=naam.slice(0,3).toLowerCase()+' '+d.getFullYear();
+    return {scope,van:dateStr(van),tot:dateStr(tot),
+      label:naam+' '+d.getFullYear(),kort:k,mobiel:k};
+  }
+  const j=d.getFullYear();
+  return {scope,van:j+'-01-01',tot:j+'-12-31',label:String(j),kort:String(j),mobiel:String(j)};
+}
+function facAnkerZet(d){
+  facAnker=dateStr(d);
+  facJaar=d.getFullYear();
+}
+function facNav(dir){
+  const d=new Date(facAnker+'T00:00:00');
+  const scope=facActieveScope();
+  if(scope==='week'){d.setDate(d.getDate()+7*dir);facAnkerZet(d);}
+  /* Via de eerste van de maand: 31 augustus + 1 maand komt anders op
+     1 oktober uit, omdat september geen 31e heeft. */
+  else if(scope==='maand')facAnkerZet(new Date(d.getFullYear(),d.getMonth()+dir,1));
+  else facAnkerZet(new Date(d.getFullYear()+dir,d.getMonth(),1));
+  facRenderAll();
+}
+function facScopeZet(s){
+  if(!['week','maand','jaar'].includes(s))return;
+  /* Het anker blijft staan, dus je houdt dezelfde plek in de tijd: van
+     2026 naar de maand waar je anker in valt, niet naar januari. */
+  facScope=s;
+  facRenderAll();
+  /* De popover blijft open zodat je de uitkomst meteen ziet; de
+     markering erin wordt niet door facRenderAll aangeraakt. */
+  document.querySelectorAll('#facFilterPop .uren-scope-pop button').forEach(b=>{
+    const aan=b.dataset.facArg1===s;
+    b.classList.toggle('active',aan);
+    b.setAttribute('aria-pressed',String(aan));
+  });
+}
 function facRenderAll(){
   if(!document.getElementById('facBody'))return;
+  const p=facPeriode();
+  const smal=window.matchMedia&&window.matchMedia('(max-width:768px)').matches;
   const lbl=document.getElementById('facPeriodeLabel');
   if(lbl)lbl.textContent=facView==='klanten'?'Alle klanten'
     :facView==='btw'?(facBtwKwartaal?`Q${facBtwKwartaal} ${facJaar}`:String(facJaar))
+    :facView==='facturen'?(smal?p.mobiel:p.label)
     :String(facJaar);
+  /* De pijlen verschuiven wat er in beeld staat -- dat is niet altijd
+     een jaar meer, dus zeggen ze ook niet altijd 'jaar'. */
+  const stap={week:['Vorige week','Volgende week'],
+              maand:['Vorige maand','Volgende maand'],
+              jaar:['Vorig jaar','Volgend jaar']}[facActieveScope()];
+  const zet=(id,t)=>{const b=document.getElementById(id);
+    if(b){b.title=t;b.setAttribute('aria-label',t);}};
+  zet('facNavPrevBtn',stap[0]);
+  zet('facNavNextBtn',stap[1]);
+  const nu=document.getElementById('facNavHuidigBtn');
+  if(nu)nu.textContent={week:'Deze week',maand:'Deze maand',jaar:'Dit jaar'}[facActieveScope()];
   document.querySelectorAll('#mod-facturen .uren-tab').forEach(b=>
     b.classList.toggle('active',b.dataset.facArg1===facView));
   facRenderFilters();
@@ -17903,11 +18068,14 @@ function facRenderAll(){
   if(typeof updateNavBadges==='function')updateNavBadges();
 }
 
-/* Facturen van het gekozen jaar, met filters. Klanten-weergave kent
+/* Facturen van de gekozen periode, met filters. Klanten-weergave kent
    geen jaargrens. */
 function facZichtbaar(){
+  const p=facPeriode();
   return factuurState.invoices.filter(f=>{
-    if(new Date(f.datum+'T00:00:00').getFullYear()!==facJaar)return false;
+    /* f.datum is een ISO-dag, dus een tekstvergelijking volstaat -- en
+       die kent geen tijdzone die er een dag naast kan zitten. */
+    if(!f.datum||f.datum<p.van||f.datum>p.tot)return false;
     if(facFilterStatus){
       if(facFilterStatus==='telaat'){if(!factuurDagenTeLaat(f))return false;}
       else if(f.status!==facFilterStatus)return false;
@@ -17920,12 +18088,16 @@ function facZichtbaar(){
 function facRenderFilters(){
   const bar=document.getElementById('facFilterBar');
   if(!bar)return;
+  /* De btw-kiezer is geen knopje maar een rij van zeven; die krijgt op een
+     telefoon een eigen regel onder de tabs. De balk weet dat via deze
+     klasse, zodat de CSS niet hoeft te raden wat erin staat. */
+  bar.closest('.uren-viewbar')?.classList.toggle('viewbar-btw',facView==='btw');
   if(facView==='klanten'){bar.innerHTML='';return;}
   if(facView==='btw'){bar.innerHTML=facBtwKiezer();return;}
   if(facView==='mails'){bar.innerHTML='';return;}
   const n=(facFilterStatus?1:0)+(facFilterClient?1:0);
   let html=`<button class="uren-btn" id="facFilterBtn" data-fac-action="facToggleFilters"
-    aria-haspopup="dialog" aria-expanded="false" aria-label="Filter"><span aria-hidden="true">⚟</span><span class="uren-btn-lab">Filter</span>${n?`<span class="cnt">${n}</span>`:''}</button>`;
+    aria-haspopup="dialog" aria-expanded="false" aria-label="Filter en periode">${FILTER_ICOON}<span class="uren-btn-lab">Filter</span>${n?`<span class="cnt">${n}</span>`:''}</button>`;
   if(facFilterStatus){
     const s=FACTUUR_STATUSSEN.find(x=>x.id===facFilterStatus);
     html+=`<span class="uren-fchip">${escapeHtml(s?s.label:'Te laat')}
@@ -17986,13 +18158,16 @@ function facRenderKpis(){
   const teLaat=openstaand.filter(f=>factuurDagenTeLaat(f)>0);
   const betaald=lijst.filter(f=>f.status==='betaald');
   const omzet=lijst.filter(f=>f.status!=='concept').reduce((s,f)=>s+factuurTotalen(f).excl,0);
+  /* De periode staat in de kop van de tegel, niet het jaar: anders leest
+     'Omzet 2026' boven een bedrag dat over augustus gaat. */
+  const per=facPeriode().kort;
   box.innerHTML=`
-    ${facKpi('Omzet '+facJaar,factuurFmtBedrag(omzet),'','excl. btw · verstuurd en betaald','var(--mint)')}
+    ${facKpi('Omzet '+per,factuurFmtBedrag(omzet),'','excl. btw · verstuurd en betaald','var(--mint)')}
     ${facKpi('Openstaand',factuurFmtBedrag(openstaand.reduce((s,f)=>s+factuurTotalen(f).openstaand,0)),'',
       openstaand.length+' factu'+(openstaand.length===1?'ur':'ren')+' onbetaald','var(--info)')}
     ${facKpi('Te laat',factuurFmtBedrag(teLaat.reduce((s,f)=>s+factuurTotalen(f).openstaand,0)),'',
       teLaat.length?teLaat.length+' over de vervaldatum':'niets over de vervaldatum',teLaat.length?'var(--danger)':'var(--success)')}
-    ${facKpi('Betaald '+facJaar,factuurFmtBedrag(som(betaald)),'',betaald.length+' factu'+(betaald.length===1?'ur':'ren'),'var(--success)')}`;
+    ${facKpi('Betaald '+per,factuurFmtBedrag(som(betaald)),'',betaald.length+' factu'+(betaald.length===1?'ur':'ren'),'var(--success)')}`;
 }
 function facKpi(lab,val,eenheid,sub,kleur){
   return `<div class="uren-kpi" style="--k:${kleur}">
@@ -18015,8 +18190,11 @@ function facRenderBody(){
 function facRenderLijst(){
   const lijst=facZichtbaar();
   if(!lijst.length){
-    return `<div class="uren-empty"><b>Nog geen facturen in ${facJaar}</b>
-      Maak een factuur vanuit je geschreven uren met “+ Nieuwe factuur”.</div>`;
+    const p=facPeriode();
+    return `<div class="uren-empty"><b>Nog geen facturen in ${escapeHtml(p.label)}</b>
+      ${facScope==='jaar'
+        ? 'Maak een factuur vanuit je geschreven uren met “+ Nieuwe factuur”.'
+        : 'Verbreed de periode via de filterknop, of maak er een met “+ Nieuwe factuur”.'}</div>`;
   }
   let excl=0,incl=0,open=0;
   let html=`<div class="uren-sheet-card"><table class="fac-table"><thead><tr>
@@ -18225,11 +18403,17 @@ function facBtwKiezer(){
     data-fac-action="facBtwKwartaalZet" data-fac-arg1="${k}">${lab}</button>`;
   const sk=(v,lab,tip)=>`<button class="uren-btn fac-btw-k${st===v?' active':''}"
     data-fac-action="facBtwStelselZet" data-fac-arg1="${v}" title="${tip}">${lab}</button>`;
+  /* Twee groepen in plaats van acht losse knoppen op één rij: op een
+     telefoon wordt elke groep een eigen raster (vijf tijdvakken boven,
+     twee stelsels eronder). Op een breed scherm staan ze naast elkaar en
+     ziet het eruit als voorheen. */
   return `<div class="fac-btw-kiezer">
-    ${kw(1,'Q1')}${kw(2,'Q2')}${kw(3,'Q3')}${kw(4,'Q4')}${kw(0,'Heel jaar')}
+    <div class="fac-btw-groep fac-btw-groep-kw">
+      ${kw(1,'Q1')}${kw(2,'Q2')}${kw(3,'Q3')}${kw(4,'Q4')}${kw(0,'Heel jaar')}</div>
     <span class="fac-btw-sep"></span>
-    ${sk('factuur','Factuurstelsel','Aangifte op factuurdatum — gebruikelijk voor een B.V.')}
-    ${sk('kas','Kasstelsel','Aangifte op de datum waarop je de betaling ontvangt')}
+    <div class="fac-btw-groep fac-btw-groep-st">
+      ${sk('factuur','Factuurstelsel','Aangifte op factuurdatum — gebruikelijk voor een B.V.')}
+      ${sk('kas','Kasstelsel','Aangifte op de datum waarop je de betaling ontvangt')}</div>
   </div>`;
 }
 
@@ -18268,6 +18452,7 @@ function facRenderBtw(){
   html+=`</tbody><tfoot><tr><td colspan="2">Totaal — de btw-kolom is rubriek 5a</td>
     <td class="num">${factuurFmtBedrag(o.grondslagTotaal)}</td>
     <td class="num">${factuurFmtBedrag(o.btwTotaal)}</td></tr></tfoot></table></div>`;
+  html+=facBtwRubriekKaarten(o,volgorde);
 
   html+=`<div class="fac-btw-let"><b>Dit is niet het bedrag dat je overmaakt.</b>
     Hierboven staat alleen de btw die jij in rekening hebt gebracht. De voorbelasting
@@ -18295,6 +18480,49 @@ function facRenderBtw(){
   html+=`</tbody><tfoot><tr><td colspan="4">Totaal</td>
     <td class="num">${factuurFmtBedrag(o.grondslagTotaal)}</td>
     <td class="num">${factuurFmtBedrag(o.btwTotaal)}</td></tr></tfoot></table></div>`;
+  html+=facBtwRegelKaarten(o,stelsel);
+  return html;
+}
+
+/* ── Btw op een telefoon ──
+   Beide tabellen hierboven zitten in een .uren-sheet-card, en die is op
+   mobiel verborgen -- dat is de afspraak voor brede tabellen. Alleen
+   kregen ze nooit een tegenhanger, waardoor er tussen de kop en de
+   waarschuwing letterlijk niets stond. Dit zijn die tegenhangers. */
+function facBtwRubriekKaarten(o,volgorde){
+  const rang=k=>{const i=volgorde.indexOf(k);return i<0?99:i;};
+  let html='<div class="fac-mlist">';
+  Object.keys(o.perTarief).sort((a,b)=>rang(a)-rang(b)).forEach(k=>{
+    const r=facBtwRubriek(k), v=o.perTarief[k];
+    html+=`<div class="fac-mrub">
+      <span class="kop"><span class="fac-nr">${r.code}</span><span class="oms">${r.oms}</span></span>
+      <span class="rij"><span>Omzet excl. btw</span><b>${factuurFmtBedrag(v.grondslag)}</b></span>
+      <span class="rij"><span>Btw</span><b>${factuurFmtBedrag(v.btw)}</b></span>
+      ${(k==='verlegd'||k==='0')?'<span class="nb">Geen btw af te dragen</span>':''}
+    </div>`;
+  });
+  html+=`</div><div class="fac-msom">Rubriek 5a<b>${factuurFmtBedrag(o.btwTotaal)}</b></div>`;
+  return html;
+}
+function facBtwRegelKaarten(o,stelsel){
+  if(!o.regels.length)return '';
+  let html=`<div class="fac-mkop">Facturen in dit tijdvak</div><div class="fac-mlist">`;
+  o.regels.forEach(r=>{
+    const f=r.f, klant=factuurKlant(f.clientId);
+    const col=klant?CLIENT_COLORS[klant.colorIdx%CLIENT_COLORS.length]:{bg:'var(--surface3)'};
+    html+=`<button class="fac-mcard" style="--c:${col.bg}" data-fac-action="facOpen" data-fac-arg1="${f.id}">
+      <span class="kop"><span class="nr">${escapeHtml(f.nummer)}</span>
+        <span class="dat">${factuurFmtDatum(r.datum)}</span></span>
+      <span class="klant"><span class="sw" style="background:${col.bg}"></span>
+        <span>${escapeHtml(f.klant?f.klant.naam:(klant?(klant.bedrijfsnaam||klant.name):'—'))}</span></span>
+      ${r.deel?`<span class="betreft">${escapeHtml(r.deel)}</span>`:''}
+      <span class="voet"><span class="fac-mlab">${stelsel==='kas'?'Ontvangen':'Excl. btw'}</span>
+        <span class="bedrag">${factuurFmtBedrag(r.grondslag)}</span></span>
+      <span class="voet"><span class="fac-mlab">Btw</span>
+        <span class="bedrag">${factuurFmtBedrag(r.btw)}</span></span>
+    </button>`;
+  });
+  html+=`</div><div class="fac-msom">Totaal btw<b>${factuurFmtBedrag(o.btwTotaal)}</b></div>`;
   return html;
 }
 
@@ -20004,7 +20232,7 @@ function facToggleMenu(){
     <div class="uren-menu-sep"></div>
     <button class="uren-menu-item" role="menuitem" data-fac-action="facExportBoekhouding">
       <span class="ic" aria-hidden="true">↧</span>
-      <span>Export voor boekhouding<small>Alle facturen van ${facJaar} als Excel</small></span></button>`;
+      <span>Export voor boekhouding<small>Facturen van ${escapeHtml(facPeriode().label)} als Excel</small></span></button>`;
   document.body.appendChild(m);
   const sub=document.getElementById('facBackupSub');
   if(sub){
@@ -20041,7 +20269,17 @@ function facToggleFilters(){
   if(!btn)return;
   const pop=document.createElement('div');
   pop.className='uren-filterpop';pop.id='facFilterPop';pop.setAttribute('role','dialog');
+  /* De periodebreedte staat hier en niet als losse knoppenrij in de
+     topbalk: daar is op een telefoon geen regel meer over, en je zet hem
+     één keer en dan een tijd niet meer. Alleen in de facturenlijst --
+     de andere weergaven werken per kwartaal of per jaar. */
+  const scopeKnop=(id,lab)=>`<button type="button" class="${facScope===id?'active':''}"
+      aria-pressed="${facScope===id}" data-fac-action="facScopeZet" data-fac-arg1="${id}">${lab}</button>`;
   pop.innerHTML=`
+    ${facView==='facturen'?`<div><label>Periode</label>
+      <div class="uren-scope uren-scope-pop">
+        ${scopeKnop('week','Week')}${scopeKnop('maand','Maand')}${scopeKnop('jaar','Jaar')}
+      </div></div>`:''}
     <div><label for="facFilterStatusSel">Status</label>
       <select id="facFilterStatusSel" data-fac-change="facSetFilterStatus">
         <option value="">Alle statussen</option>
@@ -20774,7 +21012,12 @@ async function facMailVerstuurActie(){
 function facExportBoekhouding(){
   closeFacMenu();
   const lijst=facZichtbaar();
-  if(!lijst.length){appToast('Geen facturen in '+facJaar,{type:'warning'});return;}
+  /* Wat je exporteert is wat je op het scherm ziet -- de filters golden
+     hier al, en sinds de periodekeuze geldt die ook. Daarom staat de
+     periode in de melding, de tabnaam én de bestandsnaam: anders krijg je
+     een bestand 'Facturen_2026' met alleen augustus erin. */
+  const per=facPeriode().kort;
+  if(!lijst.length){appToast('Geen facturen in '+facPeriode().label,{type:'warning'});return;}
   const kop=['Factuurnummer','Datum','Vervaldatum','Klant','Btw-nummer','Betreft','Referentie',
     'Bedrag excl. btw','Btw','Bedrag incl. btw','Betaald','Openstaand','Status'];
   const rijen=lijst.slice().reverse().map(f=>{
@@ -20789,8 +21032,8 @@ function facExportBoekhouding(){
   const ws=XLSX.utils.aoa_to_sheet([kop,...rijen]);
   ws['!cols']=[{wch:12},{wch:11},{wch:11},{wch:26},{wch:16},{wch:34},{wch:14},
     {wch:13},{wch:11},{wch:13},{wch:11},{wch:12},{wch:11}];
-  XLSX.utils.book_append_sheet(wb,ws,'Facturen '+facJaar);
-  XLSX.writeFile(wb,`Facturen_${facJaar}.xlsx`);
+  XLSX.utils.book_append_sheet(wb,ws,'Facturen '+per);
+  XLSX.writeFile(wb,`Facturen_${per.replace(/\s+/g,'-')}.xlsx`);
   appToast(`${rijen.length} facturen geëxporteerd`,{type:'success'});
 }
 
