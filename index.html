@@ -4066,12 +4066,17 @@ textarea { line-height: 1.6; resize: vertical; }
 @media (max-width: 768px) {
 
   /* ── Show mobile chrome ── */
+  /* De balk zelf loopt door tot achter de statusbalk -- daar hoort de
+     achtergrondkleur te staan, anders zie je een streep. De inhoud wordt
+     met padding-top eronderuit geduwd. Zonder dat lag het hamburgertje
+     onder de klok en de Dynamic Island, precies waar iOS je tik afvangt
+     en je er dus niet bij kon. Onderin was dit al geregeld, bovenin niet. */
   .mobile-topbar {
     display: flex !important;
     align-items: center;
     gap: 8px;
-    height: 52px;
-    padding: 0 12px;
+    height: calc(52px + env(safe-area-inset-top, 0px));
+    padding: env(safe-area-inset-top, 0px) 12px 0;
     background: var(--surface);
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
@@ -4141,7 +4146,7 @@ textarea { line-height: 1.6; resize: vertical; }
     align-items: center;
     gap: 7px;
     position: fixed;
-    top: 52px;
+    top: calc(52px + env(safe-area-inset-top, 0px));
     left: 50%;
     padding: 7px 14px;
     border-radius: 999px;
@@ -4253,11 +4258,16 @@ textarea { line-height: 1.6; resize: vertical; }
 
   /* ── Sidebar becomes an off-canvas drawer ── */
   #appScreen { flex-direction: column !important; }
+  /* De lade schuift over het hele scherm, dus ook achter de statusbalk en
+     over de thuisbalk onderin. Zonder deze twee marges valt het logo onder
+     de klok en de laatste menu-regel achter de streep. */
   .sidebar {
     position: fixed !important;
     top: 0;
     left: 0;
     bottom: 0;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
     width: 84% !important;
     max-width: 320px !important;
     z-index: 100;
@@ -4410,8 +4420,12 @@ textarea { line-height: 1.6; resize: vertical; }
     overflow: hidden !important;
   }
   .dash-topbar .dash-mobile-settings > button svg { margin-right: 2px !important; }
-  .dash-topbar .module-title { font-size: 17px !important; }
-  .dash-topbar .module-sub { font-size: 11.5px !important; }
+  /* Het dashboard was de enige module met een eigen kop in de inhoud; alle
+     andere leunen op de titel in de topbalk. Twee keer 'Dashboard' onder
+     elkaar, en nergens anders een kop -- daarom hier weg. De datum blijft:
+     die staat nergens anders. */
+  .dash-topbar .module-title { display: none !important; }
+  .dash-topbar .module-sub { font-size: 12.5px !important; color: var(--text-muted) !important; }
   .dash-scroll { padding: 16px 12px !important; gap: 14px !important; }
   /* .dash-scroll is een flex-kolom; zonder dit krimpen de kinderen om in
      de zichtbare hoogte te passen. De hero werd zo tot 36px platgedrukt
@@ -9203,7 +9217,7 @@ function toggleSidebarMobile(force){
 
 /* ─ Update mobile top bar title + bottom-nav active state ─ */
 const MOBILE_MODULE_TITLES={
-  dashboard:'Dashboard',notes:'Notities',
+  dashboard:'Dashboard',todo:'Projecten',notes:'Notities',
   agenda:'Agenda',checklist:'Checklist',
   uren:'Uren',facturen:'Facturen'
 };

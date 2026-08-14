@@ -621,3 +621,17 @@ Met de standaardprefix `F` valt dat niet op, waardoor je het pas merkt als je he
 **Bestanden**: `index.html` — `.ptr-pil` CSS in de mobiele media-query, `#ptrPil` in de topbalk-sectie, de IIFE "Trek omlaag om te verversen" vlak vóór `toggleSidebarMobile`; `.module` kreeg `overscroll-behavior-y: contain`. `sw.js` — `CACHE_NAME` naar `herling-v7`.
 
 **Niet doen**: het gebaar op `document` hangen in plaats van op `.main-area` — een niet-passieve `touchmove` over de hele pagina kost scroll-vloeiendheid. En het gebaar niet laten neerkomen op `refreshGist()`: dan doet het hetzelfde als de knop en blijft het probleem (de oude versie) staan.
+
+## 2026-08-14 · Statusbalk-marge bovenin op mobiel, en één titel per module
+
+**Probleem**: het hamburgertje linksboven was op de iPhone niet aan te tikken. De oorzaak: `viewport-fit=cover` plus `apple-mobile-web-app-status-bar-style: black-translucent` laten de pagina dóórlopen tot achter de statusbalk, maar `.mobile-topbar` stond op `top: 0` zonder marge. De balk van 52px lag daarmee volledig onder de klok en de Dynamic Island — precies het gebied waar iOS je tik zelf afvangt. Onderin was `env(safe-area-inset-bottom)` overal netjes toegepast (tabbalk, modalen, FAB); bovenin nergens.
+
+**Beslissing**: `.mobile-topbar` krijgt `padding-top: env(safe-area-inset-top)` en groeit even hard mee in hoogte, zodat de achtergrondkleur wél tot achter de statusbalk doorloopt maar de inhoud eronderuit komt. Hetzelfde voor de zijlade (`.sidebar`, boven én onder — die schuift over het hele scherm) en voor het ververs-pilletje, dat onder de topbalk vandaan hoort te zakken.
+
+**En meteen: één titel per module.** Het dashboard was de enige module met een eigen kop in de inhoud (`.dash-topbar .module-title`); alle andere leunen op `#mobileTopbarTitle`. Zolang die topbalk onzichtbaar onder de klok lag, oogde dat als "alleen het dashboard heeft een titel". Nu de balk zichtbaar is, stond er twee keer 'Dashboard' onder elkaar. De kop in de inhoud is daarom verborgen op mobiel — de datum eronder blijft, die staat nergens anders. `MOBILE_MODULE_TITLES` miste `todo`, waardoor die module een lege titelbalk kreeg; nu 'Projecten'.
+
+**Waarom niet de topbalk gewoon lager zetten met een vaste 47px**: die maat verschilt per toestel (en per stand). `env()` is precies waarvoor dit bestaat, en de rest van de app gebruikte het onderin al.
+
+**Bestanden**: `index.html` — `.mobile-topbar`, `.sidebar` (mobiel), `.ptr-pil`, `.dash-topbar .module-title`/`.module-sub` (mobiel), `MOBILE_MODULE_TITLES`
+
+**Niet doen**: `padding-top` op de topbalk zetten zonder de hoogte mee te laten groeien — met `box-sizing: border-box` wordt de inhoud dan platgedrukt in plaats van omlaag geduwd.
