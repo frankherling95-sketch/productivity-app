@@ -14,6 +14,22 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="Herling"/>
 <link rel="apple-touch-icon" href="herling-icon.svg"/>
+<!-- Invoervelden staan smal, behalve op de ene plek waar dat niet kan:
+     Safari op een iPhone, in een gewóón tabblad. Daar zoomt de pagina in
+     zodra je een veld aanraakt dat kleiner is dan 16px, en verspringt het
+     hele scherm. Elders (de app vanaf het beginscherm, elk bureaublad,
+     een smal venster) bestaat dat gedrag niet en kost die maat alleen
+     leesbaarheid.
+
+     navigator.standalone is precies de vlag die dat onderscheidt: false
+     in een Safari-tabblad op iOS, true in de app vanaf het beginscherm,
+     en undefined overal daarbuiten. Dit staat in de <head> en niet bij de
+     rest van de JS, zodat de klasse er al is voordat er iets getekend
+     wordt -- anders zie je de velden bij het laden nog verspringen. -->
+<script>
+  if(window.navigator.standalone===false)
+    document.documentElement.classList.add('ios-tab');
+</script>
 <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <!-- DOMPurify: notitie-HTML wordt met innerHTML in de pagina gezet; zonder
@@ -4370,59 +4386,54 @@ textarea { line-height: 1.6; resize: vertical; }
   .btn-xs { padding: 6px 10px !important; font-size: 12px !important; min-height: 36px; }
   .btn-sm { padding: 8px 14px !important; font-size: 13px !important; min-height: 40px; }
   .btn { padding: 10px 16px !important; font-size: 14px !important; min-height: 44px; }
-  input, select, textarea {
-    font-size: 16px !important; /* prevents iOS auto-zoom on focus */
+  /* ── Invoervelden ──
+     13,5px is de maat, gelijk aan de rest van de bediening. Hier stond
+     16px, om één reden: Safari op een iPhone zoomt in zodra je een veld
+     aanraakt dat kleiner is. Dat gedrag bestaat alleen daar -- niet in de
+     app vanaf het beginscherm, niet op een bureaublad, ook niet in een
+     smal getrokken venster. De maat gold overal en kostte overal
+     leesbaarheid: een keuzelijst schreeuwde harder dan de kop erboven.
+
+     Nu andersom: klein als standaard, en alleen op de ene plek waar het
+     misgaat weer 16px (zie .ios-tab hieronder, gezet vanuit de <head>).
+
+     Aankruisvakjes en keuzerondjes blijven buiten schot: die hebben geen
+     tekst in het veld, en hun maat wordt elders bepaald. */
+  input:not([type="checkbox"]):not([type="radio"]), select, textarea {
+    font-size: 13.5px !important;
+    padding: 8px 11px !important;
+    min-height: 38px;
+  }
+  textarea { min-height: 78px; }
+  /* Het knopje van een datumveld schaalt met de tekst mee. */
+  input[type="date"], input[type="time"] { padding-right: 8px !important; }
+
+  /* Safari-tabblad op iOS: terug naar 16px, anders springt het scherm. */
+  .ios-tab input:not([type="checkbox"]):not([type="radio"]),
+  .ios-tab select,
+  .ios-tab textarea {
+    font-size: 16px !important;
     padding: 10px 12px !important;
     min-height: 44px;
   }
-  textarea { min-height: 88px; }
+  .ios-tab textarea { min-height: 88px; }
 
-  /* ── Invoervelden in de geïnstalleerde app ──
-     Die 16px hierboven bestaat om één reden: Safari zoomt in zodra je een
-     veld aanraakt dat kleiner is, en dan verspringt het hele scherm. In
-     een app vanaf het beginscherm gebeurt dat niet -- daar ligt de
-     schaal vast en is er geen zoom om in te schieten. De maat kostte daar
-     dus alleen maar leesbaarheid: een keuzelijst en een datumveld
-     schreeuwden harder dan de kop erboven, en stonden een kwart groter in
-     beeld dan de knoppen ernaast.
-
-     Vandaar dit blok. In een browsertab blijft alles zoals het was; in de
-     app zakken velden naar dezelfde 13,5px als de rest van de bediening.
-     Werkt de mediaquery onverhoopt niet, dan valt het netjes terug op het
-     gedrag hierboven -- niet op iets kapots. */
-  @media (display-mode: standalone) {
-    /* Aankruisvakjes en keuzerondjes blijven buiten schot: die hebben
-       geen tekst in het veld, en hun maat wordt elders bepaald. */
-    input:not([type="checkbox"]):not([type="radio"]), select, textarea {
-      font-size: 13.5px !important;
-      padding: 8px 11px !important;
-      min-height: 38px;
-    }
-    textarea { min-height: 78px; }
-    input::placeholder, textarea::placeholder { font-size: 12.5px; }
-    /* Het knopje van een datumveld schaalt met de tekst mee. */
-    input[type="date"], input[type="time"] { padding-right: 8px !important; }
-  }
-  /* De 16px hierboven moet blijven staan -- iOS zoomt bij focus in op elk
-     veld dat kleiner is. Maar die maat gold ook voor de grijze hulptekst,
-     en die schreeuwde daardoor even hard als je eigen invoer. De
-     placeholder mag wél kleiner: iOS kijkt naar de maat van het veld,
-     niet naar die van de placeholder. */
-  input::placeholder,
-  textarea::placeholder {
-    font-size: 13.5px;
-    opacity: 1;
+  /* ── Hulptekst weegt lichter dan wat je zelf typt ──
+     De vooraf ingevulde tekst ('Waar heb je aan gewerkt?', 'Leeg = tarief
+     van de klant') stond er even zwaar in als een ingevulde waarde. Een
+     halve punt kleiner en wat lichter leest het als een hint. iOS kijkt
+     voor de zoom naar de maat van het veld, niet naar die van de
+     placeholder, dus dit mag ook in een Safari-tabblad kleiner blijven --
+     al is het verschil daar groter omdat het veld zelf 16px is. */
+  input::placeholder, textarea::placeholder {
+    font-size: 12.5px !important;
+    opacity: .75;
     color: var(--text-hint);
   }
-  /* ── Hulptekst weegt lichter dan wat je zelf typt ──
-     De 16px hierboven is niet vrijblijvend: onder die maat zoomt iOS bij
-     het focussen in en verspringt het hele scherm. Maar die maat hoeft
-     alleen te gelden voor wat je intikt. De vooraf ingevulde tekst
-     ('Waar heb je aan gewerkt?', 'Leeg = tarief van de klant') stond er
-     even zwaar in als een ingevulde waarde; op 13px leest het als een
-     hint. Het bijschrift erboven gaat van 10,5 naar 11px, zodat label en
-     hint dichter bij elkaar liggen dan label en invoer. */
-  input::placeholder, textarea::placeholder { font-size: 13px !important; opacity: .75; }
+  .ios-tab input::placeholder,
+  .ios-tab textarea::placeholder { font-size: 13px !important; }
+  /* Het bijschrift boven een veld: dicht genoeg bij de invoer om erbij te
+     horen, licht genoeg om niet mee te lezen. */
   .uren-form label, .modal label { font-size: 11px !important; }
 
   /* ── Universal touch-target bump for icon buttons ── */
@@ -4669,10 +4680,11 @@ textarea { line-height: 1.6; resize: vertical; }
   }
   .toolbar .search-input {
     grid-column: 1 / -1 !important;
-    font-size: 16px !important;
+    font-size: 13.5px !important;
     padding: 8px 12px !important;
-    min-height: 40px !important;
+    min-height: 38px !important;
   }
+  .ios-tab .toolbar .search-input { font-size: 16px !important; min-height: 40px !important; }
   .toolbar #filterCategory,
   .toolbar #categoryGroupingSelect {
     width: 100% !important;
@@ -4853,10 +4865,11 @@ textarea { line-height: 1.6; resize: vertical; }
   .cl2-seg-btn { padding: 4px 5px !important; font-size: 10.5px !important; white-space: nowrap !important; min-height: 28px !important; }
   .cl2-filter-search {
     flex: 1 1 auto !important; min-width: 0 !important;
-    font-size: 16px !important;   /* iOS-zoom bij focus voorkomen */
+    font-size: 13.5px !important;
     min-height: 34px !important;
   }
-  .cl2-filter-search::placeholder { font-size: 13px !important; }
+  .ios-tab .cl2-filter-search { font-size: 16px !important; }
+  .cl2-filter-search::placeholder { font-size: 12.5px !important; }
   .cl2-filter-counter { flex-shrink: 0 !important; margin-left: 0 !important; }
   /* ── Taakrij: titel eerst, knoppen eronder ──
      Naast elkaar hielden vier icoonknoppen plus greep en vinkje ruim 200
@@ -5361,7 +5374,8 @@ textarea { line-height: 1.6; resize: vertical; }
 .dash-quickadd-hint strong { color: var(--mint); font-weight: 600; }
 @media (max-width: 768px) {
   .dash-quickadd { max-width: none; }
-  .dash-quickadd input { font-size: 16px !important; }
+  /* Alleen opblazen waar iOS anders inzoomt; zie de <head> voor .ios-tab. */
+  .ios-tab .dash-quickadd input { font-size: 16px !important; }
 }
 .dash-hero-delta { font-size: 11px; color: var(--mint); font-weight: 600; font-family: var(--font-mono); }
 @media (max-width: 720px) {

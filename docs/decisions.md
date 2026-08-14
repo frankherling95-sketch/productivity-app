@@ -671,3 +671,19 @@ Meegenomen omdat het anders stil fout gaat: de Excel-export voor de boekhouding 
 **Bestanden**: `index.html` — `:root{--uren-ui}`, alle `var(--uren-ui,12.5px)`, `#mod-facturen` (mobiel), `input/select/textarea` in de mobiele media-query + het `display-mode: standalone`-blok, `.uren-filterpop` (mobiel)
 
 **Niet doen**: de 16px onvoorwaardelijk verlagen. Dat is precies de wissel die de zoom-sprong in Safari terugbrengt, en die is erger dan een veld dat een halve punt te groot staat. En `--uren-ui` niet weer alleen op de module zetten: popovers leven buiten de module.
+
+## 2026-08-14 · Correctie: de veldmaat hangt aan navigator.standalone, niet aan display-mode
+
+**Vervangt punt 2 van de entry hierboven.** Die koppelde de kleinere invoervelden aan `@media (display-mode: standalone)`. Dat werkte niet, en de redenering erachter was ook te smal.
+
+**Wat er misging**: de mediaquery is alleen waar in de app vanaf het beginscherm. Frank keek naar een smal getrokken bureaubladvenster — onder de 768px-grens, dus mét de mobiele opmaak, maar niet standalone. Daar veranderde er dus niets. En terecht niet: de query beschrijft "is dit een geïnstalleerde app", terwijl de vraag is "kan de pagina hier inzoomen als ik een veld aanraak".
+
+**De juiste vraag**: dat gebeurt op precies één plek — Safari op iOS, in een gewoon tabblad. Niet in de app vanaf het beginscherm, niet op een bureaublad, ook niet in een smal venster. `navigator.standalone` onderscheidt dat exact: `false` in een Safari-tabblad op iOS, `true` in de app, en `undefined` overal daarbuiten. Een scriptje in de `<head>` zet bij `=== false` de klasse `ios-tab` op `<html>`.
+
+**Beslissing**: 13,5px is nu de standaard voor invoervelden op mobiele breedte, en `.ios-tab` zet ze terug op 16px. Dat is de omgekeerde volgorde van eerst: de uitzondering staat waar de uitzondering is, in plaats van dat de uitzondering de regel is. De klasse staat in de `<head>` en niet bij de rest van de JS, zodat hij er is voordat er iets getekend wordt.
+
+Meegenomen: `.toolbar .search-input`, `.cl2-filter-search` en `.dash-quickadd input` hadden hun eigen `font-size: 16px !important` met hogere specificiteit en bleven daardoor buiten elke wijziging staan. Die volgen nu hetzelfde patroon.
+
+**Bestanden**: `index.html` — scriptje in de `<head>`, de invoerveld-regels en `.ios-tab`-tegenhangers in de mobiele media-query, de drie zoekvelden; `sw.js` — `CACHE_NAME` naar `herling-v8`
+
+**Niet doen**: `display-mode` gebruiken om iets over invoergedrag te zeggen. Het beschrijft hoe de app *gestart* is, niet of de pagina kan zoomen. En de uitzondering niet terugdraaien naar "groot als standaard": dan komt dezelfde klacht terug op elk scherm dat toevallig smal is.
