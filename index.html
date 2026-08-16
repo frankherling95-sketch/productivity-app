@@ -6824,7 +6824,7 @@ textarea { line-height: 1.6; resize: vertical; }
   </div>
 </div>
 
-<!-- ── Pincode: instellen en ontgrendelen ── -->
+<!-- ── Eenmalig uitpakken van een oud versleuteld blok (pincode afgeschaft) ── -->
 <div class="modal-bg" id="pinModal">
   <div class="modal" style="max-width:420px;padding:26px 24px">
     <h3 id="pinTitel" style="font-size:18px;font-weight:700;margin:0 0 6px">Administratie ontgrendelen</h3>
@@ -6832,7 +6832,6 @@ textarea { line-height: 1.6; resize: vertical; }
     <div id="pinVelden"></div>
     <div id="pinFout" style="color:var(--danger);font-size:12.5px;min-height:18px;margin-top:8px"></div>
     <div class="modal-footer" style="margin-top:14px">
-      <div id="pinLinks"></div>
       <div class="modal-footer-right">
         <button class="btn btn-sm" id="pinAnnuleer" data-fac-action="closePinModal">Annuleer</button>
         <button class="btn btn-sm btn-primary" id="pinBevestig" data-fac-action="pinBevestig">Ontgrendelen</button>
@@ -7639,63 +7638,46 @@ textarea { line-height: 1.6; resize: vertical; }
    moeten zeven jaar bewaard blijven; een Gist is een klik van
    verwijderen en de localStorage-kopie hangt aan een browser. */
 const LS_BACKUP_DATUM='herling_laatste_backup';
-/* Versleuteling: de afgeleide sleutel wordt per apparaat bewaard met een
-   vervaldatum, zodat je de pincode niet elke sessie hoeft in te typen. */
-const LS_PIN_SLEUTEL='herling_pin_sleutel';
-const PIN_ONTHOUD_DAGEN=30;
-
 /* ╔══════════════════════════════════════════════════════════════════╗
-   ║              VERSLEUTELING VAN DE ADMINISTRATIE                  ║
+   ║        PINCODE-VERSLEUTELING — AFGESCHAFT, ALLEEN NOG UITPAKKEN  ║
    ║                                                                  ║
-   ║  Waarom: een "secret" GitHub Gist is niet privé maar onvindbaar. ║
-   ║  Iedereen met de URL leest hem zonder in te loggen. Versleuteld  ║
-   ║  is die URL alleen nog een blok ruis.                            ║
+   ║  De versleuteling stamt uit de Gist-tijd: die URL was niet privé ║
+   ║  maar onvindbaar, dus een blok ruis was daar winst. Sinds de      ║
+   ║  opslag in Drive's appDataFolder zit er al een echt slot op --    ║
+   ║  alleen het ingelogde account komt erbij, er is geen URL en geen  ║
+   ║  losse token. De pincode was daar bovenop vooral een deur die     ║
+   ║  telkens weer op slot sprong: de sleutel per apparaat verliep na  ║
+   ║  een maand, en verviel bij elke schoongemaakte localStorage.      ║
    ║                                                                  ║
-   ║  Wat wel: facturen, uren en de gevoelige klantvelden (adres,     ║
-   ║  btw, kvk, e-mail, tarief) plus de eigen bedrijfsgegevens.       ║
-   ║  Wat niet: klantnaam en kleur — die heeft de rest van de app     ║
-   ║  nodig, en notities/checklist/agenda blijven zo bruikbaar        ║
-   ║  zonder pincode.                                                 ║
-   ║                                                                  ║
-   ║  Grens: een pincode is kort. Daarom 600k PBKDF2-rondes, wat een  ║
-   ║  poging ~0,5s kost. Zes cijfers zijn dan weken werk; vier        ║
-   ║  cijfers een paar uur. Het beschermt tegen een gevonden URL,     ║
-   ║  niet tegen een vastberaden aanvaller met veel tijd.             ║
+   ║  Wat hier nog staat is dus alleen het uitpakpad. Staat er nog     ║
+   ║  een oud versleuteld blok in Drive, dan wordt dat één keer        ║
+   ║  opengemaakt -- automatisch als dit apparaat de sleutel nog       ║
+   ║  heeft, anders met de code -- en daarna definitief plat           ║
+   ║  weggeschreven. Er wordt nooit meer iets versleuteld.             ║
    ╚══════════════════════════════════════════════════════════════════╝ */
 
-/* Gemeten: 600k rondes kostten 64ms in Chromium (hardware-versneld).
-   Zes cijfers zouden dan in ~18 uur af te lopen zijn. Op 5M komt een
-   poging rond 0,5s uit, waarmee een miljoen codes maanden kost. Het
-   gebruikte aantal gaat mee in de data, zodat een latere verhoging
-   bestaande versleuteling niet onleesbaar maakt. */
+/* De sleutel die dit apparaat eerder bewaarde. Wordt nog gelezen om
+   automatisch te kunnen uitpakken, en daarna weggegooid. */
+const LS_PIN_SLEUTEL='herling_pin_sleutel';
+/* Het aantal rondes gaat mee in de data zelf; dit is alleen de terugval
+   voor blokken van vóór dat veld. */
 const PIN_RONDES=5000000;
-let pinSleutel=null;      /* CryptoKey zolang de app open is */
-let pinVergrendeld=false; /* true = data staat versleuteld te wachten */
+let pinVergrendeld=false; /* true = er staat nog een versleuteld blok te wachten */
 
 /* ── De poort op de geheimen ──
-   Staat er een pincode op, dan komen facturen, uren en de gevoelige
-   klantvelden versleuteld uit Drive. Tussen het laden en het ontsleutelen
-   zit een async gat waarin factuurState en urenState leeg zijn, terwijl
-   pinSleutel uit een eerdere sessie nog gewoon gevuld kan zijn. Werd er in
-   dat gat opgeslagen, dan versleutelde pinPakGeheimen() die lege state en
-   schreef die over je administratie in Drive heen -- onherstelbaar.
-
-   Deze vlag is de enige plek waar dat wordt tegengehouden: hij staat pas
-   op true als de geheimen daadwerkelijk in het geheugen staan. */
+   Zolang dat blok dicht is staan factuurState en urenState leeg. Werd er
+   in dat gat opgeslagen, dan schreef die leegte over je administratie in
+   Drive heen -- onherstelbaar. Deze vlag is de enige plek waar dat wordt
+   tegengehouden: hij staat pas op true als de geheimen daadwerkelijk in
+   het geheugen staan. */
 let geheimenGeladen=true;
 /* Mag de huidige state als volledige waarheid worden weggeschreven? */
 function geheimenKlaar(){
-  return !pinIngeschakeld()||geheimenGeladen;
+  return geheimenGeladen;
 }
-/* Laatst bekende versleutelde blok. Wordt hergebruikt voor de lokale kopie,
-   zodat die dezelfde bescherming krijgt als Drive zonder extra rekenwerk. */
-let laatsteGeheimBlob=null;
 
 function pinCryptoBeschikbaar(){
   return !!(window.crypto&&window.crypto.subtle&&window.TextEncoder);
-}
-function pinB64(buf){
-  return btoa(String.fromCharCode(...new Uint8Array(buf)));
 }
 function pinVanB64(str){
   return Uint8Array.from(atob(str),c=>c.charCodeAt(0));
@@ -7708,13 +7690,7 @@ async function pinLeidAf(pin,saltB64,rondes){
     {name:'PBKDF2'},false,['deriveKey']);
   return crypto.subtle.deriveKey(
     {name:'PBKDF2',salt,iterations:Number(rondes)||PIN_RONDES,hash:'SHA-256'},
-    basis,{name:'AES-GCM',length:256},true,['encrypt','decrypt']);
-}
-async function pinVersleutel(sleutel,obj){
-  const iv=crypto.getRandomValues(new Uint8Array(12));
-  const data=new TextEncoder().encode(JSON.stringify(obj));
-  const cipher=await crypto.subtle.encrypt({name:'AES-GCM',iv},sleutel,data);
-  return {v:1,iv:pinB64(iv),data:pinB64(cipher)};
+    basis,{name:'AES-GCM',length:256},true,['decrypt']);
 }
 async function pinOntsleutel(sleutel,pakket){
   const iv=pinVanB64(pakket.iv);
@@ -7723,24 +7699,11 @@ async function pinOntsleutel(sleutel,pakket){
   return JSON.parse(new TextDecoder().decode(plat));
 }
 
-/* Welke velden gaan mee. Klantnaam en kleur blijven leesbaar omdat
-   todo, notities en checklist ermee werken. */
+/* Welke klantvelden in een oud versleuteld blok zaten. Klantnaam en kleur
+   stonden er nooit in: die heeft de rest van de app nodig. */
 const KLANT_GEHEIM=['adres','postcode','plaats','land','btwNummer','kvk','email',
                     'contactpersoon','tarief','betaaltermijn','factuurtekst','bedrijfId'];
 
-function pinIngeschakeld(){
-  return !!(rawState.settings&&rawState.settings.versleuteld);
-}
-/* Haalt de geheime delen uit rawState en levert ze als één blok. */
-function pinPakGeheimen(){
-  const geheim={facturen:rawState.facturen,uren:rawState.uren,klanten:{}};
-  (kanbanState.clients||[]).forEach(c=>{
-    const stuk={};
-    KLANT_GEHEIM.forEach(k=>{if(c[k]!==undefined)stuk[k]=c[k];});
-    if(Object.keys(stuk).length)geheim.klanten[c.id]=stuk;
-  });
-  return geheim;
-}
 /* Zet een ontsleuteld blok terug op zijn plek. */
 function pinZetGeheimenTerug(geheim){
   if(!geheim)return;
@@ -7760,52 +7723,33 @@ function pinZetGeheimenTerug(geheim){
     if(c)Object.assign(c,stuk);
   });
 }
-/* Verwijdert de geheime velden uit de payload die naar Drive gaat. */
-function pinStripGeheimen(payload){
-  delete payload.facturen;
-  delete payload.uren;
-  if(payload.tasks&&payload.tasks.clients){
-    payload.tasks={...payload.tasks,
-      clients:payload.tasks.clients.map(c=>{
-        const kaal={...c};
-        KLANT_GEHEIM.forEach(k=>delete kaal[k]);
-        return kaal;
-      })};
-  }
-  return payload;
-}
-
-/* -- Sleutel per apparaat onthouden -- */
-async function pinBewaarSleutel(sleutel){
-  try{
-    const ruw=await crypto.subtle.exportKey('raw',sleutel);
-    localStorage.setItem(LS_PIN_SLEUTEL,JSON.stringify({
-      k:pinB64(ruw),
-      tot:Date.now()+PIN_ONTHOUD_DAGEN*86400000
-    }));
-  }catch(_){}
-}
+/* De sleutel die dit apparaat eerder bewaarde. Bewust zónder de
+   vervaldatum-controle van vroeger: die was juist de reden dat dezelfde pc
+   om de haverklap opnieuw om de code vroeg. Het gaat hier om één keer
+   uitpakken, en daarna is er niets meer om te onthouden. */
 async function pinLeesBewaardeSleutel(){
   try{
     const v=JSON.parse(localStorage.getItem(LS_PIN_SLEUTEL)||'null');
     if(!v||!v.k)return null;
-    if(Date.now()>v.tot){localStorage.removeItem(LS_PIN_SLEUTEL);return null;}
     return await crypto.subtle.importKey('raw',pinVanB64(v.k),
-      {name:'AES-GCM'},true,['encrypt','decrypt']);
+      {name:'AES-GCM'},true,['decrypt']);
   }catch(_){return null;}
 }
-function pinVergeetApparaat(){
+function pinSleutelVergeten(){
   try{localStorage.removeItem(LS_PIN_SLEUTEL);}catch(_){}
-  pinSleutel=null;
 }
-/* Dagen dat dit apparaat de code nog onthoudt (null = niet onthouden) */
-function pinDagenResterend(){
-  try{
-    const v=JSON.parse(localStorage.getItem(LS_PIN_SLEUTEL)||'null');
-    if(!v||!v.tot)return null;
-    const d=Math.ceil((v.tot-Date.now())/86400000);
-    return d>0?d:null;
-  }catch(_){return null;}
+
+/* ── Eenmalig: de versleuteling er definitief af ──
+   Het blok is uitgepakt, dus de state in het geheugen is nu de volledige
+   waarheid. Vlag eraf, blok weg, sleutel van dit apparaat weg, en plat
+   naar Drive. Hierna is er niets meer dat om een pincode kan vragen. */
+function pinVersleutelingWeg(){
+  if(rawState.settings)delete rawState.settings.versleuteld;
+  delete rawState.geheim;
+  pinVergrendeld=false;
+  geheimenGeladen=true;
+  pinSleutelVergeten();
+  scheduleSave();
 }
 
 
@@ -8254,22 +8198,23 @@ function hydrateerState(){
   urenMigrateEntries();
   if(urenState.draft)urenDraft={...urenState.draft};
   if(rawState.geheim){
+    /* Een blok uit de tijd dat er nog een pincode op stond. Vanaf hier is
+       de state in het geheugen onvolledig: facturen, uren en de gevoelige
+       klantvelden staan leeg tot het uitpakken klaar is. Zolang die vlag
+       uit staat mag niets deze state als volledige waarheid wegschrijven
+       -- zie geheimenKlaar(). */
     pinVergrendeld=true;
-    /* Vanaf hier is de state in het geheugen onvolledig: facturen, uren en
-       de gevoelige klantvelden staan leeg tot het ontsleutelen klaar is.
-       Zolang die vlag uit staat mag niets deze state als volledige
-       waarheid wegschrijven -- zie geheimenKlaar(). */
     geheimenGeladen=false;
-    /* Het net geladen blok is geldige ciphertext voor de huidige geheimen.
-       Meteen onthouden, zodat ook de eerste lokale kopie van deze sessie
-       al versleuteld is in plaats van pas na de eerste save. */
-    laatsteGeheimBlob=rawState.geheim;
+    /* Onthoudt dit apparaat de sleutel nog, dan gaat het uitpakken vanzelf
+       en merkt Frank er niets van. Zo niet, dan vraagt de modaal er één
+       keer om zodra hij Facturen of Uren opent. */
     pinLeesBewaardeSleutel().then(async(bewaard)=>{
       if(!bewaard)return;
       try{
         pinZetGeheimenTerug(await pinOntsleutel(bewaard,rawState.geheim));
-        pinSleutel=bewaard; pinVergrendeld=false; geheimenGeladen=true; renderAll();
-      }catch(_){ pinVergeetApparaat(); }
+        pinVersleutelingWeg();
+        renderAll();
+      }catch(_){ pinSleutelVergeten(); }
     });
   } else {
     geheimenGeladen=true;
@@ -8280,6 +8225,10 @@ function hydrateerState(){
   factuurMailsAanvullen();
   if(!rawState.agenda)rawState.agenda={events:[]};
   if(!rawState.settings)rawState.settings={};
+  /* Restant van de afgeschafte pincode: staat de vlag er nog maar is er
+     geen versleuteld blok meer, dan valt er niets te ontgrendelen. Weg
+     ermee, anders reist hij eeuwig mee. */
+  if(rawState.settings.versleuteld&&!rawState.geheim)delete rawState.settings.versleuteld;
   if(typeof migrateCalSettings==='function')migrateCalSettings();
 }
 
@@ -8345,17 +8294,8 @@ function syncOnthoudDriveTijd(tijdISO){
 const LS_HERSTEL_KEY='herling_analytics_herstel';
 function bewaarHerstelkopie(bron,data){
   try{
-    let bewaren=data;
-    /* Met een pincode aan hoort ook de herstelkopie niet leesbaar op de
-       schijf te staan. In het geheugen zijn de geheimen ontsleuteld, dus een
-       kale kopie zou juist hier alles alsnog uitlekken. Alleen strippen als
-       er een versleuteld blok is om te bewaren -- anders gooi je ze weg. */
-    if(pinIngeschakeld()&&data&&data.geheim){
-      bewaren=pinStripGeheimen({...data});
-      bewaren.geheim=data.geheim;
-    }
     localStorage.setItem(LS_HERSTEL_KEY,JSON.stringify({
-      bron,bewaardOp:Date.now(),data:bewaren
+      bron,bewaardOp:Date.now(),data
     }));
   }catch(_){}
 }
@@ -8414,10 +8354,10 @@ function herstelDownload(){
 /* Local backup — instant, no network. Single source of truth fallback
    als Drive onbereikbaar is. */
 
-/* Zolang de geheimen niet ontsleuteld zijn staan facturen, uren en de
-   gevoelige klantvelden leeg in het geheugen. Die mogen de vorige kopie
-   niet overschrijven: dan bewaar je leeg over goed heen. De rest van de
-   state (taken, notities, checklist, agenda) is wél compleet en gaat
+/* Zolang een oud versleuteld blok niet is uitgepakt staan facturen, uren
+   en de gevoelige klantvelden leeg in het geheugen. Die mogen de vorige
+   kopie niet overschrijven: dan bewaar je leeg over goed heen. De rest van
+   de state (taken, notities, checklist, agenda) is wél compleet en gaat
    gewoon mee. */
 function houdGeheimeDelenUitVorige(nieuw,vorig){
   if(!vorig)return nieuw;
@@ -8438,14 +8378,6 @@ function houdGeheimeDelenUitVorige(nieuw,vorig){
   return uit;
 }
 
-/* Met een pincode aan gaat de lokale kopie er net zo uit als die in Drive:
-   de geheime delen eruit gestript, en het versleutelde blok dat saveGist
-   toch al maakte ernaast. Geen extra rekenwerk in het directe pad, en de
-   lokale kopie ligt niet meer leesbaar op de schijf.
-
-   Wel eerlijk zijn over de grens: onthoudt dit apparaat je pincode, dan
-   staat de sleutel in dezelfde localStorage. Dit helpt pas echt als je
-   "onthoud dit apparaat" uit laat. */
 /* `markeer=false` bij het herschrijven direct ná een geslaagde save: dan is
    dit geen nieuwe wijziging, en zou het stempel de kopie ten onrechte als
    ongesynct bestempelen. */
@@ -8458,12 +8390,7 @@ function saveLocalBackup(markeer){
     if(typeof factuurState!=='undefined')rawState.facturen=factuurState;
 
     let teBewaren=rawState;
-    if(!geheimenKlaar()){
-      teBewaren=houdGeheimeDelenUitVorige(rawState,loadLocalBackup());
-    } else if(pinIngeschakeld()&&laatsteGeheimBlob){
-      teBewaren=pinStripGeheimen({...rawState});
-      teBewaren.geheim=laatsteGeheimBlob;
-    }
+    if(!geheimenKlaar())teBewaren=houdGeheimeDelenUitVorige(rawState,loadLocalBackup());
     localStorage.setItem(LS_BACKUP_KEY,JSON.stringify({data:teBewaren,savedAt:Date.now()}));
     if(markeer!==false)syncMarkeerLokaal();
   }catch(e){}
@@ -8511,35 +8438,15 @@ async function saveGistIntern(){
   rawState.facturen=factuurState;
   if(!rawState.agenda)rawState.agenda={events:[]};
 
-  let payload={...rawState};
-  /* Met een pincode gaan facturen, uren en de gevoelige klantvelden als
-     versleuteld blok mee in plaats van leesbaar. */
-  if(pinIngeschakeld()){
-    if(!pinSleutel){
-      setSync('error','Vergrendeld - voer je pincode in om op te slaan');
-      return;
-    }
-    /* De poort: staat de sleutel er wel, maar zijn de geheimen nog niet
-       teruggezet, dan is factuurState/urenState leeg. Dat versleutelen en
-       wegschrijven wist je administratie in Drive. Liever niets doen en
-       het bij de volgende wijziging opnieuw proberen. */
-    if(!geheimenGeladen){
-      setSync('error','Nog aan het ontsleutelen - even niet opgeslagen');
-      return;
-    }
-    const geheim=await pinVersleutel(pinSleutel,pinPakGeheimen());
-    payload=pinStripGeheimen({...payload});
-    payload.geheim=geheim;
-    /* Dezelfde ciphertext hergebruiken voor de lokale kopie, en die meteen
-       bijwerken -- niet pas ná een geslaagde schrijfactie. Anders zou de
-       lokale kopie van je facturen en uren zo oud zijn als je laatste
-       gelukte Drive-save, terwijl dit juist het vangnet is voor het geval
-       Drive níet bereikbaar is. */
-    laatsteGeheimBlob=geheim;
-    saveLocalBackup(false);
-  } else {
-    laatsteGeheimBlob=null;
+  /* De poort: is een oud versleuteld blok nog niet uitgepakt, dan is
+     factuurState/urenState leeg. Die leegte wegschrijven wist je
+     administratie in Drive. Liever niets doen en het bij de volgende
+     wijziging opnieuw proberen. */
+  if(!geheimenGeladen){
+    setSync('error','Nog vergrendeld - voer je oude pincode in om op te slaan');
+    return;
   }
+  const payload={...rawState};
   /* Is Drive deze sessie niet gelezen, dan werk je met een terugval.
      Die naar Drive schrijven zou de goede administratie kunnen
      overschrijven met een oudere of lege versie. Lokaal bewaren is al
@@ -8626,8 +8533,8 @@ async function refreshGist(){
 
      Wél eerst de wachtende herkansing wissen. Die werd hier eerder niet
      gewist: dan verving loadGist de state, waarna de herkansing alsnog
-     vuurde over verse gegevens heen. Met een pincode erop was dat het pad
-     waarlangs een leeg versleuteld blok in Drive belandde. */
+     vuurde over verse gegevens heen -- het pad waarlangs een lege
+     administratie in Drive kon belanden. */
   clearTimeout(saveTimer);saveTimer=null;
   clearTimeout(saveRetryTimer);saveRetryTimer=null;saveRetryStap=0;
   /* Alleen bevestigen als loadGist niet al iets belangrijkers meldde --
@@ -8840,15 +8747,16 @@ function downloadBackup(){
   rawState.uren=urenState;
   rawState.facturen=factuurState;
   if(!rawState.agenda)rawState.agenda={events:[]};
-  /* De back-up gaat bewust onversleuteld: hij is je vangnet als je de
-     pincode kwijtraakt. Bewaar hem dus ergens waar je hem vertrouwt. */
+  /* De back-up staat leesbaar op je schijf; bewaar hem dus ergens waar je
+     hem vertrouwt. Staat er nog een oud versleuteld blok te wachten, dan
+     gaat dat mee: eruit gooien zou juist de facturen en uren weglaten die
+     nog niet in het geheugen staan. */
   const backupState={...rawState};
-  delete backupState.geheim;
+  if(geheimenKlaar())delete backupState.geheim;
   const payload={
     _backupVersion:1,
     _exportedAt:new Date().toISOString(),
     _appVersion:'herling-analytics',
-    _versleuteldInGist:pinIngeschakeld(),
     state:backupState
   };
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
@@ -10352,9 +10260,10 @@ async function boot(){
    ║  browser, dus er is geen server die de regel afdwingt -- wie de   ║
    ║  console opent kan hem omzeilen.                                  ║
    ║                                                                  ║
-   ║  Wat het wel doet: de GitHub-token wordt pas geladen na een       ║
-   ║  geldige login, dus zonder inloggen komt er geen data binnen.     ║
-   ║  De echte bescherming blijft de pincode-versleuteling.            ║
+   ║  Wat het wel doet: de data wordt pas geladen na een geldige       ║
+   ║  login, dus zonder inloggen komt er niets binnen. De echte        ║
+   ║  bescherming zit in Drive's appDataFolder: die map is per         ║
+   ║  account en alleen deze app komt erbij.                           ║
    ║                                                                  ║
    ║  Na de overstap naar een backend wordt dit wel een echt slot.     ║
    ╚══════════════════════════════════════════════════════════════════╝ */
@@ -10445,22 +10354,12 @@ function toggleAppInstellingen(e){
   if(!btn)return;
   const m=document.createElement('div');
   m.className='uren-menu';m.id='appInstelMenu';m.setAttribute('role','menu');
-  const pinAan=typeof pinIngeschakeld==='function'&&pinIngeschakeld();
   const dagen=typeof facBackupLeeftijd==='function'?facBackupLeeftijd():null;
   m.innerHTML=`
     <div class="uren-menu-lab">Opslag</div>
     <button class="uren-menu-item" role="menuitem" data-app-instel="backup">
       <span class="ic" aria-hidden="true">&#9739;</span>
       <span>Back-up downloaden<small>${dagen===null?'Nog nooit gedaan':dagen===0?'Vandaag gedaan':'Laatst '+dagen+' '+(dagen===1?'dag':'dagen')+' geleden'}</small></span></button>
-    <div class="uren-menu-sep"></div>
-    <div class="uren-menu-lab">Beveiliging</div>
-    <button class="uren-menu-item" role="menuitem" data-app-instel="pin">
-      <span class="ic" aria-hidden="true">&#9663;</span>
-      <span>${pinAan?'Versleuteling uitschakelen':'Beveiligen met pincode'}<small>${
-        pinAan?(typeof pinDagenResterend==='function'&&pinDagenResterend()
-          ? 'Dit apparaat onthoudt de code nog '+pinDagenResterend()+' dagen'
-          : 'Vraagt om je pincode')
-        :'Facturen en klantgegevens versleuteld opslaan'}</small></span></button>
 `;
   document.body.appendChild(m);
   /* Boven de knop uitlijnen; de zijbalk staat onderaan het scherm. */
@@ -10483,7 +10382,6 @@ document.addEventListener('click',e=>{
   const wat=el.dataset.appInstel;
   closeAppInstellingen();
   if(wat==='backup')downloadBackup();
-  else if(wat==='pin')openPinModal(pinIngeschakeld()?'uit':'instellen');
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeAppInstellingen();});
 
@@ -15481,12 +15379,11 @@ document.addEventListener('keydown',e=>{
 
 /* ── Entry point ── */
 function renderUrenModule(){
-  /* Uren zitten in hetzelfde versleutelde blok als de facturen -- zie
-     pinPakGeheimen(). Zonder deze poort toonde de module een lege lijst
-     op een apparaat dat de pincode niet bewaard heeft, en dat is niet te
-     onderscheiden van "er staan geen uren": op je telefoon leek je
-     administratie weg terwijl hij op je laptop gewoon stond. Vragen om
-     de code dus, net als bij Facturen.
+  /* Uren zitten in hetzelfde oude versleutelde blok als de facturen.
+     Zonder deze poort toonde de module een lege lijst zolang dat blok nog
+     dicht was, en dat is niet te onderscheiden van "er staan geen uren":
+     je administratie leek weg terwijl hij er gewoon stond. Eenmalig om de
+     code vragen dus, net als bij Facturen.
 
      Ook vóór de migraties: die liepen anders over een lege state. */
   if(!pinControleerToegang())return;
@@ -17308,8 +17205,8 @@ function facStandaardBlokken(betaalzin){
      style:{marge:{boven:0,onder:10},kopVulling:false,kopVet:true},
      content:{kolommen:{aantal:true,eenheid:true,omschrijving:true,stuksprijs:false,
                         btw:true,btwRechts:false,bedragExcl:true,bedragIncl:false},
-              /* 'altijd' = 1,00 · 'auto' = 1 bij hele aantallen, 1,5 bij halve */
-              decimalen:'altijd',
+              /* 'auto' = 1 bij hele aantallen, 1,5 bij halve · 'altijd' = 1,00 */
+              decimalen:'auto',
               breedtes:{aantal:16,omschrijving:0,bedragExcl:30,bedragIncl:30}}},
     /* Betaalzin en voettekst staan uit: de betaalgegevens komen in een
        eigen blok en de bedrijfsgegevens staan al rechtsboven. */
@@ -17967,13 +17864,8 @@ const FAC_CLICK_ACTIONS={
   closeFacInstellingen:()=>closeFacInstellingen(),
   facExportBoekhouding:()=>facExportBoekhouding(),
 
-  openPinInstellen:()=>openPinModal('instellen'),
-  openPinUit:()=>openPinModal('uit'),
-  openPinOntgrendel:()=>openPinModal('ontgrendel'),
   pinBevestig:()=>pinBevestig(),
-  closePinModal:()=>closePinModal(),
-  pinVergeetApparaat:()=>{pinVergeetApparaat();closeFacMenu();
-    appToast('Dit apparaat vraagt voortaan weer om je pincode',{type:'info'});}
+  closePinModal:()=>closePinModal()
 };
 const FAC_CHANGE_ACTIONS={
   facSetFilterStatus:(el)=>{facFilterStatus=el.value;facRenderAll();},
@@ -19860,8 +19752,8 @@ function facSjBlokInstellingen(b){
         <input type="color" value="${st.kopKleur||'#F0F4F8'}" data-fac-change="facSjStijl" data-fac-arg1="kopKleur"/></div>`:''}
       <div class="fac-sj-rij"><label>Decimalen aantal</label>
         <select class="fac-ed-inp" style="flex:1" data-fac-change="facSjRegelOptie" data-fac-arg1="decimalen">
-          <option value="altijd"${c.decimalen!=='auto'?' selected':''}>Altijd twee (1,00)</option>
-          <option value="auto"${c.decimalen==='auto'?' selected':''}>Alleen als het nodig is (1 · 1,5)</option>
+          <option value="auto"${c.decimalen!=='altijd'?' selected':''}>Alleen als het nodig is (1 · 1,5)</option>
+          <option value="altijd"${c.decimalen==='altijd'?' selected':''}>Altijd twee (1,00)</option>
         </select></div>
       <div class="fac-sj-rij"><label>Breedte aantal</label>
         <input type="range" min="12" max="40" step="1" value="${(c.breedtes&&c.breedtes.aantal)||18}"
@@ -20176,66 +20068,35 @@ function facSjabloonHerstel(){
   scheduleSave();facSjabloonRender();facSjabloonPreview();
 }
 
-/* -- Pincode: instellen, ontgrendelen, uitschakelen -- */
-let pinModus='ontgrendel';   /* 'instellen' | 'ontgrendel' | 'uit' */
-
-function openPinModal(modus){
+/* -- Eenmalig uitpakken van een oud versleuteld blok --
+   De pincode is afgeschaft; wat hier rest is die ene vraag, en alleen op
+   een apparaat dat de sleutel niet meer heeft. Na een geslaagde poging
+   gaat de administratie plat naar Drive en valt er niets meer te
+   ontgrendelen. */
+function openPinModal(){
   if(!pinCryptoBeschikbaar()){
-    appToast('Deze browser ondersteunt geen versleuteling',{type:'error'});
+    appToast('Deze browser kan het oude versleutelde blok niet openmaken',{type:'error'});
     return;
   }
   closeFacMenu();
-  pinModus=modus||'ontgrendel';
-  const t=document.getElementById('pinTitel');
-  const u=document.getElementById('pinUitleg');
-  const v=document.getElementById('pinVelden');
-  const links=document.getElementById('pinLinks');
-  const bev=document.getElementById('pinBevestig');
-  const ann=document.getElementById('pinAnnuleer');
   document.getElementById('pinFout').textContent='';
-  const inp=(id,ph)=>`<input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="12"
-    id="${id}" placeholder="${ph}" autocomplete="off"
-    style="width:100%;text-align:center;font-size:22px;letter-spacing:8px;padding:12px;
-           border:0.5px solid var(--border-strong);border-radius:var(--radius-md);
-           background:var(--surface2);color:var(--text);font-family:var(--font-mono);
-           outline:none;margin-bottom:9px"/>`;
-
-  if(pinModus==='instellen'){
-    t.textContent='Pincode instellen';
-    u.innerHTML='Facturen, uren en klantgegevens gaan hierna versleuteld naar Google Drive. '+
-      '<b>Zes cijfers of meer</b> \u2014 korter is snel te raden. '+
-      'Raak je de code kwijt, dan is je administratie alleen nog uit een back-up terug te halen.';
-    v.innerHTML=inp('pinA','Nieuwe pincode')+inp('pinB','Nogmaals');
-    links.innerHTML='';
-    bev.textContent='Inschakelen';
-    ann.style.display='';
-  } else if(pinModus==='uit'){
-    t.textContent='Versleuteling uitschakelen';
-    u.textContent='Je administratie komt daarna weer leesbaar in Google Drive te staan. Voer je pincode in ter bevestiging.';
-    v.innerHTML=inp('pinA','Pincode');
-    links.innerHTML='';
-    bev.textContent='Uitschakelen';
-    ann.style.display='';
-  } else {
-    t.textContent='Administratie ontgrendelen';
-    const d=pinDagenResterend();
-    u.textContent=d
-      ? `Dit apparaat onthoudt je code nog ${d} ${d===1?'dag':'dagen'}.`
-      : 'Voer je pincode in om facturen, uren en klantgegevens te openen.';
-    v.innerHTML=inp('pinA','Pincode')+
-      `<label style="display:flex;align-items:center;gap:8px;font-size:12.5px;cursor:pointer;user-select:none;margin-top:2px">
-        <input type="checkbox" id="pinOnthoud" checked style="accent-color:var(--mint);width:15px;height:15px"/>
-        Dit apparaat een maand onthouden</label>`;
-    links.innerHTML='';
-    bev.textContent='Ontgrendelen';
-    ann.style.display='';
-  }
+  document.getElementById('pinTitel').textContent='Administratie ontgrendelen';
+  document.getElementById('pinUitleg').textContent=
+    'Er staat nog een blok van de oude pincode-beveiliging in Google Drive. '+
+    'Voer je pincode \u00e9\u00e9n keer in: daarna wordt de versleuteling definitief '+
+    'verwijderd en vraagt de app er niet meer om.';
+  document.getElementById('pinVelden').innerHTML=
+    `<input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="12"
+      id="pinA" placeholder="Pincode" autocomplete="off"
+      style="width:100%;text-align:center;font-size:22px;letter-spacing:8px;padding:12px;
+             border:0.5px solid var(--border-strong);border-radius:var(--radius-md);
+             background:var(--surface2);color:var(--text);font-family:var(--font-mono);
+             outline:none;margin-bottom:9px"/>`;
+  document.getElementById('pinBevestig').textContent='Ontgrendelen';
   document.getElementById('pinModal').classList.add('open');
   setTimeout(()=>{
     const a=document.getElementById('pinA');
     if(a){a.focus();a.onkeydown=e=>{if(e.key==='Enter')pinBevestig();};}
-    const b=document.getElementById('pinB');
-    if(b)b.onkeydown=e=>{if(e.key==='Enter')pinBevestig();};
   },50);
 }
 function closePinModal(){document.getElementById('pinModal').classList.remove('open');}
@@ -20246,33 +20107,10 @@ async function pinBevestig(){
   const pin=(document.getElementById('pinA')||{}).value||'';
   if(!/^\d{4,}$/.test(pin)){fout.textContent='Minimaal 4 cijfers';return;}
 
-  const bezig=(aan)=>{knop.disabled=aan;knop.textContent=aan?'Even geduld\u2026':
-    (pinModus==='instellen'?'Inschakelen':pinModus==='uit'?'Uitschakelen':'Ontgrendelen');};
-
-  if(pinModus==='instellen'){
-    const pin2=(document.getElementById('pinB')||{}).value||'';
-    if(pin!==pin2){fout.textContent='De codes zijn niet gelijk';return;}
-    if(pin.length<6&&!confirm('Een pincode van '+pin.length+' cijfers is snel te raden.'+
-        '\n\nToch doorgaan?'))return;
-    bezig(true);
-    try{
-      const salt=pinB64(crypto.getRandomValues(new Uint8Array(16)));
-      pinSleutel=await pinLeidAf(pin,salt,PIN_RONDES);
-      rawState.settings=rawState.settings||{};
-      rawState.settings.versleuteld={v:1,salt,rondes:PIN_RONDES};
-      pinVergrendeld=false;
-      geheimenGeladen=true;  /* de geheimen stonden al leesbaar in het geheugen */
-      await pinBewaarSleutel(pinSleutel);
-      scheduleSave();
-      closePinModal();
-      appToast('Versleuteling ingeschakeld \u00b7 bewaar je pincode goed',{type:'success',duration:8000});
-    }catch(e){fout.textContent='Kon de sleutel niet maken: '+e.message;}
-    bezig(false);
-    return;
-  }
-
   const cfg=(rawState.settings||{}).versleuteld;
-  if(!cfg){fout.textContent='Er staat geen pincode ingesteld';return;}
+  if(!cfg){fout.textContent='Er staat geen versleuteling meer op';return;}
+
+  const bezig=(aan)=>{knop.disabled=aan;knop.textContent=aan?'Even geduld\u2026':'Ontgrendelen';};
   bezig(true);
   try{
     const sleutel=await pinLeidAf(pin,cfg.salt,cfg.rondes);
@@ -20280,25 +20118,13 @@ async function pinBevestig(){
     if(rawState.geheim){
       pinZetGeheimenTerug(await pinOntsleutel(sleutel,rawState.geheim));
     }
-    pinSleutel=sleutel;
-    pinVergrendeld=false;
-    geheimenGeladen=true;  /* ontsleuteld: de state is weer compleet */
-
-    if(pinModus==='uit'){
-      delete rawState.settings.versleuteld;
-      delete rawState.geheim;
-      pinVergeetApparaat();
-      pinSleutel=null;
-      scheduleSave();
-      closePinModal();
-      appToast('Versleuteling uitgeschakeld',{type:'info'});
-    } else {
-      const onthoud=document.getElementById('pinOnthoud');
-      if(onthoud&&onthoud.checked)await pinBewaarSleutel(sleutel);
-      closePinModal();
-      renderAll();
-      appToast('Ontgrendeld',{type:'success',duration:2500});
-    }
+    /* Meteen definitief eraf: bleef de versleuteling staan, dan stond
+       dezelfde vraag er over een maand weer -- en dat was het probleem. */
+    pinVersleutelingWeg();
+    closePinModal();
+    renderAll();
+    appToast('Ontgrendeld · de versleuteling is eraf, je hoeft de code niet meer in te voeren',
+      {type:'success',duration:8000});
   }catch(e){
     fout.textContent='Onjuiste pincode';
     const a=document.getElementById('pinA');
@@ -20307,11 +20133,11 @@ async function pinBevestig(){
   bezig(false);
 }
 
-/* Facturen én Uren vragen om de code zodra de administratie vergrendeld
-   is: beide staan in hetzelfde versleutelde blok. */
+/* Facturen én Uren vragen erom zolang het oude blok nog dicht is: beide
+   staan erin. Dit gebeurt hooguit één keer. */
 function pinControleerToegang(){
   if(!pinVergrendeld)return true;
-  openPinModal('ontgrendel');
+  openPinModal();
   return false;
 }
 
@@ -20736,10 +20562,10 @@ function facPdfRegels(ctx,b,x,y,w){
   const br=b.content.breedtes||{};
   const toonIncl=k.bedragIncl!==false;
   const toonAantal=k.aantal!==false;
-  /* Decimalen van het aantal: 'auto' laat ",00" weg bij hele aantallen
-     (1 uur, 1,5 uur), alles anders houdt de vaste twee decimalen die de
-     facturen altijd hadden -- bestaande sjablonen veranderen dus niet. */
-  const fmtAantal=b.content.decimalen==='auto'?urenFmtShort:urenFmt;
+  /* Decimalen van het aantal. Standaard 'auto': ",00" valt weg bij hele
+     aantallen (1 uur, 1,5 uur, 1,25 uur). Alleen wie in het sjabloon
+     expliciet 'altijd' kiest houdt de vaste twee decimalen. */
+  const fmtAantal=b.content.decimalen==='altijd'?urenFmt:urenFmtShort;
   const bAantal=toonAantal?(Number(br.aantal)||18):0;
   const bExcl=Number(br.bedragExcl)||28;
   const bIncl=toonIncl?(Number(br.bedragIncl)||28):0;

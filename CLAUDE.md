@@ -91,9 +91,9 @@ De functienamen zijn historisch (`loadGist`/`saveGist`/`refreshGist`); ze praten
 4. Bij een fout: de melding komt één keer, de wijziging staat lokaal en een herkansing loopt met backoff (5s/15s/60s/180s)
 5. Bij een laadfout: terugvallen op de lokale back-up. `driveGelezen` wordt daarbij **niet** gereset — is Drive deze sessie al gelezen, dan blijft schrijven veilig
 6. `beforeunload` en `visibilitychange` flushen pending saves
-7. Staat er een pincode op, dan gaan facturen, uren en gevoelige klantvelden als versleuteld blok mee (`rawState.geheim`) — óók in de lokale kopie
+7. Er wordt niets meer versleuteld weggeschreven — de pincode is afgeschaft (2026-08-16). Ligt er nog een oud `rawState.geheim` in Drive, dan wordt dat één keer uitgepakt (vanzelf met de bewaarde apparaatsleutel, anders met de code) en daarna definitief plat opgeslagen; zie `pinVersleutelingWeg()`
 
-⚠️ **De poort `geheimenKlaar()`**: tussen laden en ontsleutelen is `factuurState`/`urenState` leeg. Zolang die poort dicht is mag niets die state wegschrijven — anders wist een versleutelde lege state de administratie in Drive. Zie de entry van 2026-08-12 in `docs/decisions.md`.
+⚠️ **De poort `geheimenKlaar()`**: zolang dat oude blok nog dicht is, is `factuurState`/`urenState` leeg. Zolang de poort dicht is mag niets die state wegschrijven — anders wist een lege state de administratie in Drive. Zie de entries van 2026-08-12 en 2026-08-16 in `docs/decisions.md`.
 
 ### Migratie functies
 
@@ -196,9 +196,9 @@ Daarna: vraag Frank om **Ctrl+Shift+R** op de live site. Optioneel `test.html` o
 
 Top-3 meest recent. Volledige log + *waarom* per beslissing: [`docs/decisions.md`](docs/decisions.md).
 
+- **2026-08-16**: Pincode-versleuteling afgeschaft (vroeg op dezelfde pc telkens opnieuw) — alleen het eenmalige uitpakpad voor een oud `rawState.geheim` blijft
 - **2026-08-12**: Drive-sync naadloos gemaakt — poort op de geheimen (lege state kon Drive wissen), token vooruit vernieuwen, saves serialiseren, server-klok i.p.v. lokale klok, herstelkopie bij conflict
 - **2026-08-11**: Factuur verwijderen werkte niet zichtbaar (`factuurRenderAll` bestond niet); `validate.mjs` controleert nu álle JS-aanroepen, niet alleen `onclick`
-- **2026-08-10**: Bedragen weg van het dashboard, Uren/Facturen onder Administratie
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 
@@ -257,7 +257,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 
 - Toegang via Google-login; alleen accounts van `herling-analytics.nl` komen binnen
 - Data in Drive `appDataFolder`: een verborgen map per gebruiker die alleen deze app kan lezen — geen URL, geen losse token
-- Optionele pincode versleutelt facturen, uren en gevoelige klantvelden (PBKDF2 + AES-GCM); de sleutel staat per apparaat en verloopt na een maand
+- Geen pincode-versleuteling meer (afgeschaft 2026-08-16) — `appDataFolder` is het slot. Alleen het uitpakpad voor een oud versleuteld blok staat er nog (PBKDF2 + AES-GCM, alleen ontsleutelen)
 - iCal feeds via CORS-proxies — feed-URLs passeren een derde partij
 - Geen telemetrie, geen externe API-calls behalve Google (Drive, Gmail, Fonts) + iCal feeds
 - Tokens NIET in `.git/config` URL — gebruik Git Credential Manager (`git config --global credential.helper manager`)

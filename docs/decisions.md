@@ -687,3 +687,25 @@ Meegenomen: `.toolbar .search-input`, `.cl2-filter-search` en `.dash-quickadd in
 **Bestanden**: `index.html` — scriptje in de `<head>`, de invoerveld-regels en `.ios-tab`-tegenhangers in de mobiele media-query, de drie zoekvelden; `sw.js` — `CACHE_NAME` naar `herling-v8`
 
 **Niet doen**: `display-mode` gebruiken om iets over invoergedrag te zeggen. Het beschrijft hoe de app *gestart* is, niet of de pagina kan zoomen. En de uitzondering niet terugdraaien naar "groot als standaard": dan komt dezelfde klacht terug op elk scherm dat toevallig smal is.
+
+## 2026-08-16 · Pincode-versleuteling afgeschaft, alleen het uitpakpad blijft
+
+**Probleem**: Frank kreeg op dezelfde pc telkens opnieuw de vraag om zijn pincode. Dat is geen bug in de code maar het ontwerp: de afgeleide sleutel werd per apparaat bewaard met een vervaldatum van 30 dagen (`PIN_ONTHOUD_DAGEN`), en verviel bovendien bij elke opgeruimde localStorage of mislukte ontsleuteling. Een slot dat je elke maand opnieuw moet openen terwijl er niets veranderd is.
+
+**Waarom het er stond, en waarom dat niet meer geldt**: de versleuteling komt uit de Gist-tijd. Een "secret" Gist is niet privé maar onvindbaar — iedereen met de URL leest hem zonder in te loggen, en dan is een blok ruis echte winst. Sinds de overstap naar Drive `appDataFolder` (fase 2, 2026-08-05) is dat argument weg: die map is per account, er is geen URL en geen losse token, en Google dwingt af dat alleen deze app erbij komt. De pincode was daar bovenop vooral een deur die uit zichzelf weer op slot sprong.
+
+**Beslissing**: het versleutelen is helemaal weg — er wordt nooit meer iets versleuteld weggeschreven, en de menu-ingang "Beveiligen met pincode" bestaat niet meer. Wat blijft is uitsluitend het uitpakpad, want er kan nog een `rawState.geheim` in Drive staan en daar zitten de facturen en uren in. Dat blok wordt één keer opengemaakt:
+
+- onthoudt dit apparaat de sleutel nog, dan gaat het vanzelf en merk je er niets van;
+- zo niet, dan vraagt de modaal er één keer om zodra je Facturen of Uren opent.
+
+In beide gevallen loopt daarna `pinVersleutelingWeg()`: vlag eraf, blok weg, apparaatsleutel weg, en de administratie plat naar Drive. Daarna is er niets meer dat om een pincode kán vragen.
+
+Twee dingen bewust wél laten staan:
+
+1. **De poort `geheimenKlaar()`.** Die was er voor de versleuteling, maar de reden erachter overleeft de versleuteling: zolang het oude blok dicht is staan `factuurState` en `urenState` leeg in het geheugen, en die leegte wegschrijven wist je administratie in Drive. `saveGistIntern()` stopt daarop, `saveLocalBackup()` houdt de geheime delen uit de vorige kopie aan.
+2. **De vervaldatum-controle in `pinLeesBewaardeSleutel()` is juist wél geschrapt.** Die controle was precies de oorzaak van de klacht. Voor één keer uitpakken maakt de leeftijd van de sleutel niet uit, en na afloop wordt hij weggegooid.
+
+**Bestanden**: `index.html` — weg: `pinVersleutel`, `pinPakGeheimen`, `pinStripGeheimen`, `pinBewaarSleutel`, `pinVergeetApparaat`, `pinDagenResterend`, `pinIngeschakeld`, `pinB64`, `pinModus`, `laatsteGeheimBlob`, `pinSleutel`, `PIN_ONTHOUD_DAGEN`, het "Beveiliging"-blok in `toggleAppInstellingen`, `_versleuteldInGist` in `downloadBackup`; nieuw: `pinVersleutelingWeg`, `pinSleutelVergeten`; herschreven: `openPinModal` (één modus), `pinBevestig`, het `rawState.geheim`-blok in `hydrateerState`, de poort in `saveGistIntern`
+
+**Niet doen**: het uitpakpad weggooien "want de pincode is toch afgeschaft". Zolang er ergens nog een Drive-bestand met `rawState.geheim` kan liggen, is dat pad het enige wat de facturen en uren daaruit terughaalt — zonder is die administratie onleesbaar. Pas als vaststaat dat elk apparaat een keer heeft uitgepakt (`settings.versleuteld` nergens meer aanwezig) kan de rest weg. En de poort `geheimenKlaar()` niet meenemen in die opruiming: die hoort bij de leegte, niet bij de versleuteling.
