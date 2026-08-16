@@ -17605,6 +17605,18 @@ function factuurFmtDatum(iso){
   const d=new Date(iso+'T00:00:00');
   return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
 }
+const FAC_MAANDEN=['januari','februari','maart','april','mei','juni',
+                   'juli','augustus','september','oktober','november','december'];
+/* Datum voluit, voor op de factuur zelf: "12 augustus 2026". Net als
+   hierboven op lokale middernacht parsen -- new Date('2026-08-12')
+   rekent naar UTC en zit er dan zomaar een dag naast. factuurFmtDatum
+   blijft kort: die staat in de UI-lijsten, waar dat prettiger is. */
+function factuurFmtDatumLang(iso){
+  if(!iso)return '';
+  const d=new Date(String(iso).slice(0,10)+'T00:00:00');
+  if(isNaN(d))return factuurFmtDatum(iso);
+  return d.getDate()+' '+FAC_MAANDEN[d.getMonth()]+' '+d.getFullYear();
+}
 
 /* ── Uren → factuurregel ──
    Verzamelt de nog niet gefactureerde uren van één klant binnen een
@@ -20530,17 +20542,17 @@ function facPdfMeta(ctx,b,x,y,w){
     h+=5;
   }
   const rijen=[];
-  if(v.factuurdatum!==false)rijen.push(['Factuurdatum:',factuurFmtDatum(f.datum)]);
-  if(v.vervaldatum!==false)rijen.push(['Vervaldatum:',factuurFmtDatum(f.vervaldatum)]);
+  if(v.factuurdatum!==false)rijen.push(['Factuurdatum',factuurFmtDatumLang(f.datum)]);
+  if(v.vervaldatum!==false)rijen.push(['Vervaldatum',factuurFmtDatumLang(f.vervaldatum)]);
   if(v.nummer!==false){
     /* Het factuurnummer is de kop van dit blok: vet en een maat groter */
     doc.setFont(F,'bold').setFontSize(gr+1.5).setTextColor(...ctx.accent);
-    doc.text('Factuur: '+f.nummer,
+    doc.text('Factuur '+f.nummer,
       (b.style||{}).uitlijning==='rechts'?x+w:x, y+h+4,
       {align:(b.style||{}).uitlijning==='rechts'?'right':'left'});
     h+=7;
   }
-  if(v.referentie!==false&&f.referentie)rijen.push(['Referentie:',f.referentie]);
+  if(v.referentie!==false&&f.referentie)rijen.push(['Referentie',f.referentie]);
   const rechts=(b.style||{}).uitlijning==='rechts';
   doc.setFontSize(gr).setTextColor(...ctx.accent);
   rijen.forEach(([k,val])=>{
