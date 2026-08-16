@@ -17285,7 +17285,7 @@ function facStandaardBlokken(betaalzin){
     /* Klantadres links. Geen t.a.v.-regel: de contactpersoon is bij
        zakelijke klanten meestal gelijk aan de bedrijfsnaam. */
     {id:facBlokId(),type:'ONTVANGER',zichtbaar:true,kolom:'links',
-     style:{uitlijning:'links',grootte:0.5,marge:{boven:6,onder:16}},
+     style:{uitlijning:'links',grootte:0.5,marge:{boven:6,onder:16},lijnBoven:true},
      content:{velden:{tav:false,adres:true,land:false,btw:true}}},
     /* Factuurnummer links, factuurdatum rechts. De vervaldatum staat
        straks in het betaalblok, betreft en referentie zijn ruis. */
@@ -20478,6 +20478,14 @@ function facPdfAdres(ctx,b,x,y,w,soort){
   const v=b.content.velden||{};
   const a=facPdfAnker(b,x,w);
   const opt={align:a.align};
+  /* Scheidingslijn over de volle breedte, niet over de kolombreedte:
+     anders loopt hij tot halverwege de pagina. Zet hem alleen op het
+     linkerblok van een strook, anders wordt hij twee keer getekend. */
+  let h=0;
+  if(b.style.lijnBoven){
+    doc.setDrawColor(...ctx.accent).setLineWidth(0.5).line(ctx.L,y,ctx.R,y);
+    h+=6;
+  }
   let regels=[], titel='';
   if(soort==='zender'){
     const z=ctx.afz;
@@ -20502,11 +20510,10 @@ function facPdfAdres(ctx,b,x,y,w,soort){
     if((v.btw||ctx.f&&ctx.f.btwVerlegd)&&k.btwNummer)regels.push('Btw: '+k.btwNummer);
   }
   regels=regels.filter(r=>r&&String(r).trim());
-  let h=0;
   if(titel){
     doc.setFont(F,'bold').setFontSize(gr+1).setTextColor(...ctx.accent);
-    doc.text(titel,a.x,y+3.5,opt);
-    h=5.5;
+    doc.text(titel,a.x,y+3.5+h,opt);
+    h+=5.5;
   }
   doc.setFont(F,'normal').setFontSize(gr-0.5).setTextColor(...ctx.grijs);
   regels.forEach(r=>{doc.text(String(r),a.x,y+3.5+h,opt);h+=4.4;});
@@ -20519,7 +20526,7 @@ function facPdfMeta(ctx,b,x,y,w){
   const v=b.content.velden||{};
   let h=0;
   if(b.style.lijnBoven){
-    doc.setDrawColor(...ctx.accent).setLineWidth(0.5).line(x,y,x+w,y);
+    doc.setDrawColor(...ctx.accent).setLineWidth(0.5).line(ctx.L,y,ctx.R,y);
     h+=5;
   }
   const rijen=[];
