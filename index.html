@@ -20721,9 +20721,22 @@ function facPdfRegels(ctx,b,x,y,w){
       :(st.pct?'Btw '+(st.pct===21?'hoog':'laag')+' ('+st.pct+'.0%)':'Btw 0%');
     rij(lab,factuurFmtBedrag(st.bedrag));
   });
-  doc.setDrawColor(...ctx.accent).setLineWidth(0.4).line(xLab,y+h-3.4,xTot,y+h-3.4);
-  h+=1;
-  rij('Totaalbedrag incl. btw',factuurFmtBedrag(ctx.tot.incl),true);
+  if(kopVet){
+    /* Donkere balk in plaats van een lijn met een vette regel: het
+       bedrag dat betaald moet worden is het enige dat de ontvanger
+       zoekt, dus dat mag eruit springen. */
+    doc.setFillColor(...ctx.accent).rect(xLab-3,y+h-4,xTot-xLab+3,9,'F');
+    doc.setFont(F,'bold').setFontSize(ctx.bs-1.5).setTextColor(255,255,255);
+    doc.text('TE BETALEN',xLab,y+h+1.8);
+    doc.setFontSize(ctx.bs+3);
+    doc.text(factuurFmtBedrag(ctx.tot.incl),xTot-3,y+h+1.8,{align:'right'});
+    doc.setTextColor(...ctx.accent);
+    h+=13;
+  } else {
+    doc.setDrawColor(...ctx.accent).setLineWidth(0.4).line(xLab,y+h-3.4,xTot,y+h-3.4);
+    h+=1;
+    rij('Totaalbedrag incl. btw',factuurFmtBedrag(ctx.tot.incl),true);
+  }
   if(f.btwVerlegd){
     doc.setFont(F,'normal').setFontSize(ctx.bs-1).setTextColor(...ctx.grijs);
     doc.text('Btw verlegd naar de afnemer.',x,y+h+2);h+=6;
