@@ -17263,6 +17263,7 @@ const FAC_BLOKTYPEN={
   META:      {label:'Factuurgegevens', uniek:false},
   RICH_TEXT: {label:'Tekstblok',       uniek:false},
   REGELS:    {label:'Factuurregels',   uniek:true},
+  BETAALBLOK:{label:'Betaalgegevens',  uniek:true},
   FOOTER:    {label:'Voettekst',       uniek:true}
 };
 
@@ -17307,6 +17308,8 @@ function facStandaardBlokken(betaalzin){
     {id:facBlokId(),type:'RICH_TEXT',zichtbaar:false,kolom:'vol',
      style:{grootte:0,marge:{boven:6,onder:6}},
      content:{tekst:betaalzin}},
+    {id:facBlokId(),type:'BETAALBLOK',zichtbaar:true,kolom:'vol',
+     style:{grootte:0,marge:{boven:10,onder:6}},content:{}},
     {id:facBlokId(),type:'FOOTER',zichtbaar:false,kolom:'vol',
      style:{grootte:-1.5,uitlijning:'links'},content:{tekst:''}}
   ];
@@ -20454,6 +20457,38 @@ function facPdfDoc(f){
 }
 
 /* Tekent een blok op (x,y) binnen breedte w; geeft de gebruikte hoogte. */
+/* Betaalgegevens in een kader: rekeningnummer, kenmerk en uiterste
+   datum naast elkaar. Vervangt de losse betaalzin, die dezelfde
+   gegevens in een volzin herhaalde. */
+function facPdfBetaalblok(ctx,b,x,y,w){
+  const {doc,F,f}=ctx;
+  const gr=ctx.bs+(Number(b.style.grootte)||0);
+  const hoog=22;
+  doc.setDrawColor(...ctx.lijn).setLineWidth(0.3).rect(x,y,w,hoog);
+  const termijn=f.betaaltermijn||factuurSettings().betaaltermijn||30;
+  const kol=[
+    ['BETALEN OP', ctx.afz.iban||'',
+     't.n.v. '+(ctx.afz.naam||'')+(ctx.afz.bic?' · BIC '+ctx.afz.bic:'')],
+    ['KENMERK',    'Factuur '+(f.nummer||''), ''],
+    ['UITERLIJK',  factuurFmtDatumLang(f.vervaldatum),
+     'Betaaltermijn '+termijn+' dagen']
+  ];
+  const bw=[w*0.46,w*0.24,w*0.30];
+  let cx=x+6;
+  kol.forEach(([label,regel1,regel2],i)=>{
+    doc.setFont(F,'bold').setFontSize(gr-1.5).setTextColor(...ctx.accent);
+    doc.text(label,cx,y+7);
+    doc.setFont(F,'normal').setFontSize(gr);
+    doc.text(String(regel1),cx,y+13);
+    if(regel2){
+      doc.setFontSize(gr-1.5).setTextColor(...ctx.grijs);
+      doc.text(String(regel2),cx,y+18);
+    }
+    cx+=bw[i];
+  });
+  return hoog;
+}
+
 function facPdfBlok(ctx,b,x,y,w){
   switch(b.type){
     case 'LOGO':      return facPdfLogo(ctx,b,x,y,w);
@@ -20462,6 +20497,7 @@ function facPdfBlok(ctx,b,x,y,w){
     case 'META':      return facPdfMeta(ctx,b,x,y,w);
     case 'RICH_TEXT': return facPdfTekst(ctx,b,x,y,w);
     case 'REGELS':    return facPdfRegels(ctx,b,x,y,w);
+    case 'BETAALBLOK':return facPdfBetaalblok(ctx,b,x,y,w);
     case 'FOOTER':    return facPdfFooter(ctx,b);
     default:          return 0;
   }
