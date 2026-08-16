@@ -17298,8 +17298,8 @@ function facStandaardBlokken(betaalzin){
     /* Regels met totalen. Btw per regel als eigen gegeven; stuksprijs
        en het inclusief-bedrag vervallen -- die stonden dubbel. */
     {id:facBlokId(),type:'REGELS',zichtbaar:true,kolom:'vol',
-     style:{marge:{boven:0,onder:10},kopVulling:false},
-     content:{kolommen:{aantal:true,eenheid:false,omschrijving:true,stuksprijs:false,
+     style:{marge:{boven:0,onder:10},kopVulling:false,kopVet:true},
+     content:{kolommen:{aantal:true,eenheid:true,omschrijving:true,stuksprijs:false,
                         btw:true,btwRechts:false,bedragExcl:true,bedragIncl:false},
               breedtes:{aantal:16,omschrijving:0,bedragExcl:30,bedragIncl:30}}},
     /* Betaalzin en voettekst staan uit: de betaalgegevens komen in een
@@ -20615,9 +20615,20 @@ function facPdfRegels(ctx,b,x,y,w){
   const bExcl=Number(br.bedragExcl)||28;
   const bIncl=toonIncl?(Number(br.bedragIncl)||28):0;
   const xAantal=x;
-  const xOms=x+bAantal;
+  /* Zonder aantal-kolom links begint de omschrijving gewoon links */
+  const xOms=(b.style.kopVet===true)?x:(x+bAantal);
   const xExcl=x+w-bIncl-(toonIncl?4:0);
   const xIncl=x+w;
+  /* 3a-indeling: tarief en btw zijn eigen kolommen in plaats van grijze
+     subregels onder de omschrijving. Rechteruitlijning per kolom, dus
+     dit zijn rechterranden. Zonder kopVet blijft de oude opzet staan,
+     zodat bestaande sjablonen niet omvallen. */
+  const kopVet=b.style.kopVet===true;
+  const xBedrag=x+w;
+  const xBtw=xBedrag-28;
+  const xTarief=xBtw-14;
+  const xAantalR=xTarief-24;
+  const omsBreedte=kopVet?(xAantalR-20-xOms-4):(xExcl-xOms-8);
   let h=0;
 
   /* Kop: gevulde balk of alleen een lijn eronder */
@@ -20625,15 +20636,24 @@ function facPdfRegels(ctx,b,x,y,w){
     const kop=b.style.kopKleur?facHexRgb(b.style.kopKleur):[240,244,248];
     doc.setFillColor(...kop).rect(x-2,y,w+4,8,'F');
   }
-  doc.setFont(F,'normal').setFontSize(ctx.bs-1.5).setTextColor(...ctx.grijs);
-  if(toonAantal)doc.text('Aantal',xAantal,y+5.5);
-  doc.text('Beschrijving',xOms,y+5.5);
-  /* Tweeregelige koppen rechts, zoals op de bestaande facturen */
-  doc.text('Bedrag',xExcl,y+2.5,{align:'right'});
-  doc.text('excl. btw',xExcl,y+6.5,{align:'right'});
-  if(toonIncl){
-    doc.text('Bedrag',xIncl,y+2.5,{align:'right'});
-    doc.text('incl. btw',xIncl,y+6.5,{align:'right'});
+  doc.setFont(F,kopVet?'bold':'normal').setFontSize(ctx.bs-1.5)
+     .setTextColor(...(kopVet?ctx.accent:ctx.grijs));
+  if(kopVet){
+    doc.text('OMSCHRIJVING',xOms,y+5.5);
+    if(toonAantal)doc.text('AANTAL',xAantalR,y+5.5,{align:'right'});
+    doc.text('TARIEF',xTarief,y+5.5,{align:'right'});
+    if(k.btw!==false)doc.text('BTW',xBtw,y+5.5,{align:'right'});
+    doc.text('BEDRAG',xBedrag,y+5.5,{align:'right'});
+  } else {
+    if(toonAantal)doc.text('Aantal',xAantal,y+5.5);
+    doc.text('Beschrijving',xOms,y+5.5);
+    /* Tweeregelige koppen rechts, zoals op de bestaande facturen */
+    doc.text('Bedrag',xExcl,y+2.5,{align:'right'});
+    doc.text('excl. btw',xExcl,y+6.5,{align:'right'});
+    if(toonIncl){
+      doc.text('Bedrag',xIncl,y+2.5,{align:'right'});
+      doc.text('incl. btw',xIncl,y+6.5,{align:'right'});
+    }
   }
   if(b.style.kopVulling===false){
     doc.setDrawColor(...ctx.lijn).setLineWidth(0.3).line(x,y+9,x+w,y+9);
@@ -20646,20 +20666,34 @@ function facPdfRegels(ctx,b,x,y,w){
     const bedrag=factuurRegelBedrag(r);
     const pct=f.btwVerlegd?0:Number(r.btwTarief||0);
     const inclR=Math.round(bedrag*(100+pct))/100;
-    if(toonAantal)doc.text(urenFmt(Number(r.aantal||0))+(k.eenheid?' '+(r.eenheid||''):''),xAantal,y+h);
-    const oms=doc.splitTextToSize(r.omschrijving||'',xExcl-xOms-8);
+    const oms=doc.splitTextToSize(r.omschrijving||'',omsBreedte);
     doc.text(oms,xOms,y+h);
-    doc.text(factuurFmtBedrag(bedrag),xExcl,y+h,{align:'right'});
-    if(toonIncl)doc.text(factuurFmtBedrag(inclR),xIncl,y+h,{align:'right'});
     let ry=y+h+oms.length*4.4;
-    doc.setFontSize(ctx.bs-1.5).setTextColor(...ctx.grijs);
-    if(k.stuksprijs!==false){doc.text('Stuksprijs: '+factuurFmtBedrag(r.stuksprijs),xOms,ry);ry+=4;}
-    if(k.btw!==false&&!f.btwVerlegd){
-      /* btwRechts: percentage onder het incl-bedrag in plaats van links */
-      if(k.btwRechts&&toonIncl)doc.text(pct+'% Btw',xIncl,y+h+4.4,{align:'right'});
-      else {doc.text(pct+'% Btw',xOms,ry);ry+=4;}
+    if(kopVet){
+      if(toonAantal)doc.text(urenFmt(Number(r.aantal||0))+(r.eenheid?' '+r.eenheid:''),
+        xAantalR,y+h,{align:'right'});
+      doc.text(factuurFmtBedrag(r.stuksprijs),xTarief,y+h,{align:'right'});
+      if(k.btw!==false)doc.text(f.btwVerlegd?'verlegd':pct+'%',xBtw,y+h,{align:'right'});
+      doc.text(factuurFmtBedrag(bedrag),xBedrag,y+h,{align:'right'});
+      /* Verwijzing naar de bijlage onder de regel die de uren draagt */
+      if(f.specificatie&&(r.urenIds||[]).length){
+        doc.setFontSize(ctx.bs-1.5).setTextColor(...ctx.grijs);
+        doc.text('Urenspecificatie in bijlage',xOms,ry);ry+=4;
+        doc.setFontSize(ctx.bs-0.5).setTextColor(...ctx.accent);
+      }
+    } else {
+      if(toonAantal)doc.text(urenFmt(Number(r.aantal||0))+(k.eenheid?' '+(r.eenheid||''):''),xAantal,y+h);
+      doc.text(factuurFmtBedrag(bedrag),xExcl,y+h,{align:'right'});
+      if(toonIncl)doc.text(factuurFmtBedrag(inclR),xIncl,y+h,{align:'right'});
+      doc.setFontSize(ctx.bs-1.5).setTextColor(...ctx.grijs);
+      if(k.stuksprijs!==false){doc.text('Stuksprijs: '+factuurFmtBedrag(r.stuksprijs),xOms,ry);ry+=4;}
+      if(k.btw!==false&&!f.btwVerlegd){
+        /* btwRechts: percentage onder het incl-bedrag in plaats van links */
+        if(k.btwRechts&&toonIncl)doc.text(pct+'% Btw',xIncl,y+h+4.4,{align:'right'});
+        else {doc.text(pct+'% Btw',xOms,ry);ry+=4;}
+      }
+      doc.setFontSize(ctx.bs-0.5).setTextColor(...ctx.accent);
     }
-    doc.setFontSize(ctx.bs-0.5).setTextColor(...ctx.accent);
     h=ry-y+2.5;
     doc.setDrawColor(...ctx.lijn).setLineWidth(0.2).line(x,y+h-1.5,x+w,y+h-1.5);
     h+=3;
@@ -20668,20 +20702,26 @@ function facPdfRegels(ctx,b,x,y,w){
   /* Totalen */
   h+=3;
   if(y+h>ctx.onder-28){doc.addPage();y=ctx.boven;h=0;}
-  const xLab=xExcl-42;
+  /* Waar de totalen staan hangt af van de kolommen die er zijn. Stond
+     de incl.-kolom uit, dan viel xExcl samen met de rechterrand en had
+     het label nog maar 42 mm -- dan schoof "Totaalbedrag incl. btw"
+     over het bedrag heen. */
+  const xTot=kopVet?xBedrag:xIncl;
+  const xLab=kopVet?(xBedrag-90):(xExcl-(toonIncl?42:62));
   const rij=(label,waarde,vet)=>{
     doc.setFont(F,vet?'bold':'normal').setFontSize(vet?ctx.bs+0.5:ctx.bs);
     doc.text(label,xLab,y+h);
-    doc.text(waarde,xIncl,y+h,{align:'right'});
+    doc.text(waarde,xTot,y+h,{align:'right'});
     h+=5.2;
   };
-  rij('Totaalbedrag excl. btw',factuurFmtBedrag(ctx.tot.excl));
+  rij(kopVet?'Totaal excl. btw':'Totaalbedrag excl. btw',factuurFmtBedrag(ctx.tot.excl));
   ctx.tot.staffel.forEach(st=>{
     const lab=st.tarief==='verlegd'?'Btw verlegd'
+      :kopVet?(st.pct?'Btw '+st.pct+'%':'Btw 0%')
       :(st.pct?'Btw '+(st.pct===21?'hoog':'laag')+' ('+st.pct+'.0%)':'Btw 0%');
     rij(lab,factuurFmtBedrag(st.bedrag));
   });
-  doc.setDrawColor(...ctx.accent).setLineWidth(0.4).line(xLab,y+h-3.4,xIncl,y+h-3.4);
+  doc.setDrawColor(...ctx.accent).setLineWidth(0.4).line(xLab,y+h-3.4,xTot,y+h-3.4);
   h+=1;
   rij('Totaalbedrag incl. btw',factuurFmtBedrag(ctx.tot.incl),true);
   if(f.btwVerlegd){
