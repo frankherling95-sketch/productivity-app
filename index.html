@@ -801,6 +801,11 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
   width:22px;flex-shrink:0;text-align:center;font-size:13px;color:var(--text-hint);
 }
 .uren-menu-item small{display:block;font-size:11px;font-weight:400;color:var(--text-hint);margin-top:1px}
+/* Gekozen regel in een keuzemenu (de bedrijfskiezer). Het vinkje staat
+   al in de icoonkolom; dit maakt de regel ook zonder dat leesbaar. */
+.uren-menu-item.active{background:var(--surface2)}
+.uren-menu-item.active>span:last-child{font-weight:700}
+.uren-menu-item.active .ic{color:var(--mint)}
 .uren-menu-sep{height:1px;background:var(--border);margin:5px 2px}
 
 /* ── Filter-popover ── */
@@ -1308,6 +1313,20 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .fac-klant .sw{width:9px;height:9px;border-radius:2px;flex-shrink:0}
 .fac-klant .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
 .fac-betreft{color:var(--text-muted);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px}
+/* Vanuit welk bedrijf de factuur gaat. Bewust een omrande tekst en geen
+   gekleurd blokje: de klantkleur staat er al naast, en twee stipjes uit
+   dezelfde palet naast elkaar leest als één rommelige kolom. */
+.fac-bd-chip{
+  display:inline-block;max-width:100%;padding:2px 8px;border-radius:5px;
+  border:0.5px solid var(--border-strong);background:var(--surface2);
+  font-size:11px;font-weight:600;color:var(--text-muted);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle;
+}
+/* Bedrijfskiezer in de topbalk: leest als de naam van de administratie
+   waar je in zit, niet als zomaar een knop. */
+.uren-btn-bedrijf{max-width:210px;gap:6px}
+.uren-btn-bedrijf .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.uren-btn-bedrijf .cv{font-size:10px;opacity:.6;flex-shrink:0}
 .fac-table tfoot td{
   position:sticky;bottom:0;background:var(--surface2);font-weight:700;
   border-top:0.5px solid var(--border-strong);padding:10px 12px;color:var(--text);
@@ -1518,6 +1537,9 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .fac-mcard .klant{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;min-width:0}
 .fac-mcard .klant .sw{width:9px;height:9px;border-radius:2px;flex-shrink:0}
 .fac-mcard .klant span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* In de kaart is de kolomrichting flex, dus zonder dit rekt het label
+   zich over de volle breedte uit en leest het als een balk. */
+.fac-mcard .fac-bd-chip{align-self:flex-start;margin-top:-3px}
 .fac-mcard .betreft{
   font-size:12.5px;color:var(--text-muted);line-height:1.5;
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
@@ -6581,6 +6603,11 @@ textarea { line-height: 1.6; resize: vertical; }
         </div>
         <button class="uren-btn uren-btn-vandaag" id="facNavHuidigBtn" data-fac-action="facNavHuidig">Dit jaar</button>
         <div style="flex:1"></div>
+        <!-- Welke administratie je bekijkt. Blijft verborgen zolang er
+             één bedrijf is; dan valt er niets te kiezen. -->
+        <button class="uren-btn uren-btn-bedrijf" id="facBedrijfBtn" data-fac-action="facToggleBedrijf"
+          aria-haspopup="menu" aria-expanded="false" title="Bedrijf waaruit je factureert" hidden>
+          <span class="nm" id="facBedrijfLbl">Alle bedrijven</span><span class="cv" aria-hidden="true">▾</span></button>
         <button class="uren-btn uren-btn-icon" id="facMenuBtn" data-fac-action="facToggleMenu"
           aria-haspopup="menu" aria-expanded="false" title="Meer acties">⋯</button>
         <button class="uren-btn uren-btn-primary" data-fac-action="facNieuwStart">+ Nieuwe factuur</button>
@@ -17123,6 +17150,13 @@ function factuurSettings(){
   if(!s.bedrijven.length)s.bedrijven.push({id:'bd_eerste',naam:'Mijn bedrijf',
     nummer:{prefix:'F',cijfers:6,volgend:1,perJaar:false}});
   if(!s.bedrijven.some(b=>b.id===s.standaardBedrijf))s.standaardBedrijf=s.bedrijven[0].id;
+  /* Welke administratie je op dit moment bekijkt; '' is alles bij
+     elkaar. Staat in de instellingen en niet in een losse variabele,
+     zodat de keuze meegaat naar Drive en je op je andere computer in
+     hetzelfde bedrijf terechtkomt. Verwijst hij naar een bedrijf dat
+     niet meer bestaat, dan valt hij terug op alles. */
+  if(s.bedrijfScope==null)s.bedrijfScope='';
+  if(s.bedrijfScope&&!s.bedrijven.some(b=>b.id===s.bedrijfScope))s.bedrijfScope='';
   if(s.betaaltermijn==null)s.betaaltermijn=30;
   if(s.btwStandaard==null)s.btwStandaard=21;
   /* Onbelaste kilometervergoeding; per 2026 € 0,23 per kilometer. */
@@ -17448,6 +17482,49 @@ function factuurAfzenderSnapshot(bedrijfId){
   return {...rest};
 }
 
+/* ── Gescheiden administraties ──
+   Factureer je vanuit meer dan één bedrijf, dan zijn dat losse
+   administraties: eigen nummerreeks, eigen btw-nummer, eigen aangifte.
+   De Facturen-module kijkt daarom naar één bedrijf tegelijk, of naar
+   alles bij elkaar. Bewust alléén hier: klanten, uren, notities en de
+   agenda zijn van jou en niet van een B.V., dus die blijven gedeeld.
+   Vandaar ook dat de scope in factuurState.settings zit en niet in
+   rawState.settings. */
+function facBedrijfScope(){
+  return factuurSettings().bedrijfScope||'';
+}
+function facMeerdereBedrijven(){return factuurSettings().bedrijven.length>1;}
+/* Wanneer laat de lijst zien uit welk bedrijf een factuur komt: alleen
+   als je naar alles tegelijk kijkt. Sta je ín een administratie, dan
+   zou die kolom bij elke regel hetzelfde zeggen. */
+function facToonBedrijfKolom(){return facMeerdereBedrijven()&&!facBedrijfScope();}
+function facBedrijfScopeZet(id){
+  const s=factuurSettings();
+  s.bedrijfScope=(id&&s.bedrijven.some(b=>b.id===id))?id:'';
+  scheduleSave();
+  facRenderAll();
+}
+/* Alle facturen van de bekeken administratie, zonder periode of
+   filters. De KPI's 'Openstaand' en 'Te laat' en de debiteuren kijken
+   bewust over de jaargrens heen — maar niet over de bedrijfsgrens. */
+function facBedrijfFacturen(){
+  const scope=facBedrijfScope();
+  const alle=factuurState.invoices||[];
+  return scope?alle.filter(f=>factuurBedrijfIdVan(f)===scope):alle;
+}
+/* Korte schrijfwijze voor een tabelcel of een knop: de rechtsvorm eraf,
+   want die is bij alle bedrijven hetzelfde en kost alleen breedte.
+   'Herling Analytics B.V.' → 'Herling Analytics'. */
+function facBedrijfKort(naam){
+  const s=String(naam||'').trim();
+  return s.replace(/[\s,]+(B\.?\s?V\.?|N\.?\s?V\.?|V\.?O\.?F\.?)$/i,'').trim()||s;
+}
+function facBedrijfNaam(id,kort){
+  const b=factuurBedrijf(id);
+  const n=(b&&b.naam)||'Naamloos';
+  return kort?facBedrijfKort(n):n;
+}
+
 /* ── Rekenen ──
    Per regel: aantal × stuksprijs, btw per tarief opgeteld. Afronden op
    centen gebeurt per regel (zoals de Belastingdienst voorschrijft),
@@ -17611,7 +17688,10 @@ function factuurNieuw(clientId,from,to){
   const datum=dateStr(new Date());
   const termijn=(klant&&klant.betaaltermijn)||s.betaaltermijn;
   const betreft=clientId?factuurStandaardBetreft(clientId,from,to):'';
-  const bedrijfId=(klant&&klant.bedrijfId)||s.standaardBedrijf;
+  /* Sta je in één administratie, dan hoort wat je daar maakt daar ook
+     bij -- die keuze heb je net zelf gemaakt. Kijk je naar alle
+     bedrijven, dan beslist de klant, en anders de standaard. */
+  const bedrijfId=facBedrijfScope()||(klant&&klant.bedrijfId)||s.standaardBedrijf;
   const f={
     id:factuurUid(),
     bedrijfId,
@@ -17812,6 +17892,8 @@ const FAC_CLICK_ACTIONS={
   facBtwKwartaalZet:(a)=>{facBtwKwartaal=Number(a)||0;facRenderAll();},
   facBtwStelselZet:(a)=>facBtwStelselZet(a),
   facToggleMenu:()=>facToggleMenu(),
+  facToggleBedrijf:()=>facToggleBedrijf(),
+  facBedrijfScopeZet:(a)=>{closeFacBedrijfPop();facBedrijfScopeZet(a||'');},
   facToggleFilters:()=>facToggleFilters(),
   facClearFilter:(a)=>{if(a==='status')facFilterStatus='';else facFilterClient='';facRenderAll();},
   facNieuwStart:()=>facNieuwStart(),
@@ -18046,17 +18128,35 @@ function facRenderAll(){
   if(nu)nu.textContent={week:'Deze week',maand:'Deze maand',jaar:'Dit jaar'}[facActieveScope()];
   document.querySelectorAll('#mod-facturen .uren-tab').forEach(b=>
     b.classList.toggle('active',b.dataset.facArg1===facView));
+  facRenderBedrijfKnop();
   facRenderFilters();
   facRenderKpis();
   facRenderBody();
   if(typeof updateNavBadges==='function')updateNavBadges();
 }
 
+/* De knop staat er alleen als er iets te kiezen valt. Hij toont de
+   volle naam en niet de korte: in de topbalk is dit de titel van de
+   administratie waar je in werkt, en daar hoort de rechtsvorm bij. */
+function facRenderBedrijfKnop(){
+  const btn=document.getElementById('facBedrijfBtn');
+  if(!btn)return;
+  const meerdere=facMeerdereBedrijven();
+  btn.hidden=!meerdere;
+  if(!meerdere){closeFacBedrijfPop();return;}
+  const scope=facBedrijfScope();
+  const lbl=document.getElementById('facBedrijfLbl');
+  if(lbl)lbl.textContent=scope?facBedrijfNaam(scope):'Alle bedrijven';
+  btn.title=scope
+    ? 'Je ziet alleen de facturen van '+facBedrijfNaam(scope)
+    : 'Je ziet de facturen van alle bedrijven';
+}
+
 /* Facturen van de gekozen periode, met filters. Klanten-weergave kent
    geen jaargrens. */
 function facZichtbaar(){
   const p=facPeriode();
-  return factuurState.invoices.filter(f=>{
+  return facBedrijfFacturen().filter(f=>{
     /* f.datum is een ISO-dag, dus een tekstvergelijking volstaat -- en
        die kent geen tijdzone die er een dag naast kan zitten. */
     if(!f.datum||f.datum<p.van||f.datum>p.tot)return false;
@@ -18127,7 +18227,10 @@ function facRenderKpis(){
     return;
   }
   if(facView==='btw'){
-    const o=factuurBtwOverzicht(facJaar,facBtwKwartaal,facBtwStelsel());
+    /* Geen tegels boven een scherm dat om een keuze vraagt -- dan zou het
+       totaal er alsnog staan. */
+    if(facBtwVraagtBedrijf()){box.innerHTML='';return;}
+    const o=factuurBtwOverzicht(facJaar,facBtwKwartaal,facBtwStelsel(),facBedrijfScope());
     const per=t=>o.perTarief[t]||{grondslag:0,btw:0};
     box.innerHTML=`
       ${facKpi('Omzet',factuurFmtBedrag(o.grondslagTotaal),'','excl. btw · '+o.aantal+' factu'+(o.aantal===1?'ur':'ren'),'var(--mint)')}
@@ -18138,7 +18241,7 @@ function facRenderKpis(){
   }
   const lijst=facZichtbaar();
   const som=arr=>arr.reduce((s,f)=>s+factuurTotalen(f).incl,0);
-  const openstaand=factuurState.invoices.filter(f=>f.status==='verstuurd');
+  const openstaand=facBedrijfFacturen().filter(f=>f.status==='verstuurd');
   const teLaat=openstaand.filter(f=>factuurDagenTeLaat(f)>0);
   const betaald=lijst.filter(f=>f.status==='betaald');
   const omzet=lijst.filter(f=>f.status!=='concept').reduce((s,f)=>s+factuurTotalen(f).excl,0);
@@ -18173,9 +18276,12 @@ function facRenderBody(){
 /* ── Facturenlijst ── */
 function facRenderLijst(){
   const lijst=facZichtbaar();
+  const scope=facBedrijfScope();
+  const toonBd=facToonBedrijfKolom();
   if(!lijst.length){
     const p=facPeriode();
-    return `<div class="uren-empty"><b>Nog geen facturen in ${escapeHtml(p.label)}</b>
+    return `<div class="uren-empty"><b>Nog geen facturen in ${escapeHtml(p.label)}${
+      scope?' vanuit '+escapeHtml(facBedrijfNaam(scope)):''}</b>
       ${facScope==='jaar'
         ? 'Maak een factuur vanuit je geschreven uren met “+ Nieuwe factuur”.'
         : 'Verbreed de periode via de filterknop, of maak er een met “+ Nieuwe factuur”.'}</div>`;
@@ -18183,7 +18289,7 @@ function facRenderLijst(){
   let excl=0,incl=0,open=0;
   let html=`<div class="uren-sheet-card"><table class="fac-table"><thead><tr>
     <th style="width:104px">Nummer</th><th style="width:96px">Datum</th>
-    <th style="width:190px">Klant</th><th>Betreft</th>
+    <th style="width:190px">Klant</th>${toonBd?'<th style="width:150px">Vanuit</th>':''}<th>Betreft</th>
     <th style="width:96px">Vervalt</th><th style="width:132px">Status</th>
     <th class="num" style="width:118px">Bedrag</th></tr></thead><tbody>`;
   lijst.forEach(f=>{
@@ -18197,13 +18303,15 @@ function facRenderLijst(){
       <td><span class="fac-datum">${factuurFmtDatum(f.datum)}</span></td>
       <td><div class="fac-klant"><span class="sw" style="background:${col.bg}"></span>
         <span class="nm">${escapeHtml(f.klant?f.klant.naam:(klant?(klant.bedrijfsnaam||klant.name):'—'))}</span></div></td>
+      ${toonBd?`<td><span class="fac-bd-chip" title="${escapeHtml(facBedrijfNaam(factuurBedrijfIdVan(f)))}">${
+        escapeHtml(facBedrijfNaam(factuurBedrijfIdVan(f),true))}</span></td>`:''}
       <td><div class="fac-betreft">${escapeHtml(f.betreft||'')}</div></td>
       <td><span class="fac-datum">${factuurFmtDatum(f.vervaldatum)}</span></td>
       <td>${facStatusPil(f)}</td>
       <td class="num"><span class="fac-bedrag">${factuurFmtBedrag(t.incl)}</span></td></tr>`;
   });
   html+=`</tbody><tfoot><tr>
-    <td colspan="4">${lijst.length} factu${lijst.length===1?'ur':'ren'} · ${factuurFmtBedrag(excl)} excl. btw</td>
+    <td colspan="${toonBd?5:4}">${lijst.length} factu${lijst.length===1?'ur':'ren'} · ${factuurFmtBedrag(excl)} excl. btw</td>
     <td colspan="2">${open>0?'waarvan '+factuurFmtBedrag(open)+' openstaand':'alles betaald'}</td>
     <td class="num">${factuurFmtBedrag(incl)}</td></tr></tfoot></table></div>`;
   return html+facRenderKaarten(lijst,incl);
@@ -18212,6 +18320,7 @@ function facRenderLijst(){
 /* Mobiele tegenhanger van de tabel. Zelfde gegevens, gestapeld. */
 function facRenderKaarten(lijst,totaal){
   if(!lijst.length)return '';
+  const toonBd=facToonBedrijfKolom();
   let html=`<div class="fac-mlist">`;
   lijst.forEach(f=>{
     const t=factuurTotalen(f);
@@ -18222,6 +18331,7 @@ function facRenderKaarten(lijst,totaal){
         <span class="dat">${factuurFmtDatum(f.datum)}</span></span>
       <span class="klant"><span class="sw" style="background:${col.bg}"></span>
         <span>${escapeHtml(f.klant?f.klant.naam:(klant?(klant.bedrijfsnaam||klant.name):'—'))}</span></span>
+      ${toonBd?`<span class="fac-bd-chip">${escapeHtml(facBedrijfNaam(factuurBedrijfIdVan(f),true))}</span>`:''}
       ${f.betreft?`<span class="betreft">${escapeHtml(f.betreft)}</span>`:''}
       <span class="voet">${facStatusPil(f)}
         <span class="bedrag">${factuurFmtBedrag(t.incl)}</span></span>
@@ -18245,9 +18355,11 @@ function facStatusPil(f){
    beperkt tot het gekozen jaar — een openstaande factuur uit vorig
    jaar is juist het interessantst. */
 function facRenderDebiteuren(){
-  const open=factuurState.invoices.filter(f=>f.status==='verstuurd');
+  const open=facBedrijfFacturen().filter(f=>f.status==='verstuurd');
   if(!open.length){
-    return `<div class="uren-empty"><b>Niets openstaand</b>
+    const scope=facBedrijfScope();
+    return `<div class="uren-empty"><b>Niets openstaand${
+      scope?' bij '+escapeHtml(facBedrijfNaam(scope)):''}</b>
       Alle verstuurde facturen zijn betaald.</div>`;
   }
   const groepen={lopend:[],d30:[],d60:[],d90:[],d90plus:[]};
@@ -18313,6 +18425,15 @@ function facRenderDebiteuren(){
 function facBtwStelsel(){
   return factuurSettings().btwStelsel==='kas'?'kas':'factuur';
 }
+/* ── Aangifte doe je per bedrijf ──
+   Elke B.V. heeft een eigen btw-nummer en doet een eigen aangifte. Een
+   opgeteld totaal over twee administraties is een getal dat je nergens
+   invult; dat op het scherm zetten nodigt uit om het toch over te
+   nemen. Kijk je naar alle bedrijven, dan vraagt dit vak dus eerst om
+   een keuze in plaats van cijfers te tonen. */
+function facBtwVraagtBedrijf(){
+  return facMeerdereBedrijven()&&!facBedrijfScope();
+}
 function facBtwStelselZet(v){
   factuurSettings().btwStelsel=(v==='kas'?'kas':'factuur');
   scheduleSave();
@@ -18334,7 +18455,10 @@ function facBtwRubriek(tarief){
   return {code:'1c',oms:`Belast met een overig tarief (${escapeHtml(String(tarief))}%)`};
 }
 
-function factuurBtwOverzicht(jaar,kwartaal,stelsel){
+/* `bedrijfId` leeg = alles bij elkaar. Voor een aangifte is dat nooit
+   het goede getal (zie facBtwVraagtBedrijf), maar de functie zelf blijft
+   neutraal: hij rekent wat je hem vraagt. */
+function factuurBtwOverzicht(jaar,kwartaal,stelsel,bedrijfId){
   const p=facBtwPeriode(jaar,kwartaal);
   const perTarief={};
   const regels=[];
@@ -18342,7 +18466,9 @@ function factuurBtwOverzicht(jaar,kwartaal,stelsel){
     const g=perTarief[tarief]||(perTarief[tarief]={grondslag:0,btw:0});
     g.grondslag+=grondslag; g.btw+=btw;
   };
-  factuurState.invoices.forEach(f=>{
+  (bedrijfId
+    ? factuurState.invoices.filter(f=>factuurBedrijfIdVan(f)===bedrijfId)
+    : factuurState.invoices).forEach(f=>{
     if(f.status==='concept')return;   /* een concept is nog geen factuur */
     const t=factuurTotalen(f);
     if(stelsel==='kas'){
@@ -18403,17 +18529,34 @@ function facBtwKiezer(){
 
 function facRenderBtw(){
   const stelsel=facBtwStelsel();
-  const o=factuurBtwOverzicht(facJaar,facBtwKwartaal,stelsel);
+  const scope=facBedrijfScope();
+  if(facBtwVraagtBedrijf()){
+    const p0=facBtwPeriode(facJaar,facBtwKwartaal);
+    return `<div class="fac-btw-kop">
+        <div><b>${escapeHtml(p0.label)}</b><span>${factuurFmtDatum(p0.van)} t/m ${factuurFmtDatum(p0.tot)}</span></div>
+        <div class="fac-btw-uitleg">Elk bedrijf heeft een eigen btw-nummer en doet een eigen aangifte.</div></div>
+      <div class="uren-empty"><b>Voor welk bedrijf doe je aangifte?</b>
+        De cijfers van twee administraties bij elkaar optellen levert een bedrag op dat op geen enkel aangifteformulier thuishoort. Kies daarom eerst een bedrijf.
+        <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+          ${factuurSettings().bedrijven.map(b=>`<button class="uren-btn uren-btn-primary"
+            data-fac-action="facBedrijfScopeZet" data-fac-arg1="${b.id}">${escapeHtml(b.naam||'Naamloos')}</button>`).join('')}
+        </div></div>`;
+  }
+  const o=factuurBtwOverzicht(facJaar,facBtwKwartaal,stelsel,scope);
   const p=o.periode;
   const uitleg=stelsel==='kas'
     ? 'Kasstelsel: een factuur telt mee in het tijdvak waarin je de betaling ontvangt. Deelbetalingen tellen naar rato mee.'
     : 'Factuurstelsel: een factuur telt mee in het tijdvak van de factuurdatum, ook als de klant nog niet heeft betaald.';
+  const bd=scope?factuurBedrijf(scope):null;
   let html=`<div class="fac-btw-kop">
     <div><b>${escapeHtml(p.label)}</b><span>${factuurFmtDatum(p.van)} t/m ${factuurFmtDatum(p.tot)}</span></div>
+    ${bd?`<div class="fac-btw-uitleg"><b style="color:var(--text)">${escapeHtml(bd.naam||'')}</b>${
+      bd.btwNummer?' · '+escapeHtml(bd.btwNummer):''}</div>`:''}
     <div class="fac-btw-uitleg">${escapeHtml(uitleg)}</div></div>`;
 
   if(!o.regels.length){
-    return html+`<div class="uren-empty"><b>Niets aan te geven in ${escapeHtml(p.label)}</b>
+    return html+`<div class="uren-empty"><b>Niets aan te geven in ${escapeHtml(p.label)}${
+      bd?' voor '+escapeHtml(facBedrijfKort(bd.naam)):''}</b>
       ${stelsel==='kas'
         ? 'In dit tijdvak zijn geen betalingen ontvangen.'
         : 'In dit tijdvak zijn geen facturen verstuurd. Concepten tellen niet mee.'}</div>`;
@@ -18515,8 +18658,17 @@ function facBtwRegelKaarten(o,stelsel){
    herinnering), dus dit is een logboek en niet een veld op de factuur.
    `f.gemaildOp` blijft bestaan als "laatst gemaild"-markering. */
 function facMailsVanJaar(){
+  const scope=facBedrijfScope();
   return (factuurState.mails||[])
     .filter(m=>m.datum&&new Date(m.datum).getFullYear()===facJaar)
+    /* Een bericht hoort bij het bedrijf van zijn factuur. Is die factuur
+       weg, dan hoort het nergens meer bij en zie je het alleen in het
+       overzicht over alles heen -- daar verdwijnt het tenminste niet. */
+    .filter(m=>{
+      if(!scope)return true;
+      const f=factuurById(m.factuurId);
+      return !!f&&factuurBedrijfIdVan(f)===scope;
+    })
     .sort((a,b)=>String(b.datum).localeCompare(String(a.datum)));
 }
 /* Facturen die al gemaild waren voordat dit logboek bestond krijgen
@@ -18534,7 +18686,9 @@ function factuurMailsAanvullen(){
 function facRenderMails(){
   const lijst=facMailsVanJaar();
   if(!lijst.length){
-    return `<div class="uren-empty"><b>Nog niets verstuurd in ${facJaar}</b>
+    const scope=facBedrijfScope();
+    return `<div class="uren-empty"><b>Nog niets verstuurd in ${facJaar}${
+      scope?' vanuit '+escapeHtml(facBedrijfNaam(scope)):''}</b>
       Zodra je een factuur mailt, komt het bericht hier te staan.</div>`;
   }
   let html=`<div class="uren-sheet-card"><table class="fac-table"><thead><tr>
@@ -18687,8 +18841,13 @@ function facRenderKlanten(){
     const v=factuurKlantVol(c);
     const compleet=factuurKlantCompleet(c);
     const geerfd=v.viaPartijNaam&&!c.adres&&v.adres;
-    const facturen=factuurState.invoices.filter(f=>f.clientId===c.id);
+    /* Klanten zijn van jou en niet van een B.V., dus het adresboek zelf
+       is niet gescheiden -- de aantallen en de omzet erop wel, want die
+       horen bij de administratie die je bekijkt. */
+    const facturen=facBedrijfFacturen().filter(f=>f.clientId===c.id);
     const omzet=facturen.filter(f=>f.status!=='concept').reduce((s,f)=>s+factuurTotalen(f).excl,0);
+    const vast=c.bedrijfId&&facMeerdereBedrijven()
+      ?factuurSettings().bedrijven.find(b=>b.id===c.bedrijfId):null;
     html+=`<div class="fac-klantkaart" style="--c:${col.bg}">
       <h4><span style="width:10px;height:10px;border-radius:2px;background:${col.bg};flex-shrink:0"></span>
         ${escapeHtml(c.bedrijfsnaam||c.name)}</h4>
@@ -18703,6 +18862,8 @@ function facRenderKlanten(){
             ? `<div style="font-size:11.5px;color:var(--text-muted)">Ontvangt ook de facturen van
                  <b style="color:var(--text)">${factuurKlantenVanPartij(c.id).length-1} andere klant${factuurKlantenVanPartij(c.id).length===2?'':'en'}</b></div>`
             : '')}
+      ${vast?`<div style="font-size:11.5px;color:var(--text-muted)">Factureren vanuit
+             <b style="color:var(--text)">${escapeHtml(vast.naam||'')}</b></div>`:''}
       <div class="meta">
         <span>Tarief <b>${v.tarief?factuurFmtBedrag(v.tarief):'—'}</b></span>
         <span>Termijn <b>${v.betaaltermijn||factuurSettings().betaaltermijn}d</b></span>
@@ -19003,11 +19164,21 @@ function facEdVeld(el,key){
   if(!f)return;
   let waarde=el.type==='checkbox'?el.checked:el.value;
   if(key==='bedrijfId'){
+    const oud=factuurBedrijfIdVan(f);
     factuurUpdate(f.id,{bedrijfId:waarde});
     /* Concept? Dan hoort het voorgestelde nummer bij de reeks van het
        nieuwe bedrijf. Een verstuurde factuur houdt zijn nummer. */
     if(f.status==='concept'&&!f.nummerVast)
       factuurUpdate(f.id,{nummer:factuurVolgendNummer(true,f.id,waarde,f.datum)});
+    /* Verhuis je een factuur naar een ander bedrijf terwijl je in één
+       administratie zit, dan zou hij achter de editor uit de lijst
+       verdwijnen. In plaats van hem te laten verdampen gaat de lijst
+       mee naar het nieuwe bedrijf -- daar staat hij nu. */
+    const scope=facBedrijfScope();
+    if(scope&&scope===oud&&waarde!==oud){
+      facBedrijfScopeZet(waarde);
+      appToast('Je kijkt nu naar '+facBedrijfNaam(waarde),{type:'info'});
+    }
     facEditorRender();return;
   }
   if(key==='clientId'){
@@ -19202,6 +19373,12 @@ function openKlantModal(id){
           .map(x=>`<option value="${x.id}"${c&&c.factuurPartijId===x.id?' selected':''}>${escapeHtml(x.bedrijfsnaam||x.name)}</option>`).join('')}
       </select>
       <small style="font-size:11px;color:var(--text-muted)">Werk je voor deze klant maar stuur je de rekening naar een tussenpersoon, kies die dan hier. De uren komen dan op de factuur van die partij, met deze klantnaam op de regel.</small></div>
+    ${s.bedrijven.length>1?`<div class="uren-fld" style="margin-top:12px"><label>Factureren vanuit</label>
+      <select class="fac-ed-inp" id="kmBedrijfId">
+        <option value="">Het bedrijf dat je op dat moment bekijkt</option>
+        ${s.bedrijven.map(b=>`<option value="${b.id}"${c&&c.bedrijfId===b.id?' selected':''}>${escapeHtml(b.naam||'Naamloos')}</option>`).join('')}
+      </select>
+      <small style="font-size:11px;color:var(--text-muted)">Gaat het werk voor deze klant altijd vanuit één bedrijf, zet dat dan hier vast. Per factuur kun je er nog van afwijken.</small></div>`:''}
     <div class="fac-ed-grid" style="margin-top:12px">
       <div class="uren-fld"><label>Uurtarief (€)</label>
         <input type="number" step="0.01" class="fac-ed-inp num" id="kmTarief" value="${v('tarief')}" placeholder="0,00"/></div>
@@ -19250,6 +19427,9 @@ function klantModalOpslaan(){
     email:g('kmEmail').value.trim(),
     contactpersoon:g('kmContact').value.trim(),
     factuurPartijId:g('kmPartij').value||null,
+    /* Het veld staat er niet bij één bedrijf; dan de bestaande waarde
+       laten staan in plaats van hem op null te zetten. */
+    ...(g('kmBedrijfId')?{bedrijfId:g('kmBedrijfId').value||null}:{}),
     tarief:Number(g('kmTarief').value)||0,
     /* Leeg laten betekent: de instelling gebruiken, of het tarief van
        de factuurpartij. Daarom null en geen 0. */
@@ -19282,9 +19462,12 @@ function klantModalOpslaan(){
    nummerreeks (een doorlopende reeks hoort bij een administratie). */
 let facInstelBedrijfId=null;
 function openFacInstellingen(){
-  closeFacMenu();
+  closeFacMenu();closeFacBedrijfPop();
   const s=factuurSettings();
-  facInstelBedrijfId=s.standaardBedrijf||s.bedrijven[0].id;
+  /* Open op de administratie die je op dat moment bekijkt: kom je hier
+     vanuit de bedrijfskiezer, dan verwacht je de gegevens van dát
+     bedrijf en niet die van de standaard. */
+  facInstelBedrijfId=facBedrijfScope()||s.standaardBedrijf||s.bedrijven[0].id;
   facInstellingenRender();
   document.getElementById('facInstellingenModal').classList.add('open');
 }
@@ -19355,7 +19538,9 @@ function facInstellingenRender(){
     </div>
     ${meerdere?`<label class="fac-sj-toggle" style="margin-bottom:14px">
       <input type="checkbox" ${s.standaardBedrijf===b.id?'checked':''} data-fac-change="facInstelStandaard"/>
-      Standaard voor nieuwe facturen</label>`:''}
+      Standaard voor nieuwe facturen</label>
+    <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);margin-bottom:9px">
+      Gegevens van ${escapeHtml(b.naam||'dit bedrijf')}</div>`:''}
 
     <div class="uren-fld"><label>Bedrijfsnaam</label>
       <input type="text" class="fac-ed-inp" id="fiNaam" value="${v('naam')}"/></div>
@@ -19391,6 +19576,8 @@ function facInstellingenRender(){
       Eerstvolgende factuur wordt <b style="font-family:var(--font-mono);color:var(--text)">${escapeHtml(factuurVolgendNummer(true,null,b.id))}</b>${meerdere?' &mdash; elk bedrijf heeft een eigen doorlopende reeks':''}</div>
 
     <div style="height:1px;background:var(--border);margin:18px 0"></div>
+    ${meerdere?`<div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);margin-bottom:9px">
+      Geldt voor alle bedrijven</div>`:''}
     <div class="fac-ed-grid">
       <div class="uren-fld"><label>Standaard betaaltermijn (dagen)</label>
         <input type="number" class="fac-ed-inp num" id="fiTermijn" value="${s.betaaltermijn}"/></div>
@@ -20144,7 +20331,7 @@ function pinControleerToegang(){
 /* ── Menu + filters ── */
 function facToggleMenu(){
   if(document.getElementById('facMenu')){closeFacMenu();return;}
-  closeFacFilterPop();
+  closeFacFilterPop();closeFacBedrijfPop();
   const btn=document.getElementById('facMenuBtn');
   if(!btn)return;
   const m=document.createElement('div');
@@ -20194,9 +20381,52 @@ function closeFacMenu(){
   document.getElementById('facMenuBtn')?.setAttribute('aria-expanded','false');
   document.removeEventListener('mousedown',facMenuOutside);
 }
+/* ── Bedrijfskiezer ──
+   Eén administratie tegelijk, of alles bij elkaar. De instellingen
+   staan onderaan in hetzelfde menu, zodat je vanaf hier meteen bij de
+   gegevens en de nummerreeks van dat bedrijf komt. */
+function facToggleBedrijf(){
+  if(document.getElementById('facBedrijfPop')){closeFacBedrijfPop();return;}
+  closeFacMenu();closeFacFilterPop();
+  const btn=document.getElementById('facBedrijfBtn');
+  if(!btn)return;
+  const s=factuurSettings();
+  const scope=facBedrijfScope();
+  const m=document.createElement('div');
+  m.className='uren-menu';m.id='facBedrijfPop';m.setAttribute('role','menu');
+  const regel=(id,naam,sub)=>`<button class="uren-menu-item${(scope===id)?' active':''}" role="menuitem"
+      data-fac-action="facBedrijfScopeZet" data-fac-arg1="${id}" aria-current="${scope===id}">
+      <span class="ic" aria-hidden="true">${scope===id?'✓':''}</span>
+      <span>${escapeHtml(naam)}${sub?`<small>${escapeHtml(sub)}</small>`:''}</span></button>`;
+  m.innerHTML=
+    s.bedrijven.map(b=>{
+      const n=factuurState.invoices.filter(f=>factuurBedrijfIdVan(f)===b.id).length;
+      return regel(b.id,b.naam||'Naamloos',
+        `${n} factu${n===1?'ur':'ren'} · reeks ${b.nummer.prefix}${b.id===s.standaardBedrijf?' · standaard':''}`);
+    }).join('')+
+    `<div class="uren-menu-sep"></div>`+
+    regel('','Alle bedrijven','Overzicht over de administraties heen')+
+    `<div class="uren-menu-sep"></div>
+    <button class="uren-menu-item" role="menuitem" data-fac-action="openFacInstellingen">
+      <span class="ic" aria-hidden="true">⚙</span>
+      <span>Facturatie-instellingen<small>Gegevens, nummerreeks, bedrijf toevoegen</small></span></button>`;
+  document.body.appendChild(m);
+  urenPlacePopover(m,btn);
+  btn.setAttribute('aria-expanded','true');
+  setTimeout(()=>document.addEventListener('mousedown',facBedrijfPopOutside),20);
+}
+function facBedrijfPopOutside(e){
+  const m=document.getElementById('facBedrijfPop');
+  if(m&&!m.contains(e.target)&&!e.target.closest('#facBedrijfBtn'))closeFacBedrijfPop();
+}
+function closeFacBedrijfPop(){
+  document.getElementById('facBedrijfPop')?.remove();
+  document.getElementById('facBedrijfBtn')?.setAttribute('aria-expanded','false');
+  document.removeEventListener('mousedown',facBedrijfPopOutside);
+}
 function facToggleFilters(){
   if(document.getElementById('facFilterPop')){closeFacFilterPop();return;}
-  closeFacMenu();
+  closeFacMenu();closeFacBedrijfPop();
   const btn=document.getElementById('facFilterBtn');
   if(!btn)return;
   const pop=document.createElement('div');
@@ -20239,9 +20469,9 @@ function closeFacFilterPop(){
 }
 document.addEventListener('keydown',e=>{
   if(e.key!=='Escape')return;
-  closeFacMenu();closeFacFilterPop();
+  closeFacMenu();closeFacFilterPop();closeFacBedrijfPop();
 });
-window.addEventListener('resize',()=>{closeFacMenu();closeFacFilterPop();});
+window.addEventListener('resize',()=>{closeFacMenu();closeFacFilterPop();closeFacBedrijfPop();});
 
 /* ── PDF ──
    Indeling volgt de bestaande facturen: afzender rechtsboven, klant
@@ -21138,22 +21368,37 @@ function facExportBoekhouding(){
      een bestand 'Facturen_2026' met alleen augustus erin. */
   const per=facPeriode().kort;
   if(!lijst.length){appToast('Geen facturen in '+facPeriode().label,{type:'warning'});return;}
-  const kop=['Factuurnummer','Datum','Vervaldatum','Klant','Btw-nummer','Betreft','Referentie',
+  /* Ook de bedrijfskeuze gold hier al, want de export volgt de lijst.
+     Exporteer je over alle bedrijven heen, dan moet je boekhouder wel
+     kunnen zien welke factuur in welke administratie hoort -- vandaar
+     de extra kolom. Sta je in één bedrijf, dan staat de naam in het
+     bestand en zegt een kolom met één waarde niets. */
+  const scope=facBedrijfScope();
+  const bdKolom=facMeerdereBedrijven()&&!scope;
+  const kop=['Factuurnummer','Datum','Vervaldatum',...(bdKolom?['Vanuit']:[]),
+    'Klant','Btw-nummer','Betreft','Referentie',
     'Bedrag excl. btw','Btw','Bedrag incl. btw','Betaald','Openstaand','Status'];
   const rijen=lijst.slice().reverse().map(f=>{
     const t=factuurTotalen(f);
     const k=f.klant||factuurKlantSnapshot(factuurKlant(f.clientId));
-    return [f.nummer,f.datum,f.vervaldatum,k.naam||'',k.btwNummer||'',f.betreft||'',f.referentie||'',
+    return [f.nummer,f.datum,f.vervaldatum,
+      ...(bdKolom?[facBedrijfNaam(factuurBedrijfIdVan(f))]:[]),
+      k.naam||'',k.btwNummer||'',f.betreft||'',f.referentie||'',
       t.excl,t.btw,t.incl,t.betaald,t.openstaand,
       (FACTUUR_STATUSSEN.find(s=>s.id===f.status)||{}).label||f.status];
   });
   if(typeof XLSX==='undefined'){appToast('Excel-bibliotheek niet geladen',{type:'error'});return;}
   const wb=XLSX.utils.book_new();
   const ws=XLSX.utils.aoa_to_sheet([kop,...rijen]);
-  ws['!cols']=[{wch:12},{wch:11},{wch:11},{wch:26},{wch:16},{wch:34},{wch:14},
+  ws['!cols']=[{wch:12},{wch:11},{wch:11},...(bdKolom?[{wch:24}]:[]),
+    {wch:26},{wch:16},{wch:34},{wch:14},
     {wch:13},{wch:11},{wch:13},{wch:11},{wch:12},{wch:11}];
-  XLSX.utils.book_append_sheet(wb,ws,'Facturen '+per);
-  XLSX.writeFile(wb,`Facturen_${per.replace(/\s+/g,'-')}.xlsx`);
+  /* Een tabblad mag hooguit 31 tekens en geen : \ / ? * [ ] bevatten. */
+  const bdKort=scope?facBedrijfKort(facBedrijfNaam(scope)):'';
+  const tab=(bdKort?bdKort+' '+per:'Facturen '+per).replace(/[:\\/?*[\]]/g,'-').slice(0,31);
+  XLSX.utils.book_append_sheet(wb,ws,tab);
+  const bestand=(bdKort?bdKort.replace(/[^\w-]+/g,'-')+'_':'')+'Facturen_'+per.replace(/\s+/g,'-');
+  XLSX.writeFile(wb,`${bestand}.xlsx`);
   appToast(`${rijen.length} facturen geëxporteerd`,{type:'success'});
 }
 

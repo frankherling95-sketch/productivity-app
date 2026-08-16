@@ -10,6 +10,26 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-08-16 · Facturen per bedrijf: één administratie tegelijk
+
+**Probleem**: er wordt vanuit twee B.V.'s gefactureerd (Analytics en Holding). De gegevens waren al gescheiden — `settings.bedrijven[]` met een eigen nummerreeks per bedrijf, `bedrijfId` op de factuur — maar het overzicht niet. Alle facturen stonden door elkaar, zonder te zien waar ze vandaan kwamen, en de KPI's, debiteuren en btw telden beide administraties bij elkaar op.
+
+**Beslissing**:
+- Eén schakelaar in de topbalk van Facturen: een bedrijf, of "Alle bedrijven". De keuze staat in `factuurState.settings.bedrijfScope`, dus hij gaat mee naar Drive en is op elke computer hetzelfde. Verwijst hij naar een verdwenen bedrijf, dan valt hij terug op alles.
+- De scope geldt voor de facturenlijst, de KPI's, debiteuren, btw, verzonden mails, de Excel-export en het bedrijf waar een nieuwe factuur vanuit gaat. **Alleen binnen Facturen** — klanten, uren, notities, checklist en agenda blijven gedeeld; die zijn van Frank en niet van een B.V. Vandaar dat de scope in `factuurState.settings` zit en niet in `rawState.settings`.
+- Kolom "Vanuit" in de lijst, alleen zichtbaar bij "Alle bedrijven": sta je ín een administratie, dan zegt die kolom bij elke regel hetzelfde.
+- **Btw-aangifte vraagt eerst om een bedrijf** (`facBtwVraagtBedrijf()`). Bij "Alle bedrijven" verschijnen er geen cijfers maar een keuze.
+- Verhuis je in de editor een factuur naar een ander bedrijf terwijl je in één administratie zit, dan gaat de lijst mee — anders verdwijnt de factuur achter het venster dat je openhebt.
+- Nieuwe factuur: de scope wint van `klant.bedrijfId`, die wint van `standaardBedrijf`. Klant.bedrijfId werd al gelezen maar was nergens in te stellen; staat nu in het klantvenster.
+
+**Waarom**: twee B.V.'s zijn twee administraties, geen twee labels. Elke reeks is doorlopend, elk btw-nummer doet een eigen aangifte. Een opgeteld btw-bedrag over twee administraties hoort op geen enkel aangifteformulier thuis, dus dat getal komt niet in beeld — het tonen nodigt uit om het over te nemen. Een schakelaar in plaats van een filterchip omdat het geen filter is maar de plek waar je werkt (zoals Rompslomp het doet); daarom volgt ook wat je aanmaakt de scope.
+
+**Wat gedeeld blijft**: betaaltermijn, standaard btw-tarief, kilometervergoeding, voettekst, btw-stelsel, sjablonen en de mailteksten. Die staan in het instellingenvenster nu onder de kop "Geldt voor alle bedrijven"; het blok erboven onder "Gegevens van &lt;bedrijf&gt;".
+
+**Bestanden**: `index.html` — `factuurSettings` (hydratie `bedrijfScope`), `facBedrijfScope`/`facBedrijfScopeZet`/`facBedrijfFacturen`/`facBedrijfKort`/`facBedrijfNaam`/`facToonBedrijfKolom`, `facToggleBedrijf`, `facRenderBedrijfKnop`, `facZichtbaar`, `facRenderKpis`, `facRenderLijst`, `facRenderKaarten`, `facRenderDebiteuren`, `factuurBtwOverzicht` (param `bedrijfId`), `facBtwVraagtBedrijf`, `facRenderBtw`, `facMailsVanJaar`, `facRenderKlanten`, `factuurNieuw`, `facEdVeld`, `openFacInstellingen`, `openKlantModal`, `facExportBoekhouding`
+
+**Niet doen**: de scope in `rawState.settings` zetten of hem laten doorwerken in Uren/Notities/Checklist — klanten en uren zijn gedeeld, en een urenregistratie hangt aan een klant, niet aan een B.V. En: btw-cijfers tonen bij "Alle bedrijven".
+
 ## 2026-08-13 · Uren toonde een lege lijst in plaats van het pincodeslot
 
 **Probleem**: op een telefoon leek de urenadministratie leeg terwijl dezelfde uren op de laptop gewoon stonden — zelfde account, zelfde Drive-bestand. Dat leest als dataverlies en is het niet.
