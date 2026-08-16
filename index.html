@@ -17373,6 +17373,11 @@ function facSjablonen(){
     if(!Array.isArray(t.blocks))t.blocks=facStandaardBlokken('');
     t.blocks.forEach(b=>{
       if(!b.id)b.id=facBlokId();
+      /* Het betaalblok hoort onderaan de pagina, als voettekst. Ook in
+         sjablonen die zijn gemaakt voordat het anker bestond. */
+      if(b.type==='BETAALBLOK'&&!(b.style||{}).anker){
+        b.style=b.style||{}; b.style.anker='onder';
+      }
       if(!b.style)b.style={};
       if(!b.style.marge)b.style.marge={boven:0,onder:4};
       if(!b.content)b.content={};
@@ -20761,7 +20766,9 @@ function facPdfRegels(ctx,b,x,y,w){
   if(b.style.kopVulling===false){
     doc.setDrawColor(...ctx.lijn).setLineWidth(0.3).line(x,y+9,x+w,y+9);
   }
-  h+=12;
+  /* Alleen boven de eerste regel: die stond 3 mm onder de koplijn en
+     plakte daaraan. De regels onderling houden hun eigen ritme. */
+  h+=kopVet?16:12;
 
   doc.setFont(F,'normal').setFontSize(ctx.bs-0.5).setTextColor(...ctx.accent);
   (f.regels||[]).forEach(r=>{
@@ -20824,10 +20831,14 @@ function facPdfRegels(ctx,b,x,y,w){
     .concat(ctx.tot.staffel.map(st=>st.bedrag))
     .map(n=>doc.getTextWidth(factuurFmtBedrag(n))));
   const xLab=xTot-Math.max(kopVet?90:60,breedsteLab+breedsteBedrag+12);
+  /* De balk steekt links en rechts 4 mm buiten de tekst uit. Labels en
+     bedragen erboven staan daarom op dezelfde lijn als de tekst ín de
+     balk, niet op de rand ervan. */
+  const xWaarde=kopVet?xTot-4:xTot;
   const rij=(label,waarde,vet)=>{
     doc.setFont(F,vet?'bold':'normal').setFontSize(vet?ctx.bs+0.5:ctx.bs);
     doc.text(label,xLab,y+h);
-    doc.text(waarde,xTot,y+h,{align:'right'});
+    doc.text(waarde,xWaarde,y+h,{align:'right'});
     h+=5.2;
   };
   rij(kopVet?'Totaal excl. btw':'Totaalbedrag excl. btw',factuurFmtBedrag(ctx.tot.excl));
@@ -20841,15 +20852,15 @@ function facPdfRegels(ctx,b,x,y,w){
     /* Donkere balk in plaats van een lijn met een vette regel: het
        bedrag dat betaald moet worden is het enige dat de ontvanger
        zoekt, dus dat mag eruit springen. */
-    doc.setFillColor(...ctx.accent).rect(xLab-3,y+h-4,xTot-xLab+3,9,'F');
+    doc.setFillColor(...ctx.accent).rect(xLab-4,y+h-4,xTot-xLab+4,9.5,'F');
     doc.setFont(F,'bold').setFontSize(ctx.bs-1.5).setTextColor(255,255,255);
-    doc.text('TE BETALEN',xLab,y+h+1.8);
+    doc.text('TE BETALEN',xLab,y+h+2);
     doc.setFontSize(ctx.bs+3);
-    doc.text(factuurFmtBedrag(ctx.tot.incl),xTot-3,y+h+1.8,{align:'right'});
+    doc.text(factuurFmtBedrag(ctx.tot.incl),xWaarde,y+h+2,{align:'right'});
     doc.setTextColor(...ctx.accent);
     h+=13;
   } else {
-    doc.setDrawColor(...ctx.accent).setLineWidth(0.4).line(xLab,y+h-3.4,xTot,y+h-3.4);
+    doc.setDrawColor(...ctx.accent).setLineWidth(0.4).line(xLab,y+h-3.4,xWaarde,y+h-3.4);
     h+=1;
     rij('Totaalbedrag incl. btw',factuurFmtBedrag(ctx.tot.incl),true);
   }
