@@ -17308,6 +17308,8 @@ function facStandaardBlokken(betaalzin){
      style:{marge:{boven:0,onder:10},kopVulling:false,kopVet:true},
      content:{kolommen:{aantal:true,eenheid:true,omschrijving:true,stuksprijs:false,
                         btw:true,btwRechts:false,bedragExcl:true,bedragIncl:false},
+              /* 'altijd' = 1,00 · 'auto' = 1 bij hele aantallen, 1,5 bij halve */
+              decimalen:'altijd',
               breedtes:{aantal:16,omschrijving:0,bedragExcl:30,bedragIncl:30}}},
     /* Betaalzin en voettekst staan uit: de betaalgegevens komen in een
        eigen blok en de bedrijfsgegevens staan al rechtsboven. */
@@ -17981,6 +17983,7 @@ const FAC_CHANGE_ACTIONS={
   facWizardVeld:(el,a)=>{if(facWizard){facWizard[a]=el.value;facWizardRenderKlanten();}},
   facSjStijl:(el,a)=>facSjStijl(el,a),
   facSjVeld:(el,a)=>facSjVeld(el,a),
+  facSjRegelOptie:(el,a)=>facSjRegelOptie(el,a),
   facSjBreedte:(el,a)=>facSjBreedte(el,a),
   facSjTekst:(el)=>facSjTekst(el),
   facSjPagina:(el,a)=>facSjPagina(el,a),
@@ -19855,6 +19858,11 @@ function facSjBlokInstellingen(b){
         data-fac-change="facSjStijl" data-fac-arg1="kopVulling"/>Gevulde kopbalk</label>
       ${st.kopVulling!==false?`<div class="fac-sj-rij"><label>Kopkleur</label>
         <input type="color" value="${st.kopKleur||'#F0F4F8'}" data-fac-change="facSjStijl" data-fac-arg1="kopKleur"/></div>`:''}
+      <div class="fac-sj-rij"><label>Decimalen aantal</label>
+        <select class="fac-ed-inp" style="flex:1" data-fac-change="facSjRegelOptie" data-fac-arg1="decimalen">
+          <option value="altijd"${c.decimalen!=='auto'?' selected':''}>Altijd twee (1,00)</option>
+          <option value="auto"${c.decimalen==='auto'?' selected':''}>Alleen als het nodig is (1 · 1,5)</option>
+        </select></div>
       <div class="fac-sj-rij"><label>Breedte aantal</label>
         <input type="range" min="12" max="40" step="1" value="${(c.breedtes&&c.breedtes.aantal)||18}"
           data-fac-change="facSjBreedte" data-fac-arg1="aantal"/>
@@ -20028,6 +20036,15 @@ function facSjVeld(el,key){
   if(!b)return;
   const pot=b.type==='REGELS'?(b.content.kolommen=b.content.kolommen||{}):(b.content.velden=b.content.velden||{});
   pot[key]=el.checked;
+  scheduleSave();facSjabloonPreview();
+}
+/* Keuzelijsten van het regelblok die niet in kolommen/velden passen --
+   nu alleen de decimalenkeuze voor het aantal. */
+function facSjRegelOptie(el,key){
+  const b=facSjBlok();
+  if(!b)return;
+  b.content=b.content||{};
+  b.content[key]=el.value;
   scheduleSave();facSjabloonPreview();
 }
 function facSjBreedte(el,key){
@@ -20719,6 +20736,10 @@ function facPdfRegels(ctx,b,x,y,w){
   const br=b.content.breedtes||{};
   const toonIncl=k.bedragIncl!==false;
   const toonAantal=k.aantal!==false;
+  /* Decimalen van het aantal: 'auto' laat ",00" weg bij hele aantallen
+     (1 uur, 1,5 uur), alles anders houdt de vaste twee decimalen die de
+     facturen altijd hadden -- bestaande sjablonen veranderen dus niet. */
+  const fmtAantal=b.content.decimalen==='auto'?urenFmtShort:urenFmt;
   const bAantal=toonAantal?(Number(br.aantal)||18):0;
   const bExcl=Number(br.bedragExcl)||28;
   const bIncl=toonIncl?(Number(br.bedragIncl)||28):0;
@@ -20780,7 +20801,7 @@ function facPdfRegels(ctx,b,x,y,w){
     doc.text(oms,xOms,y+h);
     let ry=y+h+oms.length*4.4;
     if(kopVet){
-      if(toonAantal)doc.text(urenFmt(Number(r.aantal||0))+(r.eenheid?' '+r.eenheid:''),
+      if(toonAantal)doc.text(fmtAantal(Number(r.aantal||0))+(r.eenheid?' '+r.eenheid:''),
         xAantalR,y+h,{align:'right'});
       doc.text(factuurFmtBedrag(r.stuksprijs),xTarief,y+h,{align:'right'});
       if(k.btw!==false)doc.text(f.btwVerlegd?'verlegd':pct+'%',xBtw,y+h,{align:'right'});
@@ -20792,7 +20813,7 @@ function facPdfRegels(ctx,b,x,y,w){
         doc.setFontSize(ctx.bs-0.5).setTextColor(...ctx.accent);
       }
     } else {
-      if(toonAantal)doc.text(urenFmt(Number(r.aantal||0))+(k.eenheid?' '+(r.eenheid||''):''),xAantal,y+h);
+      if(toonAantal)doc.text(fmtAantal(Number(r.aantal||0))+(k.eenheid?' '+(r.eenheid||''):''),xAantal,y+h);
       doc.text(factuurFmtBedrag(bedrag),xExcl,y+h,{align:'right'});
       if(toonIncl)doc.text(factuurFmtBedrag(inclR),xIncl,y+h,{align:'right'});
       doc.setFontSize(ctx.bs-1.5).setTextColor(...ctx.grijs);
