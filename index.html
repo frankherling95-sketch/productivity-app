@@ -17281,7 +17281,7 @@ function facStandaardBlokken(betaalzin){
     /* Alle afzendergegevens in één blok rechtsboven; het tweede
        ZENDER-blok is vervallen omdat het dezelfde regels herhaalde. */
     {id:facBlokId(),type:'ZENDER',zichtbaar:true,kolom:'rechts',
-     style:{uitlijning:'rechts',grootte:-1.5,marge:{boven:0,onder:6}},
+     style:{uitlijning:'rechts',grootte:-1.5,marge:{boven:0,onder:14}},
      content:{velden:{naam:true,adres:true,btw:true,kvk:true,tel:false,email:false,iban:true,bic:true}}},
     /* Factuurnummer links, factuurdatum rechts -- dit is de kop van de
        factuur en staat daarom bovenaan, boven de scheidingslijn. */
@@ -17295,11 +17295,11 @@ function facStandaardBlokken(betaalzin){
        en waar hij over gaat. Beide met een kop erboven, zodat de
        ontvanger niet hoeft te raden wat welk adres is. */
     {id:facBlokId(),type:'ONTVANGER',zichtbaar:true,kolom:'links',
-     style:{uitlijning:'links',grootte:0.5,marge:{boven:12,onder:14},lijnBoven:true,
+     style:{uitlijning:'links',grootte:0.5,marge:{boven:18,onder:18},lijnBoven:true,
             kop:'Factuur aan'},
      content:{velden:{tav:false,adres:true,land:false,btw:false}}},
     {id:facBlokId(),type:'META',zichtbaar:true,kolom:'rechts',
-     style:{uitlijning:'links',grootte:0,marge:{boven:8,onder:14},lijnBoven:false,
+     style:{uitlijning:'links',grootte:0,marge:{boven:18,onder:18},lijnBoven:false,
             kop:'Betreft'},
      content:{velden:{nummer:false,betreft:true,factuurdatum:false,vervaldatum:false,referentie:false}}},
     /* Regels met totalen. Btw per regel als eigen gegeven; stuksprijs
@@ -17315,7 +17315,7 @@ function facStandaardBlokken(betaalzin){
      style:{grootte:0,marge:{boven:6,onder:6}},
      content:{tekst:betaalzin}},
     {id:facBlokId(),type:'BETAALBLOK',zichtbaar:true,kolom:'vol',
-     style:{grootte:0,marge:{boven:10,onder:6}},content:{}},
+     style:{grootte:0,marge:{boven:10,onder:6},anker:'onder'},content:{}},
     {id:facBlokId(),type:'FOOTER',zichtbaar:false,kolom:'vol',
      style:{grootte:-1.5,uitlijning:'links'},content:{tekst:''}}
   ];
@@ -20454,6 +20454,12 @@ function facPdfDoc(f){
       y+=facPdfBlok(ctx,b,x,y,ctx.halve)+(Number((b.style.marge||{}).onder)||0);
       continue;
     }
+    /* Een blok met anker 'onder' hoort onderaan de pagina, niet direct
+       achter de vorige blokken aan. */
+    if(b.style.anker==='onder'){
+      facPdfBlok(ctx,b,ctx.L,ctx.onder-22,ctx.breedte);
+      continue;
+    }
     y+=facPdfBlok(ctx,b,ctx.L,y,ctx.breedte)+(Number((b.style.marge||{}).onder)||0);
   }
 
@@ -20539,16 +20545,17 @@ function facPdfAdres(ctx,b,x,y,w,soort){
   if(b.style.lijnBoven){
     /* Boven de strook, zonder hoogte op te eisen -- anders zakt dit blok
        wel en het blok ernaast niet, en lopen de koppen uiteen. */
-    doc.setDrawColor(...ctx.accent).setLineWidth(0.5).line(ctx.L,y-4,ctx.R,y-4);
+    doc.setDrawColor(...ctx.accent).setLineWidth(0.5).line(ctx.L,y-9,ctx.R,y-9);
   }
   /* Optionele kop boven het blok, in kleinkapitaal. */
   if(b.style.kop){
-    doc.setFont(F,'bold').setFontSize(gr-2.5).setTextColor(...ctx.grijs);
+    doc.setFont(F,'bold').setFontSize(gr-2.5).setTextColor(...ctx.accent);
+    if(doc.setCharSpace)doc.setCharSpace(0.7);
     doc.text(String(b.style.kop).toUpperCase(),
       (b.style.uitlijning==='rechts')?x+w:x,y+h+3,
       {align:(b.style.uitlijning==='rechts')?'right':'left'});
-    doc.setTextColor(...ctx.accent);
-    h+=7;
+    if(doc.setCharSpace)doc.setCharSpace(0);
+    h+=9;
   }
   let regels=[], titel='';
   if(soort==='zender'){
@@ -20604,16 +20611,17 @@ function facPdfMeta(ctx,b,x,y,w){
   const v=b.content.velden||{};
   let h=0;
   if(b.style.lijnBoven){
-    doc.setDrawColor(...ctx.accent).setLineWidth(0.5).line(ctx.L,y-4,ctx.R,y-4);
+    doc.setDrawColor(...ctx.accent).setLineWidth(0.5).line(ctx.L,y-9,ctx.R,y-9);
   }
   /* Optionele kop boven het blok, in kleinkapitaal. */
   if(b.style.kop){
-    doc.setFont(F,'bold').setFontSize(gr-2.5).setTextColor(...ctx.grijs);
+    doc.setFont(F,'bold').setFontSize(gr-2.5).setTextColor(...ctx.accent);
+    if(doc.setCharSpace)doc.setCharSpace(0.7);
     doc.text(String(b.style.kop).toUpperCase(),
       (b.style.uitlijning==='rechts')?x+w:x,y+h+3,
       {align:(b.style.uitlijning==='rechts')?'right':'left'});
-    doc.setTextColor(...ctx.accent);
-    h+=7;
+    if(doc.setCharSpace)doc.setCharSpace(0);
+    h+=9;
   }
   const rijen=[];
   if(v.factuurdatum!==false)rijen.push(['Factuurdatum',factuurFmtDatumLang(f.datum)]);
