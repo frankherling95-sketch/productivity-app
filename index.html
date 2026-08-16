@@ -20806,7 +20806,9 @@ function facPdfRegels(ctx,b,x,y,w){
     }
     h=ry-y+2.5;
     doc.setDrawColor(...ctx.lijn).setLineWidth(0.2).line(x,y+h-1.5,x+w,y+h-1.5);
-    h+=3;
+    /* 5,5 levert dezelfde 7 mm tot de lijn als bij de eerste regel: de
+       scheidingslijn staat 1,5 mm boven de nieuwe hoogte. */
+    h+=kopVet?5.5:3;
   });
 
   /* Totalen */
@@ -20834,11 +20836,14 @@ function facPdfRegels(ctx,b,x,y,w){
   /* De balk steekt links en rechts 4 mm buiten de tekst uit. Labels en
      bedragen erboven staan daarom op dezelfde lijn als de tekst ín de
      balk, niet op de rand ervan. */
-  const xWaarde=kopVet?xTot-4:xTot;
+  /* De totaalregels lijnen uit op de balk eronder en op de
+     BEDRAG-kolom erboven: label op de linkerrand van de balk, bedrag op
+     dezelfde rechterrand als de bedragen in de regeltabel. */
+  const xRand=kopVet?xLab-4:xLab;
   const rij=(label,waarde,vet)=>{
     doc.setFont(F,vet?'bold':'normal').setFontSize(vet?ctx.bs+0.5:ctx.bs);
-    doc.text(label,xLab,y+h);
-    doc.text(waarde,xWaarde,y+h,{align:'right'});
+    doc.text(label,xRand,y+h);
+    doc.text(waarde,xTot,y+h,{align:'right'});
     h+=5.2;
   };
   rij(kopVet?'Totaal excl. btw':'Totaalbedrag excl. btw',factuurFmtBedrag(ctx.tot.excl));
@@ -20852,15 +20857,18 @@ function facPdfRegels(ctx,b,x,y,w){
     /* Donkere balk in plaats van een lijn met een vette regel: het
        bedrag dat betaald moet worden is het enige dat de ontvanger
        zoekt, dus dat mag eruit springen. */
-    doc.setFillColor(...ctx.accent).rect(xLab-4,y+h-4,xTot-xLab+4,9.5,'F');
+    /* De randen van de balk vallen samen met de kolom erboven: links de
+       totaalregels, rechts de BEDRAG-kolom. De tekst erin houdt 3 mm
+       lucht tot die randen. */
+    doc.setFillColor(...ctx.accent).rect(xRand,y+h-4,xTot-xRand,9.5,'F');
     doc.setFont(F,'bold').setFontSize(ctx.bs-1.5).setTextColor(255,255,255);
-    doc.text('TE BETALEN',xLab,y+h+2);
+    doc.text('TE BETALEN',xRand+3,y+h+2);
     doc.setFontSize(ctx.bs+3);
-    doc.text(factuurFmtBedrag(ctx.tot.incl),xWaarde,y+h+2,{align:'right'});
+    doc.text(factuurFmtBedrag(ctx.tot.incl),xTot-3,y+h+2,{align:'right'});
     doc.setTextColor(...ctx.accent);
     h+=13;
   } else {
-    doc.setDrawColor(...ctx.accent).setLineWidth(0.4).line(xLab,y+h-3.4,xWaarde,y+h-3.4);
+    doc.setDrawColor(...ctx.accent).setLineWidth(0.4).line(xRand,y+h-3.4,xTot,y+h-3.4);
     h+=1;
     rij('Totaalbedrag incl. btw',factuurFmtBedrag(ctx.tot.incl),true);
   }
