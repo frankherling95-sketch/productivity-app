@@ -10,6 +10,22 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-08-16 · Maandkalender onder het uren-maandoverzicht
+
+**Probleem**: "Per maand" is een draaitabel maand × klant binnen het jaar. Die zegt hoevéél uur er in een maand zit, maar niet op welke dagen. De vraag die je stelt als je een maand naloopt — heb ik die dinsdag wel geschreven? — kon je er niet aan stellen.
+
+**Beslissing**: onder de tabel een kalenderraster van één maand, zoals een agenda: zeven kolommen ma–zo, een rij per week, de datums in de cellen. Per dag het totaal en een gekleurd blokje per klant (max. 3, daarna "+N meer"). Rechts een weektotaal.
+- Welke maand: de laatste maand met uren, of de maand die je in de tabel aanklikt (de maandnaam is een knop, de rij wordt gemarkeerd). Plus ‹ › om binnen het jaar te stappen. De keuze staat in `urenKalenderMaand` en valt terug zodra je naar een ander jaar gaat.
+- Klik op een dag → Registraties, week van die dag. Daar staan de regels die je wilt zien of aanpassen.
+- Dagen waarvan álle uren gefactureerd zijn krijgen een ✓ bij het totaal. Zonder dat zien april (helemaal gefactureerd) en augustus (open) er identiek uit, terwijl dat verschil juist is waar je naar zoekt.
+- De kalender leest uit dezelfde gefilterde lijst als de tabel, dus een klantfilter geldt er ook.
+
+**Waarom een eigen kaartklasse** (`.uren-kal-card`, niet `.uren-sheet-card`): die laatste is `display:none` onder 768px, want een spreadsheet is desktop-werk. Een kalender wil je op een telefoon juist wél zien. Daar klapt hij dicht: korte dagnamen, geen weekkolom, chips vervangen door stippen, datum en dagtotaal blijven. Zeven kolommen van 49px passen op 375px; "Donderdag" paste daar niet in en liep over de rand van zijn cel — vandaar beide schrijfwijzen in de kop, met de CSS als keuze.
+
+**Bestanden**: `index.html` — `urenWekenVanMaand` (nieuw; `urenMonthWeeks` rekent vanaf vandaag en kan geen losse maand aanwijzen), `urenRenderMaandKalender`, `urenKalenderMaand`/`urenKalenderMaandVan`/`urenKalenderMaandZet`/`urenKalenderDag`, `urenRenderMaandView`, CSS `.uren-kal*`
+
+**Niet doen**: `MONTH_LABELS_NL[m].slice(0,3)` als afkorting — 'Maart' wordt dan 'maa'. Gebruik `toLocaleDateString('nl-NL',{month:'short'})`, dat geeft 'mrt'.
+
 ## 2026-08-16 · Facturen per bedrijf: één administratie tegelijk
 
 **Probleem**: er wordt vanuit twee B.V.'s gefactureerd (Analytics en Holding). De gegevens waren al gescheiden — `settings.bedrijven[]` met een eigen nummerreeks per bedrijf, `bedrijfId` op de factuur — maar het overzicht niet. Alle facturen stonden door elkaar, zonder te zien waar ze vandaan kwamen, en de KPI's, debiteuren en btw telden beide administraties bij elkaar op.
