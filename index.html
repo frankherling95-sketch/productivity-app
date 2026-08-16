@@ -17283,19 +17283,25 @@ function facStandaardBlokken(betaalzin){
     {id:facBlokId(),type:'ZENDER',zichtbaar:true,kolom:'rechts',
      style:{uitlijning:'rechts',grootte:-1.5,marge:{boven:0,onder:6}},
      content:{velden:{naam:true,adres:true,btw:true,kvk:true,tel:false,email:false,iban:true,bic:true}}},
-    /* Klantadres links. Geen t.a.v.-regel: de contactpersoon is bij
-       zakelijke klanten meestal gelijk aan de bedrijfsnaam. */
-    {id:facBlokId(),type:'ONTVANGER',zichtbaar:true,kolom:'links',
-     style:{uitlijning:'links',grootte:0.5,marge:{boven:6,onder:16},lijnBoven:true},
-     content:{velden:{tav:false,adres:true,land:false,btw:true}}},
-    /* Factuurnummer links, factuurdatum rechts. De vervaldatum staat
-       straks in het betaalblok, betreft en referentie zijn ruis. */
+    /* Factuurnummer links, factuurdatum rechts -- dit is de kop van de
+       factuur en staat daarom bovenaan, boven de scheidingslijn. */
     {id:facBlokId(),type:'META',zichtbaar:true,kolom:'links',
-     style:{uitlijning:'links',grootte:0.5,marge:{boven:0,onder:8},lijnBoven:false},
+     style:{uitlijning:'links',grootte:0.5,marge:{boven:8,onder:0},lijnBoven:false},
      content:{velden:{nummer:true,betreft:false,factuurdatum:false,vervaldatum:false,referentie:false}}},
     {id:facBlokId(),type:'META',zichtbaar:true,kolom:'rechts',
-     style:{uitlijning:'rechts',grootte:0,marge:{boven:0,onder:8},lijnBoven:false},
+     style:{uitlijning:'rechts',grootte:-0.5,marge:{boven:10,onder:0},lijnBoven:false},
      content:{velden:{nummer:false,betreft:false,factuurdatum:true,vervaldatum:false,referentie:false}}},
+    /* Daaronder, achter de scheidingslijn: aan wie de factuur gericht is
+       en waar hij over gaat. Beide met een kop erboven, zodat de
+       ontvanger niet hoeft te raden wat welk adres is. */
+    {id:facBlokId(),type:'ONTVANGER',zichtbaar:true,kolom:'links',
+     style:{uitlijning:'links',grootte:0.5,marge:{boven:12,onder:14},lijnBoven:true,
+            kop:'Factuur aan'},
+     content:{velden:{tav:false,adres:true,land:false,btw:false}}},
+    {id:facBlokId(),type:'META',zichtbaar:true,kolom:'rechts',
+     style:{uitlijning:'links',grootte:0,marge:{boven:8,onder:14},lijnBoven:false,
+            kop:'Betreft'},
+     content:{velden:{nummer:false,betreft:true,factuurdatum:false,vervaldatum:false,referentie:false}}},
     /* Regels met totalen. Btw per regel als eigen gegeven; stuksprijs
        en het inclusief-bedrag vervallen -- die stonden dubbel. */
     {id:facBlokId(),type:'REGELS',zichtbaar:true,kolom:'vol',
@@ -20531,8 +20537,18 @@ function facPdfAdres(ctx,b,x,y,w,soort){
      linkerblok van een strook, anders wordt hij twee keer getekend. */
   let h=0;
   if(b.style.lijnBoven){
-    doc.setDrawColor(...ctx.accent).setLineWidth(0.5).line(ctx.L,y,ctx.R,y);
-    h+=6;
+    /* Boven de strook, zonder hoogte op te eisen -- anders zakt dit blok
+       wel en het blok ernaast niet, en lopen de koppen uiteen. */
+    doc.setDrawColor(...ctx.accent).setLineWidth(0.5).line(ctx.L,y-4,ctx.R,y-4);
+  }
+  /* Optionele kop boven het blok, in kleinkapitaal. */
+  if(b.style.kop){
+    doc.setFont(F,'bold').setFontSize(gr-2.5).setTextColor(...ctx.grijs);
+    doc.text(String(b.style.kop).toUpperCase(),
+      (b.style.uitlijning==='rechts')?x+w:x,y+h+3,
+      {align:(b.style.uitlijning==='rechts')?'right':'left'});
+    doc.setTextColor(...ctx.accent);
+    h+=7;
   }
   let regels=[], titel='';
   if(soort==='zender'){
@@ -20568,14 +20584,36 @@ function facPdfAdres(ctx,b,x,y,w,soort){
   return h+1;
 }
 
+/* "Periode 1 t/m 31 augustus 2026", afgeleid uit de urenregistraties
+   die aan de factuur hangen. Staat nergens als veld op de factuur, dus
+   liever afleiden dan de gebruiker het twee keer laten invullen. */
+function factuurPeriodeTekst(f){
+  const uren=factuurSpecificatieUren(f);
+  if(!uren.length)return '';
+  const van=uren[0].date, tot=uren[uren.length-1].date;
+  if(van===tot)return 'Periode '+factuurFmtDatumLang(van);
+  /* Zelfde maand? Dan alleen de dag vooraan: "1 t/m 31 augustus 2026". */
+  if(van.slice(0,7)===tot.slice(0,7))
+    return 'Periode '+Number(van.slice(8,10))+' t/m '+factuurFmtDatumLang(tot);
+  return 'Periode '+factuurFmtDatumLang(van)+' t/m '+factuurFmtDatumLang(tot);
+}
+
 function facPdfMeta(ctx,b,x,y,w){
   const {doc,F,f}=ctx;
   const gr=ctx.bs+(Number(b.style.grootte)||0);
   const v=b.content.velden||{};
   let h=0;
   if(b.style.lijnBoven){
-    doc.setDrawColor(...ctx.accent).setLineWidth(0.5).line(ctx.L,y,ctx.R,y);
-    h+=5;
+    doc.setDrawColor(...ctx.accent).setLineWidth(0.5).line(ctx.L,y-4,ctx.R,y-4);
+  }
+  /* Optionele kop boven het blok, in kleinkapitaal. */
+  if(b.style.kop){
+    doc.setFont(F,'bold').setFontSize(gr-2.5).setTextColor(...ctx.grijs);
+    doc.text(String(b.style.kop).toUpperCase(),
+      (b.style.uitlijning==='rechts')?x+w:x,y+h+3,
+      {align:(b.style.uitlijning==='rechts')?'right':'left'});
+    doc.setTextColor(...ctx.accent);
+    h+=7;
   }
   const rijen=[];
   if(v.factuurdatum!==false)rijen.push(['Factuurdatum',factuurFmtDatumLang(f.datum)]);
@@ -20604,9 +20642,30 @@ function facPdfMeta(ctx,b,x,y,w){
   });
   if(v.betreft!==false&&f.betreft){
     if(rechts){
-      const bt=doc.splitTextToSize('Betreft: '+f.betreft,w);
+      const bt=doc.splitTextToSize(b.style.kop?f.betreft:'Betreft: '+f.betreft,w);
       doc.setFont(F,'normal').text(bt,x+w,y+h+3.5,{align:'right'});
       h+=4.8*bt.length;
+      /* Periode uit de gekoppelde uren; zonder uren valt de regel weg. */
+      const per=factuurPeriodeTekst(f);
+      if(per){
+        doc.setFontSize(gr-1).setTextColor(...ctx.grijs);
+        doc.text(per,x+w,y+h+3.5,{align:'right'});
+        doc.setFontSize(gr).setTextColor(...ctx.accent);
+        h+=4.8;
+      }
+    } else if(b.style.kop){
+      /* Met een kop erboven is het woord "Betreft:" overbodig. */
+      doc.setFont(F,'normal');
+      const bt=doc.splitTextToSize(f.betreft,w);
+      doc.text(bt,x,y+h+3.5);
+      h+=4.8*bt.length;
+      const per=factuurPeriodeTekst(f);
+      if(per){
+        doc.setFontSize(gr-1).setTextColor(...ctx.grijs);
+        doc.text(per,x,y+h+3.5);
+        doc.setFontSize(gr).setTextColor(...ctx.accent);
+        h+=4.8;
+      }
     } else {
       doc.setFont(F,'normal').text('Betreft:',x,y+h+3.5);
       const bt=doc.splitTextToSize(f.betreft,w-18);
@@ -20743,7 +20802,20 @@ function facPdfRegels(ctx,b,x,y,w){
      het label nog maar 42 mm -- dan schoof "Totaalbedrag incl. btw"
      over het bedrag heen. */
   const xTot=kopVet?xBedrag:xIncl;
-  const xLab=kopVet?(xBedrag-90):(xExcl-(toonIncl?42:62));
+  /* Breedte meten in plaats van een vaste marge aanhouden: met een
+     vaste 42 mm schoof "Totaalbedrag incl. btw" over het bedrag zodra
+     de incl.-kolom uitstond. Nu kan het label per definitie niet meer
+     botsen, ongeacht de gekozen kolommen of tekstlengte. */
+  const btwLabels=ctx.tot.staffel.map(st=>st.tarief==='verlegd'?'Btw verlegd'
+    :kopVet?(st.pct?'Btw '+st.pct+'%':'Btw 0%')
+    :(st.pct?'Btw '+(st.pct===21?'hoog':'laag')+' ('+st.pct+'.0%)':'Btw 0%'));
+  doc.setFont(F,'bold').setFontSize(ctx.bs+0.5);
+  const breedsteLab=Math.max(...[kopVet?'Totaal excl. btw':'Totaalbedrag excl. btw',
+    'Totaalbedrag incl. btw','TE BETALEN'].concat(btwLabels).map(t=>doc.getTextWidth(t)));
+  const breedsteBedrag=Math.max(...[ctx.tot.excl,ctx.tot.incl]
+    .concat(ctx.tot.staffel.map(st=>st.bedrag))
+    .map(n=>doc.getTextWidth(factuurFmtBedrag(n))));
+  const xLab=xTot-Math.max(kopVet?90:60,breedsteLab+breedsteBedrag+12);
   const rij=(label,waarde,vet)=>{
     doc.setFont(F,vet?'bold':'normal').setFontSize(vet?ctx.bs+0.5:ctx.bs);
     doc.text(label,xLab,y+h);
