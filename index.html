@@ -1642,6 +1642,25 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 
 /* Wizard: klant + periode kiezen */
 .fac-wizard-klanten{display:flex;flex-direction:column;gap:8px;max-height:320px;overflow-y:auto}
+/* Uitsplitsing per klant onder de gekozen partij. Springt visueel in,
+   zodat duidelijk is dat het onderdelen van die ene factuur zijn. */
+.fac-wizard-partij{display:flex;flex-direction:column}
+.fac-wizard-sub{
+  margin:6px 0 2px 22px;padding:9px 12px;border-radius:var(--radius);
+  background:var(--surface2);border:1px solid var(--border);
+}
+.fac-wizard-sub .kop{
+  font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--text-muted);margin-bottom:7px;
+}
+.fac-wizard-subrij{
+  display:flex;align-items:center;gap:9px;padding:5px 0;cursor:pointer;font-size:13px;
+}
+.fac-wizard-subrij input{accent-color:var(--mint);width:15px;height:15px;flex-shrink:0;cursor:pointer}
+.fac-wizard-subrij .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+.fac-wizard-subrij .uren{
+  font-size:12px;color:var(--text-muted);white-space:nowrap;font-variant-numeric:tabular-nums;
+}
 .fac-wizard-klant{
   display:flex;align-items:center;gap:11px;width:100%;padding:11px 13px;text-align:left;
   background:var(--surface);border:0.5px solid var(--border-strong);border-radius:var(--radius-md);
@@ -18082,9 +18101,19 @@ function factuurUrenVoorPartij(partijId,from,to){
   return factuurKlantenVanPartij(partijId)
     .flatMap(c=>factuurUrenVoorKlant(c.id,from,to));
 }
-function factuurRegelsUitUren(partijId,from,to,omschrijving){
-  const klanten=factuurKlantenVanPartij(partijId);
+/* `alleenKlanten` beperkt de uren tot een deel van de klanten die op deze
+   partij meeliften. Je factureert LabsData, maar schrijft je uren op POM
+   en Staedion; soms wil je die twee op aparte facturen. Leeg of niet
+   meegegeven = alles, zoals het altijd was. */
+function factuurRegelsUitUren(partijId,from,to,omschrijving,alleenKlanten){
+  let klanten=factuurKlantenVanPartij(partijId);
+  if(Array.isArray(alleenKlanten)&&alleenKlanten.length)
+    klanten=klanten.filter(c=>alleenKlanten.includes(c.id));
   const regels=[];
+  /* Staat er maar een klant op deze factuur, dan noemt het onderwerp hem
+     al; de regel hoeft die naam er niet nog eens voor te zetten. Anders
+     werd het "POM B.V. - POM B.V. Gewerkte uren Augustus". */
+  const levert=klanten.filter(c=>factuurUrenVoorKlant(c.id,from,to).length).length;
   klanten.forEach(klant0=>{
     const uren=factuurUrenVoorKlant(klant0.id,from,to);
     if(!uren.length)return;
@@ -18104,7 +18133,7 @@ function factuurRegelsUitUren(partijId,from,to,omschrijving){
        voor wie het werk was -- anders weet de ontvanger niet waar het
        over gaat. */
     const viaPartij=factuurPartijIdVan(klant.id)!==klant.id;
-    const basis=viaPartij
+    const basis=(viaPartij&&levert>1)
       ? (klant.bedrijfsnaam||klant.name)+' \u2014 '+(omschrijving||'Gewerkte uren')
       : (omschrijving||'Gewerkte uren');
     Object.keys(groepen).forEach(t=>{
@@ -18125,13 +18154,20 @@ function factuurRegelsUitUren(partijId,from,to,omschrijving){
 
 /* Standaardomschrijving in de stijl van de bestaande facturen:
    "LabsData - Buren Gewerkte uren Mei/Juni 2026" */
-function factuurStandaardBetreft(clientId,from,to){
+function factuurStandaardBetreft(clientId,from,to,alleenKlanten){
   const klant=factuurKlant(clientId);
   /* Meerdere klanten op een factuur? Dan zegt een klantnaam in het
      onderwerp niets; de regels vermelden ze afzonderlijk. */
-  const meerdere=factuurKlantenVanPartij(clientId).filter(c=>
-    factuurUrenVoorKlant(c.id,from||'1970-01-01',to||'2999-12-31').length).length>1;
-  const naam=meerdere?'':(klant?(klant.bedrijfsnaam||klant.name):'');
+  let leveren=factuurKlantenVanPartij(clientId).filter(c=>
+    factuurUrenVoorKlant(c.id,from||'1970-01-01',to||'2999-12-31').length);
+  if(Array.isArray(alleenKlanten)&&alleenKlanten.length)
+    leveren=leveren.filter(c=>alleenKlanten.includes(c.id));
+  const meerdere=leveren.length>1;
+  /* Precies één klant gekozen binnen een partij? Dan hoort diens naam er
+     juist wél in -- anders heten twee facturen aan dezelfde partij
+     allebei "Gewerkte uren Augustus". */
+  const enkel=(!meerdere&&leveren.length===1)?leveren[0]:klant;
+  const naam=meerdere?'':(enkel?(enkel.bedrijfsnaam||enkel.name):'');
   const mnd=iso=>{const d=new Date(iso+'T00:00:00');
     const s=d.toLocaleDateString('nl-NL',{month:'long'});return s.charAt(0).toUpperCase()+s.slice(1);};
   const j=iso=>new Date(iso+'T00:00:00').getFullYear();
@@ -18140,12 +18176,12 @@ function factuurStandaardBetreft(clientId,from,to){
 }
 
 /* ── CRUD ── */
-function factuurNieuw(clientId,from,to){
+function factuurNieuw(clientId,from,to,alleenKlanten){
   const s=factuurSettings();
   const klant=factuurKlantVol(clientId);
   const datum=dateStr(new Date());
   const termijn=(klant&&klant.betaaltermijn)||s.betaaltermijn;
-  const betreft=clientId?factuurStandaardBetreft(clientId,from,to):'';
+  const betreft=clientId?factuurStandaardBetreft(clientId,from,to,alleenKlanten):'';
   /* Sta je in één administratie, dan hoort wat je daar maakt daar ook
      bij -- die keuze heb je net zelf gemaakt. Kijk je naar alle
      bedrijven, dan beslist de klant, en anders de standaard. */
@@ -18158,11 +18194,14 @@ function factuurNieuw(clientId,from,to){
     clientId:clientId||null,
     datum, vervaldatum:factuurVervaldatum(datum,termijn),
     betreft, referentie:'',
-    regels:clientId?factuurRegelsUitUren(clientId,from,to,betreft):[],
+    regels:clientId?factuurRegelsUitUren(clientId,from,to,betreft,alleenKlanten):[],
     btwVerlegd:!!(klant&&klant.btwVerlegd),
     notitie:(klant&&klant.factuurtekst)||'',
     specificatie:!!(klant&&klant.specificatie),
     urenPeriode:clientId?{from,to}:null,
+    /* Onthouden welke klanten je koos, zodat "Uren ophalen" in de editor
+       niet alsnog de rest erbij haalt. */
+    urenKlanten:(clientId&&Array.isArray(alleenKlanten)&&alleenKlanten.length)?alleenKlanten.slice():null,
     betalingen:[],
     createdAt:Date.now(), updatedAt:Date.now()
   };
@@ -18439,7 +18478,11 @@ const FAC_CHANGE_ACTIONS={
   facSetFilterClient:(el)=>{facFilterClient=el.value;facRenderAll();},
   facEdVeld:(el,a)=>facEdVeld(el,a),
   facEdRegel:(el,a,b)=>facEdRegel(el,a,b),
-  facWizardVeld:(el,a)=>{if(facWizard){facWizard[a]=el.value;facWizardRenderKlanten();}},
+  facWizardVeld:(el,a)=>{if(facWizard){facWizard[a]=el.value;
+    /* Andere periode = andere uren; een uitsplitsing van de vorige
+       periode kan naar klanten wijzen die er nu niet meer zijn. */
+    facWizard.klanten=null;facWizardRenderKlanten();}},
+  facWizardKlantToggle:(el,a)=>facWizardKlantToggle(el,a),
   facSjStijl:(el,a)=>facSjStijl(el,a),
   facSjVeld:(el,a)=>facSjVeld(el,a),
   facSjRegelOptie:(el,a)=>facSjRegelOptie(el,a),
@@ -19448,7 +19491,7 @@ function facRenderKlanten(){
 function facNieuwStart(){
   const eind=new Date();
   const start=new Date(eind.getFullYear(),eind.getMonth(),1);
-  facWizard={clientId:null,from:dateStr(start),to:dateStr(eind)};
+  facWizard={clientId:null,klanten:null,from:dateStr(start),to:dateStr(eind)};
   facWizardRender();
   document.getElementById('facWizardModal').classList.add('open');
 }
@@ -19483,28 +19526,52 @@ function facWizardRenderKlanten(){
   } else {
     box.innerHTML=`<div class="fac-wizard-klanten">`+partijen.map(partij=>{
       const col=CLIENT_COLORS[partij.colorIdx%CLIENT_COLORS.length];
-      const uren=factuurUrenVoorPartij(partij.id,facWizard.from,facWizard.to);
-      const aantal=Math.round(uren.reduce((s,e)=>s+Number(e.hours||0),0)*100)/100;
-      const bedrag=uren.reduce((s,e)=>{
-        const k=factuurKlant(e.clientId)||{};
-        const t=(e.tarief!=null&&e.tarief!=='')?Number(e.tarief):Number(k.tarief||0);
-        return s+Number(e.hours||0)*t;
-      },0);
-      /* Welke klanten leveren uren aan deze partij? */
-      const namen=[...new Set(uren.map(e=>{
-        const k=factuurKlant(e.clientId);
-        return k?(k.bedrijfsnaam||k.name):'';
-      }).filter(Boolean))];
-      const via=namen.filter(n=>n!==(partij.bedrijfsnaam||partij.name));
       const gekozen=facWizard.clientId===partij.id;
-      return `<button class="fac-wizard-klant" data-fac-action="facWizardKies" data-fac-arg1="${partij.id}"
-        style="${gekozen?'border-color:var(--mint);background:var(--mint-soft)':''}">
-        <span class="sw" style="background:${col.bg}"></span>
-        <span class="nm">${escapeHtml(partij.bedrijfsnaam||partij.name)}
-          ${via.length?`<em style="display:block;font-style:normal;font-size:11px;font-weight:400;color:var(--text-muted);margin-top:2px">
-            werk voor ${escapeHtml(via.join(', '))}</em>`:''}</span>
-        <span class="uren">${aantal?urenFmt(aantal)+' u'+(bedrag?' \u00b7 '+factuurFmtBedrag(bedrag):''):'geen open uren'}</span>
-      </button>`;
+      /* Per meeliftende klant apart optellen: dat is wat de vinkjes
+         hieronder aan- en uitzetten, en samen vormt het de kop. */
+      const perKlant=factuurKlantenVanPartij(partij.id).map(k=>{
+        const uren=factuurUrenVoorKlant(k.id,facWizard.from,facWizard.to);
+        const aantal=Math.round(uren.reduce((s,e)=>s+Number(e.hours||0),0)*100)/100;
+        const kv=factuurKlantVol(k);
+        const bedrag=uren.reduce((s,e)=>{
+          const t=(e.tarief!=null&&e.tarief!=='')?Number(e.tarief):Number(kv.tarief||0);
+          return s+Number(e.hours||0)*t;
+        },0);
+        return {klant:k,aantal,bedrag};
+      }).filter(x=>x.aantal>0);
+      /* Welke tellen mee: zonder keuze alles, anders wat is aangevinkt. */
+      const keuze=gekozen&&Array.isArray(facWizard.klanten)?facWizard.klanten:null;
+      const actief=keuze?perKlant.filter(x=>keuze.includes(x.klant.id)):perKlant;
+      const aantal=Math.round(actief.reduce((s,x)=>s+x.aantal,0)*100)/100;
+      const bedrag=actief.reduce((s,x)=>s+x.bedrag,0);
+      const via=perKlant.map(x=>x.klant).filter(k=>k.id!==partij.id)
+        .map(k=>k.bedrijfsnaam||k.name);
+      /* De vinkjes verschijnen pas als je de partij kiest, en alleen als
+         er echt iets te kiezen valt -- bij één leverende klant zou een
+         vinkje alleen maar ruis zijn. */
+      const uitsplitsen=gekozen&&perKlant.length>1;
+      return `<div class="fac-wizard-partij">
+        <button class="fac-wizard-klant" data-fac-action="facWizardKies" data-fac-arg1="${partij.id}"
+          style="${gekozen?'border-color:var(--mint);background:var(--mint-soft)':''}">
+          <span class="sw" style="background:${col.bg}"></span>
+          <span class="nm">${escapeHtml(partij.bedrijfsnaam||partij.name)}
+            ${via.length?`<em style="display:block;font-style:normal;font-size:11px;font-weight:400;color:var(--text-muted);margin-top:2px">
+              werk voor ${escapeHtml(via.join(', '))}</em>`:''}</span>
+          <span class="uren">${aantal?urenFmt(aantal)+' u'+(bedrag?' \u00b7 '+factuurFmtBedrag(bedrag):''):'geen open uren'}</span>
+        </button>
+        ${uitsplitsen?`<div class="fac-wizard-sub">
+          <div class="kop">Welke uren neem je mee?</div>
+          ${perKlant.map(x=>{
+            const aan=!keuze||keuze.includes(x.klant.id);
+            return `<label class="fac-wizard-subrij">
+              <input type="checkbox" ${aan?'checked':''}
+                data-fac-change="facWizardKlantToggle" data-fac-arg1="${x.klant.id}"/>
+              <span class="nm">${escapeHtml(x.klant.bedrijfsnaam||x.klant.name)}</span>
+              <span class="uren">${urenFmt(x.aantal)} u${x.bedrag?' \u00b7 '+factuurFmtBedrag(x.bedrag):''}</span>
+            </label>`;
+          }).join('')}
+        </div>`:''}
+      </div>`;
     }).join('')+`</div>`;
   }
   const btn=document.getElementById('facWizardMaakBtn');
@@ -19513,12 +19580,34 @@ function facWizardRenderKlanten(){
 function facWizardKies(id){
   if(!facWizard)return;
   facWizard.clientId=facWizard.clientId===id?null:id;
+  /* Van partij wisselen betekent opnieuw beginnen met de uitsplitsing;
+     een vinkje van de vorige partij zegt hier niets. */
+  facWizard.klanten=null;
   facWizardRender();
+}
+/* Een klant aan- of uitvinken binnen de gekozen partij. */
+function facWizardKlantToggle(el,clientId){
+  if(!facWizard||!facWizard.clientId)return;
+  const alle=factuurKlantenVanPartij(facWizard.clientId)
+    .filter(k=>factuurUrenVoorKlant(k.id,facWizard.from,facWizard.to).length)
+    .map(k=>k.id);
+  let keuze=Array.isArray(facWizard.klanten)?facWizard.klanten.slice():alle.slice();
+  if(el.checked){ if(!keuze.includes(clientId))keuze.push(clientId); }
+  else keuze=keuze.filter(id=>id!==clientId);
+  if(!keuze.length){
+    /* Nul klanten geeft een factuur zonder regels; dan is de knop
+       "Lege factuur" de eerlijkere weg. */
+    el.checked=true;
+    appToast('Kies minstens één klant, of gebruik “Lege factuur”',{type:'warning'});
+    return;
+  }
+  facWizard.klanten=keuze.length===alle.length?null:keuze;
+  facWizardRenderKlanten();
 }
 function facWizardMaak(){
   if(!facWizard||!facWizard.clientId)return;
   const klant=factuurKlant(facWizard.clientId);
-  const f=factuurNieuw(facWizard.clientId,facWizard.from,facWizard.to);
+  const f=factuurNieuw(facWizard.clientId,facWizard.from,facWizard.to,facWizard.klanten);
   closeFacWizard();
   facRenderAll();
   facOpenEditor(f.id);
@@ -19971,7 +20060,9 @@ function facUrenOphalen(){
   const f=factuurById(facEditId);
   if(!f||!f.clientId){appToast('Kies eerst een klant',{type:'warning'});return;}
   const p=f.urenPeriode||{from:f.datum.slice(0,8)+'01',to:f.datum};
-  const nieuw=factuurRegelsUitUren(f.clientId,p.from,p.to,f.betreft||factuurStandaardBetreft(f.clientId,p.from,p.to));
+  const keuze=Array.isArray(f.urenKlanten)&&f.urenKlanten.length?f.urenKlanten:null;
+  const nieuw=factuurRegelsUitUren(f.clientId,p.from,p.to,
+    f.betreft||factuurStandaardBetreft(f.clientId,p.from,p.to,keuze),keuze);
   if(!nieuw.length){appToast('Geen openstaande uren in deze periode',{type:'info'});return;}
   /* Bestaande urenregels vervangen, handmatige regels behouden */
   f.regels=(f.regels||[]).filter(r=>!(r.urenIds&&r.urenIds.length)).concat(nieuw);

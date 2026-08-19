@@ -10,6 +10,26 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-08-19 · Uren van één klant binnen een factuurpartij kiezen
+
+**Probleem**: je factureert LabsData, maar schrijft je uren op POM en Staedion — twee klanten die via LabsData op de rekening komen. De wizard nam altijd álle openstaande uren van de partij in één keer mee (116 u in één regelblok), zonder manier om er een deel uit te pakken. Wil je POM en Staedion op aparte facturen, dan kon dat niet.
+
+**Beslissing**: onder de gekozen partij verschijnt een uitsplitsing per meeliftende klant, met vinkjes en per klant de uren en het bedrag. Standaard staat alles aan, dus één klik blijft één klik; wie wil splitst uit.
+- De uitsplitsing verschijnt **pas na het kiezen** van de partij en **alleen bij meer dan één** leverende klant — bij Kasparov zou een vinkje alleen ruis zijn.
+- De kop van de partij telt mee met de vinkjes, zodat je het effect direct ziet (44,00 u → 24,00 u).
+- Het laatste vinkje kan niet uit: nul klanten geeft een factuur zonder regels, en daarvoor is "Lege factuur" de eerlijkere weg.
+- Van partij wisselen of de periode aanpassen zet de keuze terug op alles — een vinkje van de vorige situatie zegt niets over de nieuwe.
+
+**Technisch**: een optionele `alleenKlanten` (array met client-ids, leeg/afwezig = alles) loopt door `factuurNieuw` → `factuurRegelsUitUren` en `factuurStandaardBetreft`. De keuze wordt als `f.urenKlanten` op de factuur bewaard, zodat "Uren ophalen" in de editor niet alsnog de rest erbij haalt.
+
+**Naamgeving, twee kanten op**:
+- `factuurStandaardBetreft` noemt de klantnaam nu ook als er precies één klant is gekozen binnen een partij. Zonder dat heten twee facturen aan LabsData allebei "Gewerkte uren Augustus 2026".
+- `factuurRegelsUitUren` zet de klantnaam alleen nog vóór de regel als er méér dan één klant op de factuur staat. Anders werd het "POM B.V. — POM B.V. Gewerkte uren Augustus 2026", omdat het onderwerp de naam al noemt.
+
+**Bestanden**: `index.html` — `facWizardRenderKlanten`, `facWizardKies`, `facWizardKlantToggle` (nieuw), `facWizardMaak`, `factuurNieuw`, `factuurRegelsUitUren`, `factuurStandaardBetreft`, `facUrenOphalen`, CSS `.fac-wizard-partij`/`.fac-wizard-sub`
+
+**Let op** (bestaand gedrag, niet gewijzigd): uren worden pas aan een factuur gekoppeld bij het versturen, niet bij het maken van een concept. Een openstaand concept reserveert zijn uren dus niet — maak je twee concepten achter elkaar, dan biedt de wizard dezelfde uren nog een keer aan.
+
 ## 2026-08-19 · Facturentabel: één lettertype, vaste kolommen, duidelijker knoppen
 
 **Probleem**: met de kolom "Excl. btw" erbij werd de tabel te breed. Het bedrag brak over twee regels (`.fac-bedrag` had geen `white-space:nowrap`), en bij twee bedrijven schoof de tabel 65px binnen zijn kaart. Daarnaast stond het mono-lettertype op de ene plek wel en op de andere niet, en lazen de tabs en knoppen als platte tekst.
