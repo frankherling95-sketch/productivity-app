@@ -196,6 +196,7 @@ Daarna: vraag Frank om **Ctrl+Shift+R** op de live site. Optioneel `test.html` o
 
 Top-3 meest recent. Volledige log + *waarom* per beslissing: [`docs/decisions.md`](docs/decisions.md).
 
+- **2026-08-19**: Facturentabel opgeschoond — kolom excl. btw, verzenddatum onder de status, één lettertype (`--font-mono` overschreven voor de module), `table-layout:fixed`, bedrijf onder het nummer i.p.v. eigen kolom; knoppen en tabs met zichtbare rand en schaduw; tijdstip in Verzonden
 - **2026-08-19**: Betalingsherinnering via Gmail (eigen sjabloon, eigen logboekpil), betaalvenster met ontvangstdatum i.p.v. prompt(), en "nog X dagen" onder de vervaldatum; Debiteuren werkt nu ook op mobiel
 - **2026-08-19**: Dupliceren ook bij een concept; kopie neemt geen maildossier of `nummerVast` meer mee (gaf een spookregel in het logboek Verzonden)
 - **2026-08-19**: Klantgegevens bevriezen pas bij het mailen (niet bij "verstuurd"), plus "Definitief maken" voor wie print i.p.v. mailt, en "Gegevens bijwerken" met een diff zodra de kopie afwijkt

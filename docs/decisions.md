@@ -10,6 +10,23 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-08-19 · Facturentabel: één lettertype, vaste kolommen, duidelijker knoppen
+
+**Probleem**: met de kolom "Excl. btw" erbij werd de tabel te breed. Het bedrag brak over twee regels (`.fac-bedrag` had geen `white-space:nowrap`), en bij twee bedrijven schoof de tabel 65px binnen zijn kaart. Daarnaast stond het mono-lettertype op de ene plek wel en op de andere niet, en lazen de tabs en knoppen als platte tekst.
+
+**Beslissing**:
+- **Eén lettertype in de hele module.** Niet per regel omgezet maar de variabele zelf overschreven voor `#mod-facturen` en alle facturenvensters: `--font-mono: var(--font-body)`. Alles wat `var(--font-mono)` gebruikt volgt vanzelf, ook wat er later bij komt. `tabular-nums` blijft overal staan, zodat bedragen en datums onder elkaar uitlijnen. Mono is bovendien fors breder — dat was de helft van het ruimteprobleem.
+- **`table-layout:fixed`** op `.fac-table`. Betreft slokt de resterende ruimte op en kapt af met een ellipsis, in plaats van de tabel breder te duwen dan de kaart. Zonder dit eiste `.fac-betreft` zijn `max-width` van 260px op, ongeacht de beschikbare ruimte.
+- **Kolom "Vanuit" vervalt**; het bedrijf staat als kleine regel onder het factuurnummer. Ze horen bij elkaar (elke administratie heeft een eigen nummerreeks) en het scheelt een kolom. De tabel is nu altijd acht kolommen en past op 1280px, met of zonder tweede bedrijf.
+- **Knoppen en tabs**: hele rand in plaats van een haarlijn, lichte schaduw, en een indrukgevoel (`:active{transform:translateY(1px)}`). Tabs krijgen een altijd aanwezige maar doorzichtige rand, zodat de balk niet 1px springt bij het wisselen.
+- **Tijdstip in Verzonden**, naast de datum en in de KPI. Twee berichten van dezelfde dag — een factuur 's ochtends, een herinnering 's middags — waren anders niet te onderscheiden. Alleen bij een volledige tijdstempel; regels die uit `f.gemaildOp` zijn afgeleid hebben die soms niet.
+
+**Bijwerking van `table-layout:fixed`** die we moesten opvangen: kolommen knippen nu wat niet past. De bedrijfsnaam onder het nummer (96px kolom) en de knoppenkolom bij Debiteuren (150px) werden afgekapt. Nummer wordt 116px zodra het bedrijf eronder staat, de actiekolom 172px.
+
+**Bestanden**: `index.html` — `.fac-table`/`.fac-nr`/`.fac-datum`/`.fac-bedrag`/`.fac-betreft`, `.uren-btn`, `.uren-tab`, `facRenderLijst`, `facRenderMails`, `facRenderKpis`, `factuurFmtTijd`
+
+**Niet doen**: `.fac-betreft` een `max-width` teruggeven — in combinatie met `table-layout:fixed` is dat overbodig, en zonder fixed layout maakt juist die max-width de tabel te breed.
+
 ## 2026-08-19 · Betalingsherinnering, betaalvenster met datum, en zicht op de vervaltermijn
 
 **Probleem**: drie gaten rond het innen van geld.
