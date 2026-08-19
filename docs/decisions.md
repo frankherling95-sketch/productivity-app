@@ -10,6 +10,27 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-08-19 · Betalingsherinnering, betaalvenster met datum, en zicht op de vervaltermijn
+
+**Probleem**: drie gaten rond het innen van geld.
+1. Debiteuren toonde keurig 30/60/90+ dagen en er was een KPI "Te laat", maar je kon er niets mee — geen manier om een herinnering te sturen, terwijl de Gmail-koppeling er al lag.
+2. Betaling registreren liep via `prompt()`. Geen datumveld, dus elke betaling belandde op vandaag. Bij het **kasstelsel** bepaalt die datum in welk btw-tijdvak de omzet valt, dus een betaling van vorige maand hoorde daar ook echt in te kunnen.
+3. `factuurDagenTeLaat` gaf alleen iets terug als de termijn al verstreken was. Hoeveel dagen een klant nog had, stond nergens.
+
+**Beslissing**:
+- **`factuurDagenTot(f)`** naast het bestaande `factuurDagenTeLaat`: positief = zoveel dagen te gaan, 0 = vervalt vandaag, negatief = te laat, `null` als de vraag niet speelt (concept of betaald). Getoond onder de vervaldatum in de facturenlijst, in debiteuren, op de mobiele kaarten en in de editor. Grijs, en oranje in de laatste week.
+  - **Alleen de nog-lopende kant.** Is de termijn verstreken, dan zegt de statuspil dat al ("19 dagen te laat"); het er nog eens onder zetten is dubbelop.
+- **Herinnering** als tweede stand van hetzelfde mailvenster (`openFacMail(id,'herinnering')`), met een eigen sjabloon (`settings.herinneringMail`) en drie nieuwe plaatshouders: `{openstaand}`, `{dagenTeLaat}`, `{factuurdatum}`. Knop verschijnt alleen als de factuur écht te laat is — de standaardtekst zegt "de betaaltermijn is verstreken", en dat moet kloppen.
+  - **Raakt `gemaildOp` niet aan.** Dat veld betekent "de factuur is verstuurd"; een herinnering is iets anders. Zou een herinnering het overschrijven, dan zou de KPI "Nog niet gemaild" leeglopen door een herinnering in plaats van door de factuur zelf. In plaats daarvan `herinnerdOp` + teller `herinneringen`, en een logboekregel met `soort:'herinnering'` die in Verzonden een eigen pil krijgt.
+- **Betaalvenster** in plaats van `prompt()`: bedrag (voorgevuld op het openstaande), **ontvangstdatum**, en een lijstje eerder ontvangen betalingen. Meer dan het openstaande bedrag vraagt eerst om bevestiging.
+- **Snelknoppen in Debiteuren**: per regel *Herinner* (alleen bij achterstand) en *Betaald*. Daar zit je als je achter je geld aan gaat, niet in de editor.
+
+**Mobiele debiteuren** (nieuw, en eigenlijk een bestaande bug): `.uren-sheet-card` is onder 768px verborgen, en Debiteuren had geen mobiele tegenhanger. Op een telefoon zag je dus alleen de ouderdomstegels en geen enkele factuur. Er is nu een `.fac-mlist`-variant met dezelfde knoppen plus *Openen* — juist achter debiteuren aanzitten doe je onderweg.
+
+**Bestanden**: `index.html` — `factuurDagenTot`/`factuurVervalTekst`/`factuurVervalKleur`/`facVervalRegel`, `facBetaaldDialoog`+`facBetaalOpslaan`+modal `#facBetaalModal`, `FAC_HERINNERING_STANDAARD`+`facHerinneringSjabloon`, `openFacMail(id,modus)`, `facMailVerstuurActie`, `facRenderDebiteuren`, `facRenderMails`
+
+**Niet doen**: de resterende dagen óók tonen als de factuur al te laat is — dan staat er twee keer hetzelfde in één rij. En een herinnering `gemaildOp` laten zetten; zie hierboven.
+
 ## 2026-08-19 · Factuur dupliceren: knop overal, en drie lekken gedicht
 
 **Probleem**: dupliceren bestond al (`factuurDupliceer` + knop "Dupliceren"), maar alleen bij een verstuurde factuur — niet bij een concept. En de kopie nam meer mee dan de bedoeling was. Gemeten op de bestaande code:

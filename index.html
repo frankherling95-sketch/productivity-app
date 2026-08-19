@@ -1397,6 +1397,15 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .fac-klant{display:flex;align-items:center;gap:8px;min-width:0}
 .fac-klant .sw{width:9px;height:9px;border-radius:2px;flex-shrink:0}
 .fac-klant .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+/* Hoeveel tijd de klant nog heeft, onder de vervaldatum. Klein en
+   grijs zolang het rustig is, oranje in de laatste week. */
+.fac-deb-acties{text-align:right;white-space:nowrap}
+.fac-mcard-deb{cursor:default}
+.fac-mdeb-acties{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+.fac-mdeb-acties .uren-btn{flex:1;min-width:88px;height:34px;font-size:12px}
+.fac-deb-acties .uren-btn{height:28px;padding:0 10px;font-size:11.5px;margin-left:5px}
+.fac-verval{display:block;font-size:10.5px;font-weight:600;margin-top:2px;white-space:nowrap}
+.fac-mverval{font-size:11px;font-weight:600}
 .fac-betreft{color:var(--text-muted);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px}
 /* Vanuit welk bedrijf de factuur gaat. Bewust een omrande tekst en geen
    gekleurd blokje: de klantkleur staat er al naast, en twee stipjes uit
@@ -6862,7 +6871,7 @@ textarea { line-height: 1.6; resize: vertical; }
 <!-- ── Facturen: mailen ── -->
 <div class="modal-bg" id="facMailModal">
   <div class="modal" style="max-width:640px;padding:22px;display:flex;flex-direction:column;max-height:92vh">
-    <h3 style="font-size:18px;margin:0 0 4px">Factuur mailen</h3>
+    <h3 style="font-size:18px;margin:0 0 4px" id="facMailTitel">Factuur mailen</h3>
     <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 16px" id="facMailSub"></p>
     <div id="facMailBody" style="overflow:auto;flex:1;min-height:0"></div>
     <div class="modal-footer" style="margin-top:18px">
@@ -6905,6 +6914,28 @@ textarea { line-height: 1.6; resize: vertical; }
     </div>
     <div style="padding:20px 22px;overflow-y:auto;flex:1;min-height:0" id="facEditorBody"></div>
     <div style="padding:14px 22px;border-top:0.5px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex-shrink:0" id="facEditorActies"></div>
+  </div>
+</div>
+
+<!-- ── Betaling registreren ──
+     Was een prompt(): geen datumveld, dus elke betaling belandde op
+     vandaag. Bij het kasstelsel bepaalt die datum in welk kwartaal de
+     btw valt, dus een betaling van vorige maand hoorde daar ook echt
+     in te kunnen. -->
+<div class="modal-bg" id="facBetaalModal">
+  <div class="modal" style="max-width:460px;padding:0;display:flex;flex-direction:column">
+    <div style="padding:18px 22px 14px;border-bottom:0.5px solid var(--border);flex-shrink:0">
+      <h3 style="font-size:17px;font-weight:700;margin:0" id="facBetaalTitel">Betaling registreren</h3>
+      <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0" id="facBetaalSub"></p>
+    </div>
+    <div style="padding:20px 22px" id="facBetaalBody"></div>
+    <div class="modal-footer" style="padding:14px 22px;border-top:0.5px solid var(--border);flex-shrink:0">
+      <div></div>
+      <div class="modal-footer-right">
+        <button class="btn btn-sm" data-fac-action="closeFacBetaal">Annuleer</button>
+        <button class="btn btn-sm btn-primary" data-fac-action="facBetaalOpslaan">Registreren</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -17927,6 +17958,31 @@ function factuurDagenTeLaat(f){
   if(vandaag<=f.vervaldatum)return 0;
   return Math.round((new Date(vandaag)-new Date(f.vervaldatum))/86400000);
 }
+/* Dagen tot de vervaldatum. Positief = zoveel dagen te gaan, 0 = valt
+   vandaag, negatief = zoveel dagen te laat. null als de vraag niet
+   speelt: een concept is nog niet verstuurd en een betaalde factuur
+   heeft geen termijn meer. */
+function factuurDagenTot(f){
+  if(!f||f.status!=='verstuurd'||!f.vervaldatum)return null;
+  const vandaag=factuurVandaag();
+  return Math.round((new Date(f.vervaldatum)-new Date(vandaag))/86400000);
+}
+/* Hoeveel tijd heeft de klant nog? Alleen de nog-lopende kant; is de
+   termijn verstreken, dan zegt de statuspil dat al met zoveel woorden
+   en zou dit het dubbelop maken. */
+function factuurVervalTekst(f){
+  const d=factuurDagenTot(f);
+  if(d===null||d<0)return '';
+  if(d===0)return 'vervalt vandaag';
+  if(d===1)return 'nog 1 dag';
+  return 'nog '+d+' dagen';
+}
+/* Kleur van die tekst: de laatste week wordt het dringend. */
+function factuurVervalKleur(f){
+  const d=factuurDagenTot(f);
+  if(d===null||d<0)return 'var(--text-muted)';
+  return d<=7?'var(--warning)':'var(--text-muted)';
+}
 /* Ouderdomsklasse voor het debiteurenoverzicht */
 function factuurOuderdom(f){
   const d=factuurDagenTeLaat(f);
@@ -18284,6 +18340,7 @@ const FAC_CLICK_ACTIONS={
   facPreviewPdf:()=>facPdfDownload(facPreviewId),
   facPreviewNieuwTab:()=>facPreviewNieuwTab(),
   facMail:(a)=>openFacMail(a||facEditId),
+  facHerinnering:(a)=>openFacMail(a||facEditId,'herinnering'),
   closeFacMail:()=>closeFacMail(),
   facMailVerstuur:()=>facMailVerstuurActie(),
   openFacMailInstel:()=>openFacMailInstel(),
@@ -18291,6 +18348,8 @@ const FAC_CLICK_ACTIONS={
   facMailInstelOpslaan:()=>facMailInstelOpslaan(),
   facMailInstelStandaard:()=>facMailInstelStandaard(),
   facBetaald:(a)=>facBetaaldDialoog(a||facEditId),
+  closeFacBetaal:()=>closeFacBetaal(),
+  facBetaalOpslaan:()=>facBetaalOpslaan(),
   facTerugConcept:()=>facTerugNaarConcept(),
   facDupliceer:(a)=>facDupliceerActie(a||facEditId),
   facVerwijder:(a)=>facVerwijderActie(a||facEditId),
@@ -18680,7 +18739,8 @@ function facRenderLijst(){
       ${toonBd?`<td><span class="fac-bd-chip" title="${escapeHtml(facBedrijfNaam(factuurBedrijfIdVan(f)))}">${
         escapeHtml(facBedrijfNaam(factuurBedrijfIdVan(f),true))}</span></td>`:''}
       <td><div class="fac-betreft">${escapeHtml(f.betreft||'')}</div></td>
-      <td><span class="fac-datum">${factuurFmtDatum(f.vervaldatum)}</span></td>
+      <td><span class="fac-datum">${factuurFmtDatum(f.vervaldatum)}</span>${
+        facVervalRegel(f)}</td>
       <td>${facStatusPil(f)}</td>
       <td class="num"><span class="fac-bedrag">${factuurFmtBedrag(t.incl)}</span></td></tr>`;
   });
@@ -18703,6 +18763,14 @@ function facRenderKaarten(lijst,totaal){
     html+=`<button class="fac-mcard" style="--c:${col.bg}" data-fac-action="facOpen" data-fac-arg1="${f.id}">
       <span class="kop"><span class="nr">${escapeHtml(f.nummer)}</span>
         <span class="dat">${factuurFmtDatum(f.datum)}</span></span>
+      ${(()=>{const tk=factuurVervalTekst(f);
+        if(!tk)return '';
+        /* "Vervalt 19/08 · vervalt vandaag" leest dubbel; op de dag zelf
+           is de datum overbodig. */
+        const regel=factuurDagenTot(f)===0?'Vervalt vandaag'
+          :'Vervalt '+factuurFmtDatum(f.vervaldatum)+' \u00b7 '+tk;
+        return `<span class="fac-mverval" style="color:${factuurVervalKleur(f)}">${escapeHtml(regel)}</span>`;
+      })()}
       <span class="klant"><span class="sw" style="background:${col.bg}"></span>
         <span>${escapeHtml(f.klant?f.klant.naam:(klant?(klant.bedrijfsnaam||klant.name):'—'))}</span></span>
       ${toonBd?`<span class="fac-bd-chip">${escapeHtml(facBedrijfNaam(factuurBedrijfIdVan(f),true))}</span>`:''}
@@ -18713,6 +18781,12 @@ function facRenderKaarten(lijst,totaal){
   });
   html+=`</div><div class="fac-msom">${lijst.length} factu${lijst.length===1?'ur':'ren'}<b>${factuurFmtBedrag(totaal)}</b></div>`;
   return html;
+}
+/* Het regeltje onder de vervaldatum in de tabellen. */
+function facVervalRegel(f){
+  const tekst=factuurVervalTekst(f);
+  if(!tekst)return '';
+  return `<span class="fac-verval" style="color:${factuurVervalKleur(f)}">${escapeHtml(tekst)}</span>`;
 }
 function facStatusPil(f){
   const telaat=factuurDagenTeLaat(f);
@@ -18756,7 +18830,8 @@ function facRenderDebiteuren(){
   html+=`<div class="uren-sheet-card"><table class="fac-table"><thead><tr>
     <th style="width:104px">Nummer</th><th style="width:190px">Klant</th><th>Betreft</th>
     <th style="width:96px">Vervallen</th><th style="width:132px">Ouderdom</th>
-    <th class="num" style="width:118px">Openstaand</th></tr></thead><tbody>`;
+    <th class="num" style="width:118px">Openstaand</th>
+    <th style="width:150px"></th></tr></thead><tbody>`;
   Object.keys(perKlant)
     .sort((a,b)=>som(perKlant[b])-som(perKlant[a]))
     .forEach(cid=>{
@@ -18769,13 +18844,49 @@ function facRenderDebiteuren(){
           <td><div class="fac-klant"><span class="sw" style="background:${col.bg}"></span>
             <span class="nm">${escapeHtml(f.klant?f.klant.naam:(klant?(klant.bedrijfsnaam||klant.name):'—'))}</span></div></td>
           <td><div class="fac-betreft">${escapeHtml(f.betreft||'')}</div></td>
-          <td><span class="fac-datum">${factuurFmtDatum(f.vervaldatum)}</span></td>
+          <td><span class="fac-datum">${factuurFmtDatum(f.vervaldatum)}</span>${
+            facVervalRegel(f)}</td>
           <td>${facStatusPil(f)}</td>
-          <td class="num"><span class="fac-bedrag">${factuurFmtBedrag(t.openstaand)}</span></td></tr>`;
+          <td class="num"><span class="fac-bedrag">${factuurFmtBedrag(t.openstaand)}</span></td>
+          <td class="fac-deb-acties">${factuurDagenTeLaat(f)>0
+            ? `<button class="uren-btn" data-fac-action="facHerinnering" data-fac-arg1="${f.id}"
+                 title="Betalingsherinnering sturen">Herinner</button>`:''}
+            <button class="uren-btn" data-fac-action="facBetaald" data-fac-arg1="${f.id}"
+              title="Betaling registreren">Betaald</button></td></tr>`;
       });
     });
   html+=`</tbody><tfoot><tr><td colspan="5">Totaal openstaand</td>
-    <td class="num">${factuurFmtBedrag(som(open))}</td></tr></tfoot></table></div>`;
+    <td class="num">${factuurFmtBedrag(som(open))}</td><td></td></tr></tfoot></table></div>`;
+  /* Mobiele tegenhanger: .uren-sheet-card is onder 768px verborgen, dus
+     zonder dit blok zag je op een telefoon alleen de ouderdomstegels en
+     geen enkele factuur -- laat staan de knoppen om te herinneren of een
+     betaling te melden. En juist achter je debiteuren aanzitten doe je
+     onderweg. */
+  html+=`<div class="fac-mlist">`;
+  Object.keys(perKlant)
+    .sort((a,b)=>som(perKlant[b])-som(perKlant[a]))
+    .forEach(cid=>{
+      perKlant[cid].slice().sort((a,b)=>a.vervaldatum.localeCompare(b.vervaldatum)).forEach(f=>{
+        const klant=factuurKlant(cid);
+        const col=klant?CLIENT_COLORS[klant.colorIdx%CLIENT_COLORS.length]:{bg:'var(--surface3)'};
+        const t=factuurTotalen(f);
+        const telaat=factuurDagenTeLaat(f);
+        html+=`<div class="fac-mcard fac-mcard-deb" style="--c:${col.bg}">
+          <span class="kop"><span class="nr">${escapeHtml(f.nummer)}</span>
+            <span class="dat">${factuurFmtDatum(f.vervaldatum)}</span></span>
+          <span class="klant"><span class="sw" style="background:${col.bg}"></span>
+            <span>${escapeHtml(f.klant?f.klant.naam:(klant?(klant.bedrijfsnaam||klant.name):'—'))}</span></span>
+          ${f.betreft?`<span class="betreft">${escapeHtml(f.betreft)}</span>`:''}
+          <span class="voet">${facStatusPil(f)}
+            <span class="bedrag">${factuurFmtBedrag(t.openstaand)}</span></span>
+          <span class="fac-mdeb-acties">
+            ${telaat>0?`<button class="uren-btn" data-fac-action="facHerinnering" data-fac-arg1="${f.id}">Herinner</button>`:''}
+            <button class="uren-btn" data-fac-action="facBetaald" data-fac-arg1="${f.id}">Betaald</button>
+            <button class="uren-btn" data-fac-action="facOpen" data-fac-arg1="${f.id}">Openen</button>
+          </span></div>`;
+      });
+    });
+  html+=`</div><div class="fac-msom">${open.length} openstaand<b>${factuurFmtBedrag(som(open))}</b></div>`;
   return html;
 }
 
@@ -19077,9 +19188,11 @@ function facRenderMails(){
       <td><div class="fac-mail-aan"><span>${escapeHtml(m.aan||'')}</span>${
         m.cc?`<small>cc ${escapeHtml(m.cc)}</small>`:''}</div></td>
       <td><div class="fac-betreft">${escapeHtml(m.onderwerp||'')}</div></td>
-      <td><span class="fac-pill fac-pill-verstuurd"${m.afgeleid
-        ? ' title="Afgeleid uit de factuur; van v\u00f3\u00f3r dit overzicht"':''
-        }>Verzonden${m.afgeleid?' *':''}</span></td></tr>`;
+      <td>${m.soort==='herinnering'
+        ? `<span class="fac-pill fac-pill-telaat">Herinnering</span>`
+        : `<span class="fac-pill fac-pill-verstuurd"${m.afgeleid
+            ? ' title="Afgeleid uit de factuur; van v\u00f3\u00f3r dit overzicht"':''
+            }>Verzonden${m.afgeleid?' *':''}</span>`}</td></tr>`;
   });
   html+=`</tbody><tfoot><tr><td colspan="4">${lijst.length} bericht${lijst.length===1?'':'en'}</td>
     <td></td></tr></tfoot></table></div>`;
@@ -19102,7 +19215,10 @@ const FAC_MAIL_PLAATSHOUDERS=[
   {sleutel:'contactpersoon',uitleg:'Contactpersoon, anders de klantnaam'},
   {sleutel:'afzender',uitleg:'Jouw naam uit je Google-account'},
   {sleutel:'bedrijf',uitleg:'Bedrijf waar de factuur vandaan komt'},
-  {sleutel:'iban',uitleg:'Rekeningnummer van dat bedrijf'}
+  {sleutel:'iban',uitleg:'Rekeningnummer van dat bedrijf'},
+  {sleutel:'openstaand',uitleg:'Bedrag dat nog niet betaald is'},
+  {sleutel:'dagenTeLaat',uitleg:'Aantal dagen over de vervaldatum'},
+  {sleutel:'factuurdatum',uitleg:'Datum van de factuur zelf'}
 ];
 /* Voorbeeld op een echte factuur -- dan zie je meteen of het klopt.
    Is er nog geen, dan een verzonnen exemplaar, en dat staat erbij. */
@@ -19448,7 +19564,15 @@ function facEditorRender(){
       </select></div>
     ${veld('Referentie / inkoopnummer','referentie',f.referentie)}
     ${veld('Factuurdatum','datum',f.datum,'date')}
-    ${veld('Vervaldatum','vervaldatum',f.vervaldatum,'date')}
+    <div class="uren-fld"><label>Vervaldatum</label>
+      <input type="date" class="fac-ed-inp" value="${escapeHtml(String(f.vervaldatum||''))}"
+        data-fac-change="facEdVeld" data-fac-arg1="vervaldatum" ${bewerkbaar?'':'disabled'}/>
+      ${(()=>{const d=factuurDagenTot(f);
+        if(d===null)return '';
+        const tekst=d<0?Math.abs(d)+' dag'+(Math.abs(d)===1?'':'en')+' te laat':factuurVervalTekst(f);
+        const kleur=d<0?'var(--danger)':factuurVervalKleur(f);
+        return `<small style="display:block;font-size:11.5px;font-weight:600;color:${kleur};margin-top:4px">${escapeHtml(tekst)}</small>`;
+      })()}</div>
   </div>
   <div class="uren-fld" style="margin-top:12px">${''}
     <label>Betreft</label>
@@ -19564,6 +19688,8 @@ function facEditorRender(){
       <button class="uren-btn" data-fac-action="facPdf">↧ PDF</button>
       <button class="uren-btn${f.gemaildOp?'':' uren-btn-primary'}" data-fac-action="facMail"
         title="${f.gemaildOp?'Opnieuw mailen':'Mailen met de PDF als bijlage'}">✉ ${f.gemaildOp?'Opnieuw mailen':'Mailen'}</button>
+      ${factuurDagenTeLaat(f)>0?`<button class="uren-btn" data-fac-action="facHerinnering"
+        title="Stuur een betalingsherinnering met de factuur als bijlage">Herinnering</button>`:''}
       ${f.status!=='betaald'?`<button class="uren-btn${f.gemaildOp?' uren-btn-primary':''}" data-fac-action="facBetaald">Betaling registreren</button>`:''}`;
   }
   document.getElementById('facEditorActies').innerHTML=acties;
@@ -19864,18 +19990,66 @@ function facTerugNaarConcept(){
   facEditorRender();
   facRenderAll();
 }
+let facBetaalId=null;
 function facBetaaldDialoog(id){
   const f=factuurById(id||facEditId);
   if(!f)return;
+  if(f.status==='concept'){
+    appToast('Een concept is nog niet verstuurd; maak hem eerst definitief',{type:'warning'});
+    return;
+  }
+  facBetaalId=f.id;
   const t=factuurTotalen(f);
-  const inp=prompt(`Betaling registreren voor ${f.nummer}\n\nOpenstaand: ${factuurFmtBedrag(t.openstaand)}\n\nBedrag (leeg = volledig):`,'');
-  if(inp===null)return;
-  const bedrag=inp.trim()===''?null:Number(inp.replace(',','.'));
-  if(bedrag!==null&&(isNaN(bedrag)||bedrag<=0)){appToast('Ongeldig bedrag',{type:'warning'});return;}
-  factuurMarkeerBetaald(f.id,bedrag,null);
-  facEditorRender();
+  document.getElementById('facBetaalSub').textContent=
+    `${f.nummer} \u00b7 openstaand ${factuurFmtBedrag(t.openstaand)} van ${factuurFmtBedrag(t.incl)}`;
+  const eerder=(f.betalingen||[]);
+  document.getElementById('facBetaalBody').innerHTML=`
+    <div class="fac-ed-grid">
+      <div class="uren-fld"><label>Bedrag</label>
+        <input type="number" step="0.01" class="fac-ed-inp num" id="facBetaalBedrag"
+          value="${t.openstaand.toFixed(2)}"/>
+        <small style="display:block;font-size:11.5px;color:var(--text-muted);margin-top:4px">
+          Laat staan voor het hele openstaande bedrag.</small></div>
+      <div class="uren-fld"><label>Ontvangen op</label>
+        <input type="date" class="fac-ed-inp" id="facBetaalDatum" value="${escapeHtml(dateStr(new Date()))}"/>
+        <small style="display:block;font-size:11.5px;color:var(--text-muted);margin-top:4px">
+          Bepaalt bij het kasstelsel in welk btw-tijdvak hij valt.</small></div>
+    </div>
+    ${eerder.length?`<div style="margin-top:14px;padding:11px 13px;background:var(--surface2);border-radius:var(--radius-md)">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px">Eerder ontvangen</div>
+      ${eerder.map(b=>`<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0">
+        <span style="color:var(--text-muted)">${factuurFmtDatum(b.datum)}</span>
+        <b style="font-family:var(--font-mono)">${factuurFmtBedrag(b.bedrag)}</b></div>`).join('')}
+    </div>`:''}`;
+  document.getElementById('facBetaalModal').classList.add('open');
+  setTimeout(()=>{const el=document.getElementById('facBetaalBedrag');if(el){el.focus();el.select();}},50);
+}
+function closeFacBetaal(){
+  document.getElementById('facBetaalModal').classList.remove('open');
+  facBetaalId=null;
+}
+function facBetaalOpslaan(){
+  const f=factuurById(facBetaalId);
+  if(!f)return;
+  const t=factuurTotalen(f);
+  const ruw=document.getElementById('facBetaalBedrag').value;
+  const datum=document.getElementById('facBetaalDatum').value||dateStr(new Date());
+  const bedrag=String(ruw).trim()===''?t.openstaand:Number(String(ruw).replace(',','.'));
+  if(isNaN(bedrag)||bedrag<=0){appToast('Vul een bedrag boven nul in',{type:'warning'});return;}
+  /* Meer dan er openstaat is bijna altijd een typefout; even bevestigen
+     scheelt een correctieboeking. */
+  if(bedrag>t.openstaand+0.004&&
+     !confirm(factuurFmtBedrag(bedrag)+' is meer dan het openstaande bedrag van '+
+       factuurFmtBedrag(t.openstaand)+'.\n\nToch registreren?'))return;
+  factuurMarkeerBetaald(f.id,bedrag,datum);
+  closeFacBetaal();
+  if(facEditId)facEditorRender();
   facRenderAll();
-  appToast('Betaling geregistreerd',{type:'success'});
+  const na=factuurTotalen(f);
+  appToast(na.openstaand<=0.004
+    ? f.nummer+' volledig betaald'
+    : factuurFmtBedrag(bedrag)+' geregistreerd \u00b7 nog '+factuurFmtBedrag(na.openstaand)+' open',
+    {type:'success'});
 }
 function facDupliceerActie(id){
   const nieuw=factuurDupliceer(id||facEditId);
@@ -21779,6 +21953,22 @@ const FAC_MAIL_STANDAARD={
     'Met vriendelijke groet,\n\n'+
     '{afzender}\n{bedrijf}'
 };
+/* Een herinnering is een ander bericht dan een factuur: kortere toon,
+   en hij verwijst naar wat er nog openstaat in plaats van naar de
+   bijlage. Eigen sjabloon dus, met een eigen plek in de instellingen. */
+const FAC_HERINNERING_STANDAARD={
+  onderwerp:'Herinnering: factuur {nummer} van {bedrijf}',
+  tekst:
+    '{datum}\n\n'+
+    'Beste {contactpersoon},\n\n'+
+    'Op {factuurdatum} stuurde ik u factuur {nummer} voor {betreft}. '+
+    'De betaaltermijn is op {vervaldatum} verstreken; er staat nog {openstaand} open.\n\n'+
+    'Mogelijk is het aan uw aandacht ontsnapt. Wilt u het bedrag overmaken op {iban} '+
+    'onder vermelding van {nummer}? De factuur zit voor de zekerheid nogmaals in de bijlage.\n\n'+
+    'Is er iets niet duidelijk of klopt er iets niet, laat het me dan gerust weten.\n\n'+
+    'Met vriendelijke groet,\n\n'+
+    '{afzender}\n{bedrijf}'
+};
 /* De eerste versie van de standaardtekst. Stond die in de instellingen
    zonder dat je hem zelf bewaard had, dan was dat geen keuze maar een
    bijwerking: hij werd bij het openen van het mailvenster weggeschreven.
@@ -21802,6 +21992,17 @@ function facMailSjabloon(){
     cc:(s&&s.cc)||''
   };
 }
+function facHerinneringSjabloon(){
+  const s=factuurSettings().herinneringMail;
+  return {
+    onderwerp:(s&&s.onderwerp)||FAC_HERINNERING_STANDAARD.onderwerp,
+    tekst:(s&&s.tekst)||FAC_HERINNERING_STANDAARD.tekst,
+    cc:(s&&s.cc)||''
+  };
+}
+function facHerinneringSjabloonBewaar(onderwerp,tekst,cc){
+  factuurSettings().herinneringMail={onderwerp,tekst,cc};
+}
 function facMailSjabloonBewaar(onderwerp,tekst,cc){
   factuurSettings().mail={onderwerp,tekst,cc};
 }
@@ -21817,7 +22018,10 @@ function facMailVul(sjabloon,f){
     klant:klant.naam||'', contactpersoon:klant.contactpersoon||klant.naam||'',
     betreft:f.betreft||'', bedrijf:(b&&b.naam)||'', iban:(b&&b.iban)||'',
     /* Wie er ondertekent: de naam uit je Google-account. */
-    afzender:(gebruiker&&gebruiker.naam)||(b&&b.naam)||''
+    afzender:(gebruiker&&gebruiker.naam)||(b&&b.naam)||'',
+    openstaand:factuurFmtBedrag(t.openstaand),
+    dagenTeLaat:String(factuurDagenTeLaat(f)||0),
+    factuurdatum:factuurFmtDatum(f.datum)
   };
   return String(sjabloon||'').replace(/\{(\w+)\}/g,(m,k)=>
     Object.prototype.hasOwnProperty.call(velden,k)?velden[k]:m);
@@ -21854,7 +22058,11 @@ function facMailSpecRegel(f){
 
 /* ── Het venster ── */
 let facMailId=null;
-function openFacMail(id){
+/* 'factuur' of 'herinnering'. Beide gebruiken hetzelfde venster en
+   dezelfde verzendweg; alleen de tekst, de titel en wat er achteraf
+   wordt vastgelegd verschillen. */
+let facMailModus='factuur';
+function openFacMail(id,modus){
   const f=factuurById(id||facEditId);
   if(!f)return;
   if(f.status==='concept'){
@@ -21865,14 +22073,25 @@ function openFacMail(id){
     appToast('PDF-bibliotheek nog niet geladen — probeer het zo nog eens',{type:'error'});
     return;
   }
+  facMailModus=(modus==='herinnering')?'herinnering':'factuur';
+  const herinnering=facMailModus==='herinnering';
+  if(herinnering&&f.status==='betaald'){
+    appToast('Deze factuur is al betaald',{type:'warning'});
+    return;
+  }
   facMailId=f.id;
-  const sj=facMailSjabloon();
+  const sj=herinnering?facHerinneringSjabloon():facMailSjabloon();
   const t=factuurTotalen(f);
   const gebruiker=ingelogdeGebruiker();
   const bedrijf=factuurBedrijf(factuurBedrijfIdVan(f));
   const aan=facMailOntvanger(f);
-  document.getElementById('facMailSub').textContent=
-    `${f.nummer} · ${factuurFmtBedrag(t.incl)} incl. btw · vervalt ${factuurFmtDatum(f.vervaldatum)}`;
+  const telaat=factuurDagenTeLaat(f);
+  document.getElementById('facMailTitel').textContent=
+    herinnering?'Herinnering sturen':'Factuur mailen';
+  document.getElementById('facMailSub').textContent=herinnering
+    ? `${f.nummer} \u00b7 ${factuurFmtBedrag(t.openstaand)} open \u00b7 ${
+        telaat>0?telaat+' dag'+(telaat===1?'':'en')+' te laat':'vervalt '+factuurFmtDatum(f.vervaldatum)}`
+    : `${f.nummer} \u00b7 ${factuurFmtBedrag(t.incl)} incl. btw \u00b7 vervalt ${factuurFmtDatum(f.vervaldatum)}`;
   document.getElementById('facMailBody').innerHTML=`
     <div class="fac-mail-form">
     <div class="uren-fld"><label>Aan</label>
@@ -21889,17 +22108,20 @@ function openFacMail(id){
     <div class="uren-fld"><label>Bericht</label>
       <textarea class="fac-ed-inp" id="facMailTekst" rows="10">${escapeHtml(facMailVul(sj.tekst,f))}</textarea></div>
     <label class="fac-mail-check"><input type="checkbox" id="facMailBewaar">
-      Deze tekst als standaard bewaren voor volgende facturen</label>
+      Deze tekst als standaard bewaren voor volgende ${herinnering?'herinneringen':'facturen'}</label>
     <div class="fac-mail-info">
       <div><span>Bijlage</span><b>${escapeHtml(facPdfBestandsnaam(f))}</b></div>
       ${facMailSpecRegel(f)}
       <div><span>Afzender</span><b>${escapeHtml((bedrijf&&bedrijf.naam)||'')} &lt;${escapeHtml(gebruiker?gebruiker.email:'—')}&gt;</b></div>
       ${bedrijf&&bedrijf.email&&gebruiker&&bedrijf.email!==gebruiker.email
         ? `<div><span>Antwoord naar</span><b>${escapeHtml(bedrijf.email)}</b></div>`:''}
-      ${f.gemaildOp?`<div><span>Eerder gemaild</span><b>${factuurFmtDatum(String(f.gemaildOp).slice(0,10))} aan ${escapeHtml(f.gemaildAan||'')}</b></div>`:''}
+      ${f.gemaildOp?`<div><span>Factuur gemaild</span><b>${factuurFmtDatum(String(f.gemaildOp).slice(0,10))} aan ${escapeHtml(f.gemaildAan||'')}</b></div>`:''}
+      ${f.herinnerdOp?`<div><span>Laatste herinnering</span><b>${factuurFmtDatum(String(f.herinnerdOp).slice(0,10))}</b></div>`:''}
     </div></div>`;
   document.getElementById('facMailStatus').textContent='';
-  document.getElementById('facMailVerstuurBtn').disabled=false;
+  const knop=document.getElementById('facMailVerstuurBtn');
+  knop.disabled=false;
+  knop.textContent=herinnering?'Herinnering versturen':'Versturen';
   document.getElementById('facMailModal').classList.add('open');
   setTimeout(()=>document.getElementById(aan?'facMailOnderwerp':'facMailAan')?.focus(),50);
 }
@@ -21961,19 +22183,34 @@ async function facMailVerstuurActie(){
       bijlageB64:b64
     }));
     /* Pas vastleggen als Gmail bevestigt dat het weg is. */
-    f.gemaildOp=new Date().toISOString();
-    f.gemaildAan=aan;
+    const nu=new Date().toISOString();
+    const herinnering=facMailModus==='herinnering';
+    /* Een herinnering raakt gemaildOp niet aan: dat veld zegt "de
+       factuur is verstuurd", en dat is bij een herinnering al eerder
+       gebeurd. Anders zou het overzicht "Nog niet gemaild" leeg raken
+       door een herinnering in plaats van door de factuur zelf. */
+    if(herinnering){
+      f.herinnerdOp=nu;
+      f.herinneringen=(f.herinneringen||0)+1;
+    } else {
+      f.gemaildOp=nu;
+      f.gemaildAan=aan;
+    }
     f.updatedAt=Date.now();
     if(!Array.isArray(factuurState.mails))factuurState.mails=[];
     factuurState.mails.push({id:factuurUid(),factuurId:f.id,nummer:f.nummer||'',
-      datum:f.gemaildOp,aan,cc,onderwerp});
-    if(document.getElementById('facMailBewaar').checked)
-      facMailSjabloonBewaar(onderwerp,tekst,cc);
+      datum:nu,aan,cc,onderwerp,soort:herinnering?'herinnering':'factuur'});
+    if(document.getElementById('facMailBewaar').checked){
+      if(herinnering)facHerinneringSjabloonBewaar(onderwerp,tekst,cc);
+      else facMailSjabloonBewaar(onderwerp,tekst,cc);
+    }
     scheduleSave();
     closeFacMail();
     facEditorRender();
     facRenderAll();
-    appToast(`${f.nummer} gemaild naar ${aan}`,{type:'success'});
+    appToast(herinnering
+      ? `Herinnering voor ${f.nummer} verstuurd naar ${aan}`
+      : `${f.nummer} gemaild naar ${aan}`,{type:'success'});
   }catch(e){
     console.error('Mailen mislukt:',e);
     /* Niets de deur uit, dus ook niets om te bevriezen. Alleen wat deze
