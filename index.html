@@ -7145,7 +7145,7 @@ textarea { line-height: 1.6; resize: vertical; }
           <div style="display:flex;flex-direction:column;gap:7px">
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;user-select:none">
               <input type="radio" name="urenTplRepeat" id="urenTplRepeatOnce" value="once" checked data-uren-change="urenToggleTplRepeat"/>
-              Eenmalig toepassen op huidige week
+              Eenmalig toepassen op de periode in beeld
             </label>
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;user-select:none">
               <input type="radio" name="urenTplRepeat" id="urenTplRepeatRecur" value="recurring" data-uren-change="urenToggleTplRepeat"/>
@@ -7153,6 +7153,11 @@ textarea { line-height: 1.6; resize: vertical; }
             </label>
           </div>
           <div id="urenTplCalWrap" style="display:none;margin-top:10px">
+            <!-- Zonder startdatum vulde een herhalend sjabloon elke week die
+                 je opende, ook maanden voordat het bestond. -->
+            <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Herhalen vanaf</div>
+            <input type="date" id="urenTplVanaf"
+              style="width:100%;padding:7px 10px;border:0.5px solid var(--border-strong);border-radius:var(--radius);background:var(--surface2);color:var(--text);font-size:14px;font-family:inherit;outline:none;margin-bottom:12px"/>
             <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Herhalen t/m (optioneel)</div>
             <div class="cl-inline-cal">
               <div class="cl-cal-hdr">
@@ -15467,6 +15472,18 @@ function urenMigrateEntries(){
     if(typeof e.description!=='string'){e.description='';changed=true;}
     if(!e.createdAt){e.createdAt=Date.now();changed=true;}
   });
+  /* Herhalende sjablonen van voor de startdatum krijgen er alsnog een.
+     De eerste van de lopende maand en niet vandaag: de maand waar je nu
+     in werkt hoort gewoon aangevuld te blijven worden. Zonder deze stap
+     zouden ze na deze wijziging elke week gaan vullen die je opent, ook
+     jaren terug. */
+  (urenState.templates||[]).forEach(t=>{
+    if(t.recurring&&!t.vanafDatum){
+      const d=new Date();
+      t.vanafDatum=urenIso(new Date(d.getFullYear(),d.getMonth(),1));
+      changed=true;
+    }
+  });
   if(changed)scheduleSave();
 }
 
@@ -15723,6 +15740,7 @@ function urenSetView(view){
   urenView=view;
   urenSelection.clear();
   urenEnsurePeriodContains(anchor);
+  urenApplyRecurring();
   urenRenderAll();
 }
 function urenSetRegScope(scope){
@@ -15730,6 +15748,7 @@ function urenSetRegScope(scope){
   const anchor=urenAnchorDate();
   urenRegScope=scope==='month'?'month':'week';
   urenEnsurePeriodContains(anchor);
+  urenApplyRecurring();
   urenRenderAll();
 }
 function urenNav(dir){
@@ -15737,12 +15756,17 @@ function urenNav(dir){
   const scope=urenScope();
   urenOffset[scope]+=dir;
   urenSelection.clear();
+  /* Ook bij bladeren aanvullen. Dit liep alleen bij het openen van de
+     module, dus een week terug bladeren gaf een lege week -- en zodra je
+     de module verliet en terugkwam stond hij er ineens wel. */
+  urenApplyRecurring();
   urenRenderAll();
 }
 function urenNavToday(){
   urenDraftFlush();
   urenOffset={week:0,month:0,year:0};
   urenSelection.clear();
+  urenApplyRecurring();
   urenRenderAll();
 }
 
@@ -16973,13 +16997,18 @@ function urenApplyRecurring(){
   const today=urenToday();
   let changed=false;
   urenState.templates.filter(t=>t.recurring).forEach(t=>{
-    if(t.untilDate&&today>t.untilDate)return;
     const dayMap=t.days||{};
     weken.forEach(dates=>{
       Object.entries(dayMap).forEach(([wd,hrs])=>{
         const date=dates[Number(wd)-1];
         if(!date||!(hrs>0))return;
         if(date>today)return;                      /* niet vooruit invullen */
+        /* Buiten de looptijd van het sjabloon niets aanvullen. De einddatum
+           werd eerder met vandaag vergeleken in plaats van met de dag die
+           gevuld wordt: zodra die datum verstreken was, vulde het sjabloon
+           ook zijn eigen actieve weken niet meer aan. */
+        if(t.vanafDatum&&date<t.vanafDatum)return;
+        if(t.untilDate&&date>t.untilDate)return;
         if(p.scope==='month'&&(date<p.from||date>p.to))return;
         const bestaat=urenState.entries.some(e=>e.clientId===t.clientId&&e.date===date);
         if(bestaat)return;
@@ -17021,7 +17050,11 @@ function renderUrenTemplatesModal(){
       .sort((a,b)=>Number(a[0])-Number(b[0]))
       .map(([wd,hrs])=>`${DAY_LABELS_NL[Number(wd)-1]} ${hrs}u`)
       .join(' · ');
-    const untilLabel=t.untilDate?` t/m ${new Date(t.untilDate+'T00:00:00').toLocaleDateString('nl-NL',{day:'numeric',month:'short',year:'numeric'})}`:' (geen einddatum)';
+    const dat=iso=>new Date(iso+'T00:00:00').toLocaleDateString('nl-NL',{day:'numeric',month:'short',year:'numeric'});
+    /* Looptijd erbij: zonder de startdatum is niet te zien vanaf wanneer
+       een sjabloon aanvult, en dat bepaalt wat je in oude weken ziet. */
+    const untilLabel=(t.vanafDatum?` vanaf ${dat(t.vanafDatum)}`:'')+
+      (t.untilDate?` t/m ${dat(t.untilDate)}`:(t.vanafDatum?', geen einddatum':' (geen einddatum)'));
     return `<div class="uren-template-row" style="flex-direction:column;align-items:flex-start;gap:6px">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;width:100%;gap:8px">
         <div style="flex:1;min-width:0">
@@ -17052,6 +17085,8 @@ function urenResetTplForm(){
   urenTplCalSelected=null;
   urenTplCalYear=new Date().getFullYear();
   urenTplCalMonth=new Date().getMonth();
+  const vanafEl=document.getElementById('urenTplVanaf');
+  if(vanafEl)vanafEl.value=urenToday();
   const titleEl=document.getElementById('urenTplFormTitle');
   if(titleEl)titleEl.textContent='Nieuw template';
   /* Reset radio */
@@ -17083,6 +17118,8 @@ function urenEditTemplate(tplId){
   if(t.recurring&&recurEl)recurEl.checked=true;
   else if(onceEl)onceEl.checked=true;
   /* Until date */
+  const vanafEl=document.getElementById('urenTplVanaf');
+  if(vanafEl)vanafEl.value=t.vanafDatum||'';
   urenTplCalSelected=t.untilDate||null;
   urenTplCalYear=urenTplCalSelected?new Date(urenTplCalSelected+'T00:00:00').getFullYear():new Date().getFullYear();
   urenTplCalMonth=urenTplCalSelected?new Date(urenTplCalSelected+'T00:00:00').getMonth():new Date().getMonth();
@@ -17155,10 +17192,17 @@ function urenSaveTpl(){
 
   const recurring=document.getElementById('urenTplRepeatRecur')?.checked||false;
   const untilDate=recurring?urenTplCalSelected:null;
+  /* Leeg gelaten? Dan vanaf vandaag -- terugwerkend invullen is nooit wat
+     je bedoelt als je zojuist een sjabloon aanmaakt. */
+  const vanafVeld=(document.getElementById('urenTplVanaf')?.value||'').trim();
+  const vanafDatum=recurring?(vanafVeld||urenToday()):null;
+  if(vanafDatum&&untilDate&&untilDate<vanafDatum){
+    alert('De einddatum ligt vóór de startdatum.');return;
+  }
 
   const tpl={
     id:urenTplEditing||urenUid(),
-    name,clientId,days,recurring,untilDate,
+    name,clientId,days,recurring,vanafDatum,untilDate,
     description:''
   };
 
@@ -17173,29 +17217,51 @@ function urenSaveTpl(){
   renderUrenTemplatesModal();
 }
 
-/* Pas een template eenmalig toe op de week die nu in beeld is
-   (of, in maandweergave, op de week waarin vandaag valt). */
+/* Pas een template eenmalig toe op de periode die nu in beeld is.
+
+   Dit keek eerder alleen in weekweergave naar wat je zag; in elke andere
+   weergave viel het terug op de week van vandaag. Stond je in mei, dan
+   landden de uren in augustus -- met een melding die zei dat het gelukt
+   was. Nu volgt het altijd de periode in beeld, en bij een jaar (waar
+   geen enkele week vanzelfsprekend is) vraagt het je eerst te kiezen. */
 function urenApplyTemplate(tplId){
   const t=urenState.templates.find(x=>x.id===tplId);
   if(!t)return;
-  const dates=urenWeekDates(urenScope()==='week'?urenOffset.week:0);
-  let applied=0;
+  const p=urenPeriod();
+  if(p.scope==='year'){
+    appToast('Kies eerst een week of maand — in het jaaroverzicht is niet duidelijk waar de uren heen moeten',
+      {type:'warning',duration:7000});
+    return;
+  }
+  const weken=p.scope==='week'
+    ? [urenWeekDates(urenOffset.week)]
+    : urenMonthWeeks(urenOffset.month);
+  let applied=0, bezet=0, buiten=0;
   const dayMap=t.days||{};
-  Object.entries(dayMap).forEach(([wd,hrs])=>{
-    const date=dates[Number(wd)-1];
-    if(!date||!(hrs>0))return;
-    if(urenState.entries.some(e=>e.clientId===t.clientId&&e.date===date))return;
-    urenState.entries.push({id:urenUid(),clientId:t.clientId,date,
-      hours:urenClampHours(hrs),description:t.description||'',status:'open',
-      templateId:t.id,createdAt:Date.now(),updatedAt:Date.now()});
-    applied++;
+  weken.forEach(dates=>{
+    Object.entries(dayMap).forEach(([wd,hrs])=>{
+      const date=dates[Number(wd)-1];
+      if(!date||!(hrs>0))return;
+      /* In maandweergave lopen de eerste en laatste week over de rand;
+         die dagen horen niet bij wat je ziet. */
+      if(date<p.from||date>p.to){buiten++;return;}
+      if(urenState.entries.some(e=>e.clientId===t.clientId&&e.date===date)){bezet++;return;}
+      urenState.entries.push({id:urenUid(),clientId:t.clientId,date,
+        hours:urenClampHours(hrs),description:t.description||'',status:'open',
+        templateId:t.id,createdAt:Date.now(),updatedAt:Date.now()});
+      applied++;
+    });
   });
-  scheduleSave();
+  if(applied)scheduleSave();
   closeUrenTemplatesModal();
   urenRenderAll();
+  /* De periode erbij noemen: je ziet de melding vaak terwijl de tabel
+     achter het venster nog niet ververst in beeld is. */
   appToast(applied
-    ? `${applied} ${applied===1?'regel':'regels'} toegevoegd uit "${t.name||'template'}"`
-    : 'Die dagen stonden al ingevuld voor deze klant',{type:applied?'info':'warning'});
+    ? `${applied} ${applied===1?'regel':'regels'} toegevoegd in ${p.label}`
+    : (bezet?`Die dagen stonden al ingevuld voor deze klant in ${p.label}`
+            :`Geen dagen om te vullen in ${p.label}`),
+    {type:applied?'success':'warning'});
 }
 
 function urenDeleteTemplate(tplId){

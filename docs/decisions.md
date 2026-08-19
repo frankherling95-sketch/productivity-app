@@ -10,6 +10,28 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-08-19 · Urensjablonen: vier bugs in het toepassen en herhalen
+
+**Aanleiding**: melding dat de sjablonen "niet helemaal goed werken". Het opslaan, bewerken en verwijderen bleek in orde; het toepassen en het wekelijks herhalen niet. Vier fouten, alle vier reproduceerbaar gemeten voordat er iets veranderd is.
+
+**1. "Toepassen" negeerde de getoonde periode.** `urenApplyTemplate` deed `urenWeekDates(urenScope()==='week' ? urenOffset.week : 0)`. Alleen in weekweergave keek dat naar wat je zag; in maandweergave, "Per klant" en "Per week" viel het terug op de week van vandaag. Meting: kijkend naar **mei 2026** landden de uren op **17–19 augustus**, met de melding "3 regels toegevoegd" — je zou het pas veel later ontdekken.
+→ Volgt nu de periode in beeld: een week vult die week, een maand vult de hele maand (dagen die buiten de maand vallen worden overgeslagen). In het jaaroverzicht wordt niets toegevoegd maar gevraagd eerst een week of maand te kiezen. De melding noemt de periode.
+
+**2. Herhalen vulde niet bij bladeren.** `urenApplyRecurring()` stond alleen in `renderUrenModule()`, dus alleen bij het openen van de module. Blader je twee weken terug, dan bleef die week leeg; verliet je de module en kwam je terug, dan stond hij er ineens wél.
+→ Ook aangeroepen vanuit `urenNav`, `urenNavToday`, `urenSetView` en `urenSetRegScope`. Bewust niet vanuit `urenRenderAll`: dan zou een regel die je verwijdert bij de eerstvolgende render terugkomen.
+
+**3. Herhalen vulde onbeperkt terug.** Een sjabloon had geen startdatum. Bladeren naar juni 2025 maakte daar **21 regels / 168 uur** aan voor een periode waarin het sjabloon nog niet bestond — uren die meetellen in facturen en de btw-aangifte. Dit was de ernstigste, en fix 2 zou hem verergerd hebben.
+→ Veld **"Herhalen vanaf"** toegevoegd (`t.vanafDatum`), standaard vandaag bij een nieuw sjabloon. Bestaande sjablonen krijgen bij de migratie de **eerste van de lopende maand**: niet vandaag, want de maand waar je nu in werkt hoort gewoon aangevuld te blijven worden.
+
+**4. Einddatum werd met vandaag vergeleken.** `if(t.untilDate && today > t.untilDate) return;` zette het hele sjabloon uit zodra de einddatum verstreken was — ook voor weken *binnen* de looptijd. Een sjabloon dat t/m 30 juni liep, vulde in juli zijn eigen mei-weken niet meer aan.
+→ Nu per gevulde dag: `if(t.untilDate && date > t.untilDate) return;`, plus dezelfde vergelijking voor `vanafDatum`. Opslaan weigert een einddatum vóór de startdatum.
+
+**Wat al goed was** (nagemeten, niet gewijzigd): opslaan, bewerken zonder duplicaat, verwijderen, de dagknoppen met urenvelden, en de dubbelcheck — een handmatig ingevulde of al gefactureerde dag wordt nooit overschreven of verdubbeld, en herhaald aanvullen voegt niets dubbels toe.
+
+**Bestanden**: `index.html` — `urenApplyTemplate`, `urenApplyRecurring`, `urenSaveTpl`, `urenEditTemplate`, `urenResetTplForm`, `urenMigrateEntries`, `renderUrenTemplatesModal`, formulier-HTML (`#urenTplVanaf`), `urenNav`/`urenNavToday`/`urenSetView`/`urenSetRegScope`
+
+**Niet doen**: `urenApplyRecurring()` in `urenRenderAll()` zetten. Het lijkt de nettere plek, maar dan kun je een door een sjabloon gemaakte regel niet meer verwijderen — hij staat er na de volgende render weer.
+
 ## 2026-08-19 · Uren van één klant binnen een factuurpartij kiezen
 
 **Probleem**: je factureert LabsData, maar schrijft je uren op POM en Staedion — twee klanten die via LabsData op de rekening komen. De wizard nam altijd álle openstaande uren van de partij in één keer mee (116 u in één regelblok), zonder manier om er een deel uit te pakken. Wil je POM en Staedion op aparte facturen, dan kon dat niet.

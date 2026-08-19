@@ -196,6 +196,7 @@ Daarna: vraag Frank om **Ctrl+Shift+R** op de live site. Optioneel `test.html` o
 
 Top-3 meest recent. Volledige log + *waarom* per beslissing: [`docs/decisions.md`](docs/decisions.md).
 
+- **2026-08-19**: Urensjablonen — "Toepassen" volgt nu de getoonde periode (landde in de week van vandaag), herhalen vult ook bij bladeren, en een herhalend sjabloon heeft een startdatum (`vanafDatum`) zodat het niet jaren terugwerkend invult
 - **2026-08-19**: Uren per klant kiezen binnen een factuurpartij — vinkjes onder de gekozen partij in de nieuwe-factuur-wizard, keuze bewaard als `f.urenKlanten`
 - **2026-08-19**: Facturentabel opgeschoond — kolom excl. btw, verzenddatum onder de status, één lettertype (`--font-mono` overschreven voor de module), `table-layout:fixed`, bedrijf onder het nummer i.p.v. eigen kolom; knoppen en tabs met zichtbare rand en schaduw; tijdstip in Verzonden
 - **2026-08-19**: Betalingsherinnering via Gmail (eigen sjabloon, eigen logboekpil), betaalvenster met ontvangstdatum i.p.v. prompt(), en "nog X dagen" onder de vervaldatum; Debiteuren werkt nu ook op mobiel
