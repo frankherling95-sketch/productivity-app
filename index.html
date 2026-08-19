@@ -6905,6 +6905,34 @@ textarea { line-height: 1.6; resize: vertical; }
   </div>
 </div>
 
+<!-- ── Voorbeeld van de factuur ──
+     Staat ná de editor in de DOM, zodat hij er bovenop komt als je hem
+     vanuit de editor opent. Dezelfde facPdfDoc() als de download, dus
+     wat je hier ziet is letterlijk het bestand dat de klant krijgt. -->
+<div class="modal-bg" id="facPreviewModal">
+  <div class="modal" style="max-width:960px;padding:0;display:flex;flex-direction:column;height:94vh;max-height:94vh">
+    <div style="padding:16px 20px 12px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0">
+      <div style="flex:1;min-width:0">
+        <h3 style="font-size:17px;font-weight:700;margin:0" id="facPreviewTitel">Voorbeeld</h3>
+        <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0" id="facPreviewSub"></p>
+      </div>
+      <button data-fac-action="closeFacPreview" aria-label="Sluiten"
+        style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--text-muted);padding:4px 8px;border-radius:var(--radius)">✕</button>
+    </div>
+    <div style="flex:1;min-height:0;background:var(--surface2)">
+      <iframe id="facPreviewFrame" title="Voorbeeld van de factuur"
+        style="width:100%;height:100%;border:none;display:block"></iframe>
+    </div>
+    <div style="padding:12px 20px;border-top:0.5px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex-shrink:0">
+      <!-- Een PDF in een iframe blijft leeg op iOS; daar is dit de weg eromheen. -->
+      <button class="uren-btn" data-fac-action="facPreviewNieuwTab">Openen in nieuw tabblad</button>
+      <div style="flex:1"></div>
+      <button class="uren-btn" data-fac-action="facPreviewPdf">↧ PDF opslaan</button>
+      <button class="uren-btn uren-btn-primary" data-fac-action="closeFacPreview">Sluiten</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── Klantgegevens ── -->
 <div class="modal-bg" id="klantModal">
   <div class="modal" style="max-width:620px;padding:0;display:flex;flex-direction:column;max-height:92vh">
@@ -17476,7 +17504,7 @@ function facStandaardBlokken(betaalzin){
     {id:facBlokId(),type:'ONTVANGER',zichtbaar:true,kolom:'links',
      style:{uitlijning:'links',grootte:0.5,marge:{boven:18,onder:18},lijnBoven:true,
             kop:'Factuur aan'},
-     content:{velden:{tav:false,adres:true,land:false,btw:false}}},
+     content:{velden:{tav:false,adres:true,land:false,btw:false,kvk:false}}},
     {id:facBlokId(),type:'META',zichtbaar:true,kolom:'rechts',
      style:{uitlijning:'links',grootte:0,marge:{boven:18,onder:18},lijnBoven:false,
             kop:'Betreft'},
@@ -18157,6 +18185,10 @@ const FAC_CLICK_ACTIONS={
   facEditorSluit:()=>closeFacEditor(),
   facVerstuur:()=>facVerstuur(),
   facPdf:(a)=>facPdfDownload(a||facEditId),
+  facPreview:(a)=>openFacPreview(a||facEditId),
+  closeFacPreview:()=>closeFacPreview(),
+  facPreviewPdf:()=>facPdfDownload(facPreviewId),
+  facPreviewNieuwTab:()=>facPreviewNieuwTab(),
   facMail:(a)=>openFacMail(a||facEditId),
   closeFacMail:()=>closeFacMail(),
   facMailVerstuur:()=>facMailVerstuurActie(),
@@ -19270,6 +19302,25 @@ function facEditorRender(){
         ${bedrijven.map(b=>`<option value="${b.id}"${factuurBedrijfIdVan(f)===b.id?' selected':''}>${escapeHtml(b.naam)}</option>`).join('')}
       </select></div>`;
   }
+  /* ── Factuurnummer met de hand ──
+     De reeks telt vanzelf door, maar je moet er wél in kunnen grijpen:
+     begin je in deze app halverwege je boekjaar, dan is factuur 1 niet
+     waar je wilt starten. Wat je hier intypt blijft staan (nummerVast),
+     en de teller schuift mee zodat de volgende factuur erop aansluit. */
+  const bedrijfIdNu=factuurBedrijfIdVan(f);
+  /* Zonder negeerId telt deze factuur mee als "in gebruik", dus dit is
+     het nummer dat ná deze komt -- precies wat de hint moet zeggen. */
+  const volgendNa=factuurVolgendNummer(true,null,bedrijfIdNu,f.datum);
+  html+=`<div class="uren-fld" style="margin-bottom:12px">
+    <label>Factuurnummer</label>
+    <input type="text" class="fac-ed-inp" value="${escapeHtml(String(f.nummer||''))}"
+      data-fac-change="facEdVeld" data-fac-arg1="nummer" ${bewerkbaar?'':'disabled'}
+      style="font-family:var(--font-mono);font-weight:600;letter-spacing:.02em"/>
+    <small style="display:block;font-size:11.5px;color:var(--text-muted);margin-top:4px">
+      ${definitief||f.nummerVast
+        ? `Hierna gaat de reeks verder met <b style="font-family:var(--font-mono);color:var(--text)">${escapeHtml(volgendNa)}</b>.`
+        : `Voorstel uit de reeks; wordt definitief bij versturen. Pas je het aan, dan telt de reeks vanaf jouw nummer verder.`}
+    </small></div>`;
   html+=`<div class="fac-ed-grid">
     <div class="uren-fld"><label>Klant</label>
       <select class="fac-ed-inp" data-fac-change="facEdVeld" data-fac-arg1="clientId" ${bewerkbaar?'':'disabled'}>
@@ -19377,6 +19428,7 @@ function facEditorRender(){
   if(!definitief){
     acties=`<button class="uren-btn" data-fac-action="facVerwijder">Verwijderen</button>
       <div style="flex:1"></div>
+      <button class="uren-btn" data-fac-action="facPreview">Voorbeeld</button>
       <button class="uren-btn" data-fac-action="facPdf">↧ PDF</button>
       <button class="uren-btn uren-btn-primary" data-fac-action="facVerstuur">Versturen</button>`;
   } else {
@@ -19384,6 +19436,7 @@ function facEditorRender(){
       <button class="uren-btn" data-fac-action="facDupliceer">Dupliceren</button>
       <button class="uren-btn" data-fac-action="facTerugConcept">← Terug naar concept</button>
       <div style="flex:1"></div>
+      <button class="uren-btn" data-fac-action="facPreview">Voorbeeld</button>
       <button class="uren-btn" data-fac-action="facPdf">↧ PDF</button>
       <button class="uren-btn${f.gemaildOp?'':' uren-btn-primary'}" data-fac-action="facMail"
         title="${f.gemaildOp?'Opnieuw mailen':'Mailen met de PDF als bijlage'}">✉ ${f.gemaildOp?'Opnieuw mailen':'Mailen'}</button>
@@ -19428,6 +19481,33 @@ function facEdVeld(el,key){
       appToast('Je kijkt nu naar '+facBedrijfNaam(waarde),{type:'info'});
     }
     facEditorRender();return;
+  }
+  if(key==='nummer'){
+    const nieuw=String(waarde||'').trim();
+    const bedrijfId=factuurBedrijfIdVan(f);
+    if(!nieuw){
+      appToast('Een factuurnummer mag niet leeg zijn',{type:'warning'});
+      el.value=f.nummer||'';return;
+    }
+    /* Alleen binnen hetzelfde bedrijf botsen: elke administratie heeft
+       een eigen reeks, dus F000011 en H000011 mogen naast elkaar. */
+    const dubbel=factuurState.invoices.some(x=>x.id!==f.id
+      &&factuurBedrijfIdVan(x)===bedrijfId&&String(x.nummer)===nieuw);
+    if(dubbel){
+      appToast(nieuw+' bestaat al bij '+facBedrijfNaam(bedrijfId),{type:'warning'});
+      el.value=f.nummer||'';return;
+    }
+    factuurUpdate(f.id,{nummer:nieuw,nummerVast:true});
+    /* De teller meeschuiven, zodat het instellingenscherm en de volgende
+       factuur hetzelfde verhaal vertellen. Alleen omhoog: typ je een
+       lager nummer om een vergissing te herstellen, dan mag dat de reeks
+       niet terugzetten langs facturen die er al zijn. */
+    const n=factuurBedrijf(bedrijfId).nummer;
+    const volg=factuurVolgnummerUit(nieuw,n.prefix);
+    if(!isNaN(volg)&&volg>=(n.volgend||1)){n.volgend=volg+1;scheduleSave();}
+    facEditorRender();
+    facRenderAll();
+    return;
   }
   if(key==='clientId'){
     const klant=factuurKlant(waarde);
@@ -20161,7 +20241,8 @@ function facSjBlokInstellingen(b){
   if(b.type==='ONTVANGER'){
     const v=c.velden||{};
     html+=vink('tav','t.a.v. contactpersoon',v.tav!==false)+vink('adres','Adres',v.adres!==false)+
-      vink('land','Land',!!v.land)+vink('btw','Btw-nummer klant',!!v.btw);
+      vink('land','Land',!!v.land)+vink('btw','Btw-nummer klant',!!v.btw)+
+      vink('kvk','KVK-nummer klant',!!v.kvk);
   }
   if(b.type==='META'){
     const v=c.velden||{};
@@ -20718,6 +20799,8 @@ function closeFacFilterPop(){
 document.addEventListener('keydown',e=>{
   if(e.key!=='Escape')return;
   closeFacMenu();closeFacFilterPop();closeFacBedrijfPop();
+  /* Het voorbeeld ligt bovenop de editor, dus die gaat als eerste dicht. */
+  closeFacPreview();
 });
 window.addEventListener('resize',()=>{closeFacMenu();closeFacFilterPop();closeFacBedrijfPop();});
 
@@ -20905,6 +20988,10 @@ function facPdfAdres(ctx,b,x,y,w,soort){
        sjabloonbouwer -- stond dat uit, dan ging er een onvolledige factuur
        de deur uit zonder dat iets het zei. */
     if((v.btw||ctx.f&&ctx.f.btwVerlegd)&&k.btwNummer)regels.push('Btw: '+k.btwNummer);
+    /* KVK van de klant: standaard uit, net als land en btw. Wettelijk
+       hoeft alleen jouw eigen KVK op de factuur; dat van de klant is een
+       gemak voor wie zijn debiteuren erop wil kunnen matchen. */
+    if(v.kvk&&k.kvk)regels.push('KVK: '+k.kvk);
   }
   regels=regels.filter(r=>r&&String(r).trim());
   if(titel){
@@ -21260,6 +21347,59 @@ function facPdfBestandsnaam(f){
   const klant=(f.klant||factuurKlantSnapshot(factuurKlant(f.clientId))).naam||'';
   return `${f.nummer}_${klant.replace(/[^\w\s-]/g,'').replace(/\s+/g,'_')}.pdf`;
 }
+/* ── Voorbeeld van één factuur ──
+   Zelfde bouwer als de download en de sjabloon-preview, dus ze kunnen
+   niet uit elkaar lopen. De blob-URL wordt bij sluiten opgeruimd, tenzij
+   je hem in een nieuw tabblad hebt gezet -- dan zou intrekken dat tabblad
+   leegmaken. */
+let facPreviewUrl=null;
+let facPreviewId=null;
+let facPreviewLosTabblad=false;
+function openFacPreview(id){
+  const f=factuurById(id||facEditId);
+  if(!f)return;
+  const doc=facPdfDoc(f);
+  if(!doc){appToast('PDF-bibliotheek nog niet geladen — probeer het zo nog eens',{type:'error'});return;}
+  if(facPreviewUrl&&!facPreviewLosTabblad)URL.revokeObjectURL(facPreviewUrl);
+  facPreviewUrl=URL.createObjectURL(doc.output('blob'));
+  facPreviewLosTabblad=false;
+  facPreviewId=f.id;
+  const t=factuurTotalen(f);
+  document.getElementById('facPreviewTitel').textContent=
+    (f.status==='concept'?'Concept ':'Factuur ')+f.nummer;
+  const naam=(f.klant&&f.klant.naam)||(factuurKlant(f.clientId)
+    ?(factuurKlant(f.clientId).bedrijfsnaam||factuurKlant(f.clientId).name):'');
+  const bedrijven=factuurSettings().bedrijven;
+  document.getElementById('facPreviewSub').textContent=[
+    naam,
+    factuurFmtBedrag(t.incl)+' incl. btw',
+    bedrijven.length>1?'vanuit '+facBedrijfNaam(factuurBedrijfIdVan(f)):''
+  ].filter(Boolean).join(' · ');
+  document.getElementById('facPreviewFrame').src=facPreviewUrl+'#toolbar=0&navpanes=0';
+  document.getElementById('facPreviewModal').classList.add('open');
+  /* Een lege specificatie zie je in de PDF pas op de laatste pagina --
+     zeg het hier, waar je nog kunt ingrijpen. */
+  const st=factuurSpecificatieStaat(f);
+  if(st.staat==='geen-uren'||st.staat==='ontbreekt')
+    appToast('Let op: er komt geen urenspecificatie mee — '+
+      (st.staat==='geen-uren'?'er zijn geen uren gekoppeld.'
+        :'de gekoppelde registraties zijn niet meer te vinden.'),{type:'warning',duration:8000});
+}
+function closeFacPreview(){
+  const m=document.getElementById('facPreviewModal');
+  if(!m||!m.classList.contains('open'))return;
+  m.classList.remove('open');
+  document.getElementById('facPreviewFrame')?.removeAttribute('src');
+  if(facPreviewUrl&&!facPreviewLosTabblad)URL.revokeObjectURL(facPreviewUrl);
+  if(!facPreviewLosTabblad)facPreviewUrl=null;
+  facPreviewId=null;
+}
+function facPreviewNieuwTab(){
+  if(!facPreviewUrl)return;
+  facPreviewLosTabblad=true;
+  window.open(facPreviewUrl,'_blank','noopener');
+}
+
 function facPdfDownload(id){
   const f=factuurById(id);
   if(!f)return;

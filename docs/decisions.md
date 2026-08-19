@@ -10,6 +10,27 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-08-19 · Factuurnummer met de hand, voorbeeld voor het versturen, KVK van de klant
+
+**Probleem**: drie dingen die pas opvallen als je de module echt gebruikt.
+1. De nummerreeks telde netjes door, maar je kon er niet in grijpen. Begin je halverwege je boekjaar in deze app, dan is factuur 1 niet waar je wilt starten — de Holding moest bij 11 beginnen en stond op 1. De teller in Facturatie-instellingen kon dat wel, maar alleen vóór het aanmaken en niet zichtbaar vanuit de factuur zelf.
+2. Wat er precies op de PDF komt zag je pas na downloaden. Voor een document dat de deur uit gaat is dat een omweg.
+3. In de sjabloonbouwer kon je het btw-nummer van de klant aanzetten, maar niet zijn KVK-nummer. Het stond wel al in de klantgegevens en in de snapshot.
+
+**Beslissing**:
+- **Nummer bewerkbaar in de editor**, voor concepten én verstuurde facturen (die zijn hier al bewerkbaar). Wat je intypt krijgt `nummerVast`, dus versturen overschrijft het niet. De teller van dat bedrijf schuift mee (`n.volgend = volgnummer + 1`) zodat het instellingenscherm en de volgende factuur hetzelfde zeggen. **Alleen omhoog**: corrigeer je een typefout naar een lager nummer, dan mag de reeks niet terugzakken langs facturen die er al zijn. Onder het veld staat welk nummer hierna komt.
+  - Geweigerd: leeg, en een duplicaat binnen hetzelfde bedrijf (F000011 en H000011 mogen wel naast elkaar — eigen reeks per administratie). Het veld springt dan terug.
+  - Een nummer zonder cijfers ("PROFORMA") wordt bewaard, maar laat de teller met rust.
+- **Voorbeeldknop** in de actiebalk van de editor, naast PDF. Opent een modal met de echte PDF in een iframe, uit dezelfde `facPdfDoc()` als de download en de sjabloon-preview — ze kunnen dus niet uit elkaar lopen. Staat ná de editor in de DOM zodat hij erbovenop komt; Escape sluit eerst het voorbeeld. Blob-URL wordt bij sluiten ingetrokken, **tenzij** je "Openen in nieuw tabblad" gebruikt — dan zou intrekken dat tabblad leegmaken. Die knop is er omdat een PDF in een iframe leeg blijft op iOS.
+  - Ontbrekende urenspecificatie geeft hier een waarschuwing, waar je nog kunt ingrijpen, in plaats van pas op de laatste PDF-pagina.
+- **KVK van de klant** als vinkje bij Klantgegevens in de sjabloonbouwer, standaard uit (net als land en btw). Wettelijk hoeft alleen je eigen KVK op de factuur; dat van de klant is gemak voor wie zijn debiteuren wil matchen.
+
+**Waarom niet alleen de teller in de instellingen**: die bestond al en werkt, maar hij is onzichtbaar op het moment dat je de vraag hebt — met een factuur voor je. Het veld in de editor beantwoordt de vraag waar hij gesteld wordt; de instellingen blijven de plek om een reeks in te richten vóór je begint.
+
+**Bestanden**: `index.html` — `facEdVeld` (tak `nummer`), `facEditorRender` (nummerveld + hint + Voorbeeld-knop), `openFacPreview`/`closeFacPreview`/`facPreviewNieuwTab`, modal `#facPreviewModal`, `facPdfAdres` (KVK-regel), sjabloonbouwer ONTVANGER-vinkjes, `facStandaardBlokken`
+
+**Niet doen**: `nummerVast` weghalen als je van bedrijf wisselt op een concept — dan verdampt het nummer dat je zelf hebt ingetypt. Explicit ingevoerd wint van het voorstel uit de reeks.
+
 ## 2026-08-16 · Maandkalender onder het uren-maandoverzicht
 
 **Probleem**: "Per maand" is een draaitabel maand × klant binnen het jaar. Die zegt hoevéél uur er in een maand zit, maar niet op welke dagen. De vraag die je stelt als je een maand naloopt — heb ik die dinsdag wel geschreven? — kon je er niet aan stellen.

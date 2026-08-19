@@ -196,6 +196,7 @@ Daarna: vraag Frank om **Ctrl+Shift+R** op de live site. Optioneel `test.html` o
 
 Top-3 meest recent. Volledige log + *waarom* per beslissing: [`docs/decisions.md`](docs/decisions.md).
 
+- **2026-08-19**: Factuurnummer bewerkbaar in de editor (teller schuift mee, alleen omhoog), Voorbeeld-knop met de echte PDF in een modal, KVK van de klant als sjabloonvinkje
 - **2026-08-16**: Maandkalender onder Uren → Per maand — raster ma–zo met dagtotalen en klantblokjes, klik op een dag → Registraties van die week
 - **2026-08-16**: Facturen per bedrijf — schakelaar in de topbalk (één administratie of alles), scope in `factuurState.settings.bedrijfScope`, btw-aangifte vraagt eerst om een bedrijf. Alleen binnen Facturen; klanten/uren/notities blijven gedeeld
 - **2026-08-16**: Pincode-versleuteling afgeschaft (vroeg op dezelfde pc telkens opnieuw) — alleen het eenmalige uitpakpad voor een oud `rawState.geheim` blijft
