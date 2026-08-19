@@ -10,6 +10,22 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-08-19 · Sjabloon per factuur instelbaar
+
+**Probleem**: `facSjabloonVoor` kende al een overervingspad — factuur → klant → bedrijf → standaard — maar geen van die drie niveaus was ergens in te stellen. In de praktijk kreeg elke factuur dus de standaard, en kon je na aanmaken niet meer van sjabloon wisselen.
+
+**Beslissing**: een keuzelijst **Sjabloon** in de editor, naast het factuurnummer (één rij van twee). Werkt op concepten én verstuurde facturen.
+- Eerste optie is "Volgt de standaard — <naam>" (waarde `''` → `sjabloonId:null`). Kies je een sjabloon, dan staat de factuur er vast op.
+- De hint eronder zegt welk van de twee geldt: *"Verander je de standaard later, dan verandert deze factuur mee"* versus *"Vast op X; een andere standaard raakt deze factuur niet."* Dat onderscheid is de kern — herontwerp je je sjabloon, dan verandert de PDF van elke factuur die nog meebeweegt, ook van verstuurde.
+- Staat het voorbeeld open, dan bouwt het bij een wissel opnieuw op; daar kijk je juist naar als je hiermee speelt.
+- De chain zit nu in `facSjabloonHerkomst(f)` (geeft `{id,bron,naam}`); `facSjabloonVoor` leest daaruit, zodat de editor kan tonen *waar* de keuze vandaan komt zonder de volgorde te herhalen. De labels voor bron 'klant' en 'bedrijf' zijn al geschreven, al is daar nog geen invoer voor.
+
+**Ook opgelost**: de mobiele regel `#facEditorBody .fac-ed-grid:first-of-type` selecteerde niets zodra het blok "Factureren vanuit" ervoor stond — dus zodra je een tweede bedrijf had, bleven Klant en Referentie op een telefoon naast elkaar staan op 151px. Nu een klasse `.fac-ed-stapel` op de rijen die moeten stapelen, in plaats van een selector die van positie afhangt.
+
+**Bestanden**: `index.html` — `facSjabloonHerkomst` (nieuw), `facSjabloonVoor`, `facEditorRender` (rij nummer + sjabloon), `facEdVeld` (tak `sjabloonId`), CSS `.fac-ed-stapel`
+
+**Niet doen**: automatisch vastzetten bij versturen. Dat is verdedigbaar (een verstuurde factuur zou niet meer van vorm moeten veranderen), maar het is een gedragswijziging die niet gevraagd is — en wie zijn sjabloon verbetert wil dat vaak juist wél terugzien in oude PDF's. De keuze ligt nu bij de gebruiker, per factuur.
+
 ## 2026-08-19 · Factuurnummer met de hand, voorbeeld voor het versturen, KVK van de klant
 
 **Probleem**: drie dingen die pas opvallen als je de module echt gebruikt.

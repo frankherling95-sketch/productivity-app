@@ -5178,10 +5178,13 @@ textarea { line-height: 1.6; resize: vertical; }
   }
   .fac-sj-preview { padding: 12px 16px 16px; }
   .fac-sj-preview iframe { min-height: 320px; }
-  /* Klant + referentie onder elkaar: een keuzelijst met klantnamen wordt
-     naast een tekstveld te smal om te lezen. Datumparen blijven wel naast
-     elkaar staan, die passen. */
-  #facEditorBody .fac-ed-grid:first-of-type { grid-template-columns: minmax(0, 1fr); }
+  /* Rijen die op een telefoon te smal worden, stapelen. Een keuzelijst
+     met klantnamen of sjabloonnamen is naast een tekstveld niet meer te
+     lezen; losse datumparen passen wel en blijven dus naast elkaar.
+     Op een klasse en niet op :first-of-type -- die selector keek naar de
+     eerste div in de editor, en zodra "Factureren vanuit" ervoor stond
+     (dus zodra je een tweede bedrijf had) raakte hij niets meer. */
+  #facEditorBody .fac-ed-stapel { grid-template-columns: minmax(0, 1fr); }
 
   .fac-ed-regelbalk { flex-wrap: wrap; gap: 6px; }
   .fac-ed-regelbalk-vul { display: none; }
@@ -17598,14 +17601,22 @@ function facSjablonen(){
   return s.sjablonen;
 }
 /* Welk sjabloon hoort bij deze factuur: eigen keuze, anders die van de
-   klant, anders van het bedrijf, anders de standaard. */
-function facSjabloonVoor(f){
+   klant, anders van het bedrijf, anders de standaard. Wáár de keuze
+   vandaan komt is ook nodig -- de editor moet kunnen zeggen of deze
+   factuur meebeweegt met de standaard of er los van staat. */
+function facSjabloonHerkomst(f){
   const s=factuurSettings();
-  const lijst=facSjablonen();
   const klant=f&&f.clientId?factuurKlant(f.clientId):null;
   const bedrijf=f?factuurBedrijf(factuurBedrijfIdVan(f)):null;
-  const id=(f&&f.sjabloonId)||(klant&&klant.sjabloonId)||(bedrijf&&bedrijf.sjabloonId)||s.standaardSjabloon;
-  return lijst.find(t=>t.id===id)||lijst[0];
+  if(f&&f.sjabloonId)return {id:f.sjabloonId,bron:'factuur'};
+  if(klant&&klant.sjabloonId)return {id:klant.sjabloonId,bron:'klant',naam:klant.bedrijfsnaam||klant.name};
+  if(bedrijf&&bedrijf.sjabloonId)return {id:bedrijf.sjabloonId,bron:'bedrijf',naam:bedrijf.naam};
+  return {id:s.standaardSjabloon,bron:'standaard'};
+}
+function facSjabloonVoor(f){
+  const lijst=facSjablonen();
+  const h=facSjabloonHerkomst(f);
+  return lijst.find(t=>t.id===h.id)||lijst[0];
 }
 
 /* '#0F1B3D' → [15,27,61] voor jsPDF */
@@ -19311,17 +19322,42 @@ function facEditorRender(){
   /* Zonder negeerId telt deze factuur mee als "in gebruik", dus dit is
      het nummer dat ná deze komt -- precies wat de hint moet zeggen. */
   const volgendNa=factuurVolgendNummer(true,null,bedrijfIdNu,f.datum);
-  html+=`<div class="uren-fld" style="margin-bottom:12px">
-    <label>Factuurnummer</label>
-    <input type="text" class="fac-ed-inp" value="${escapeHtml(String(f.nummer||''))}"
-      data-fac-change="facEdVeld" data-fac-arg1="nummer" ${bewerkbaar?'':'disabled'}
-      style="font-family:var(--font-mono);font-weight:600;letter-spacing:.02em"/>
-    <small style="display:block;font-size:11.5px;color:var(--text-muted);margin-top:4px">
-      ${definitief||f.nummerVast
-        ? `Hierna gaat de reeks verder met <b style="font-family:var(--font-mono);color:var(--text)">${escapeHtml(volgendNa)}</b>.`
-        : `Voorstel uit de reeks; wordt definitief bij versturen. Pas je het aan, dan telt de reeks vanaf jouw nummer verder.`}
-    </small></div>`;
-  html+=`<div class="fac-ed-grid">
+  /* ── Sjabloon per factuur ──
+     Het overervingspad (factuur → klant → bedrijf → standaard) bestond al
+     in facSjabloonVoor, maar was nergens in te stellen. Kies je hier iets,
+     dan staat deze factuur er vast op; laat je hem op "volgt", dan
+     beweegt hij mee als je de standaard later verandert. */
+  const sjLijst=facSjablonen();
+  const sjH=facSjabloonHerkomst(f);
+  const sjErft=sjH.bron!=='factuur';
+  const sjNaam=(sjLijst.find(t=>t.id===sjH.id)||sjLijst[0]).naam;
+  const sjErfLabel=sjH.bron==='klant'?`Volgt de klant — ${sjNaam}`
+    :sjH.bron==='bedrijf'?`Volgt ${sjH.naam} — ${sjNaam}`
+    :`Volgt de standaard — ${sjNaam}`;
+  html+=`<div class="fac-ed-grid fac-ed-stapel" style="margin-bottom:12px">
+    <div class="uren-fld">
+      <label>Factuurnummer</label>
+      <input type="text" class="fac-ed-inp" value="${escapeHtml(String(f.nummer||''))}"
+        data-fac-change="facEdVeld" data-fac-arg1="nummer" ${bewerkbaar?'':'disabled'}
+        style="font-family:var(--font-mono);font-weight:600;letter-spacing:.02em"/>
+      <small style="display:block;font-size:11.5px;color:var(--text-muted);margin-top:4px">
+        ${definitief||f.nummerVast
+          ? `Hierna gaat de reeks verder met <b style="font-family:var(--font-mono);color:var(--text)">${escapeHtml(volgendNa)}</b>.`
+          : `Voorstel uit de reeks; wordt definitief bij versturen. Pas je het aan, dan telt de reeks vanaf jouw nummer verder.`}
+      </small></div>
+    <div class="uren-fld">
+      <label>Sjabloon</label>
+      <select class="fac-ed-inp" data-fac-change="facEdVeld" data-fac-arg1="sjabloonId" ${bewerkbaar?'':'disabled'}>
+        <option value=""${sjErft?' selected':''}>${escapeHtml(sjErfLabel)}</option>
+        ${sjLijst.map(t=>`<option value="${t.id}"${(!sjErft&&sjH.id===t.id)?' selected':''}>${escapeHtml(t.naam)}</option>`).join('')}
+      </select>
+      <small style="display:block;font-size:11.5px;color:var(--text-muted);margin-top:4px">
+        ${sjErft
+          ? 'Verander je de standaard later, dan verandert deze factuur mee.'
+          : `Vast op <b style="color:var(--text)">${escapeHtml(sjNaam)}</b>; een andere standaard raakt deze factuur niet.`}
+      </small></div>
+  </div>`;
+  html+=`<div class="fac-ed-grid fac-ed-stapel">
     <div class="uren-fld"><label>Klant</label>
       <select class="fac-ed-inp" data-fac-change="facEdVeld" data-fac-arg1="clientId" ${bewerkbaar?'':'disabled'}>
         <option value="">— kies klant —</option>
@@ -19481,6 +19517,16 @@ function facEdVeld(el,key){
       appToast('Je kijkt nu naar '+facBedrijfNaam(waarde),{type:'info'});
     }
     facEditorRender();return;
+  }
+  if(key==='sjabloonId'){
+    /* Leeg = terug naar overerven. null en niet '' , zodat facSjabloonVoor
+       er falsy op blijft testen. */
+    factuurUpdate(f.id,{sjabloonId:waarde||null});
+    facEditorRender();
+    /* Staat het voorbeeld open, dan hoort het meteen het nieuwe sjabloon
+       te laten zien -- daar kijk je juist naar als je hiermee speelt. */
+    if(document.getElementById('facPreviewModal').classList.contains('open'))openFacPreview(f.id);
+    return;
   }
   if(key==='nummer'){
     const nieuw=String(waarde||'').trim();
