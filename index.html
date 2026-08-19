@@ -17769,6 +17769,61 @@ function factuurAfzenderSnapshot(bedrijfId){
   return {...rest};
 }
 
+/* ── Momentopname: wanneer bevriest een factuur ──
+   Zolang een factuur nog niet de deur uit is, leest de PDF gewoon je
+   klantenkaart en je bedrijfsgegevens. Vul je een btw- of KVK-nummer
+   later pas in, dan staat het er alsnog op.
+
+   Zodra de klant het document heeft, moet dat stoppen: regenereer je de
+   PDF een half jaar later, dan hoort er hetzelfde op te staan als in het
+   bestand dat je hebt gemaild. Vanaf dat moment leest de PDF de kopie in
+   f.klant / f.afzender. Wat er sindsdien aan de klantenkaart is veranderd
+   haal je er bewust bij met factuurSnapshotBijwerken. */
+/* Geeft terug wát er nieuw is bevroren, zodat een mislukte verzending
+   precies dat terugdraait en een kopie die er al lag laat staan. */
+function factuurBevriesGegevens(f){
+  const nieuw={klant:false,afzender:false};
+  if(!f)return nieuw;
+  if(!f.klant){f.klant=factuurKlantSnapshot(factuurKlant(f.clientId));nieuw.klant=true;}
+  if(!f.afzender){f.afzender=factuurAfzenderSnapshot(factuurBedrijfIdVan(f));nieuw.afzender=true;}
+  return nieuw;
+}
+/* Welke velden lopen uit de pas met de huidige gegevens? Alleen zinvol
+   als er al een momentopname ligt -- zonder kopie is er niets om bij te
+   werken. */
+const FAC_SNAPSHOT_LABELS={
+  naam:'Naam', adres:'Adres', postcode:'Postcode', plaats:'Plaats', land:'Land',
+  btwNummer:'Btw-nummer', kvk:'KVK-nummer', email:'E-mail',
+  contactpersoon:'Contactpersoon', tel:'Telefoon', iban:'IBAN', bic:'BIC'
+};
+function factuurSnapshotVerschil(f){
+  const uit=[];
+  if(!f)return uit;
+  const vergelijk=(bron,oud,nieuw)=>{
+    if(!oud||!nieuw)return;
+    Object.keys(FAC_SNAPSHOT_LABELS).forEach(k=>{
+      const a=String(oud[k]==null?'':oud[k]).trim();
+      const b=String(nieuw[k]==null?'':nieuw[k]).trim();
+      if(a!==b)uit.push({bron,veld:k,label:FAC_SNAPSHOT_LABELS[k],oud:a,nieuw:b});
+    });
+  };
+  if(f.klant&&f.clientId)
+    vergelijk('klant',f.klant,factuurKlantSnapshot(factuurKlant(f.clientId)));
+  if(f.afzender)
+    vergelijk('afzender',f.afzender,factuurAfzenderSnapshot(factuurBedrijfIdVan(f)));
+  return uit;
+}
+function factuurSnapshotBijwerken(id){
+  const f=factuurById(id);
+  if(!f)return false;
+  const vorige={klant:f.klant,afzender:f.afzender};
+  if(f.klant&&f.clientId)f.klant=factuurKlantSnapshot(factuurKlant(f.clientId));
+  if(f.afzender)f.afzender=factuurAfzenderSnapshot(factuurBedrijfIdVan(f));
+  f.updatedAt=Date.now();
+  scheduleSave();
+  return vorige;
+}
+
 /* ── Gescheiden administraties ──
    Factureer je vanuit meer dan één bedrijf, dan zijn dat losse
    administraties: eigen nummerreeks, eigen btw-nummer, eigen aangifte.
@@ -18107,8 +18162,12 @@ function factuurMarkeerVerstuurd(id){
   if(!f.nummerVast||nummers.includes(f.nummer))
     f.nummer=factuurVolgendNummer(false,f.id,bedrijfId,f.datum);
   f.nummerVast=true;
-  f.klant=factuurKlantSnapshot(factuurKlant(f.clientId));
-  f.afzender=factuurAfzenderSnapshot(bedrijfId);
+  /* Hier wordt bewust géén momentopname van klant en afzender gemaakt.
+     Die hoort bij het moment dat de klant het document daadwerkelijk
+     krijgt (zie factuurBevriesGegevens, aangeroepen bij het mailen).
+     Tot dan volgt de factuur je klantenkaart: vul je een btw- of
+     KVK-nummer later pas in, dan staat het er gewoon op. Eerder
+     bevroor dit bij "verstuurd", wat vaak dagen vóór het mailen is. */
   f.status='verstuurd';
   f.verstuurdOp=new Date().toISOString();
   factuurUrenKoppelen(f);
@@ -18135,6 +18194,11 @@ function factuurTerugNaarConcept(id){
   factuurUrenLoskoppelen(f);
   f.status='concept';
   delete f.verstuurdOp; delete f.betaaldOp;
+  /* Ook de bevroren klant- en afzendergegevens loslaten: een concept
+     hoort je klantenkaart te volgen. Bleef de kopie staan, dan wees de
+     editor wél "volgt je klantgegevens" aan terwijl de PDF nog uit de
+     oude momentopname las. */
+  delete f.klant; delete f.afzender;
   f.betalingen=[];
   f.updatedAt=Date.now();
   scheduleSave();
@@ -18197,6 +18261,7 @@ const FAC_CLICK_ACTIONS={
   facVerstuur:()=>facVerstuur(),
   facPdf:(a)=>facPdfDownload(a||facEditId),
   facPreview:(a)=>openFacPreview(a||facEditId),
+  facSnapshotBijwerken:()=>facSnapshotBijwerkenActie(),
   closeFacPreview:()=>closeFacPreview(),
   facPreviewPdf:()=>facPdfDownload(facPreviewId),
   facPreviewNieuwTab:()=>facPreviewNieuwTab(),
@@ -19380,9 +19445,17 @@ function facEditorRender(){
     ${klantData.adres?'<br>'+escapeHtml(klantData.adres):''}
     ${klantData.postcode||klantData.plaats?'<br>'+escapeHtml((klantData.postcode||'')+' '+(klantData.plaats||'')):''}
     ${klantData.btwNummer?'<br>Btw: '+escapeHtml(klantData.btwNummer):''}
+    ${klantData.kvk?'<br>KVK: '+escapeHtml(klantData.kvk):''}
     ${bewerkbaar&&f.clientId&&!factuurKlantCompleet(klant)?
       `<div style="margin-top:8px"><span class="fac-onvolledig">⚠ Adres onvolledig</span>
        <button class="uren-btn" style="margin-left:8px" data-fac-action="facKlantBewerk" data-fac-arg1="${f.clientId}">Aanvullen</button></div>`:''}
+    ${f.klant
+      ? `<div style="margin-top:8px;font-size:11.5px;color:var(--text-muted)">
+           Vastgelegd bij het mailen${f.gemaildOp?' op '+factuurFmtDatum(String(f.gemaildOp).slice(0,10)):''} —
+           latere wijzigingen aan de klantgegevens komen hier niet vanzelf in.</div>`
+      : `<div style="margin-top:8px;font-size:11.5px;color:var(--text-muted)">
+           Volgt je klantgegevens; wordt vastgelegd zodra je de factuur mailt.</div>`}
+    ${facSnapshotVerschilBlok(f)}
   </div>`;
 
   /* Regels */
@@ -19479,6 +19552,29 @@ function facEditorRender(){
       ${f.status!=='betaald'?`<button class="uren-btn${f.gemaildOp?' uren-btn-primary':''}" data-fac-action="facBetaald">Betaling registreren</button>`:''}`;
   }
   document.getElementById('facEditorActies').innerHTML=acties;
+}
+
+/* Loopt de vastgelegde kopie uit de pas met je klantenkaart of je
+   bedrijfsgegevens, dan zeg je dat hier -- met de verschillen erbij, want
+   "gegevens gewijzigd" zonder te tonen wát is een knop op goed vertrouwen.
+   Alleen tonen als er iets ligt om bij te werken. */
+function facSnapshotVerschilBlok(f){
+  const diff=factuurSnapshotVerschil(f);
+  if(!diff.length)return '';
+  const regel=d=>`<div style="display:flex;gap:6px;flex-wrap:wrap;line-height:1.5">
+    <span style="min-width:104px;color:var(--text-muted)">${escapeHtml(d.label)}${
+      d.bron==='afzender'?' <small>(afzender)</small>':''}</span>
+    <span style="text-decoration:line-through;opacity:.65">${escapeHtml(d.oud||'leeg')}</span>
+    <span aria-hidden="true">→</span>
+    <span style="font-weight:600;color:var(--text)">${escapeHtml(d.nieuw||'leeg')}</span></div>`;
+  return `<div style="margin-top:10px;padding:10px 12px;border-radius:var(--radius-md);
+      background:var(--surface);border:1px solid var(--warning,var(--border-strong));font-size:11.5px">
+    <div style="font-weight:700;color:var(--text);margin-bottom:6px">
+      ${diff.length} wijziging${diff.length===1?'':'en'} sinds het vastleggen</div>
+    ${diff.map(regel).join('')}
+    <div style="margin-top:9px">
+      <button class="uren-btn" data-fac-action="facSnapshotBijwerken">Gegevens bijwerken</button>
+    </div></div>`;
 }
 
 /* Eén zin onder het vinkje: wat komt er straks in de PDF? Zonder dit
@@ -19665,6 +19761,32 @@ function facVerstuur(){
   facRenderAll();
   if(typeof renderUrenModule==='function'&&activeModule==='uren')renderUrenModule();
   appToast(`${f.nummer} verstuurd · ${factuurFmtBedrag(t.incl)}`,{type:'success'});
+}
+/* Bijwerken is met opzet één klik zonder bevestigingsvraag: de
+   verschillen staan al uitgeschreven boven de knop, dus je weet wat je
+   krijgt. Terugdraaien kan met de toast. */
+function facSnapshotBijwerkenActie(){
+  const f=factuurById(facEditId);
+  if(!f)return;
+  const aantal=factuurSnapshotVerschil(f).length;
+  if(!aantal)return;
+  const vorige=factuurSnapshotBijwerken(f.id);
+  facEditorRender();
+  facRenderAll();
+  if(document.getElementById('facPreviewModal').classList.contains('open'))openFacPreview(f.id);
+  appToast(`${aantal} gegeven${aantal===1?'':'s'} bijgewerkt op ${f.nummer}`,{
+    type:'success',
+    undo:()=>{
+      const g=factuurById(f.id);
+      if(!g)return;
+      if(vorige.klant)g.klant=vorige.klant; else delete g.klant;
+      if(vorige.afzender)g.afzender=vorige.afzender; else delete g.afzender;
+      g.updatedAt=Date.now();
+      scheduleSave();
+      if(facEditId===g.id)facEditorRender();
+      facRenderAll();
+    }
+  });
 }
 function facTerugNaarConcept(){
   const f=factuurById(facEditId);
@@ -21751,6 +21873,11 @@ async function facMailVerstuurActie(){
   const status=document.getElementById('facMailStatus');
   knop.disabled=true;
   status.textContent='PDF maken…';
+  /* Bevriezen vóór het bouwen van de bijlage, zodat de kopie die we
+     bewaren precies is wat de klant in handen krijgt. Gaat het versturen
+     mis, dan draaien we het terug -- er is dan niets verzonden en de
+     factuur mag je klantenkaart blijven volgen. */
+  const versBevroren=factuurBevriesGegevens(f);
   try{
     const b64=facPdfBase64(f);
     if(!b64)throw new Error('De PDF kon niet worden gemaakt');
@@ -21781,6 +21908,10 @@ async function facMailVerstuurActie(){
     appToast(`${f.nummer} gemaild naar ${aan}`,{type:'success'});
   }catch(e){
     console.error('Mailen mislukt:',e);
+    /* Niets de deur uit, dus ook niets om te bevriezen. Alleen wat deze
+       poging zelf heeft aangemaakt gaat weg; een oudere kopie blijft. */
+    if(versBevroren.klant)delete f.klant;
+    if(versBevroren.afzender)delete f.afzender;
     knop.disabled=false;
     status.textContent='';
     /* De meest voorkomende oorzaak eerst: de scope staat nog niet in

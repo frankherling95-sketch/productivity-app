@@ -10,6 +10,24 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-08-19 · Wanneer bevriest een factuur zijn klantgegevens
+
+**Probleem**: het sjabloon en de gegevens synchroniseerden verschillend, en dat verschil was nergens zichtbaar. Vink je achteraf "KVK-nummer klant" aan in de sjabloonbouwer, dan werkt dat vinkje wél door op een oude factuur (het sjabloon wordt live gelezen), maar er verschijnt niets — want de klantgegevens waren bij "verstuurd" bevroren in `f.klant`, met `kvk:""` erin. Gemeten: sjabloonwijziging op een verstuurde factuur → zichtbaar; klant-KVK later ingevuld → op een concept zichtbaar, op een verstuurde factuur niet.
+
+**Beslissing** (twee kanten van hetzelfde):
+1. **Bevriezen verhuist van "verstuurd" naar het mailmoment.** `factuurMarkeerVerstuurd` maakt geen momentopname meer; `factuurBevriesGegevens(f)` doet dat in het mailpad, vóór het bouwen van de bijlage — zodat de bewaarde kopie exact is wat de klant in handen krijgt. Mislukt de verzending, dan draait de catch precies terug wat dít bevriezen aanmaakte (de functie geeft `{klant,afzender}` terug, zodat een oudere kopie blijft staan). Rationale: "verstuurd" aanvinken is vaak dagen vóór het echte moment; tot dan is er niets te beschermen en mag de factuur je klantenkaart volgen.
+2. **`factuurSnapshotVerschil(f)` + knop "Gegevens bijwerken"** in het Factuuradres-blok, zichtbaar zodra de bevroren kopie afwijkt van de klantenkaart of de bedrijfsgegevens. Toont per veld `oud → nieuw` (afzendervelden gelabeld), werkt in één klik zonder bevestigingsvraag — de verschillen staan al uitgeschreven boven de knop — en is terug te draaien via de toast.
+
+Het adresblok zegt nu ook wát er geldt: *"Volgt je klantgegevens; wordt vastgelegd zodra je de factuur mailt"* versus *"Vastgelegd bij het mailen op <datum>"*. En het toont KVK, dat er nog niet in stond.
+
+**Ook gerepareerd**: `factuurTerugNaarConcept` liet `f.klant`/`f.afzender` staan. Onder het nieuwe model klopte dat niet meer — de editor meldde "volgt je klantgegevens" terwijl de PDF nog uit de oude kopie las. Die worden nu losgelaten.
+
+**Waarom niet automatisch verversen na het mailen**: dan zou een geregenereerde PDF afwijken van het bestand dat de klant heeft. Bijwerken is daarom altijd een expliciete daad.
+
+**Bestanden**: `index.html` — `factuurBevriesGegevens`/`factuurSnapshotVerschil`/`factuurSnapshotBijwerken` (nieuw), `FAC_SNAPSHOT_LABELS`, `facSnapshotVerschilBlok`, `facSnapshotBijwerkenActie`, `factuurMarkeerVerstuurd`, `factuurTerugNaarConcept`, `facMailVerstuurActie`, `facEditorRender`
+
+**Niet doen**: het bevriezen terugzetten naar `factuurMarkeerVerstuurd`. Bestaande facturen uit Drive hébben al een kopie van vóór deze wijziging; die blijft geldig en krijgt gewoon de bijwerkknop. Er is dus geen migratie nodig, maar ook geen weg terug zonder die facturen te raken.
+
 ## 2026-08-19 · Sjabloon per factuur instelbaar
 
 **Probleem**: `facSjabloonVoor` kende al een overervingspad — factuur → klant → bedrijf → standaard — maar geen van die drie niveaus was ergens in te stellen. In de praktijk kreeg elke factuur dus de standaard, en kon je na aanmaken niet meer van sjabloon wisselen.

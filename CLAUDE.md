@@ -196,6 +196,7 @@ Daarna: vraag Frank om **Ctrl+Shift+R** op de live site. Optioneel `test.html` o
 
 Top-3 meest recent. Volledige log + *waarom* per beslissing: [`docs/decisions.md`](docs/decisions.md).
 
+- **2026-08-19**: Klantgegevens bevriezen pas bij het mailen (niet bij "verstuurd"), plus een knop "Gegevens bijwerken" met een diff zodra de kopie afwijkt
 - **2026-08-19**: Sjabloon per factuur te kiezen in de editor (naast het nummer); "volgt de standaard" versus vastgezet
 - **2026-08-19**: Factuurnummer bewerkbaar in de editor (teller schuift mee, alleen omhoog), Voorbeeld-knop met de echte PDF in een modal, KVK van de klant als sjabloonvinkje
 - **2026-08-16**: Maandkalender onder Uren → Per maand — raster ma–zo met dagtotalen en klantblokjes, klik op een dag → Registraties van die week
