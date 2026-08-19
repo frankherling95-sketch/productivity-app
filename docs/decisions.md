@@ -10,6 +10,27 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-08-19 · Factuur dupliceren: knop overal, en drie lekken gedicht
+
+**Probleem**: dupliceren bestond al (`factuurDupliceer` + knop "Dupliceren"), maar alleen bij een verstuurde factuur — niet bij een concept. En de kopie nam meer mee dan de bedoeling was. Gemeten op de bestaande code:
+
+| Veld | Ging mee | Zou niet moeten |
+|---|---|---|
+| `gemaildOp` / `gemaildAan` | ja | de kopie is nooit gemaild |
+| `nummerVast` | ja | het nummer is een vers voorstel, niet handmatig gezet |
+
+Het eerste had een zichtbaar gevolg: `factuurMailsAanvullen` vult het logboek Verzonden aan op basis van `gemaildOp`, dus de kopie kreeg daar een **verzonnen regel** voor een bericht dat nooit is verstuurd. Reproductie: bron met één mailregel → dupliceren → `factuurMailsAanvullen()` → twee regels.
+
+**Beslissing**:
+- Knop **Dupliceren** ook in de actiebalk van een concept.
+- `factuurDupliceer` wist nu ook `gemaildOp`, `gemaildAan` en `nummerVast`.
+
+**Wat een kopie wél meeneemt** (bewust, dit is de reden dat je dupliceert): klant, bedrijf, betreft, referentie, notitie, sjabloonkeuze, en alle regels met bedragen. Wat er niet in zit: nummer (nieuw voorstel uit de reeks van dát bedrijf), datum (vandaag) en vervaldatum (opnieuw berekend met de betaaltermijn van de klant), betalingen, verstuurd-/betaald-/maildata, de bevroren klant- en afzendergegevens, en de urenkoppeling — `r.urenIds=[]`, zodat dezelfde uren niet twee keer gefactureerd worden en bij de bron op gefactureerd blijven staan.
+
+**Bestanden**: `index.html` — `factuurDupliceer`, `facEditorRender` (actiebalk concept)
+
+**Niet doen**: `referentie` ook wissen bij een kopie. Dat is verdedigbaar (een inkoopnummer is vaak factuurspecifiek), maar bij een maandelijks terugkerende factuur is het juist hetzelfde — en stil laten verdwijnen is vervelender dan even overtypen.
+
 ## 2026-08-19 · Wanneer bevriest een factuur zijn klantgegevens
 
 **Probleem**: het sjabloon en de gegevens synchroniseerden verschillend, en dat verschil was nergens zichtbaar. Vink je achteraf "KVK-nummer klant" aan in de sjabloonbouwer, dan werkt dat vinkje wél door op een oude factuur (het sjabloon wordt live gelezen), maar er verschijnt niets — want de klantgegevens waren bij "verstuurd" bevroren in `f.klant`, met `kvk:""` erin. Gemeten: sjabloonwijziging op een verstuurde factuur → zichtbaar; klant-KVK later ingevuld → op een concept zichtbaar, op een verstuurde factuur niet.

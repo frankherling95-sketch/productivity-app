@@ -18098,6 +18098,14 @@ function factuurDupliceer(id){
   f.betalingen=[];
   delete f.verstuurdOp; delete f.betaaldOp; delete f.klant; delete f.afzender;
   delete f.gegevensVastOp;
+  /* Het maildossier hoort bij de bron, niet bij de kopie. Bleef dit
+     staan, dan dacht factuurMailsAanvullen dat dit concept al gemaild
+     was en zette het er een verzonnen regel voor in het logboek
+     Verzonden -- een bericht dat nooit is verstuurd. */
+  delete f.gemaildOp; delete f.gemaildAan;
+  /* Het nummer is een nieuw voorstel uit de reeks, geen nummer dat jij
+     met de hand hebt gezet; anders zou versturen het laten staan. */
+  delete f.nummerVast;
   /* Kopie factureert dezelfde uren niet nog een keer */
   (f.regels||[]).forEach(r=>{r.id=factuurUid();r.urenIds=[];});
   f.createdAt=Date.now(); f.updatedAt=Date.now();
@@ -19541,6 +19549,8 @@ function facEditorRender(){
   let acties='';
   if(!definitief){
     acties=`<button class="uren-btn" data-fac-action="facVerwijder">Verwijderen</button>
+      <button class="uren-btn" data-fac-action="facDupliceer"
+        title="Maak een nieuw concept met dezelfde regels en gegevens">Dupliceren</button>
       <div style="flex:1"></div>
       <button class="uren-btn" data-fac-action="facPreview">Voorbeeld</button>
       <button class="uren-btn" data-fac-action="facPdf">↧ PDF</button>
