@@ -1404,6 +1404,10 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .fac-mdeb-acties{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
 .fac-mdeb-acties .uren-btn{flex:1;min-width:88px;height:34px;font-size:12px}
 .fac-deb-acties .uren-btn{height:28px;padding:0 10px;font-size:11.5px;margin-left:5px}
+.fac-mcard .mbedragen{display:flex;flex-direction:column;align-items:flex-end;line-height:1.3}
+.fac-mcard .mbedragen .excl{font-size:11px;font-weight:500;color:var(--text-muted);font-family:var(--font-mono)}
+.fac-verstuurd{display:block;font-size:10.5px;color:var(--text-muted);margin-top:3px;white-space:nowrap}
+.fac-bedrag-excl{color:var(--text-muted);font-weight:500}
 .fac-verval{display:block;font-size:10.5px;font-weight:600;margin-top:2px;white-space:nowrap}
 .fac-mverval{font-size:11px;font-weight:600}
 .fac-betreft{color:var(--text-muted);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px}
@@ -18720,11 +18724,14 @@ function facRenderLijst(){
         : 'Verbreed de periode via de filterknop, of maak er een met “+ Nieuwe factuur”.'}</div>`;
   }
   let excl=0,incl=0,open=0;
+  /* Twee geldkolommen, dus "Bedrag" zegt niet genoeg meer: allebei de
+     koppen noemen nu welk bedrag het is. */
   let html=`<div class="uren-sheet-card"><table class="fac-table"><thead><tr>
-    <th style="width:104px">Nummer</th><th style="width:96px">Datum</th>
-    <th style="width:190px">Klant</th>${toonBd?'<th style="width:150px">Vanuit</th>':''}<th>Betreft</th>
-    <th style="width:96px">Vervalt</th><th style="width:132px">Status</th>
-    <th class="num" style="width:118px">Bedrag</th></tr></thead><tbody>`;
+    <th style="width:94px">Nummer</th><th style="width:86px">Datum</th>
+    <th style="width:166px">Klant</th>${toonBd?'<th style="width:124px">Vanuit</th>':''}<th>Betreft</th>
+    <th style="width:86px">Vervalt</th><th style="width:126px">Status</th>
+    <th class="num" style="width:104px">Excl. btw</th>
+    <th class="num" style="width:110px">Incl. btw</th></tr></thead><tbody>`;
   lijst.forEach(f=>{
     const t=factuurTotalen(f);
     excl+=t.excl;incl+=t.incl;
@@ -18741,16 +18748,17 @@ function facRenderLijst(){
       <td><div class="fac-betreft">${escapeHtml(f.betreft||'')}</div></td>
       <td><span class="fac-datum">${factuurFmtDatum(f.vervaldatum)}</span>${
         facVervalRegel(f)}</td>
-      <td>${facStatusPil(f)}</td>
+      <td>${facStatusPil(f)}${facVerstuurdRegel(f)}</td>
+      <td class="num"><span class="fac-bedrag fac-bedrag-excl">${factuurFmtBedrag(t.excl)}</span></td>
       <td class="num"><span class="fac-bedrag">${factuurFmtBedrag(t.incl)}</span></td></tr>`;
   });
   html+=`</tbody><tfoot><tr>
-    <td colspan="${toonBd?5:4}">${lijst.length} factu${lijst.length===1?'ur':'ren'} · ${factuurFmtBedrag(excl)} excl. btw</td>
+    <td colspan="${toonBd?5:4}">${lijst.length} factu${lijst.length===1?'ur':'ren'}</td>
     <td colspan="2">${open>0?'waarvan '+factuurFmtBedrag(open)+' openstaand':'alles betaald'}</td>
+    <td class="num">${factuurFmtBedrag(excl)}</td>
     <td class="num">${factuurFmtBedrag(incl)}</td></tr></tfoot></table></div>`;
   return html+facRenderKaarten(lijst,incl);
 }
-
 /* Mobiele tegenhanger van de tabel. Zelfde gegevens, gestapeld. */
 function facRenderKaarten(lijst,totaal){
   if(!lijst.length)return '';
@@ -18776,11 +18784,27 @@ function facRenderKaarten(lijst,totaal){
       ${toonBd?`<span class="fac-bd-chip">${escapeHtml(facBedrijfNaam(factuurBedrijfIdVan(f),true))}</span>`:''}
       ${f.betreft?`<span class="betreft">${escapeHtml(f.betreft)}</span>`:''}
       <span class="voet">${facStatusPil(f)}
-        <span class="bedrag">${factuurFmtBedrag(t.incl)}</span></span>
+        <span class="mbedragen"><span class="bedrag">${factuurFmtBedrag(t.incl)}</span>
+          <span class="excl">${factuurFmtBedrag(t.excl)} excl.</span></span></span>
+      ${facVerstuurdRegel(f)}
     </button>`;
   });
   html+=`</div><div class="fac-msom">${lijst.length} factu${lijst.length===1?'ur':'ren'}<b>${factuurFmtBedrag(totaal)}</b></div>`;
   return html;
+}
+/* Kleine regel onder de statuspil: wanneer ging hij de deur uit? Die
+   datum stond alleen in de editor, terwijl je bij het doorlopen van een
+   maand juist wilt zien hoe lang een factuur al loopt.
+
+   f.verstuurdOp is het moment waarop je hem definitief maakte; dat is
+   iets anders dan gemaildOp (het moment waarop de klant hem kreeg). Bij
+   een gemailde factuur is dat laatste eerlijker, dus die wint. */
+function facVerstuurdRegel(f){
+  if(!f||f.status==='concept')return '';
+  const bron=f.gemaildOp||f.verstuurdOp;
+  if(!bron)return '';
+  const woord=f.gemaildOp?'gemaild':'verstuurd';
+  return `<span class="fac-verstuurd">${woord} ${factuurFmtDatum(String(bron).slice(0,10))}</span>`;
 }
 /* Het regeltje onder de vervaldatum in de tabellen. */
 function facVervalRegel(f){
