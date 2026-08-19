@@ -24,7 +24,11 @@ Het adresblok zegt nu ook wát er geldt: *"Volgt je klantgegevens; wordt vastgel
 
 **Waarom niet automatisch verversen na het mailen**: dan zou een geregenereerde PDF afwijken van het bestand dat de klant heeft. Bijwerken is daarom altijd een expliciete daad.
 
-**Bestanden**: `index.html` — `factuurBevriesGegevens`/`factuurSnapshotVerschil`/`factuurSnapshotBijwerken` (nieuw), `FAC_SNAPSHOT_LABELS`, `facSnapshotVerschilBlok`, `facSnapshotBijwerkenActie`, `factuurMarkeerVerstuurd`, `factuurTerugNaarConcept`, `facMailVerstuurActie`, `facEditorRender`
+**Aanvulling (zelfde dag) — knop "Definitief maken"**: een factuur die je print of post bereikt het mailmoment nooit en zou dus eeuwig je klantenkaart blijven volgen. Daarom staat er nu, bij een factuur die de deur uit is (`status!=='concept'`) maar nog geen kopie heeft, een knop **Definitief maken** in het adresblok, met de reden erbij ("Print of post je deze factuur?"). Concepten krijgen hem niet — die ben je nog aan het bouwen.
+
+Daarbij hoort een nieuw veld `f.gegevensVastOp`, gezet door `factuurBevriesGegevens`. Zonder dat zou de editor "Vastgelegd bij het mailen" zeggen over een factuur die je zelf hebt vastgelegd. De regel kent nu drie uitkomsten, in deze volgorde: gemaild → *"Vastgelegd bij het mailen op ‹datum›"*; eigen stempel → *"Definitief gemaakt op ‹datum›"*; kopie zonder stempel (facturen van vóór dit veld) → het neutrale *"Vastgelegd"*. Het stempel wordt meegenomen in alle opruimpaden: mail-rollback, terug-naar-concept en dupliceren.
+
+**Bestanden**: `index.html` — `factuurBevriesGegevens`/`factuurSnapshotVerschil`/`factuurSnapshotBijwerken` (nieuw), `FAC_SNAPSHOT_LABELS`, `facSnapshotVerschilBlok`, `facSnapshotBijwerkenActie`, `factuurMarkeerVerstuurd`, `factuurTerugNaarConcept`, `facMailVerstuurActie`, `facEditorRender`, `facAdresHerkomstRegel`, `facGegevensVastleggenActie`, veld `gegevensVastOp`
 
 **Niet doen**: het bevriezen terugzetten naar `factuurMarkeerVerstuurd`. Bestaande facturen uit Drive hébben al een kopie van vóór deze wijziging; die blijft geldig en krijgt gewoon de bijwerkknop. Er is dus geen migratie nodig, maar ook geen weg terug zonder die facturen te raken.
 

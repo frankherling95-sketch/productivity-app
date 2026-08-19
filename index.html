@@ -17782,10 +17782,18 @@ function factuurAfzenderSnapshot(bedrijfId){
 /* Geeft terug wát er nieuw is bevroren, zodat een mislukte verzending
    precies dat terugdraait en een kopie die er al lag laat staan. */
 function factuurBevriesGegevens(f){
-  const nieuw={klant:false,afzender:false};
+  const nieuw={klant:false,afzender:false,stempel:false};
   if(!f)return nieuw;
   if(!f.klant){f.klant=factuurKlantSnapshot(factuurKlant(f.clientId));nieuw.klant=true;}
   if(!f.afzender){f.afzender=factuurAfzenderSnapshot(factuurBedrijfIdVan(f));nieuw.afzender=true;}
+  /* Wannéér er bevroren is, zodat de editor niet "bij het mailen" hoeft
+     te zeggen over een factuur die je zelf definitief hebt gemaakt.
+     Facturen van vóór dit veld hebben de stempel niet; die krijgen een
+     neutrale tekst. */
+  if((nieuw.klant||nieuw.afzender)&&!f.gegevensVastOp){
+    f.gegevensVastOp=new Date().toISOString();
+    nieuw.stempel=true;
+  }
   return nieuw;
 }
 /* Welke velden lopen uit de pas met de huidige gegevens? Alleen zinvol
@@ -18089,6 +18097,7 @@ function factuurDupliceer(id){
   f.vervaldatum=factuurVervaldatum(datum,(klant&&klant.betaaltermijn)||factuurSettings().betaaltermijn);
   f.betalingen=[];
   delete f.verstuurdOp; delete f.betaaldOp; delete f.klant; delete f.afzender;
+  delete f.gegevensVastOp;
   /* Kopie factureert dezelfde uren niet nog een keer */
   (f.regels||[]).forEach(r=>{r.id=factuurUid();r.urenIds=[];});
   f.createdAt=Date.now(); f.updatedAt=Date.now();
@@ -18198,7 +18207,7 @@ function factuurTerugNaarConcept(id){
      hoort je klantenkaart te volgen. Bleef de kopie staan, dan wees de
      editor wél "volgt je klantgegevens" aan terwijl de PDF nog uit de
      oude momentopname las. */
-  delete f.klant; delete f.afzender;
+  delete f.klant; delete f.afzender; delete f.gegevensVastOp;
   f.betalingen=[];
   f.updatedAt=Date.now();
   scheduleSave();
@@ -18262,6 +18271,7 @@ const FAC_CLICK_ACTIONS={
   facPdf:(a)=>facPdfDownload(a||facEditId),
   facPreview:(a)=>openFacPreview(a||facEditId),
   facSnapshotBijwerken:()=>facSnapshotBijwerkenActie(),
+  facGegevensVastleggen:()=>facGegevensVastleggenActie(),
   closeFacPreview:()=>closeFacPreview(),
   facPreviewPdf:()=>facPdfDownload(facPreviewId),
   facPreviewNieuwTab:()=>facPreviewNieuwTab(),
@@ -19449,12 +19459,7 @@ function facEditorRender(){
     ${bewerkbaar&&f.clientId&&!factuurKlantCompleet(klant)?
       `<div style="margin-top:8px"><span class="fac-onvolledig">⚠ Adres onvolledig</span>
        <button class="uren-btn" style="margin-left:8px" data-fac-action="facKlantBewerk" data-fac-arg1="${f.clientId}">Aanvullen</button></div>`:''}
-    ${f.klant
-      ? `<div style="margin-top:8px;font-size:11.5px;color:var(--text-muted)">
-           Vastgelegd bij het mailen${f.gemaildOp?' op '+factuurFmtDatum(String(f.gemaildOp).slice(0,10)):''} —
-           latere wijzigingen aan de klantgegevens komen hier niet vanzelf in.</div>`
-      : `<div style="margin-top:8px;font-size:11.5px;color:var(--text-muted)">
-           Volgt je klantgegevens; wordt vastgelegd zodra je de factuur mailt.</div>`}
+    ${facAdresHerkomstRegel(f)}
     ${facSnapshotVerschilBlok(f)}
   </div>`;
 
@@ -19552,6 +19557,34 @@ function facEditorRender(){
       ${f.status!=='betaald'?`<button class="uren-btn${f.gemaildOp?' uren-btn-primary':''}" data-fac-action="facBetaald">Betaling registreren</button>`:''}`;
   }
   document.getElementById('facEditorActies').innerHTML=acties;
+}
+
+/* Eén regel onder het adres: leest de PDF nu je klantenkaart, of een
+   vastgelegde kopie? Dat verschil bepaalt of een wijziging aan de klant
+   nog doorwerkt, dus het hoort te staan waar het adres staat.
+
+   Nog niet vastgelegd én de factuur is de deur uit? Dan hoort daar een
+   knop bij: mail je niet maar print je, dan komt het mailmoment nooit en
+   zou de factuur je klantenkaart blijven volgen. */
+function facAdresHerkomstRegel(f){
+  const st='margin-top:8px;font-size:11.5px;color:var(--text-muted)';
+  if(f.klant){
+    const wanneer=f.gemaildOp
+      ? 'Vastgelegd bij het mailen op '+factuurFmtDatum(String(f.gemaildOp).slice(0,10))
+      : f.gegevensVastOp
+        ? 'Definitief gemaakt op '+factuurFmtDatum(String(f.gegevensVastOp).slice(0,10))
+        : 'Vastgelegd';
+    return `<div style="${st}">${wanneer} — latere wijzigingen aan de klantgegevens
+      komen hier niet vanzelf in.</div>`;
+  }
+  if(f.status==='concept')
+    return `<div style="${st}">Volgt je klantgegevens; wordt vastgelegd zodra je de factuur mailt.</div>`;
+  return `<div style="${st}">Volgt je klantgegevens; wordt vastgelegd zodra je de factuur mailt.
+    <div style="margin-top:7px">
+      <button class="uren-btn" data-fac-action="facGegevensVastleggen"
+        title="Leg de klant- en afzendergegevens vast zoals ze er nu staan">Definitief maken</button>
+      <span style="margin-left:8px">Print of post je deze factuur? Leg ze dan hier vast.</span>
+    </div></div>`;
 }
 
 /* Loopt de vastgelegde kopie uit de pas met je klantenkaart of je
@@ -19765,6 +19798,31 @@ function facVerstuur(){
 /* Bijwerken is met opzet één klik zonder bevestigingsvraag: de
    verschillen staan al uitgeschreven boven de knop, dus je weet wat je
    krijgt. Terugdraaien kan met de toast. */
+/* "Definitief maken": legt vast wat er nu op de factuur zou komen. Voor
+   wie print in plaats van mailt -- dan komt het mailmoment nooit. */
+function facGegevensVastleggenActie(){
+  const f=factuurById(facEditId);
+  if(!f||f.klant)return;
+  const nieuw=factuurBevriesGegevens(f);
+  f.updatedAt=Date.now();
+  scheduleSave();
+  facEditorRender();
+  facRenderAll();
+  appToast(`Gegevens van ${f.nummer} definitief gemaakt`,{
+    type:'success',
+    undo:()=>{
+      const g=factuurById(f.id);
+      if(!g)return;
+      if(nieuw.klant)delete g.klant;
+      if(nieuw.afzender)delete g.afzender;
+      if(nieuw.stempel)delete g.gegevensVastOp;
+      g.updatedAt=Date.now();
+      scheduleSave();
+      if(facEditId===g.id)facEditorRender();
+      facRenderAll();
+    }
+  });
+}
 function facSnapshotBijwerkenActie(){
   const f=factuurById(facEditId);
   if(!f)return;
@@ -21912,6 +21970,7 @@ async function facMailVerstuurActie(){
        poging zelf heeft aangemaakt gaat weg; een oudere kopie blijft. */
     if(versBevroren.klant)delete f.klant;
     if(versBevroren.afzender)delete f.afzender;
+    if(versBevroren.stempel)delete f.gegevensVastOp;
     knop.disabled=false;
     status.textContent='';
     /* De meest voorkomende oorzaak eerst: de scope staat nog niet in
