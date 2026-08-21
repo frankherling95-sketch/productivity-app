@@ -33,12 +33,43 @@ window.addEventListener('unhandledrejection', e => errors.push('Promise: ' + (e.
 
 const iframe = document.getElementById('app');
 const iframeErrors = [];
-iframe.addEventListener('load', () => {
-  const w = iframe.contentWindow;
-  w.addEventListener('error', e => iframeErrors.push(e.message));
-  /* Wait a beat for boot to finish (loadGist is async) */
-  setTimeout(runChecks, 1500);
-});
+let gedraaid = false;
+
+/* ── Dit bestand heeft een server nodig ──
+   Via file:// is elk document een eigen origin, dus iframe.contentWindow
+   is afgeschermd en elke test zou op een SecurityError stuklopen. Eerder
+   bleef het scherm dan stil op "Loading app…" staan zonder te zeggen
+   waarom. Nu zegt het wat je moet doen. */
+function meldServerNodig(reden) {
+  gedraaid = true;
+  checks.innerHTML =
+    '<div class="check fail">✗ ' + reden + '</div>' +
+    '<div class="check">Deze test heeft een lokale webserver nodig. Start er een in de projectmap:</div>' +
+    '<div class="check" style="user-select:all;background:#fff;padding:6px 8px;border-radius:4px;margin:6px 0">' +
+    'npx --yes http-server . -p 8765 -c-1 --silent</div>' +
+    '<div class="check">Open daarna <a href="http://localhost:8765/test.html">http://localhost:8765/test.html</a></div>';
+  summary.className = 'summary hasfail';
+  summary.textContent = 'Niet gedraaid — server nodig';
+}
+
+if (location.protocol === 'file:') {
+  meldServerNodig('Geopend via file:// — de browser schermt de iframe dan af.');
+} else {
+  iframe.addEventListener('load', () => {
+    try {
+      iframe.contentWindow.addEventListener('error', e => iframeErrors.push(e.message));
+    } catch (e) {
+      meldServerNodig('Geen toegang tot de iframe: ' + e.message);
+      return;
+    }
+    /* Wait a beat for boot to finish (loadGist is async) */
+    setTimeout(runChecks, 1500);
+  });
+  /* Vangnet: blijft het om welke reden dan ook hangen, zeg dat dan ook. */
+  setTimeout(() => {
+    if (!gedraaid) meldServerNodig('De app in de iframe reageerde niet binnen 10 seconden.');
+  }, 10000);
+}
 
 /* ── Bouwstenen voor de sync-tests ──
    Eén vaste state: map 'Klanten' met twee pagina's, plus twee checklist-
@@ -84,8 +115,16 @@ function vindNotitie(state, id) {
 }
 
 function runChecks() {
-  const w = iframe.contentWindow;
-  const d = w.document;
+  gedraaid = true;
+  let w, d;
+  try {
+    w = iframe.contentWindow;
+    d = w.document;
+    if (!d) throw new Error('geen document');
+  } catch (e) {
+    meldServerNodig('Geen toegang tot de iframe: ' + e.message);
+    return;
+  }
   const tests = [
     ['Module: Dashboard exists',           () => !!d.getElementById('mod-dashboard')],
     ['Module: Todo exists',                () => !!d.getElementById('mod-todo')],

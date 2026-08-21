@@ -167,7 +167,7 @@ git commit -m "Korte Nederlandse beschrijving"
 git push origin main                    # pre-push hook draait validate
 ```
 
-Daarna: vraag Frank om **Ctrl+Shift+R** op de live site. Optioneel `test.html` openen voor smoke test.
+Daarna: vraag Frank om **Ctrl+Shift+R** op de live site. Optioneel `test.html` draaien voor de smoke- en synctests (via een lokale server, niet via `file://`).
 
 **Branches**: voorkeur is direct naar `main`, maar **PRs zijn toegestaan** voor grotere/risicovolle wijzigingen (`gh pr create` of via web UI).
 
@@ -259,7 +259,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | Bestand | Doel |
 |---------|------|
 | `validate.mjs` | JS syntax + tag balance + onclick-referentie checks |
-| `test.html` | Open in browser → 16 smoke tests in iframe |
+| `test.html` | 29 smoke- en synctests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |
