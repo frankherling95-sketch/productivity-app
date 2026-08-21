@@ -40,6 +40,49 @@ iframe.addEventListener('load', () => {
   setTimeout(runChecks, 1500);
 });
 
+/* ── Bouwstenen voor de sync-tests ──
+   Eén vaste state: map 'Klanten' met twee pagina's, plus twee checklist-
+   items, drie urenregels, één factuur en twee klanten. Samen 11 items voor
+   stateOmvang (die telt de map mee) en 2 notities voor versieTelling (die
+   telt alleen pagina's). Elke aanroep geeft een verse kopie, zodat een test
+   die muteert de volgende niet beïnvloedt. */
+function mkState() {
+  return {
+    notes:{tree:[{id:'n1',type:'folder',title:'Klanten',children:[
+      {id:'n2',type:'page',title:'Acme',content:'x'.repeat(900),children:[]},
+      {id:'n3',type:'page',title:'Verdwenen notitie',content:'yyyy',children:[]}
+    ]}]},
+    checklist:{items:[{id:'c1'},{id:'c2'}]},
+    uren:{entries:[{id:'u1'},{id:'u2'},{id:'u3'}]},
+    facturen:{invoices:[{id:'f1'}]},
+    tasks:{clients:[{id:'k1'},{id:'k2'}]},
+    agenda:{events:[]}
+  };
+}
+/* Dezelfde state, maar één notitie is verdwenen — het scenario van 20-8. */
+function zonderNotitie() {
+  const s = mkState();
+  s.notes.tree[0].children = s.notes.tree[0].children.filter(n => n.id !== 'n3');
+  return s;
+}
+/* Notitie bestaat nog, maar de tekst is grotendeels weg. */
+function metKorteTekst() {
+  const s = mkState();
+  vindNotitie(s, 'n2').content = 'xx';
+  return s;
+}
+function vindNotitie(state, id) {
+  const zoek = nodes => {
+    for (const n of nodes || []) {
+      if (n.id === id) return n;
+      const t = zoek(n.children);
+      if (t) return t;
+    }
+    return null;
+  };
+  return zoek((state.notes || {}).tree);
+}
+
 function runChecks() {
   const w = iframe.contentWindow;
   const d = w.document;
@@ -49,9 +92,15 @@ function runChecks() {
     ['Module: Notes exists',               () => !!d.getElementById('mod-notes')],
     ['Module: Agenda exists',              () => !!d.getElementById('mod-agenda')],
     ['Module: Checklist exists',           () => !!d.getElementById('mod-checklist')],
-    ['State: rawState defined',            () => typeof w.rawState !== 'undefined'],
-    ['State: kanbanState defined',         () => typeof w.kanbanState !== 'undefined'],
-    ['State: checklistState defined',      () => typeof w.checklistState !== 'undefined'],
+    /* Niet via w.rawState: dat is een top-level `let` en die staat niet op
+       window, dus deze drie stonden altijd op rood en zeiden niets. Via de
+       snapshot-functie kunnen we de state wél bereiken — en meteen
+       controleren dat de modules erin zitten in plaats van alleen dat er
+       een naam bestaat. */
+    ['State: bereikbaar via snapshot',     () => !!w.huidigeStateSnapshot()],
+    ['State: kanban in de state',          () => typeof w.huidigeStateSnapshot().tasks === 'object'],
+    ['State: checklist in de state',       () => typeof w.huidigeStateSnapshot().checklist === 'object'],
+    ['State: notities in de state',        () => Array.isArray((w.huidigeStateSnapshot().notes||{}).tree)],
     ['Function: saveGist defined',         () => typeof w.saveGist === 'function'],
     ['Function: scheduleSave defined',     () => typeof w.scheduleSave === 'function'],
     ['Function: saveLocalBackup defined',  () => typeof w.saveLocalBackup === 'function'],
@@ -59,6 +108,62 @@ function runChecks() {
     ['Function: renderChecklistModule',    () => typeof w.renderChecklistModule === 'function'],
     ['Sidebar logo present',               () => d.querySelector('.sidebar-logo,.sidebar img,svg[viewBox]')],
     ['localStorage backup writable',       () => { try{ w.localStorage.setItem('test_smoke','1'); w.localStorage.removeItem('test_smoke'); return true }catch(e){return false} }],
+
+    /* ── Sync- en herstellogica ──
+       Dit is sinds 2026-08-21 het gevaarlijkste stuk van de app: hier kan
+       een fout stilletjes data wissen. Het is puur functioneel (state in,
+       state uit, geen netwerk), dus het hoort hier getest te worden en niet
+       met de hand in de console. */
+    ['Sync: functies aanwezig',            () => ['stateOmvang','voegStateSamen','versieTelling',
+                                                  'driveRevisies','driveRevisieState','openVersiesModal']
+                                                  .every(f => typeof w[f] === 'function')],
+    ['stateOmvang: onzin geeft 0',         () => [null, undefined, {}, 'tekst']
+                                                  .every(x => w.stateOmvang(x) === 0)],
+    ['stateOmvang: telt alle modules',     () => w.stateOmvang(mkState()) === 11],
+    ['stateOmvang: leeg < 90% van vol',    () => w.stateOmvang({}) < Math.floor(w.stateOmvang(mkState())*0.9)],
+
+    ['Merge: ontbrekende notitie komt terug', () => {
+      const r = w.voegStateSamen(mkState(), zonderNotitie());
+      return r.rapport.notities === 1 &&
+             vindNotitie(r.state, 'n3') && vindNotitie(r.state, 'n3').content === 'yyyy';
+    }],
+    ['Merge: ingekorte tekst wordt hersteld', () => {
+      const r = w.voegStateSamen(mkState(), metKorteTekst());
+      return r.rapport.tekst === 1 && vindNotitie(r.state, 'n2').content.length === 900;
+    }],
+    ['Merge: langere tekst blijft staan',   () => {
+      const nu = mkState();
+      vindNotitie(nu, 'n2').content = 'z'.repeat(2000);
+      const r = w.voegStateSamen(mkState(), nu);
+      return r.rapport.tekst === 0 && vindNotitie(r.state, 'n2').content.length === 2000;
+    }],
+    ['Merge: nieuwere uren blijven behouden', () => {
+      const nu = mkState();
+      nu.uren.entries.push({id:'u9'});
+      const r = w.voegStateSamen(mkState(), nu);
+      return r.state.uren.entries.length === 4 && r.rapport.uren === 0;
+    }],
+    ['Merge: ontbrekende factuur wordt aangevuld', () => {
+      const nu = mkState();
+      nu.facturen.invoices = [];
+      const r = w.voegStateSamen(mkState(), nu);
+      return r.rapport.facturen === 1 && r.state.facturen.invoices.length === 1;
+    }],
+    ['Merge: raakt de invoer niet aan',     () => {
+      const oud = mkState(), nu = zonderNotitie();
+      const voor = JSON.stringify([oud, nu]);
+      w.voegStateSamen(oud, nu);
+      return JSON.stringify([oud, nu]) === voor;
+    }],
+    ['Merge: gelijke states geven leeg rapport', () => {
+      const r = w.voegStateSamen(mkState(), mkState());
+      return w.versieRapportTekst(r.rapport) === null;
+    }],
+    ['versieTelling: mappen tellen niet mee', () => {
+      const t = w.versieTelling(mkState());
+      return t.notities === 2 && t.uren === 3 && t.facturen === 1 && t.klanten === 2;
+    }],
+
     ['No iframe console errors',           () => iframeErrors.length === 0]
   ];
 

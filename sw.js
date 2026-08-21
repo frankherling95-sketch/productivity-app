@@ -1,12 +1,18 @@
 /* Herling Analytics — Service Worker
-   Strategy: stale-while-revalidate for same-origin GETs.
-   - Serves from cache immediately (instant load + offline support)
-   - Refreshes the cache in the background from network
-   - Network-only for cross-origin (Gist API, fonts, etc.) so live data
-     never gets stale-cached.
+   Twee strategieën, bewust verschillend:
+
+   - Het document zelf (index.html): NETWERK EERST, cache als terugval.
+     Stale-while-revalidate gaf je na een deploy nog één keer de vorige
+     versie. Dat is niet alleen ongemak: je werkt dan in een oude app die
+     wél naar dezelfde Drive schrijft, dus met bugs die al gerepareerd
+     zijn. Alles zit in dit ene bestand, dus dit is de hele app.
+   - De rest (icoon, manifest): stale-while-revalidate, want dat verandert
+     zelden en mag direct uit de cache komen.
+
+   Cross-origin (Google, fonts, iCal) raken we niet aan.
    Bump CACHE_NAME when shipping a new release to invalidate old caches. */
 
-const CACHE_NAME = 'herling-v8';
+const CACHE_NAME = 'herling-v9';
 
 const PRECACHE_URLS = [
   './',
@@ -44,6 +50,25 @@ self.addEventListener('fetch', e => {
 
   /* Skip API-style URLs even on same-origin (defensive) */
   if (url.pathname.includes('/api/')) return;
+
+  /* Het document: netwerk eerst. Lukt dat niet (offline), dan alsnog de
+     cache -- daarmee blijft de app offline bruikbaar zonder dat je na een
+     deploy in een oude versie belandt. */
+  const isDocument = req.mode === 'navigate' ||
+    url.pathname === '/' || url.pathname.endsWith('/index.html');
+  if (isDocument) {
+    e.respondWith(
+      fetch(req).then(resp => {
+        if (resp && resp.ok && resp.type === 'basic') {
+          const clone = resp.clone();
+          caches.open(CACHE_NAME).then(c => c.put(req, clone));
+        }
+        return resp;
+      }).catch(() => caches.match(req).then(cached =>
+        cached || caches.match('./index.html')))
+    );
+    return;
+  }
 
   e.respondWith(
     caches.match(req).then(cached => {

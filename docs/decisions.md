@@ -10,6 +10,25 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-08-21 · Botsingscheck bij het schrijven, netwerk-eerst voor de app, tests op de synclogica
+
+Vervolg op de entry hierboven; drie resterende gaten in hetzelfde verhaal.
+
+**1. Twee vensters konden elkaar nog overschrijven.** Er was al een herlaad bij terugkeer in een tabblad na >30 s (`visibilitychange`), maar die vuurt niet bij twee vensters náást elkaar (allebei `visible`) en slaat over als er een save klaarstaat (`!saveTimer`). Op het moment van schrijven werd niets gecontroleerd.
+→ `driveSchrijf(obj, verwachtTijd)` vergelijkt nu de `modifiedTime` van het bestand met de versie die **dit venster** kent (`driveGezien`, bewust in het geheugen — twee vensters delen localStorage, dus dáár zou de vergelijking altijd "bij" zeggen). Wijkt het af, dan gooit hij `code:'botsing'` en voegt `saveGistIntern` eerst samen met `voegStateSamen()` voordat er geschreven wordt. De vergelijking is gratis: `driveZoekBestand()` haalde `modifiedTime` toch al op vlak vóór de upload.
+→ Bekende beperking: een merge op id ziet geen verwijderingen, dus een item dat in het andere venster verwijderd is komt terug. Dat is de goede kant om het mis te hebben.
+
+**2. Service worker serveerde na een deploy nog één keer de oude app.** Stale-while-revalidate gold ook voor `index.html`. Dat is niet alleen ongemak: je werkt dan in een oude app — met bugs die al gerepareerd zijn — die wél naar dezelfde Drive schrijft.
+→ Het document (`req.mode==='navigate'`, `/`, `/index.html`) gaat nu **netwerk eerst** met de cache als terugval; de rest blijft stale-while-revalidate. Offline getest met de dev-server uit: index.html komt dan gewoon uit de cache. `CACHE_NAME` naar `herling-v9`.
+→ Bij het uitrollen van een nieuwe SW is er nog één keer een tweede reload nodig: de eerste navigatie wordt nog door de oude worker afgehandeld. Daarna niet meer.
+
+**3. De synclogica werd door niets getest.** `test.html` controleerde of functies *bestonden*. Daarbij stonden drie tests permanent op rood: ze keken naar `w.rawState`, maar dat is een top-level `let` en die staat niet op `window` — ze konden dus nooit slagen en werden genegeerd.
+→ Twaalf functionele tests op `stateOmvang`, `voegStateSamen` en `versieTelling`: ontbrekende notitie komt terug, ingekorte tekst wordt hersteld, een lángere huidige tekst blijft staan, nieuwere uren blijven behouden, de invoer wordt niet gemuteerd, gelijke states geven een leeg rapport. De drie kapotte tests lopen nu via `huidigeStateSnapshot()`. 29/29 groen.
+
+**Bestanden**: `index.html` — `driveSchrijf` (parameter `verwachtTijd`), `saveGistIntern` (botsingsafhandeling), `driveGezien` (nieuw), `driveProbeerLaden`; `sw.js` — documenttak + `herling-v9`; `test.html` — synctests + `mkState`/`zonderNotitie`/`metKorteTekst`/`vindNotitie`
+
+**Niet doen**: `driveGezien` in localStorage zetten "zodat het een herlaad overleeft". Dan delen twee vensters dezelfde waarde en is de hele botsingscheck waardeloos — dat is precies het geval dat hij moet vangen.
+
 ## 2026-08-21 · Drive is de waarheid; terugzetten via Versiegeschiedenis
 
 **Probleem**: op 20 augustus om 18:33 sprong het bestand in Drive van 674 kB naar 429 kB — het niveau van vóór 16 augustus. Een deel van de notities was weg. Oorzaak: de melding uit `meldLokaalTerugzetbaar()` die tijdens het opstarten verschijnt met de knop "↺ Werk van dit apparaat gebruiken". Die knop roept `herstelLokaalTerug()` aan en schrijft de lokale kopie over Drive heen. Frank klikte hem aan zonder te kunnen zien wat erin zat; de lokale kopie was dagen oud. De data is teruggehaald uit Drive's eigen revisiegeschiedenis (`files/{id}/revisions`), die de app tot dan toe niet gebruikte.

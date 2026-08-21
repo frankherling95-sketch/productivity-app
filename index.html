@@ -8367,6 +8367,8 @@ async function driveProbeerLaden(){
   const d=await driveLees();
   driveGelezen=true;
   if(!d||!d.inhoud)return null;
+  /* Vanaf hier weet dit venster welke versie in Drive staat. */
+  driveGezien=d.meta.modifiedTime;
   const st=d.inhoud.state||d.inhoud;
   return {state:st,tijd:new Date(d.meta.modifiedTime).getTime(),
           tijdISO:d.meta.modifiedTime,bron:'drive'};
@@ -8780,10 +8782,36 @@ async function saveGistIntern(){
      verandert hoort niet bij deze schrijfactie. */
   const stempel=Date.now();
   try{
-    const res=await driveSchrijf({_bron:'app',_opgeslagenOp:new Date().toISOString(),state:payload});
+    let res;
+    try{
+      res=await driveSchrijf({_bron:'app',_opgeslagenOp:new Date().toISOString(),state:payload},
+        driveGezien);
+    }catch(botsing){
+      if(botsing.code!=='botsing')throw botsing;
+      /* Er is elders geschreven sinds dit venster laatst keek. Eroverheen
+         gaan is precies de fout die de notities kostte, dus we voegen eerst
+         samen: alles wat daar staat en hier ontbreekt komt erbij, onze eigen
+         wijzigingen blijven. Wat een merge op id niet kan zien is een
+         verwijdering -- die komt dan terug. Dat is de goede kant om het mis
+         te hebben. */
+      const ander=await driveProbeerLaden();
+      if(!ander)throw botsing;
+      const {state:samen,rapport}=voegStateSamen(ander.state,payload);
+      rawState=samen;
+      hydrateerState();
+      renderAll();
+      res=await driveSchrijf({_bron:'app',_opgeslagenOp:new Date().toISOString(),state:samen},
+        ander.tijdISO);
+      const tekst=versieRapportTekst(rapport);
+      console.warn('Drive was elders gewijzigd; samengevoegd.',rapport);
+      if(tekst)appToast('Er was elders opgeslagen. De versies zijn samengevoegd: '+
+        tekst+' erbij.',{type:'info',duration:9000});
+    }
     driveLaatsteFout=null;
     saveRetryStap=0;
     clearTimeout(saveRetryTimer); saveRetryTimer=null;
+    /* Dit venster kent nu de versie die het zelf net schreef. */
+    driveGezien=(res&&res.modifiedTime)||driveGezien;
     /* Drive's eigen modifiedTime meenemen. Daarmee kan de volgende start
        "is Drive veranderd sinds ik schreef?" beantwoorden zonder de klok
        van dit apparaat met die van Google te vergelijken. */
@@ -10726,6 +10754,11 @@ let DRIVE_ACTIEF=true;         /* enige opslag sinds fase 2 */
 let driveToken=null;           /* {token, tot} zolang de app open is */
 let driveTokenClient=null;
 let driveGelezen=false;        /* is Drive deze sessie minstens één keer gelezen? */
+/* De modifiedTime van de Drive-versie die DIT venster kent. Bewust in het
+   geheugen en niet in localStorage: twee vensters op dezelfde computer
+   delen localStorage, en dan zou elk venster denken dat het bij is terwijl
+   het ander net schreef. Juist dat verschil moeten we kunnen zien. */
+let driveGezien=null;
 
 /* Het toegangstoken overleeft een pagina-verversing in sessionStorage.
    Zonder dat moet Google bij elke refresh een venster openen om het
@@ -10911,8 +10944,22 @@ async function driveLees(){
 
 /* Schrijft (of vervangt) het databestand. Multipart, zodat naam en
    inhoud in een verzoek meegaan. */
-async function driveSchrijf(obj){
+/* `verwachtTijd` is de modifiedTime van de versie waarvan dít venster denkt
+   dat hij in Drive staat. Klopt dat niet meer, dan heeft iets anders
+   intussen geschreven -- een tweede venster, een andere computer -- en zou
+   deze schrijfactie dat werk wissen. Dan gooien we een botsing, en handelt
+   saveGistIntern het af door eerst samen te voegen.
+
+   De vergelijking is gratis: driveZoekBestand() haalt modifiedTime toch al
+   op, vlak voor het uploaden. */
+async function driveSchrijf(obj,verwachtTijd){
   const bestand=await driveZoekBestand();
+  if(bestand&&verwachtTijd&&bestand.modifiedTime!==verwachtTijd){
+    const e=new Error('Drive is intussen elders gewijzigd');
+    e.code='botsing';
+    e.driveTijd=bestand.modifiedTime;
+    throw e;
+  }
   const inhoud=JSON.stringify(obj);
   const grens='herling'+Math.random().toString(36).slice(2);
   const metadata=bestand?{name:DRIVE_BESTAND}:{name:DRIVE_BESTAND,parents:['appDataFolder']};

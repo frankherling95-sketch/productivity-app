@@ -144,7 +144,7 @@ Bij CDN-falen: app crasht niet hard, alleen die feature werkt niet (Excel-export
 
 - **Geen externe build step** — alles inline.
 - **Vanilla JS** — geen frameworks (jQuery/React/Vue NIET).
-- ⚠️ **Service Worker bestaat (`sw.js`)** — was eerder verwijderd vanwege caching-bugs, is nu (door pwa-feature-commits) terug. Stale-while-revalidate strategie. Bij "ik zie de oude versie" altijd eerst SW + caches in DevTools clearen.
+- ⚠️ **Service Worker bestaat (`sw.js`)** — het document (`index.html`) gaat **netwerk eerst** met cache als offline-terugval; de rest is stale-while-revalidate. Bump `CACHE_NAME` bij een release. Na het uitrollen van een gewijzigde `sw.js` is er nog één extra reload nodig voordat de nieuwe worker het overneemt.
 - **Geen analytics, geen cookies**. Alle data privé in Drive + localStorage.
 - **CORS-proxy** voor iCal: zie `docs/agenda.md` voor de 4-proxy chain.
 - **Drag-and-drop**: HTML5 native (`draggable="true"`).
@@ -187,7 +187,7 @@ Daarna: vraag Frank om **Ctrl+Shift+R** op de live site. Optioneel `test.html` o
 |----------|-----------|
 | Subtaak verschijnt dubbel | Guard met `if(clAddingSubtaskFor!==itemId)return;` aan top van `commitSubtaskInput` |
 | iCal events ontbreken / dubbel | Zie `docs/agenda.md` — check RRULE/RECURRENCE-ID/EXDATE handling |
-| "Ik zie de oude versie" | Eerst Ctrl+Shift+R; dan DevTools → Application → Service Workers → Unregister + Clear site data |
+| "Ik zie de oude versie" | Sinds v9 is het document netwerk-eerst, dus dit hoort niet meer voor te komen. Eén keer herladen na een `sw.js`-wijziging; blijft het hangen: DevTools → Application → Service Workers → Unregister + Clear site data |
 | Force-push verwijdert remote commits | **Eerst altijd `git fetch && git log HEAD..origin/main`** |
 | `.claude/worktrees/...` heeft een kopie | Negeren — staat in `.gitignore`, agent-isolatie |
 | Maandweergave krap bij drukke dag | Klik op datum → daganzicht |
@@ -196,6 +196,7 @@ Daarna: vraag Frank om **Ctrl+Shift+R** op de live site. Optioneel `test.html` o
 
 Top-3 meest recent. Volledige log + *waarom* per beslissing: [`docs/decisions.md`](docs/decisions.md).
 
+- **2026-08-21**: Botsingscheck bij het schrijven (`driveGezien` per venster; bij afwijking eerst samenvoegen), `index.html` netwerk-eerst in de service worker, en 12 functionele tests op de synclogica in `test.html` (29/29)
 - **2026-08-21**: Drive is de waarheid — de opstartmelding met "werk van dit apparaat gebruiken" is weg (die knop schreef een oude kopie over Drive heen en kostte notities). Lokaal werk wordt alleen nog stil ingehaald als Drive onveranderd is én de kopie compleet; terugzetten gaat via **Instellingen → Versiegeschiedenis** (Drive-revisies, per dag, met aanvullen/terugzetten/downloaden). Eén versie per dag wordt met `keepForever` vastgehouden
 - **2026-08-19**: Urensjablonen — "Toepassen" volgt nu de getoonde periode (landde in de week van vandaag), herhalen vult ook bij bladeren, en een herhalend sjabloon heeft een startdatum (`vanafDatum`) zodat het niet jaren terugwerkend invult
 - **2026-08-19**: Uren per klant kiezen binnen een factuurpartij — vinkjes onder de gekozen partij in de nieuwe-factuur-wizard, keuze bewaard als `f.urenKlanten`
