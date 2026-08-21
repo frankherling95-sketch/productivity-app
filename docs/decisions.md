@@ -10,6 +10,30 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-08-21 · Code-opschoning: stubs, altijd-ware guards en dode functies eruit
+
+**Probleem.** `index.html` droeg een laag ruis mee uit de tijd dat het bestand in delen werd samengesteld ("STUB functions — will be completed in next parts"):
+
+- **58 lege stub-functies** (`function renderTodoModule(){}` enz.) die verderop allemaal een echte definitie kregen. Door hoisting wint de laatste declaratie, dus ze deden niets — maar ze zijn wél een valstrik: verdwijnt ooit de echte definitie, dan slikt de stub de aanroep geruisloos in plaats van een `ReferenceError` te geven.
+- **45 guards `typeof x==='function'`** rond functies die állemaal top-level gedeclareerd staan. Ze zijn per definitie waar (en zouden bij een `let` in de temporal dead zone tóch gooien). Ze suggereren onzekerheid die er niet is; één ervan draaide per factuur in een filter.
+- **17 functies die nergens werden aangeroepen**, waaronder de complete `calAddDropdown`-feature: drie functies plus een `click`-listener op `document` die bij elke klik in de app een element opzocht dat niet bestaat, en ~65 regels CSS.
+- **`getISOWeek` stond er twee keer**, met twee verschillende implementaties. De tweede overschreef de eerste.
+- De **rawState-verzamelstap stond viermaal** uitgeschreven, in twee varianten (met en zonder `typeof`-guard). Dat is precies de code waar vergeten duur is: wat er niet in staat, gaat niet naar Drive.
+
+**Beslissing.** Alles hierboven verwijderd. Eén `verzamelModuleState()` als enige plek waar de module-states in `rawState` landen; `huidigeStateSnapshot()` bouwt daarop voort en wordt nu ook door `saveGistIntern` en `downloadBackup` gebruikt. De dubbele kop-en-streep in de PDF-generator zit in `facPdfBlokKop()`. Verder: een zoekbare inhoudsopgave boven zowel de stylesheet als het script, de sectie "UTILS" gesplitst (die bevatte 600 regels opslaglaag onder de naam "hulpjes"), en de verouderde Engelse module-banners vertaald en op de feiten gecontroleerd.
+
+**Waarom dit veilig is.** Geen enkele wijziging verandert gedrag, en dat is gemeten in plaats van aangenomen:
+- `validate.mjs` groen; `test.html` 29/29 inclusief "geen console-fouten".
+- AST-vergelijking met de versie van vóór de opschoning: elke verwijderde naam komt nergens meer voor, top-level variabelen ongewijzigd, geen dubbele declaraties, geen aanroep naar een onbekende naam.
+- Dezelfde factuur gerenderd in oud en nieuw geeft **byte-identieke PDF's** in alle vier combinaties van kop/lijn-boven — de branches die `facPdfBlokKop()` overnam.
+- Berekende stijlen en geometrie van alle 1337 elementen: **0 verschillen** op desktop, mobiel, licht én donker.
+
+**Bestanden.** `index.html` (−240 regels netto), `CLAUDE.md`.
+
+**Niet doen.** De 668 `!important`-declaraties en de gelaagde CSS-overlays zijn níet aangeraakt. Die dichtheid is een gevolg van de opbouw in lagen (basis → thema-overlay → post-fixes → componenten → media queries); daar iets uithalen vraagt om per selector te controleren wie er wint, en dat is een aparte klus met echt regressierisico. De inhoudsopgave boven de stylesheet legt de laagvolgorde uit zodat die controle te doen is.
+
+---
+
 ## 2026-08-21 · Botsingscheck bij het schrijven, netwerk-eerst voor de app, tests op de synclogica
 
 Vervolg op de entry hierboven; drie resterende gaten in hetzelfde verhaal.

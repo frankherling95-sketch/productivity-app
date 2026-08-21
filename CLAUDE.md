@@ -101,8 +101,13 @@ Lopen elke `loadGist()`. Bij toevoegen van een nieuw state-veld: voeg een hydrat
 
 | Functie | Wat |
 |---------|-----|
-| `migrateOldKanban(loaded)` | Flat-format → nieuwe structuur |
 | `migrateCalSettings()` | `icalUrl` → `calSources[]` |
+
+> `migrateOldKanban(loaded)` stond hier ook, maar werd nergens aangeroepen — het allereerste platte kanban-formaat werd dus al langer niet meer omgezet. De dode functie is verwijderd (2026-08-21).
+
+### State in `rawState` zetten
+
+`verzamelModuleState()` kopieert de losse module-states terug in `rawState`; `huidigeStateSnapshot()` doet dat plus een lege `agenda` als die ontbreekt en geeft `rawState` terug. **Nieuwe module erbij? Zet hem in `verzamelModuleState()`** — wat daar niet in staat gaat niet naar Drive en niet in de back-up.
 
 ## UX-systemen
 
@@ -196,6 +201,7 @@ Daarna: vraag Frank om **Ctrl+Shift+R** op de live site. Optioneel `test.html` d
 
 Top-3 meest recent. Volledige log + *waarom* per beslissing: [`docs/decisions.md`](docs/decisions.md).
 
+- **2026-08-21**: Opschoning zonder gedragsverandering — 58 lege stub-functies en 45 altijd-ware `typeof x==='function'`-guards weg (restanten uit de tijd dat het bestand in delen werd samengesteld), 17 nooit-aangeroepen functies verwijderd, `verzamelModuleState()` als enige plek waar modules in `rawState` landen. Bewezen identiek: byte-gelijke PDF's en 0 verschillen in berekende stijlen (desktop/mobiel/licht/donker)
 - **2026-08-21**: Botsingscheck bij het schrijven (`driveGezien` per venster; bij afwijking eerst samenvoegen), `index.html` netwerk-eerst in de service worker, en 12 functionele tests op de synclogica in `test.html` (29/29)
 - **2026-08-21**: Drive is de waarheid — de opstartmelding met "werk van dit apparaat gebruiken" is weg (die knop schreef een oude kopie over Drive heen en kostte notities). Lokaal werk wordt alleen nog stil ingehaald als Drive onveranderd is én de kopie compleet; terugzetten gaat via **Instellingen → Versiegeschiedenis** (Drive-revisies, per dag, met aanvullen/terugzetten/downloaden). Eén versie per dag wordt met `keepForever` vastgehouden
 - **2026-08-19**: Urensjablonen — "Toepassen" volgt nu de getoonde periode (landde in de week van vandaag), herhalen vult ook bij bladeren, en een herhalend sjabloon heeft een startdatum (`vanafDatum`) zodat het niet jaren terugwerkend invult
