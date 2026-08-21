@@ -79,7 +79,7 @@ rawState = {
 | `LS_ICAL_EVENT_CACHE` = `herling_ical_event_cache_v2` | Per-feed parsed events (5mo window) |
 | `LS_PROXY_CACHE_KEY` = `herling_ical_proxy_cache` | Per-feed werkende proxy |
 | `LS_SYNC_KEY` = `herling_analytics_sync` | `gewijzigdOp`/`naarDriveOp` (lokale klok) + `driveTijd` (server-klok) |
-| `LS_HERSTEL_KEY` = `herling_analytics_herstel` | Niet-gekozen versie na een conflict; ophalen met `herstelDownload()` |
+| `LS_HERSTEL_KEY` = `herling_analytics_herstel` | Niet-gekozen versie na een conflict; zichtbaar in Instellingen → Versiegeschiedenis, of `herstelDownload()` |
 
 ### Save flow
 
@@ -196,6 +196,7 @@ Daarna: vraag Frank om **Ctrl+Shift+R** op de live site. Optioneel `test.html` o
 
 Top-3 meest recent. Volledige log + *waarom* per beslissing: [`docs/decisions.md`](docs/decisions.md).
 
+- **2026-08-21**: Drive is de waarheid — de opstartmelding met "werk van dit apparaat gebruiken" is weg (die knop schreef een oude kopie over Drive heen en kostte notities). Lokaal werk wordt alleen nog stil ingehaald als Drive onveranderd is én de kopie compleet; terugzetten gaat via **Instellingen → Versiegeschiedenis** (Drive-revisies, per dag, met aanvullen/terugzetten/downloaden). Eén versie per dag wordt met `keepForever` vastgehouden
 - **2026-08-19**: Urensjablonen — "Toepassen" volgt nu de getoonde periode (landde in de week van vandaag), herhalen vult ook bij bladeren, en een herhalend sjabloon heeft een startdatum (`vanafDatum`) zodat het niet jaren terugwerkend invult
 - **2026-08-19**: Uren per klant kiezen binnen een factuurpartij — vinkjes onder de gekozen partij in de nieuwe-factuur-wizard, keuze bewaard als `f.urenKlanten`
 - **2026-08-19**: Facturentabel opgeschoond — kolom excl. btw, verzenddatum onder de status, één lettertype (`--font-mono` overschreven voor de module), `table-layout:fixed`, bedrijf onder het nummer i.p.v. eigen kolom; knoppen en tabs met zichtbare rand en schaduw; tijdstip in Verzonden

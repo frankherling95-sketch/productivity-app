@@ -6427,6 +6427,7 @@ textarea { line-height: 1.6; resize: vertical; }
               <div class="dash-mobile-settings-divider"></div>
               <button type="button" onclick="closeDashMobileSettings();refreshGist()">↻ Data opnieuw laden</button>
               <div class="dash-mobile-settings-divider"></div>
+              <button type="button" onclick="closeDashMobileSettings();openVersiesModal()">↺ Versiegeschiedenis</button>
               <button type="button" onclick="closeDashMobileSettings();downloadBackup()">↓ Backup downloaden (JSON)</button>
               <button type="button" onclick="closeDashMobileSettings();document.getElementById('restoreFileInput').click()">↑ Backup terugzetten</button>
               <div class="dash-mobile-settings-divider"></div>
@@ -7069,6 +7070,28 @@ textarea { line-height: 1.6; resize: vertical; }
       <button class="btn btn-sm" data-fac-action="facSjabloonHerstel">Standaard herstellen</button>
       <div class="modal-footer-right">
         <button class="btn btn-sm" data-fac-action="closeFacSjabloon">Sluiten</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Versiegeschiedenis: oudere versies uit Drive terughalen ── -->
+<div class="modal-bg" id="versiesModal" onclick="if(event.target===this)closeVersiesModal()">
+  <div class="modal" style="max-width:760px;padding:0;display:flex;flex-direction:column;max-height:92vh">
+    <div style="padding:18px 22px 14px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0">
+      <div style="flex:1;min-width:0">
+        <h3 style="font-size:18px;font-weight:700;margin:0">Versiegeschiedenis</h3>
+        <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0;line-height:1.5">
+          Elke keer dat de app opslaat bewaart Drive de vorige versie. Klik op een versie om te zien wat erin zit.</p>
+      </div>
+      <button onclick="closeVersiesModal()" aria-label="Sluiten"
+        style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--text-muted);padding:4px 8px;border-radius:var(--radius)">✕</button>
+    </div>
+    <div style="padding:16px 22px;overflow-y:auto;flex:1;min-height:0" id="versiesBody"></div>
+    <div class="modal-footer" style="padding:14px 22px;border-top:0.5px solid var(--border);flex-shrink:0">
+      <div style="font-size:11.5px;color:var(--text-muted);line-height:1.45" id="versiesVoet"></div>
+      <div class="modal-footer-right">
+        <button class="btn btn-sm" onclick="closeVersiesModal()">Sluiten</button>
       </div>
     </div>
   </div>
@@ -8349,6 +8372,25 @@ async function driveProbeerLaden(){
           tijdISO:d.meta.modifiedTime,bron:'drive'};
 }
 
+/* Grove maat voor "hoeveel administratie zit hierin": het totaal aantal
+   items over alle modules. Niet bedoeld om versies inhoudelijk te
+   vergelijken, wél om te zien of een kopie verdacht veel kleiner is dan
+   waar hij overheen zou gaan. */
+function stateOmvang(st){
+  if(!st||typeof st!=='object')return 0;
+  const telBoom=(nodes)=>(nodes||[]).reduce((n,x)=>n+1+telBoom(x.children),0);
+  let n=telBoom((st.notes||{}).tree);
+  n+=((st.checklist||{}).items||[]).length;
+  n+=((st.uren||{}).entries||[]).length;
+  n+=((st.facturen||{}).invoices||[]).length;
+  n+=((st.tasks||{}).clients||[]).length;
+  n+=((st.agenda||{}).events||[]).length;
+  Object.values((st.tasks||{}).projects||{}).forEach(p=>{
+    (p&&p.columns||[]).forEach(c=>{n+=(c.items||[]).length;});
+  });
+  return n;
+}
+
 async function loadGist(){
   setSync('saving','Verbinden...');
   try{
@@ -8361,9 +8403,12 @@ async function loadGist(){
       if(lokaal){
         rawState=lokaal;
         hydrateerState();
-        setSync('saved','Lokale kopie geladen - nog niets in Drive');
-        appToast('In Drive staat nog niets; je lokale kopie is geladen en gaat '+
-          'bij de eerstvolgende wijziging mee naar Drive.',{type:'info',duration:9000});
+        renderAll();
+        /* Niet wachten tot je toevallig iets wijzigt. Zolang dit alleen hier
+           staat is het niet veilig, en zou de balk groen staan terwijl er in
+           Drive niets is. Meteen wegschrijven maakt de stand weer waar. */
+        await saveGist();
+        return 'ok';
       } else {
         rawState={tasks:{},notes:{tree:[],activeId:null,collapsed:{}},checklist:{},
                   uren:{entries:[],templates:[]},facturen:{},agenda:{events:[]},settings:{}};
@@ -8373,36 +8418,64 @@ async function loadGist(){
       renderAll();
       return;
     }
-    /* ── Drive wint, altijd ──
-       Hier stond een confirm() die je bij elke start kon tegenkomen en die
-       je dwong te kiezen voordat je iets zag. Dat is precies verkeerd om:
-       verversen hoort te betekenen dat je de versie uit de cloud krijgt,
-       zonder eerst een vraag te beantwoorden.
+    /* ── Drive is de waarheid, en er wordt niets meer gevraagd ──
+       Hier stond eerst een confirm(), daarna een melding met de knop "werk
+       van dit apparaat gebruiken". Allebei vroegen om een keuze op het
+       slechtste moment -- tijdens het opstarten, zonder dat je kon zien wat
+       je koos. Eén misklik schreef op 2026-08-20 een kopie van vier dagen
+       oud over Drive heen en kostte een deel van de notities.
 
-       Dus: Drive is de bron, punt. Stond er lokaal werk dat Drive nooit
-       heeft gekregen, dan gaat dat niet verloren maar naar de herstelkopie,
-       met een melding die het met één klik terugzet. Niets blokkeert en
-       niets wordt weggegooid. */
+       De regel is nu: wat in Drive staat is de administratie. Er is één
+       uitzondering, en die is geen conflict: staat Drive nog precies op de
+       versie die dit apparaat het laatst zag, dan heeft niemand anders iets
+       geschreven en was het lokale werk alleen nog niet weg. Dat wordt
+       zonder vragen ingehaald.
+
+       In elk ander geval wint Drive. Het lokale werk verdwijnt niet: het
+       gaat naar de versiegeschiedenis (Instellingen → Versiegeschiedenis),
+       waar je het rustig kunt bekijken in plaats van er blind over te
+       moeten beslissen. */
     const lokaal=loadLocalBackupMeta();
+    const stand=syncStand();
     const lokaalOnverzonden=!!(syncOngesynct()&&lokaal);
-    if(lokaalOnverzonden)bewaarHerstelkopie('lokaal',lokaal.data);
+    const driveOnveranderd=!!(stand.driveTijd&&d.tijdISO&&stand.driveTijd===d.tijdISO);
+    /* Inhalen betekent lokaal over Drive heen schrijven. Dat mag alleen als
+       de lokale kopie ook echt compleet is -- is hij fors kleiner, dan is er
+       iets mis met dit apparaat en is Drive de veiligere bron. Dit is de
+       enige plek waar lokaal ooit nog voorrang krijgt, dus de rem zit hier. */
+    const lokaalCompleet=lokaalOnverzonden&&
+      stateOmvang(lokaal.data)>=Math.floor(stateOmvang(d.state)*0.9);
+    if(lokaalOnverzonden&&driveOnveranderd&&lokaalCompleet){
+      rawState=lokaal.data;
+      hydrateerState();
+      lastLoadedAt=Date.now();
+      syncOnthoudDriveTijd(d.tijdISO);
+      renderAll();
+      /* Meteen wegschrijven in plaats van wachten op een volgende
+         wijziging: daarna klopt de groene stand weer met Drive. */
+      await saveGist();
+      return 'ok';
+    }
+    if(lokaalOnverzonden){
+      bewaarHerstelkopie('lokaal',lokaal.data);
+      console.warn('Werk van dit apparaat van '+
+        new Date(lokaal.savedAt).toLocaleString('nl-NL')+' is niet in Drive '+
+        'aangekomen'+(driveOnveranderd?' en de lokale kopie is onvolledig':
+        ' en Drive is intussen veranderd')+'. Drive is geladen; het lokale '+
+        'werk staat onder Instellingen → Versiegeschiedenis.');
+    }
     rawState=d.state||{};
     hydrateerState();
     lastLoadedAt=Date.now();
     /* Vastleggen welke versie van Drive we nu in handen hebben. Zonder dit
-       had een apparaat dat nog nooit succesvol schreef geen ijkpunt, en
-       viel het bij het eerste onverzonden werk terug op de conflictvraag. */
+       had een apparaat dat nog nooit succesvol schreef geen ijkpunt. */
     syncOnthoudDriveTijd(d.tijdISO);
+    /* De lokale wijziging is hiermee afgehandeld -- niet door hem weg te
+       schrijven, maar doordat Drive de basis is. Zonder deze markering
+       bleef dit apparaat zichzelf bij elke start als ongesynct zien. */
+    if(lokaalOnverzonden)syncMarkeerDrive(Date.now(),d.tijdISO);
     setSync('saved','Geladen · '+new Date().toLocaleTimeString('nl-NL'));
     renderAll();
-    if(lokaalOnverzonden){
-      /* Het lokale werk is niet weg -- het staat in de herstelkopie. Deze
-         markering zorgt dat dezelfde melding niet bij élke volgende start
-         terugkomt: de keuze is gemaakt, Drive is nu de basis. */
-      syncMarkeerDrive(Date.now(),d.tijdISO);
-      meldLokaalTerugzetbaar(lokaal.savedAt,d.tijd);
-      return 'gemeld';   /* er staat al een melding; niet overschrijven */
-    }
     return 'ok';
   }catch(e){
     console.error('Laden mislukt:',e);
@@ -8554,24 +8627,11 @@ function bewaarHerstelkopie(bron,data){
     }));
   }catch(_){}
 }
-/* Drive is geladen, maar er stond hier werk dat daar nooit aankwam. Geen
-   dialoog die het laden ophoudt: een melding die zegt wat er is gebeurd,
-   met een knop die het alsnog terugzet. De keuze blijft, de blokkade niet. */
-function meldLokaalTerugzetbaar(savedAt,driveTijd){
-  const t=ms=>new Date(ms).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});
-  /* Beide tijden noemen. De versie uit Drive kan ouder zijn dan wat hier
-     stond -- dat is juist het geval waarin je wilt weten dat er een knop
-     naast staat, en de oude tekst noemde Drive dan ten onrechte "nieuwer". */
-  const lokaalNieuwer=savedAt>driveTijd;
-  appToast('Geladen uit Drive ('+t(driveTijd)+'). Op dit apparaat stond werk van '+
-    t(savedAt)+' dat Drive nooit heeft gekregen'+
-    (lokaalNieuwer?' — dat is dus nieuwer':'')+
-    '. Het is bewaard; hiernaast zet je het alsnog terug.',
-    {type:'warning',duration:20000,
-     actieLabel:'↺ Werk van dit apparaat gebruiken',
-     undo:herstelLokaalTerug});
-}
-/* Zet de bewaarde lokale versie alsnog terug en schrijf hem naar Drive. */
+/* Zet de bewaarde lokale versie alsnog terug en schrijf hem naar Drive.
+   Wordt niet meer vanuit een melding aangeroepen -- die knop stond tijdens
+   het opstarten in beeld en kostte op 2026-08-20 een deel van de notities.
+   Hij hoort thuis in Instellingen → Versiegeschiedenis, waar je eerst ziet
+   wát je terugzet. */
 function herstelLokaalTerug(){
   const raw=localStorage.getItem(LS_HERSTEL_KEY);
   if(!raw){appToast('Er staat geen herstelkopie klaar',{type:'warning'});return;}
@@ -8729,6 +8789,9 @@ async function saveGistIntern(){
        van dit apparaat met die van Google te vergelijken. */
     syncMarkeerDrive(stempel,res&&res.modifiedTime);
     setSync('saved','Opgeslagen · '+new Date().toLocaleTimeString('nl-NL'));
+    /* Eén versie per dag vasthouden. Bewust niet afwachten: het is een
+       vangnet voor later, niet iets waar deze save op hoort te wachten. */
+    driveBewaarDagversie(res&&res.id,res&&res.headRevisionId).catch(()=>{});
     if(typeof updateNavBadges==='function')updateNavBadges();
   }catch(e){
     console.error('Opslaan naar Drive mislukt:',e);
@@ -10612,6 +10675,9 @@ function toggleAppInstellingen(e){
   const dagen=typeof facBackupLeeftijd==='function'?facBackupLeeftijd():null;
   m.innerHTML=`
     <div class="uren-menu-lab">Opslag</div>
+    <button class="uren-menu-item" role="menuitem" data-app-instel="versies">
+      <span class="ic" aria-hidden="true">&#8635;</span>
+      <span>Versiegeschiedenis<small>Een oudere versie uit Drive terughalen</small></span></button>
     <button class="uren-menu-item" role="menuitem" data-app-instel="backup">
       <span class="ic" aria-hidden="true">&#9739;</span>
       <span>Back-up downloaden<small>${dagen===null?'Nog nooit gedaan':dagen===0?'Vandaag gedaan':'Laatst '+dagen+' '+(dagen===1?'dag':'dagen')+' geleden'}</small></span></button>
@@ -10637,6 +10703,7 @@ document.addEventListener('click',e=>{
   const wat=el.dataset.appInstel;
   closeAppInstellingen();
   if(wat==='backup')downloadBackup();
+  if(wat==='versies')openVersiesModal();
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeAppInstellingen();});
 
@@ -10855,13 +10922,394 @@ async function driveSchrijf(obj){
     '--'+grens+'\r\nContent-Type: application/json\r\n\r\n'+
     inhoud+'\r\n'+
     '--'+grens+'--';
-  const pad='upload/drive/v3/files'+(bestand?'/'+bestand.id:'')+'?uploadType=multipart&fields=id,modifiedTime,size';
+  /* headRevisionId erbij: daarmee weten we welke revisie we zojuist
+     schreven, en kunnen we er één per dag voor altijd laten bewaren. */
+  const pad='upload/drive/v3/files'+(bestand?'/'+bestand.id:'')+'?uploadType=multipart&fields=id,modifiedTime,size,headRevisionId';
   const r=await driveApi(pad,{
     method:bestand?'PATCH':'POST',
     headers:{'Content-Type':'multipart/related; boundary='+grens},
     body
   });
   return r.json();
+}
+
+/* ── Versiegeschiedenis ──
+   Drive houdt van elk bestand oudere versies bij; de app deed daar tot nu
+   toe niets mee. Precies die geschiedenis redde op 2026-08-21 de notities
+   terug, alleen moest dat via de console. Hieronder staat wat het scherm
+   in Instellingen → Versiegeschiedenis nodig heeft.
+
+   Let op de houdbaarheid: Google bewaart standaard zo'n honderd versies en
+   ruimt daarna de oudste op. Bij drukke dagen is dat een paar dagen
+   geschiedenis. Daarom markeren we één versie per dag als "voor altijd
+   bewaren" -- zie driveBewaarDagversie(). */
+async function driveRevisies(){
+  const b=await driveZoekBestand();
+  if(!b)return {bestandId:null,revisies:[]};
+  const r=await driveApi('drive/v3/files/'+b.id+
+    '/revisions?pageSize=1000&fields=revisions(id,modifiedTime,size,keepForever)');
+  const d=await r.json();
+  const revisies=(d.revisions||[]).slice().sort((a,c)=>
+    new Date(c.modifiedTime)-new Date(a.modifiedTime));
+  return {bestandId:b.id,revisies};
+}
+/* De inhoud van één versie. Geeft de kale state terug, net als loadGist. */
+async function driveRevisieState(bestandId,revId){
+  const r=await driveApi('drive/v3/files/'+bestandId+'/revisions/'+revId+'?alt=media');
+  const j=JSON.parse(await r.text());
+  return j.state||j;
+}
+/* Eén versie per dag vasthouden, zodat de geschiedenis niet na honderd
+   saves verdampt. Google staat 200 vastgehouden versies per bestand toe;
+   ruim daaronder blijven we door de oudste weer los te laten. */
+async function driveBewaarDagversie(bestandId,revId){
+  if(!bestandId||!revId)return;
+  const vandaag=new Date().toISOString().slice(0,10);
+  const v=syncStand();
+  if(v.dagversieOp===vandaag)return;
+  try{
+    await driveApi('drive/v3/files/'+bestandId+'/revisions/'+revId,{
+      method:'PATCH',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({keepForever:true})
+    });
+    const w=syncStand(); w.dagversieOp=vandaag;
+    localStorage.setItem(LS_SYNC_KEY,JSON.stringify(w));
+    /* Opruimen: boven de 180 laten we de oudste weer los, zodat de
+       markering nooit tegen Google's plafond aan loopt. */
+    const {revisies}=await driveRevisies();
+    const vast=revisies.filter(r=>r.keepForever);
+    if(vast.length>180){
+      for(const oud of vast.slice(180)){
+        await driveApi('drive/v3/files/'+bestandId+'/revisions/'+oud.id,{
+          method:'PATCH',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({keepForever:false})
+        }).catch(()=>{});
+      }
+    }
+  }catch(e){
+    /* Niet kunnen vasthouden is geen reden om de save te laten mislukken:
+       de gegevens staan er, alleen de geschiedenis is korter. */
+    console.warn('Dagversie vasthouden mislukt:',e.message);
+  }
+}
+
+/* ── Versiegeschiedenis: het scherm ──
+   Terug naar een oudere versie hoort een handeling te zijn die je bewust
+   opzoekt, niet een knop die tijdens het opstarten voorbijkomt. Daarom
+   staat dit onder Instellingen en nergens anders. */
+let versiesData={bestandId:null,revisies:[],cache:{},open:null,uitgeklapt:{}};
+
+async function openVersiesModal(){
+  const m=document.getElementById('versiesModal');
+  if(!m)return;
+  m.classList.add('open');
+  const body=document.getElementById('versiesBody');
+  body.innerHTML='<div style="padding:28px;text-align:center;color:var(--text-muted);font-size:13px">Versies ophalen uit Drive…</div>';
+  document.getElementById('versiesVoet').textContent='';
+  try{
+    const {bestandId,revisies}=await driveRevisies();
+    versiesData={bestandId,revisies,cache:{},open:null,uitgeklapt:{}};
+    versiesRender();
+  }catch(e){
+    body.innerHTML='<div style="padding:20px;color:var(--danger);font-size:13px">'+
+      'Versies ophalen mislukt: '+escapeHtml(e.message)+'</div>';
+  }
+}
+function closeVersiesModal(){
+  document.getElementById('versiesModal')?.classList.remove('open');
+}
+
+/* Wat zit er in deze versie? Grove tellingen per module -- genoeg om te
+   herkennen welke versie je zoekt zonder hem te openen. */
+function versieTelling(st){
+  const telBoom=(nodes)=>(nodes||[]).reduce((n,x)=>
+    n+(x.type==='folder'?0:1)+telBoom(x.children),0);
+  return {
+    notities:telBoom((st.notes||{}).tree),
+    checklist:((st.checklist||{}).items||[]).length,
+    uren:((st.uren||{}).entries||[]).length,
+    facturen:((st.facturen||{}).invoices||[]).length,
+    klanten:((st.tasks||{}).clients||[]).length
+  };
+}
+
+function versiesRender(){
+  const body=document.getElementById('versiesBody');
+  const revs=versiesData.revisies||[];
+  if(!revs.length){
+    body.innerHTML='<div style="padding:20px;color:var(--text-muted);font-size:13px">Nog geen oudere versies in Drive.</div>';
+    return;
+  }
+  /* Per dag groeperen. Wat je zoekt is bijna altijd "de stand aan het eind
+     van die dag"; de tussenversies staan een klik verderop. */
+  const perDag=new Map();
+  revs.forEach(r=>{
+    const dag=new Date(r.modifiedTime).toISOString().slice(0,10);
+    if(!perDag.has(dag))perDag.set(dag,[]);
+    perDag.get(dag).push(r);
+  });
+  const nu=new Date().toISOString().slice(0,10);
+  const gisteren=new Date(Date.now()-864e5).toISOString().slice(0,10);
+  let h='';
+
+  /* Werk dat dit apparaat wel had maar Drive nooit kreeg. Vroeger drong dit
+     zich als melding op; hier staat het rustig bovenaan. */
+  const lokaal=versiesLokaleKopie();
+  if(lokaal){
+    h+='<div style="border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;'+
+      'margin-bottom:16px;background:var(--surface2)">'+
+      '<div style="font-size:12.5px;font-weight:600;margin-bottom:3px">Werk van dit apparaat</div>'+
+      '<div style="font-size:11.5px;color:var(--text-muted);line-height:1.5">Bewaard op '+
+      escapeHtml(new Date(lokaal.bewaardOp).toLocaleString('nl-NL'))+
+      ' en nooit in Drive aangekomen. '+versieTellingTekst(versieTelling(lokaal.data))+'</div>'+
+      '<div style="display:flex;gap:6px;margin-top:9px;flex-wrap:wrap">'+
+      '<button class="uren-btn" onclick="versieLokaalAanvullen()">Ontbrekende items aanvullen</button>'+
+      '<button class="uren-btn" onclick="versieLokaalTerugzetten()">Volledig terugzetten</button>'+
+      '<button class="uren-btn" onclick="herstelDownload()">↧ Downloaden</button>'+
+      '</div></div>';
+  }
+
+  perDag.forEach((lijst,dag)=>{
+    const nieuwste=lijst[0];
+    const label=dag===nu?'Vandaag':dag===gisteren?'Gisteren':
+      new Date(dag+'T12:00:00').toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long'});
+    h+='<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;'+
+      'color:var(--text-muted);margin:14px 0 6px">'+escapeHtml(label)+'</div>';
+    const tonen=versiesData.uitgeklapt[dag]?lijst:[nieuwste];
+    tonen.forEach(r=>{h+=versieRegel(r);});
+    if(lijst.length>1&&!versiesData.uitgeklapt[dag]){
+      h+='<button class="uren-btn" style="margin-top:4px" onclick="versiesKlapUit(\''+dag+'\')">'+
+        '+ '+(lijst.length-1)+' eerdere '+(lijst.length-1===1?'versie':'versies')+' die dag</button>';
+    }
+  });
+  body.innerHTML=h;
+  const vast=revs.filter(r=>r.keepForever).length;
+  document.getElementById('versiesVoet').innerHTML=
+    revs.length+' versies · oudste '+
+    escapeHtml(new Date(revs[revs.length-1].modifiedTime).toLocaleDateString('nl-NL'))+
+    (vast?'<br>'+vast+' '+(vast===1?'dagversie wordt':'dagversies worden')+' voor altijd bewaard':'');
+}
+
+function versieTellingTekst(t){
+  return t.notities+' notities · '+t.checklist+' checklist · '+t.uren+' uren · '+
+    t.facturen+' facturen · '+t.klanten+' klanten';
+}
+
+function versieRegel(r){
+  const open=versiesData.open===r.id;
+  const kb=Math.round(Number(r.size||0)/1024);
+  const tijd=new Date(r.modifiedTime).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});
+  let h='<div style="border:1px solid var(--border);border-radius:var(--radius);margin-bottom:6px;overflow:hidden">'+
+    '<button class="uren-btn" style="width:100%;justify-content:flex-start;border:none;border-radius:0;'+
+    'padding:10px 12px;gap:10px" onclick="versieOpen(\''+r.id+'\')">'+
+    '<span style="font-weight:600;font-size:13px">'+escapeHtml(tijd)+'</span>'+
+    '<span style="color:var(--text-muted);font-size:11.5px">'+kb+' kB</span>'+
+    (r.keepForever?'<span style="color:var(--text-muted);font-size:11px">· bewaard</span>':'')+
+    '<span style="flex:1"></span>'+
+    '<span style="color:var(--text-muted);font-size:11.5px">'+(open?'▴':'▾')+'</span>'+
+    '</button>';
+  if(open){
+    const st=versiesData.cache[r.id];
+    h+='<div style="padding:0 12px 12px;font-size:12px;color:var(--text-muted);line-height:1.6">';
+    if(st==='laden'){
+      h+='Inhoud ophalen…';
+    } else if(!st){
+      h+='<span style="color:var(--danger)">Deze versie kon niet gelezen worden.</span>';
+    } else {
+      const t=versieTelling(st), n=versieTelling(huidigeStateSnapshot());
+      h+='<div style="display:grid;grid-template-columns:1fr auto auto;gap:2px 14px;margin-bottom:10px">'+
+        '<span></span><span style="font-weight:600;color:var(--text)">deze versie</span>'+
+        '<span style="font-weight:600;color:var(--text)">nu</span>';
+      [['Notities','notities'],['Checklist','checklist'],['Uren','uren'],
+       ['Facturen','facturen'],['Klanten','klanten']].forEach(([lab,k])=>{
+        const anders=t[k]!==n[k];
+        h+='<span>'+lab+'</span><span'+(anders?' style="color:var(--text);font-weight:600"':'')+'>'+
+          t[k]+'</span><span>'+n[k]+'</span>';
+      });
+      h+='</div>'+
+        '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
+        '<button class="uren-btn uren-btn-primary" onclick="versieAanvullen(\''+r.id+'\')">Ontbrekende items aanvullen</button>'+
+        '<button class="uren-btn" onclick="versieTerugzetten(\''+r.id+'\')">Volledig terugzetten</button>'+
+        '<button class="uren-btn" onclick="versieDownload(\''+r.id+'\')">↧ Downloaden</button>'+
+        '</div>'+
+        '<div style="margin-top:8px;font-size:11px">Aanvullen voegt alleen toe wat nu ontbreekt en raakt de rest niet aan. '+
+        'Volledig terugzetten vervangt alles — ook dat is terug te draaien, want je huidige versie blijft in deze lijst staan.</div>';
+    }
+    h+='</div>';
+  }
+  return h+'</div>';
+}
+
+function versiesKlapUit(dag){
+  versiesData.uitgeklapt[dag]=true;
+  versiesRender();
+}
+
+async function versieOpen(revId){
+  if(versiesData.open===revId){versiesData.open=null;versiesRender();return;}
+  versiesData.open=revId;
+  if(!versiesData.cache[revId]){
+    versiesData.cache[revId]='laden';
+    versiesRender();
+    try{
+      versiesData.cache[revId]=await driveRevisieState(versiesData.bestandId,revId);
+    }catch(e){
+      versiesData.cache[revId]=null;
+      console.error('Versie lezen mislukt:',e);
+    }
+  }
+  versiesRender();
+}
+
+/* De state zoals hij nu in het geheugen staat, met alle modules erin. */
+function huidigeStateSnapshot(){
+  rawState.tasks=kanbanState;
+  rawState.notes=notesState;
+  rawState.checklist=checklistState;
+  if(typeof urenState!=='undefined')rawState.uren=urenState;
+  if(typeof factuurState!=='undefined')rawState.facturen=factuurState;
+  if(!rawState.agenda)rawState.agenda={events:[]};
+  return rawState;
+}
+
+/* De lokale kopie die Drive nooit kreeg, als die er is. */
+function versiesLokaleKopie(){
+  try{
+    const raw=localStorage.getItem(LS_HERSTEL_KEY);
+    if(!raw)return null;
+    const v=JSON.parse(raw);
+    return v&&v.data?v:null;
+  }catch(_){return null;}
+}
+
+/* Samenvoegen in plaats van vervangen: alles wat in de oude versie zit maar
+   nu ontbreekt komt terug, de rest blijft precies zoals het is. Dit is de
+   bewerking die je in negen van de tien gevallen wilt -- een stuk notities
+   terug zonder de uren van deze week kwijt te raken. */
+function voegStateSamen(oud,nu){
+  const rapport={notities:0,tekst:0,checklist:0,uren:0,facturen:0,klanten:0};
+  const mergeBoom=(o_,n_)=>{
+    const uit=(n_||[]).map(x=>({...x}));
+    const idx=new Map(uit.map(x=>[x.id,x]));
+    (o_||[]).forEach(o=>{
+      const b=idx.get(o.id);
+      if(!b){uit.push(JSON.parse(JSON.stringify(o)));if(o.type!=='folder')rapport.notities++;return;}
+      if((o.content||'').length>(b.content||'').length){b.content=o.content;rapport.tekst++;}
+      b.children=mergeBoom(o.children,b.children);
+    });
+    return uit;
+  };
+  const vulAan=(o_,n_,sleutel)=>{
+    const ids=new Set((n_||[]).map(x=>x.id));
+    const mist=(o_||[]).filter(x=>x&&x.id&&!ids.has(x.id));
+    rapport[sleutel]=mist.length;
+    return (n_||[]).concat(JSON.parse(JSON.stringify(mist)));
+  };
+  const uit=JSON.parse(JSON.stringify(nu));
+  uit.notes={...(uit.notes||{}),tree:mergeBoom((oud.notes||{}).tree,(nu.notes||{}).tree)};
+  uit.checklist={...(uit.checklist||{}),
+    items:vulAan((oud.checklist||{}).items,(nu.checklist||{}).items,'checklist')};
+  uit.uren={...(uit.uren||{}),
+    entries:vulAan((oud.uren||{}).entries,(nu.uren||{}).entries,'uren')};
+  uit.facturen={...(uit.facturen||{}),
+    invoices:vulAan((oud.facturen||{}).invoices,(nu.facturen||{}).invoices,'facturen')};
+  uit.tasks={...(uit.tasks||{}),
+    clients:vulAan((oud.tasks||{}).clients,(nu.tasks||{}).clients,'klanten')};
+  return {state:uit,rapport};
+}
+
+function versieRapportTekst(r){
+  const d=[];
+  if(r.notities)d.push(r.notities+' '+(r.notities===1?'notitie':'notities'));
+  if(r.tekst)d.push(r.tekst+'× tekst hersteld');
+  if(r.checklist)d.push(r.checklist+' checklist-items');
+  if(r.uren)d.push(r.uren+' urenregels');
+  if(r.facturen)d.push(r.facturen+' facturen');
+  if(r.klanten)d.push(r.klanten+' klanten');
+  return d.length?d.join(', '):null;
+}
+
+/* Voor elke terugzet-actie geldt: de administratie mag niet half zijn.
+   Staat er nog een oud versleuteld blok, dan ontbreken facturen en uren in
+   het geheugen en zou samenvoegen ze dubbel of leeg maken. */
+function versiesMagSchrijven(){
+  if(typeof geheimenKlaar==='function'&&!geheimenKlaar()){
+    appToast('De administratie is nog niet volledig geladen; probeer het zo nog eens.',
+      {type:'warning'});
+    return false;
+  }
+  if(!driveGelezen){
+    appToast('Er is geen verbinding met Drive. Klik eerst op ↻ in de zijbalk.',
+      {type:'error'});
+    return false;
+  }
+  return true;
+}
+
+async function versieAanvullen(revId){
+  if(!versiesMagSchrijven())return;
+  const oud=versiesData.cache[revId];
+  if(!oud||oud==='laden')return;
+  const {state,rapport}=voegStateSamen(oud,huidigeStateSnapshot());
+  const tekst=versieRapportTekst(rapport);
+  if(!tekst){
+    appToast('Deze versie bevat niets wat nu ontbreekt.',{type:'info'});
+    return;
+  }
+  versiesPasToe(state,'Aangevuld: '+tekst);
+}
+
+async function versieTerugzetten(revId){
+  if(!versiesMagSchrijven())return;
+  const oud=versiesData.cache[revId];
+  if(!oud||oud==='laden')return;
+  const r=(versiesData.revisies||[]).find(x=>x.id===revId);
+  const wanneer=r?new Date(r.modifiedTime).toLocaleString('nl-NL'):'die versie';
+  versiesPasToe(JSON.parse(JSON.stringify(oud)),'Teruggezet naar de versie van '+wanneer);
+}
+
+/* Vervangt de state, ververst het scherm en schrijft naar Drive. De vorige
+   stand gaat eerst naar de herstelkopie -- en staat sowieso als versie in
+   deze lijst, want elke save maakt er een. */
+function versiesPasToe(nieuw,melding){
+  bewaarHerstelkopie('voor-terugzetten',JSON.parse(JSON.stringify(huidigeStateSnapshot())));
+  rawState=nieuw;
+  hydrateerState();
+  renderAll();
+  scheduleSave();
+  closeVersiesModal();
+  appToast(melding,{type:'success',duration:9000});
+}
+
+function versieLokaalAanvullen(){
+  if(!versiesMagSchrijven())return;
+  const lokaal=versiesLokaleKopie();
+  if(!lokaal)return;
+  const {state,rapport}=voegStateSamen(lokaal.data,huidigeStateSnapshot());
+  const tekst=versieRapportTekst(rapport);
+  if(!tekst){appToast('Dit werk zit al in de huidige versie.',{type:'info'});return;}
+  versiesPasToe(state,'Aangevuld: '+tekst);
+}
+
+function versieLokaalTerugzetten(){
+  if(!versiesMagSchrijven())return;
+  const lokaal=versiesLokaleKopie();
+  if(!lokaal)return;
+  closeVersiesModal();
+  herstelLokaalTerug();
+}
+
+async function versieDownload(revId){
+  const st=versiesData.cache[revId];
+  if(!st||st==='laden')return;
+  const r=(versiesData.revisies||[]).find(x=>x.id===revId);
+  const stempel=r?new Date(r.modifiedTime).toISOString().slice(0,16).replace(/[:T]/g,'-'):'versie';
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(st,null,2)],{type:'application/json'}));
+  a.download='herling-versie-'+stempel+'.json';
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),5000);
 }
 
 /* Handige controle vanuit de console: wat staat er in Drive? */

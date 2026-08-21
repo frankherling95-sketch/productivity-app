@@ -10,6 +10,24 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-08-21 · Drive is de waarheid; terugzetten via Versiegeschiedenis
+
+**Probleem**: op 20 augustus om 18:33 sprong het bestand in Drive van 674 kB naar 429 kB — het niveau van vóór 16 augustus. Een deel van de notities was weg. Oorzaak: de melding uit `meldLokaalTerugzetbaar()` die tijdens het opstarten verschijnt met de knop "↺ Werk van dit apparaat gebruiken". Die knop roept `herstelLokaalTerug()` aan en schrijft de lokale kopie over Drive heen. Frank klikte hem aan zonder te kunnen zien wat erin zat; de lokale kopie was dagen oud. De data is teruggehaald uit Drive's eigen revisiegeschiedenis (`files/{id}/revisions`), die de app tot dan toe niet gebruikte.
+
+**Beslissing**:
+- **Geen keuze meer tijdens het laden.** Wat in Drive staat is de administratie. De melding met de terugzet-knop is weg.
+- **Eén uitzondering, en dat is geen conflict**: staat Drive nog exact op de versie die dit apparaat het laatst zag (`stand.driveTijd === d.tijdISO`), dan heeft niemand anders geschreven en was het lokale werk alleen nog niet weg. Dat wordt stil ingehaald en meteen weggeschreven. Dit dekt het gewone geval "tabblad gesloten binnen de 1,5 s debounce".
+- **Rem op dat inhaalpad**: het gebeurt alleen als de lokale kopie minstens 90% van de omvang van de Drive-versie heeft (`stateOmvang()`, telt items over alle modules). Dit is de enige plek waar lokaal nog voorrang krijgt, dus de rem zit daar.
+- **Terugzetten verhuist naar Instellingen → Versiegeschiedenis**: een lijst van Drive-revisies, per dag gegroepeerd met de laatste versie voorop. Klik een versie open en je ziet per module hoeveel erin zit versus nu, met drie acties: *Ontbrekende items aanvullen* (merge op id, raakt bestaande data niet aan), *Volledig terugzetten* en *Downloaden*. Lokaal werk dat Drive nooit kreeg staat als eigen kaart bovenaan.
+- **Eén versie per dag wordt vastgehouden** (`keepForever` via `driveBewaarDagversie()`, boven de 180 wordt de oudste weer losgelaten). Google bewaart standaard ~100 revisies; bij drukke dagen is dat maar een paar dagen geschiedenis.
+- **Drive leeg + lokale kopie** schrijft nu meteen weg in plaats van te wachten op een volgende wijziging — anders stond de balk groen terwijl er in Drive niets was.
+
+**Waarom**: Frank leunt op de groene status als bewijs dat de cloudversie klopt. Dan mag de app hem tijdens het opstarten geen vraag stellen die dat kan omdraaien, zeker niet met twee knoppen waarvan de gevolgen onzichtbaar zijn. Kiezen hoort een handeling te zijn die je opzoekt, waarbij je ziet wat je kiest. Dat terugzetten veilig is, komt doordat elke save zelf weer een revisie maakt: de stand van vóór het terugzetten blijft in dezelfde lijst staan.
+
+**Bestanden**: `index.html` — `loadGist` (conflictblok en het lege-Drive-pad), `stateOmvang` (nieuw), `meldLokaalTerugzetbaar` (verwijderd), `herstelLokaalTerug` (blijft, alleen nog vanuit het versiescherm), `driveRevisies`/`driveRevisieState`/`driveBewaarDagversie` (nieuw), `driveSchrijf` (`headRevisionId` in `fields`), `saveGistIntern` (dagversie vasthouden), `versies*`-functies en `#versiesModal` (nieuw), `toggleAppInstellingen` + mobiel instellingenmenu
+
+**Niet doen**: het inhaalpad verruimen zodat lokaal ook wint als Drive wél veranderd is. Dat is precies de fout van 20 augustus, alleen dan automatisch in plaats van met een misklik. Ook niet: de 90%-rem eraf halen — die is het enige dat een kapotte of halflege lokale kopie tegenhoudt.
+
 ## 2026-08-19 · Urensjablonen: vier bugs in het toepassen en herhalen
 
 **Aanleiding**: melding dat de sjablonen "niet helemaal goed werken". Het opslaan, bewerken en verwijderen bleek in orde; het toepassen en het wekelijks herhalen niet. Vier fouten, alle vier reproduceerbaar gemeten voordat er iets veranderd is.
