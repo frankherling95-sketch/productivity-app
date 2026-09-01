@@ -22008,8 +22008,8 @@ function facPdfBetaalblok(ctx,b,x,y,w){
   doc.setDrawColor(...ctx.lijn).setLineWidth(0.3).rect(x,y,w,hoog);
   const termijn=f.betaaltermijn||factuurSettings().betaaltermijn||30;
   const kol=[
-    ['BETALEN OP', ctx.afz.iban||'',
-     't.n.v. '+(ctx.afz.naam||'')+(ctx.afz.bic?' · BIC '+ctx.afz.bic:'')],
+    /* Geen BIC hier: die staat al in het afzenderblok bovenaan. */
+    ['BETALEN OP', ctx.afz.iban||'', 't.n.v. '+(ctx.afz.naam||'')],
     ['KENMERK',    'Factuur '+(f.nummer||''), ''],
     ['UITERLIJK',  factuurFmtDatumLang(f.vervaldatum),
      'Betaaltermijn '+termijn+' dagen']
@@ -22092,19 +22092,25 @@ function facPdfAdres(ctx,b,x,y,w,soort){
   const a=facPdfAnker(b,x,w);
   const opt={align:a.align};
   let h=facPdfBlokKop(ctx,b,x,y,w,gr);
-  let regels=[], titel='';
+  /* De regels staan in groepen; tussen twee groepen komt een witregel. */
+  let groepen=[], titel='';
   if(soort==='zender'){
     const z=ctx.afz;
     if(v.naam!==false)titel=z.naam||'';
-    if(v.adres!==false){regels.push(z.adres);regels.push((z.postcode||'')+' '+(z.plaats||''));}
-    if(v.btw!==false&&z.btwNummer)regels.push('Btw-nummer: '+z.btwNummer);
-    if(v.kvk!==false&&z.kvk)regels.push('KVK-nummer: '+z.kvk);
-    if(v.tel!==false&&z.tel)regels.push('Tel.: '+z.tel);
-    if(v.email&&z.email)regels.push(z.email);
-    if(v.iban!==false&&z.iban)regels.push('IBAN: '+z.iban);
-    if(v.bic!==false&&z.bic)regels.push('BIC: '+z.bic);
+    const adres=[];
+    if(v.adres!==false){adres.push(z.adres);adres.push((z.postcode||'')+' '+(z.plaats||''));}
+    /* Adres en zakelijke gegevens los van elkaar: aan één stuk lezen die
+       acht regels als een muur tekst. */
+    const zakelijk=[];
+    if(v.btw!==false&&z.btwNummer)zakelijk.push('Btw-nummer: '+z.btwNummer);
+    if(v.kvk!==false&&z.kvk)zakelijk.push('KVK-nummer: '+z.kvk);
+    if(v.tel!==false&&z.tel)zakelijk.push('Tel.: '+z.tel);
+    if(v.email&&z.email)zakelijk.push(z.email);
+    if(v.iban!==false&&z.iban)zakelijk.push('IBAN: '+z.iban);
+    if(v.bic!==false&&z.bic)zakelijk.push('BIC: '+z.bic);
+    groepen=[adres,zakelijk];
   } else {
-    const k=ctx.klant;
+    const k=ctx.klant, regels=[];
     titel=k.naam||'';
     if(v.tav!==false&&k.contactpersoon)regels.push('t.a.v. '+k.contactpersoon);
     if(v.adres!==false){regels.push(k.adres);regels.push((k.postcode||'')+' '+(k.plaats||''));}
@@ -22118,15 +22124,21 @@ function facPdfAdres(ctx,b,x,y,w,soort){
        hoeft alleen jouw eigen KVK op de factuur; dat van de klant is een
        gemak voor wie zijn debiteuren erop wil kunnen matchen. */
     if(v.kvk&&k.kvk)regels.push('KVK: '+k.kvk);
+    groepen=[regels];
   }
-  regels=regels.filter(r=>r&&String(r).trim());
+  /* Lege regels eruit, en een groep die daarna niets overhoudt ook --
+     anders begint of eindigt het blok met een witregel. */
+  groepen=groepen.map(g=>g.filter(r=>r&&String(r).trim())).filter(g=>g.length);
   if(titel){
     doc.setFont(F,'bold').setFontSize(gr+1).setTextColor(...ctx.accent);
     doc.text(titel,a.x,y+3.5+h,opt);
     h+=5.5;
   }
   doc.setFont(F,'normal').setFontSize(gr-0.5).setTextColor(...ctx.grijs);
-  regels.forEach(r=>{doc.text(String(r),a.x,y+3.5+h,opt);h+=4.4;});
+  groepen.forEach((g,i)=>{
+    if(i)h+=4.4;                 /* de witregel tussen twee groepen */
+    g.forEach(r=>{doc.text(String(r),a.x,y+3.5+h,opt);h+=4.4;});
+  });
   return h+1;
 }
 
