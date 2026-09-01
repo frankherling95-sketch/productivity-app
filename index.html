@@ -6655,10 +6655,17 @@ textarea { line-height: 1.6; resize: vertical; }
         <div class="cl2-title">Checklist</div>
         <div style="display:flex;gap:8px;align-items:center">
           <div class="client-filter" id="checklistClientFilter"></div>
-          <select id="clSortSelect" class="cl2-sort" onchange="setChecklistSort(this.value)">
-            <option value="priority">Prioriteit ↓</option>
-            <option value="deadline">Deadline ↑</option>
+          <select id="clSortSelect" class="cl2-sort" onchange="setChecklistSort(this.value)" title="Sorteervolgorde">
+            <option value="newest">Nieuwste bovenaan</option>
+            <option value="oldest">Oudste bovenaan</option>
+            <option value="deadline">Deadline eerst</option>
+            <option value="manual">Handmatig (slepen)</option>
+            <option value="alpha">Naam A–Z</option>
           </select>
+          <div class="cl2-seg">
+            <button type="button" id="clGroupToggle" class="cl2-seg-btn" data-action="toggleClGroupByPriority"
+              title="Sorteer binnen prioriteitsgroepen (Hoog → Middel → Laag)">Prio-groepen</button>
+          </div>
         </div>
       </div>
       <!-- v3 scroll container: centered reading column -->
@@ -8160,7 +8167,7 @@ const DEFAULT_COLUMNS=[
    ═══════════════════════════════════════════════════ */
 let saveTimer=null;
 let rawState={tasks:{},notes:{},checklist:{},uren:{},facturen:{},agenda:{events:[]},settings:{}};
-let checklistState={items:[],showArchived:false,sortBy:'priority'};
+let checklistState={items:[],showArchived:false,sortBy:'newest',groupByPriority:true};
 let clFilters={prio:null,clientId:null,period:null,search:''};
 
 /* Facturatie — invoices[] plus de eigen bedrijfsgegevens en de
@@ -8505,8 +8512,9 @@ function hydrateerState(){
   if(!kanbanState.categoryGrouping)kanbanState.categoryGrouping='grouped';
   notesState=rawState.notes||{tree:[],activeId:null,collapsed:{}};
   if(!notesState.tree)notesState.tree=[];
-  checklistState=rawState.checklist||{items:[],showArchived:false,sortBy:'priority'};
+  checklistState=rawState.checklist||{items:[],showArchived:false,sortBy:'newest',groupByPriority:true};
   if(!checklistState.items)checklistState.items=[];
+  migreerChecklistVolgorde();
   urenState=rawState.uren||{entries:[],templates:[]};
   if(!urenState.entries)urenState.entries=[];
   if(!urenState.templates)urenState.templates=[];
@@ -10340,7 +10348,8 @@ function dashQuickAdd(event){
     deadline:deadline||null,
     clientId:clientId||null,
     subtasks:[],archived:false,
-    sortOrder:checklistState.items.length
+    sortOrder:clNieuweSortOrder('middel'),
+    createdAt:Date.now(),updatedAt:Date.now()
   });
   inp.value='';
   scheduleSave();
@@ -10387,11 +10396,15 @@ function renderDashChecklist(){
       <button class="btn btn-sm btn-primary" data-action="switchModule" data-arg1="checklist">Open Checklist ↗</button>
     </div>`;return;
   }
+  /* Zelfde volgorde als in de checklistmodule, zodat beide schermen kloppen */
+  const dashCmp=clSortCmp();
   const sorted=[...open].sort((a,b)=>{
-    const ao=(CL_PRIORITY_CFG[a.priority]||CL_PRIORITY_CFG.middel).order;
-    const bo=(CL_PRIORITY_CFG[b.priority]||CL_PRIORITY_CFG.middel).order;
-    if(ao!==bo)return ao-bo;
-    return (a.sortOrder||0)-(b.sortOrder||0);
+    if(clGroepeertOpPrioriteit()){
+      const ao=(CL_PRIORITY_CFG[a.priority]||CL_PRIORITY_CFG.middel).order;
+      const bo=(CL_PRIORITY_CFG[b.priority]||CL_PRIORITY_CFG.middel).order;
+      if(ao!==bo)return ao-bo;
+    }
+    return dashCmp(a,b);
   });
   const selStyle='padding:2px 6px;font-size:11px;border:0.5px solid var(--border-strong);border-radius:4px;background:var(--surface);color:var(--text);font-family:inherit;outline:none;cursor:pointer';
   const clientOpts='<option value="">— klant —</option>'+kanbanState.clients.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
@@ -10465,7 +10478,7 @@ function dashClAdd(){
   const inp=document.getElementById('dashClInput');
   const text=inp?.value.trim();
   if(!text)return;
-  checklistState.items.push({id:uid(),text,done:false,priority:'middel',deadline:null,subtasks:[],archived:false,sortOrder:checklistState.items.length});
+  checklistState.items.push({id:uid(),text,done:false,priority:'middel',deadline:null,subtasks:[],archived:false,sortOrder:clNieuweSortOrder('middel'),createdAt:Date.now(),updatedAt:Date.now()});
   inp.value='';
   scheduleSave();
   renderDashChecklist();
@@ -13381,11 +13394,85 @@ function clCalNext(){clCalMonth++;if(clCalMonth>11){clCalMonth=0;clCalYear++;}re
 function clCalClear(){clCalSelected=null;document.getElementById('clItemDeadline').value='';renderClCal();}
 function clCalToday(){const n=new Date();clCalYear=n.getFullYear();clCalMonth=n.getMonth();clCalSelected=n.toISOString().slice(0,10);document.getElementById('clItemDeadline').value=clCalSelected;renderClCal();}
 
+/* ══ Sortering ══════════════════════════════════════════════════════════════
+   checklistState.sortBy bepaalt de volgorde *binnen* een groep,
+   checklistState.groupByPriority of er überhaupt gegroepeerd wordt.
+   Staat het groeperen aan (standaard), dan blijft prioriteit leidend en
+   sorteert de gekozen sleutel binnen Hoog / Middel / Laag.
+   ═════════════════════════════════════════════════════════════════════════ */
+/* De sleutels komen één op één terug in de <option>-waarden van #clSortSelect */
+const CL_SORT_MODI={
+  newest:  (a,b)=>clAangemaaktOp(b)-clAangemaaktOp(a),
+  oldest:  (a,b)=>clAangemaaktOp(a)-clAangemaaktOp(b),
+  deadline:(a,b)=>{
+    /* Zonder deadline achteraan; gelijke deadlines: nieuwste eerst */
+    if(!a.deadline&&!b.deadline)return clAangemaaktOp(b)-clAangemaaktOp(a);
+    if(!a.deadline)return 1;
+    if(!b.deadline)return -1;
+    if(a.deadline!==b.deadline)return a.deadline<b.deadline?-1:1;
+    return clAangemaaktOp(b)-clAangemaaktOp(a);
+  },
+  manual:  (a,b)=>(a.sortOrder||0)-(b.sortOrder||0),
+  alpha:   (a,b)=>(a.text||'').localeCompare(b.text||'','nl',{sensitivity:'base'})
+};
+function clAangemaaktOp(i){return i.createdAt||0;}
+/* Onbekende of oude waarde uit Drive → terug naar de standaard */
+function clSortModus(){return CL_SORT_MODI[checklistState.sortBy]?checklistState.sortBy:'newest';}
+function clSortCmp(){return CL_SORT_MODI[clSortModus()];}
+function clGroepeertOpPrioriteit(){return checklistState.groupByPriority!==false;}
+
+/* Nieuwe taken komen bovenaan hun prioriteitsgroep — ook in de handmatige
+   volgorde, want onderaan belanden was precies de klacht. */
+function clNieuweSortOrder(priority){
+  const groep=checklistState.items.filter(i=>!i.archived&&!i.done&&i.priority===priority);
+  if(!groep.length)return 0;
+  return Math.min(...groep.map(i=>i.sortOrder||0))-1;
+}
+
+/* Eenmalige migratie bij het laden:
+   1. oude sortBy-waarden omzetten naar de nieuwe modusnamen;
+   2. taken zonder createdAt een kunstmatig aanmaakmoment geven. Die tijden
+      lopen aflopend vanaf het oudste échte createdAt, in de volgorde waarin
+      de taken nu op het scherm staan. Zo houdt de bestaande lijst zijn
+      volgorde onder 'Nieuwste bovenaan' en komt alles wat je vanaf nu
+      aanmaakt er bovenop. */
+function migreerChecklistVolgorde(){
+  if(checklistState.sortBy==='priority')checklistState.sortBy='newest';
+  if(!CL_SORT_MODI[checklistState.sortBy])checklistState.sortBy='newest';
+  if(checklistState.groupByPriority===undefined)checklistState.groupByPriority=true;
+
+  const zonder=checklistState.items.filter(i=>!i.createdAt);
+  if(!zonder.length)return;
+  let plafond=Date.now();
+  checklistState.items.forEach(i=>{if(i.createdAt&&i.createdAt<plafond)plafond=i.createdAt;});
+  const prioOrder=p=>(CL_PRIORITY_CFG[p]||CL_PRIORITY_CFG.middel).order;
+  const index=new Map(checklistState.items.map((i,idx)=>[i,idx]));
+  zonder.sort((a,b)=>{
+    const ao=prioOrder(a.priority),bo=prioOrder(b.priority);
+    if(ao!==bo)return ao-bo;
+    const as=a.sortOrder||0,bs=b.sortOrder||0;
+    if(as!==bs)return as-bs;
+    return index.get(a)-index.get(b);
+  });
+  zonder.forEach((item,i)=>{item.createdAt=plafond-(i+1)*1000;});
+}
+
+/* Zet de sorteerkeuze in de topbalk gelijk aan de state — anders staat er na
+   een herlaad altijd de eerste optie, ongeacht wat er bewaard is. */
+function renderClSortControls(){
+  const sel=document.getElementById('clSortSelect');
+  if(sel&&sel.value!==clSortModus())sel.value=clSortModus();
+  const btn=document.getElementById('clGroupToggle');
+  if(btn)btn.classList.toggle('active',clGroepeertOpPrioriteit());
+}
+
 function renderChecklistModule(){
   const body=document.getElementById('clBody');
   const hero=document.getElementById('clHero');
   const newItem=document.getElementById('clNewItem');
   if(!body||!hero)return;
+
+  renderClSortControls();
 
   /* Mirror the global client filter into clFilters.clientId — both
      set AND clear, so 'Alle klanten' actually clears the filter. */
@@ -13448,7 +13535,9 @@ function renderChecklistModule(){
       </div>`;
       return;
     }
-    body.innerHTML=renderPriorityGroups(archived,{isArchived:true,showGroupHeaders:false});
+    body.innerHTML=clGroepeertOpPrioriteit()
+      ?renderPriorityGroups(archived,{isArchived:true,showGroupHeaders:false})
+      :archived.slice().sort(clSortCmp()).map(item=>clItemHtml(item,true)).join('');
     wireChecklistBodyEvents(body);
     return;
   }
@@ -13469,23 +13558,17 @@ function renderChecklistModule(){
     return;
   }
 
-  /* Sort active items by priority (default) or deadline */
-  let display=[...activeItems];
-  if(checklistState.sortBy==='deadline'){
-    display.sort((a,b)=>{
-      if(!a.deadline&&!b.deadline)return 0;
-      if(!a.deadline)return 1;
-      if(!b.deadline)return -1;
-      return a.deadline<b.deadline?-1:1;
-    });
-    /* In deadline sort, render as a flat list without priority grouping */
-    body.innerHTML=display.map(item=>clItemHtml(item)).join('');
-  } else {
+  /* Sorteren volgens de gekozen modus; prioriteitsgroepen als dat aanstaat */
+  const display=[...activeItems];
+  if(clGroepeertOpPrioriteit()){
     body.innerHTML=renderPriorityGroups(display,{isArchived:false,showGroupHeaders:true});
+  } else {
+    display.sort(clSortCmp());
+    body.innerHTML=display.map(item=>clItemHtml(item)).join('');
   }
 
   /* Append done + archived sections */
-  const visibleDone=filtersActive?doneItems.filter(passes):doneItems;
+  const visibleDone=(filtersActive?doneItems.filter(passes):doneItems).slice().sort(clSortCmp());
   if(visibleDone.length){
     const arrow=clDoneExpanded?'▼':'▶';
     body.insertAdjacentHTML('beforeend',`
@@ -13497,12 +13580,14 @@ function renderChecklistModule(){
   wireChecklistBodyEvents(body);
 }
 
-/* Render items grouped by priority (HOOG → MIDDEL → LAAG) with group headers */
+/* Render items grouped by priority (HOOG → MIDDEL → LAAG) with group headers.
+   Binnen elke groep geldt de gekozen sorteermodus. */
 function renderPriorityGroups(items,{isArchived,showGroupHeaders}){
   const bucket={hoog:[],middel:[],laag:[]};
   items.forEach(i=>{(bucket[i.priority]||bucket.middel).push(i);});
+  const cmp=clSortCmp();
   ['hoog','middel','laag'].forEach(p=>{
-    bucket[p].sort((a,b)=>(a.sortOrder||0)-(b.sortOrder||0));
+    bucket[p].sort(cmp);
   });
   let out='';
   ['hoog','middel','laag'].forEach(p=>{
@@ -13540,7 +13625,16 @@ function wireChecklistBodyEvents(body){
 
   /* Drag-and-drop (active items only) */
   body.querySelectorAll('.cl-item[data-id]:not(.done-item)').forEach(el=>{
-    el.addEventListener('dragstart',e=>{clDragId=el.dataset.id;el.classList.add('dragging');e.dataTransfer.effectAllowed='move';});
+    el.addEventListener('dragstart',e=>{
+      /* Slepen heeft alleen betekenis in de handmatige volgorde: in elke
+         andere modus zou de sleepvolgorde meteen weer overschreven worden. */
+      if(clSortModus()!=='manual'){
+        e.preventDefault();
+        appToast("Sleepvolgorde werkt alleen bij sortering 'Handmatig'",{type:'info',duration:3500});
+        return;
+      }
+      clDragId=el.dataset.id;el.classList.add('dragging');e.dataTransfer.effectAllowed='move';
+    });
     el.addEventListener('dragend',()=>{clDragId=null;body.querySelectorAll('.cl-item').forEach(x=>x.classList.remove('dragging','drag-above','drag-below'));});
     el.addEventListener('dragover',e=>{
       e.preventDefault();
@@ -13559,7 +13653,12 @@ function wireChecklistBodyEvents(body){
       const [moved]=items.splice(fromIdx,1);
       const insertAt=clDragOver.above?(toIdx>fromIdx?toIdx-1:toIdx):(toIdx>fromIdx?toIdx:toIdx+1);
       items.splice(Math.max(0,insertAt),0,moved);
-      items.filter(i=>!i.archived&&!i.done&&i.priority===moved.priority).forEach((i,idx)=>{i.sortOrder=idx;});
+      /* Hernummeren binnen de groep die je op het scherm ziet: per prioriteit
+         als de prio-groepen aanstaan, anders over de hele lijst. */
+      const hernummer=clGroepeertOpPrioriteit()
+        ?items.filter(i=>!i.archived&&!i.done&&i.priority===moved.priority)
+        :items.filter(i=>!i.archived&&!i.done);
+      hernummer.forEach((i,idx)=>{i.sortOrder=idx;});
       scheduleSave();renderChecklistModule();
     });
   });
@@ -13657,7 +13756,11 @@ function clItemHtml(item,isArchived=false){
     ${draggable?'draggable="true"':''}
     style="border-left-color:${cfg.tx}">
     <div class="cl2-row-head">
-      ${draggable?`<span class="cl2-drag" title="Versleep">⋮⋮</span>`:'<span class="cl2-drag" style="visibility:hidden">⋮⋮</span>'}
+      ${draggable
+        ?(clSortModus()==='manual'
+          ?`<span class="cl2-drag" title="Versleep">⋮⋮</span>`
+          :`<span class="cl2-drag" style="opacity:.3;cursor:default" title="Kies sortering 'Handmatig' om te slepen">⋮⋮</span>`)
+        :'<span class="cl2-drag" style="visibility:hidden">⋮⋮</span>'}
       <div class="cl2-check${item.done?' checked':''}" data-action="toggleChecklistDone" data-arg1="${item.id}">
         <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M2 5.5L4.5 8L9 3" stroke="#0F1B3D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </div>
@@ -13808,10 +13911,10 @@ function clAddInlineItem(){
   const priority=clNewDraft.priority||'middel';
   const clientId=clNewDraft.clientId||null;
   const deadline=clNewDraft.deadline||null;
-  const sameGroup=checklistState.items.filter(i=>!i.archived&&!i.done&&i.priority===priority);
   checklistState.items.push({
     id:uid(),text,done:false,priority,deadline,clientId,subtasks:[],archived:false,
-    sortOrder:sameGroup.length
+    sortOrder:clNieuweSortOrder(priority),
+    createdAt:Date.now(),updatedAt:Date.now()
   });
   /* Behoud priority / klant / deadline als sticky default voor de volgende taak —
      veelal voer je meerdere taken na elkaar in met dezelfde context. Alleen
@@ -13865,7 +13968,7 @@ function spawnRecurringNext(item){
     clientId:item.clientId||null,
     subtasks:(item.subtasks||[]).map(st=>({id:uid(),text:st.text,done:false})),
     archived:false,
-    sortOrder:(checklistState.items.filter(i=>!i.archived&&!i.done&&i.priority===item.priority).length),
+    sortOrder:clNieuweSortOrder(item.priority),
     recurrence:item.recurrence,
     createdAt:Date.now(),updatedAt:Date.now()
   };
@@ -13971,7 +14074,11 @@ function deleteChecklistItem(id){
 }
 
 function setChecklistSort(v){
-  checklistState.sortBy=v;
+  checklistState.sortBy=CL_SORT_MODI[v]?v:'newest';
+  scheduleSave();renderChecklistModule();
+}
+function toggleClGroupByPriority(){
+  checklistState.groupByPriority=!clGroepeertOpPrioriteit();
   scheduleSave();renderChecklistModule();
 }
 function setClFilter(type,val){
@@ -14126,8 +14233,7 @@ function saveChecklistItem(){
     const item=checklistState.items.find(i=>i.id===clEditingId);
     if(item){item.text=text;item.priority=priority;item.deadline=deadline;item.clientId=clientId;item.recurrence=recurrence;item.updatedAt=Date.now();}
   } else {
-    const sameGroup=checklistState.items.filter(i=>!i.archived&&!i.done&&i.priority===priority);
-    checklistState.items.push({id:uid(),text,done:false,priority,deadline,clientId,subtasks:[],archived:false,sortOrder:sameGroup.length,recurrence,createdAt:Date.now(),updatedAt:Date.now()});
+    checklistState.items.push({id:uid(),text,done:false,priority,deadline,clientId,subtasks:[],archived:false,sortOrder:clNieuweSortOrder(priority),recurrence,createdAt:Date.now(),updatedAt:Date.now()});
   }
   closeChecklistItemModal();
   scheduleSave();renderChecklistModule();
@@ -14160,6 +14266,7 @@ Object.assign(APP_ACTIONS,{
   setClFilter:(el,e,type,val)=>setClFilter(type,val||null),
   selectClClient:(el,e,id)=>selectClClient(id||''),
   clCalSelect:(el,e,iso)=>clCalSelect(iso),
+  toggleClGroupByPriority:()=>toggleClGroupByPriority(),
   clearClFilters:()=>{clFilters={prio:null,clientId:null,period:null,search:''};renderChecklistModule();}
 });
 Object.assign(APP_CHANGE_ACTIONS,{

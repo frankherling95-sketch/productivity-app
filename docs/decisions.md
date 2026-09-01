@@ -966,3 +966,25 @@ Twee dingen bewust wél laten staan:
 **Bestanden**: `index.html` — weg: `pinVersleutel`, `pinPakGeheimen`, `pinStripGeheimen`, `pinBewaarSleutel`, `pinVergeetApparaat`, `pinDagenResterend`, `pinIngeschakeld`, `pinB64`, `pinModus`, `laatsteGeheimBlob`, `pinSleutel`, `PIN_ONTHOUD_DAGEN`, het "Beveiliging"-blok in `toggleAppInstellingen`, `_versleuteldInGist` in `downloadBackup`; nieuw: `pinVersleutelingWeg`, `pinSleutelVergeten`; herschreven: `openPinModal` (één modus), `pinBevestig`, het `rawState.geheim`-blok in `hydrateerState`, de poort in `saveGistIntern`
 
 **Niet doen**: het uitpakpad weggooien "want de pincode is toch afgeschaft". Zolang er ergens nog een Drive-bestand met `rawState.geheim` kan liggen, is dat pad het enige wat de facturen en uren daaruit terughaalt — zonder is die administratie onleesbaar. Pas als vaststaat dat elk apparaat een keer heeft uitgepakt (`settings.versleuteld` nergens meer aanwezig) kan de rest weg. En de poort `geheimenKlaar()` niet meenemen in die opruiming: die hoort bij de leegte, niet bij de versleuteling.
+
+## 2026-09-01 · Checklist: nieuwe taken bovenaan, en sortering als eigen keuze
+
+**Probleem**: een nieuwe taak kreeg `sortOrder = aantal taken in zijn prioriteitsgroep` en belandde dus onderaan die groep — precies onder de taken die er al het langst stonden. Wat je net bedacht hebt zie je pas na scrollen. De sorteerkeuze zelf bestond wel (`Prioriteit ↓` / `Deadline ↑`) maar was armoedig: twee opties, en "Deadline" gooide de prioriteitsgroepen overboord omdat sorteren en groeperen in dezelfde schakelaar zaten.
+
+**Beslissing**: die twee dingen uit elkaar getrokken.
+
+- `checklistState.sortBy` is voortaan de sorteersleutel *binnen* een groep: `newest` (standaard), `oldest`, `deadline`, `manual`, `alpha`. De comparators staan bij elkaar in `CL_SORT_MODI`, met sleutels die één op één de `<option>`-waarden van `#clSortSelect` zijn.
+- `checklistState.groupByPriority` (standaard aan) bepaalt of er in Hoog → Middel → Laag gegroepeerd wordt. Staat hij uit, dan één platte lijst. Daarmee is "puur op deadline, prioriteit negerend" nog steeds te krijgen — het is nu alleen een aparte knop in plaats van een verstopt neveneffect.
+- Een `<select>` en geen popover-menu: op de iPhone geeft dat de systeempicker, en er is geen extra CSS of outside-click-afhandeling voor nodig.
+
+**Nieuwe taken bovenaan** gebeurt op twee manieren tegelijk, want er zijn twee volgordes. In elke tijdsmodus telt `createdAt`; in `manual` telt `sortOrder`, en daar geeft `clNieuweSortOrder()` een nieuwe taak `min(groep) - 1`. Ook wie handmatig sorteert ziet zijn nieuwe taak dus bovenaan — onderaan belanden was de klacht, niet de modus.
+
+**Waarom `createdAt` erbij moest**: drie van de vijf plekken die een taak aanmaakten zetten het veld niet (`clAddInlineItem`, `dashQuickAdd`, `dashClAdd`). Zonder aanmaakmoment is "nieuwste bovenaan" betekenisloos. Bestaande taken krijgen er bij het laden één toegewezen (`migreerChecklistVolgorde`), aflopend vanaf het oudste échte `createdAt` in de lijst en in de volgorde waarin ze nú op het scherm staan. Dat is bewust andersom dan je zou verwachten: zo houdt de bestaande lijst onder de nieuwe standaard exact zijn huidige volgorde, en komt alleen wat je vanaf nu aanmaakt er bovenop. Een backfill die de lijst omkeert zou technisch net zo verdedigbaar zijn en in de praktijk voelen als dataverlies.
+
+**Slepen blijft aan `manual` hangen**: in elke andere modus zou de sleepvolgorde bij de eerstvolgende render overschreven worden. `dragstart` blokkeert daar met een toast die zegt waarom, en de greep `⋮⋮` staat vaag. Bewust géén automatische omschakeling naar `manual` bij het slepen: dan verandert de sortering van de hele lijst door een handeling die over één kaart lijkt te gaan.
+
+**Meegenomen**: `#clSortSelect` las zijn waarde nooit terug uit de state, dus na een herlaad stond er altijd de eerste optie, ook als er op deadline gesorteerd werd. `renderClSortControls()` zet select én knop nu gelijk aan de state. Het dashboard-widget volgt dezelfde comparator, zodat beide schermen dezelfde volgorde tonen.
+
+**Bestanden**: `index.html` — nieuw: `CL_SORT_MODI`, `clAangemaaktOp`, `clSortModus`, `clSortCmp`, `clGroepeertOpPrioriteit`, `clNieuweSortOrder`, `migreerChecklistVolgorde`, `renderClSortControls`, `toggleClGroupByPriority`; gewijzigd: de topbalk van `#mod-checklist`, `hydrateerState`, `renderChecklistModule`, `renderPriorityGroups`, `wireChecklistBodyEvents`, `clItemHtml`, `setChecklistSort`, `renderDashChecklist`, en de vijf plekken die een taak aanmaken
+
+**Niet doen**: `sortOrder` weggooien "want er is nu `createdAt`". Het is de enige drager van de handmatige volgorde. En de migratie niet nog eens over de lijst laten lopen met een andere basis: taken die al een `createdAt` hebben moeten met rust gelaten worden, anders schuift de volgorde bij elke start.
