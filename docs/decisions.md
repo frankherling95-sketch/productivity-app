@@ -988,3 +988,19 @@ Twee dingen bewust wél laten staan:
 **Bestanden**: `index.html` — nieuw: `CL_SORT_MODI`, `clAangemaaktOp`, `clSortModus`, `clSortCmp`, `clGroepeertOpPrioriteit`, `clNieuweSortOrder`, `migreerChecklistVolgorde`, `renderClSortControls`, `toggleClGroupByPriority`; gewijzigd: de topbalk van `#mod-checklist`, `hydrateerState`, `renderChecklistModule`, `renderPriorityGroups`, `wireChecklistBodyEvents`, `clItemHtml`, `setChecklistSort`, `renderDashChecklist`, en de vijf plekken die een taak aanmaken
 
 **Niet doen**: `sortOrder` weggooien "want er is nu `createdAt`". Het is de enige drager van de handmatige volgorde. En de migratie niet nog eens over de lijst laten lopen met een andere basis: taken die al een `createdAt` hebben moeten met rust gelaten worden, anders schuift de volgorde bij elke start.
+
+## 2026-09-01 · Periode op de factuur: afleiden blijft, maar is nu te overschrijven
+
+**Probleem**: onder Betreft staat "Periode 1 t/m 30 augustus 2026" terwijl augustus 31 dagen heeft. De regel wordt afgeleid uit de gekoppelde urenregistraties — `van` is de vroegst geboekte dag, `tot` de laatst geboekte. Op 31 augustus stond niets geboekt, dus eindigde de periode op de 30e. Er was geen veld en geen scherm om dat te corrigeren: de tekst werd alleen tijdens het tekenen van de PDF opgebouwd.
+
+**Waarom het afleiden op zichzelf goed was**: het commentaar bij de functie zei het al — liever afleiden dan de gebruiker hetzelfde twee keer laten invullen. Dat klopt voor een factuur over een losse klus. Het klopt niet voor een maandfactuur, en dat is het normale geval hier: de laatste dag van de maand is zelden ook de laatste dag waarop geboekt is (weekend, feestdag, vrije dag). De afleiding is dan niet fout maar wel structureel misleidend, en juist bij het bedrag-dragende document wil je dat kunnen rechtzetten.
+
+**Beslissing**: `f.periode` als vrij tekstveld in de editor, direct onder Betreft — waar het op de factuur ook staat. Leeg = de bestaande afleiding, dus alle bestaande facturen veranderen niet. De afgeleide tekst staat als placeholder in het veld, zodat je ziet wat erop komt zonder de PDF te openen. Daarnaast een knop **Hele maand** die het veld vult met de kalendermaand van de gekoppelde uren (`factuurPeriodeMaand`), want dat is hier het gewenste antwoord in negen van de tien gevallen.
+
+Bewust een tekstveld en geen datumbereik met twee `<input type="date">`: het is een regel op een document, geen gegeven waar iets mee gerekend wordt. Met een bereik kun je "Periode augustus 2026" of "Week 31 t/m 35" niet meer schrijven, en zou de knop Hele maand een vlag moeten worden die de tekst blijft herberekenen.
+
+**Meegenomen**: de derde sjabloonvariant (links uitgelijnd, zonder kop boven Betreft) tekende de periodetekst helemaal niet — daar zou je invoer zonder zichtbare reden verdwijnen zodra je van sjabloon wisselt. En `factuurDupliceer` gooit `periode` weg, om dezelfde reden als het maildossier en `nummerVast`: de kopie krijgt `urenIds=[]`, dus de periode van de bron zou als enige regel blijven staan terwijl er niets meer aan hangt.
+
+**Bestanden**: `index.html` — `factuurPeriodeTekst` gesplitst in `factuurPeriodeFormat` / `factuurPeriodeAfgeleid` / `factuurPeriodeMaand` / `factuurPeriodeTekst`, nieuw veld in `facEditorRender`, nieuw `facEdPeriodeMaand` + registratie in `FAC_CLICK_ACTIONS`, periodetekst toegevoegd aan de derde tak van `facPdfMeta`, `delete f.periode` in `factuurDupliceer`; `sw.js` — `CACHE_NAME` naar `herling-v11`
+
+**Niet doen**: de afleiding vervangen door "altijd de hele maand". Een factuur over een halve maand of over één klus zou dan een periode claimen die niet klopt, en dat is erger dan een dag te vroeg eindigen. De hele maand is een keuze die je maakt, geen aanname die de app voor je doet.

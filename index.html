@@ -18761,6 +18761,9 @@ function factuurDupliceer(id){
   delete f.nummerVast;
   /* Kopie factureert dezelfde uren niet nog een keer */
   (f.regels||[]).forEach(r=>{r.id=factuurUid();r.urenIds=[];});
+  /* En dus ook niet de periode van die uren: die zou als enige regel op
+     de kopie blijven staan terwijl er niets meer aan hangt. */
+  delete f.periode;
   f.createdAt=Date.now(); f.updatedAt=Date.now();
   factuurState.invoices.push(f);
   scheduleSave();
@@ -18947,6 +18950,7 @@ const FAC_CLICK_ACTIONS={
   facBetaald:(a)=>facBetaaldDialoog(a||facEditId),
   closeFacBetaal:()=>closeFacBetaal(),
   facBetaalOpslaan:()=>facBetaalOpslaan(),
+  facEdPeriodeMaand:()=>facEdPeriodeMaand(),
   facTerugConcept:()=>facTerugNaarConcept(),
   facDupliceer:(a)=>facDupliceerActie(a||facEditId),
   facVerwijder:(a)=>facVerwijderActie(a||facEditId),
@@ -20252,6 +20256,26 @@ function facEditorRender(){
       data-fac-change="facEdVeld" data-fac-arg1="betreft" ${bewerkbaar?'':'disabled'}
       placeholder="Bijv. Gewerkte uren juli 2026"/></div>`;
 
+  /* Periode: de regel onder Betreft. Leeg = afgeleid uit de gekoppelde
+     uren, en dat staat als placeholder in het veld zodat je ziet wat er
+     op de factuur komt zonder de PDF te openen. */
+  const perAfgeleid=factuurPeriodeAfgeleid(f);
+  html+=`<div class="uren-fld" style="margin-top:12px">
+    <label>Periode</label>
+    <div style="display:flex;gap:6px;align-items:center">
+      <input type="text" class="fac-ed-inp" style="flex:1;min-width:0" value="${escapeHtml(f.periode||'')}"
+        data-fac-change="facEdVeld" data-fac-arg1="periode" ${bewerkbaar?'':'disabled'}
+        placeholder="${escapeHtml(perAfgeleid||'Geen uren gekoppeld')}"/>
+      <button class="btn btn-sm" data-fac-action="facEdPeriodeMaand" style="white-space:nowrap"
+        ${bewerkbaar&&perAfgeleid?'':'disabled'}
+        title="Vul de hele kalendermaand van de gekoppelde uren in">Hele maand</button>
+    </div>
+    <small style="display:block;font-size:11.5px;color:var(--text-muted);margin-top:4px">
+      ${perAfgeleid
+        ?'Leeg laten = de eerste en laatste dag waarop geboekt is.'
+        :'Zonder gekoppelde uren komt er alleen een periode op de factuur als je hem hier invult.'}
+    </small></div>`;
+
   /* Adres zoals het op de factuur komt */
   html+=`<div style="margin-top:14px;padding:12px 14px;background:var(--surface2);border-radius:var(--radius-md);font-size:12.5px;line-height:1.6;color:var(--text)">
     <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);margin-bottom:5px">Factuuradres</div>
@@ -20433,6 +20457,18 @@ function facSpecUitleg(f){
   return `<small style="display:block;color:var(--text-muted);font-size:11.5px;margin-top:2px">
     ${st.gevonden} registratie${st.gevonden===1?'':'s'} op een extra pagina achter de factuur.</small>`;
 }
+/* Zet de hele kalendermaand in het periodeveld. Als tekst en niet als
+   vlag: daarna is het gewoon een regel die je nog kunt bijschaven. */
+function facEdPeriodeMaand(){
+  const f=factuurById(facEditId);
+  if(!f)return;
+  const tekst=factuurPeriodeMaand(f);
+  if(!tekst){appToast('Er hangen geen uren aan deze factuur',{type:'warning'});return;}
+  factuurUpdate(f.id,{periode:tekst});
+  facEditorRender();
+  if(document.getElementById('facPreviewModal').classList.contains('open'))openFacPreview(f.id);
+}
+
 function facEdVeld(el,key){
   const f=factuurById(facEditId);
   if(!f)return;
@@ -22094,18 +22130,40 @@ function facPdfAdres(ctx,b,x,y,w,soort){
   return h+1;
 }
 
-/* "Periode 1 t/m 31 augustus 2026", afgeleid uit de urenregistraties
-   die aan de factuur hangen. Staat nergens als veld op de factuur, dus
-   liever afleiden dan de gebruiker het twee keer laten invullen. */
-function factuurPeriodeTekst(f){
-  const uren=factuurSpecificatieUren(f);
-  if(!uren.length)return '';
-  const van=uren[0].date, tot=uren[uren.length-1].date;
+/* "Periode 1 t/m 31 augustus 2026" — één datumbereik als regel. */
+function factuurPeriodeFormat(van,tot){
   if(van===tot)return 'Periode '+factuurFmtDatumLang(van);
   /* Zelfde maand? Dan alleen de dag vooraan: "1 t/m 31 augustus 2026". */
   if(van.slice(0,7)===tot.slice(0,7))
     return 'Periode '+Number(van.slice(8,10))+' t/m '+factuurFmtDatumLang(tot);
   return 'Periode '+factuurFmtDatumLang(van)+' t/m '+factuurFmtDatumLang(tot);
+}
+
+/* Afgeleid uit de urenregistraties die aan de factuur hangen: de eerste
+   en de laatste dag waarop geboekt is. */
+function factuurPeriodeAfgeleid(f){
+  const uren=factuurSpecificatieUren(f);
+  if(!uren.length)return '';
+  return factuurPeriodeFormat(uren[0].date,uren[uren.length-1].date);
+}
+
+/* Dezelfde uren, maar opgerekt tot hele kalendermaanden. Bij een
+   maandfactuur klopt "1 t/m 31 augustus" bijna altijd beter dan de dagen
+   waarop toevallig geboekt is — de 31e was een zondag, of vrij. */
+function factuurPeriodeMaand(f){
+  const uren=factuurSpecificatieUren(f);
+  if(!uren.length)return '';
+  const eerste=uren[0].date, laatste=uren[uren.length-1].date;
+  const dagenInMaand=new Date(Number(laatste.slice(0,4)),Number(laatste.slice(5,7)),0).getDate();
+  return factuurPeriodeFormat(eerste.slice(0,8)+'01',
+    laatste.slice(0,8)+String(dagenInMaand).padStart(2,'0'));
+}
+
+/* Wat er daadwerkelijk op de factuur komt: je eigen tekst als je er een
+   invulde, anders de afleiding. */
+function factuurPeriodeTekst(f){
+  const eigen=((f&&f.periode)||'').trim();
+  return eigen||factuurPeriodeAfgeleid(f);
 }
 
 function facPdfMeta(ctx,b,x,y,w){
@@ -22169,6 +22227,15 @@ function facPdfMeta(ctx,b,x,y,w){
       const bt=doc.splitTextToSize(f.betreft,w-18);
       doc.text(bt,x+18,y+h+3.5);
       h+=4.8*bt.length;
+      /* Ook hier de periode: anders verdwijnt wat je invulde zodra je
+         een sjabloon zonder kop boven Betreft kiest. */
+      const per=factuurPeriodeTekst(f);
+      if(per){
+        doc.setFontSize(gr-1).setTextColor(...ctx.grijs);
+        doc.text(per,x+18,y+h+3.5);
+        doc.setFontSize(gr).setTextColor(...ctx.accent);
+        h+=4.8;
+      }
     }
   }
   return h;
