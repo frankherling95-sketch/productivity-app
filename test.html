@@ -203,6 +203,33 @@ function runChecks() {
       return t.notities === 2 && t.uren === 3 && t.facturen === 1 && t.klanten === 2;
     }],
 
+    /* ── Vastpinnen ──
+       Twee eisen: vastgepind staat bovenaan, en onderling verandert er niets
+       aan de volgorde. Beide tests zijn onafhankelijk van de gekozen
+       sorteermodus, zodat ze niet omvallen door wat er in Drive staat. */
+    ['Pin: vastgepind gaat voor de rest', () =>
+      w.clVastCmp({pinned:true}, {}) < 0 &&
+      w.clVastCmp({}, {pinned:true}) > 0 &&
+      w.clVastCmp({pinned:true}, {pinned:true}) === 0 &&
+      w.clVastCmp({}, {}) === 0],
+    ['Pin: sortering zet vastgepind bovenaan', () => {
+      const cmp = w.clSortCmp();
+      const lijst = [
+        {id:'a', text:'Aaa', createdAt:3, sortOrder:1, deadline:'2026-01-01'},
+        {id:'b', text:'Zzz', createdAt:1, sortOrder:9, deadline:'2026-12-31', pinned:true},
+        {id:'c', text:'Mmm', createdAt:2, sortOrder:5, deadline:'2026-06-15'}
+      ];
+      return lijst.slice().sort(cmp).map(i => i.id)[0] === 'b';
+    }],
+    ['Pin: onderling geldt de gewone volgorde', () => {
+      const cmp = w.clSortCmp();
+      const p1 = {id:'p1', text:'Alfa', createdAt:1, sortOrder:1, deadline:'2026-01-01'};
+      const p2 = {id:'p2', text:'Beta', createdAt:2, sortOrder:2, deadline:'2026-02-01'};
+      const zonder = Math.sign(cmp(p1, p2));
+      const met    = Math.sign(cmp({...p1, pinned:true}, {...p2, pinned:true}));
+      return zonder !== 0 && zonder === met;
+    }],
+
     ['No iframe console errors',           () => iframeErrors.length === 0]
   ];
 

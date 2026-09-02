@@ -3076,6 +3076,20 @@ textarea { line-height: 1.6; resize: vertical; }
   border-radius: 20px;
 }
 .cl2-group-rule { flex: 1; height: 1px; background: var(--border); margin-left: 4px; }
+/* Kopje van de vastgepinde groep: punaise in plaats van het prioriteitsbolletje */
+.cl2-group-pin { display: flex; color: var(--text); flex-shrink: 0; }
+
+/* ── Vastgepinde taken ──────────────────────────────────────────────────────
+   Mintrand om de kaart en een oplichtende knop, zodat een vastgepinde taak
+   ook los van het groepskopje te herkennen is (in de platte volgorde staan
+   er namelijk geen kopjes). */
+#clBody .cl-item.pinned {
+  border-color: var(--mint) !important;
+  box-shadow: 0 0 0 3px var(--mint-soft), var(--shadow-card) !important;
+}
+#clBody .cl-item.pinned:hover { box-shadow: 0 0 0 3px var(--mint-soft), var(--shadow-card-hover) !important; }
+.cl2-iconbtn.pinned { background: var(--mint-soft); color: var(--text); }
+.cl2-iconbtn.pinned:hover { background: var(--mint-glow); }
 
 /* ── Item card (v3) ─────────────────────────────────────────────────────────
    Uses same .cl-item hook as existing module but with stronger overrides. */
@@ -10396,10 +10410,15 @@ function renderDashChecklist(){
       <button class="btn btn-sm btn-primary" data-action="switchModule" data-arg1="checklist">Open Checklist ↗</button>
     </div>`;return;
   }
-  /* Zelfde volgorde als in de checklistmodule, zodat beide schermen kloppen */
+  /* Zelfde volgorde als in de checklistmodule, zodat beide schermen kloppen.
+     Vastgepind gaat ook hier vóór de prioriteit uit, en binnen dat blok telt
+     de prioriteit niet mee — in de module is het immers één groep zonder
+     prioriteitsverdeling. Hier zijn a en b even vastgepind, dus één check. */
   const dashCmp=clSortCmp();
   const sorted=[...open].sort((a,b)=>{
-    if(clGroepeertOpPrioriteit()){
+    const vast=clVastCmp(a,b);
+    if(vast)return vast;
+    if(clGroepeertOpPrioriteit()&&!a.pinned){
       const ao=(CL_PRIORITY_CFG[a.priority]||CL_PRIORITY_CFG.middel).order;
       const bo=(CL_PRIORITY_CFG[b.priority]||CL_PRIORITY_CFG.middel).order;
       if(ao!==bo)return ao-bo;
@@ -13418,13 +13437,24 @@ const CL_SORT_MODI={
 function clAangemaaktOp(i){return i.createdAt||0;}
 /* Onbekende of oude waarde uit Drive → terug naar de standaard */
 function clSortModus(){return CL_SORT_MODI[checklistState.sortBy]?checklistState.sortBy:'newest';}
-function clSortCmp(){return CL_SORT_MODI[clSortModus()];}
+/* Een vastgepinde taak (item.pinned) staat altijd bovenaan — vóór de
+   prioriteitsgroepen, dus ook een lage prio komt boven een hoge uit. Onderling
+   verandert er niets: daar geldt gewoon de gekozen sorteermodus. */
+function clVastCmp(a,b){return (a.pinned?0:1)-(b.pinned?0:1);}
+function clSortCmp(){
+  const basis=CL_SORT_MODI[clSortModus()];
+  return (a,b)=>clVastCmp(a,b)||basis(a,b);
+}
 function clGroepeertOpPrioriteit(){return checklistState.groupByPriority!==false;}
 
 /* Nieuwe taken komen bovenaan hun prioriteitsgroep — ook in de handmatige
-   volgorde, want onderaan belanden was precies de klacht. */
-function clNieuweSortOrder(priority){
-  const groep=checklistState.items.filter(i=>!i.archived&&!i.done&&i.priority===priority);
+   volgorde, want onderaan belanden was precies de klacht. De vastgepinde
+   taken vormen één eigen groep zonder prioriteitsverdeling, dus voor een
+   taak die vastgepind geboren wordt (een herhaling) telt die groep. */
+function clNieuweSortOrder(priority,pinned=false){
+  const groep=checklistState.items.filter(i=>!i.archived&&!i.done&&(
+    pinned?i.pinned:(!i.pinned&&i.priority===priority)
+  ));
   if(!groep.length)return 0;
   return Math.min(...groep.map(i=>i.sortOrder||0))-1;
 }
@@ -13581,15 +13611,31 @@ function renderChecklistModule(){
 }
 
 /* Render items grouped by priority (HOOG → MIDDEL → LAAG) with group headers.
-   Binnen elke groep geldt de gekozen sorteermodus. */
+   Binnen elke groep geldt de gekozen sorteermodus. Vastgepinde taken worden
+   erboven gezet in één eigen groep — die kent dus geen prioriteitsverdeling,
+   want anders zou een vastgepinde lage prio alsnog onderaan belanden. */
 function renderPriorityGroups(items,{isArchived,showGroupHeaders}){
-  const bucket={hoog:[],middel:[],laag:[]};
-  items.forEach(i=>{(bucket[i.priority]||bucket.middel).push(i);});
   const cmp=clSortCmp();
+  const vast=items.filter(i=>i.pinned).sort(cmp);
+  const bucket={hoog:[],middel:[],laag:[]};
+  items.filter(i=>!i.pinned).forEach(i=>{(bucket[i.priority]||bucket.middel).push(i);});
   ['hoog','middel','laag'].forEach(p=>{
     bucket[p].sort(cmp);
   });
   let out='';
+  if(vast.length){
+    out+=showGroupHeaders
+      ?`<div class="cl2-group">
+          <div class="cl2-group-hdr">
+            <span class="cl2-group-pin">${clPinSvg(true,11)}</span>
+            <span class="cl2-group-name" style="color:var(--text)">Vastgepind</span>
+            <span class="cl2-group-count">${vast.length}</span>
+            <span class="cl2-group-rule"></span>
+          </div>
+          ${vast.map(i=>clItemHtml(i,isArchived)).join('')}
+        </div>`
+      :vast.map(i=>clItemHtml(i,isArchived)).join('');
+  }
   ['hoog','middel','laag'].forEach(p=>{
     const list=bucket[p];
     if(!list.length)return;
@@ -13637,6 +13683,9 @@ function wireChecklistBodyEvents(body){
     });
     el.addEventListener('dragend',()=>{clDragId=null;body.querySelectorAll('.cl-item').forEach(x=>x.classList.remove('dragging','drag-above','drag-below'));});
     el.addEventListener('dragover',e=>{
+      /* Vastgepind en de rest zijn twee gescheiden blokken; ertussen slepen
+         zou niets doen, dus geen preventDefault → de browser weigert de drop. */
+      if(!clZelfdePinGroep(clDragId,el.dataset.id))return;
       e.preventDefault();
       body.querySelectorAll('.cl-item').forEach(x=>x.classList.remove('drag-above','drag-below'));
       const mid=el.getBoundingClientRect().top+el.offsetHeight/2;
@@ -13646,6 +13695,7 @@ function wireChecklistBodyEvents(body){
     el.addEventListener('drop',e=>{
       e.preventDefault();
       if(!clDragId||clDragId===clDragOver?.id)return;
+      if(!clZelfdePinGroep(clDragId,clDragOver.id))return;
       const items=checklistState.items;
       const fromIdx=items.findIndex(x=>x.id===clDragId);
       const toIdx=items.findIndex(x=>x.id===clDragOver.id);
@@ -13653,11 +13703,15 @@ function wireChecklistBodyEvents(body){
       const [moved]=items.splice(fromIdx,1);
       const insertAt=clDragOver.above?(toIdx>fromIdx?toIdx-1:toIdx):(toIdx>fromIdx?toIdx:toIdx+1);
       items.splice(Math.max(0,insertAt),0,moved);
-      /* Hernummeren binnen de groep die je op het scherm ziet: per prioriteit
-         als de prio-groepen aanstaan, anders over de hele lijst. */
-      const hernummer=clGroepeertOpPrioriteit()
-        ?items.filter(i=>!i.archived&&!i.done&&i.priority===moved.priority)
-        :items.filter(i=>!i.archived&&!i.done);
+      /* Hernummeren binnen de groep die je op het scherm ziet: de vastgepinde
+         taken vormen één blok, de rest per prioriteit als de prio-groepen
+         aanstaan en anders over de hele lijst. */
+      const actief=items.filter(i=>!i.archived&&!i.done);
+      const hernummer=moved.pinned
+        ?actief.filter(i=>i.pinned)
+        :(clGroepeertOpPrioriteit()
+          ?actief.filter(i=>!i.pinned&&i.priority===moved.priority)
+          :actief.filter(i=>!i.pinned));
       hernummer.forEach((i,idx)=>{i.sortOrder=idx;});
       scheduleSave();renderChecklistModule();
     });
@@ -13751,7 +13805,7 @@ function clItemHtml(item,isArchived=false){
     </span>`);
   }
 
-  return `<div class="cl-item${item.done?' done-item':''}${isArchived?' archived-item':''}"
+  return `<div class="cl-item${item.done?' done-item':''}${isArchived?' archived-item':''}${item.pinned?' pinned':''}"
     data-id="${item.id}" data-done="${item.done?'true':'false'}"
     ${draggable?'draggable="true"':''}
     style="border-left-color:${cfg.tx}">
@@ -13769,6 +13823,9 @@ function clItemHtml(item,isArchived=false){
         <div class="cl2-item-meta">${metaBits.join('')}</div>
       </div>
       <div class="cl2-item-actions">
+        <button type="button" class="cl2-iconbtn${item.pinned?' pinned':''}" data-action="toggleClItemPin" data-arg1="${item.id}" title="${item.pinned?'Losmaken van bovenaan':'Vastpinnen bovenaan'}">
+          ${clPinSvg(!!item.pinned)}
+        </button>
         <button type="button" class="cl2-iconbtn${isOpen?' open':''}" data-action="toggleClItemOpen" data-arg1="${item.id}" title="${isOpen?'Inklappen':'Uitklappen'}">
           <svg class="chev" width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
@@ -13788,6 +13845,33 @@ function clItemHtml(item,isArchived=false){
     ${subsTotal>0?`<div class="cl2-progress"><div class="cl2-progress-fill" style="width:${pct}%;background:${pct===100?'var(--mint)':cfg.tx}"></div></div>`:''}
     ${showSubs||showSubsAdd?`<div class="cl2-subs">${subsHtml}</div>`:''}
   </div>`;
+}
+
+/* Punaise-icoon; gevuld kopje zodra de taak vastgepind staat */
+function clPinSvg(gevuld,size=12){
+  return `<svg width="${size}" height="${size}" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+    <path d="M4.2 1.5h3.6l-.5 3 1.9 1.6v.9H2.8v-.9l1.9-1.6-.5-3z" fill="${gevuld?'currentColor':'none'}" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>
+    <path d="M6 7v3.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+  </svg>`;
+}
+
+/* Vastpinnen / losmaken. De sortOrder blijft staan: onder elkaar houden de
+   vastgepinde taken zo precies de volgorde die ze zonder pin ook hadden. */
+function toggleClItemPin(id){
+  const item=checklistState.items.find(i=>i.id===id);
+  if(!item)return;
+  item.pinned=!item.pinned;
+  item.updatedAt=Date.now();
+  scheduleSave();
+  renderChecklistModule();
+}
+
+/* Horen twee taken in hetzelfde sleepblok? Vastgepind en niet-vastgepind
+   staan gescheiden op het scherm, dus daartussen slepen kan niet. */
+function clZelfdePinGroep(idA,idB){
+  const a=checklistState.items.find(i=>i.id===idA);
+  const b=checklistState.items.find(i=>i.id===idB);
+  return !!a&&!!b&&!!a.pinned===!!b.pinned;
 }
 
 /* Toggle item open/collapse state */
@@ -13968,7 +14052,8 @@ function spawnRecurringNext(item){
     clientId:item.clientId||null,
     subtasks:(item.subtasks||[]).map(st=>({id:uid(),text:st.text,done:false})),
     archived:false,
-    sortOrder:clNieuweSortOrder(item.priority),
+    pinned:!!item.pinned,
+    sortOrder:clNieuweSortOrder(item.priority,!!item.pinned),
     recurrence:item.recurrence,
     createdAt:Date.now(),updatedAt:Date.now()
   };
@@ -14258,6 +14343,7 @@ Object.assign(APP_ACTIONS,{
   unarchiveItem:(el,e,id)=>unarchiveItem(id),
   deleteChecklistItem:(el,e,id)=>deleteChecklistItem(id),
   toggleClItemOpen:(el,e,id)=>toggleClItemOpen(id),
+  toggleClItemPin:(el,e,id)=>toggleClItemPin(id),
   toggleAllSubtasks:()=>toggleAllSubtasks(),
   toggleClDoneSection:()=>toggleClDoneSection(),
   toggleChecklistArchived:()=>toggleChecklistArchived(),

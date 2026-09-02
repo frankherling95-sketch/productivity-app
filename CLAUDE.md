@@ -43,7 +43,7 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 | `#todo` | Kanban | Projecten met kolommen, kaarten met klant/tags/category, drag-drop |
 | `#notes` | Notes | Boomstructuur (folders/pages) met rich-text editor (marked.js) |
 | `#agenda` | Agenda | iCal multi-source (week/dag/maand), zie `docs/agenda.md` |
-| `#checklist` | Checklist | Taken met subtaken, filters (prio/klant/periode), drag-drop, archief |
+| `#checklist` | Checklist | Taken met subtaken, filters (prio/klant/periode), vastpinnen, drag-drop, archief |
 | `#uren` | Uren | Urenregistratie per regel, week/maand, Excel export |
 | `#facturen` | Facturen | Facturen uit geschreven uren, sjabloonbouwer, debiteuren, btw-overzicht, mailen via Gmail |
 
@@ -64,7 +64,7 @@ rawState = {
 
 **Item shapes** (snelle referentie):
 - Kanban item: `{id, title, clientId, category, context, tags[], createdAt, updatedAt}`
-- Checklist item: `{id, text, done, priority, deadline, clientId, subtasks[], archived, sortOrder}`
+- Checklist item: `{id, text, done, priority, deadline, clientId, subtasks[], archived, sortOrder, pinned}`
 - Notes node (recursief): `{id, type:'page'|'folder', title, content, clientId, tags, children[]}`
 - Klant: `{id, name, colorIdx}`
 - iCal source: `{id, type:'ical', name, url, color, enabled}`
@@ -201,6 +201,7 @@ Daarna: vraag Frank om **Ctrl+Shift+R** op de live site. Optioneel `test.html` d
 
 Top-3 meest recent. Volledige log + *waarom* per beslissing: [`docs/decisions.md`](docs/decisions.md).
 
+- **2026-09-02**: Checklist-taken vastpinnen — `item.pinned` zet een taak in één blok bovenaan, *boven* de prioriteitsgroepen (dus een vastgepinde lage prio komt boven een hoge uit). Binnen dat blok geldt gewoon de gekozen sorteermodus: `clSortCmp()` zet er alleen `clVastCmp` vóór. Slepen kruist de grens niet (`clZelfdePinGroep()`)
 - **2026-09-01**: Periode op de factuur te overschrijven — veld `f.periode` onder Betreft (leeg = afgeleid uit de gekoppelde uren) plus een knop "Hele maand"; de afleiding eindigde op de laatst geboekte dag, wat bij een maandfactuur bijna altijd te vroeg is
 - **2026-09-01**: Checklist-sortering — nieuwe taken bovenaan (elke aanmaakplek zet nu `createdAt`, en `clNieuweSortOrder()` geeft ze `min(groep)-1`), sorteerkeuze uitgebreid naar vijf modi in `CL_SORT_MODI` met een aparte knop "Prio-groepen" (`groupByPriority`); slepen alleen nog in de modus Handmatig
 - **2026-08-21**: Opschoning zonder gedragsverandering — 58 lege stub-functies en 45 altijd-ware `typeof x==='function'`-guards weg (restanten uit de tijd dat het bestand in delen werd samengesteld), 17 nooit-aangeroepen functies verwijderd, `verzamelModuleState()` als enige plek waar modules in `rawState` landen. Bewezen identiek: byte-gelijke PDF's en 0 verschillen in berekende stijlen (desktop/mobiel/licht/donker)
@@ -267,7 +268,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | Bestand | Doel |
 |---------|------|
 | `validate.mjs` | JS syntax + tag balance + onclick-referentie checks |
-| `test.html` | 29 smoke- en synctests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
+| `test.html` | 32 smoke-, sync- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |

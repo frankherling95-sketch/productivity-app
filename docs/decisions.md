@@ -1004,3 +1004,21 @@ Bewust een tekstveld en geen datumbereik met twee `<input type="date">`: het is 
 **Bestanden**: `index.html` — `factuurPeriodeTekst` gesplitst in `factuurPeriodeFormat` / `factuurPeriodeAfgeleid` / `factuurPeriodeMaand` / `factuurPeriodeTekst`, nieuw veld in `facEditorRender`, nieuw `facEdPeriodeMaand` + registratie in `FAC_CLICK_ACTIONS`, periodetekst toegevoegd aan de derde tak van `facPdfMeta`, `delete f.periode` in `factuurDupliceer`; `sw.js` — `CACHE_NAME` naar `herling-v11`
 
 **Niet doen**: de afleiding vervangen door "altijd de hele maand". Een factuur over een halve maand of over één klus zou dan een periode claimen die niet klopt, en dat is erger dan een dag te vroeg eindigen. De hele maand is een keuze die je maakt, geen aanname die de app voor je doet.
+
+## 2026-09-02 · Checklist: taken vastpinnen boven de prioriteitsgroepen
+
+**Probleem**: er is één taak die deze week steeds boven aan de lijst moet staan, ongeacht wat de sortering ervan vindt. Dat kon alleen door de prioriteit op Hoog te zetten — waarmee je de prioriteit misbruikt als plaatsingsmiddel en de betekenis van "Hoog" uitholt. In `manual` kon je hem naar boven slepen, maar alleen naar de top van zijn eigen prioriteitsgroep, en die volgorde overleeft het wisselen van sorteermodus niet.
+
+**Beslissing**: een `pinned`-vlag per taak, met een punaiseknop in de rij. Vastgepinde taken staan in één blok bovenaan — *boven* de prioriteitsgroepen, niet erbinnen. Een vastgepinde lage prio komt dus boven een hoge uit; dat is precies de bedoeling, anders zegt "altijd bovenaan" niets.
+
+**Binnen het blok verandert er niets aan de volgorde**: `clSortCmp()` zet er alleen `clVastCmp` vóór, en die valt weg zodra beide taken even vastgepind zijn. Wat daarna telt is gewoon de gekozen modus uit `CL_SORT_MODI`. Het pinnetje bepaalt dus *waar* een taak staat, niet *hoe* er gesorteerd wordt — en `sortOrder` wordt bij het pinnen bewust niet aangeraakt, zodat losmaken de oude plek teruggeeft.
+
+**Het blok kent zelf geen prioriteitsverdeling.** Zou het die wel hebben, dan zou een vastgepinde lage prio alsnog onder een vastgepinde hoge belanden en is de knop weer een prioriteitsknop. Daarom staat in `renderDashChecklist()` ook `!a.pinned` bij de prioriteitsstap: zonder die check sorteerde het dashboard binnen de vastgepinde taken tóch op prioriteit en weken de twee schermen van elkaar af.
+
+**Slepen kruist de grens niet**: `clZelfdePinGroep()` laat `dragover` geen `preventDefault` doen tussen een vastgepinde en een gewone taak, dus de browser weigert de drop zichtbaar. Anders zou je een kaart ergens neerleggen waar hij niet blijft liggen — het pinnetje bepaalt de plek, niet de sleepvolgorde. Hernummeren gebeurt per zichtbaar blok: alle vastgepinde taken samen, de rest per prioriteit.
+
+**Zichtbaar zonder kopje**: in de platte volgorde (Prio-groepen uit) zijn er geen groepskoppen, dus de kaart draagt het zelf — mintrand plus een oplichtende, gevulde punaise. In de gegroepeerde weergave staat er bovendien een kopje "Vastgepind" met een telling, in dezelfde vorm als de prioriteitskoppen.
+
+**Bestanden**: `index.html` — nieuw: `clVastCmp`, `clPinSvg`, `toggleClItemPin`, `clZelfdePinGroep`, CSS `.cl2-group-pin` / `#clBody .cl-item.pinned` / `.cl2-iconbtn.pinned`; gewijzigd: `clSortCmp`, `clNieuweSortOrder` (tweede parameter `pinned`), `renderPriorityGroups`, `wireChecklistBodyEvents`, `clItemHtml`, `spawnRecurringNext`, `renderDashChecklist`, `APP_ACTIONS`. `test.html` — drie tests (32/32)
+
+**Niet doen**: het pinnetje laten vervallen bij afronden of archiveren. Een afgeronde taak die je weer openzet, of een gearchiveerde die je herstelt, hoort terug te komen zoals je hem achterliet. Ook geen aparte "pin-volgorde" invoeren: de vraag was om één taak bovenaan, niet om een tweede sorteersysteem ernaast.
