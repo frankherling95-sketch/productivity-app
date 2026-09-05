@@ -10,6 +10,23 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-05 · Checklist op een telefoon: filters achter één regel, acties in een ⋯-menu
+
+**Probleem.** Boven de eerste taak stond ruim 300px bediening: de topbalk over twee regels (klantfilter, sorteerkeuze, prio-groepen), een hero met vier knoppen in een 2×2 (Uitklappen, Met AI, Verwijder afgerond, Archief), en daaronder twee rijen filterchips plus een zoekbalk. Bij elkaar meer dan een derde van het scherm, elke keer dat je de lijst opende — voor acties die je hooguit een paar keer per week gebruikt.
+
+**Beslissing.** De filters gaan achter één regel van 44px die uitklapt. De rest van de bediening verhuist naar een ⋯-menu in de topbalk, met dezelfde vorm en hetzelfde gedrag als het menu in de Agenda (inclusief `clampDropdownToViewport`: de knop staat halverwege de balk, en een menu van 280px stak links buiten beeld). De hero houdt over waar hij voor bedoeld is — hoever je bent.
+
+**Waarom uitklappen en niet een apart venster.** Beide waren op tafel. Bij een takenlijst wissel je vaak tussen Alles en Hoog, en dan wil je de lijst zien meebewegen; een venster kost twee tikken per wissel en verbergt juist het resultaat waar het je om gaat. Uren en Facturen hébben een filtervenster, maar daar filter je zelden en staat er een tabel onder die je toch niet naast het venster leest.
+
+**Waarom de dichte balk toont wát er aanstaat.** Dit is het zwaarste punt en de reden dat het geen kale knop is geworden: een filter dat je niet ziet is een valstrik. Je mist een taak, denkt dat hij weg is, en gaat zoeken. Staat er iets aan, dan kleurt de balk mint en staat er `Hoog · Deze week` met een kruisje om alles in één tik te wissen. Ingeklapt kost dat evenveel ruimte als een leeg label.
+
+`clFiltersOpen` wordt bewust niet bewaard: hij hoort elke keer dicht te beginnen, anders is de ruimtewinst na één keer filteren weg.
+
+**Bestanden.** `index.html` — `renderClFilterBar()` (kop + body), `renderClOverflowMenu()`, `toggleClOverflow()`, `closeClOverflow()`, de acties `toggleClFilters` / `clSetSort` / `clOvf*`, de CSS bij `.cl2-filter-kop` en `.cl-overflow`, en het CHECKLIST-blok in laag 4.
+
+**Niet doen.** De kop van de filterbalk of de ⋯-knop op een bureaublad tonen: daar is de ruimte er wel, en `.cl2-filter-body` staat op `display: contents` zodat de chips gewoon in dezelfde flex-rij blijven staan als voorheen. En: de telling niet ook in de uitgeklapte rij zetten — die staat al in de kop en stond er daardoor twee keer.
+---
+
 ## 2026-09-05 · Agenda op een telefoon: Dag als start, en een weekraster dat opzij schuift
 
 **Probleem.** De Agenda was op mobiel de duurste module in schermruimte en de armste in informatie. Gemeten op 375×812:
