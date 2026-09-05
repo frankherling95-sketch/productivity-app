@@ -10,6 +10,40 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-05 · Agenda op een telefoon: Dag als start, en een weekraster dat opzij schuift
+
+**Probleem.** De Agenda was op mobiel de duurste module in schermruimte en de armste in informatie. Gemeten op 375×812:
+
+- De balk was **156px hoog** met acht knoppen over zes rijposities; samen met de dagkoppen begon de kalender pas op **208px** — een kwart van het scherm bediening.
+- In de weekweergave was een afspraakblok **42px breed**. De titel kreeg 29px terwijl er 104px nodig was: **72% van elke afspraaknaam was onzichtbaar**. Je zag dát je iets had, niet wát. Zeven kolommen passen domweg niet op 375px.
+- De dagweergave werkte wél (één brede kolom, titels voluit), maar was niet de standaard — terwijl de kop van MOBILE LAYOUT al jaren "agenda day-default" beloofde.
+- In de dagweergave kostte de dagkop "DONDERDAG 3" **130px** voor informatie die de titel erboven al gaf.
+- In de maandweergave vulde de tijd de pil: "09:0…", "Dagst…". In een cel van 50px blijft er na `09:00 ` niets over voor de titel.
+
+**Beslissing.**
+
+*Weekraster schuift opzij in plaats van samen te knijpen.* Elke dag krijgt minimaal 100px, wat het raster 748px breed maakt — twee keer het scherm. De titel gaat daarmee van 29 naar **83px**. De tijdkolom en de dagkoppen blijven vastgezet terwijl je veegt; zonder die ankers weet je na één veeg niet meer welke dag of hoe laat. Vastklikken per dag met `proximity`, niet `mandatory`, zodat je nog een stukje kunt bijschuiven om de rand van een blok te zien.
+
+*Dag is de standaard op een telefoon.* `agendaView` start op `day` als `matchMedia('(max-width: 768px)')` matcht, anders op `week`. Week en Maand blijven één tik weg.
+
+*De balk gaat van vier rijen naar twee.*
+
+```
+rij 1   [ Dag | Week | Maand ]   [klant]  [⋯]
+rij 2   [←]   datum, klikbaar = vandaag   [→]
+```
+
+"+ Nieuwe afspraak" is de zwevende + geworden (zelfde gebaar en plek als in Uren), "Vandaag" zit nu in de titel — hetzelfde patroon als het periodelabel in Uren en Facturen — en "Met AI" staat in het ⋯-menu. Niets is verdwenen, alles is één tik weg. De balk is nu 125px en de kalender begint op 177px.
+
+**Waarom `display: contents` op de datumnavigatie.** De pijlen zitten met "Vandaag" in een eigen div en de titel staat daar los naast, dus je krijgt ze nooit op één regel als `[←] datum [→]`. `display: contents` lost die div op zodat de pijlen zelf flex-items worden en met `order` om de titel heen kunnen — zonder de HTML te verbouwen en zonder desktop te raken. De lege vuldiv, die op desktop naar rechts duwt, doet op mobiel dienst als regeleinde (`flex: 0 0 100%; height: 0`): één element, twee rollen.
+
+**Waarom één scrollcontainer.** De eerste opzet liet het uurraster zijn eigen verticale scroll houden en zette de horizontale op de buitenkant. Sticky ankert aan de dichtstbijzijnde scrollende voorouder, dus de tijdkolom hing aan een container die niet opzij schuift — en schoof gewoon mee weg. Nu doet de buitenste beide richtingen en ankeren de koppen dááraan.
+
+**Bestanden.** `index.html` — `agendaView` initialisatie, `.agenda-hdr-vul`, `.agenda-fab`, `.agenda-overflow-mobiel`, `.cal-grid-week` (nieuwe class op de weekcontainer), `.cal-pil-tijd` (tijd in een eigen span zodat de mobiele laag hem kan weglaten), plus het herschreven AGENDA-blok in laag 4. `docs/mobile.md` — bijgewerkt.
+
+**Niet doen.** De minimumbreedte van 100px ook op de dagweergave zetten: die deelt dezelfde onderdelen maar heeft één kolom, en zou dan zinloos gaan schuiven. Daarvoor is de class `.cal-grid-week` er. En: de tijd niet terugzetten in de maandpil zonder de cel breder te maken — dat was precies de ruil die de titel opat.
+---
+
 ## 2026-09-05 · Eén mobiele typografische schaal, en 44px als ondergrens voor een raakvlak
 
 **Probleem.** De mobiele weergave voelde druk en de verhoudingen klopten niet, maar dat was nooit gemeten. Gemeten op één scherm (Checklist, boven de vouw, 375×812): **twaalf verschillende lettergroottes**, waarvan **dertig van de tweeënveertig tekstblokken onder 12px**, met een gat tussen 11 en 17px. Er was dus geen leesbare middenmaat — alles las als óf een microlabel óf een kop. En **vijfentwintig van de tweeëndertig knoppen** waren in minstens één richting kleiner dan 44px; de filterchips waren 28px hoog en enkele 29px breed. Over het hele bestand: 28 verschillende `font-size`-waarden, inclusief halve pixels (10.5, 11.5, 12.5, 13.5).

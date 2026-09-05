@@ -112,14 +112,34 @@ Gemeten over zes modules op 375×812, met de zijbalk dicht en zonder modals:
 De twaalf knoppen onder 36px zijn de uitzonderingen hierboven: de
 periodekiezer, de Week/Maand-schakelaar en de vier acties in de notitieboom.
 
+## Als iets niet in de breedte past
+
+Twee wegen, en de keuze hangt af van wat je verliest.
+
+**Laten wrappen** wanneer de onderdelen los van elkaar te lezen zijn: knoppen,
+filters, KPI-tegels. Een regel extra kost 44px en je verliest niets.
+
+**Horizontaal laten schuiven** wanneer de onderdelen een raster vormen dat je
+niet mag breken — het weekraster in de Agenda is het voorbeeld. Zeven dagen
+naast elkaar op 375px geeft 42px per dag, en daar past geen afspraaknaam in.
+Honderd pixel per dag maakt het raster breder dan het scherm; dat schuift dan
+opzij.
+
+Bij schuiven horen twee dingen: zet de ankers vast (`position: sticky` op de
+tijdkolom en de dagkoppen — zonder die weet je na één veeg niet meer waar je
+bent), en gebruik **één** scrollcontainer voor het geheel. Sticky ankert aan
+de dichtstbijzijnde scrollende voorouder; als het raster zijn eigen verticale
+scroll houdt en de horizontale op de buitenkant zit, hangt de tijdkolom aan
+een container die niet opzij schuift en schuift hij gewoon mee weg.
+
 ## Bekende punten die nog openstaan
 
-- **Agenda** — drie rijen bediening kosten een derde van het scherm voordat de
-  kalender begint. De weekweergave geeft zeven kolommen van 38px, waar geen
-  afspraaktekst in past. Zie [`agenda.md`](agenda.md).
 - **Checklist** — de bediening boven de eerste taak is nog steeds fors: topbalk,
   hero met vier knoppen, snel-toevoegen, twee filterregels en een zoekbalk.
   De maten kloppen nu; de hoeveelheid is een aparte vraag.
-- **De zwevende + in Uren** dekt tijdens het scrollen het bedrag van de
-  onderste regel af. Dat hoort bij een zwevende knop, maar hij staat precies
-  op het getal.
+- **De zwevende + in Uren en Agenda** dekt tijdens het scrollen de onderste
+  regel af. Dat hoort bij een zwevende knop, maar hij staat precies op het
+  bedrag.
+- **Agenda, maandweergave** — de pillen tonen nu de titel in plaats van de
+  tijd, maar een cel is 50px breed en dus blijft het afkappen. Een maandcel
+  op een telefoon kan niet veel meer dan "er is hier iets".
