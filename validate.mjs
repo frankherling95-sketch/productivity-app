@@ -8,6 +8,8 @@
  * 3. Functions called via onclick="" exist somewhere in the file
  * 4. document.getElementById('xxx') targets that look obviously missing
  *    (the ID never appears anywhere in the HTML)
+ * 5. Geen font-size onder 11,5px binnen een mobiele media query
+ *    (waarschuwing — zie docs/mobile.md voor de schaal)
  */
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
@@ -175,6 +177,59 @@ while ((m = callRe.exec(js)) !== null) {
 }
 if (undefinedCalls.size) {
   errors.push(`Aanroep naar niet-bestaande functie(s): ${[...undefinedCalls.keys()].join(', ')}`);
+}
+
+/* ─── Mobiele ondergrens voor leesbare tekst ───
+ * De schaal staat in docs/mobile.md: --fs-micro (11,5px op een telefoon) is
+ * de kleinste maat die in beeld hoort te komen. Het bestand liep vol met
+ * losse waarden tussen 8,5 en 11px omdat elke keer één pixel gewonnen moest
+ * worden om iets op één regel te krijgen; los verdedigbaar, samen een scherm
+ * waarop niets meer opvalt.
+ *
+ * Waarschuwing en geen fout: er zijn plekken waar een bewuste uitzondering
+ * verdedigbaar is. Zet daar het woord mag-kleiner in een CSS-comment bij, op
+ * dezelfde regel of de regel erboven, dan blijft de melding weg -- maar staat
+ * in de code wel dat het een keuze was en geen slordigheid. */
+const MOBIELE_ONDERGRENS = 11.5;
+const mobieleBlokken = [];
+const mediaRe = /@media[^{]*\(\s*max-width\s*:\s*(\d+)px\s*\)[^{]*\{/g;
+let mm;
+while ((mm = mediaRe.exec(html)) !== null) {
+  if (Number(mm[1]) > 768) continue;          /* alleen telefoonbreedtes */
+  /* Haakjes tellen tot het blok sluit, zodat geneste regels meetellen. */
+  let diepte = 1, i = mediaRe.lastIndex;
+  while (i < html.length && diepte > 0) {
+    const c = html[i];
+    if (c === '{') diepte++;
+    else if (c === '}') diepte--;
+    i++;
+  }
+  mobieleBlokken.push([mediaRe.lastIndex, i]);
+}
+const teKlein = new Map();
+for (const [start, eind] of mobieleBlokken) {
+  const blok = html.slice(start, eind);
+  const fsRe = /font-size\s*:\s*([\d.]+)px/g;
+  let f;
+  while ((f = fsRe.exec(blok)) !== null) {
+    const px = parseFloat(f[1]);
+    if (px >= MOBIELE_ONDERGRENS) continue;
+    /* Bewuste uitzondering? Kijk op dezelfde regel en de regel ervoor. */
+    const totHier = html.slice(0, start + f.index);
+    const regel = totHier.split('\n').length;
+    const rest = html.slice(start + f.index);
+    const dezeRegel = totHier.slice(totHier.lastIndexOf('\n') + 1) + rest.slice(0, rest.indexOf('\n'));
+    const vorigeRegel = (html.slice(0, totHier.lastIndexOf('\n')).split('\n').pop() || '');
+    if (/mag-kleiner/.test(dezeRegel) || /mag-kleiner/.test(vorigeRegel)) continue;
+    teKlein.set(regel, px);
+  }
+}
+if (teKlein.size) {
+  const lijst = [...teKlein.entries()].map(([r, px]) => `regel ${r}: ${px}px`).join(', ');
+  warnings.push(
+    `font-size onder ${MOBIELE_ONDERGRENS}px in een mobiele media query (${teKlein.size}x) — ` +
+    `${lijst}. Gebruik var(--fs-micro) of ruimer; zie docs/mobile.md.`
+  );
 }
 
 /* ─── Output ─── */

@@ -10,6 +10,40 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-05 · Eén mobiele typografische schaal, en 44px als ondergrens voor een raakvlak
+
+**Probleem.** De mobiele weergave voelde druk en de verhoudingen klopten niet, maar dat was nooit gemeten. Gemeten op één scherm (Checklist, boven de vouw, 375×812): **twaalf verschillende lettergroottes**, waarvan **dertig van de tweeënveertig tekstblokken onder 12px**, met een gat tussen 11 en 17px. Er was dus geen leesbare middenmaat — alles las als óf een microlabel óf een kop. En **vijfentwintig van de tweeëndertig knoppen** waren in minstens één richting kleiner dan 44px; de filterchips waren 28px hoog en enkele 29px breed. Over het hele bestand: 28 verschillende `font-size`-waarden, inclusief halve pixels (10.5, 11.5, 12.5, 13.5).
+
+De oorzaak is systematisch. Elke losse regel is verdedigbaar — er is telkens een pixel gewonnen om iets op één regel te krijgen — maar de optelsom is een scherm waarop niets meer opvalt omdat alles even klein is. Meerdere comments in de mobiele laag leggen precies die afweging uit ("met krappere knoppen passen beide groepen op één regel"), en in drie gevallen liep het element dan alsnog over de rand.
+
+**Beslissing.** Zes trappen als tokens in `:root`, op een telefoon een trap ruimer dan op een bureaublad, plus `--sp-1` t/m `--sp-6` op veelvouden van vier en `--tap` als minimale knopmaat (36px desktop, 44px mobiel).
+
+| Token | Desktop | Mobiel | Rol |
+|---|---|---|---|
+| `--fs-micro` | 10.5px | 11.5px | labels, badges, tellers |
+| `--fs-klein` | 12px | 13px | meta-regels, chips |
+| `--fs-basis` | 13px | 15px | kaarttitels, invoervelden |
+| `--fs-groot` | 15px | 17px | subkoppen |
+| `--fs-kop` | 18px | 20px | moduletitels |
+| `--fs-cijfer` | 22px | 26px | KPI-cijfers, bedragen |
+
+Desktop blijft ongemoeid: de mobiele waarden staan in laag 4, en de omzetting naar tokens raakt alleen regels die al binnen de mobiele media query stonden. Achteraan die laag staat één blok dat alles wat nog onder 11,5px zat naar `--fs-micro` tilt.
+
+**Waarom niet de skill `mobile-app-ui-design`.** Die was de aanleiding voor het onderzoek en zijn diagnose klopt — max vier lettergroottes, een 8pt-raster, 44px raakvlakken —, maar hij is niet overgenomen. De implementatiehelft schrijft React, Tailwind, Lucide en Recharts voor en botst frontaal met de hard rules (vanilla, geen frameworks, geen utility-classes); een skill die bij elke UI-taak meekomt en dan de verkeerde kant op duwt is netto negatief. En de maatvoering is consumenten-app-kalibratie: 80–96px sectiepadding en "CTA in de duimzone" horen bij een landingspagina, niet bij een administratietool waar informatiedichtheid het punt is. Zes trappen in plaats van vier is om diezelfde reden bewust.
+
+**Meegenomen in dezelfde stap.**
+
+- **Dubbele titels weg.** Checklist en Notities herhaalden de modulenaam één regel onder de topbalk. De verbergregel stond alleen op `.dash-topbar` met de aanname dat het dashboard de enige module met een eigen kop was; Notities zat bovendien in een losse inline-stijl en was voor geen enkele selector bereikbaar. Nu geldt `.module-title, .cl2-title { display:none }` voor alle modules, ook de volgende die er een krijgt.
+- **De ververs-knop rechtsboven verschijnt alleen nog bij een sync-fout.** Sinds `autoSyncKijk()` (zie de entry hierboven) doet de handmatige klik bij normaal gebruik niets, terwijl de knop wel de aandacht trok en de titel uit het optische midden duwde. Bij een fout is hij nog steeds het herstelpad waar de melding letterlijk naar verwijst, dus daar verschijnt hij — in de rode staat. De daarmee onbereikbare `saved`/`saving`-stijlen en `mobileSyncPulse` zijn verwijderd. De ↻ in de zijbalk blijft ongewijzigd.
+- **Zoekicoon over de tekst.** In Notities stond het vergrootglas op de eerste letter. De generieke mobiele input-regel weegt zwaarder dan een losse class (twee `:not()`'s tellen mee) en overschreef de linkerpadding die ruimte voor het icoon maakt — ook mét `!important`. Alle 35 tekstvelden in zeven modules en twaalf modals zijn nagelopen; dit was de enige.
+- **Lege flex-spacer.** In de Uren-topbalk stond een `<div style="flex:1">` die op desktop het ⋯-menu naar rechts duwt. Op mobiel eiste die alle restruimte op, waardoor het ⋯ naar een eigen regel wrapte: 90px voor één knop. De spacer heet nu `.uren-topbar-vul` en gaat op mobiel uit — 95px werd 53px.
+
+**Bestanden.** `index.html` — tokens in `:root` (laag 1), mobiele waarden en het ondergrensblok in "MOBILE LAYOUT" (laag 4), plus `.uren-topbar-vul`. `docs/mobile.md` — de schaal en de regels. `validate.mjs` — bewaakt de ondergrenzen.
+
+**Niet doen.** De desktopwaarden aan de tokens koppelen zonder te meten. De schaal is op mobiel ruimer omdat je een telefoon verder weghoudt en met een vinger wijst; op een bureaublad is dichter juist beter en werkt Frank er dagelijks mee. En: geen nieuwe `font-size` in pixels meer neerzetten in de mobiele laag — wie een token gebruikt schaalt mee, wie een los getal neerzet begint de wildgroei opnieuw.
+
+---
+
 ## 2026-09-05 · Vanzelf bijwerken vanuit Drive, in plaats van op ↻ klikken
 
 **Probleem.** De app haalde Drive alleen op bij het opstarten en bij één specifiek geval: terugkomen op het tabblad na meer dan 30 seconden weg, en dan nog alleen als er geen save klaarstond (`_hiddenSince` + `visibilitychange`). Dat dekt de praktijk niet. Frank werkt vanaf meerdere computers (nooit tegelijk), en `visibilitychange` vuurt niet als je van *venster* wisselt terwijl het tabblad zichtbaar blijft — precies wat er op de desktop gebeurt. Een venster dat de hele dag openstaat liet dus de stand van vanochtend zien, tot je op ↻ klikte. De regel "Drive is de waarheid" gold wel bij het schrijven, maar op het scherm liep het uren achter.
