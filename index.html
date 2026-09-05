@@ -540,7 +540,32 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .agenda-hdr .client-filter-btn{padding:0 10px}
 .week-nav-btn{background:transparent;border:0.5px solid var(--border-strong);border-radius:var(--radius);padding:5px 10px;font-size:12px;color:var(--text-muted);cursor:pointer;font-family:inherit;transition:background .15s}
 .week-nav-btn:hover{background:var(--surface2);color:var(--text)}
-.week-title{font-size:13px;font-weight:600;color:var(--text);min-width:170px;text-align:center}
+/* Klikbaar: springt terug naar vandaag. De stippellijn is dezelfde
+   affordance als bij het periodelabel in Uren en Facturen. */
+.week-title{
+  font-size:13px;font-weight:600;color:var(--text);min-width:170px;text-align:center;
+  cursor:pointer;text-decoration:underline;text-decoration-style:dotted;
+  text-decoration-color:var(--text-hint);text-underline-offset:3px;
+}
+.week-title:hover{text-decoration-color:var(--text)}
+.week-title:focus-visible{outline:2px solid var(--mint);outline-offset:2px;border-radius:3px}
+/* Duwt de rechterkant van de agendabalk naar de rand. Zie de mobiele laag:
+   daar moet hij uit, anders wrapt de laatste knop naar een eigen regel. */
+.agenda-hdr-vul{flex:1}
+/* Zwevende + voor een nieuwe afspraak. Staat uit op desktop, waar de brede
+   knop in de balk past; zie .uren-fab voor dezelfde afweging bij Uren. */
+.agenda-fab{
+  display:none;position:fixed;right:24px;bottom:24px;width:52px;height:52px;border-radius:50%;
+  background:var(--mint);color:var(--navy);border:none;font-size:25px;font-weight:600;
+  cursor:pointer;z-index:20;align-items:center;justify-content:center;font-family:inherit;
+  box-shadow:0 8px 24px var(--mint-glow),0 2px 8px rgba(15,27,61,.2);
+  transition:transform .12s,box-shadow .12s;
+}
+.agenda-fab:active{transform:scale(.94)}
+.agenda-fab:focus-visible{outline:2px solid var(--navy);outline-offset:3px}
+/* Menu-item dat de knop uit de balk vervangt zodra die daar niet meer staat. */
+.agenda-overflow-mobiel{display:none !important}
+#mod-agenda{position:relative}
 
 /* Agenda overflow menu (… → Importeer / Beheren / sync info) */
 .agenda-overflow{position:relative}
@@ -4986,37 +5011,143 @@ textarea { line-height: 1.6; resize: vertical; }
   .notes-tree { font-size: 14px; }
   .note-node { padding: 10px 12px !important; min-height: 40px; }
 
-  /* ── AGENDA ── */
+  /* ══ AGENDA ══
+     De balk had acht knoppen op zes rijposities en was 156px hoog; samen
+     met de dagkoppen begon de kalender pas op 208px -- een kwart van het
+     scherm bediening. Nu twee rijen:
+
+       rij 1   [ Dag | Week | Maand ]   [klant]  [⋯]
+       rij 2   [←]  datum, klikbaar = vandaag  [→]
+
+     Wat eruit ging: '+ Nieuwe afspraak' is de zwevende + geworden (zelfde
+     gebaar als in Uren), 'Vandaag' zit nu in de titel, en 'Met AI' staat
+     in het ⋯-menu. Alles is nog bereikbaar, niets is verdwenen. */
   .agenda-hdr {
-    padding: 6px 10px !important;
+    padding: var(--sp-2) var(--sp-3) !important;
+    display: flex !important;
     flex-wrap: wrap !important;
-    gap: 5px !important;
+    align-items: center !important;
+    gap: var(--sp-2) !important;
   }
-  .week-title { font-size: 13px !important; flex-basis: 100%; order: 99; min-width: 0 !important; }
-  /* Alle topbar-knoppen krijgen op mobiel exact dezelfde hoogte (36px).
-     !important nodig om de algemene .btn / .btn-sm mobile-overrides te slaan. */
+  /* De pijlen zitten met 'Vandaag' in een eigen div, en de datumtitel staat
+     daar los naast. Zo krijg je ze nooit op één regel als [←] datum [→].
+     display:contents lost de div op zonder de HTML te verbouwen: de pijlen
+     worden zelf flex-items en kunnen dus met order tussen de titel worden
+     gezet. Op desktop blijft de div gewoon een div. */
+  .agenda-hdr .agenda-period-nav { display: contents !important; }
+  .agenda-hdr .view-switcher       { order: 1; flex: 1 1 auto; display: flex !important; }
+  .agenda-hdr .client-filter       { order: 2; flex: 0 0 auto; }
+  .agenda-hdr .agenda-overflow     { order: 3; flex: 0 0 auto; }
+  /* Deze duwt op desktop naar rechts. Hier is hij het regeleinde: nul hoog,
+     volle breedte, dus alles met een hogere order begint op rij twee. Eén
+     element, twee rollen -- schelen doet het een lege div. */
+  .agenda-hdr-vul { order: 4; flex: 0 0 100% !important; height: 0 !important; margin: 0 !important; }
+  .agenda-hdr .agenda-period-nav .week-nav-btn:first-child { order: 5; }
+  .agenda-hdr .week-title                                  { order: 6; }
+  .agenda-hdr .agenda-period-nav .week-nav-btn:last-child   { order: 7; }
+  .agenda-hdr .today-btn,
+  .agenda-hdr .btn-ai,
+  .agenda-hdr #agendaConnectBtn { display: none !important; }
+  .agenda-overflow-mobiel { display: block !important; }
+  .agenda-fab {
+    display: flex;
+    right: 17px;
+    bottom: calc(80px + env(safe-area-inset-bottom, 0));
+    width: 56px; height: 56px; font-size: 26px; z-index: 60;
+  }
+  /* De drie weergaveknoppen verdelen de eerste rij; de titel rekt op de
+     tweede rij op tot wat er tussen de pijlen overblijft. */
+  .agenda-hdr .view-switcher .view-btn { flex: 1 1 0 !important; min-width: 0 !important; }
+  .agenda-hdr .week-nav-btn { flex: 0 0 auto !important; }
+  .week-title {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    font-size: var(--fs-klein) !important;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  /* Eén tikmaat voor de hele balk. */
   .agenda-hdr .view-btn,
   .agenda-hdr .week-nav-btn,
-  .agenda-hdr .today-btn,
   .agenda-hdr .btn-sm,
   .agenda-hdr .client-filter-btn {
-    height: 36px !important;
-    min-height: 36px !important;
-    padding: 0 12px !important;
-    font-size: 12px !important;
+    height: var(--tap) !important;
+    min-height: var(--tap) !important;
+    padding: 0 var(--sp-2) !important;
+    font-size: var(--fs-klein) !important;
   }
   .agenda-hdr .week-nav-btn,
-  .agenda-hdr #agendaOverflowBtn { min-width: 36px !important; padding: 0 10px !important; }
+  .agenda-hdr #agendaOverflowBtn {
+    min-width: var(--tap) !important;
+    width: var(--tap) !important;
+    padding: 0 !important;
+  }
+  /* De klantfilterknop mag krimpen tot alleen de stip als de namen lang
+     zijn; hij staat naast twee vaste breedtes in een krappe rij. */
+  .agenda-hdr .client-filter-btn { max-width: 120px; }
   .agenda-src-bar { padding: 4px 10px !important; gap: 5px !important; }
   .src-chip { height: 26px !important; padding: 0 10px !important; font-size: var(--fs-micro) !important; }
   /* Day-grid is naturally 1 column — perfect for mobile */
   .cal-day-hdr { font-size: var(--fs-micro); padding: 8px 0 !important; }
   .cal-time-col { font-size: var(--fs-micro); }
-  /* Week view shrinks per-cell to fit; horizontal scroll if too narrow */
-  .cal-grid-scroll { overflow-x: auto; }
   .cal-ev-block { font-size: var(--fs-micro) !important; padding: 3px 5px !important; }
+
+  /* ── Weekraster: opzij schuiven in plaats van samenknijpen ──
+     Zeven kolommen in 375px is 42px per dag. Daar past een tijd in en
+     verder niets: een blok gaf de titel 29px terwijl er 104px nodig was,
+     dus 72% van elke afspraaknaam was onzichtbaar. Je zag dát je iets had,
+     niet wát.
+
+     Honderd pixel per dag maakt het raster 748px breed -- twee keer het
+     scherm -- en dat schuift nu horizontaal. De drie onderdelen (dagkoppen,
+     hele-dag-rij en het uurraster) moeten dezelfde breedte krijgen én in
+     dezelfde scrollcontainer zitten, anders lopen de koppen uit de pas met
+     de kolommen eronder.
+
+     De tijdkolom blijft links staan terwijl je veegt: zonder die ankers
+     weet je na één veeg niet meer hoe laat het ergens is. */
+     Eén scrollcontainer voor het geheel, en niet twee: het uurraster had
+     zijn eigen verticale scroll, en daaraan bleef de tijdkolom hangen. Die
+     container schuift zelf niet opzij, dus 'blijf links staan' had niets om
+     zich aan vast te houden en de kolom schoof gewoon mee weg. Nu doet de
+     buitenste beide richtingen en ankeren de koppen dááraan. */
+  .cal-grid-week { overflow: auto !important; }
+  .cal-grid-week .cal-grid-scroll { overflow: visible !important; flex: none !important; }
+  .cal-grid-week .cal-day-hdr-row,
+  .cal-grid-week .cal-allday-row,
+  .cal-grid-week .cal-grid-inner { min-width: 748px; }
+  /* Links vastgezet: de tijdkolom en de twee cellen erboven. De hoek moet
+     in beide richtingen blijven staan, anders schuift hij onder de
+     dagkoppen vandaan zodra je omlaag scrollt. */
+  .cal-grid-week .cal-day-hdr-row > div:first-child,
+  .cal-grid-week .cal-allday-label,
+  .cal-grid-week .cal-time-col {
+    position: sticky; left: 0; z-index: 6;
+    background: var(--surface);
+  }
+  .cal-grid-week .cal-day-hdr-row > div:first-child { top: 0; z-index: 8; }
+  .cal-grid-week .cal-allday-row { position: sticky; top: 61px; z-index: 5; background: var(--surface); }
+  .cal-grid-week .cal-allday-label { z-index: 7; }
+  .cal-grid-week .cal-time-col { background: var(--bg); }
+  /* Vastklikken per dag, zodat je niet halverwege een kolom blijft hangen.
+     proximity en niet mandatory: bij mandatory kun je niet meer een klein
+     stukje opschuiven om net de rand van een blok te zien. */
+  .cal-grid-week .cal-grid-inner { scroll-snap-type: x proximity; }
+  .cal-grid-week .cal-day-col { scroll-snap-align: start; }
   /* Month grid: smaller cells but still readable */
   .cal-month-cell { padding: 4px !important; min-height: 60px; font-size: var(--fs-micro) !important; }
+  /* Zie de toelichting bij de render: de tijd at de titel op. */
+  .cal-pil-tijd { display: none; }
+  .cal-month-ev-pill { font-size: var(--fs-micro) !important; padding: 2px 5px !important; }
+
+  /* ── Dagweergave: de kop staat er dubbel ──
+     'DONDERDAG 3' kostte 130px, terwijl de titel in de balk erboven al
+     'donderdag 3 september 2026' zegt -- en die is nu ook de knop terug
+     naar vandaag. Alleen in de dagweergave weg; het weekraster heeft zijn
+     koppen nodig om de kolommen te kunnen lezen. */
+  .cal-grid-outer:not(.cal-grid-week) .cal-day-hdr-row { display: none !important; }
+  /* Het eerste uurlabel wordt 6px omhoog geschoven om op de lijn te staan,
+     en liep daardoor boven de scrollcontainer uit -- '7:00' was half weg. */
+  .cal-grid-scroll { padding-top: 7px; }
 
   /* ── CHECKLIST ── */
   .cl-topbar {
@@ -6894,8 +7025,13 @@ textarea { line-height: 1.6; resize: vertical; }
             <button class="today-btn" onclick="goToToday()">Vandaag</button>
             <button class="week-nav-btn" onclick="changeAgendaPeriod(1)" aria-label="Volgende periode">→</button>
           </div>
-          <span class="week-title" id="agendaTitle">...</span>
-          <div style="flex:1"></div>
+          <!-- De titel is zelf de weg terug naar vandaag, net als het
+               periodelabel in Uren en Facturen. Op een telefoon vervangt dat
+               de losse Vandaag-knop; op een bureaublad staan ze naast
+               elkaar en is dit een snelkoppeling. -->
+          <span class="week-title" id="agendaTitle" role="button" tabindex="0"
+            onclick="goToToday()" title="Terug naar vandaag">...</span>
+          <div class="agenda-hdr-vul"></div>
           <div class="client-filter" id="agendaClientFilter"></div>
           <!-- Overflow menu: importeer / agenda's beheren / sync info -->
           <div class="agenda-overflow" id="agendaOverflow">
@@ -6905,6 +7041,10 @@ textarea { line-height: 1.6; resize: vertical; }
             <div class="agenda-overflow-menu" id="agendaOverflowMenu" role="menu">
               <div class="agenda-overflow-sync" id="icalRefreshLbl">Nog niet gesynced</div>
               <div class="agenda-overflow-divider"></div>
+              <!-- Alleen op een telefoon: daar staat de losse knop niet meer
+                   in de balk, hier wel. Op een bureaublad zou het item de
+                   knop ernaast dubbelen. -->
+              <button type="button" class="agenda-overflow-mobiel" onclick="closeAgendaOverflow();openQuickAddAI()" role="menuitem">✨ Slim toevoegen met AI</button>
               <button type="button" onclick="closeAgendaOverflow();openIcsImport()" role="menuitem">↓ .ics bestand importeren</button>
               <button type="button" id="agendaSettingsBtn" onclick="closeAgendaOverflow();openCalSourcesModal()" role="menuitem">⚙ Externe agenda's beheren</button>
             </div>
@@ -6912,6 +7052,10 @@ textarea { line-height: 1.6; resize: vertical; }
           <button class="btn btn-sm btn-ai" onclick="openQuickAddAI()" title="Slim toevoegen — beschrijf in normale taal, AI maakt de afspraak"><span class="ai-spark">✨</span>Met AI</button>
           <button class="btn btn-sm btn-primary" id="agendaConnectBtn" onclick="openEventModalNew()">+ Nieuwe afspraak</button>
         </div>
+        <!-- Zwevende knop, alleen op een telefoon. Dezelfde vorm en plek als
+             de + in Uren, zodat 'iets toevoegen' overal hetzelfde gebaar is.
+             De brede knop hierboven verdwijnt dan uit de balk. -->
+        <button class="agenda-fab" onclick="openEventModalNew()" aria-label="Nieuwe afspraak">+</button>
         <div id="agendaSourceBar" class="agenda-src-bar" style="display:none"></div>
         <div id="agendaContent" style="flex:1;overflow:hidden;display:flex;flex-direction:column">
           <div class="cal-placeholder">
@@ -8492,7 +8636,13 @@ let urenTplCalSelected=null;
 let urenTplEditing=null;
 
 /* Calendar */
-let agendaView='week'; // 'day'|'week'|'month'
+/* Week op een bureaublad, Dag op een telefoon. Zeven kolommen in 375px
+   geven 42px per dag: genoeg voor een tijd en verder niets. De dagweergave
+   is één brede kolom waarin een titel wél past, en is daarmee de enige die
+   op dat formaat meteen bruikbaar is. Week en Maand blijven een tik weg.
+   Dit werd al aangekondigd in de kop van MOBILE LAYOUT ("agenda
+   day-default") maar stond er nooit. */
+let agendaView=window.matchMedia('(max-width: 768px)').matches?'day':'week'; // 'day'|'week'|'month'
 let agendaWeekOffset=0,agendaDayOffset=0,agendaMonthOffset=0;
 let cachedWeekEvents=[];
 let calRefreshTimer=null;
@@ -15417,7 +15567,11 @@ function renderMonthGrid(events,monthStart,container){
       const pillStyle=veryCompact?'font-size:9px;padding:1px 3px;margin-bottom:1px':compact?'font-size:9px;padding:1px 4px;margin-bottom:1px':'font-size:10px;padding:1px 5px;margin-bottom:1px';
       evs.forEach(ev=>{
         const showTime=!compact&&ev.start?.dateTime;
-        const timeStr=showTime?new Date(ev.start.dateTime).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'})+' ':'';
+        /* De tijd in een eigen span, zodat de mobiele laag hem kan weglaten:
+           in een cel van 50px vult '09:00 ' de hele pil en blijft er van de
+           titel niets over. In een maandoverzicht is wát je hebt nuttiger
+           dan hoe laat; voor de tijd tik je de dag aan. */
+        const timeStr=showTime?'<span class="cal-pil-tijd">'+new Date(ev.start.dateTime).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'})+' </span>':'';
         const title=escapeHtml(ev.summary||'(geen titel)');
         const ttId=_registerCalTooltip(ev);html+=`<div class="cal-month-ev-pill" data-tt="${ttId}" style="background:${ev._calColor};${pillStyle}" aria-label="${escapeHtml(ev.summary||'')}">${timeStr}${title}</div>`;
       });
@@ -15908,8 +16062,11 @@ function renderWeekGrid(events,weekStart,container){
   const allDay=events.filter(ev=>ev.start?.date&&!ev.start?.dateTime);
   const timed=events.filter(ev=>ev.start?.dateTime);
 
-  /* Build HTML */
-  let html=`<div class="cal-grid-outer">`;
+  /* Build HTML. De extra class merkt dit als het zeven-koloms raster: op
+     een telefoon krijgt alléén dit een minimumbreedte en schuift het opzij.
+     Het dagraster deelt dezelfde onderdelen en heeft maar één kolom, dus
+     dat moet er buiten blijven. */
+  let html=`<div class="cal-grid-outer cal-grid-week">`;
 
   /* Day header row */
   html+=`<div class="cal-day-hdr-row"><div style="border-bottom:none"></div>`;
