@@ -104,6 +104,32 @@
   --accent:#3b5bdb;--accent-hover:#304ac8;
   --sidebar-w:240px;
   --radius:6px;--radius-md:8px;--radius-lg:12px;
+
+  /* ── Typografische schaal ──
+     Zes trappen, en verder niets. De aanleiding: op één mobiel scherm
+     stonden twaalf verschillende groottes, waarvan dertig van de
+     tweeënveertig tekstblokken onder 12px -- met een gat tussen 11 en 17px.
+     Daardoor was er geen leesbare middenmaat en las alles als óf een
+     microlabel óf een kop.
+
+     De mobiele waarden staan in laag 4 en zijn een trap ruimer. Wie een
+     component in tokens uitdrukt, schaalt dus vanzelf mee; wie een los
+     px-getal neerzet niet. Nieuwe regels: gebruik de tokens. */
+  --fs-micro:10.5px;   /* uppercase labels, badges, tellers        */
+  --fs-klein:12px;     /* meta-regels, chips, secundaire tekst     */
+  --fs-basis:13px;     /* kaarttitels, lijstitems, invoervelden    */
+  --fs-groot:15px;     /* subkoppen binnen een kaart of paneel     */
+  --fs-kop:18px;       /* moduletitels en hero-koppen              */
+  --fs-cijfer:22px;    /* KPI-cijfers en bedragen                  */
+
+  /* ── Spacing ──
+     Veelvouden van 4. Stond eerder op 1, 2, 3, 5, 7, 9 en 11px door
+     elkaar, waardoor niets uitlijnde dat wel bij elkaar hoorde. */
+  --sp-1:4px;--sp-2:8px;--sp-3:12px;--sp-4:16px;--sp-5:24px;--sp-6:32px;
+
+  /* Minimale maat van iets waar een vinger op moet landen. Op desktop
+     mag een knop kleiner: daar wijst een muis exact aan. */
+  --tap:36px;
 }
 @media(prefers-color-scheme:dark){:root{
   --bg:#0f0f10;--surface:#1a1a1c;--surface2:#242427;--surface3:#2f2f33;
@@ -767,6 +793,10 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
   flex-shrink:0;background:var(--surface);
 }
 .uren-topbar-title{font-family:var(--font-display);font-size:19px;font-weight:700;letter-spacing:-.02em;color:var(--text)}
+/* Duwt het ⋯-menu naar de rechterrand. Stond als style="flex:1" in de HTML
+   en was daardoor onbereikbaar voor de mobiele laag, waar hij juist weg
+   moet: zie de regel in MOBILE LAYOUT. */
+.uren-topbar-vul{flex:1}
 .uren-btn{
   display:inline-flex;align-items:center;justify-content:center;gap:6px;
   height:32px;padding:0 13px;box-sizing:border-box;
@@ -4254,11 +4284,33 @@ textarea { line-height: 1.6; resize: vertical; }
    - Sidebar becomes off-canvas drawer (hamburger from top bar)
    - Top app bar shows module title
    - All modals become full-width with side margins
-   - Touch targets bumped to ≥40×40 for thumb accuracy
+   - Touch targets bumped to ≥44×44 for thumb accuracy
    - Body type bumped to 14-15px for readability
    - Per-module: cards stack, kanban snap-scrolls, notes list↔detail,
      agenda day-default, dashboard 1-column, uren scrolls horizontal
    ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── De schaal een trap ruimer op een telefoon ──
+   Zelfde zes trappen als op desktop, alleen groter: je houdt een telefoon
+   verder weg dan een monitor staat, en je wijst met een vinger in plaats
+   van met een muispunt. Componenten die in tokens zijn uitgedrukt schuiven
+   hiermee vanzelf mee -- er is geen tweede set regels voor nodig.
+
+   De ondergrens is bewust 11.5px en niet lager: daaronder werd het label
+   onleesbaar naast het cijfer waar het bijhoort (de KPI-strip in Uren had
+   8.5px labels naast cijfers van 22px, bijna 3:1 binnen één kaartje). */
+@media (max-width: 768px) {
+  :root{
+    --fs-micro:11.5px;
+    --fs-klein:13px;
+    --fs-basis:15px;
+    --fs-groot:17px;
+    --fs-kop:20px;
+    --fs-cijfer:26px;
+    --tap:44px;
+  }
+}
+
 @media (max-width: 768px) {
 
   /* ── Show mobile chrome ── */
@@ -4281,7 +4333,7 @@ textarea { line-height: 1.6; resize: vertical; }
     z-index: 80;
   }
   .mobile-menu-btn {
-    width: 40px; height: 40px;
+    width: var(--tap); height: var(--tap);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -4295,7 +4347,7 @@ textarea { line-height: 1.6; resize: vertical; }
   .mobile-topbar-title {
     flex: 1;
     font-family: var(--font-display);
-    font-size: 17px;
+    font-size: var(--fs-groot);
     font-weight: 700;
     letter-spacing: -0.015em;
     color: var(--text);
@@ -4304,33 +4356,43 @@ textarea { line-height: 1.6; resize: vertical; }
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .mobile-topbar-action { width: 40px; min-width: 40px; }
+  /* Even breed als het hamburgertje links, zodat de titel ertussen optisch
+     in het midden staat -- ook als de knop erin verborgen is. */
+  .mobile-topbar-action { width: var(--tap); min-width: var(--tap); }
 
-  /* ── Verbinden met Drive, altijd rechtsboven ──
-     De stip draagt de status; bij een fout kleurt de hele knop mee, want
-     dát is het moment waarop je hem moet vinden. */
-  .mobile-sync-btn {
+  /* ── Verbinden met Drive, alleen als het misgaat ──
+     Stond hier altijd, uit de tijd dat ophalen een handmatige klik was.
+     Sinds autoSyncKijk() zelf bijwerkt (zie decisions 2026-09-05) doet de
+     knop bij normaal gebruik niets meer dan ruimte innemen -- en hij trok
+     rechtsboven wél de aandacht, naast een titel die daardoor niet meer
+     optisch in het midden stond.
+
+     Weg is hij niet: bij een fout is dit nog steeds het herstelpad, en de
+     melding die dan verschijnt verwijst er letterlijk naar. Daarom
+     verschijnt hij precies dan, in de rode staat. De 40px-wrapper eromheen
+     blijft altijd staan, zodat de titel niet verspringt op het moment dat
+     de knop komt of gaat. In de zijbalk blijft de ↻ onveranderd staan voor
+     wie toch handmatig wil verversen. */
+  .mobile-sync-btn { display: none; }
+  .mobile-sync-btn.error {
     position: relative;
     display: flex; align-items: center; justify-content: center;
-    width: 40px; height: 40px;
-    border: 0.5px solid var(--border); border-radius: 10px;
-    background: var(--surface); color: var(--text-muted);
+    width: var(--tap); height: var(--tap);
+    border: 0.5px solid var(--danger); border-radius: 10px;
+    background: var(--danger-bg); color: var(--danger);
     cursor: pointer; -webkit-tap-highlight-color: transparent;
   }
-  .mobile-sync-btn:active { background: var(--surface2); }
+  .mobile-sync-btn.error:active { filter: brightness(0.95); }
+  /* De stip droeg de status toen de knop er altijd stond. Nu hij alleen bij
+     een fout verschijnt zegt de knop dat zelf al -- rood kader, rood icoon.
+     De staten saved en saving zijn daarmee onbereikbaar geworden en hun
+     regels zijn weg; de stip zelf blijft als markering rechtsboven. */
   .mobile-sync-dot {
     position: absolute; top: 5px; right: 5px;
     width: 7px; height: 7px; border-radius: 50%;
-    background: var(--text-hint);
+    background: var(--danger);
     border: 1.5px solid var(--surface);
   }
-  .mobile-sync-btn.saved  .mobile-sync-dot { background: var(--success); }
-  .mobile-sync-btn.saving .mobile-sync-dot { background: var(--warning); animation: mobileSyncPulse 1.1s ease-in-out infinite; }
-  .mobile-sync-btn.error  .mobile-sync-dot { background: var(--danger); }
-  .mobile-sync-btn.error {
-    background: var(--danger-bg); border-color: var(--danger); color: var(--danger);
-  }
-  @keyframes mobileSyncPulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
 
   /* ── Trek omlaag om te verversen ──
      Als bladwijzer-app op de iPhone is er geen adresbalk en geen eigen
@@ -4411,7 +4473,7 @@ textarea { line-height: 1.6; resize: vertical; }
     color: var(--text-hint);
     cursor: pointer;
     font-family: var(--font-body);
-    font-size: 10px;
+    font-size: var(--fs-micro);
     font-weight: 600;
     position: relative;
     padding: 4px 0;
@@ -4442,7 +4504,7 @@ textarea { line-height: 1.6; resize: vertical; }
     border-radius: 8px;
     background: var(--text);
     color: var(--surface);
-    font-size: 9px;
+    font-size: var(--fs-micro);
     font-weight: 700;
     align-items: center;
     justify-content: center;
@@ -4538,11 +4600,23 @@ textarea { line-height: 1.6; resize: vertical; }
      Aankruisvakjes en keuzerondjes blijven buiten schot: die hebben geen
      tekst in het veld, en hun maat wordt elders bepaald. */
   input:not([type="checkbox"]):not([type="radio"]), select, textarea {
-    font-size: 13.5px !important;
-    padding: 8px 11px !important;
-    min-height: 38px;
+    font-size: var(--fs-basis) !important;
+    padding: var(--sp-2) var(--sp-3) !important;
+    min-height: var(--tap);
   }
   textarea { min-height: 78px; }
+  /* De regel hierboven is sterker dan een losse class -- de twee :not()'s
+     tellen mee in de specificiteit -- en overschreef daarmee ook de
+     linkerpadding die bij een zoekveld ruimte maakt voor het vergrootglas.
+     Het icoon kwam zo bovenop de eerste letter te staan.
+
+     De selector hieronder is even zwaar (class + element + class) en staat
+     later, dus die wint. Met alleen .notes-search-input lukt dat niet: die
+     weegt lichter, ook mét !important. */
+  .notes-search-wrap input.notes-search-input {
+    padding-left: 28px !important;
+    padding-right: 26px !important;
+  }
   /* Het knopje van een datumveld schaalt met de tekst mee. */
   input[type="date"], input[type="time"] { padding-right: 8px !important; }
 
@@ -4572,7 +4646,7 @@ textarea { line-height: 1.6; resize: vertical; }
   .ios-tab textarea::placeholder { font-size: 13px !important; }
   /* Het bijschrift boven een veld: dicht genoeg bij de invoer om erbij te
      horen, licht genoeg om niet mee te lezen. */
-  .uren-form label, .modal label { font-size: 11px !important; }
+  .uren-form label, .modal label { font-size: var(--fs-micro) !important; }
 
   /* ── Universal touch-target bump for icon buttons ── */
   .cl2-iconbtn,
@@ -4600,23 +4674,32 @@ textarea { line-height: 1.6; resize: vertical; }
      twee die je zelden midden in je werk nodig hebt. Wat overblijft is
      filteren, toevoegen en instellen -- drie gelijke cellen, dus
      symmetrisch bij elke schermbreedte. */
+  /* Drie naast elkaar bleek 90px per cel, en daar past geen van de drie
+     labels in: 'Alle klanten' heeft er 67 nodig maar de knop toont ook een
+     kleurstip en een pijltje, '＋ Nieuw item' 95. Alle drie werden ze
+     afgekapt -- 'Alle klan...'. Op een 320px-toestel is het kansloos.
+
+     Het filter krijgt daarom de eerste regel voor zichzelf en de twee
+     acties delen de tweede: 351px en 2×172px in plaats van 3×90px. Dat is
+     nog steeds symmetrisch, en de scheiding klopt ook inhoudelijk --
+     filteren is iets anders dan toevoegen of instellen. */
   .dash-topbar > div:last-child {
     display: grid !important;
     /* minmax(0,1fr) en niet 1fr: anders krijgt de cel met het langste
-       label ('+ Nieuw item') extra breedte van zijn min-content en zijn
-       de drie kolommen alsnog ongelijk. */
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    gap: 6px !important;
+       label extra breedte van zijn min-content en zijn de kolommen
+       alsnog ongelijk. */
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: var(--sp-2) !important;
     align-items: stretch !important;
   }
-  .dash-topbar .client-filter        { grid-column: 1; grid-row: 1; }
-  .dash-topbar .ha-newitem           { grid-column: 2; grid-row: 1; margin-left: 0 !important; }
-  .dash-topbar .dash-mobile-settings { grid-column: 3; grid-row: 1; }
+  .dash-topbar .client-filter        { grid-column: 1 / -1; grid-row: 1; }
+  .dash-topbar .ha-newitem           { grid-column: 1; grid-row: 2; margin-left: 0 !important; }
+  .dash-topbar .dash-mobile-settings { grid-column: 2; grid-row: 2; }
   .dash-topbar .btn-ai,
   .dash-topbar .client-new-btn { display: none !important; }
   /* Elke cel vult zijn kolom: gelijke breedtes, gecentreerde labels.
-     36px hoog i.p.v. 40 -- de knoppen zijn nu breder, dus de raakvlakken
-     blijven ruim boven de 44px-diagonaal die je met een duim nodig hebt. */
+     Nu de cellen ruim zijn kan de tikhoogte terug naar de volle --tap;
+     36px was een compromis uit de tijd dat er drie naast elkaar stonden. */
   .dash-topbar .client-filter .client-filter-btn,
   .dash-topbar .ha-newitem,
   .dash-topbar .ha-newitem .ha-newitem-trigger,
@@ -4624,11 +4707,11 @@ textarea { line-height: 1.6; resize: vertical; }
   .dash-topbar .dash-mobile-settings > button {
     width: 100% !important;
     justify-content: center !important;
-    min-height: 36px !important;
-    height: 36px !important;
-    padding: 0 6px !important;
-    font-size: 12px !important;
-    gap: 4px !important;
+    min-height: var(--tap) !important;
+    height: var(--tap) !important;
+    padding: 0 var(--sp-2) !important;
+    font-size: var(--fs-klein) !important;
+    gap: var(--sp-1) !important;
   }
   /* Labels mogen niet afbreken in een smalle cel */
   .dash-topbar .client-filter .client-filter-btn,
@@ -4638,11 +4721,21 @@ textarea { line-height: 1.6; resize: vertical; }
     overflow: hidden !important;
   }
   .dash-topbar .dash-mobile-settings > button svg { margin-right: 2px !important; }
-  /* Het dashboard was de enige module met een eigen kop in de inhoud; alle
-     andere leunen op de titel in de topbalk. Twee keer 'Dashboard' onder
-     elkaar, en nergens anders een kop -- daarom hier weg. De datum blijft:
-     die staat nergens anders. */
-  .dash-topbar .module-title { display: none !important; }
+  /* Op mobiel staat de modulenaam al in de topbalk. Een eigen kop in de
+     inhoud herhaalt hem dan letterlijk, één regel lager -- 'Checklist'
+     boven 'Checklist'. Dat kostte ongeveer honderd pixels aan een woord
+     dat er al stond.
+
+     Dit stond eerst alleen op .dash-topbar, met de aanname dat het
+     dashboard de enige module met een eigen kop was. Notities en Checklist
+     hadden er ook een; Notities via een losse inline-stijl, dus buiten het
+     bereik van elke selector. Die is nu .module-title, en de regel geldt
+     voor alle modules tegelijk -- ook voor de volgende die er een krijgt.
+
+     Ondertitels blijven staan: die herhalen niets (de datum op het
+     dashboard bijvoorbeeld staat nergens anders). */
+  .module-title,
+  .cl2-title { display: none !important; }
   .dash-topbar .module-sub { font-size: 12.5px !important; color: var(--text-muted) !important; }
   .dash-scroll { padding: 16px 12px !important; gap: 14px !important; }
   /* .dash-scroll is een flex-kolom; zonder dit krimpen de kinderen om in
@@ -4716,7 +4809,7 @@ textarea { line-height: 1.6; resize: vertical; }
      andere labels niet, waardoor de cijfers eronder 12px uit de pas
      liepen. Met een vaste labelhoogte staan de drie waarden op één lijn. */
   .dash-kpi-label {
-    font-size: 9.5px !important;
+    font-size: var(--fs-micro) !important;
     line-height: 1.25 !important;
     min-height: 24px !important;
     display: flex !important;
@@ -4724,7 +4817,7 @@ textarea { line-height: 1.6; resize: vertical; }
     justify-content: center !important;
   }
   .dash-kpi-val { font-size: 20px !important; }
-  .dash-kpi-trend { font-size: 9.5px !important; text-align: center !important; }
+  .dash-kpi-trend { font-size: var(--fs-micro) !important; text-align: center !important; }
   /* #mod-dashboard ervoor omdat `.dash-grid.dash-grid-3` verderop vaste
      rijhoogtes (280px/440px) zet; die zijn hier juist fout, want een
      ingeklapte kaart moet tot zijn kop kunnen krimpen. */
@@ -4762,7 +4855,7 @@ textarea { line-height: 1.6; resize: vertical; }
     min-width: 22px; height: 22px; padding: 0 6px;
     border-radius: 11px;
     background: var(--surface2); color: var(--text-muted);
-    font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums;
+    font-size: var(--fs-micro); font-weight: 600; font-variant-numeric: tabular-nums;
   }
   .dash-card-count:empty { display: none !important; }
   .dash-card-chevron {
@@ -4915,15 +5008,15 @@ textarea { line-height: 1.6; resize: vertical; }
   .agenda-hdr .week-nav-btn,
   .agenda-hdr #agendaOverflowBtn { min-width: 36px !important; padding: 0 10px !important; }
   .agenda-src-bar { padding: 4px 10px !important; gap: 5px !important; }
-  .src-chip { height: 26px !important; padding: 0 10px !important; font-size: 11px !important; }
+  .src-chip { height: 26px !important; padding: 0 10px !important; font-size: var(--fs-micro) !important; }
   /* Day-grid is naturally 1 column — perfect for mobile */
-  .cal-day-hdr { font-size: 11px; padding: 8px 0 !important; }
-  .cal-time-col { font-size: 10px; }
+  .cal-day-hdr { font-size: var(--fs-micro); padding: 8px 0 !important; }
+  .cal-time-col { font-size: var(--fs-micro); }
   /* Week view shrinks per-cell to fit; horizontal scroll if too narrow */
   .cal-grid-scroll { overflow-x: auto; }
-  .cal-ev-block { font-size: 10.5px !important; padding: 3px 5px !important; }
+  .cal-ev-block { font-size: var(--fs-micro) !important; padding: 3px 5px !important; }
   /* Month grid: smaller cells but still readable */
-  .cal-month-cell { padding: 4px !important; min-height: 60px; font-size: 11px !important; }
+  .cal-month-cell { padding: 4px !important; min-height: 60px; font-size: var(--fs-micro) !important; }
 
   /* ── CHECKLIST ── */
   .cl-topbar {
@@ -4949,25 +5042,35 @@ textarea { line-height: 1.6; resize: vertical; }
   }
   .cl2-hero-ring { grid-column: 1; grid-row: 1; width: 46px !important; height: 46px !important; }
   .cl2-hero-ring svg { width: 46px !important; height: 46px !important; }
-  .cl2-hero-ring-pct { font-size: 11px !important; }
+  .cl2-hero-ring-pct { font-size: var(--fs-micro) !important; }
   .cl2-hero-text { grid-column: 2; grid-row: 1; }
-  .cl2-hero-eyebrow { font-size: 9.5px !important; }
-  .cl2-hero-meta { font-size: 11px !important; }
-  /* De drie knoppen passen samen op één regel zodra ze hun ruime
-     desktop-padding inleveren (~275px van de 364 beschikbaar). */
+  .cl2-hero-eyebrow { font-size: var(--fs-micro) !important; }
+  .cl2-hero-meta { font-size: var(--fs-micro) !important; }
+  /* Dit ging uit van drie knoppen op één regel. Er kwam er een vierde bij
+     (Met AI), en met nowrap plus overflow:hidden werd 'Archief' sindsdien
+     stilletjes afgekapt tegen de rechterrand -- geen afbreekteken, gewoon
+     weg. Het aantal wisselt bovendien: 'Verwijder afgerond' verschijnt
+     alleen als er iets af te ronden valt.
+
+     Twee per regel dus, ongeacht hoeveel het er zijn: bij vier worden het
+     twee nette rijen, bij drie vult de laatste de regel, bij twee passen ze
+     naast elkaar. Wat dan nog te lang is krijgt een afbreekteken in plaats
+     van een harde knip. */
   .cl2-hero-actions {
     grid-column: 1 / -1; grid-row: 2;
-    display: flex !important; gap: 4px !important;
-    justify-content: stretch !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: var(--sp-2) !important;
   }
   .cl2-hero-actions .btn {
-    flex: 1 1 auto !important;
+    flex: 1 1 calc(50% - var(--sp-2)) !important;
     min-width: 0 !important;
-    padding: 0 5px !important;
-    font-size: 11px !important;
-    min-height: 34px !important;
+    padding: 0 var(--sp-2) !important;
+    font-size: var(--fs-klein) !important;
+    min-height: var(--tap) !important;
     white-space: nowrap !important;
     overflow: hidden !important;
+    text-overflow: ellipsis !important;
   }
   /* ── Nieuwe taak: pas uitklappen als je erin tikt ──
      Prioriteit, klant, datum en de knop stonden altijd open en kostten
@@ -4994,20 +5097,44 @@ textarea { line-height: 1.6; resize: vertical; }
      achter het zoekveld op dezelfde regel. Scheelt twee regels. */
   .cl2-filter { gap: 5px !important; }
   .cl2-filter-lbl { display: none !important; }
-  /* De twee keuzegroepen delen één regel: minder ruimte per knop en de
-     tekst mag niet afbreken. Zoekveld en teller vullen samen de tweede
-     regel. Drie regels worden er zo twee. */
-  /* Samen 383px breed in een container van 364 -- dus braken ze over twee
-     regels. Met krappere knoppen passen beide groepen op één regel. */
-  .cl2-seg { padding: 2px !important; gap: 1px !important; }
-  .cl2-seg-btn { padding: 4px 5px !important; font-size: 10.5px !important; white-space: nowrap !important; min-height: 28px !important; }
+  /* ── Filtergroepen: elk een eigen regel ──
+     Hier stond de omgekeerde afweging: om beide groepen op één regel te
+     krijgen waren de knoppen tot 28px hoog en 10.5px tekst geperst -- en
+     zelfs dan liep 'Deze maand' nog tegen de rechterrand. Zeven knoppen
+     naast elkaar past domweg niet op 375px.
+
+     Nu krijgt elke groep de volle breedte en verdelen de knoppen die
+     gelijk: vier van ~85px voor de prioriteit, drie van ~114px voor de
+     periode. Dat is één regel extra, maar de knoppen zijn nu 44px hoog met
+     leesbare tekst en niets valt meer buiten beeld. Een regel winnen door
+     de knoppen onaanraakbaar te maken is geen winst. */
+  .cl2-filter { flex-wrap: wrap !important; }
+  .cl2-filter .cl2-seg {
+    flex: 1 1 100% !important;
+    display: flex !important;
+    padding: 3px !important;
+    gap: var(--sp-1) !important;
+  }
+  /* Alleen binnen de filterbalk uitrekken: dezelfde knopvorm zit ook los in
+     de topbalk (de schakelaar Prio-groepen), en die hoort niet de volle
+     breedte te vullen. */
+  .cl2-filter .cl2-seg-btn {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    padding: 0 var(--sp-1) !important;
+  }
+  .cl2-seg-btn {
+    font-size: var(--fs-klein) !important;
+    white-space: nowrap !important;
+    min-height: var(--tap) !important;
+  }
   .cl2-filter-search {
     flex: 1 1 auto !important; min-width: 0 !important;
-    font-size: 13.5px !important;
-    min-height: 34px !important;
+    font-size: var(--fs-basis) !important;
+    min-height: var(--tap) !important;
   }
   .ios-tab .cl2-filter-search { font-size: 16px !important; }
-  .cl2-filter-search::placeholder { font-size: 12.5px !important; }
+  .cl2-filter-search::placeholder { font-size: var(--fs-klein) !important; }
   .cl2-filter-counter { flex-shrink: 0 !important; margin-left: 0 !important; }
   /* ── Taakrij: titel eerst, knoppen eronder ──
      Naast elkaar hielden vier icoonknoppen plus greep en vinkje ruim 200
@@ -5047,22 +5174,56 @@ textarea { line-height: 1.6; resize: vertical; }
      Periode, breedte-keuze en het ⋯-menu stonden op twee regels omdat
      het lange periodelabel en de Vandaag-knop er samen niet naast
      pasten. Met het korte label en het label zelf als "naar vandaag"
-     past alles op één regel: 42px minder boven de lijst. */
-  .uren-periode { height: 36px; justify-content: space-between; flex: 0 1 auto; }
+     past alles op één regel: 42px minder boven de lijst.
+
+     Dat lukte alleen niet, en de oorzaak lag niet bij de breedtes: tussen
+     de breedte-keuze en het ⋯ staat een lege vuldiv die op desktop de knop
+     naar rechts duwt. Die eist met flex:1 alle ruimte op die overblijft,
+     dus hield het ⋯ er nul over en wrapte het naar een eigen regel -- 90px
+     voor één knop, terwijl de drie elementen samen (175 + 131 + 36 plus
+     tussenruimte) net binnen de 369px passen. Op mobiel duwt niets naar
+     rechts: de balk is precies vol. */
+  .uren-topbar-vul { display: none !important; }
+  /* Met de vuldiv weg is het krap maar haalbaar: 345px binnenwerk tegen
+     175 + 131 + 36 aan elementen. Bij een tussenruimte van 6px kwam dat op
+     354 -- negen pixel te veel, en dan wrapt er weer een knop. Die negen
+     komen uit de tussenruimte (4 in plaats van 6) en uit de zijkanten van
+     Week/Maand; de tikhoogte blijft ongemoeid, want die zit in de hoogte.
+     De periodeknop mag als laatste redmiddel krimpen: het label is het
+     enige dat van lengte wisselt (een weeknummer tegen een maandnaam). */
+  .uren-periode { height: 36px; justify-content: space-between; flex: 0 1 auto; min-width: 0; }
   .uren-periode-lbl {
     min-width: 0; flex: 1; padding: 0 4px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     cursor: pointer; text-decoration: underline;
     text-decoration-style: dotted;
     text-decoration-color: var(--text-hint);
     text-underline-offset: 3px;
   }
+  /* De knoppen vulden hun balk niet: de pijltjes waren 20x23 en Week/Maand
+     52x30 in een container van 36px. Je mikt dan op een vlak dat kleiner is
+     dan het vak dat je ziet. De balk zelf blijft 36px -- dat is een bewuste
+     ondergrens voor brede knoppen -- maar de knop erin pakt hem nu helemaal. */
+  .uren-periode button,
+  .uren-periode .uren-periode-lbl,
+  .uren-scope button {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
   .uren-periode button { padding: 4px 7px; }
   .uren-btn-vandaag { display: none; }
-  .uren-scope { height: 36px; }
-  .uren-scope button { padding: 0 12px; }
+  .uren-scope { height: 36px; flex-shrink: 0; }
+  .uren-scope button { padding: 0 9px; }
   .uren-btn { height: 36px; padding: 0 12px; }
-  .uren-btn-icon { width: 36px; padding: 0; }
-  .uren-topbar { gap: 6px !important; padding: 8px 12px !important; }
+  .uren-btn-icon { width: 36px; padding: 0; flex-shrink: 0; }
+  /* Wrappen blijft toegestaan. Facturen deelt deze balk maar heeft er meer
+     in staan (jaar, bedrijf, ⋯, Nieuwe factuur); met nowrap moest daar
+     alles krimpen en werd '2026' teruggebracht tot '2'. Wrappen is daar het
+     juiste vangnet -- bij Uren is het niet meer nodig, want zonder de
+     vuldiv past de rij. */
+  .uren-topbar { gap: var(--sp-1) !important; padding: 8px 12px !important; }
   .uren-topbar .btn { padding: 6px 9px; font-size: 12px; }
   /* ── Tabstrip: alles zichtbaar, niets om naar opzij te schuiven ──
      Eerst deelden de tabs een regel met de filterknop en scrolden ze in
@@ -5092,7 +5253,7 @@ textarea { line-height: 1.6; resize: vertical; }
      desktopvenster terwijl hij op een telefoon bijna een derde van het
      scherm vulde. */
   .uren-filterpop { padding: 11px; gap: 9px; min-width: 208px; }
-  .uren-filterpop label { font-size: 9.5px; margin-bottom: 4px; }
+  .uren-filterpop label { font-size: var(--fs-micro); margin-bottom: 4px; }
   .uren-scope-pop { height: 34px; }
 
   /* ── Btw: de tijdvakkiezer krijgt zijn eigen regel ──
@@ -5111,19 +5272,27 @@ textarea { line-height: 1.6; resize: vertical; }
     font-size: 11.5px; overflow: hidden;
   }
   .uren-tab.active { background: var(--navy); color: #fff; border-color: var(--navy); box-shadow: none; }
-  /* Compactere KPI's: op een telefoon telt elke pixel die de lijst
-     naar beneden duwt. De balkjes vervallen, de tekst blijft. */
-  /* ── KPI's: één rij van vier in plaats van een 2×2-blok ──
-     Het blok was 163px hoog en duwde de eerste urenregel naar 394px --
-     bijna een half scherm bediening voordat je je eigen uren zag. Vier
-     smalle tegels naast elkaar geven dezelfde vier getallen in ~70px.
-     De toelichtingsregel eronder ('4 registraties · 3 klanten') valt weg:
-     die past niet in 90px en het getal is waar je voor komt. */
-  .uren-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; padding: 10px 12px 0; }
-  .uren-kpi { padding: 8px 4px 9px 7px; }
-  .uren-kpi-lab { font-size: 8.5px; letter-spacing: .04em; line-height: 1.2; min-height: 20px; }
-  .uren-kpi-val { font-size: 17px; margin-top: 2px; }
-  .uren-kpi-val small { font-size: 10px; }
+  /* ── KPI-strip ──
+     Deze stond eerst als 2×2-blok van 163px, wat de eerste urenregel naar
+     394px duwde: een half scherm bediening voor je je eigen uren zag.
+     Daarop is hij platgeslagen tot één rij van vier tegels van ~70px.
+
+     Dat won hoogte, maar rekende buiten de labels. Vier tegels op 375px
+     laten 84px per stuk over, en daar past 'GEFACTUREERD' alleen in als
+     het label naar 8,5px krimpt -- naast een cijfer van 17px, bijna 1:2
+     binnen hetzelfde kaartje. En zelfs dan brak 'TE FACTUREREN' over twee
+     regels en werd 'GEFACTUREERD' tegen de rand afgekapt.
+
+     Dus terug naar twee kolommen, maar nu zonder wat het blok destijds zo
+     hoog maakte: de balkjes en de toelichtingsregel eronder blijven weg
+     (zie de display:none hieronder). Dat geeft 174px per kaart -- het
+     langste label past op één regel in een maat die je ook echt leest --
+     en het blok blijft ruim onder de 163px van toen. */
+  .uren-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-2); padding: 10px 12px 0; }
+  .uren-kpi { padding: 10px 8px 11px 11px; }
+  .uren-kpi-lab { letter-spacing: .04em; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .uren-kpi-val { font-size: var(--fs-cijfer); margin-top: 2px; }
+  .uren-kpi-val small { font-size: var(--fs-klein); }
   .uren-kpi-sub { display: none; }
   .uren-kpi-bar { display: none; }
 
@@ -5150,14 +5319,14 @@ textarea { line-height: 1.6; resize: vertical; }
      welke dagen je hebt geschreven. Tik je op een dag, dan sta je in
      Registraties bij die week en zie je de regels zelf. */
   .uren-kal-tab { min-width: 0; }
-  .uren-kal-tab th { padding: 7px 4px; font-size: 9.5px; letter-spacing: .04em; text-align: center; }
+  .uren-kal-tab th { padding: 7px 4px; font-size: var(--fs-micro); letter-spacing: .04em; text-align: center; }
   .uren-kal-tab th .lang { display: none; }
   .uren-kal-tab th .kort { display: inline; }
   .uren-kal-tab th.wk, .uren-kal-tab td.wk { display: none; }
   .uren-kal-tab td { height: 62px; }
   .uren-kal-dag { min-height: 62px; padding: 5px 4px; gap: 2px; align-items: flex-start; }
-  .uren-kal-dag .nr { flex-direction: column; align-items: flex-start; gap: 1px; width: 100%; font-size: 11px; }
-  .uren-kal-dag .nr .u { margin-left: 0; font-size: 10.5px; }
+  .uren-kal-dag .nr { flex-direction: column; align-items: flex-start; gap: 1px; width: 100%; font-size: var(--fs-micro); }
+  .uren-kal-dag .nr .u { margin-left: 0; font-size: var(--fs-micro); }
   .uren-kal-dag .nr .vandaag { padding: 1px 5px; }
   .uren-kal-chip, .uren-kal-meer { display: none; }
   .uren-kal-dots { display: flex; }
@@ -5251,7 +5420,7 @@ textarea { line-height: 1.6; resize: vertical; }
   .fac-ed-regels td[data-lab]::before {
     content: attr(data-lab);
     display: block;
-    font-size: 9.5px; font-weight: 700; letter-spacing: .07em;
+    font-size: var(--fs-micro); font-weight: 700; letter-spacing: .07em;
     text-transform: uppercase; color: var(--text-muted);
     margin-bottom: 3px;
   }
@@ -5298,6 +5467,85 @@ textarea { line-height: 1.6; resize: vertical; }
 
   /* ── Setup screen on mobile: full screen, padded ── */
   .setup-card { width: 100% !important; max-width: 100% !important; padding: 24px 18px !important; min-height: 100vh; border-radius: 0 !important; }
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     ONDERGRENS VOOR LEESBARE TEKST
+     ───────────────────────────────────────────────────────────────────────
+     Alles hieronder stond tussen 8,5 en 11px. Bij elkaar was dat dertig van
+     de tweeënveertig tekstblokken op één scherm -- labels, meta-regels,
+     tellers, weekdagen. Los is elk ervan te verdedigen; samen maken ze een
+     scherm waarop niets meer opvalt omdat alles even klein is, en waar het
+     label naast een cijfer van 26px verdwijnt (de KPI-strip in Uren zat op
+     8,5px tegen 22px, bijna 3:1 binnen één kaartje).
+
+     Eén ondergrens dus: --fs-micro, op een telefoon 11,5px. Dit staat
+     achteraan in de mobiele laag zodat het van de eerdere regels wint, en
+     het raakt alleen mobiel -- op een bureaublad blijft alles zoals het is.
+     ══════════════════════════════════════════════════════════════════════ */
+
+  /* Onderste tabbalk: 9px is kleiner dan alles waar je een vinger op legt.
+     Zes tabs blijven op 11,5px passen omdat de labels kort zijn. */
+  .mobile-nav-tab span,
+  .mobile-nav-tab .mobile-nav-label { font-size: var(--fs-micro) !important; }
+
+  /* Dashboard */
+  .dash-kpi-label,
+  .dash-hero-eyebrow,
+  .dash-card-count,
+  .trend-up, .trend-down, .trend-flat { font-size: var(--fs-micro) !important; }
+
+  /* Checklist */
+  .cl2-hero-eyebrow,
+  .cl2-hero-meta,
+  .cl2-hero-ring-pct,
+  .cl2-group-count,
+  .cl2-pri,
+  .cl2-deadline,
+  .cl2-subcount { font-size: var(--fs-micro) !important; }
+
+  /* Notities: de boomstructuur leunde volledig op micro-tekst.
+     De selectors zijn hier met opzet net zo diep als in laag 3
+     (.note-client-hdr .note-client-name staat daar op 11px !important).
+     Een kortere selector verliest dat gevecht, ook mét !important -- bij
+     gelijke prioriteit wint de zwaarste selector, niet de laatste. */
+  .note-chev,
+  .note-client-hdr .note-client-name,
+  .note-client-hdr .note-client-count,
+  .note-client-empty,
+  .notes-tree-hdr span { font-size: var(--fs-micro) !important; }
+
+  /* De actieknoppen bij een klantgroep stonden op opacity:0 en kwamen pas
+     tevoorschijn bij :hover. Op een touchscreen bestaat hover niet, dus
+     waren ze onzichtbaar én raakbaar tegelijk -- 19x14px onzichtbare knop
+     naast de naam. Op mobiel dus gewoon zichtbaar, en groot genoeg. */
+  .note-client-hdr .note-client-actions { opacity: 1 !important; }
+  .note-client-hdr .note-client-actions button {
+    min-width: 32px;
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--fs-klein);
+  }
+
+  /* Laatste losse waarde onder de ondergrens. */
+  .cl2-client-tag { font-size: var(--fs-micro) !important; }
+
+  /* Uren en Facturen delen deze componenten */
+  .uren-kpi-lab,
+  .uren-pill,
+  .uren-periode-lbl,
+  .uren-mcard .hrs small,
+  .uren-mday .today,
+  .uren-btn-bedrijf .cv,
+  .fac-pill,
+  .fac-msom,
+  .fac-mkop { font-size: var(--fs-micro) !important; }
+
+  /* Agenda: uur- en dagaanduidingen langs het raster */
+  .cal-time-label,
+  .cal-day-name,
+  .cal-allday-label { font-size: var(--fs-micro) !important; }
 }
 
 /* ═════════════════════════════════════════════════════════════════════════════
@@ -5305,7 +5553,18 @@ textarea { line-height: 1.6; resize: vertical; }
    ════════════════════════════════════════════════════════════════════════════ */
 @media (max-width: 380px) {
   .dash-kpis { grid-template-columns: 1fr !important; }
-  .mobile-nav-tab span { font-size: 9px; }
+  /* Zes tabs delen de breedte, en 'Dashboard' is het langste label: op
+     11,5px houdt het hier nog maar twee pixel over en op een 320px-toestel
+     past het niet meer. Eén trap terug dus, met een afbreekteken als
+     vangnet -- niet terug naar de 9px die hier stond, want dan is het geen
+     label meer maar een streepje. */
+  .mobile-nav-tab span {
+    font-size: 10.5px !important;  /* mag-kleiner: zie de toelichting hierboven */
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .cl2-hero-heading { font-size: 17px !important; }
   .dash-hero-headline { font-size: 17px !important; }
 }
@@ -6231,10 +6490,12 @@ textarea { line-height: 1.6; resize: vertical; }
     </button>
     <div class="mobile-topbar-title" id="mobileTopbarTitle">Dashboard</div>
     <div class="mobile-topbar-action" id="mobileTopbarAction">
-      <!-- Verbinden met Drive hoort op elk scherm binnen bereik: de melding
-           "niet verbonden" komt regelmatig langs, en de ↻ zat alleen in de
-           zijbalk -- die je op een telefoon eerst moet openslaan. Het
-           stipje spiegelt de sync-status uit setSync(). -->
+      <!-- Verbinden met Drive. Verschijnt alleen als de sync faalt: sinds
+           autoSyncKijk() zelf bijwerkt is de handmatige klik bij normaal
+           gebruik overbodig, en dan hoort de knop er ook niet te staan.
+           Mislukt het wél, dan is dit het snelste herstelpad -- sneller dan
+           de zijbalk openslaan. setSync() zet de staat; de CSS beslist
+           daarmee of hij zichtbaar is. -->
       <button class="mobile-sync-btn" id="mobileSyncBtn" onclick="refreshGist()"
               aria-label="Verbinden met Drive" title="Verbinden met Drive">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M14 8a6 6 0 1 1-1.8-4.3"/><path d="M14 2v4h-4"/></svg>
@@ -6581,7 +6842,7 @@ textarea { line-height: 1.6; resize: vertical; }
     <!-- ══ Module: Notes ══ -->
     <div id="mod-notes" class="module">
       <div class="module-topbar">
-        <div style="font-size:16px;font-weight:600">Notities</div>
+        <div class="module-title">Notities</div>
         <div style="display:flex;gap:6px;align-items:center">
           <div class="client-filter" id="notesClientFilter"></div>
           <button class="btn btn-xs btn-primary" onclick="createNote(null)">+ Nieuw</button>
@@ -6713,7 +6974,7 @@ textarea { line-height: 1.6; resize: vertical; }
         </div>
         <div class="uren-scope" id="urenScope" role="group" aria-label="Periodebreedte"></div>
         <button class="uren-btn uren-btn-vandaag" data-uren-action="urenNavToday">Vandaag</button>
-        <div style="flex:1"></div>
+        <div class="uren-topbar-vul"></div>
         <button class="uren-btn uren-btn-icon" id="urenMenuBtn" data-uren-action="urenToggleMenu"
           aria-haspopup="menu" aria-expanded="false" title="Meer acties">⋯</button>
       </div>
@@ -6746,7 +7007,7 @@ textarea { line-height: 1.6; resize: vertical; }
           <button id="facNavNextBtn" data-fac-action="facNavNext" title="Volgend jaar" aria-label="Volgend jaar">›</button>
         </div>
         <button class="uren-btn uren-btn-vandaag" id="facNavHuidigBtn" data-fac-action="facNavHuidig">Dit jaar</button>
-        <div style="flex:1"></div>
+        <div class="uren-topbar-vul"></div>
         <!-- Welke administratie je bekijkt. Blijft verborgen zolang er
              één bedrijf is; dan valt er niets te kiezen. -->
         <button class="uren-btn uren-btn-bedrijf" id="facBedrijfBtn" data-fac-action="facToggleBedrijf"
