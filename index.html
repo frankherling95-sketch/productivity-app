@@ -3052,6 +3052,43 @@ textarea { line-height: 1.6; resize: vertical; }
 .cl2-filter {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
 }
+.cl2-filter-body { display: contents; }
+/* De samenvattende kop hoort bij de mobiele laag; op een bureaublad is er
+   ruimte genoeg om de filters gewoon te tonen. */
+.cl2-filter-kop { display: none; }
+
+/* ── ⋯-menu van de Checklist ──
+   Zelfde vorm als het menu in de Agenda; die regels staan bij
+   .agenda-overflow. Op een bureaublad staat alles gewoon in de balk, dus
+   is de knop daar verborgen -- zie de mobiele laag. */
+.cl-overflow { position: relative; display: none; }
+.cl-overflow-menu {
+  display: none; position: absolute; top: calc(100% + 6px); right: 0;
+  min-width: 244px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-popover);
+  padding: 6px; z-index: 200; animation: ha-fadeIn .14s ease-out;
+}
+.cl-overflow.open .cl-overflow-menu { display: block; }
+.cl-overflow-menu button {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; padding: 9px 10px; background: transparent; border: 0;
+  border-radius: 6px; text-align: left; font-family: var(--font-body);
+  font-size: 13px; color: var(--text); cursor: pointer; transition: background .12s;
+  min-height: 40px;
+}
+.cl-overflow-menu button:hover { background: var(--surface2); }
+.cl-overflow-menu button.aan { font-weight: 600; }
+/* Vaste kolom voor het vinkje, zodat de labels uitlijnen of er nu een
+   vinkje staat of niet. */
+.cl-ovf-vink {
+  flex: 0 0 14px; text-align: center;
+  color: var(--mint-dark, var(--text)); font-weight: 700;
+}
+.cl-ovf-kop {
+  padding: 8px 10px 4px; font-size: 10.5px; color: var(--text-hint);
+  text-transform: uppercase; letter-spacing: .05em;
+}
+.cl-ovf-scheiding { height: 1px; background: var(--border); margin: 4px 0; }
 .cl2-filter-lbl {
   font-size: 10.5px; font-weight: 600;
   text-transform: uppercase; letter-spacing: 0.08em;
@@ -5177,31 +5214,30 @@ textarea { line-height: 1.6; resize: vertical; }
   .cl2-hero-text { grid-column: 2; grid-row: 1; }
   .cl2-hero-eyebrow { font-size: var(--fs-micro) !important; }
   .cl2-hero-meta { font-size: var(--fs-micro) !important; }
-  /* Dit ging uit van drie knoppen op één regel. Er kwam er een vierde bij
-     (Met AI), en met nowrap plus overflow:hidden werd 'Archief' sindsdien
-     stilletjes afgekapt tegen de rechterrand -- geen afbreekteken, gewoon
-     weg. Het aantal wisselt bovendien: 'Verwijder afgerond' verschijnt
-     alleen als er iets af te ronden valt.
+  /* ── Hero: alleen nog de voortgang ──
+     Hier stonden vier knoppen (Uitklappen, Met AI, Verwijder afgerond,
+     Archief) in twee rijen van 44px. Dat is 100px bediening bovenaan een
+     lijst, voor acties die je hooguit een paar keer per week gebruikt --
+     en ze duwden de eerste taak elke keer naar beneden.
 
-     Twee per regel dus, ongeacht hoeveel het er zijn: bij vier worden het
-     twee nette rijen, bij drie vult de laatste de regel, bij twee passen ze
-     naast elkaar. Wat dan nog te lang is krijgt een afbreekteken in plaats
-     van een harde knip. */
-  .cl2-hero-actions {
-    grid-column: 1 / -1; grid-row: 2;
-    display: flex !important;
-    flex-wrap: wrap !important;
-    gap: var(--sp-2) !important;
-  }
-  .cl2-hero-actions .btn {
-    flex: 1 1 calc(50% - var(--sp-2)) !important;
-    min-width: 0 !important;
-    padding: 0 var(--sp-2) !important;
-    font-size: var(--fs-klein) !important;
+     Ze zitten nu in het ⋯-menu in de topbalk, samen met de sorteerkeuze en
+     de prioriteitsgroepen. Wat overblijft is waar de hero voor bedoeld is:
+     hoever je bent. Op een bureaublad verandert er niets, daar is de ruimte
+     er wel. */
+  .cl2-hero-actions { display: none !important; }
+  /* Wat naar het menu verhuist, gaat uit de balk. */
+  .cl-topbar .cl2-sort,
+  .cl-topbar .cl2-seg { display: none !important; }
+  .cl-overflow { display: block !important; }
+  .cl-overflow #clOverflowBtn {
+    width: var(--tap) !important; height: var(--tap) !important;
     min-height: var(--tap) !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
+    padding: 0 !important;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .cl-overflow-menu {
+    min-width: min(280px, calc(100vw - 24px));
+    max-width: calc(100vw - 24px);
   }
   /* ── Nieuwe taak: pas uitklappen als je erin tikt ──
      Prioriteit, klant, datum en de knop stonden altijd open en kostten
@@ -5239,7 +5275,81 @@ textarea { line-height: 1.6; resize: vertical; }
      periode. Dat is één regel extra, maar de knoppen zijn nu 44px hoog met
      leesbare tekst en niets valt meer buiten beeld. Een regel winnen door
      de knoppen onaanraakbaar te maken is geen winst. */
-  .cl2-filter { flex-wrap: wrap !important; }
+  /* ── Filters ingeklapt achter één regel ──
+     Twee chiprijen plus een zoekbalk kostten 150px bediening boven de
+     eerste taak, elke keer dat je de lijst opende -- terwijl je meestal
+     niet filtert. Ze zitten nu achter één regel van 44px.
+
+     Waarom uitklappen en geen apart venster: bij een takenlijst wissel je
+     vaak tussen Alles en Hoog, en dan wil je de lijst zien meebewegen. Een
+     venster kost twee tikken per wissel en verbergt juist het resultaat
+     waar het je om gaat. (Uren en Facturen hebben wél een filtervenster,
+     maar daar filter je zelden en staat er een tabel onder.)
+
+     De dichte balk toont wát er aanstaat, niet alleen dát er te filteren
+     valt: een filter dat je niet ziet is een valstrik -- je mist een taak
+     en denkt dat hij weg is. Staat er iets aan, dan kleurt de balk mee en
+     staat er een kruisje om alles in één tik te wissen. */
+  .cl2-filter { flex-wrap: wrap !important; gap: var(--sp-2) !important; }
+  .cl2-filter-kop {
+    display: flex !important;
+    align-items: center;
+    gap: var(--sp-2);
+    width: 100%;
+    min-height: var(--tap);
+    padding: 0 var(--sp-3);
+    background: var(--surface);
+    border: 0.5px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: var(--fs-klein);
+    cursor: pointer;
+    text-align: left;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .cl2-filter-kop:active { background: var(--surface2); }
+  .cl2-filter-icoon { flex-shrink: 0; }
+  .cl2-filter-sam {
+    flex: 1; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .cl2-filter-kop-telling {
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    color: var(--text-hint);
+  }
+  .cl2-filter-chev { flex-shrink: 0; transition: transform .15s var(--ease); }
+  .cl2-filter.open .cl2-filter-chev { transform: rotate(180deg); }
+  /* Staat er een filter aan, dan mag je dat zien zonder uit te klappen. */
+  .cl2-filter.heeft-filter .cl2-filter-kop {
+    border-color: var(--mint);
+    background: var(--mint-soft);
+    color: var(--text);
+    font-weight: 600;
+  }
+  .cl2-filter-wis {
+    flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; margin: 0 -4px;
+    border-radius: 50%;
+    color: var(--text-muted);
+    font-size: var(--fs-klein);
+  }
+  .cl2-filter-wis:active { background: var(--surface3); }
+  /* display:contents op desktop, hier een echte rij die open of dicht kan. */
+  .cl2-filter-body {
+    display: none !important;
+    width: 100%;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+    align-items: center;
+  }
+  .cl2-filter.open .cl2-filter-body { display: flex !important; }
+  .cl2-filter-lbl { display: none !important; }
+  /* De telling staat al in de kop; in de uitgeklapte rij stond hij dubbel. */
+  .cl2-filter-body .cl2-filter-counter { display: none !important; }
   .cl2-filter .cl2-seg {
     flex: 1 1 100% !important;
     display: flex !important;
@@ -7085,6 +7195,17 @@ textarea { line-height: 1.6; resize: vertical; }
             <button type="button" id="clGroupToggle" class="cl2-seg-btn" data-action="toggleClGroupByPriority"
               title="Sorteer binnen prioriteitsgroepen (Hoog → Middel → Laag)">Prio-groepen</button>
           </div>
+          <!-- Alles wat op een telefoon niet in de balk of de hero past.
+               Op een bureaublad staat het daar gewoon en blijft dit menu
+               verborgen; de inhoud wordt in renderClOverflowMenu() gezet
+               omdat de labels tellingen dragen. -->
+          <div class="cl-overflow" id="clOverflow">
+            <button class="btn btn-sm" id="clOverflowBtn" type="button" data-action="toggleClOverflow"
+              aria-haspopup="menu" aria-expanded="false" aria-label="Meer opties" title="Meer opties">
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><circle cx="3" cy="8" r="1.4"/><circle cx="8" cy="8" r="1.4"/><circle cx="13" cy="8" r="1.4"/></svg>
+            </button>
+            <div class="cl-overflow-menu" id="clOverflowMenu" role="menu"></div>
+          </div>
         </div>
       </div>
       <!-- v3 scroll container: centered reading column -->
@@ -8588,6 +8709,10 @@ let saveTimer=null;
 let rawState={tasks:{},notes:{},checklist:{},uren:{},facturen:{},agenda:{events:[]},settings:{}};
 let checklistState={items:[],showArchived:false,sortBy:'newest',groupByPriority:true};
 let clFilters={prio:null,clientId:null,period:null,search:''};
+/* Staat de filterbalk open? Alleen van belang op een telefoon, waar hij
+   ingeklapt begint. Bewust niet bewaard: je wilt hem elke keer dicht
+   openen, anders is de ruimtewinst na één keer filteren weg. */
+let clFiltersOpen=false;
 
 /* Facturatie — invoices[] plus de eigen bedrijfsgegevens en de
    nummerreeks. Een verstuurde factuur bewaart een snapshot van klant
@@ -13983,6 +14108,11 @@ function renderChecklistModule(){
   if(!body||!hero)return;
 
   renderClSortControls();
+  /* Staat het ⋯-menu open, dan hertekenen: de vinkjes bij Sorteren en
+     Prioriteitsgroepen en de tellingen bij Archief en Verwijder afgerond
+     moeten meebewegen met wat je er net in aanklikte. */
+  const ovf=document.getElementById('clOverflow');
+  if(ovf&&ovf.classList.contains('open'))renderClOverflowMenu();
 
   /* Mirror the global client filter into clFilters.clientId — both
      set AND clear, so 'Alle klanten' actually clears the filter. */
@@ -14654,6 +14784,78 @@ function setClSearch(v){
   clFilters.search=v||'';
   renderChecklistModule();
 }
+/* ── ⋯-menu van de Checklist ──
+   Verzamelt wat op een telefoon niet in de balk of de hero past. Op een
+   bureaublad blijft de knop verborgen (zie CSS) en staat alles gewoon in
+   beeld; de inhoud wordt hier gebouwd omdat de labels tellingen dragen en
+   met de staat meebewegen. */
+const CL_SORT_LABELS={
+  newest:'Nieuwste bovenaan', oldest:'Oudste bovenaan', deadline:'Deadline eerst',
+  manual:'Handmatig (slepen)', alpha:'Naam A–Z'
+};
+function renderClOverflowMenu(){
+  const el=document.getElementById('clOverflowMenu');if(!el)return;
+  const vink='<span class="cl-ovf-vink">✓</span>';
+  const items=checklistState.items||[];
+  const afgerond=items.filter(i=>i.done&&!i.archived).length;
+  const gearchiveerd=items.filter(i=>i.archived).length;
+  const agg=(typeof _clSubtaskAggregate==='function')?_clSubtaskAggregate():{withSubs:[],mostlyOpen:false};
+  const huidig=clSortModus();
+
+  let html='<div class="cl-ovf-kop">Sorteren</div>';
+  html+=Object.keys(CL_SORT_LABELS).map(m=>
+    `<button type="button" role="menuitem" data-action="clSetSort" data-arg1="${m}"${m===huidig?' class="aan"':''}>`+
+    `${m===huidig?vink:'<span class="cl-ovf-vink"></span>'}${CL_SORT_LABELS[m]}</button>`).join('');
+
+  html+='<div class="cl-ovf-scheiding"></div><div class="cl-ovf-kop">Weergave</div>';
+  html+=`<button type="button" role="menuitem" data-action="toggleClGroupByPriority"${checklistState.groupByPriority?' class="aan"':''}>`+
+    `${checklistState.groupByPriority?vink:'<span class="cl-ovf-vink"></span>'}Prioriteitsgroepen</button>`;
+  if(agg.withSubs.length&&!checklistState.showArchived){
+    html+=`<button type="button" role="menuitem" data-action="toggleAllSubtasks">`+
+      `<span class="cl-ovf-vink"></span>${agg.mostlyOpen?'Alle subtaken inklappen':'Alle subtaken uitklappen'}</button>`;
+  }
+
+  html+='<div class="cl-ovf-scheiding"></div>';
+  if(!checklistState.showArchived){
+    html+=`<button type="button" role="menuitem" data-action="clOvfQuickAdd"><span class="cl-ovf-vink">✨</span>Slim toevoegen met AI</button>`;
+    if(afgerond>0)
+      html+=`<button type="button" role="menuitem" data-action="clOvfDeleteDone"><span class="cl-ovf-vink"></span>Verwijder afgerond (${afgerond})</button>`;
+    html+=`<button type="button" role="menuitem" data-action="clOvfArchief"><span class="cl-ovf-vink"></span>Archief${gearchiveerd?' ('+gearchiveerd+')':''}</button>`;
+  } else {
+    html+=`<button type="button" role="menuitem" data-action="clOvfArchief"><span class="cl-ovf-vink"></span>← Terug naar actief</button>`;
+  }
+  el.innerHTML=html;
+}
+function toggleClOverflow(e){
+  if(e)e.stopPropagation();
+  const wrap=document.getElementById('clOverflow');if(!wrap)return;
+  const open=!wrap.classList.contains('open');
+  if(open)renderClOverflowMenu();
+  wrap.classList.toggle('open',open);
+  const btn=document.getElementById('clOverflowBtn');
+  if(btn)btn.setAttribute('aria-expanded',open?'true':'false');
+  /* Het menu hangt rechts onder de knop, en die staat op een telefoon
+     halverwege de balk -- dan steekt een menu van 280px links buiten beeld.
+     Zelfde correctie als bij het ⋯-menu van de Agenda. */
+  const menu=document.getElementById('clOverflowMenu');
+  if(open&&menu)requestAnimationFrame(()=>clampDropdownToViewport(menu));
+  else if(menu){menu.style.left='';menu.style.right='';}
+}
+function closeClOverflow(){
+  const wrap=document.getElementById('clOverflow');if(!wrap)return;
+  wrap.classList.remove('open');
+  const btn=document.getElementById('clOverflowBtn');
+  if(btn)btn.setAttribute('aria-expanded','false');
+}
+/* Zelfde afspraak als bij het ⋯-menu van de Agenda: buiten klikken sluit,
+   Escape sluit. De knop zelf stopt de propagatie, anders zou de handler
+   hieronder hem meteen weer dichtdoen. */
+document.addEventListener('click',e=>{
+  const root=document.getElementById('clOverflow');
+  if(root&&!root.contains(e.target))closeClOverflow();
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeClOverflow();});
+
 function renderClFilterBar(){
   const el=document.getElementById('clFilterRow');if(!el)return;
 
@@ -14689,12 +14891,39 @@ function renderClFilterBar(){
     return `<button type="button" class="cl2-seg-btn${active?' active':''}" data-action="setClFilter" data-arg1="period" data-arg2="${s.v===null?'':s.v}">${s.l}</button>`;
   }).join('');
 
+  /* ── Samenvatting voor de ingeklapte balk (alleen zichtbaar op mobiel) ──
+     Een filter dat je niet ziet is een valstrik: je mist een taak en denkt
+     dat hij weg is. Daarom staat in de dichte balk wát er aanstaat, niet
+     alleen dát er gefilterd kan worden. */
+  const PRIO_LBL={hoog:'Hoog',middel:'Middel',laag:'Laag'};
+  const PERIODE_LBL={week:'Deze week',month:'Deze maand'};
+  const actief=[];
+  if(clFilters.prio)actief.push(PRIO_LBL[clFilters.prio]||clFilters.prio);
+  if(clFilters.period)actief.push(PERIODE_LBL[clFilters.period]||clFilters.period);
+  if((clFilters.search||'').trim())actief.push('"'+clFilters.search.trim()+'"');
+  const samenvatting=actief.length?actief.join(' · '):'Filteren en zoeken';
+
+  el.className='cl2-filter'+(clFiltersOpen?' open':'')+(actief.length?' heeft-filter':'');
   el.innerHTML=`
-    <span class="cl2-filter-lbl">Filter</span>
-    <div class="cl2-seg">${segHtml}</div>
-    <div class="cl2-seg">${periodHtml}</div>
-    <input type="text" id="clSearchInput" class="cl2-filter-search" placeholder="🔍 Zoek in taken..." value="${escapeHtml(clFilters.search||'')}" oninput="setClSearch(this.value)"/>
-    <span class="cl2-filter-counter">${countLbl}</span>`;
+    <button type="button" class="cl2-filter-kop" data-action="toggleClFilters"
+      aria-expanded="${clFiltersOpen?'true':'false'}">
+      <svg class="cl2-filter-icoon" width="14" height="14" viewBox="0 0 16 16" fill="none"
+        stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M2 3h12l-4.5 5.5V13l-3 1.5V8.5L2 3z"/></svg>
+      <span class="cl2-filter-sam">${escapeHtml(samenvatting)}</span>
+      ${actief.length?`<span class="cl2-filter-wis" data-action="clearClFilters" role="button" tabindex="0" title="Filters wissen">✕</span>`:''}
+      <span class="cl2-filter-kop-telling">${countLbl}</span>
+      <svg class="cl2-filter-chev" width="12" height="12" viewBox="0 0 12 12" fill="none"
+        stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 4.5L6 7.5L9 4.5"/></svg>
+    </button>
+    <div class="cl2-filter-body">
+      <span class="cl2-filter-lbl">Filter</span>
+      <div class="cl2-seg">${segHtml}</div>
+      <div class="cl2-seg">${periodHtml}</div>
+      <input type="text" id="clSearchInput" class="cl2-filter-search" placeholder="🔍 Zoek in taken..." value="${escapeHtml(clFilters.search||'')}" oninput="setClSearch(this.value)"/>
+      <span class="cl2-filter-counter">${countLbl}</span>
+    </div>`;
 
   if(wasFocused){
     const inp=document.getElementById('clSearchInput');
@@ -14833,7 +15062,16 @@ Object.assign(APP_ACTIONS,{
   selectClClient:(el,e,id)=>selectClClient(id||''),
   clCalSelect:(el,e,iso)=>clCalSelect(iso),
   toggleClGroupByPriority:()=>toggleClGroupByPriority(),
-  clearClFilters:()=>{clFilters={prio:null,clientId:null,period:null,search:''};renderChecklistModule();}
+  toggleClFilters:()=>{clFiltersOpen=!clFiltersOpen;renderClFilterBar();},
+  toggleClOverflow:(el,e)=>toggleClOverflow(e),
+  clSetSort:(el,e,mode)=>{closeClOverflow();setChecklistSort(mode);},
+  clOvfQuickAdd:()=>{closeClOverflow();openQuickAddAI();},
+  clOvfDeleteDone:()=>{closeClOverflow();deleteAllDone();},
+  clOvfArchief:()=>{closeClOverflow();toggleChecklistArchived();},
+  /* De wis-knop zit ín de kop-knop, dus zonder stopPropagation klapt de
+     balk ook nog open of dicht bij het wissen. */
+  clearClFilters:(el,e)=>{if(e)e.stopPropagation();
+    clFilters={prio:null,clientId:null,period:null,search:''};renderChecklistModule();}
 });
 Object.assign(APP_CHANGE_ACTIONS,{
   setClFilterClient:(el)=>setClFilter('clientId',el.value||null)
