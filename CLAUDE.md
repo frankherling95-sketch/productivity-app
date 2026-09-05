@@ -91,7 +91,8 @@ De functienamen zijn historisch (`loadGist`/`saveGist`/`refreshGist`); ze praten
 4. Bij een fout: de melding komt één keer, de wijziging staat lokaal en een herkansing loopt met backoff (5s/15s/60s/180s)
 5. Bij een laadfout: terugvallen op de lokale back-up. `driveGelezen` wordt daarbij **niet** gereset — is Drive deze sessie al gelezen, dan blijft schrijven veilig
 6. `beforeunload` en `visibilitychange` flushen pending saves
-7. Er wordt niets meer versleuteld weggeschreven — de pincode is afgeschaft (2026-08-16). Ligt er nog een oud `rawState.geheim` in Drive, dan wordt dat één keer uitgepakt (vanzelf met de bewaarde apparaatsleutel, anders met de code) en daarna definitief plat opgeslagen; zie `pinVersleutelingWeg()`
+7. Ophalen gaat vanzelf: `autoSyncKijk()` controleert goedkoop (alleen metadata) of Drive is veranderd en roept dan pas `loadGist()` aan — zie "Recent gemaakte beslissingen"
+8. Er wordt niets meer versleuteld weggeschreven — de pincode is afgeschaft (2026-08-16). Ligt er nog een oud `rawState.geheim` in Drive, dan wordt dat één keer uitgepakt (vanzelf met de bewaarde apparaatsleutel, anders met de code) en daarna definitief plat opgeslagen; zie `pinVersleutelingWeg()`
 
 ⚠️ **De poort `geheimenKlaar()`**: zolang dat oude blok nog dicht is, is `factuurState`/`urenState` leeg. Zolang de poort dicht is mag niets die state wegschrijven — anders wist een lege state de administratie in Drive. Zie de entries van 2026-08-12 en 2026-08-16 in `docs/decisions.md`.
 
@@ -201,6 +202,7 @@ Daarna: vraag Frank om **Ctrl+Shift+R** op de live site. Optioneel `test.html` d
 
 Top-3 meest recent. Volledige log + *waarom* per beslissing: [`docs/decisions.md`](docs/decisions.md).
 
+- **2026-09-05**: Bijwerken vanuit Drive gaat vanzelf — `autoSyncKijk()` kijkt bij terugkeer in het venster (`visibilitychange`/`focus`/`online`), bij de eerste klik of toets na een minuut stilte, en elke vijf minuten. Eerst alleen metadata (`driveZoekBestand()`); alleen bij een afwijkende `modifiedTime` volgt `loadGist()`. `autoSyncVeilig()` houdt hem tegen bij een wachtende save, een open modaal of focus in een invoerveld
 - **2026-09-02**: Checklist-taken vastpinnen — `item.pinned` zet een taak in één blok bovenaan, *boven* de prioriteitsgroepen (dus een vastgepinde lage prio komt boven een hoge uit). Binnen dat blok geldt gewoon de gekozen sorteermodus: `clSortCmp()` zet er alleen `clVastCmp` vóór. Slepen kruist de grens niet (`clZelfdePinGroep()`)
 - **2026-09-01**: Periode op de factuur te overschrijven — veld `f.periode` onder Betreft (leeg = afgeleid uit de gekoppelde uren) plus een knop "Hele maand"; de afleiding eindigde op de laatst geboekte dag, wat bij een maandfactuur bijna altijd te vroeg is
 - **2026-09-01**: Checklist-sortering — nieuwe taken bovenaan (elke aanmaakplek zet nu `createdAt`, en `clNieuweSortOrder()` geeft ze `min(groep)-1`), sorteerkeuze uitgebreid naar vijf modi in `CL_SORT_MODI` met een aparte knop "Prio-groepen" (`groupByPriority`); slepen alleen nog in de modus Handmatig

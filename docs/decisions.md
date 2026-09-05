@@ -10,6 +10,26 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-05 · Vanzelf bijwerken vanuit Drive, in plaats van op ↻ klikken
+
+**Probleem.** De app haalde Drive alleen op bij het opstarten en bij één specifiek geval: terugkomen op het tabblad na meer dan 30 seconden weg, en dan nog alleen als er geen save klaarstond (`_hiddenSince` + `visibilitychange`). Dat dekt de praktijk niet. Frank werkt vanaf meerdere computers (nooit tegelijk), en `visibilitychange` vuurt niet als je van *venster* wisselt terwijl het tabblad zichtbaar blijft — precies wat er op de desktop gebeurt. Een venster dat de hele dag openstaat liet dus de stand van vanochtend zien, tot je op ↻ klikte. De regel "Drive is de waarheid" gold wel bij het schrijven, maar op het scherm liep het uren achter.
+
+**Beslissing.** Eén poort, `autoSyncKijk()`, met drie aanleidingen:
+
+1. terug bij het venster — `visibilitychange` (ander tabblad), `focus` (ander programma) en `online` (netwerk terug);
+2. weer iets doen in de app na een minuut stilte — `pointerdown`/`keydown`, op capture en passive;
+3. elke vijf minuten, zolang het venster zichtbaar is.
+
+De poort kijkt eerst goedkoop: `driveZoekBestand()` haalt alleen metadata op. Is `modifiedTime` gelijk aan `driveGezien`, dan gebeurt er níets — geen download, geen `renderAll()`, geen knipperende statusbalk. Alleen bij een echt nieuwere versie volgt `loadGist()` plus een korte melding dat er is bijgewerkt. De ↻-knop en het trek-omlaag-gebaar blijven: die halen Drive altijd op.
+
+**Waarom een aparte poort en niet gewoon `loadGist()`.** `loadGist()` vervangt de state en hertekent alles. Dat mag niet zomaar midden in het werk gebeuren, dus `autoSyncVeilig()` zegt nee bij: Drive deze sessie nog niet gelezen (verbinden blijft de taak van ↻ — een achtergrondpoging opent het inlogvenster zonder klik, en dat blokkeert de browser toch), een oud versleuteld blok nog dicht, een wachtende of lopende save of herkansing, een open modaal, of focus in een invoerveld. Eigen werk gaat voor. De poort wordt twee keer gelopen: één keer vooraf en één keer ná het metadata-antwoord, want in die honderd milliseconden kan er alsnog getypt zijn. Verder een bodem van 5 s tussen twee controles, wat de aanleiding ook is.
+
+**Bestanden.** `index.html` — blok "Automatisch bijwerken" (`autoSyncVeilig`, `autoSyncKijk`, de drie luisteraars) vervangt het oude `_hiddenSince`-blok; `sw.js` → `herling-v14`.
+
+**Niet doen.** De metadata-stap overslaan en gewoon periodiek `loadGist()` draaien. Dat downloadt elke vijf minuten het hele bestand (honderden kB) en hertekent de app onder je handen, ook als er niets veranderd is. En: de vijf-minuten-tik niet korter zetten. De aanleidingen 1 en 2 dekken het echte gebruik; de tik is er alleen voor het venster dat openstaat terwijl je niets doet.
+
+---
+
 ## 2026-08-21 · Code-opschoning: stubs, altijd-ware guards en dode functies eruit
 
 **Probleem.** `index.html` droeg een laag ruis mee uit de tijd dat het bestand in delen werd samengesteld ("STUB functions — will be completed in next parts"):

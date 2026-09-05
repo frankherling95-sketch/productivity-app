@@ -9169,22 +9169,91 @@ async function handleRestoreFile(file){
   document.getElementById('restoreFileInput').value='';
 }
 
-/* ─ Auto-refresh ─
-   1. On tab visibility regain (after >30s away)
-   2. Every 5 minutes while tab is active and no pending save */
-let _hiddenSince=null;
-document.addEventListener('visibilitychange',()=>{
-  if(document.visibilityState==='hidden'){
-    _hiddenSince=Date.now();
-  } else if(document.visibilityState==='visible'&&_hiddenSince){
-    const awayMs=Date.now()-_hiddenSince;
-    _hiddenSince=null;
-    if(awayMs>30000&&!saveTimer){
-      console.log(`[drive] Tab weer zichtbaar na ${Math.round(awayMs/1000)}s, opnieuw laden…`);
-      loadGist();
-    }
+/* ─ Automatisch bijwerken ─
+   Frank werkt vanaf meerdere computers, nooit tegelijk. Wat er dan misgaat
+   is geen botsing maar een oud scherm: je opent de app op de andere pc en
+   kijkt naar de stand van gisteren tot je op ↻ klikt. Dat klikken hoort
+   niet nodig te zijn.
+
+   Drie aanleidingen, één poort:
+     1. je komt terug bij het venster — ander tabblad, ander programma, of
+        het netwerk is er weer
+     2. je doet weer iets in de app na een minuut stilte (klik of toets)
+     3. elke vijf minuten, zolang het venster open en zichtbaar is
+
+   De poort kijkt eerst goedkoop: driveZoekBestand() haalt alleen de
+   metadata op. Staat daar dezelfde modifiedTime als dit venster al kent,
+   dan gebeurt er niets — geen download, geen renderAll, geen knipperende
+   statusbalk. Alleen bij een echte nieuwere versie volgt loadGist().
+
+   Handmatig verversen (↻ in de zijbalk, trek omlaag op mobiel) blijft
+   bestaan en haalt Drive altijd op, ook als de metadata gelijk is. */
+const AUTO_SYNC_INTERVAL=5*60*1000;  /* periodieke controle */
+const AUTO_SYNC_STIL=60000;          /* zo lang stil geweest? dan kijken bij de eerste klik */
+const AUTO_SYNC_BODEM=5000;          /* nooit vaker dan dit, wat de aanleiding ook is */
+let autoSyncBezig=false, autoSyncLaatst=0;
+
+/* Wanneer het veilig is om de state onder iemands handen te vervangen.
+   Alles wat hier "nee" zegt komt op hetzelfde neer: er is werk gaande dat
+   een renderAll() zou verstoren, of er staat nog iets van dit apparaat
+   niet in Drive — en dat gaat voor. Is Drive deze sessie nog nooit
+   gelezen, dan is verbinden de taak van de ↻-knop: een achtergrondpoging
+   zou het inlogvenster openen zonder dat er geklikt is, en dat blokkeert
+   de browser toch. */
+function autoSyncVeilig(){
+  if(!DRIVE_ACTIEF||!driveGelezen||!driveGezien)return false;
+  if(!geheimenGeladen)return false;
+  if(saveTimer||saveBezig||saveNogmaals||saveRetryTimer)return false;
+  if(document.querySelector('.modal-bg.open'))return false;
+  const el=document.activeElement;
+  if(el&&(el.isContentEditable||/^(input|textarea|select)$/i.test(el.tagName)))return false;
+  return true;
+}
+
+async function autoSyncKijk(reden){
+  if(autoSyncBezig||Date.now()-autoSyncLaatst<AUTO_SYNC_BODEM)return;
+  if(!autoSyncVeilig())return;
+  autoSyncBezig=true; autoSyncLaatst=Date.now();
+  try{
+    const bestand=await driveZoekBestand();
+    if(!bestand||bestand.modifiedTime===driveGezien)return;
+    /* Tussen de vraag en het antwoord kan er alsnog getypt of iets geopend
+       zijn; dan is dit niet het moment. De volgende aanleiding komt vanzelf. */
+    if(!autoSyncVeilig())return;
+    console.log('[drive] Nieuwere versie in Drive ('+reden+'), ophalen...');
+    if(await loadGist()==='ok')
+      appToast('Bijgewerkt met de nieuwste versie uit Drive',{type:'info',duration:3500});
+  }catch(e){
+    /* Stil laten: hier heeft niemand om gevraagd, dus een netwerkblip hoort
+       geen melding op te leveren. Klopt er echt iets niet, dan zegt de
+       eerstvolgende schrijfactie het wel. */
+    console.warn('[drive] Achtergrondcontrole mislukt:',e.message);
+  } finally {
+    autoSyncBezig=false; autoSyncLaatst=Date.now();
   }
+}
+
+/* 1. Terug bij het venster. visibilitychange dekt het wisselen van
+   tabblad; op de desktop vuurt die niet als je van programma wisselt --
+   daar is focus voor. */
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible')autoSyncKijk('tabblad zichtbaar');
 });
+window.addEventListener('focus',()=>autoSyncKijk('venster in focus'));
+window.addEventListener('online',()=>autoSyncKijk('weer online'));
+
+/* 2. Weer iets doen na een tijd stilte. Op capture en passive, zodat dit
+   nooit in de weg zit van de klik zelf. */
+['pointerdown','keydown'].forEach(ev=>document.addEventListener(ev,()=>{
+  if(Date.now()-autoSyncLaatst<AUTO_SYNC_STIL)return;
+  autoSyncKijk('weer actief');
+},{capture:true,passive:true}));
+
+/* 3. Blijft het venster gewoon openstaan, dan kijken we uit onszelf. */
+setInterval(()=>{
+  if(document.visibilityState==='visible')autoSyncKijk('periodiek');
+},AUTO_SYNC_INTERVAL);
+
 /* ─ PWA service worker registration ─
    Registers sw.js for offline support + add-to-homescreen capability.
    Only on HTTPS (or localhost). Logs but never blocks the app on failure. */
