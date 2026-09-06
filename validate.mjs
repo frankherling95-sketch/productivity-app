@@ -28,6 +28,41 @@ const countTag = (open, close) => {
 countTag('<script\\b', '<\\/script>');
 countTag('<style\\b', '<\\/style>');
 
+/* ─── Div-balans per module ───────────────────────────────────────────────
+ * Aanleiding 2026-09-06: bij het verwijderen van de agenda-kaart gingen drie
+ * </div>'s te veel mee -- die van het kaartenraster, de scroll-container en
+ * #mod-dashboard zelf. Daardoor lagen alle andere modules ineens binnen het
+ * dashboard, en verdween hun inhoud zodra het dashboard niet actief was.
+ *
+ * Niets ving dat op: de HTML-parser van een browser dicht zulke onbalans
+ * stilzwijgend, de smoke-tests kijken naar losse elementen, en de check
+ * hierboven telt alleen script- en style-tags. Deze wel: elke module moet
+ * netjes sluiten, en de volgende module moet er náást beginnen, niet erin. */
+const divTok = /<div\b|<\/div>/g;
+const modules = [...html.matchAll(/id="(mod-[a-z]+)"/g)].map(m => m[1]);
+for (const id of modules) {
+  const i = html.indexOf(`id="${id}"`);
+  const start = html.lastIndexOf('<div', i);
+  if (start < 0) continue;
+  divTok.lastIndex = start;
+  let diepte = 0, eind = -1, m;
+  while ((m = divTok.exec(html)) !== null) {
+    diepte += m[0] === '</div>' ? -1 : 1;
+    if (diepte === 0) { eind = m.index; break; }
+  }
+  const regel = html.slice(0, start).split('\n').length;
+  if (eind < 0) {
+    errors.push(`#${id} (regel ${regel}) wordt nooit gesloten — er ontbreekt een </div>`);
+    continue;
+  }
+  /* Ligt er een andere module binnen deze? Dan is er één </div> te weinig. */
+  const binnen = modules.filter(a => a !== id).find(a => {
+    const j = html.indexOf(`id="${a}"`);
+    return j > start && j < eind;
+  });
+  if (binnen) errors.push(`#${binnen} ligt binnen #${id} (regel ${regel}) — modules horen naast elkaar te staan`);
+}
+
 /* ─── Extract & parse each <script> block ─── */
 const scriptRe = /<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g;
 let match, idx = 0;

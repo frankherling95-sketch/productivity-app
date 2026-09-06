@@ -4331,7 +4331,6 @@ textarea { line-height: 1.6; resize: vertical; }
      alleen op een tweede rij staan; even breed naast elkaar leest als één
      strip. Labels breken netjes over twee regels, en alles is gecentreerd
      zodat de tegels ook bij ongelijke labellengtes symmetrisch ogen. */
-  .dash-kpis { grid-template-columns: repeat(3, 1fr) !important; gap: 8px !important; }
   .dash-kpi {
     padding: 10px 6px !important;
     align-items: center !important;
@@ -4350,11 +4349,9 @@ textarea { line-height: 1.6; resize: vertical; }
   }
   .dash-kpi-val { font-size: 20px !important; }
   .dash-kpi-trend { font-size: var(--fs-micro) !important; text-align: center !important; }
-  /* #mod-dashboard ervoor omdat `.dash-grid.dash-grid-3` verderop vaste
-     rijhoogtes (280px/440px) zet; die zijn hier juist fout, want een
+  /* #mod-dashboard ervoor om van de desktopregels te winnen: een
      ingeklapte kaart moet tot zijn kop kunnen krimpen. */
-  #mod-dashboard .dash-grid,
-  #mod-dashboard .dash-grid.dash-grid-3 {
+  #mod-dashboard .dash-grid {
     grid-template-columns: 1fr !important;
     grid-template-rows: none !important;
     grid-auto-rows: min-content !important;
@@ -5124,7 +5121,6 @@ textarea { line-height: 1.6; resize: vertical; }
    VERY SMALL SCREENS (≤ 380px) — extra compact tweaks
    ════════════════════════════════════════════════════════════════════════════ */
 @media (max-width: 380px) {
-  .dash-kpis { grid-template-columns: 1fr !important; }
   /* Zes tabs delen de breedte, en 'Dashboard' is het langste label: op
      11,5px houdt het hier nog maar twee pixel over en op een 320px-toestel
      past het niet meer. Eén trap terug dus, met een afbreekteken als
@@ -5271,6 +5267,10 @@ textarea { line-height: 1.6; resize: vertical; }
   border-radius: var(--radius-lg);
   padding: 24px;
   min-height: 140px;
+  /* Houdt zijn eigen hoogte: het kaartenraster eronder staat op flex:1 en
+     zou de hero anders platdrukken -- de hulpregel onder het invoerveld
+     viel dan onder de rand weg. */
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -5374,101 +5374,32 @@ textarea { line-height: 1.6; resize: vertical; }
 }
 
 /* ── KPI strip (clickable buttons) ───────────────────────────────────────── */
-.dash-kpis {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-}
-@media (max-width: 900px) { .dash-kpis { grid-template-columns: 1fr; } }
-.dash-kpi {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 16px;
-  box-shadow: var(--shadow-card);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  cursor: pointer;
-  text-align: left;
-  font-family: inherit;
-  color: inherit;
-  transition: all 0.16s var(--ease);
-}
-.dash-kpi:hover {
-  transform: translateY(-2px);
-  border-color: var(--border-strong);
-  box-shadow: var(--shadow-card-hover);
-}
-.dash-kpi:active { transform: translateY(0); }
-.dash-kpi:focus-visible { outline: 2px solid var(--mint); outline-offset: 2px; }
-.dash-kpi-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-.dash-kpi-label {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-muted);
-  font-weight: 600;
-}
-.dash-kpi-icon {
-  width: 24px; height: 24px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  flex-shrink: 0;
-}
-.dash-kpi-val {
-  font-family: var(--font-mono);
-  font-size: 36px;
-  font-weight: 600;
-  line-height: 1;
-  letter-spacing: -0.04em;
-  font-variant-numeric: tabular-nums;
-  color: var(--text);
-}
-.dash-kpi-trend {
-  font-size: 11px;
-  color: var(--text-hint);
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-.dash-kpi-trend .trend-up   { color: var(--success); font-weight: 700; }
-.dash-kpi-trend .trend-down { color: var(--danger);  font-weight: 700; }
-.dash-kpi-trend .trend-flat { color: var(--text-muted); font-weight: 700; }
 
-/* ── 2×2 Grid of cards ───────────────────────────────────────────────────── */
+/* ── Kaartenraster ────────────────────────────────────────────────────────
+   Twee kaarten naast elkaar, samen de rest van het scherm. Hier stonden
+   vaste rijhoogtes (220/280px boven, 440px onder) uit de tijd dat er drie
+   of vier kaarten waren; met er nog twee over lieten die onderaan een gat
+   van een paar honderd pixel staan. Eén rij van 1fr vult wat de hero
+   overlaat, hoe hoog het venster ook is. */
 .dash-grid {
   display: grid !important;
   grid-template-columns: 1fr 1fr !important;
-  grid-template-rows: 220px 440px !important;  /* bovenrij compact, onderrij 2× zo hoog */
+  grid-template-rows: 1fr !important;
   gap: 20px !important;
-  padding: 0 !important;        /* padding now lives on .dash-scroll */
-  flex: 0 0 auto !important;    /* disable the old flex:1 squish */
+  padding: 0 !important;        /* de padding zit op .dash-scroll */
+  flex: 1 1 auto !important;    /* pak de hoogte die de hero overlaat */
   overflow: visible !important;
-  min-height: 0 !important;     /* let row tracks define total height */
+  min-height: 0 !important;
 }
-/* 3-kaarts indeling: Notities linksboven, Checklist rechtsboven, de derde
-   kaart over de volle breedte eronder */
-.dash-grid.dash-grid-3 {
-  grid-template-rows: 280px 440px !important;
-}
-.dash-grid.dash-grid-3 > .card:nth-child(3) {
-  grid-column: 1 / -1 !important;
-}
-.dash-grid.dash-grid-3 > .card:nth-child(4) { grid-column: 1 / -1 !important; }
-.dash-grid { grid-auto-rows: minmax(240px, auto); }
+/* Onder de 900px stapelen ze; dan is meeschalen juist verkeerd, want dan
+   moeten ze hun eigen hoogte houden en mag de pagina scrollen. */
 @media (max-width: 900px) {
-  .dash-grid { grid-template-columns: 1fr !important; grid-template-rows: 220px 220px 440px 440px !important; }
-  .dash-grid.dash-grid-3 { grid-template-rows: 280px 280px 440px !important; }
-  .dash-grid.dash-grid-3 > .card:nth-child(3) { grid-column: auto !important; }
+  .dash-grid {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: none !important;
+    grid-auto-rows: minmax(240px, auto) !important;
+    flex: 0 0 auto !important;
+  }
 }
 
 .dash-grid .card {
@@ -6263,7 +6194,7 @@ textarea { line-height: 1.6; resize: vertical; }
         </div>
 
         <!-- Kaartenraster: Notities linksboven, Checklist rechtsboven -->
-        <div class="dash-grid dash-grid-3">
+        <div class="dash-grid">
           <div class="card" data-dash-card="notes">
             <div class="card-hdr" onclick="dashCardToggle(event,this)">
               <h2>Recente notities</h2>
@@ -9845,8 +9776,6 @@ function renderDashKpis(){
       trendEl.textContent='';
     }
   };
-  set('dashKpiOpen',    s.openClCount,                          s.totalCl?`van ${s.totalCl} totaal`:null, 'flat');
-  set('dashKpiDue',     s.overdueCl,                            s.openClCount?`van ${s.openClCount} open`:null, s.overdueCl>0?'down':'flat');
   /* Bedragen horen niet op het dashboard: dat scherm staat open zodra
      je inlogt, ook als je bij een klant zit. Openstaande facturen staan
      in de facturenmodule onder Debiteuren. */
