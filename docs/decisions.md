@@ -10,6 +10,25 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-06 · Drie sluittags te veel weg — en waarom niets dat ving
+
+**Wat er gebeurde.** Bij het verwijderen van de agenda-kaart uit het dashboard gingen drie `</div>`'s mee die daar niet bij hoorden: die van het kaartenraster, van de scroll-container en van `#mod-dashboard` zelf. Gevolg: alle andere modules kwamen in de DOM *binnen* het dashboard te liggen in plaats van ernaast. Zodra het dashboard niet de actieve module was kreeg die ouder `display:none`, en verdween de inhoud van elke andere module mee. Het scherm was leeg op alles behalve het dashboard.
+
+**Waarom niets het ving.** Drie vangnetten keken alle drie de andere kant op:
+
+- de HTML-parser van de browser dicht onbalans stilzwijgend, dus de pagina laadde zonder één fout in de console;
+- `test.html` controleert of losse elementen bestaan (`getElementById('mod-uren')`), niet waar ze in de boom hangen — 33/33 bleef groen;
+- `validate.mjs` telde alleen `<script>` en `<style>`, niet `<div>`.
+
+Het viel dus pas op toen Frank het zag.
+
+**De data is nooit in gevaar geweest.** `loadGist()` slaagde gewoon — de statusbalk meldde "Geladen" — en `verzamelModuleState()` schrijft de geladen state weg, niet een lege. Puur weergave.
+
+**Wat er nu tegen staat.** `validate.mjs` controleert de div-balans per module: hij meldt zowel een `#mod-*` die niet sluit als een module die binnen een andere ligt. Getest tegen de kapotte commit (`4fe389b`), die correct wordt afgekeurd.
+
+**Les voor grote verwijderingen.** Een blok afbakenen op "de eerste `</div>` op de juiste diepte" is niet genoeg als dat blok het laatste kind is: de sluittags van de ouders staan er direct onder en zien er identiek uit. Bepaal bij zo'n verwijdering de grenzen door tags te tellen vanaf de *start*, niet door het einde te herkennen aan zijn vorm — en draai daarna de balanscheck.
+---
+
 ## 2026-09-06 · Agenda-module verwijderd
 
 **Probleem.** De agenda werd nauwelijks gebruikt en deed niet betrouwbaar wat hij moest doen. De iCal-kant is daar de oorzaak van: feeds gaan via vier CORS-proxies omdat er geen OAuth is (zie de verwijderde `docs/agenda.md`), Microsoft cachet gepubliceerde feeds 15–30 minuten, en RRULE/RECURRENCE-ID/EXDATE-afhandeling is precies het soort werk dat blijft terugkomen. Daar stond weinig gebruik tegenover.
