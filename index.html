@@ -4087,11 +4087,53 @@ textarea { line-height: 1.6; resize: vertical; }
      space above for top bar and below for bottom bar). */
   .module {
     overflow-y: auto !important;
+    /* Alleen omhoog en omlaag. Zodra één as op auto staat maakt de browser
+       de andere óók scrollbaar zodra er iets uitsteekt -- en dan kun je de
+       hele pagina zijwaarts wegslepen, met de topbalk en de tabbalk mee.
+       Dat is nooit de bedoeling: wat te breed is hoort te breken of binnen
+       zijn eigen kader te schuiven, niet het scherm mee te nemen. */
+    overflow-x: hidden !important;
     min-height: 0 !important;
     /* Houdt de stuiter binnen de module, zodat het ververs-gebaar erboven
        niet vecht met iOS' rubber-band. */
     overscroll-behavior-y: contain;
   }
+
+  /* ── Het scherm schuift niet zijwaarts ──
+     Vier lagen, want elk van deze kan op zichzelf gaan schuiven zodra er
+     iets uitsteekt: het document, de app-schil, het middengebied en de
+     modal. De module hierboven is de vijfde. */
+  html, body { overflow-x: hidden !important; }
+  #appScreen, .main-area { overflow-x: hidden !important; }
+  .modal-bg, .modal { overflow-x: hidden !important; }
+
+  /* Lange aaneengesloten tekst -- een factuurnummer, een e-mailadres, een
+     URL in een notitie -- rekt anders zijn regel op en duwt het hele blad
+     breder. Alleen breken als het écht niet past. */
+  .module, .modal { overflow-wrap: break-word; }
+
+  /* Uitzonderingen: dit is wél breder dan een telefoon en hoort dat te
+     blijven. Ze schuiven binnen hun eigen kader, zonder de pagina mee te
+     nemen -- daar is overflow-x:auto precies voor. */
+  .board,
+  .note-toolbar,
+  .uren-content,
+  .card-body,
+  .uren-sheet-card,
+  .import-table-wrap,
+  .fac-sj-preview { overflow-x: auto !important; }
+
+  /* De tabstrip van Uren en Facturen paste net niet: bij Facturen zijn het
+     vijf tabs die samen 311px vragen terwijl er 291px is. Met overflow-x
+     op visible stak hij uit en sleepte hij de module mee. Nu schuift de
+     strip zelf, en de scrollbalk blijft weg zodat het geen rommelige rand
+     geeft. */
+  .uren-tabs {
+    overflow-x: auto !important;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .uren-tabs::-webkit-scrollbar { display: none; }
 
   /* ── Modals become full-width with margin and slide up ── */
   .modal-bg { align-items: flex-end !important; padding: 0 !important; }
