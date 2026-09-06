@@ -190,6 +190,8 @@ Daarna: vraag Frank om **Ctrl+Shift+R** op de live site. Optioneel `test.html` d
 
 Top-3 meest recent. Volledige log + *waarom* per beslissing: [`docs/decisions.md`](docs/decisions.md).
 
+- **2026-09-06**: Eén mobiele paginavorm — het ⋯-menu rechtsboven op de lijn van de moduletitel (44×44, `right:12px`) en een ronde + rechtsonder (56×56, `right:17px`) op élke module. Vastgezet met `position:fixed` op de knopwrapper, niet door in de DOM te verhuizen: de menu's hangen aan hun eigen dispatcher en volgen zo vanzelf. Zelfde ronde: modalkoppen over de volle breedte en leesbare statuspillen daarop
+- **2026-09-06**: Op mobiel schuift het scherm alleen nog omhoog en omlaag — `overflow-y:auto` maakt de andere as stilzwijgend ook scrollbaar; `overflow-x:hidden` op `html`/`body`/`#appScreen`/`.main-area`/`.module` en op de modals
 - **2026-09-06**: Agenda-module verwijderd (2.635 regels) — werd nauwelijks gebruikt en de iCal-keten via vier CORS-proxies was de bron van de onbetrouwbaarheid. Weg: de module, drie modals, beide navigatie-ingangen, de dashboardkaart en -KPI, de proxyketen, en het events-deel van de AI-invoer. `dateStr()` is naar UTILS verhuisd. **`rawState.agenda` blijft ongemoeid in Drive staan** — niet meer gebruikt, wel bewaard
 - **2026-09-05**: Checklist op mobiel — filters achter één uitklapbare regel die toont wát er aanstaat, de rest van de bediening in een ⋯-menu
 - **2026-09-05**: Agenda op mobiel — weekraster schuift opzij (100px per dag), Dag als standaard, balk van vier rijen naar twee. *Vervallen met de verwijdering hierboven*

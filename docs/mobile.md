@@ -74,6 +74,26 @@ passen — en werden alsnog afgekapt.
 Past het niet? Laat het wrappen, of zet het op twee regels. Een regel extra
 kost 44px. Een knop die je niet raakt kost een handeling.
 
+## De vorm van een pagina
+
+Elke module ziet er op een telefoon hetzelfde uit. Twee vaste plekken:
+
+| | Waar | Maat |
+|---|---|---|
+| ⋯-menu | rechtsboven, op de lijn van de moduletitel (`top: 4px` + safe-area, `right: 12px`) | 44×44, randloos, transparant |
+| ronde + | rechtsonder, boven de tabbalk (`right: 17px`, `bottom: 80px` + safe-area) | 56×56 |
+
+De brede "+ Nieuw"-knoppen in de topbalken gaan op mobiel uit; de ronde knop
+doet hetzelfde. Wie een module toevoegt of een knop verplaatst: zet hem op
+deze twee plekken, niet ergens anders die ook past.
+
+**Vastgezet met `position: fixed` op de knopwrapper**, niet door het element
+in de DOM te verhuizen. Elk menu hangt aan zijn eigen dispatcher en wordt
+soms aan `document.body` gehangen en bij de knop gepositioneerd — verhuizen
+maakt die verbanden los, positioneren laat ze intact. Het blok staat aan het
+**eind** van de mobiele laag: de dashboard-rasterregels staan op `!important`
+en bij gelijke specificiteit wint de laatste regel.
+
 ## Werkwijze bij een mobiele wijziging
 
 1. **Gebruik de tokens.** Wie een token gebruikt schaalt vanzelf mee; wie een
@@ -112,6 +132,8 @@ Gemeten over zes modules op 375×812, met de zijbalk dicht en zonder modals:
 De twaalf knoppen onder 36px zijn de uitzonderingen hierboven: de
 periodekiezer, de Week/Maand-schakelaar en de vier acties in de notitieboom.
 
+> Gemeten vóór het verwijderen van de agenda (2026-09-06); die kolom telde toen mee.
+
 ## Als iets niet in de breedte past
 
 Twee wegen, en de keuze hangt af van wat je verliest.
@@ -120,26 +142,25 @@ Twee wegen, en de keuze hangt af van wat je verliest.
 filters, KPI-tegels. Een regel extra kost 44px en je verliest niets.
 
 **Horizontaal laten schuiven** wanneer de onderdelen een raster vormen dat je
-niet mag breken — het weekraster in de Agenda is het voorbeeld. Zeven dagen
-naast elkaar op 375px geeft 42px per dag, en daar past geen afspraaknaam in.
-Honderd pixel per dag maakt het raster breder dan het scherm; dat schuift dan
-opzij.
+niet mag breken — een tabel met kolommen die elkaar nodig hebben. Dat is de
+uitzondering, en hij moet expliciet aangezet worden: sinds 2026-09-06 staat
+`overflow-x: hidden` op `html`, `body`, `#appScreen`, `.main-area`, `.module`
+en de modals, zodat de página zelf nooit opzij kan. Wat wél mag schuiven staat
+in één lijst in de mobiele laag (`.board`, `.uren-content`, `.card-body`,
+`.import-table-wrap`, …).
 
 Bij schuiven horen twee dingen: zet de ankers vast (`position: sticky` op de
-tijdkolom en de dagkoppen — zonder die weet je na één veeg niet meer waar je
-bent), en gebruik **één** scrollcontainer voor het geheel. Sticky ankert aan
-de dichtstbijzijnde scrollende voorouder; als het raster zijn eigen verticale
-scroll houdt en de horizontale op de buitenkant zit, hangt de tijdkolom aan
-een container die niet opzij schuift en schuift hij gewoon mee weg.
+kop- of eerste kolom — zonder die weet je na één veeg niet meer waar je bent),
+en gebruik **één** scrollcontainer voor het geheel. Sticky ankert aan de
+dichtstbijzijnde scrollende voorouder; houdt het raster zijn eigen verticale
+scroll terwijl de horizontale op de buitenkant zit, dan hangt het anker aan
+een container die niet opzij schuift en schuift het gewoon mee weg.
 
 ## Bekende punten die nog openstaan
 
-- **Checklist** — de bediening boven de eerste taak is nog steeds fors: topbalk,
-  hero met vier knoppen, snel-toevoegen, twee filterregels en een zoekbalk.
-  De maten kloppen nu; de hoeveelheid is een aparte vraag.
-- **De zwevende + in Uren en Agenda** dekt tijdens het scrollen de onderste
-  regel af. Dat hoort bij een zwevende knop, maar hij staat precies op het
-  bedrag.
-- **Agenda, maandweergave** — de pillen tonen nu de titel in plaats van de
-  tijd, maar een cel is 50px breed en dus blijft het afkappen. Een maandcel
-  op een telefoon kan niet veel meer dan "er is hier iets".
+- **De zwevende + dekt tijdens het scrollen de onderste regel af.** Dat hoort
+  bij een zwevende knop, maar in Uren staat hij precies op het bedrag.
+- **Checklist heeft nu twee manieren om een taak toe te voegen**: de ronde
+  knop (met datum, prioriteit en klant) en het snelveld "Nieuwe taak
+  toevoegen…" in de lijst. Het snelveld is geen knop maar een tekstveld en
+  is daarom blijven staan; of het weg mag is nog een open vraag.

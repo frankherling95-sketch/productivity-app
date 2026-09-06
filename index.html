@@ -5181,6 +5181,107 @@ textarea { line-height: 1.6; resize: vertical; }
   /* ── Setup screen on mobile: full screen, padded ── */
   .setup-card { width: 100% !important; max-width: 100% !important; padding: 24px 18px !important; min-height: 100vh; border-radius: 0 !important; }
 
+  /* ══ Eén vaste plek voor het ⋯-menu ══
+     Elke module had zijn menu in de eigen balk staan, elk op een andere
+     hoogte en een andere afstand tot de rand. Nu zitten ze alle vier in de
+     rechterbovenhoek, op de lijn van de moduletitel -- dezelfde plek op
+     elke pagina.
+
+     Ze blijven in de DOM staan waar ze stonden: elk menu hangt aan zijn
+     eigen dispatcher (data-uren-action, data-fac-action, data-action) en
+     bij Checklist en Dashboard zit het uitklapmenu ín de knopwrapper. Door
+     alleen de positie vast te zetten verhuist het menu vanzelf mee; de
+     menu's van Uren en Facturen worden bij de knop geplaatst en volgen dus
+     ook. Verplaatsen in de DOM zou al die verbanden losmaken.
+
+     z-index 81: net boven de topbalk (80), onder de modals. */
+  #urenMenuBtn,
+  #facMenuBtn,
+  .cl-overflow,
+  .dash-topbar .dash-mobile-settings {
+    position: fixed !important;
+    top: calc(env(safe-area-inset-top, 0px) + 4px) !important;
+    right: 12px !important;
+    left: auto !important;
+    margin: 0 !important;
+    width: var(--tap) !important;
+    height: var(--tap) !important;
+    min-width: var(--tap) !important;
+    z-index: 81 !important;
+  }
+  /* De knop binnen een wrapper vult die wrapper. */
+  .cl-overflow > button,
+  .dash-topbar .dash-mobile-settings > button {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: transparent !important;
+    border: 0 !important;
+    color: var(--text) !important;
+  }
+  #urenMenuBtn,
+  #facMenuBtn {
+    background: transparent !important;
+    border: 0 !important;
+    color: var(--text) !important;
+    font-size: 20px !important;
+  }
+  #urenMenuBtn:active,
+  #facMenuBtn:active,
+  .cl-overflow > button:active,
+  .dash-topbar .dash-mobile-settings > button:active { background: var(--surface2) !important; }
+
+  /* ══ Eén ronde knop voor "toevoegen" ══
+     Uren en Facturen hadden er al een; Notities, Checklist en Dashboard
+     kregen dezelfde. De brede knoppen in de balken gaan daarmee uit, zodat
+     elke pagina er hetzelfde uitziet: titel met ⋯ bovenin, ronde + onderin.
+
+     Bij het Dashboard is het geen losse knop maar een keuzemenu ("Taak",
+     "Notitie", …). Daarom wordt de wrapper zelf de ronde knop: dan hangt
+     het menu aan de plek waar je tikt. Het label en het pijltje verdwijnen,
+     alleen de + blijft over, en het menu klapt naar bóven open -- rechts-
+     onder is er onder de knop geen ruimte. */
+  #mod-notes .uren-fab,
+  #mod-checklist .uren-fab { display: flex; }
+  #mod-notes .module-topbar .btn-primary { display: none !important; }
+
+  .dash-topbar .ha-newitem {
+    position: fixed !important;
+    right: 17px !important;
+    bottom: calc(80px + env(safe-area-inset-bottom, 0)) !important;
+    left: auto !important; top: auto !important;
+    width: 56px !important; height: 56px !important;
+    grid-column: auto !important; grid-row: auto !important;
+    z-index: 60 !important;
+  }
+  .dash-topbar .ha-newitem .ha-newitem-trigger {
+    /* Exact over de wrapper: als inline-block kind stak hij er 8px
+       naast, waardoor de knop niet op één lijn stond met die van de
+       andere modules. */
+    position: absolute !important; inset: 0 !important;
+    width: auto !important; height: auto !important;
+    min-height: 0 !important; padding: 0 !important;
+    border-radius: 50% !important;
+    font-size: 0 !important;              /* label 'Nieuw item' weg */
+    justify-content: center !important;
+    box-shadow: 0 8px 24px var(--mint-glow), 0 2px 8px rgba(15,27,61,.2) !important;
+  }
+  /* Alleen de + blijft leesbaar; het pijltje hoort niet op een ronde knop. */
+  .dash-topbar .ha-newitem .ha-newitem-trigger > span:first-child { font-size: 26px !important; line-height: 1 !important; }
+  .dash-topbar .ha-newitem .ha-newitem-caret { display: none !important; }
+  .dash-topbar .ha-newitem .ha-newitem-menu {
+    top: auto !important;
+    bottom: calc(100% + 8px) !important;
+    right: 0 !important;
+    max-width: calc(100vw - 34px);
+  }
+  /* Het plusje in de hero deed hetzelfde als de ronde knop nu doet. */
+  .dash-hero-add { display: none !important; }
+
   /* ═══════════════════════════════════════════════════════════════════════
      ONDERGRENS VOOR LEESBARE TEKST
      ───────────────────────────────────────────────────────────────────────
@@ -6275,9 +6376,9 @@ textarea { line-height: 1.6; resize: vertical; }
           <!-- Mobile-only settings dropdown (replaces the small ⚙ on mobile,
                and replaces the Todo-page settings button which is hidden on mobile) -->
           <div class="dash-mobile-settings" id="dashMobileSettings">
-            <button class="btn btn-sm" onclick="toggleDashMobileSettings(event)" aria-label="Instellingen">
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15" style="margin-right:4px"><circle cx="8" cy="8" r="2.2"/><path d="M13.4 9.2a1 1 0 0 0 .2 1.1l.04.04a1.2 1.2 0 1 1-1.7 1.7l-.04-.04a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9V13a1.2 1.2 0 1 1-2.4 0v-.06a1 1 0 0 0-.7-.92 1 1 0 0 0-1.1.2l-.04.04a1.2 1.2 0 1 1-1.7-1.7l.04-.04a1 1 0 0 0 .2-1.1 1 1 0 0 0-.9-.6H3a1.2 1.2 0 1 1 0-2.4h.06a1 1 0 0 0 .92-.7 1 1 0 0 0-.2-1.1l-.04-.04a1.2 1.2 0 1 1 1.7-1.7l.04.04a1 1 0 0 0 1.1.2H6.7a1 1 0 0 0 .6-.9V3a1.2 1.2 0 1 1 2.4 0v.06a1 1 0 0 0 .6.9 1 1 0 0 0 1.1-.2l.04-.04a1.2 1.2 0 1 1 1.7 1.7l-.04.04a1 1 0 0 0-.2 1.1V6.7a1 1 0 0 0 .9.6H13a1.2 1.2 0 1 1 0 2.4h-.06a1 1 0 0 0-.9.6z"/></svg>
-              Instellingen
+            <button class="btn btn-sm" onclick="toggleDashMobileSettings(event)"
+              aria-haspopup="menu" aria-expanded="false" aria-label="Meer opties" title="Meer opties">
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><circle cx="3" cy="8" r="1.4"/><circle cx="8" cy="8" r="1.4"/><circle cx="13" cy="8" r="1.4"/></svg>
             </button>
             <div class="dash-mobile-settings-menu" id="dashMobileSettingsMenu">
               <!-- Op mobiel staan 'Nieuwe klant' en 'Wekelijkse review' hier in
@@ -6438,6 +6539,9 @@ textarea { line-height: 1.6; resize: vertical; }
           <button class="btn btn-xs btn-primary" onclick="createNote(null)">+ Nieuw</button>
         </div>
       </div>
+      <!-- Zelfde ronde knop als in Uren en Facturen; de knop "+ Nieuw"
+           in de balk gaat op een telefoon uit. -->
+      <button class="uren-fab" onclick="createNote(null)" aria-label="Nieuwe notitie">+</button>
       <div class="notes-layout">
         <div class="notes-sidebar" style="display:flex;flex-direction:column">
           <div class="notes-search-wrap">
@@ -6501,6 +6605,10 @@ textarea { line-height: 1.6; resize: vertical; }
           </div>
         </div>
       </div>
+      <!-- Zelfde ronde knop als in de andere modules: opent hetzelfde
+           venster als het plusje in de lijst, met datum, prioriteit en
+           klant als echte velden. -->
+      <button class="uren-fab" onclick="openChecklistItemModal(null)" aria-label="Nieuwe taak">+</button>
       <!-- v3 scroll container: centered reading column -->
       <div class="cl2-scroll" id="clScroll">
         <div class="cl2-wrap">

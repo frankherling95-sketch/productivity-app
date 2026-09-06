@@ -10,6 +10,24 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-06 · Eén mobiele paginavorm: ⋯ rechtsboven, ronde + rechtsonder
+
+**Probleem.** Elke module had zijn eigen bediening bedacht. Uren en Facturen hadden een zwevende ronde knop, Notities een `+ Nieuw` in de balk, Checklist een breed veld, het Dashboard een keuzeknop met icoon en tekst. Het ⋯-menu stond overal op een andere hoogte en een andere afstand tot de rand, en de instellingenknop op het Dashboard was een tandwiel met het woord "Instellingen" ernaast. Op een telefoon betekent dat: per pagina opnieuw zoeken waar je moet tikken.
+
+**Beslissing.** Twee vaste plekken, op elke module dezelfde. Het **⋯-menu** staat rechtsboven op de lijn van de moduletitel (`top: 4px + safe-area`, `right: 12px`, 44×44, randloos en transparant). De **ronde +** staat rechtsonder boven de tabbalk (`right: 17px`, `bottom: 80px + safe-area`, 56×56). Het tandwiel op het Dashboard is nu ook ⋯; de brede knoppen in de balken gaan op mobiel uit.
+
+**Waarom `position: fixed` en niet verplaatsen in de DOM.** De vier menu's hangen elk aan hun eigen dispatcher (`data-uren-action`, `data-fac-action`, `data-action`), en bij Uren en Facturen wordt het uitklapmenu aan `document.body` gehangen en bij de knop gepositioneerd — bij Checklist en Dashboard zit het juist ín de knopwrapper. Alleen de positie vastzetten laat al die verbanden intact: het menu volgt de knop vanzelf. De wrapper zelf krijgt de positie, niet de knop erin, want anders klapt het menu op de oude plek open.
+
+**Het Dashboard is geen losse knop maar een keuze** ("Taak", "Notitie", …). Daarom is dáár de wrapper de ronde knop geworden: dan hangt het menu aan de plek waar je tikt. Label en pijltje verdwijnen, alleen de + blijft, en het menu klapt naar bóven open — rechtsonder is er onder de knop geen ruimte. De trigger staat op `position:absolute; inset:0`, want als inline-block kind stak hij 8px buiten de wrapper en stond de knop niet op één lijn met die van de andere modules.
+
+**Plaats in het bestand.** Dit blok staat aan het eind van de mobiele laag, ná de dashboard-rasterregels. Die staan zelf op `!important`; bij gelijke specificiteit wint de laatste regel, en eerder in het bestand verloor dit blok het van het raster.
+
+**Wat er in dezelfde ronde is meegegaan** (nog zonder eigen entry): de gekleurde kopbalk van de acht modals vult nu de volle breedte (`.modal-kop`), en de statuspillen daarop waren donker-op-donker — die krijgen op die balk een eigen, lichtere variant.
+
+**Bestanden**: `index.html` — CSS-blok aan het eind van `@media (max-width:768px)`, `.uren-fab` toegevoegd in `#mod-notes` en `#mod-checklist`, tandwiel in `#dashMobileSettings` vervangen door het ⋯-icoon; `sw.js` → `herling-v22`
+
+**Niet doen.** De knoppen alsnog in de DOM verhuizen naar één gedeelde balk. Dan moet elk menu opnieuw aan een dispatcher gehangen worden en breekt de plaatsing van de menu's van Uren en Facturen. En: geen aparte maten per module terugbrengen — de winst zit er juist in dat de duim op elke pagina op dezelfde plek landt.
+
 ## 2026-09-06 · Op een telefoon schuift het scherm alleen nog omhoog en omlaag
 
 **Probleem.** Je kon de hele pagina zijwaarts wegslepen — topbalk en tabbalk mee. Het viel op in de factuureditor, maar het kon overal.
