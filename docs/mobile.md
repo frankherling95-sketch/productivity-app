@@ -19,7 +19,7 @@ Zes trappen. Meer niet.
 | `--fs-basis` | 13px | **15px** | kaarttitels, lijstitems, invoervelden |
 | `--fs-groot` | 15px | **17px** | subkoppen binnen een kaart of paneel |
 | `--fs-kop` | 18px | **20px** | moduletitels, hero-koppen |
-| `--fs-cijfer` | 22px | **26px** | KPI-cijfers, bedragen |
+| `--fs-cijfer` | 22px | **22px** | KPI-cijfers, bedragen |
 
 **`--fs-micro` is de ondergrens.** Niets in beeld is kleiner. Dat is geen
 smaakkwestie: het scherm stond vol met tekst tussen 8,5 en 11px, en het
@@ -83,6 +83,7 @@ Elke module ziet er op een telefoon hetzelfde uit. Twee vaste plekken:
 | ⋯-menu | rechtsboven, op de lijn van de moduletitel (`top: 4px` + safe-area, `right: 12px`) | 44×44, randloos, transparant | `var(--icoon)` |
 | filter | rechts in de balk eronder, in dezelfde kolom als het ⋯ — bij Uren en Facturen is dat de rij van periode/jaar, niet de tabsrij | 44×44, randloos, transparant | `var(--icoon)` |
 | ronde + | rechtsonder, boven de tabbalk (`right: 17px`, `bottom: 80px` + safe-area) | 56×56 | 26px glyph |
+| ✕ sluiten | rechtsboven in een modaal, op de binnenmarge van de kaart | 44×44, randloos, transparant | `var(--icoon)` |
 
 ### Eén maat voor een icoon: `--icoon`
 
@@ -131,6 +132,24 @@ eigen maat te kiezen. Zo ontstonden de drie uitvoeringen die er stonden.
 **Let op `box-shadow`.** `.uren-btn` draagt er een van 1px. Met alleen
 `border: 0` tekent die alsnog een randje, en dan lijkt de knop nog steeds niet
 op de andere. Zulke dingen zie je in `getComputedStyle`, niet op een screenshot.
+
+### De KPI-kaart
+
+Eén blok, twee namen: `.uren-kpi` (Uren en Facturen) en `.fac-aging-cel`
+(Debiteuren). Streepje links, label in kapitalen, bedrag, bijregel — en
+sinds 2026-09-06 één set regels voor allebei:
+
+| | |
+|---|---|
+| label | `var(--fs-micro)`, 600, `.06em`, kapitalen |
+| waarde | `var(--fs-cijfer)`, 600, mono |
+| bijregel | `var(--fs-klein)` — **weg op mobiel** |
+| kaart | 169×65px op 375px |
+
+De bijregel herhaalt meestal wat er in de lijst eronder staat en kost een
+regel op élke kaart. Heeft een weergave haar eigen samenvatting in dezelfde
+vorm (Debiteuren heeft de ouderdomskaarten), dan hoort de strip erboven
+er niet ook nog te staan — zie "Geen getal twee keer in beeld".
 
 ### De voet van een modaal
 

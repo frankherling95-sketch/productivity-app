@@ -10,6 +10,44 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-06 · Eén KPI-kaart, en een cijfertrap die niet schreeuwt
+
+**Probleem.** Bij Debiteuren stonden negen kaarten boven elkaar en begon de eerste factuur pas op y=627 — je moest scrollen om te zien wie er nog moet betalen. Erger: de bovenste vier en de onderste vijf waren *hetzelfde blok met andere tekst* (streepje links, label in kapitalen, bedrag, bijregel) maar met eigen maten: label 600 tegen 700 en .08em tegen .07em, cijfer op een telefoon 26px tegen 19px.
+
+**Beslissing.** `.uren-kpi` en `.fac-aging-cel` delen nu één set regels: label `var(--fs-micro)` 600 .06em, waarde `var(--fs-cijfer)`, bijregel `var(--fs-klein)`, dezelfde binnenmarge en hetzelfde raster. Gemeten na afloop: beide kaarten 169×65px, letter voor letter dezelfde stijl. Wie er één aanpast, past ze allebei aan.
+
+**De cijfertrap op een telefoon gaat van 26px naar 22px** — gelijk aan de desktopwaarde. 26px maakte van een KPI-strip een muur van cijfers en kostte 5px hoogte per kaart; 22px leest op armlengte nog prima.
+
+**De bijregel valt weg op een telefoon**, voor allebei. Hij herhaalde grotendeels wat er in de lijst eronder staat ("3 facturen") en kostte een regel op élke kaart — bij Debiteuren vijf.
+
+**En de strip boven Debiteuren gaat helemaal weg.** Die weergave heeft haar eigen samenvatting: de ouderdomskaarten, in dezelfde vorm en op dezelfde plek. "Openstaand" in de strip was bovendien de som van precies wat er direct onder stond — hetzelfde getal twee keer (zie de entry van vandaag daarover). `facRenderKpis()` had al takken per weergave; er is er één bij.
+
+**Wat het oplevert.** De eerste factuur bij Debiteuren staat op **y=426 in plaats van y=627** — 201px minder scrollen. Kaarthoogte 70→65 (KPI) en 82→65 (ouderdom).
+
+**Bestanden**: `index.html` — `.uren-kpi-lab/-val/-sub` en `.fac-aging-lab/-val/-sub` samengevoegd, `--fs-cijfer` mobiel 26→22, `.uren-kpis:empty{display:none}`, tak voor `debiteuren` in `facRenderKpis()`
+
+**Niet doen.** De ouderdomskaarten weer een eigen maat geven omdat ze "kleiner mogen dan de KPI's". Het is hetzelfde blok; twee maten betekent dat het scherm er in twee talen uitziet.
+
+## 2026-09-06 · Sluiten met een kruisje rechtsboven in plaats van "Annuleer" onderin
+
+**Probleem.** Elke modaal had onderin een knop "Annuleer", pal naast de knop die je juist wél wilt. Twee tegengestelde acties naast elkaar, en op een telefoon kostte de minst gebruikte van de twee een half vak in de voet.
+
+**Beslissing.** Op mobiel verhuist annuleren naar een kruisje rechtsboven — dezelfde icoonknop als het ⋯ en de trechter: `var(--tap)` in het vierkant, randloos, icoon op `var(--icoon)`. De voet houdt alleen nog de knoppen die iets dóén. Op een bureaublad verandert er niets.
+
+**Eén keer opgezet, niet vijfentwintig keer.** `zetModalSluitknoppen()` loopt bij het opstarten alle modalen langs, zoekt in de voet de knop met "Annuleer"/"Annuleren"/"Sluiten", markeert die en hangt er een kruisje boven dat gewoon díé knop aanklikt. Alle bestaande afhandeling (dispatchers, bevestigingen, opruimen) blijft daarmee ongemoeid, en een nieuwe modaal met een annuleerknop krijgt zijn kruisje vanzelf.
+
+**Modalen die al een kruisje hadden** (factuureditor, voorbeeld, sjablonen, versies, urensjablonen) krijgen er geen tweede: dat ene wisselt zijn losse ✕-teken voor dezelfde svg, zodat elk kruisje in de app dezelfde tekening en maat heeft.
+
+**De rij eromheen is 0px hoog en plakt bovenaan** (`position: sticky`). Zo blijft het kruisje in beeld als de modaal zelf scrollt, én duwt het niets naar beneden. Zit er een gekleurde kop onder, dan tekent het kruisje daarop in wit; die kop schuift niet mee, dus daar wordt het kruisje in de kop gezet — anders stond het 3px van de rand (die `.modal` heeft `padding: 0`) terwijl de rest op 22px staat.
+
+**Bleef er niets over in de voet** (Versiegeschiedenis, Categorieën, Sjabloonkiezer, Sneltoetsen), dan gaat de hele voet weg in plaats van een lege balk achter te laten.
+
+**Bewijs.** Alle 18 modalen met een voet nagemeten op 375px: kruisje 44×44 op 20–24px van de rechterrand, geen titel die eronder doorloopt, en in alle 18 sluit het kruisje de modaal daadwerkelijk.
+
+**Bestanden**: `index.html` — `zetModalSluitknoppen()` + `SLUIT_SVG`, `.modal-sluitrij` / `.modal-sluit` / `.modal-annuleer` / `.voet-leeg` in de mobiele laag; `sw.js` → `herling-v29`
+
+**Niet doen.** Per modaal een eigen kruisje in de HTML zetten. Dan loopt het over vijfentwintig plekken weer uiteen — precies wat hier is opgeruimd.
+
 ## 2026-09-06 · Voetknoppen van een modaal: één regel als het past, anders de hoofdknop eronder
 
 **Probleem.** De voet van een modaal is `[knop links] [Annuleer] [hoofdknop]`, waarbij de laatste twee in een eigen groepje zitten. Op een telefoon paste dat niet: "Lege factuur", "Annuleer" en "Factuur opstellen" zijn samen 335px op een blad van 331. Het afbreken viel tússen de groepen, dus je kreeg één losse knop links op de eerste regel en het paar rechts eronder — scheef, en de hoofdknop was met 122px het smalste doel van de drie terwijl hij het vaakst wordt aangetikt.

@@ -528,6 +528,10 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .modal-field input:focus,.modal-field textarea:focus,.modal-field select:focus{border-color:var(--text)}
 .modal-field textarea{resize:vertical;min-height:64px}
 .modal-footer{display:flex;gap:6px;justify-content:space-between;margin-top:1rem}
+/* Het kruisje rechtsboven is er alleen op een telefoon; op een bureaublad
+   staat "Annuleer" gewoon in de voet. Kruisjes die al in een modaalkop
+   stonden blijven staan -- die krijgen alleen de klasse mee. */
+.modal-sluitrij{display:none}
 .modal-footer-left{display:flex;gap:6px}
 .modal-footer-right{display:flex;gap:6px}
 .tag-chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px;min-height:20px}
@@ -801,18 +805,29 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 
 /* ── KPI strip ── */
 .uren-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:14px 16px 2px;flex-shrink:0}
+/* Leeg betekent: deze weergave heeft haar eigen samenvatting (Debiteuren).
+   Zonder dit blijft de padding als een strook van 10px staan. */
+.uren-kpis:empty{display:none}
 .uren-kpi{
   background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-md);
   padding:12px 14px;position:relative;overflow:hidden;
 }
 .uren-kpi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--k,var(--mint))}
-.uren-kpi-lab{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted)}
-.uren-kpi-val{
-  font-family:var(--font-mono);font-size:23px;font-weight:600;letter-spacing:-.02em;
+/* De ouderdomskaarten bij Debiteuren (.fac-aging-cel) zijn hetzelfde blok
+   met andere tekst: streepje links, label in kapitalen, bedrag, bijregel.
+   Ze stonden alleen op eigen maten -- label 700 tegen 600, cijfer 19px
+   tegen 23, en op een telefoon 19 tegen 26. Daarom delen ze hier één set
+   regels; wie er één aanpast, past ze allebei aan. */
+.uren-kpi-lab,
+.fac-aging-lab{font-size:var(--fs-micro);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted)}
+.uren-kpi-val,
+.fac-aging-val{
+  font-family:var(--font-mono);font-size:var(--fs-cijfer);font-weight:600;letter-spacing:-.02em;
   margin-top:4px;font-variant-numeric:tabular-nums;display:flex;align-items:baseline;gap:4px;color:var(--text);
 }
-.uren-kpi-val small{font-size:12px;font-weight:400;color:var(--text-muted);letter-spacing:0}
-.uren-kpi-sub{font-size:11.5px;color:var(--text-muted);margin-top:2px}
+.uren-kpi-val small{font-size:var(--fs-klein);font-weight:400;color:var(--text-muted);letter-spacing:0}
+.uren-kpi-sub,
+.fac-aging-sub{font-size:var(--fs-klein);color:var(--text-muted);margin-top:2px}
 .uren-kpi-bar{height:4px;border-radius:2px;background:var(--surface3);margin-top:8px;overflow:hidden}
 .uren-kpi-bar i{display:block;height:100%;border-radius:2px;background:var(--k,var(--mint))}
 
@@ -1379,14 +1394,13 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 
 /* Debiteuren: ouderdomskolommen */
 .fac-aging{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px}
+/* Zelfde doos als .uren-kpi hierboven; label, waarde en bijregel staan
+   daar in dezelfde regels. */
 .fac-aging-cel{
   background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-md);
-  padding:12px 13px;position:relative;overflow:hidden;
+  padding:12px 14px;position:relative;overflow:hidden;
 }
 .fac-aging-cel::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--k)}
-.fac-aging-lab{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-muted)}
-.fac-aging-val{font-family:var(--font-mono);font-size:19px;font-weight:600;font-variant-numeric:tabular-nums;margin-top:4px;color:var(--text)}
-.fac-aging-sub{font-size:11px;color:var(--text-muted);margin-top:2px}
 
 /* Btw-overzicht: kwartaalkiezer in de filterbalk, kop en waarschuwing */
 .fac-btw-kiezer{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
@@ -3941,7 +3955,10 @@ textarea { line-height: 1.6; resize: vertical; }
     --fs-basis:15px;
     --fs-groot:17px;
     --fs-kop:20px;
-    --fs-cijfer:26px;
+    /* Stond op 26px. Dat maakte van een KPI-strip een muur van cijfers:
+       vier kaarten van 70px hoog vóór de inhoud, en bij Debiteuren negen.
+       22px leest op armlengte nog prima en scheelt een regel per kaart. */
+    --fs-cijfer:22px;
     --tap:44px;
     --icoon:20px;
   }
@@ -4267,6 +4284,38 @@ textarea { line-height: 1.6; resize: vertical; }
 
      Op een bureaublad verandert er niets: daar blijft het links een knop,
      rechts het paar. */
+  /* ══ Sluiten met een kruisje rechtsboven ══
+     De rij is 0px hoog en plakt bovenaan, zodat het kruisje in beeld blijft
+     als de modaal scrollt en er tegelijk niets door omlaag wordt geduwd.
+     Zit er een gekleurde kop onder, dan tekent het kruisje daarop in wit. */
+  .modal-sluitrij {
+    display: flex; justify-content: flex-end;
+    position: sticky; top: 0; z-index: 3;
+    height: 0; flex: 0 0 auto; overflow: visible;
+  }
+  .modal-sluit {
+    display: inline-flex !important;
+    align-items: center; justify-content: center;
+    width: var(--tap) !important; height: var(--tap) !important;
+    min-height: var(--tap) !important; flex: none;
+    margin: 0;
+    padding: 0 !important;
+    background: transparent !important; border: 0 !important;
+    box-shadow: none !important;
+    color: var(--text-muted) !important;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .modal-sluit.op-kop { color: rgba(255,255,255,0.85) !important; }
+  .modal-sluit:active { background: var(--surface2) !important; border-radius: var(--radius); }
+  /* De titel loopt niet onder het kruisje door. */
+  .modal.heeft-sluit > h3,
+  .modal.heeft-sluit > .modal-kop h3,
+  .modal.heeft-sluit > .modal-kop p { padding-right: var(--tap); }
+  /* De annuleerknop is naar boven verhuisd; blijft er niets over, dan gaat
+     de hele voet weg in plaats van een lege balk achter te laten. */
+  .modal-footer .modal-annuleer { display: none !important; }
+  .modal-footer.voet-leeg { display: none !important; }
   .modal-footer { flex-wrap: wrap; gap: var(--sp-2); }
   .modal-footer-left,
   .modal-footer-right { display: contents; }
@@ -5061,11 +5110,16 @@ textarea { line-height: 1.6; resize: vertical; }
      langste label past op één regel in een maat die je ook echt leest --
      en het blok blijft ruim onder de 163px van toen. */
   .uren-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-2); padding: 10px 12px 0; }
-  .uren-kpi { padding: 10px 8px 11px 11px; }
-  .uren-kpi-lab { letter-spacing: .04em; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .uren-kpi-val { font-size: var(--fs-cijfer); margin-top: 2px; }
-  .uren-kpi-val small { font-size: var(--fs-klein); }
-  .uren-kpi-sub { display: none; }
+  .uren-kpi,
+  .fac-aging-cel { padding: 10px 8px 11px 11px; }
+  .uren-kpi-lab,
+  .fac-aging-lab { letter-spacing: .04em; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .uren-kpi-val,
+  .fac-aging-val { margin-top: 2px; }
+  /* De bijregel valt weg: hij herhaalt wat er in de lijst eronder staat en
+     kost een regel op elke kaart. Bij Debiteuren waren dat er vijf. */
+  .uren-kpi-sub,
+  .fac-aging-sub { display: none; }
   .uren-kpi-bar { display: none; }
 
   /* ── Eén scrollgebied in plaats van twee ──
@@ -5105,7 +5159,7 @@ textarea { line-height: 1.6; resize: vertical; }
   .fac-mlist { display: flex; }
   .fac-mkop { display: block; }
   .fac-msom { display: flex; }
-  .fac-aging { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .fac-aging { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-2); margin-bottom: var(--sp-3); }
   .fac-klanten { grid-template-columns: 1fr; }
   /* 12,5px en niet 13: Uren en Facturen delen dezelfde chrome, dus een
      tab of knop hoort in beide modules even groot te zijn. */
@@ -17784,6 +17838,12 @@ function facRenderFilters(){
 function facRenderKpis(){
   const box=document.getElementById('facKpis');
   if(!box)return;
+  /* Debiteuren heeft zijn eigen samenvatting: de ouderdomskaarten. Dat zijn
+     dezelfde kaarten in dezelfde vorm, en ze staan op dezelfde plek -- de
+     strip erboven zou er een tweede laag van maken met "Openstaand" als som
+     van wat er direct onder staat. Zonder strip begint de lijst 149px
+     hoger. */
+  if(facView==='debiteuren'){box.innerHTML='';return;}
   if(facView==='klanten'){
     const klanten=kanbanState.clients||[];
     const compleet=klanten.filter(factuurKlantCompleet).length;
@@ -22394,6 +22454,77 @@ document.addEventListener('keydown',e=>{
   if(qa?.classList.contains('open')){closeQuickAddAI();return;}
   if(wr?.classList.contains('open')){closeWeeklyReviewModal();return;}
 });
+
+/* ══ Sluiten met een kruisje rechtsboven (mobiel) ══
+   "Annuleer" onderin is op een telefoon een knop die ruimte kost voor iets
+   wat je zelden doet, en hij stond naast de knop die je juist wél wilt --
+   twee tegengestelde acties naast elkaar. Bovenin een kruisje is de plek
+   waar je hem zoekt, en het scheelt onderin een vak.
+
+   Eén keer bij het opstarten opgezet in plaats van in vijfentwintig
+   modalen los: elk kruisje klikt gewoon de bestaande annuleerknop aan, dus
+   alle bestaande afhandeling (dispatchers, bevestigingen, opruimen) blijft
+   ongemoeid. Modalen die al een kruisje in hun kop hebben krijgen er geen
+   tweede; die ene krijgt alleen dezelfde vorm.
+
+   De rij eromheen is 0px hoog en plakt bovenaan (position:sticky), zodat
+   het kruisje in beeld blijft ook als de modaal zelf scrollt -- en zodat
+   het niets naar beneden duwt. */
+const SLUIT_LABELS=['annuleer','annuleren','sluiten'];
+const KRUIS_TEKENS=/^[✕✖×╳✗✘❌]$/;
+const SLUIT_SVG='<svg class="icoon" viewBox="0 0 16 16" fill="none" stroke="currentColor" '+
+  'stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>';
+
+function zetModalSluitknoppen(){
+  document.querySelectorAll('.modal-bg > .modal').forEach(modal=>{
+    const voeten=[...modal.querySelectorAll('.modal-footer')];
+    if(!voeten.length)return;
+    let eerste=null;
+    voeten.forEach(voet=>{
+      const knoppen=[...voet.querySelectorAll('.btn')];
+      const weg=knoppen.find(b=>SLUIT_LABELS.includes(b.textContent.trim().toLowerCase()));
+      if(!weg)return;
+      weg.classList.add('modal-annuleer');
+      /* Was dit de enige knop, dan blijft er een lege voet over. */
+      if(knoppen.length===1)voet.classList.add('voet-leeg');
+      if(!eerste)eerste=weg;
+    });
+    if(!eerste)return;
+    modal.classList.add('heeft-sluit');
+
+    /* Al een kruisje in de kop? Dan blijft die knop met al zijn gedrag
+       staan en wisselt alleen het losse teken voor dezelfde svg, zodat
+       elk kruisje in de app dezelfde tekening en maat heeft. */
+    const bestaand=[...modal.querySelectorAll('button')].find(b=>
+      !b.closest('.modal-footer') && KRUIS_TEKENS.test(b.textContent.trim()));
+    if(bestaand){
+      bestaand.classList.add('modal-sluit');
+      if(modal.querySelector('.modal-kop')?.contains(bestaand))bestaand.classList.add('op-kop');
+      bestaand.innerHTML=SLUIT_SVG;
+      if(!bestaand.getAttribute('aria-label'))bestaand.setAttribute('aria-label','Sluiten');
+      return;
+    }
+
+    const rij=document.createElement('div');
+    rij.className='modal-sluitrij';
+    const x=document.createElement('button');
+    x.type='button';
+    x.className='modal-sluit'+(modal.querySelector('.modal-kop')?' op-kop':'');
+    x.setAttribute('aria-label','Sluiten');
+    x.title='Sluiten';
+    x.innerHTML=SLUIT_SVG;
+    x.addEventListener('click',e=>{e.preventDefault();eerste.click();});
+    rij.appendChild(x);
+    /* Heeft de modaal een gekleurde kop, dan hoort het kruisje dáár: die
+       balk schuift niet mee met de inhoud, en zijn binnenmarge is dezelfde
+       als die van een modaal zonder kop. Zonder dat staat het kruisje bij
+       een kopmodaal 3px van de rand (die .modal heeft padding 0) en bij de
+       rest op 22px. */
+    const gastheer=modal.querySelector('.modal-kop')||modal;
+    gastheer.insertBefore(rij,gastheer.firstChild);
+  });
+}
+zetModalSluitknoppen();
 
 /* ─ Globale exports voor onclick-handlers ─ */
 window.openQuickAddAI=openQuickAddAI;
