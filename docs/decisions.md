@@ -10,6 +10,26 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-06 · Op een telefoon schuift het scherm alleen nog omhoog en omlaag
+
+**Probleem.** Je kon de hele pagina zijwaarts wegslepen — topbalk en tabbalk mee. Het viel op in de factuureditor, maar het kon overal.
+
+**Oorzaak.** `.module` stond op `overflow-y: auto`. Dat is de valkuil: zodra één as op `auto` staat, maakt de browser de andere óók scrollbaar zodra er iets uitsteekt. `overflow-x` bleef dus niet op `visible` maar werd stilzwijgend `auto`, en dan sleept één te breed element het hele scherm mee.
+
+**Beslissing.** `overflow-x: hidden` op alle vijf de lagen die dit kunnen doen: `html`, `body`, `#appScreen`, `.main-area` en `.module`. Modals krijgen hetzelfde — de factuureditor is er een.
+
+Wat legitiem breder is dan een telefoon houdt zijn eigen zijwaartse scroll *binnen zijn eigen kader*: het kanbanbord, de notitie-werkbalk, de urentabel, de importtabel en het sjabloonvoorbeeld. Die schuiven zonder de pagina mee te nemen. Dat onderscheid is het hele punt — `overflow-x: hidden` zonder die uitzonderingen zou brede inhoud onbereikbaar maken in plaats van scrollbaar.
+
+Twee dingen die anders alsnog zouden uitsteken:
+
+- `.uren-tabs` stond op `overflow-x: visible` en paste net niet: bij Facturen vragen vijf tabs 311px terwijl er 291px is. Nu schuift de strip zelf, zonder zichtbare scrollbalk.
+- Lange aaneengesloten tekst — een factuurnummer, een e-mailadres, een URL in een notitie — rekt zijn regel op en duwt het blad breder. Modules en modals krijgen `overflow-wrap: break-word`, dus dat breekt alleen als het écht niet past.
+
+**Hoe het is nagegaan.** Een geïnstrumenteerde kopie van de app in een iframe van precies 375/360/390px, die per module elk element meet dat rechts uitsteekt of zelf horizontaal scrollt. Headless Chrome maakt geen venster smaller dan 500px, dus direct meten geeft een layout van 504px en daarmee alleen ruis — de iframe is de enige manier om de echte mobiele breedte te treffen. Na de wijziging geldt op alle vijf de lagen `scrollWidth == clientWidth`.
+
+**Niet doen.** `overflow-x: hidden` op `.module` weghalen "omdat een tabel niet meer past". De tabel hoort dan een eigen `overflow-x: auto`-container te krijgen, zoals de uitzonderingen hierboven. En: geen `overflow: hidden` (beide assen) op deze lagen — dan is er ook niet meer verticaal te scrollen.
+---
+
 ## 2026-09-06 · Drie sluittags te veel weg — en waarom niets dat ving
 
 **Wat er gebeurde.** Bij het verwijderen van de agenda-kaart uit het dashboard gingen drie `</div>`'s mee die daar niet bij hoorden: die van het kaartenraster, van de scroll-container en van `#mod-dashboard` zelf. Gevolg: alle andere modules kwamen in de DOM *binnen* het dashboard te liggen in plaats van ernaast. Zodra het dashboard niet de actieve module was kreeg die ouder `display:none`, en verdween de inhoud van elke andere module mee. Het scherm was leeg op alles behalve het dashboard.
