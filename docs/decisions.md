@@ -10,6 +10,25 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-06 · Agenda-module verwijderd
+
+**Probleem.** De agenda werd nauwelijks gebruikt en deed niet betrouwbaar wat hij moest doen. De iCal-kant is daar de oorzaak van: feeds gaan via vier CORS-proxies omdat er geen OAuth is (zie de verwijderde `docs/agenda.md`), Microsoft cachet gepubliceerde feeds 15–30 minuten, en RRULE/RECURRENCE-ID/EXDATE-afhandeling is precies het soort werk dat blijft terugkomen. Daar stond weinig gebruik tegenover.
+
+**Beslissing.** De hele module eruit: **2.635 regels** verwijderd, verspreid over CSS (basis, thema-overlay en de mobiele laag), HTML (module, drie modals, twee navigatie-ingangen, dashboardkaart en -KPI) en JS (de blokken MODULE: AGENDA, NATIVE EVENT CRUD en ICS FILE IMPORT, plus de iCal-proxyketen en alle state). Ook meegegaan: de agenda-tak in de globale zoekfunctie, de klantdashboard-sectie "Komende afspraken", en het events-deel van de AI-invoer — die maakt nu alleen nog taken.
+
+**Wat blijft.** `dateStr()` stond middenin de agenda-code maar wordt zeventien keer door Uren en Facturen gebruikt; die is naar UTILS verhuisd voordat het blok eruit ging.
+
+**Wat er met de opgeslagen afspraken gebeurt.** Niets. `rawState.agenda` wordt niet meer aangemaakt, niet meer gelezen en niet meer geschreven, maar wat er in Drive staat blijft daar gewoon staan: `saveGist()` schrijft `rawState` in zijn geheel weg, en wat bij het laden binnenkomt gaat er ongemoeid weer uit. Wie de module ooit terughaalt, vindt zijn afspraken terug. Actief wissen zou onomkeerbaar zijn en levert niets op.
+
+**Wat het opleverde.** `index.html` van 24.731 naar 22.096 regels. Weg zijn ook de vier externe CORS-proxies (`corsproxy.io`, `allorigins.win` ×2, `codetabs.com`) — daarmee passeert er geen enkele feed-URL meer een derde partij, en het aantal externe afhankelijkheden gaat van Google + vier proxies naar alleen Google.
+
+**Bewijs.** `test.html` 33/33 groen, inclusief "no console errors" en twee nieuwe tests die vastleggen dát de module weg is (`Module: Agenda is weg`, `Nav: geen agenda-item meer`). Alle zes overgebleven modules openen zonder fout; dashboard, klantdashboard, globale zoek en de AI-invoer nagelopen op zowel 375×812 als 1440×900.
+
+**Bestanden.** `index.html`, `sw.js` → `herling-v16`, `test.html` (agenda-test vervangen), `CLAUDE.md`, en `docs/agenda.md` is verwijderd — die staat in de git-historie als de iCal-keten ooit nog eens nodig is.
+
+**Niet doen.** `rawState.agenda` alsnog opruimen in een migratiestap. Dat is precies de onomkeerbare stap die hier bewust is vermeden. En: mocht de agenda terugkomen, begin dan niet opnieuw met iCal-proxies — de reden dat dit werd afgeschaft zit in die keten, niet in de weergave.
+---
+
 ## 2026-09-05 · Checklist op een telefoon: filters achter één regel, acties in een ⋯-menu
 
 **Probleem.** Boven de eerste taak stond ruim 300px bediening: de topbalk over twee regels (klantfilter, sorteerkeuze, prio-groepen), een hero met vier knoppen in een 2×2 (Uitklappen, Met AI, Verwijder afgerond, Archief), en daaronder twee rijen filterchips plus een zoekbalk. Bij elkaar meer dan een derde van het scherm, elke keer dat je de lijst opende — voor acties die je hooguit een paar keer per week gebruikt.

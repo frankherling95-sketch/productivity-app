@@ -9,7 +9,6 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 - **Live URL**: https://app.herling-analytics.nl (eigen domein via GitHub Pages)
 - **Auto-deploy**: elke push naar `main` → Pages-build (~30s)
 - **Hoofd-bestand**: `index.html` (~580KB, ~12k regels) — alles inline, geen build step
-- **Diepe duik agenda**: zie [`docs/agenda.md`](docs/agenda.md)
 - **Beslissingen-log**: zie [`docs/decisions.md`](docs/decisions.md) — waarom keuzes gemaakt zijn (lees vóór je iets ongedaan maakt)
 
 ## Wie is de gebruiker
@@ -27,7 +26,6 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 ├── herling-icon.svg              ← logo + favicon
 ├── manifest.json, sw.js          ← PWA + Service Worker (zie ⚠️ hieronder)
 ├── CLAUDE.md                     ← dit bestand
-├── docs/agenda.md                ← deep-dive iCal/agenda
 ├── docs/decisions.md             ← append-only beslissingen-log (ADR-stijl)
 ├── validate.mjs                  ← Node syntax/structure checker
 ├── test.html                     ← browser smoke test
@@ -39,15 +37,14 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 
 | Hash | Module | Functie |
 |------|--------|---------|
-| `#dashboard` | Dashboard | Hero + KPI strip + 2×2 grid (Todo/Notes/Checklist/Agenda) |
+| `#dashboard` | Dashboard | Hero + KPI strip + kaartenraster (Notes/Checklist) |
 | `#todo` | Kanban | Projecten met kolommen, kaarten met klant/tags/category, drag-drop |
 | `#notes` | Notes | Boomstructuur (folders/pages) met rich-text editor (marked.js) |
-| `#agenda` | Agenda | iCal multi-source (week/dag/maand), zie `docs/agenda.md` |
 | `#checklist` | Checklist | Taken met subtaken, filters (prio/klant/periode), vastpinnen, drag-drop, archief |
 | `#uren` | Uren | Urenregistratie per regel, week/maand, Excel export |
 | `#facturen` | Facturen | Facturen uit geschreven uren, sjabloonbouwer, debiteuren, btw-overzicht, mailen via Gmail |
 
-Entry render functions: `renderDashboard()`, `renderTodoModule()`, `renderNotesModule()`, `renderAgendaModule()`, `renderChecklistModule()`, `renderUrenModule()`, `renderFacturenModule()`. `renderAll()` wordt aangeroepen na elke `loadGist()`.
+Entry render functions: `renderDashboard()`, `renderTodoModule()`, `renderNotesModule()`, `renderChecklistModule()`, `renderUrenModule()`, `renderFacturenModule()`. `renderAll()` wordt aangeroepen na elke `loadGist()`.
 
 ## State & persistence
 
@@ -57,7 +54,7 @@ rawState = {
   notes:    notesState,      // {tree, activeId, collapsed}
   checklist: checklistState, // {items, showArchived, sortBy, groupByPriority}
   uren:     urenState,       // {entries, templates}
-  agenda:   {events: []},    // native (niet-iCal) events
+  // agenda: verwijderd 2026-09-06; oude events blijven ongemoeid in Drive staan
   settings: { calSources, theme, ... }
 }
 ```
@@ -67,7 +64,6 @@ rawState = {
 - Checklist item: `{id, text, done, priority, deadline, clientId, subtasks[], archived, sortOrder, pinned}`
 - Notes node (recursief): `{id, type:'page'|'folder', title, content, clientId, tags, children[]}`
 - Klant: `{id, name, colorIdx}`
-- iCal source: `{id, type:'ical', name, url, color, enabled}`
 
 ### Storage keys
 
@@ -76,8 +72,6 @@ rawState = {
 | `DRIVE_BESTAND` = `herling-analytics.json` | Bestand in Drive `appDataFolder` |
 | `LS_LOGIN` = `herling_login` | Ingelogde gebruiker (e-mail + geldigheid) |
 | `LS_BACKUP_KEY` = `herling_analytics_local_backup` | Volledige rawState backup |
-| `LS_ICAL_EVENT_CACHE` = `herling_ical_event_cache_v2` | Per-feed parsed events (5mo window) |
-| `LS_PROXY_CACHE_KEY` = `herling_ical_proxy_cache` | Per-feed werkende proxy |
 | `LS_SYNC_KEY` = `herling_analytics_sync` | `gewijzigdOp`/`naarDriveOp` (lokale klok) + `driveTijd` (server-klok) |
 | `LS_HERSTEL_KEY` = `herling_analytics_herstel` | Niet-gekozen versie na een conflict; zichtbaar in Instellingen → Versiegeschiedenis, of `herstelDownload()` |
 
@@ -98,17 +92,13 @@ De functienamen zijn historisch (`loadGist`/`saveGist`/`refreshGist`); ze praten
 
 ### Migratie functies
 
-Lopen elke `loadGist()`. Bij toevoegen van een nieuw state-veld: voeg een hydratie-stap toe in `hydrateerState()` (zoek `if(!checklistState.items)` als voorbeeld) — dat is het enige laadpad.
+Bij toevoegen van een nieuw state-veld: voeg een hydratie-stap toe in `hydrateerState()` (zoek `if(!checklistState.items)` als voorbeeld) — dat is het enige laadpad.
 
-| Functie | Wat |
-|---------|-----|
-| `migrateCalSettings()` | `icalUrl` → `calSources[]` |
-
-> `migrateOldKanban(loaded)` stond hier ook, maar werd nergens aangeroepen — het allereerste platte kanban-formaat werd dus al langer niet meer omgezet. De dode functie is verwijderd (2026-08-21).
+> Er staan er nu geen meer. `migrateOldKanban(loaded)` werd nergens aangeroepen en is verwijderd (2026-08-21); `migrateCalSettings()` verdween met de agenda-module (2026-09-06).
 
 ### State in `rawState` zetten
 
-`verzamelModuleState()` kopieert de losse module-states terug in `rawState`; `huidigeStateSnapshot()` doet dat plus een lege `agenda` als die ontbreekt en geeft `rawState` terug. **Nieuwe module erbij? Zet hem in `verzamelModuleState()`** — wat daar niet in staat gaat niet naar Drive en niet in de back-up.
+`verzamelModuleState()` kopieert de losse module-states terug in `rawState`; `huidigeStateSnapshot()` doet dat en geeft `rawState` terug. **Nieuwe module erbij? Zet hem in `verzamelModuleState()`** — wat daar niet in staat gaat niet naar Drive en niet in de back-up.
 
 ## UX-systemen
 
@@ -116,7 +106,7 @@ Lopen elke `loadGist()`. Bij toevoegen van een nieuw state-veld: voeg een hydrat
 |---------|------|
 | `setSync(type, msg)` | Status-balk in sidebar (`idle\|saving\|saved\|error`) |
 | `appToast(msg, opts)` | Floating toast met optionele undo-knop |
-| `updateNavBadges()` | Tellingen naast Todo/Agenda/Checklist nav-items |
+| `updateNavBadges()` | Tellingen naast de nav-items (Checklist, Uren, Facturen) |
 | Undo systeem | Verwijderacties tonen toast met "Ongedaan maken" |
 
 ## Theme
@@ -134,7 +124,7 @@ Lopen elke `loadGist()`. Bij toevoegen van een nieuw state-veld: voeg een hydrat
 
 ## CSS conventies
 
-Class-prefix per module: `.cl-` checklist, `.cal-` agenda, `.dash-` dashboard, `.col-` kanban, `.note(s)-` notes, `.uren-` uren, `.modal-`, `.btn-`, `.toast-`, `.nav-`, `.mod-` (generiek). Geen utility-classes, geen `!important` tenzij echt nodig.
+Class-prefix per module: `.cl-` checklist, `.dash-` dashboard, `.col-` kanban, `.note(s)-` notes, `.uren-` uren, `.modal-`, `.btn-`, `.toast-`, `.nav-`, `.mod-` (generiek). Geen utility-classes, geen `!important` tenzij echt nodig.
 
 ## Dependencies (CDN)
 
@@ -152,7 +142,6 @@ Bij CDN-falen: app crasht niet hard, alleen die feature werkt niet (Excel-export
 - **Vanilla JS** — geen frameworks (jQuery/React/Vue NIET).
 - ⚠️ **Service Worker bestaat (`sw.js`)** — het document (`index.html`) gaat **netwerk eerst** met cache als offline-terugval; de rest is stale-while-revalidate. Bump `CACHE_NAME` bij een release. Na het uitrollen van een gewijzigde `sw.js` is er nog één extra reload nodig voordat de nieuwe worker het overneemt.
 - **Geen analytics, geen cookies**. Alle data privé in Drive + localStorage.
-- **CORS-proxy** voor iCal: zie `docs/agenda.md` voor de 4-proxy chain.
 - **Drag-and-drop**: HTML5 native (`draggable="true"`).
 - **Token-format**: `ghp_`/`github_pat_`/`gho_` prefixes; `sanitizeToken()` strips zero-width chars.
 - **Browser-support**: modern Chromium / Firefox / Safari, ES2020+.
@@ -192,7 +181,6 @@ Daarna: vraag Frank om **Ctrl+Shift+R** op de live site. Optioneel `test.html` d
 | Probleem | Oplossing |
 |----------|-----------|
 | Subtaak verschijnt dubbel | Guard met `if(clAddingSubtaskFor!==itemId)return;` aan top van `commitSubtaskInput` |
-| iCal events ontbreken / dubbel | Zie `docs/agenda.md` — check RRULE/RECURRENCE-ID/EXDATE handling |
 | "Ik zie de oude versie" | Sinds v9 is het document netwerk-eerst, dus dit hoort niet meer voor te komen. Eén keer herladen na een `sw.js`-wijziging; blijft het hangen: DevTools → Application → Service Workers → Unregister + Clear site data |
 | Force-push verwijdert remote commits | **Eerst altijd `git fetch && git log HEAD..origin/main`** |
 | `.claude/worktrees/...` heeft een kopie | Negeren — staat in `.gitignore`, agent-isolatie |
@@ -202,6 +190,10 @@ Daarna: vraag Frank om **Ctrl+Shift+R** op de live site. Optioneel `test.html` d
 
 Top-3 meest recent. Volledige log + *waarom* per beslissing: [`docs/decisions.md`](docs/decisions.md).
 
+- **2026-09-06**: Agenda-module verwijderd (2.635 regels) — werd nauwelijks gebruikt en de iCal-keten via vier CORS-proxies was de bron van de onbetrouwbaarheid. Weg: de module, drie modals, beide navigatie-ingangen, de dashboardkaart en -KPI, de proxyketen, en het events-deel van de AI-invoer. `dateStr()` is naar UTILS verhuisd. **`rawState.agenda` blijft ongemoeid in Drive staan** — niet meer gebruikt, wel bewaard
+- **2026-09-05**: Checklist op mobiel — filters achter één uitklapbare regel die toont wát er aanstaat, de rest van de bediening in een ⋯-menu
+- **2026-09-05**: Agenda op mobiel — weekraster schuift opzij (100px per dag), Dag als standaard, balk van vier rijen naar twee. *Vervallen met de verwijdering hierboven*
+- **2026-09-05**: Eén mobiele typografische schaal (zes trappen als tokens) en 44px als ondergrens voor een raakvlak; `validate.mjs` bewaakt de ondergrens
 - **2026-09-05**: Bijwerken vanuit Drive gaat vanzelf — `autoSyncKijk()` kijkt bij terugkeer in het venster (`visibilitychange`/`focus`/`online`), bij de eerste klik of toets na een minuut stilte, en elke vijf minuten. Eerst alleen metadata (`driveZoekBestand()`); alleen bij een afwijkende `modifiedTime` volgt `loadGist()`. `autoSyncVeilig()` houdt hem tegen bij een wachtende save, een open modaal of focus in een invoerveld
 - **2026-09-02**: Checklist-taken vastpinnen — `item.pinned` zet een taak in één blok bovenaan, *boven* de prioriteitsgroepen (dus een vastgepinde lage prio komt boven een hoge uit). Binnen dat blok geldt gewoon de gekozen sorteermodus: `clSortCmp()` zet er alleen `clVastCmp` vóór. Slepen kruist de grens niet (`clZelfdePinGroep()`)
 - **2026-09-01**: Periode op de factuur te overschrijven — veld `f.periode` onder Betreft (leeg = afgeleid uit de gekoppelde uren) plus een knop "Hele maand"; de afleiding eindigde op de laatst geboekte dag, wat bij een maandfactuur bijna altijd te vroeg is
@@ -281,8 +273,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 - Toegang via Google-login; alleen accounts van `herling-analytics.nl` komen binnen
 - Data in Drive `appDataFolder`: een verborgen map per gebruiker die alleen deze app kan lezen — geen URL, geen losse token
 - Geen pincode-versleuteling meer (afgeschaft 2026-08-16) — `appDataFolder` is het slot. Alleen het uitpakpad voor een oud versleuteld blok staat er nog (PBKDF2 + AES-GCM, alleen ontsleutelen)
-- iCal feeds via CORS-proxies — feed-URLs passeren een derde partij
-- Geen telemetrie, geen externe API-calls behalve Google (Drive, Gmail, Fonts) + iCal feeds
+- Geen telemetrie, geen externe API-calls behalve Google (Drive, Gmail, Fonts)
 - Tokens NIET in `.git/config` URL — gebruik Git Credential Manager (`git config --global credential.helper manager`)
 
 ## Glossarium
@@ -293,5 +284,3 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | Module | Top-level sectie (Dashboard, Todo, ...) |
 | Project | Kanban-bord (binnen Todo module) |
 | Subtaak | Onderdeel van een Checklist-item |
-| iCal source | `.ics` feed van Outlook/Google/Apple |
-| Override | Recurring event-instance met afwijkende DTSTART/SUMMARY (zie `docs/agenda.md`) |
