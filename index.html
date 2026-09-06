@@ -2739,7 +2739,7 @@ textarea { line-height: 1.6; resize: vertical; }
 .cl2-filter-body { display: contents; }
 /* Op een bureaublad staat de filterrij gewoon in beeld, dus is de knop in de
    topbalk daar overbodig -- zie de mobiele laag. */
-.cl2-filterbtn { display: none; }
+.cl2-filterbtn, .cl2-filterwis { display: none; }
 .cl2-filter-wis {
   padding: 5px 10px;
   font-family: inherit;
@@ -4768,6 +4768,21 @@ textarea { line-height: 1.6; resize: vertical; }
   }
   .cl2-filterbtn:active,
   .cl2-filterbtn.open { background: var(--surface2); border-radius: var(--radius); }
+  /* Het kruisje krijgt dezelfde vorm en gaat links van de trechter staan.
+     De rechtermarge houdt de trechter in dezelfde kolom als het ⋯ erboven,
+     dus de auto-marge verhuist mee zolang het kruisje er staat. */
+  .cl2-filterwis.zichtbaar {
+    display: inline-flex !important;
+    align-items: center; justify-content: center;
+    width: var(--tap); height: var(--tap); min-height: var(--tap);
+    margin-left: auto;
+    padding: 0;
+    background: transparent; border: 0; color: var(--text-muted);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .cl2-filterwis.zichtbaar:active { background: var(--surface2); border-radius: var(--radius); }
+  .cl2-filterwis.zichtbaar + .cl2-filterbtn { margin-left: 0; }
   /* Staat er een filter aan, dan mag je dat zien zonder het paneel te
      openen: de trechter kleurt en er komt een stip bij. */
   .cl2-filterbtn.aan { color: var(--mint); position: relative; }
@@ -6609,6 +6624,14 @@ textarea { line-height: 1.6; resize: vertical; }
                #clFilterRow verderop; dat wordt bij het openen onder de balk
                gehangen (plaatsClFilterPaneel). Op een bureaublad staat die
                rij gewoon in beeld en blijft deze knop verborgen. -->
+          <!-- Alles wissen in één tik, zonder het paneel te hoeven openen.
+               Staat er niets aan, dan is deze knop er niet: een kruisje bij
+               een leeg filter belooft een handeling die niets doet. -->
+          <button type="button" class="cl2-filterwis" id="clFilterWisBtn" data-action="clearClFilters"
+            aria-label="Filters wissen" title="Filters wissen">
+            <svg class="icoon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"
+              stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+          </button>
           <button type="button" class="cl2-filterbtn" id="clFilterBtn" data-action="toggleClFilters"
             aria-haspopup="true" aria-expanded="false" aria-label="Filteren en zoeken" title="Filteren en zoeken">
             <svg class="icoon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"
@@ -13950,6 +13973,8 @@ function renderClFilterBar(){
     knop.classList.toggle('open',clFiltersOpen);
     knop.setAttribute('aria-expanded',clFiltersOpen?'true':'false');
   }
+  const wisKnop=document.getElementById('clFilterWisBtn');
+  if(wisKnop)wisKnop.classList.toggle('zichtbaar',actief.length>0);
 
   el.className='cl2-filter'+(clFiltersOpen?' open':'')+(actief.length?' heeft-filter':'');
   /* De telling alleen als er gefilterd is. Zonder filter is het hetzelfde

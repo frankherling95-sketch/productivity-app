@@ -10,6 +10,20 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-06 · Checklist: een kruisje naast de trechter om te wissen
+
+**Probleem.** Wissen kon alleen ín het filterpaneel. Wie een filter had staan en het kwijt wilde, moest eerst het paneel openen — twee tikken voor iets wat er één hoort te zijn.
+
+**Beslissing.** Naast de trechter verschijnt een ✕ zodra er iets aanstaat, in dezelfde vorm als de knoppen ernaast: 44×44, randloos, icoon op `var(--icoon)`. Hij staat links van de trechter, want die hoort in dezelfde kolom te blijven als het ⋯ erboven; de auto-marge verhuist daarom mee naar het kruisje (`.cl2-filterwis.zichtbaar + .cl2-filterbtn { margin-left: 0 }`).
+
+**Alleen als er iets te wissen valt.** Een kruisje bij een leeg filter belooft een handeling die niets doet. Het verschijnt bij dezelfde toestand die de trechter mint kleurt, en wist precies dat: prioriteit, periode en zoektekst.
+
+**De klant hoort er niet bij.** `clFilters.clientId` wordt bij elke render gespiegeld uit het globale klantfilter (`activeClientFilter`), dus wissen zou daar toch niets uithalen — en dat filter heeft zijn eigen zichtbare knop met "Alle klanten" erin. Indicator, kruisje en de knop "Wissen" in het paneel dekken zo alle drie exact dezelfde verzameling.
+
+**Bestanden**: `index.html` — `#clFilterWisBtn` in de checklist-topbalk, `.cl2-filterwis` in de basis- en de mobiele laag, klasse `zichtbaar` gezet in `renderClFilterBar`; `sw.js` → `herling-v25`
+
+**Niet doen.** Het kruisje altijd tonen "voor de duidelijkheid".
+
 ## 2026-09-06 · Nooit twee keer hetzelfde getal in beeld
 
 **Probleem.** De Checklist toonde "106 taken" in de filterbalk, twee regels onder "75 van 106 taken afgerond" in de voortgangskaart. Zelfde getal, zelfde scherm, en daarmee zegt geen van beide nog iets.
