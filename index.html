@@ -59,7 +59,6 @@
      "Kanban (Todo) module"   kolommen, kaarten, sleep-indicatoren
      "Notes module"           boom + editor
      "Checklist module"       cl-* basis (zie ook laag 3: Checklist v3)
-     "Agenda (weekly calendar) module"
      "Modals"
      Uren: "Topbar", "Viewbar", "KPI strip", "Registratie-tabel",
            "Pivot-overzichten", "Maandkalender", "Invoerblad", "Mobiel: kaarten"
@@ -513,189 +512,6 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .cl-cal-day.selected{background:var(--accent)!important;color:#fff!important;font-weight:700}
 .cl-cal-footer{display:flex;justify-content:space-between;margin-top:8px;border-top:0.5px solid var(--border);padding-top:6px}
 
-/* ── Agenda (weekly calendar) module ── */
-.agenda-wrap{display:flex;flex-direction:column;flex:1;overflow:hidden}
-.agenda-hdr{
-  display:flex;align-items:center;gap:8px;
-  padding:8px 16px;border-bottom:0.5px solid var(--border);
-  background:var(--surface);flex-shrink:0;
-}
-.agenda-period-nav{display:flex;align-items:center;gap:4px}
-/* Alle topbar-knoppen op gelijke hoogte (28px) voor visueel evenwicht.
-   Geldt voor: view-btn, week-nav-btn, today-btn, ⋯ overflow, + Nieuwe afspraak */
-.agenda-hdr .view-btn,
-.agenda-hdr .week-nav-btn,
-.agenda-hdr .today-btn,
-.agenda-hdr .btn-sm,
-.agenda-hdr .client-filter-btn{
-  height:28px;
-  box-sizing:border-box;
-  padding-top:0;padding-bottom:0;
-  display:inline-flex;align-items:center;
-}
-.agenda-hdr .view-btn{padding:0 11px}
-.agenda-hdr .week-nav-btn{padding:0 10px}
-.agenda-hdr .today-btn{padding:0 11px}
-.agenda-hdr .btn-sm{padding:0 12px}
-.agenda-hdr .client-filter-btn{padding:0 10px}
-.week-nav-btn{background:transparent;border:0.5px solid var(--border-strong);border-radius:var(--radius);padding:5px 10px;font-size:12px;color:var(--text-muted);cursor:pointer;font-family:inherit;transition:background .15s}
-.week-nav-btn:hover{background:var(--surface2);color:var(--text)}
-/* Klikbaar: springt terug naar vandaag. De stippellijn is dezelfde
-   affordance als bij het periodelabel in Uren en Facturen. */
-.week-title{
-  font-size:13px;font-weight:600;color:var(--text);min-width:170px;text-align:center;
-  cursor:pointer;text-decoration:underline;text-decoration-style:dotted;
-  text-decoration-color:var(--text-hint);text-underline-offset:3px;
-}
-.week-title:hover{text-decoration-color:var(--text)}
-.week-title:focus-visible{outline:2px solid var(--mint);outline-offset:2px;border-radius:3px}
-/* Duwt de rechterkant van de agendabalk naar de rand. Zie de mobiele laag:
-   daar moet hij uit, anders wrapt de laatste knop naar een eigen regel. */
-.agenda-hdr-vul{flex:1}
-/* Zwevende + voor een nieuwe afspraak. Staat uit op desktop, waar de brede
-   knop in de balk past; zie .uren-fab voor dezelfde afweging bij Uren. */
-.agenda-fab{
-  display:none;position:fixed;right:24px;bottom:24px;width:52px;height:52px;border-radius:50%;
-  background:var(--mint);color:var(--navy);border:none;font-size:25px;font-weight:600;
-  cursor:pointer;z-index:20;align-items:center;justify-content:center;font-family:inherit;
-  box-shadow:0 8px 24px var(--mint-glow),0 2px 8px rgba(15,27,61,.2);
-  transition:transform .12s,box-shadow .12s;
-}
-.agenda-fab:active{transform:scale(.94)}
-.agenda-fab:focus-visible{outline:2px solid var(--navy);outline-offset:3px}
-/* Menu-item dat de knop uit de balk vervangt zodra die daar niet meer staat. */
-.agenda-overflow-mobiel{display:none !important}
-#mod-agenda{position:relative}
-
-/* Agenda overflow menu (… → Importeer / Beheren / sync info) */
-.agenda-overflow{position:relative}
-.agenda-overflow-menu{
-  display:none;position:absolute;top:calc(100% + 6px);right:0;
-  min-width:240px;background:var(--surface);border:1px solid var(--border);
-  border-radius:var(--radius-md);box-shadow:var(--shadow-popover);
-  padding:6px;z-index:200;animation:ha-fadeIn .14s ease-out;
-}
-.agenda-overflow.open .agenda-overflow-menu{display:block}
-.agenda-overflow-menu button{
-  display:block;width:100%;padding:9px 12px;background:transparent;border:0;
-  border-radius:6px;text-align:left;font-family:var(--font-body);font-size:13px;
-  color:var(--text);cursor:pointer;transition:background .12s;min-height:38px;
-}
-.agenda-overflow-menu button:hover{background:var(--surface2)}
-.agenda-overflow-sync{
-  padding:8px 12px 4px;font-size:10.5px;color:var(--text-hint);
-  text-transform:uppercase;letter-spacing:.05em;
-}
-.agenda-overflow-divider{height:1px;background:var(--border);margin:4px 0}
-.cal-grid-outer{flex:1;overflow:hidden;display:flex;flex-direction:column}
-.cal-allday-row{
-  display:grid;grid-template-columns:48px repeat(7,1fr);
-  border-bottom:0.5px solid var(--border);flex-shrink:0;
-  min-height:22px;
-}
-.cal-allday-label{font-size:9px;color:var(--text-hint);text-align:right;padding:4px 6px 0;text-transform:uppercase;letter-spacing:.04em}
-.cal-allday-cell{border-left:0.5px solid var(--border);padding:2px 3px;display:flex;flex-direction:column;gap:1px}
-.cal-allday-ev{font-size:10px;border-radius:3px;padding:1px 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#fff}
-.cal-grid-scroll{flex:1;overflow-y:auto;overflow-x:hidden}
-.cal-grid-inner{
-  display:grid;grid-template-columns:48px repeat(7,1fr);
-  min-height:780px; /* 13 hours × 60px */
-}
-.cal-time-col{display:flex;flex-direction:column}
-.cal-time-label{
-  height:60px;font-size:10px;color:var(--text-hint);
-  text-align:right;padding:0 8px;
-  display:flex;align-items:flex-start;justify-content:flex-end;
-  padding-top:0;position:relative;top:-6px;
-}
-.cal-day-col{position:relative;border-left:0.5px solid var(--border)}
-.cal-day-col.today{background:rgba(59,91,219,0.03)}
-.cal-hour-line{position:absolute;left:0;right:0;border-top:0.5px solid var(--border)}
-.cal-ev-block{
-  position:absolute;left:2px;right:2px;
-  border-radius:4px;padding:2px 5px;
-  font-size:10px;line-height:1.3;overflow:hidden;cursor:pointer;
-  border-left:3px solid;min-height:18px;
-}
-.cal-ev-block:hover{filter:brightness(.95)}
-.cal-time-now{position:absolute;left:0;right:0;height:2px;background:#e03131;z-index:10;pointer-events:none}
-.cal-time-now::before{content:'';position:absolute;left:-4px;top:-4px;width:10px;height:10px;border-radius:50%;background:#e03131}
-.cal-day-hdr-row{
-  display:grid;grid-template-columns:48px repeat(7,1fr);
-  border-bottom:0.5px solid var(--border);
-  background:var(--surface);flex-shrink:0;position:sticky;top:0;z-index:5;
-}
-.cal-day-hdr{padding:8px 4px;text-align:center;border-left:0.5px solid var(--border)}
-.cal-day-hdr:first-child{border-left:none}
-.cal-day-name{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em}
-.cal-day-num{font-size:18px;font-weight:400;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:2px auto 0}
-.cal-day-hdr.today .cal-day-num{background:var(--accent);color:#fff;font-weight:600}
-.cal-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:14px;padding:40px;text-align:center;color:var(--text-hint)}
-.cal-placeholder p{font-size:13px;line-height:1.6;margin:0;max-width:340px}
-.cal-placeholder small{font-size:11px}
-.cal-loading{display:flex;align-items:center;gap:8px;padding:20px;font-size:12px;color:var(--text-muted)}
-
-/* View switcher */
-.view-switcher{display:flex;gap:2px;background:var(--surface2);border-radius:var(--radius);padding:2px;flex-shrink:0}
-.view-btn{padding:4px 11px;border-radius:calc(var(--radius) - 2px);font-size:12px;font-weight:500;border:none;background:transparent;color:var(--text-muted);cursor:pointer;transition:all .15s;font-family:inherit;white-space:nowrap}
-.view-btn.active{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.12)}
-.view-btn:hover:not(.active){color:var(--text)}
-.today-btn{padding:4px 10px;font-size:12px;border:0.5px solid var(--border-strong);border-radius:var(--radius);background:var(--surface);color:var(--text);cursor:pointer;font-family:inherit;white-space:nowrap}
-.today-btn:hover{background:var(--surface2)}
-/* Month grid */
-.cal-month-outer{display:flex;flex-direction:column;flex:1;overflow:hidden}
-.cal-month-hdr-row{display:grid;grid-template-columns:repeat(7,1fr);border-bottom:0.5px solid var(--border);flex-shrink:0;background:var(--surface);position:sticky;top:0;z-index:5}
-.cal-month-hdr{text-align:center;padding:7px 0;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted)}
-.cal-month-grid{flex:1;overflow-y:auto;display:flex;flex-direction:column}
-.cal-month-week{display:grid;grid-template-columns:repeat(7,1fr);border-bottom:0.5px solid var(--border);flex:1;min-height:100px}
-.cal-month-week:last-child{border-bottom:none}
-.cal-month-cell{border-right:0.5px solid var(--border);padding:4px;overflow:hidden;cursor:pointer;transition:background .12s;min-height:0}
-.cal-month-cell:last-child{border-right:none}
-.cal-month-cell:hover{background:var(--surface2)}
-.cal-month-cell.today{background:rgba(59,91,219,0.04)}
-.cal-month-cell.other-month{opacity:.5}
-.cal-month-day-num{font-size:12px;font-weight:500;width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:50%;margin-bottom:2px}
-.cal-month-cell.today .cal-month-day-num{background:var(--accent);color:#fff;font-weight:700}
-.cal-month-ev-pill{font-size:10px;border-radius:3px;padding:1px 5px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff}
-.cal-month-more{font-size:10px;color:var(--text-hint);padding:0 4px}
-/* Calendar sources management */
-.cal-source-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--radius);background:var(--surface2);margin-bottom:6px}
-.cal-source-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
-.cal-source-name{flex:1;font-size:12px;font-weight:500}
-.cal-source-type{font-size:10px;color:var(--text-hint);background:var(--surface3);padding:2px 6px;border-radius:10px}
-.cal-source-toggle{width:28px;height:16px;border-radius:8px;border:none;cursor:pointer;transition:background .2s;flex-shrink:0;position:relative}
-.cal-source-toggle::after{content:'';position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#fff;transition:left .2s}
-.cal-source-toggle.on{background:var(--accent)}
-.cal-source-toggle.on::after{left:14px}
-.cal-source-toggle.off{background:var(--border-strong)}
-.cal-ical-form{background:var(--surface2);border-radius:var(--radius);padding:10px;margin-top:8px;display:flex;flex-direction:column;gap:7px}
-.cal-ical-form input[type=text]{width:100%;padding:6px 8px;border:0.5px solid var(--border-strong);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:12px;font-family:inherit}
-.cal-color-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.cal-color-swatch{width:20px;height:20px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .12s}
-.cal-color-swatch.selected{border-color:var(--text);transform:scale(1.15)}
-/* Agenda source bar */
-.agenda-src-bar{display:flex;align-items:center;gap:6px;padding:6px 16px;border-bottom:0.5px solid var(--border);flex-wrap:wrap;background:var(--surface);flex-shrink:0}
-/* Inline color palette inside source items */
-.csi-palette{display:flex;gap:5px;flex-wrap:wrap;padding:7px 0 3px;margin-top:4px;border-top:0.5px solid var(--border)}
-
-/* Cal list (dashboard mini) */
-.cal-events{display:flex;flex-direction:column;height:100%;overflow-y:auto}
-.cal-day-hdr-lbl{padding:8px 14px 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-hint);background:var(--bg);position:sticky;top:0}
-.cal-event{display:flex;align-items:flex-start;gap:10px;padding:8px 14px;border-bottom:0.5px solid var(--border);transition:background .12s}
-.cal-event:hover{background:var(--surface2)}
-.cal-event-time{font-size:11px;color:var(--text-muted);white-space:nowrap;min-width:44px;padding-top:1px}
-.cal-event-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:4px}
-.cal-event-title{font-size:12px;color:var(--text);line-height:1.4;word-break:break-word}
-.cal-event-loc{font-size:11px;color:var(--text-hint);margin-top:1px}
-.cal-empty{padding:24px 14px;font-size:12px;color:var(--text-hint);text-align:center}
-.cal-error{padding:14px;font-size:12px;color:var(--danger);background:var(--danger-bg);border-radius:var(--radius);margin:10px 14px}
-.cal-setup{padding:14px 16px;display:flex;flex-direction:column;gap:10px;height:100%}
-.cal-setup label{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em}
-.cal-setup-hint{font-size:11px;color:var(--text-hint);line-height:1.6}
-.cal-setup-hint a{color:var(--info)}
-.placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;min-height:160px;color:var(--text-hint);text-align:center;gap:10px;padding:20px 14px}
-.placeholder-icon{width:40px;height:40px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:18px}
-.placeholder p{font-size:12px;line-height:1.5;margin:0}
 
 /* ── Modals ── */
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(2px)}
@@ -1195,7 +1011,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 }
 .uren-inv-btn:hover{background:var(--mint-soft);border-color:var(--mint);color:var(--text)}
 /* ── Maandkalender onder het maandoverzicht ──
-   Zeven kolommen ma-zo, een rij per week, net als een agenda. De tabel
+   Zeven kolommen ma-zo, een rij per week, als een maandkalender. De tabel
    erboven vertelt hoeveel; deze vertelt wánneer. Eigen kaartklasse en
    niet .uren-sheet-card, want die is desktop-only en een kalender wil je
    op een telefoon juist wél zien -- daar valt hij terug op stippen. */
@@ -1253,7 +1069,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .uren-kal-dag .nr .u{margin-left:auto;color:var(--text);font-variant-numeric:tabular-nums}
 .uren-kal-tab td.buiten .uren-kal-dag .nr,
 .uren-kal-tab td.weekend .uren-kal-dag .nr{color:var(--text-hint)}
-/* Vandaag als gevulde pil, zoals in de agenda: je zoekt hem met je oog,
+/* Vandaag als gevulde pil: je zoekt hem met je oog,
    niet met de datum. --navy is een vaste donkere kleur en blijft dus ook
    in het donkere thema leesbaar op mint. */
 .uren-kal-dag .nr .vandaag{
@@ -2390,211 +2206,6 @@ textarea { line-height: 1.6; resize: vertical; }
   font-family: var(--font-mono);
 }
 
-/* ─── Agenda (calendar) ───────────────────────────────────────────────────── */
-.cal-grid-hour,
-.cal-grid-day,
-.cal-grid-week,
-.cal-grid-month {
-  background: var(--surface) !important;
-  border-color: var(--border) !important;
-}
-.cal-day-hdr {
-  padding: 10px 0 !important;
-  background: var(--surface) !important;
-  border-bottom: 1px solid var(--border) !important;
-  font-family: var(--font-display);
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-hint);
-}
-.cal-day-hdr.is-today,
-.cal-day-hdr.today,
-.cal-day-hdr[data-today="true"] {
-  background: var(--mint-soft) !important;
-  color: var(--mint);
-}
-.cal-ev-block {
-  border-radius: 7px !important;
-  padding: 6px 8px !important;
-  background: var(--info-bg) !important;
-  border-left: 3px solid var(--info) !important;
-  color: var(--text);
-  font-size: 11.5px;
-  font-weight: 600;
-  transition: var(--transition-fast);
-  cursor: pointer;
-  /* Strakker layout binnen smal block: tijd in mono boven, titel daaronder */
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  overflow: hidden;
-  min-height: 0;
-}
-.cal-ev-block:hover {
-  filter: brightness(0.97);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(15,27,61,.12);
-  z-index: 5;
-}
-.cal-ev-block .cal-ev-time {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  opacity: 0.85;
-  flex-shrink: 0;
-}
-.cal-ev-block .cal-ev-title {
-  font-family: var(--font-display);
-  font-size: 11.5px;
-  font-weight: 600;
-  letter-spacing: -0.005em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-/* Voor erg korte blocks (≤30min): titel + tijd inline om ruimte te besparen */
-.cal-ev-block.cal-ev-short { flex-direction: row; align-items: baseline; gap: 6px; }
-.cal-ev-block.cal-ev-short .cal-ev-time { opacity: 0.7; }
-.cal-ev-block.cal-ev-short .cal-ev-title { flex: 1; min-width: 0; }
-
-/* All-day event verbetering — iets meer presence */
-.cal-allday-ev {
-  font-size: 11px !important;
-  font-weight: 600 !important;
-  border-radius: 4px !important;
-  padding: 2px 8px !important;
-  cursor: pointer;
-  transition: var(--transition-fast);
-}
-.cal-allday-ev:hover { filter: brightness(0.95); transform: translateY(-0.5px); }
-
-/* ── Custom hover tooltip — vervangt native title attribuut ────────────── */
-.cal-ev-tooltip {
-  position: fixed;
-  z-index: 9000;
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-modal);
-  padding: 12px 14px;
-  min-width: 220px;
-  max-width: 340px;
-  pointer-events: none;
-  font-family: var(--font-body);
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--text);
-  opacity: 0;
-  transform: translateY(4px);
-  transition: opacity 0.15s var(--ease), transform 0.15s var(--ease);
-}
-.cal-ev-tooltip.is-open { opacity: 1; transform: translateY(0); }
-.cal-ev-tooltip .tt-source {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-hint);
-  margin-bottom: 8px;
-}
-.cal-ev-tooltip .tt-dot {
-  width: 8px; height: 8px; border-radius: 50%;
-  display: inline-block;
-}
-.cal-ev-tooltip .tt-title {
-  font-family: var(--font-display);
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: -0.015em;
-  color: var(--text);
-  margin-bottom: 8px;
-  word-break: break-word;
-}
-.cal-ev-tooltip .tt-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--text-muted);
-  padding: 2px 0;
-}
-.cal-ev-tooltip .tt-row .tt-icon {
-  width: 14px;
-  flex-shrink: 0;
-  color: var(--text-hint);
-}
-.cal-ev-tooltip .tt-time {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  color: var(--text);
-  font-weight: 500;
-}
-.cal-ev-tooltip .tt-duration {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--text-hint);
-  margin-left: 4px;
-}
-
-.cal-month-cell {
-  background: var(--surface) !important;
-  border: 1px solid var(--border) !important;
-  padding: 8px !important;
-  font-size: 12px;
-  color: var(--text);
-}
-.cal-month-cell.is-other-month,
-.cal-month-cell.other-month,
-.cal-month-cell[data-other="true"] { color: var(--text-hint); background: var(--bg) !important; }
-
-/* Source chips — uniform "klant blok" style.
-   Identieke vorm/grootte/border voor elke chip. De agenda-kleur zit
-   alleen in de gekleurde dot (.src-chip-dot), niet in de achtergrond,
-   zodat alle chips visueel even zwaar zijn. */
-.src-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 5px 11px;
-  height: 28px;
-  box-sizing: border-box;
-  border-radius: 8px;
-  background: var(--surface2);
-  color: var(--text);
-  font-size: 11.5px;
-  font-weight: 500;
-  border: 1px solid var(--border);
-  cursor: pointer;
-  transition: all .15s;
-  font-family: inherit;
-  white-space: nowrap;
-  line-height: 1;
-}
-.src-chip:hover { background: var(--surface3); border-color: var(--border-strong); }
-.src-chip.on  { /* enabled state — same as default */ }
-.src-chip.off { opacity: .42; }
-.src-chip.off .src-chip-dot { filter: grayscale(.6); }
-.src-chip-dot {
-  width: 9px; height: 9px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  background: var(--accent);  /* fallback; JS sets via inline style */
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08);
-}
-.cal-loading {
-  color: var(--text-hint);
-  font-size: 12px;
-  padding: 20px;
-  text-align: center;
-}
-
 /* ─── Toast & placeholder ─────────────────────────────────────────────────── */
 .toast {
   background: var(--navy) !important;
@@ -2623,20 +2234,6 @@ textarea { line-height: 1.6; resize: vertical; }
    HERLING ANALYTICS — THEME OVERLAY v2 · POST-FIXES
    Corrects a few regressions introduced by the overlay above.
    ════════════════════════════════════════════════════════════════════════════ */
-
-/* ── Fix 1: agenda events were unreadable ────────────────────────────────────
-   Theme forced background/border-left to static info colors (!important),
-   overriding the per-source colors set inline. It also added 6-8px padding
-   + 11.5px font that didn't fit short events. Restore per-source colors
-   and tighter sizing; keep the theme's rounded corners + transition. */
-.cal-ev-block {
-  padding: 3px 6px !important;
-  background: transparent;         /* no !important → inline wins */
-  border-left: 3px solid;          /* no color here → inline wins */
-  font-size: 10.5px;
-  font-weight: 500;
-  line-height: 1.3;
-}
 
 /* ── Fix 2: checklist items collapsed to a single horizontal row ─────────────
    Theme's `display:flex !important` + `align-items:center !important` without
@@ -3058,8 +2655,7 @@ textarea { line-height: 1.6; resize: vertical; }
 .cl2-filter-kop { display: none; }
 
 /* ── ⋯-menu van de Checklist ──
-   Zelfde vorm als het menu in de Agenda; die regels staan bij
-   .agenda-overflow. Op een bureaublad staat alles gewoon in de balk, dus
+   Op een bureaublad staat alles gewoon in de balk, dus
    is de knop daar verborgen -- zie de mobiele laag. */
 .cl-overflow { position: relative; display: none; }
 .cl-overflow-menu {
@@ -3987,45 +3583,6 @@ textarea { line-height: 1.6; resize: vertical; }
   --info-bg:         rgba(122, 162, 255, 0.14);
 }
 
-/* Native event modal labels + color row */
-.ev-lbl {
-  display: block;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 4px;
-}
-.ev-color-row {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  padding: 4px 0;
-}
-.ev-color-row .cal-color-swatch {
-  width: 22px;
-  height: 22px;
-  cursor: pointer;
-  border-radius: 50%;
-  border: 2px solid transparent;
-  transition: transform 0.12s;
-}
-.ev-color-row .cal-color-swatch:hover { transform: scale(1.1); }
-.ev-color-row .cal-color-swatch.selected {
-  border-color: var(--text);
-  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--mint);
-}
-
-/* Editable native events get a subtle hover-lift */
-.cal-ev-block.cal-ev-editable { cursor: pointer; }
-.cal-ev-block.cal-ev-editable:hover {
-  filter: brightness(0.95);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
-  z-index: 5;
-}
-
 /* ═════════════════════════════════════════════════════════════════════════════
    MOBILE — bottom-nav, top-bar, sidebar drawer, hidden by default on desktop
    ════════════════════════════════════════════════════════════════════════════ */
@@ -4067,91 +3624,6 @@ textarea { line-height: 1.6; resize: vertical; }
 }
 .dash-mobile-settings-menu button:hover { background: var(--surface2); }
 .dash-mobile-settings-divider { height: 1px; background: var(--border); margin: 4px 0; }
-
-/* ICS import drop zone */
-.ics-drop-zone {
-  border: 2px dashed var(--border-strong);
-  border-radius: 12px;
-  padding: 32px 20px;
-  text-align: center;
-  cursor: pointer;
-  background: var(--surface2);
-  color: var(--text-muted);
-  transition: all 0.15s;
-}
-.ics-drop-zone:hover,
-.ics-drop-zone.dragover {
-  border-color: var(--mint);
-  background: var(--mint-soft);
-  color: var(--text);
-}
-.ics-drop-zone svg { color: var(--text-hint); }
-.ics-drop-zone:hover svg,
-.ics-drop-zone.dragover svg { color: var(--mint); }
-
-/* Agenda — connected accounts + add-source dropdown */
-.cal-section-label {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-hint);
-  margin-bottom: 8px;
-  font-family: var(--font-display);
-}
-.cal-account-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  margin-bottom: 6px;
-  box-shadow: var(--shadow-card);
-}
-.cal-account-icon {
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--surface2);
-  border-radius: 6px;
-  flex-shrink: 0;
-}
-.cal-account-info {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.cal-account-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.cal-account-email {
-  font-size: 11px;
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-}
-
-
-/* OAuth config section in setup screen */
-.oauth-config summary { color: var(--text); }
-.oauth-config code {
-  font-family: var(--font-mono);
-  background: var(--surface2);
-  padding: 1px 6px;
-  border-radius: 4px;
-  font-size: 11px;
-  color: var(--text);
-}
 
 /* Global search modal */
 .global-search-modal { box-shadow: var(--shadow-modal); }
@@ -4221,7 +3693,6 @@ textarea { line-height: 1.6; resize: vertical; }
 .gs-result.active .gs-result-icon { background: var(--surface); color: var(--mint); }
 .gs-result-icon[data-type="client"] { color: var(--info); }
 .gs-result-icon[data-type="checklist"] { color: var(--success); }
-.gs-result-icon[data-type="event"] { color: var(--warning); }
 .gs-result-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .gs-result-title {
   font-size: 13px;
@@ -4349,7 +3820,7 @@ textarea { line-height: 1.6; resize: vertical; }
    - Touch targets bumped to ≥44×44 for thumb accuracy
    - Body type bumped to 14-15px for readability
    - Per-module: cards stack, kanban snap-scrolls, notes list↔detail,
-     agenda day-default, dashboard 1-column, uren scrolls horizontal
+     dashboard 1-column, uren scrolls horizontal
    ════════════════════════════════════════════════════════════════════════════ */
 
 /* ── De schaal een trap ruimer op een telefoon ──
@@ -4867,9 +4338,8 @@ textarea { line-height: 1.6; resize: vertical; }
     text-align: center !important;
   }
   .dash-kpi-top { flex-direction: column !important; align-items: center !important; gap: 4px !important; }
-  /* Twee regels hoog vastzetten: 'Afspraken vandaag' brak wél en de twee
-     andere labels niet, waardoor de cijfers eronder 12px uit de pas
-     liepen. Met een vaste labelhoogte staan de drie waarden op één lijn. */
+  /* Vaste labelhoogte, zodat de cijfers eronder op één lijn staan ook
+     als het ene label wel over twee regels breekt en het andere niet. */
   .dash-kpi-label {
     font-size: var(--fs-micro) !important;
     line-height: 1.25 !important;
@@ -5048,144 +4518,6 @@ textarea { line-height: 1.6; resize: vertical; }
   .notes-tree { font-size: 14px; }
   .note-node { padding: 10px 12px !important; min-height: 40px; }
 
-  /* ══ AGENDA ══
-     De balk had acht knoppen op zes rijposities en was 156px hoog; samen
-     met de dagkoppen begon de kalender pas op 208px -- een kwart van het
-     scherm bediening. Nu twee rijen:
-
-       rij 1   [ Dag | Week | Maand ]   [klant]  [⋯]
-       rij 2   [←]  datum, klikbaar = vandaag  [→]
-
-     Wat eruit ging: '+ Nieuwe afspraak' is de zwevende + geworden (zelfde
-     gebaar als in Uren), 'Vandaag' zit nu in de titel, en 'Met AI' staat
-     in het ⋯-menu. Alles is nog bereikbaar, niets is verdwenen. */
-  .agenda-hdr {
-    padding: var(--sp-2) var(--sp-3) !important;
-    display: flex !important;
-    flex-wrap: wrap !important;
-    align-items: center !important;
-    gap: var(--sp-2) !important;
-  }
-  /* De pijlen zitten met 'Vandaag' in een eigen div, en de datumtitel staat
-     daar los naast. Zo krijg je ze nooit op één regel als [←] datum [→].
-     display:contents lost de div op zonder de HTML te verbouwen: de pijlen
-     worden zelf flex-items en kunnen dus met order tussen de titel worden
-     gezet. Op desktop blijft de div gewoon een div. */
-  .agenda-hdr .agenda-period-nav { display: contents !important; }
-  .agenda-hdr .view-switcher       { order: 1; flex: 1 1 auto; display: flex !important; }
-  .agenda-hdr .client-filter       { order: 2; flex: 0 0 auto; }
-  .agenda-hdr .agenda-overflow     { order: 3; flex: 0 0 auto; }
-  /* Deze duwt op desktop naar rechts. Hier is hij het regeleinde: nul hoog,
-     volle breedte, dus alles met een hogere order begint op rij twee. Eén
-     element, twee rollen -- schelen doet het een lege div. */
-  .agenda-hdr-vul { order: 4; flex: 0 0 100% !important; height: 0 !important; margin: 0 !important; }
-  .agenda-hdr .agenda-period-nav .week-nav-btn:first-child { order: 5; }
-  .agenda-hdr .week-title                                  { order: 6; }
-  .agenda-hdr .agenda-period-nav .week-nav-btn:last-child   { order: 7; }
-  .agenda-hdr .today-btn,
-  .agenda-hdr .btn-ai,
-  .agenda-hdr #agendaConnectBtn { display: none !important; }
-  .agenda-overflow-mobiel { display: block !important; }
-  .agenda-fab {
-    display: flex;
-    right: 17px;
-    bottom: calc(80px + env(safe-area-inset-bottom, 0));
-    width: 56px; height: 56px; font-size: 26px; z-index: 60;
-  }
-  /* De drie weergaveknoppen verdelen de eerste rij; de titel rekt op de
-     tweede rij op tot wat er tussen de pijlen overblijft. */
-  .agenda-hdr .view-switcher .view-btn { flex: 1 1 0 !important; min-width: 0 !important; }
-  .agenda-hdr .week-nav-btn { flex: 0 0 auto !important; }
-  .week-title {
-    flex: 1 1 0 !important;
-    min-width: 0 !important;
-    font-size: var(--fs-klein) !important;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
-  /* Eén tikmaat voor de hele balk. */
-  .agenda-hdr .view-btn,
-  .agenda-hdr .week-nav-btn,
-  .agenda-hdr .btn-sm,
-  .agenda-hdr .client-filter-btn {
-    height: var(--tap) !important;
-    min-height: var(--tap) !important;
-    padding: 0 var(--sp-2) !important;
-    font-size: var(--fs-klein) !important;
-  }
-  .agenda-hdr .week-nav-btn,
-  .agenda-hdr #agendaOverflowBtn {
-    min-width: var(--tap) !important;
-    width: var(--tap) !important;
-    padding: 0 !important;
-  }
-  /* De klantfilterknop mag krimpen tot alleen de stip als de namen lang
-     zijn; hij staat naast twee vaste breedtes in een krappe rij. */
-  .agenda-hdr .client-filter-btn { max-width: 120px; }
-  .agenda-src-bar { padding: 4px 10px !important; gap: 5px !important; }
-  .src-chip { height: 26px !important; padding: 0 10px !important; font-size: var(--fs-micro) !important; }
-  /* Day-grid is naturally 1 column — perfect for mobile */
-  .cal-day-hdr { font-size: var(--fs-micro); padding: 8px 0 !important; }
-  .cal-time-col { font-size: var(--fs-micro); }
-  .cal-ev-block { font-size: var(--fs-micro) !important; padding: 3px 5px !important; }
-
-  /* ── Weekraster: opzij schuiven in plaats van samenknijpen ──
-     Zeven kolommen in 375px is 42px per dag. Daar past een tijd in en
-     verder niets: een blok gaf de titel 29px terwijl er 104px nodig was,
-     dus 72% van elke afspraaknaam was onzichtbaar. Je zag dát je iets had,
-     niet wát.
-
-     Honderd pixel per dag maakt het raster 748px breed -- twee keer het
-     scherm -- en dat schuift nu horizontaal. De drie onderdelen (dagkoppen,
-     hele-dag-rij en het uurraster) moeten dezelfde breedte krijgen én in
-     dezelfde scrollcontainer zitten, anders lopen de koppen uit de pas met
-     de kolommen eronder.
-
-     De tijdkolom blijft links staan terwijl je veegt: zonder die ankers
-     weet je na één veeg niet meer hoe laat het ergens is. */
-     Eén scrollcontainer voor het geheel, en niet twee: het uurraster had
-     zijn eigen verticale scroll, en daaraan bleef de tijdkolom hangen. Die
-     container schuift zelf niet opzij, dus 'blijf links staan' had niets om
-     zich aan vast te houden en de kolom schoof gewoon mee weg. Nu doet de
-     buitenste beide richtingen en ankeren de koppen dááraan. */
-  .cal-grid-week { overflow: auto !important; }
-  .cal-grid-week .cal-grid-scroll { overflow: visible !important; flex: none !important; }
-  .cal-grid-week .cal-day-hdr-row,
-  .cal-grid-week .cal-allday-row,
-  .cal-grid-week .cal-grid-inner { min-width: 748px; }
-  /* Links vastgezet: de tijdkolom en de twee cellen erboven. De hoek moet
-     in beide richtingen blijven staan, anders schuift hij onder de
-     dagkoppen vandaan zodra je omlaag scrollt. */
-  .cal-grid-week .cal-day-hdr-row > div:first-child,
-  .cal-grid-week .cal-allday-label,
-  .cal-grid-week .cal-time-col {
-    position: sticky; left: 0; z-index: 6;
-    background: var(--surface);
-  }
-  .cal-grid-week .cal-day-hdr-row > div:first-child { top: 0; z-index: 8; }
-  .cal-grid-week .cal-allday-row { position: sticky; top: 61px; z-index: 5; background: var(--surface); }
-  .cal-grid-week .cal-allday-label { z-index: 7; }
-  .cal-grid-week .cal-time-col { background: var(--bg); }
-  /* Vastklikken per dag, zodat je niet halverwege een kolom blijft hangen.
-     proximity en niet mandatory: bij mandatory kun je niet meer een klein
-     stukje opschuiven om net de rand van een blok te zien. */
-  .cal-grid-week .cal-grid-inner { scroll-snap-type: x proximity; }
-  .cal-grid-week .cal-day-col { scroll-snap-align: start; }
-  /* Month grid: smaller cells but still readable */
-  .cal-month-cell { padding: 4px !important; min-height: 60px; font-size: var(--fs-micro) !important; }
-  /* Zie de toelichting bij de render: de tijd at de titel op. */
-  .cal-pil-tijd { display: none; }
-  .cal-month-ev-pill { font-size: var(--fs-micro) !important; padding: 2px 5px !important; }
-
-  /* ── Dagweergave: de kop staat er dubbel ──
-     'DONDERDAG 3' kostte 130px, terwijl de titel in de balk erboven al
-     'donderdag 3 september 2026' zegt -- en die is nu ook de knop terug
-     naar vandaag. Alleen in de dagweergave weg; het weekraster heeft zijn
-     koppen nodig om de kolommen te kunnen lezen. */
-  .cal-grid-outer:not(.cal-grid-week) .cal-day-hdr-row { display: none !important; }
-  /* Het eerste uurlabel wordt 6px omhoog geschoven om op de lijn te staan,
-     en liep daardoor boven de scrollcontainer uit -- '7:00' was half weg. */
-  .cal-grid-scroll { padding-top: 7px; }
-
   /* ── CHECKLIST ── */
   .cl-topbar {
     padding: 10px 12px !important;
@@ -5230,7 +4562,7 @@ textarea { line-height: 1.6; resize: vertical; }
   .cl-topbar .cl2-seg { display: none !important; }
   /* Klantfilter links, ⋯ tegen de rechterrand. Stonden eerst naast elkaar
      links met 186px leegte erachter, wat de balk scheef liet ogen -- en de
-     ⋯ hoort rechts, net als in de Agenda en Uren. */
+     ⋯ hoort rechts, net als in Uren. */
   .cl-overflow { display: block !important; margin-left: auto !important; }
   .cl-overflow #clOverflowBtn {
     width: var(--tap) !important; height: var(--tap) !important;
@@ -5786,10 +5118,6 @@ textarea { line-height: 1.6; resize: vertical; }
   .fac-msom,
   .fac-mkop { font-size: var(--fs-micro) !important; }
 
-  /* Agenda: uur- en dagaanduidingen langs het raster */
-  .cal-time-label,
-  .cal-day-name,
-  .cal-allday-label { font-size: var(--fs-micro) !important; }
 }
 
 /* ═════════════════════════════════════════════════════════════════════════════
@@ -6120,15 +5448,15 @@ textarea { line-height: 1.6; resize: vertical; }
 .dash-grid {
   display: grid !important;
   grid-template-columns: 1fr 1fr !important;
-  grid-template-rows: 220px 440px !important;  /* top row compact, bottom row (Checklist + Agenda) 2× zo hoog */
+  grid-template-rows: 220px 440px !important;  /* bovenrij compact, onderrij 2× zo hoog */
   gap: 20px !important;
   padding: 0 !important;        /* padding now lives on .dash-scroll */
   flex: 0 0 auto !important;    /* disable the old flex:1 squish */
   overflow: visible !important;
   min-height: 0 !important;     /* let row tracks define total height */
 }
-/* 3-card layout (Todo removed): Notes top-left, Checklist top-right,
-   Agenda full-width bottom row */
+/* 3-kaarts indeling: Notities linksboven, Checklist rechtsboven, de derde
+   kaart over de volle breedte eronder */
 .dash-grid.dash-grid-3 {
   grid-template-rows: 280px 440px !important;
 }
@@ -6203,14 +5531,12 @@ textarea { line-height: 1.6; resize: vertical; }
 .dash-topbar,
 .kanban-topbar,
 .cl-topbar,
-.uren-topbar,
-.agenda-hdr {
+.uren-topbar {
   border-left: 3px solid var(--module-accent, transparent) !important;
 }
 #mod-dashboard { --module-accent: var(--mint); }       /* mint */
 #mod-todo      { --module-accent: #6366F1; }           /* indigo */
 #mod-notes     { --module-accent: #84A98C; }           /* sage */
-#mod-agenda    { --module-accent: #F59E0B; }           /* amber */
 #mod-checklist { --module-accent: #F43F5E; }           /* rose */
 #mod-uren      { --module-accent: #A78BFA; }           /* violet */
 
@@ -6778,9 +6104,6 @@ textarea { line-height: 1.6; resize: vertical; }
       <div class="nav-item" data-mod="notes" onclick="switchModule('notes')">
         <span class="nav-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2h5.5l3.5 3.5V13a1 1 0 0 1-1 1H3.5a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z"/><path d="M9 2v4h3.5"/><line x1="5" y1="9" x2="10" y2="9"/><line x1="5" y1="11.5" x2="8.5" y2="11.5"/></svg></span><span class="nav-label">Notities</span>
       </div>
-      <div class="nav-item" data-mod="agenda" onclick="switchModule('agenda')">
-        <span class="nav-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3.5" width="12" height="10.5" rx="1.5"/><line x1="2" y1="6.5" x2="14" y2="6.5"/><line x1="5.5" y1="2" x2="5.5" y2="5"/><line x1="10.5" y1="2" x2="10.5" y2="5"/></svg></span><span class="nav-label">Agenda</span><span class="nav-badge" id="navBadgeAgenda"></span>
-      </div>
       <div class="nav-item" data-mod="checklist" onclick="switchModule('checklist')">
         <span class="nav-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2.5" width="3.5" height="3.5" rx="0.6"/><path d="M2.7 4.2 L3.5 5 L4.8 3.4" stroke-width="1.2"/><rect x="2" y="9.5" width="3.5" height="3.5" rx="0.6"/><line x1="7" y1="4.2" x2="14" y2="4.2"/><line x1="7" y1="11.2" x2="14" y2="11.2"/></svg></span><span class="nav-label">Checklist</span><span class="nav-badge nav-badge-danger" id="navBadgeChecklist"></span>
       </div>
@@ -6957,17 +6280,9 @@ textarea { line-height: 1.6; resize: vertical; }
             <div class="dash-kpi-val">–</div>
             <div class="dash-kpi-trend"></div>
           </button>
-          <button type="button" class="dash-kpi" id="dashKpiMeetings" onclick="switchModule('agenda')" title="Open Agenda">
-            <div class="dash-kpi-top">
-              <span class="dash-kpi-label">Afspraken vandaag</span>
-              <span class="dash-kpi-icon" style="background:var(--warning-bg);color:var(--warning)">📅</span>
-            </div>
-            <div class="dash-kpi-val">–</div>
-            <div class="dash-kpi-trend"></div>
-          </button>
         </div>
 
-        <!-- 3-card grid (Notes top-left, Checklist top-right, Agenda full-width below) -->
+        <!-- Kaartenraster: Notities linksboven, Checklist rechtsboven -->
         <div class="dash-grid dash-grid-3">
           <div class="card" data-dash-card="notes">
             <div class="card-hdr" onclick="dashCardToggle(event,this)">
@@ -7001,29 +6316,6 @@ textarea { line-height: 1.6; resize: vertical; }
               <button class="btn btn-sm btn-primary" onclick="dashClAdd()">+</button>
             </div>
           </div>
-          <div class="card" data-dash-card="agenda">
-            <div class="card-hdr" onclick="dashCardToggle(event,this)">
-              <h2>Agenda</h2>
-              <span class="dash-card-count" id="dashCountAgenda"></span>
-              <div style="display:flex;gap:4px">
-                <button class="btn btn-xs" id="dashCalSettingsBtn" onclick="toggleDashCalSettings()" style="display:none">⚙</button>
-                <button class="btn btn-xs btn-primary" onclick="switchModule('agenda')">Bekijk ↗</button>
-              </div>
-              <span class="dash-card-chevron" aria-hidden="true">
-                <svg viewBox="0 0 12 12" fill="none" width="12" height="12"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              </span>
-            </div>
-            <div class="card-body" id="dashCalBody" style="padding:0;overflow:hidden">
-              <div class="placeholder">
-                <div class="placeholder-icon">📅</div>
-                <p>Koppel een agenda om je afspraken te zien.</p>
-                <button class="btn btn-sm btn-primary" onclick="switchModule('agenda')">Agenda koppelen</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <!-- ══ Module: Todo (Kanban) ══ -->
     <div id="mod-todo" class="module">
@@ -7124,62 +6416,6 @@ textarea { line-height: 1.6; resize: vertical; }
       </div>
     </div>
 
-    <!-- ══ Module: Agenda ══ -->
-    <div id="mod-agenda" class="module">
-      <div class="agenda-wrap">
-        <div class="agenda-hdr">
-          <div class="view-switcher">
-            <button class="view-btn" id="viewBtnDay" onclick="switchAgendaView('day')">Dag</button>
-            <button class="view-btn active" id="viewBtnWeek" onclick="switchAgendaView('week')">Week</button>
-            <button class="view-btn" id="viewBtnMonth" onclick="switchAgendaView('month')">Maand</button>
-          </div>
-          <div class="agenda-period-nav">
-            <button class="week-nav-btn" onclick="changeAgendaPeriod(-1)" aria-label="Vorige periode">←</button>
-            <button class="today-btn" onclick="goToToday()">Vandaag</button>
-            <button class="week-nav-btn" onclick="changeAgendaPeriod(1)" aria-label="Volgende periode">→</button>
-          </div>
-          <!-- De titel is zelf de weg terug naar vandaag, net als het
-               periodelabel in Uren en Facturen. Op een telefoon vervangt dat
-               de losse Vandaag-knop; op een bureaublad staan ze naast
-               elkaar en is dit een snelkoppeling. -->
-          <span class="week-title" id="agendaTitle" role="button" tabindex="0"
-            onclick="goToToday()" title="Terug naar vandaag">...</span>
-          <div class="agenda-hdr-vul"></div>
-          <div class="client-filter" id="agendaClientFilter"></div>
-          <!-- Overflow menu: importeer / agenda's beheren / sync info -->
-          <div class="agenda-overflow" id="agendaOverflow">
-            <button class="btn btn-sm" id="agendaOverflowBtn" type="button" onclick="toggleAgendaOverflow(event)" aria-label="Meer opties" title="Meer opties">
-              <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><circle cx="3" cy="8" r="1.4"/><circle cx="8" cy="8" r="1.4"/><circle cx="13" cy="8" r="1.4"/></svg>
-            </button>
-            <div class="agenda-overflow-menu" id="agendaOverflowMenu" role="menu">
-              <div class="agenda-overflow-sync" id="icalRefreshLbl">Nog niet gesynced</div>
-              <div class="agenda-overflow-divider"></div>
-              <!-- Alleen op een telefoon: daar staat de losse knop niet meer
-                   in de balk, hier wel. Op een bureaublad zou het item de
-                   knop ernaast dubbelen. -->
-              <button type="button" class="agenda-overflow-mobiel" onclick="closeAgendaOverflow();openQuickAddAI()" role="menuitem">✨ Slim toevoegen met AI</button>
-              <button type="button" onclick="closeAgendaOverflow();openIcsImport()" role="menuitem">↓ .ics bestand importeren</button>
-              <button type="button" id="agendaSettingsBtn" onclick="closeAgendaOverflow();openCalSourcesModal()" role="menuitem">⚙ Externe agenda's beheren</button>
-            </div>
-          </div>
-          <button class="btn btn-sm btn-ai" onclick="openQuickAddAI()" title="Slim toevoegen — beschrijf in normale taal, AI maakt de afspraak"><span class="ai-spark">✨</span>Met AI</button>
-          <button class="btn btn-sm btn-primary" id="agendaConnectBtn" onclick="openEventModalNew()">+ Nieuwe afspraak</button>
-        </div>
-        <!-- Zwevende knop, alleen op een telefoon. Dezelfde vorm en plek als
-             de + in Uren, zodat 'iets toevoegen' overal hetzelfde gebaar is.
-             De brede knop hierboven verdwijnt dan uit de balk. -->
-        <button class="agenda-fab" onclick="openEventModalNew()" aria-label="Nieuwe afspraak">+</button>
-        <div id="agendaSourceBar" class="agenda-src-bar" style="display:none"></div>
-        <div id="agendaContent" style="flex:1;overflow:hidden;display:flex;flex-direction:column">
-          <div class="cal-placeholder">
-            <div style="font-size:32px">📅</div>
-            <p>Koppel je Outlook-agenda via iCal-link om je afspraken in deze weergave te zien.</p>
-            <button class="btn btn-sm btn-primary" onclick="openCalSourcesModal()">+ Agenda koppelen</button>
-            <small>Outlook → Settings → Calendar → Shared calendars → Publish</small>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <!-- ══ Module: Checklist ══ -->
     <div id="mod-checklist" class="module">
@@ -7312,11 +6548,6 @@ textarea { line-height: 1.6; resize: vertical; }
     <button class="mobile-nav-tab" data-mod="notes" onclick="switchModule('notes')" aria-label="Notities">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M3.5 2h5.5l3.5 3.5V13a1 1 0 0 1-1 1H3.5a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z"/><path d="M9 2v4h3.5"/></svg>
       <span>Notities</span>
-    </button>
-    <button class="mobile-nav-tab" data-mod="agenda" onclick="switchModule('agenda')" aria-label="Agenda">
-      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><rect x="2" y="3.5" width="12" height="10.5" rx="1.5"/><line x1="2" y1="6.5" x2="14" y2="6.5"/><line x1="5.5" y1="2" x2="5.5" y2="5"/><line x1="10.5" y1="2" x2="10.5" y2="5"/></svg>
-      <span>Agenda</span>
-      <span class="mobile-nav-badge" id="mobileNavBadgeAgenda"></span>
     </button>
     <button class="mobile-nav-tab" data-mod="checklist" onclick="switchModule('checklist')" aria-label="Checklist">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><rect x="2" y="2.5" width="3.5" height="3.5" rx="0.6"/><path d="M2.7 4.2 L3.5 5 L4.8 3.4" stroke-width="1.2"/><rect x="2" y="9.5" width="3.5" height="3.5" rx="0.6"/><line x1="7" y1="4.2" x2="14" y2="4.2"/><line x1="7" y1="11.2" x2="14" y2="11.2"/></svg>
@@ -7923,126 +7154,14 @@ textarea { line-height: 1.6; resize: vertical; }
   </div>
 </div>
 
-<!-- ── Event create/edit modal (native agenda events) ── -->
-<div class="modal-bg" id="eventModal">
-  <div class="modal" style="max-width:480px;padding:22px">
-    <h3 id="eventModalTitle" style="font-family:var(--font-display);font-size:18px;font-weight:700;margin-bottom:16px">Nieuwe afspraak</h3>
-    <div style="display:flex;flex-direction:column;gap:12px">
-      <div>
-        <label class="ev-lbl">Titel</label>
-        <input type="text" id="evTitle" placeholder="Titel van de afspraak" style="width:100%"/>
-      </div>
-      <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text);cursor:pointer;user-select:none">
-        <input type="checkbox" id="evAllDay" onchange="onEventAllDayChange()" style="width:auto;margin:0"/>
-        Hele dag
-      </label>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div>
-          <label class="ev-lbl">Start</label>
-          <input type="date" id="evStartDate" style="width:100%"/>
-          <input type="time" id="evStartTime" style="width:100%;margin-top:4px"/>
-        </div>
-        <div>
-          <label class="ev-lbl">Eind</label>
-          <input type="date" id="evEndDate" style="width:100%"/>
-          <input type="time" id="evEndTime" style="width:100%;margin-top:4px"/>
-        </div>
-      </div>
-      <div>
-        <label class="ev-lbl">Locatie</label>
-        <input type="text" id="evLocation" placeholder="Optioneel" style="width:100%"/>
-      </div>
-      <div>
-        <label class="ev-lbl">Beschrijving</label>
-        <textarea id="evDescription" rows="3" placeholder="Optioneel" style="width:100%;resize:vertical"></textarea>
-      </div>
-      <div>
-        <label class="ev-lbl">Klant</label>
-        <select id="evClientId" style="width:100%"></select>
-      </div>
-      <div>
-        <label class="ev-lbl">Herhaling</label>
-        <select id="evRecurFreq" onchange="onEventRecurChange()" style="width:100%">
-          <option value="">Niet herhalen</option>
-          <option value="DAILY">Dagelijks</option>
-          <option value="WEEKLY">Wekelijks</option>
-          <option value="MONTHLY">Maandelijks</option>
-          <option value="YEARLY">Jaarlijks</option>
-        </select>
-        <div id="evRecurOptions" style="display:none;flex-direction:column;gap:8px;margin-top:8px;padding:10px 12px;background:var(--surface2);border-radius:8px">
-          <div style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-muted)">
-            <span>Elke</span>
-            <input type="number" id="evRecurInterval" min="1" max="99" value="1" style="width:64px;padding:4px 6px"/>
-            <span id="evRecurUnit">dag</span>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:4px">
-            <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;cursor:pointer;user-select:none">
-              <input type="radio" name="evRecurEnd" value="never" checked onchange="onEventRecurEndChange()" style="width:auto;margin:0"/>
-              Nooit eindigen
-            </label>
-            <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;cursor:pointer;user-select:none">
-              <input type="radio" name="evRecurEnd" value="until" onchange="onEventRecurEndChange()" style="width:auto;margin:0"/>
-              <span>Eindigt op</span>
-              <input type="date" id="evRecurUntil" disabled style="flex:1;padding:4px 6px"/>
-            </label>
-            <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;cursor:pointer;user-select:none">
-              <input type="radio" name="evRecurEnd" value="count" onchange="onEventRecurEndChange()" style="width:auto;margin:0"/>
-              <span>Na</span>
-              <input type="number" id="evRecurCount" disabled min="1" max="999" value="10" style="width:64px;padding:4px 6px"/>
-              <span>keer</span>
-            </label>
-          </div>
-          <div style="font-size:11px;color:var(--text-hint);line-height:1.4">
-            ↻ Wijzigingen aan een herhalende afspraak gelden voor de hele serie.
-          </div>
-        </div>
-      </div>
-      <div>
-        <label class="ev-lbl">Kleur</label>
-        <div class="ev-color-row" id="evColorRow"></div>
-      </div>
-    </div>
-    <div class="modal-footer" style="margin-top:18px;align-items:center">
-      <button class="btn btn-sm btn-danger" id="evDeleteBtn" onclick="deleteEvent()" style="display:none">Verwijderen</button>
-      <div style="margin-left:auto;display:flex;gap:8px">
-        <button class="btn btn-sm" onclick="closeEventModal()">Annuleer</button>
-        <button class="btn btn-sm btn-primary" onclick="saveEvent()">Opslaan</button>
-      </div>
-    </div>
-  </div>
-</div>
 
-<!-- ── ICS import preview modal ── -->
-<div class="modal-bg" id="icsImportModal">
-  <div class="modal" style="max-width:520px;padding:22px">
-    <h3 style="font-family:var(--font-display);font-size:18px;font-weight:700;margin-bottom:8px">Agenda importeren</h3>
-    <p style="font-size:12.5px;color:var(--text-muted);line-height:1.55;margin-bottom:14px">
-      Exporteer je agenda uit Outlook of Google als <code>.ics</code> bestand en sleep het hieronder.
-      Alle afspraken worden gekopieerd naar deze app — daarna kun je ze hier bewerken.
-    </p>
-    <div class="ics-drop-zone" id="icsDropZone" onclick="document.getElementById('icsFileInput').click()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" width="36" height="36"><path d="M12 3v12m-4-4l4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
-      <div style="font-size:13px;font-weight:600;margin-top:8px">Klik of sleep een .ics bestand hier</div>
-      <div style="font-size:11.5px;color:var(--text-muted);margin-top:4px">Outlook → Bestand → Opslaan als → iCalendar (.ics)<br>Google → Instellingen → Importeren &amp; exporteren → Exporteren</div>
-      <input type="file" id="icsFileInput" accept=".ics,text/calendar" style="display:none" onchange="handleIcsFile(this.files[0])"/>
-    </div>
-    <div id="icsPreview" style="display:none;margin-top:14px"></div>
-    <div class="modal-footer" style="margin-top:18px">
-      <div></div>
-      <div style="margin-left:auto;display:flex;gap:8px">
-        <button class="btn btn-sm" onclick="closeIcsImport()">Annuleer</button>
-        <button class="btn btn-sm btn-primary" id="icsImportBtn" onclick="confirmIcsImport()" disabled>Importeer</button>
-      </div>
-    </div>
-  </div>
-</div>
 
 <!-- ── Global search modal (Ctrl/Cmd+K) ── -->
 <div class="modal-bg" id="globalSearchModal">
   <div class="modal global-search-modal" style="max-width:560px;padding:0;overflow:hidden">
     <div class="gs-input-wrap">
       <svg class="gs-search-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" width="16" height="16"><circle cx="7" cy="7" r="4.5"/><line x1="10.5" y1="10.5" x2="14" y2="14"/></svg>
-      <input type="text" id="globalSearchInput" placeholder="Zoek door notities, taken, agenda en klanten..." autocomplete="off"/>
+      <input type="text" id="globalSearchInput" placeholder="Zoek door notities, taken en klanten..." autocomplete="off"/>
       <kbd class="gs-kbd">Esc</kbd>
     </div>
     <div class="gs-results" id="globalSearchResults">
@@ -8161,53 +7280,6 @@ textarea { line-height: 1.6; resize: vertical; }
   </div>
 </div>
 
-<!-- ── Calendar sources modal ── -->
-<div class="modal-bg" id="calSourcesModal">
-  <div class="modal" style="max-width:480px;display:flex;flex-direction:column">
-    <h3 style="margin-bottom:14px">Agenda's beheren</h3>
-
-    <p style="font-size:11.5px;color:var(--text-muted);line-height:1.5;margin-bottom:14px">
-      Voor de meeste gebruikers is het eenvoudiger om afspraken direct in deze app aan te maken
-      (knop <strong>+ Nieuwe afspraak</strong>) of een bestaand <strong>.ics</strong> bestand te
-      importeren. Externe agenda-bronnen zijn voor wie automatisch wil syncen.
-    </p>
-
-    <!-- iCal sources (URL-based — works for Outlook + Google secret iCal links) -->
-    <div class="cal-section-label">iCal links</div>
-    <div id="calSourcesList"></div>
-    <button class="btn btn-sm" onclick="showAddIcalForm()" style="width:100%;margin-top:8px">+ iCal link toevoegen</button>
-    <div id="calAddForm" style="display:none;margin-top:10px"></div>
-
-    <!-- Outlook agenda — instructies om iCal-link te publiceren -->
-    <details style="margin-top:18px;border-top:1px solid var(--border);padding-top:14px">
-      <summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--text-muted);user-select:none">📅 Outlook-agenda koppelen via iCal-link</summary>
-      <div style="margin-top:10px;font-size:12px;color:var(--text);line-height:1.55">
-        <p style="margin-bottom:10px">
-          Voor live synchronisatie publiceer je je Outlook-agenda als iCal-link en plak je die hierboven.
-          Werkt voor zowel persoonlijke (<em>outlook.com / hotmail.com / live.com</em>) als werk-/school-accounts
-          (mits niet door IT geblokkeerd).
-        </p>
-        <ol style="padding-left:20px;line-height:1.65;margin:0 0 10px">
-          <li>Ga naar <a href="https://outlook.live.com/calendar/0/options/calendar/SharedCalendars" target="_blank" rel="noopener" style="color:var(--accent)">outlook.live.com</a> (persoonlijk) of <a href="https://outlook.office.com/calendar/options/calendar/SharedCalendars" target="_blank" rel="noopener" style="color:var(--accent)">outlook.office.com</a> (werk)</li>
-          <li>Klik op het tandwiel rechtsboven → <strong>View all Outlook settings</strong></li>
-          <li>Open <strong>Calendar → Shared calendars</strong></li>
-          <li>Bij <em>Publish a calendar</em>: kies de agenda + permissie <strong>"Can view all details"</strong> → <strong>Publish</strong></li>
-          <li>Kopieer de <strong>ICS-link</strong> (eindigt op <code>.ics</code>) — niet de HTML-link</li>
-          <li>Plak hierboven via <strong>+ iCal link toevoegen</strong></li>
-        </ol>
-        <p style="font-size:11px;color:var(--text-hint);margin:0">
-          ⓘ Microsoft cached publicatie-feeds, updates kunnen 15-30 min vertraging hebben.
-          Is de publish-optie grijs of weg? Dan heeft IT het op tenant-niveau uitgezet
-          — gebruik in dat geval handmatig <em>File → Save Calendar (.ics)</em> en importeer via de ICS-import knop.
-        </p>
-      </div>
-    </details>
-    <div class="modal-footer" style="margin-top:auto;padding-top:14px">
-      <div></div>
-      <button class="btn btn-sm" onclick="closeCalSourcesModal()">Sluiten</button>
-    </div>
-  </div>
-</div>
 
 <!-- ── Wekelijkse Review (AI) ── -->
 <div class="modal-bg" id="weeklyReviewModal" onclick="if(event.target===this)closeWeeklyReviewModal()">
@@ -8254,8 +7326,8 @@ textarea { line-height: 1.6; resize: vertical; }
       Slim toevoegen
     </h3>
     <p class="quickadd-hint">
-      Beschrijf in normale taal wat je wil. AI extraheert taken en/of afspraken met klant, deadline, prioriteit en tijd.<br>
-      Voorbeeld: <code>Meeting met Boskalis dinsdag 10u over Q3 dashboard, deadline volgende vrijdag voor het concept</code>
+      Beschrijf in normale taal wat je wil. AI maakt er taken van, met klant, deadline en prioriteit.<br>
+      Voorbeeld: <code>Offerte Boskalis afronden voor vrijdag, hoge prioriteit: scope beschrijven en tarief afstemmen</code>
     </p>
     <textarea id="quickAddAIInput" placeholder="Wat wil je toevoegen?" rows="3"
       onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();parseQuickAddAI();}"></textarea>
@@ -8440,8 +7512,6 @@ textarea { line-height: 1.6; resize: vertical; }
      "MODULE: TODO / KANBAN"
      "MODULE: NOTES"
      "MODULE: CHECKLIST"
-     "MODULE: AGENDA"         iCal-bronnen, week/dag/maand; "NATIVE EVENT CRUD",
-                              "ICS FILE IMPORT" -- diepe duik: docs/agenda.md
      "MODULE: UREN"           tijdschrijven + Excel-export
      "FACTURATIE"             facturen uit uren, sjabloonbouwer, debiteuren,
                               btw-overzicht; "FACTUUR MAILEN VIA GMAIL"
@@ -8574,123 +7644,6 @@ function pinVersleutelingWeg(){
 
 
 const LS_BACKUP_KEY='herling_analytics_local_backup';
-const CORS_PROXY='https://corsproxy.io/?';
-/* Pre-normaliseer iCal-URLs: sommige users plakken URLs met %40 al
-   geëncodeerd (bv. uit Google Calendar settings). Onze encodeURIComponent
-   maakt daar dan %2540 van — proxies decoderen 1× → upstream ziet %40
-   letterlijk in de path en geeft 404. decodeURIComponent normalizeert. */
-function _normalizeIcalUrl(url){
-  try{return decodeURIComponent(url);}catch(e){return url;}
-}
-
-/* Fallback proxies — verschillende limieten en blokkeringspatronen.
-   Outlook 365 calendars worden door sommige proxies geblokkeerd of
-   rate-limited; daarom een keten van 4 onafhankelijke services.
-   Volgorde = volgorde van probeer-en. */
-const ICAL_PROXIES=[
-  /* corsproxy.io: snelst, maar ~1MB limiet (HTTP 413 op grote feeds) */
-  { name:'corsproxy.io',
-    build: url=>'https://corsproxy.io/?'+encodeURIComponent(_normalizeIcalUrl(url)),
-    parse: async resp=>resp.text() },
-  /* allorigins.win/raw: handelt grote payloads, soms geblokkeerd door MS */
-  { name:'allorigins.win/raw',
-    build: url=>'https://api.allorigins.win/raw?url='+encodeURIComponent(_normalizeIcalUrl(url)),
-    parse: async resp=>resp.text() },
-  /* allorigins.win/get: zelfde service maar JSON-wrapped — werkt soms wanneer /raw faalt */
-  { name:'allorigins.win/get',
-    build: url=>'https://api.allorigins.win/get?url='+encodeURIComponent(_normalizeIcalUrl(url)),
-    parse: async resp=>{ const j=await resp.json(); return j.contents||''; } },
-  /* codetabs: alternatief, andere infra dan allorigins */
-  { name:'codetabs.com',
-    build: url=>'https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(_normalizeIcalUrl(url)),
-    parse: async resp=>resp.text() },
-];
-
-/* Detecteert of een non-iCal response een upstream HTML-foutpagina is
-   en haalt daar de HTTP status / titel uit, zodat de gebruiker een
-   begrijpelijke fout ziet ("Error 404 (Not Found)") ipv een vage
-   "geen iCal-data" melding. */
-function _detectUpstreamError(text){
-  if(!text)return null;
-  /* Google's robot-page: "Error 404 (Not Found)!!1" */
-  const tm=text.match(/<title>([^<]{1,120})<\/title>/i);
-  if(tm){
-    const cleaned=tm[1].replace(/!!\d+\s*$/,'').trim();
-    if(/error|not found|forbidden|unauthor|denied|signin|login/i.test(cleaned))return cleaned;
-  }
-  /* Sommige proxies wrappen 4xx in JSON met status; vang dat ook */
-  const sm=text.match(/HTTP[\/\s]+\d+\.?\d*\s+(\d{3})/);
-  if(sm)return`HTTP ${sm[1]} bij upstream`;
-  return null;
-}
-/* Proxy-cache per iCal URL: onthoud welke proxy het eerder deed,
-   zodat volgende fetches direct via die proxy gaan ipv parallel-race. */
-const LS_PROXY_CACHE_KEY='herling_ical_proxy_cache';
-function _getProxyCache(){
-  try{return JSON.parse(localStorage.getItem(LS_PROXY_CACHE_KEY)||'{}');}catch(e){return{};}
-}
-function _setCachedProxy(url,proxyName){
-  try{const c=_getProxyCache();c[url]=proxyName;localStorage.setItem(LS_PROXY_CACHE_KEY,JSON.stringify(c));}catch(e){}
-}
-function _clearCachedProxy(url){
-  try{const c=_getProxyCache();delete c[url];localStorage.setItem(LS_PROXY_CACHE_KEY,JSON.stringify(c));}catch(e){}
-}
-
-/* Single-proxy fetch met timeout. Succes → {proxy, text}. Fail → throws. */
-const PROXY_TIMEOUT_MS=12000;
-async function _fetchViaProxy(proxy,url){
-  const ctrl=new AbortController();
-  const tid=setTimeout(()=>ctrl.abort(),PROXY_TIMEOUT_MS);
-  try{
-    const resp=await fetch(proxy.build(url),{cache:'no-store',signal:ctrl.signal});
-    if(!resp.ok)throw new Error(`HTTP ${resp.status}`);
-    const text=await proxy.parse(resp);
-    if(!text||!text.includes('BEGIN:VCALENDAR')){
-      /* Bij HTML-foutpagina van Google/Outlook: surface de echte upstream error
-         zodat de user direct ziet wat er mis is (bv. "Error 404 (Not Found)"
-         ipv vage "geen iCal-data") */
-      const upstream=_detectUpstreamError(text);
-      throw new Error(upstream||'geen iCal-data');
-    }
-    return{proxy,text};
-  }finally{clearTimeout(tid);}
-}
-
-/* Centrale iCal-fetcher:
-   1. Probeer eerst de gecachte proxy (snel pad: ~1-2s)
-   2. Bij cache miss/fail: parallel-race ALLE proxies (Promise.any),
-      eerste succesvolle wint en wordt gecached
-   3. Bij volledige fail: gedetailleerde error per proxy */
-async function fetchICalText(url,sourceName='iCal'){
-  const cachedName=_getProxyCache()[url];
-  const cachedProxy=cachedName?ICAL_PROXIES.find(p=>p.name===cachedName):null;
-
-  /* Stap 1 — known-good proxy first */
-  if(cachedProxy){
-    try{
-      const{proxy,text}=await _fetchViaProxy(cachedProxy,url);
-      console.info(`[iCal] ${sourceName} via ${proxy.name} (cached, ${(text.length/1024).toFixed(1)}KB)`);
-      return text;
-    }catch(e){
-      console.warn(`[iCal] cached ${cachedName} faalde voor ${sourceName} (${e.message}), nu parallel race`);
-      _clearCachedProxy(url);
-    }
-  }
-
-  /* Stap 2 — parallel race over alle proxies */
-  const attempts=ICAL_PROXIES.map(p=>_fetchViaProxy(p,url));
-  try{
-    const{proxy,text}=await Promise.any(attempts);
-    _setCachedProxy(url,proxy.name);
-    console.info(`[iCal] ${sourceName} via ${proxy.name} (parallel, ${(text.length/1024).toFixed(1)}KB)`);
-    return text;
-  }catch(aggErr){
-    const errs=(aggErr&&aggErr.errors)||[];
-    const failures=ICAL_PROXIES.map((p,i)=>`${p.name}: ${errs[i]?.message||'fout'}`);
-    throw new Error(`${sourceName}: alle ${ICAL_PROXIES.length} proxies faalden — ${failures.join(' | ')}`);
-  }
-}
-
 const CLIENT_COLORS=[
   {bg:'#ffd6cc',tx:'#7a2b15'},{bg:'#cce5ff',tx:'#0c4a7c'},
   {bg:'#d1ecdf',tx:'#0e5a3f'},{bg:'#e3dcff',tx:'#3c3489'},
@@ -8709,7 +7662,7 @@ const DEFAULT_COLUMNS=[
    STATE
    ═══════════════════════════════════════════════════ */
 let saveTimer=null;
-let rawState={tasks:{},notes:{},checklist:{},uren:{},facturen:{},agenda:{events:[]},settings:{}};
+let rawState={tasks:{},notes:{},checklist:{},uren:{},facturen:{},settings:{}};
 let checklistState={items:[],showArchived:false,sortBy:'newest',groupByPriority:true};
 let clFilters={prio:null,clientId:null,period:null,search:''};
 /* Staat de filterbalk open? Alleen van belang op een telefoon, waar hij
@@ -8763,19 +7716,6 @@ let urenTplCalMonth=new Date().getMonth();
 let urenTplCalSelected=null;
 let urenTplEditing=null;
 
-/* Calendar */
-/* Week op een bureaublad, Dag op een telefoon. Zeven kolommen in 375px
-   geven 42px per dag: genoeg voor een tijd en verder niets. De dagweergave
-   is één brede kolom waarin een titel wél past, en is daarmee de enige die
-   op dat formaat meteen bruikbaar is. Week en Maand blijven een tik weg.
-   Dit werd al aangekondigd in de kop van MOBILE LAYOUT ("agenda
-   day-default") maar stond er nooit. */
-let agendaView=window.matchMedia('(max-width: 768px)').matches?'day':'week'; // 'day'|'week'|'month'
-let agendaWeekOffset=0,agendaDayOffset=0,agendaMonthOffset=0;
-let cachedWeekEvents=[];
-let calRefreshTimer=null;
-let icalBgInterval=null;
-let lastIcalRefresh=null;
 let newClientColorIdx=0;
 
 /* ═══════════════════════════════════════════════════
@@ -8820,6 +7760,10 @@ document.addEventListener('change',appDispatchChange);
 function uid(){return 'id_'+Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);}
 function ntuid(){return 'nt_'+Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-4);}
 function escapeHtml(s){return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+/* Lokale datum als YYYY-MM-DD. Bewust niet toISOString(): die rekent naar
+   UTC en levert in onze tijdzone 's avonds de dag ervoor. Stond eerst in
+   de agenda-module; Uren en Facturen leunen er ook op. */
+function dateStr(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 
 /* ─── Dropdown viewport clamping ────────────────────────────────────────────
    Voor dropdown menus die met `position:absolute; right:0` of `left:0`
@@ -8931,7 +7875,6 @@ function stateOmvang(st){
   n+=((st.uren||{}).entries||[]).length;
   n+=((st.facturen||{}).invoices||[]).length;
   n+=((st.tasks||{}).clients||[]).length;
-  n+=((st.agenda||{}).events||[]).length;
   Object.values((st.tasks||{}).projects||{}).forEach(p=>{
     (p&&p.columns||[]).forEach(c=>{n+=(c.items||[]).length;});
   });
@@ -8958,7 +7901,7 @@ async function loadGist(){
         return 'ok';
       } else {
         rawState={tasks:{},notes:{tree:[],activeId:null,collapsed:{}},checklist:{},
-                  uren:{entries:[],templates:[]},facturen:{},agenda:{events:[]},settings:{}};
+                  uren:{entries:[],templates:[]},facturen:{},settings:{}};
         hydrateerState();
         setSync('saved','Nieuwe administratie');
       }
@@ -9099,13 +8042,11 @@ function hydrateerState(){
   if(!factuurState.invoices)factuurState.invoices=[];
   factuurSettings();
   factuurMailsAanvullen();
-  if(!rawState.agenda)rawState.agenda={events:[]};
   if(!rawState.settings)rawState.settings={};
   /* Restant van de afgeschafte pincode: staat de vlag er nog maar is er
      geen versleuteld blok meer, dan valt er niets te ontgrendelen. Weg
      ermee, anders reist hij eeuwig mee. */
   if(rawState.settings.versleuteld&&!rawState.geheim)delete rawState.settings.versleuteld;
-  migrateCalSettings();
 }
 
 /* ── Is het lokale werk al in Drive aangekomen? ──
@@ -9210,7 +8151,7 @@ function herstelDownload(){
 /* Zolang een oud versleuteld blok niet is uitgepakt staan facturen, uren
    en de gevoelige klantvelden leeg in het geheugen. Die mogen de vorige
    kopie niet overschrijven: dan bewaar je leeg over goed heen. De rest van
-   de state (taken, notities, checklist, agenda) is wél compleet en gaat
+   de state (taken, notities, checklist) is wél compleet en gaat
    gewoon mee. */
 function houdGeheimeDelenUitVorige(nieuw,vorig){
   if(!vorig)return nieuw;
@@ -9245,9 +8186,11 @@ function verzamelModuleState(){
 }
 
 /* De state zoals hij nu in het geheugen staat, met alle modules erin. */
+/* Wat er van de oude agenda-module nog in rawState.agenda staat blijft
+   ongemoeid meereizen naar Drive: niet meer in gebruik, wel bewaard, zodat
+   het terug te halen is als de module ooit terugkomt. */
 function huidigeStateSnapshot(){
   verzamelModuleState();
-  if(!rawState.agenda)rawState.agenda={events:[]};
   return rawState;
 }
 
@@ -9494,17 +8437,6 @@ function doGlobalSearch(query){
         clientId:item.clientId,done:item.done});
     }
   });
-  /* Native agenda events */
-  (rawState.agenda?.events||[]).forEach(ev=>{
-    const titleHit=ev.title&&ev.title.toLowerCase().includes(q);
-    const locHit=ev.location&&ev.location.toLowerCase().includes(q);
-    const descHit=ev.description&&ev.description.toLowerCase().includes(q);
-    if(titleHit||locHit||descHit){
-      results.push({type:'event',id:ev.id,title:ev.title||'(geen titel)',
-        snippet:`${ev.start||''}${ev.location?' · '+ev.location:''}`,
-        clientId:ev.clientId});
-    }
-  });
   /* Clients */
   (kanbanState?.clients||[]).forEach(c=>{
     if(c.name.toLowerCase().includes(q)){
@@ -9559,9 +8491,6 @@ function gsActivate(idx){
     setTimeout(()=>{notesState.activeId=r.id;renderNotesModule();},50);
   } else if(r.type==='checklist'){
     switchModule('checklist');
-  } else if(r.type==='event'){
-    switchModule('agenda');
-    setTimeout(()=>openEventModalEdit(r.id),80);
   } else if(r.type==='client'){
     activeClientFilter=r.id;
     renderClientFilters();
@@ -9679,7 +8608,6 @@ async function handleRestoreFile(file){
     }
     if(incoming.checklist?.items)counts.push(`${incoming.checklist.items.length} checklist items`);
     if(incoming.tasks?.clients)counts.push(`${incoming.tasks.clients.length} klanten`);
-    if(incoming.agenda?.events)counts.push(`${incoming.agenda.events.length} agenda items`);
     const summary=counts.length?counts.join(' · '):'Bestand bevat data';
     const ts=payload._exportedAt?new Date(payload._exportedAt).toLocaleString('nl-NL'):'onbekend';
     if(!confirm(`Backup terugzetten?\n\nGeëxporteerd: ${ts}\nInhoud: ${summary}\n\nDe huidige data wordt OVERSCHREVEN. Doorgaan?`))return;
@@ -9695,7 +8623,6 @@ async function handleRestoreFile(file){
     factuurState=incoming.facturen||factuurState;
     if(!factuurState.invoices)factuurState.invoices=[];
     factuurSettings();
-    if(!rawState.agenda)rawState.agenda={events:[]};
     /* Meteen wegschrijven, zodat de teruggezette back-up ook in Drive staat */
     scheduleSave();
     renderAll();
@@ -9854,7 +8781,6 @@ function switchModule(mod){
   /* Module-specific init */
   if(mod==='dashboard')renderDashboard();
   else if(mod==='notes')renderNotesModule();
-  else if(mod==='agenda')renderAgendaModule();
   else if(mod==='checklist')renderChecklistModule();
   else if(mod==='uren')renderUrenModule();
   else if(mod==='facturen')renderFacturenModule();
@@ -9876,14 +8802,6 @@ function updateNavBadges(){
   /* Checklist: overdue items only (most actionable signal) */
   const today=new Date().toISOString().slice(0,10);
   const overdue=(checklistState?.items||[]).filter(i=>!i.done&&!i.archived&&i.deadline&&i.deadline<today).length;
-  /* Agenda: today's appointments from cached events */
-  let today2=null;
-  if(Array.isArray(cachedWeekEvents)&&cachedWeekEvents.length){
-    today2=cachedWeekEvents.filter(ev=>{
-      const ds=ev.start?.dateTime?ev.start.dateTime.slice(0,10):ev.start?.date;
-      return ds===today;
-    }).length;
-  }
   const setBadge=(id,n)=>{
     const el=document.getElementById(id);if(!el)return;
     if(!n){el.style.display='none';return;}
@@ -9891,7 +8809,6 @@ function updateNavBadges(){
     el.textContent=n>99?'99+':String(n);
   };
   setBadge('navBadgeChecklist',overdue);
-  setBadge('navBadgeAgenda',today2);
   /* Facturen: alleen wat aandacht vraagt — over de vervaldatum */
   if(typeof factuurState!=='undefined'&&factuurState.invoices){
     setBadge('navBadgeFacturen',
@@ -10193,7 +9110,7 @@ function toggleSidebarMobile(force){
 /* ─ Update mobile top bar title + bottom-nav active state ─ */
 const MOBILE_MODULE_TITLES={
   dashboard:'Dashboard',todo:'Projecten',notes:'Notities',
-  agenda:'Agenda',checklist:'Checklist',
+  checklist:'Checklist',
   uren:'Uren',facturen:'Facturen'
 };
 function updateMobileChrome(mod){
@@ -10205,14 +9122,12 @@ function updateMobileChrome(mod){
 function updateMobileNavBadges(){
   /* Mirror desktop nav badges to the mobile bottom bar */
   const cl=document.getElementById('navBadgeChecklist')?.textContent||'';
-  const ag=document.getElementById('navBadgeAgenda')?.textContent||'';
   const set=(id,txt)=>{
     const el=document.getElementById(id);if(!el)return;
     if(!txt){el.style.display='none';return;}
     el.style.display='';el.textContent=txt;
   };
   set('mobileNavBadgeChecklist',cl);
-  set('mobileNavBadgeAgenda',ag);
 }
 
 /* ─ Color scheme override (4 states: auto / light / dark / schedule) ─
@@ -10372,10 +9287,6 @@ function setClientFilter(id){
     }
     renderNotesModule();
   }
-  else if(activeModule==='agenda'){
-    renderAgendaSourceBar();
-    fetchAndRenderView();
-  }
   else if(activeModule==='checklist')renderChecklistModule();
   else if(activeModule==='dashboard')renderDashboard();
 }
@@ -10448,7 +9359,6 @@ function wireClientFilter(host){
       renderClientFilters();
       if(activeModule==='todo')renderBoard();
       else if(activeModule==='notes')renderNotesModule();
-      else if(activeModule==='agenda'){renderAgendaSourceBar();fetchAndRenderView();}
       else if(activeModule==='checklist')renderChecklistModule();
       else if(activeModule==='dashboard')renderDashboard();
     });
@@ -10521,17 +9431,12 @@ function collectClientReferences(id){
   })(notesState?.tree||[]);
   /* Checklist items */
   (checklistState?.items||[]).forEach(item=>{if(item.clientId===id)refs.push({obj:item});});
-  /* Native agenda events */
-  (rawState.agenda?.events||[]).forEach(ev=>{if(ev.clientId===id)refs.push({obj:ev});});
-  /* iCal sources mapped to a client */
-  (rawState.settings?.calSources||[]).forEach(s=>{if(s.clientId===id)refs.push({obj:s});});
   return refs;
 }
 function rerenderActiveModule(){
   if(activeModule==='todo')renderBoard();
   else if(activeModule==='notes')renderNotesModule();
   else if(activeModule==='checklist')renderChecklistModule();
-  else if(activeModule==='agenda'){renderAgendaSourceBar();fetchAndRenderView();}
   else if(activeModule==='dashboard')renderDashboard();
 }
 function deleteClient(id){
@@ -10578,18 +9483,6 @@ function openClientDash(id){
   const openCl=allCl.filter(i=>!i.done);
   const doneCl=allCl.filter(i=>i.done);
   const overdueCl=openCl.filter(i=>i.deadline&&i.deadline<today);
-  const events=(rawState?.agenda?.events||[]).filter(e=>e.clientId===id);
-  /* Sort upcoming events */
-  events.sort((a,b)=>{
-    const ad=a.start?.dateTime||a.start?.date||'';
-    const bd=b.start?.dateTime||b.start?.date||'';
-    return ad.localeCompare(bd);
-  });
-  const upcoming=events.filter(e=>{
-    const ds=e.start?.dateTime?e.start.dateTime.slice(0,10):e.start?.date;
-    return ds&&ds>=today;
-  }).slice(0,5);
-
   /* Build header */
   const hdr=document.getElementById('clientDashHeader');
   hdr.innerHTML=`
@@ -10598,7 +9491,7 @@ function openClientDash(id){
       <div style="flex:1;min-width:0">
         <div style="font-family:var(--font-display);font-size:18px;font-weight:700;color:var(--text)">${escapeHtml(c.name)}</div>
         <div style="font-size:11.5px;color:var(--text-muted);margin-top:2px">
-          ${openCl.length} open · ${doneCl.length} klaar · ${allNotes.length} notitie${allNotes.length===1?'':'s'} · ${events.length} afspraken
+          ${openCl.length} open · ${doneCl.length} klaar · ${allNotes.length} notitie${allNotes.length===1?'':'s'}
         </div>
       </div>
       <button class="btn btn-sm" type="button" onclick="closeClientDash()" aria-label="Sluiten">✕</button>
@@ -10609,18 +9502,16 @@ function openClientDash(id){
   let html='';
 
   /* KPIs strip */
-  html+=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:18px">
+  html+=`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:18px">
     <div class="cd-kpi"><div class="cd-kpi-num">${openCl.length}</div><div class="cd-kpi-lbl">Open taken</div></div>
     <div class="cd-kpi"${overdueCl.length?' style="background:rgba(229,75,75,.08)"':''}><div class="cd-kpi-num"${overdueCl.length?' style="color:#e54b4b"':''}>${overdueCl.length}</div><div class="cd-kpi-lbl">Vervallen</div></div>
     <div class="cd-kpi"><div class="cd-kpi-num">${allNotes.length}</div><div class="cd-kpi-lbl">Notities</div></div>
-    <div class="cd-kpi"><div class="cd-kpi-num">${upcoming.length}</div><div class="cd-kpi-lbl">Afspraken</div></div>
   </div>`;
 
   /* Quick actions */
   html+=`<div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap">
     <button class="btn btn-sm btn-primary" type="button" onclick="closeClientDash();activeClientFilter='${c.id}';switchModule('checklist');renderClientFilters();">→ Open in Checklist</button>
     <button class="btn btn-sm" type="button" onclick="closeClientDash();activeClientFilter='${c.id}';switchModule('notes');renderClientFilters();">→ Open in Notities</button>
-    <button class="btn btn-sm" type="button" onclick="closeClientDash();activeClientFilter='${c.id}';switchModule('agenda');renderClientFilters();">→ Open in Agenda</button>
     <button class="btn btn-sm" type="button" onclick="copyLastNoteForClient('${c.id}')" title="Kopieer een nieuwe notitie op basis van de laatste">⎘ Notitie kopiëren</button>
   </div>`;
 
@@ -10655,23 +9546,6 @@ function openClientDash(id){
     html+=`</div>`;
   } else {
     html+=`<div style="color:var(--text-muted);font-size:13px;margin-bottom:18px;padding:8px 0">Geen notities.</div>`;
-  }
-
-  /* Upcoming events */
-  html+=`<h4 style="font-size:12.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin:0 0 8px">Komende afspraken (${upcoming.length})</h4>`;
-  if(upcoming.length){
-    html+=`<div style="display:flex;flex-direction:column;gap:6px">`;
-    upcoming.forEach(ev=>{
-      const ds=ev.start?.dateTime?ev.start.dateTime.slice(0,10):ev.start?.date||'';
-      const ts=ev.start?.dateTime?ev.start.dateTime.slice(11,16):'';
-      html+=`<div class="cd-row">
-        <span style="flex:1">${escapeHtml(ev.summary||'(geen titel)')}</span>
-        <span style="font-size:11px;color:var(--text-muted)">${escapeHtml(ds)}${ts?' '+ts:''}</span>
-      </div>`;
-    });
-    html+=`</div>`;
-  } else {
-    html+=`<div style="color:var(--text-muted);font-size:13px;padding:8px 0">Geen geplande afspraken.</div>`;
   }
 
   body.innerHTML=html;
@@ -10729,7 +9603,7 @@ function renderSidebarClients(){}
                     werken de volledige checklistmodule bij als díe
                     op dat moment in beeld staat.
      ═══ VIEW  ═══  renderDashboard zet vijf onderdelen neer:
-                    hero, KPI-strip, Notities, Agenda, Checklist.
+                    hero, KPI-strip, Notities, Checklist.
 
    Acties lopen via de app-brede dispatcher: data-action voor vinkjes,
    moduleknoppen en taak-toevoegen, data-change voor de selects voor
@@ -10740,7 +9614,6 @@ function renderDashboard(){
   renderDashHero();
   renderDashKpis();
   renderDashNotes();
-  renderDashCal();
   renderDashChecklist();
   dashCardsInit();
   renderDashCardCounts();
@@ -10759,7 +9632,7 @@ const DASH_MOBIEL_MAX=768;
 
 function dashCardToggle(e,hdr){
   if(window.innerWidth>DASH_MOBIEL_MAX)return;
-  /* De kop bevat ook eigen knoppen ('Bekijk ↗', het tandwiel bij Agenda).
+  /* De kop bevat ook eigen knoppen ('Bekijk ↗').
      Een tik daarop hoort zijn eigen actie te doen, niet in te klappen. */
   if(e&&e.target&&e.target.closest&&e.target.closest('button'))return;
   const card=hdr.closest('.card');
@@ -10801,7 +9674,6 @@ function renderDashCardCounts(){
   };
   set('dashCountNotes',(s.allPages||[]).length);
   set('dashCountChecklist',s.openClCount);
-  set('dashCountAgenda',s.meetingsToday);
 }
 
 /* ─── Dashboard: Hero + KPI derived values ───────────────────────────────── */
@@ -10813,15 +9685,6 @@ function dashDerivedStats(){
   const doneCl=(checklistState?.items||[]).filter(i=>i.done&&!i.archived).length;
   const totalCl=openCl.length+doneCl;
 
-  /* Agenda today — from cached events if present */
-  let meetingsToday=null;
-  if(Array.isArray(cachedWeekEvents)&&cachedWeekEvents.length){
-    meetingsToday=cachedWeekEvents.filter(ev=>{
-      const ds=ev.start?.dateTime?ev.start.dateTime.slice(0,10):ev.start?.date;
-      return ds===today;
-    }).length;
-  }
-
   /* Notes — flat list of pages for sparkline */
   function flatPages(nodes){
     const out=[];
@@ -10830,7 +9693,7 @@ function dashDerivedStats(){
   }
   const allPages=flatPages(notesState?.tree||[]);
 
-  return{openClCount:openCl.length,overdueCl,doneCl,totalCl,meetingsToday,allPages};
+  return{openClCount:openCl.length,overdueCl,doneCl,totalCl,allPages};
 }
 
 function renderDashHero(){
@@ -10847,7 +9710,6 @@ function renderDashHero(){
   document.getElementById('todayStr').textContent=(name?greet+', '+name+' — ':greet+' — ')+weekday;
 
   const parts=[];
-  if(s.meetingsToday!==null)parts.push(`<span class="hl-num">${s.meetingsToday}</span> afspraken`);
   parts.push(`<span class="hl-num">${s.openClCount}</span> open ${s.openClCount===1?'taak':'taken'}`);
   if(s.overdueCl>0)parts.push(`<span class="hl-num">${s.overdueCl}</span> vervallende`);
   hl.innerHTML=parts.join(' · ');
@@ -11002,7 +9864,6 @@ function renderDashKpis(){
   };
   set('dashKpiOpen',    s.openClCount,                          s.totalCl?`van ${s.totalCl} totaal`:null, 'flat');
   set('dashKpiDue',     s.overdueCl,                            s.openClCount?`van ${s.openClCount} open`:null, s.overdueCl>0?'down':'flat');
-  set('dashKpiMeetings',s.meetingsToday!==null?s.meetingsToday:'—', s.meetingsToday===null?'geen agenda data':'vandaag', 'flat');
   /* Bedragen horen niet op het dashboard: dat scherm staat open zodra
      je inlogt, ook als je bij een klant zit. Openstaande facturen staan
      in de facturenmodule onder Debiteuren. */
@@ -11144,25 +10005,6 @@ function renderDashNotes(){
   }).join('');
 }
 
-function renderDashCal(){
-  const body=document.getElementById('dashCalBody');
-  const settingsBtn=document.getElementById('dashCalSettingsBtn');
-  migrateCalSettings();
-  const sources=(rawState.settings?.calSources||[]).filter(s=>s.enabled!==false&&s.type==='ical'&&s.url);
-  if(settingsBtn)settingsBtn.style.display=sources.length?'':'none';
-  if(!sources.length){
-    body.innerHTML=`<div class="placeholder">
-      <div class="placeholder-icon">📅</div>
-      <p>Koppel een agenda om je afspraken te zien.</p>
-      <button class="btn btn-sm btn-primary" data-action="switchModule" data-arg1="agenda">Koppelen ↗</button>
-    </div>`;
-    return;
-  }
-  fetchDashIcalCal(body);
-}
-
-function toggleDashCalSettings(){openCalSourcesModal();}
-
 /* ═══════════════════════════════════════════════════
    RENDER ALL — volledige hertekening, draait na elke load
    ═══════════════════════════════════════════════════ */
@@ -11174,7 +10016,7 @@ function renderAll(){
   switchModule(moduleUitHash());
 }
 
-const GELDIGE_MODULES=['dashboard','notes','agenda','checklist','uren','facturen'];
+const GELDIGE_MODULES=['dashboard','notes','checklist','uren','facturen'];
 function moduleUitHash(){
   const h=(location.hash||'#dashboard').slice(1);
   return GELDIGE_MODULES.includes(h)?h:'dashboard';
@@ -11207,7 +10049,6 @@ Object.assign(APP_CHANGE_ACTIONS,{
    ═══════════════════════════════════════════════════ */
 async function boot(){
   await loadGist();
-  startIcalBackgroundRefresh();
 }
 
 /* ╔══════════════════════════════════════════════════════════════════╗
@@ -14839,7 +13680,7 @@ function toggleClOverflow(e){
   if(btn)btn.setAttribute('aria-expanded',open?'true':'false');
   /* Het menu hangt rechts onder de knop, en die staat op een telefoon
      halverwege de balk -- dan steekt een menu van 280px links buiten beeld.
-     Zelfde correctie als bij het ⋯-menu van de Agenda. */
+     Zie clampDropdownToViewport(). */
   const menu=document.getElementById('clOverflowMenu');
   if(open&&menu)requestAnimationFrame(()=>clampDropdownToViewport(menu));
   else if(menu){menu.style.left='';menu.style.right='';}
@@ -14850,7 +13691,7 @@ function closeClOverflow(){
   const btn=document.getElementById('clOverflowBtn');
   if(btn)btn.setAttribute('aria-expanded','false');
 }
-/* Zelfde afspraak als bij het ⋯-menu van de Agenda: buiten klikken sluit,
+/* Buiten klikken sluit,
    Escape sluit. De knop zelf stopt de propagatie, anders zou de handler
    hieronder hem meteen weer dichtdoen. */
 document.addEventListener('click',e=>{
@@ -15097,1402 +13938,6 @@ document.addEventListener('focusout',e=>{
   } else if(el.matches('input[data-st-edit-item]')){
     commitEditSubtask(el.dataset.stEditItem,el.dataset.stEditSub,el.value);
   }
-});
-
-/* ═══════════════════════════════════════════════════
-   MODULE: AGENDA — DAG / WEEK / MAAND
-   ───────────────────────────────────────────────────
-     ═══ STATE ═══  agendaView, agendaWeekOffset/DayOffset/MonthOffset,
-                    cachedWeekEvents, calRefreshTimer, icalBgInterval,
-                    lastIcalRefresh; alle in het blok "STATE".
-     ═══ LOGIC ═══  Rekenen met tijdvakken, iCal ophalen + ontleden +
-                    herhalingen uitklappen, en overlappende afspraken
-                    naast elkaar inplannen.
-     ═══ VIEW  ═══  renderAgendaModule, renderDayGrid, renderWeekGrid,
-                    renderMonthGrid, renderAgendaSourceBar,
-                    renderCalSourcesList.
-
-   Bediening: bron-chips, maanddagen en de items in de modal lopen
-   allemaal via data-action.
-
-   De iCal-kant (proxy-keten, RRULE, RECURRENCE-ID, EXDATE) staat
-   uitgewerkt in docs/agenda.md — begin daar bij ontbrekende of
-   dubbele afspraken.
-   ═══════════════════════════════════════════════════ */
-function switchAgendaView(view){
-  agendaView=view;
-  ['Day','Week','Month'].forEach(v=>{
-    const btn=document.getElementById('viewBtn'+v);
-    if(btn)btn.classList.toggle('active',v.toLowerCase()===view);
-  });
-  updateAgendaTitle();
-  if(activeModule==='agenda')renderAgendaModule();
-}
-function changeAgendaPeriod(delta){
-  if(agendaView==='day')agendaDayOffset+=delta;
-  else if(agendaView==='week')agendaWeekOffset+=delta;
-  else agendaMonthOffset+=delta;
-  updateAgendaTitle();
-  if(activeModule==='agenda')renderAgendaModule();
-}
-function goToToday(){
-  agendaDayOffset=0;agendaWeekOffset=0;agendaMonthOffset=0;
-  updateAgendaTitle();
-  if(activeModule==='agenda')renderAgendaModule();
-}
-function getDayDate(offset){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()+offset);return d;}
-function getMonthStart(offset){const n=new Date();return new Date(n.getFullYear(),n.getMonth()+offset,1);}
-function updateAgendaTitle(){
-  const el=document.getElementById('agendaTitle')||document.getElementById('weekTitle');if(!el)return;
-  if(agendaView==='week'){
-    const ws=getWeekStart(agendaWeekOffset);
-    el.textContent='Week van '+ws.toLocaleDateString('nl-NL',{day:'numeric',month:'long',year:'numeric'});
-  } else if(agendaView==='day'){
-    const d=getDayDate(agendaDayOffset);
-    el.textContent=d.toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-  } else {
-    const m=getMonthStart(agendaMonthOffset);
-    el.textContent=m.toLocaleDateString('nl-NL',{month:'long',year:'numeric'});
-  }
-}
-function renderAgendaModule(){
-  migrateCalSettings();
-  updateAgendaTitle();
-  renderAgendaSourceBar();
-  ['Day','Week','Month'].forEach(v=>{
-    const btn=document.getElementById('viewBtn'+v);
-    if(btn)btn.classList.toggle('active',v.toLowerCase()===agendaView);
-  });
-  /* Settings + connect buttons are always visible now (Nieuwe afspraak
-     is the primary action; no longer requires an external source first) */
-  const settingsBtn=document.getElementById('agendaSettingsBtn');
-  if(settingsBtn)settingsBtn.style.display='';
-  /* Show placeholder only if there are NO native events AND NO external sources */
-  const sources=(rawState.settings?.calSources||[]).filter(s=>s.enabled!==false);
-  const nativeEvents=rawState.agenda?.events||[];
-  if(!sources.length&&!nativeEvents.length){renderAgendaPlaceholder();return;}
-  fetchAndRenderView();
-}
-/* ─ Unified multi-source fetch engine ─ */
-async function fetchAndRenderView(){
-  const content=document.getElementById('agendaContent');if(!content)return;
-  let timeMin,timeMax,renderFn,renderArg;
-  if(agendaView==='week'){
-    const ws=getWeekStart(agendaWeekOffset);const we=new Date(ws);we.setDate(ws.getDate()+7);
-    timeMin=ws.toISOString();timeMax=we.toISOString();renderFn=renderWeekGrid;renderArg=ws;
-  } else if(agendaView==='day'){
-    const d=getDayDate(agendaDayOffset);const de=new Date(d);de.setDate(d.getDate()+1);
-    timeMin=d.toISOString();timeMax=de.toISOString();renderFn=renderDayGrid;renderArg=d;
-  } else {
-    const ms=getMonthStart(agendaMonthOffset);
-    const gs=new Date(ms);const dow=gs.getDay();gs.setDate(gs.getDate()-(dow===0?6:dow-1));
-    const ge=new Date(ms.getFullYear(),ms.getMonth()+1,1);const ld=ge.getDay();if(ld!==1)ge.setDate(ge.getDate()+(ld===0?1:8-ld));
-    timeMin=gs.toISOString();timeMax=ge.toISOString();renderFn=renderMonthGrid;renderArg=ms;
-  }
-  /* Stale-while-revalidate op view-niveau:
-     Lees de localStorage-cache synchroon en render meteen wat er is.
-     Dit geeft instant zichtbare agenda zonder te wachten op het netwerk.
-     Alleen bij koude start (geen cache) tonen we een spinner. */
-  const tMin=new Date(timeMin),tMax=new Date(timeMax);
-  const enabledSources=(rawState.settings?.calSources||[]).filter(s=>s.enabled!==false).filter(sourceMatchesActiveClient);
-  const icalSources=enabledSources.filter(s=>s.type==='ical'&&s.url);
-  let instantEvents=[...getNativeEventsInRange(timeMin,timeMax)];
-  let hasCold=false;
-  for(const s of icalSources){
-    const cached=_getCachedEntry(s.url);
-    if(cached)instantEvents.push(..._filterEventsByRange(cached.events,tMin,tMax));
-    else hasCold=true;
-  }
-  const alreadyRendered=!!(content.querySelector('.cal-grid-outer,.cal-month-grid'));
-  if(instantEvents.length>0||(!hasCold&&icalSources.length>0)){
-    /* Sorteer en render direct vanuit cache — geen spinner */
-    instantEvents.sort((a,b)=>{const at=a.start?.dateTime||a.start?.date||'';const bt=b.start?.dateTime||b.start?.date||'';return at<bt?-1:at>bt?1:0;});
-    renderFn(instantEvents,renderArg,content);
-  } else if(!alreadyRendered&&hasCold){
-    /* Echt koude start: geen data beschikbaar, toon spinner */
-    content.innerHTML='<div class="cal-loading"><div class="spinner"></div><span>Agenda laden...</span></div>';
-  }
-  /* Voer nu de volledige async fetch uit (gebruikt stale-while-revalidate per bron).
-     Na afloop overschrijven we de instant-render met verse data. */
-  try{
-    const events=await fetchEventsForRange(timeMin,timeMax);
-    cachedWeekEvents=events;
-    renderFn(events,renderArg,content);
-    lastIcalRefresh=new Date();updateIcalRefreshLabel();
-  }catch(e){
-    if(!content.querySelector('.cal-grid-outer,.cal-month-grid')){
-      content.innerHTML=`<div class="cal-placeholder"><p style="color:var(--danger)">${escapeHtml(e.message)}</p><button class="btn btn-sm" data-action="fetchAndRenderView">Opnieuw</button></div>`;
-    }
-  }
-  clearTimeout(calRefreshTimer);
-  calRefreshTimer=setTimeout(()=>{if(activeModule==='agenda')fetchAndRenderView();},10*60*1000);
-}
-/* Filter rule: when a client filter is active, only include sources whose
-   clientId matches. Sources without a clientId are treated as "unassigned"
-   and hidden while a client is selected. When no client is selected, all
-   enabled sources are shown. */
-function sourceMatchesActiveClient(s){
-  if(!activeClientFilter)return true;
-  return s.clientId===activeClientFilter;
-}
-async function fetchEventsForRange(timeMin,timeMax){
-  const sources=(rawState.settings?.calSources||[])
-    .filter(s=>s.enabled!==false)
-    .filter(sourceMatchesActiveClient);
-  const allEvents=[];
-  const errors=[];
-  /* Native events: stored in rawState.agenda.events, no fetch needed */
-  const nativeEvents=getNativeEventsInRange(timeMin,timeMax);
-  allEvents.push(...nativeEvents);
-  await Promise.all(sources.map(async s=>{
-    try{
-      const evs=await fetchSourceEvents(s,timeMin,timeMax);
-      allEvents.push(...evs);
-    }catch(e){
-      console.warn(`Calendar source "${s.name}" failed:`,e);
-      errors.push({name:s.name,msg:e.message||'Onbekende fout'});
-    }
-  }));
-  /* Surface fetch errors as a single batched toast (avoid spam) */
-  if(errors.length){
-    if(errors.length===1){
-      appToast(`Agenda "${errors[0].name}" kon niet geladen worden: ${errors[0].msg}`,{type:'warning',duration:6000});
-    } else {
-      const names=errors.map(e=>e.name).join(', ');
-      appToast(`${errors.length} agenda's konden niet geladen worden: ${names}`,{type:'warning',duration:7000});
-    }
-  }
-  allEvents.sort((a,b)=>{const at=a.start?.dateTime||a.start?.date||'';const bt=b.start?.dateTime||b.start?.date||'';return at<bt?-1:at>bt?1:0;});
-  return allEvents;
-}
-
-/* ─ Eigen events: lokaal bewerkt, opgeslagen in Drive ──────────────────
-   Shape:
-     { id, title, start:'YYYY-MM-DDTHH:MM' or 'YYYY-MM-DD',
-       end, allDay, location, description, color, clientId,
-       _native:true }
-   Converted to the common iCal-shaped format used by the renderers. */
-/* Format helpers voor native events in lokale tijdzone (vermijdt UTC drift). */
-function _fmtLocalDate(d){const y=d.getFullYear();const m=String(d.getMonth()+1).padStart(2,'0');const day=String(d.getDate()).padStart(2,'0');return`${y}-${m}-${day}`;}
-function _fmtLocalDateTime(d){return _fmtLocalDate(d)+'T'+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
-
-function getNativeEventsInRange(timeMin,timeMax){
-  const events=rawState.agenda?.events||[];
-  const tMin=new Date(timeMin),tMax=new Date(timeMax);
-  const result=[];
-  events.forEach(ev=>{
-    /* client filter — same rule as iCal sources */
-    if(activeClientFilter&&ev.clientId&&ev.clientId!==activeClientFilter)return;
-    const baseStart=new Date(ev.start);
-    const baseEnd=ev.end?new Date(ev.end):baseStart;
-    const dur=baseEnd.getTime()-baseStart.getTime();
-
-    /* Single (non-recurring) event */
-    if(!ev.recurrence||!ev.recurrence.freq){
-      if(baseStart<=tMax&&baseEnd>=tMin)result.push(nativeToCommonFormat(ev));
-      return;
-    }
-
-    /* Recurring: expandeer naar individuele occurrences binnen [tMin, tMax].
-       Eenvoudige RRULE-achtige semantiek: FREQ + INTERVAL + UNTIL/COUNT.
-       Geen BYDAY/BYMONTHDAY; "elke X maand op dezelfde dag-van-de-maand"
-       is wat de meeste mensen verwachten en dat werkt via setMonth(). */
-    const rec=ev.recurrence;
-    const interval=Math.max(1,rec.interval||1);
-    const untilTime=rec.until?new Date(rec.until+'T23:59:59').getTime():tMax.getTime();
-    const maxCount=rec.count||999;
-    let cur=new Date(baseStart);
-    let n=0;
-    while(cur.getTime()<=tMax.getTime()&&cur.getTime()<=untilTime&&n<maxCount){
-      const occEnd=new Date(cur.getTime()+dur);
-      if(cur.getTime()<=tMax.getTime()&&occEnd.getTime()>=tMin.getTime()){
-        const occEv={...ev};
-        if(ev.allDay){occEv.start=_fmtLocalDate(cur);occEv.end=_fmtLocalDate(occEnd);}
-        else{occEv.start=_fmtLocalDateTime(cur);occEv.end=_fmtLocalDateTime(occEnd);}
-        result.push(nativeToCommonFormat(occEv));
-      }
-      const next=new Date(cur);
-      if(rec.freq==='DAILY')next.setDate(next.getDate()+interval);
-      else if(rec.freq==='WEEKLY')next.setDate(next.getDate()+7*interval);
-      else if(rec.freq==='MONTHLY')next.setMonth(next.getMonth()+interval);
-      else if(rec.freq==='YEARLY')next.setFullYear(next.getFullYear()+interval);
-      else break;
-      cur=next;
-      n++;
-    }
-  });
-  return result;
-}
-function nativeToCommonFormat(ev){
-  const color=ev.color||'#3b5bdb';
-  const out={
-    _native:true,
-    _nativeId:ev.id,
-    summary:ev.title,
-    location:ev.location||'',
-    _calColor:color,
-    _calName:'Mijn agenda',
-    description:ev.description||''
-  };
-  if(ev.allDay){
-    out.start={date:ev.start};
-    out.end={date:ev.end||ev.start};
-  } else {
-    out.start={dateTime:new Date(ev.start).toISOString()};
-    out.end={dateTime:new Date(ev.end||ev.start).toISOString()};
-  }
-  return out;
-}
-/* ─── iCal event cache ──────────────────────────────────────────────────────
-   Strategie:
-   - We bewaren altijd events voor een vast 5-maands window (-2mo / +3mo)
-   - Ge-cachte events in localStorage; key = source URL
-   - Stale-while-revalidate:
-       fresh (<10 min): direct uit cache, geen netwerk
-       stale          : direct uit cache + background refresh + auto re-render
-       no cache       : netwerkfetch en wachten
-   - Filter cached events naar de gevraagde view-range bij elke call */
-const ICAL_WINDOW_MONTHS_BACK=2;
-const ICAL_WINDOW_MONTHS_FWD=3;
-const ICAL_FRESH_TTL_MS=10*60*1000;
-const LS_ICAL_EVENT_CACHE='herling_ical_event_cache';
-
-function getICalWindow(){
-  /* Strikt 5-maands venster: 2mo terug + 3mo vooruit vanaf vandaag */
-  const now=new Date();
-  const from=new Date(now.getFullYear(),now.getMonth()-ICAL_WINDOW_MONTHS_BACK,now.getDate(),0,0,0);
-  const to=new Date(now.getFullYear(),now.getMonth()+ICAL_WINDOW_MONTHS_FWD,now.getDate(),23,59,59);
-  return{from,to};
-}
-function _loadEventCache(){
-  try{return JSON.parse(localStorage.getItem(LS_ICAL_EVENT_CACHE)||'{}');}catch(e){return{};}
-}
-function _saveEventCacheEntry(url,events){
-  try{
-    const cache=_loadEventCache();
-    cache[url]={events,fetchedAt:Date.now()};
-    localStorage.setItem(LS_ICAL_EVENT_CACHE,JSON.stringify(cache));
-  }catch(e){
-    /* Quota exceeded — drop oudste entries en probeer opnieuw */
-    try{
-      const cache=_loadEventCache();
-      const keys=Object.keys(cache).sort((a,b)=>(cache[a].fetchedAt||0)-(cache[b].fetchedAt||0));
-      while(keys.length>0&&JSON.stringify(cache).length>3_000_000){delete cache[keys.shift()];}
-      cache[url]={events,fetchedAt:Date.now()};
-      localStorage.setItem(LS_ICAL_EVENT_CACHE,JSON.stringify(cache));
-    }catch(e2){console.warn('[iCal] cache save failed:',e2.message);}
-  }
-}
-function _getCachedEntry(url){return _loadEventCache()[url]||null;}
-
-function _filterEventsByRange(events,fromDate,toDate){
-  const fromMs=fromDate.getTime(),toMs=toDate.getTime();
-  return events.filter(ev=>{
-    const startStr=ev.start?.dateTime||ev.start?.date;
-    if(!startStr)return false;
-    const startMs=new Date(startStr).getTime();
-    const endStr=ev.end?.dateTime||ev.end?.date;
-    const endMs=endStr?new Date(endStr).getTime():startMs;
-    return startMs<=toMs&&endMs>=fromMs;
-  });
-}
-
-async function _refreshSourceEvents(source){
-  const text=await fetchICalText(source.url,source.name);
-  const win=getICalWindow();
-  const parsed=parseICS(text);
-  const expanded=expandEvents(parsed,win.from,win.to);
-  const color=source.color||'#3b5bdb';
-  const events=expanded.map(ev=>({_ical:true,summary:ev.title,location:ev.location,_calColor:color,_calName:source.name,
-    start:{dateTime:ev.occStart.allDay?null:ev.occStart.date.toISOString(),date:ev.occStart.allDay?dateStr(ev.occStart.date):null},
-    end:{dateTime:ev.occEnd?.allDay?null:ev.occEnd?.date?.toISOString()||null,date:ev.occEnd?.allDay?dateStr(ev.occEnd.date):null}}));
-  _saveEventCacheEntry(source.url,events);
-  return events;
-}
-
-async function fetchSourceEvents(source,timeMin,timeMax){
-  if(source.type!=='ical')return[];
-  const tMin=new Date(timeMin),tMax=new Date(timeMax);
-  const cached=_getCachedEntry(source.url);
-  const isFresh=cached&&(Date.now()-cached.fetchedAt<ICAL_FRESH_TTL_MS);
-  /* Hot path: fresh cache → direct */
-  if(cached&&isFresh){
-    return _filterEventsByRange(cached.events,tMin,tMax);
-  }
-  /* Stale path: serve cached now, refresh in background, re-render when klaar */
-  if(cached){
-    _refreshSourceEvents(source).then(()=>{
-      if(activeModule==='agenda'){
-        fetchAndRenderView();
-      }
-      if(activeModule==='dashboard'){
-        renderDashCal();
-      }
-    }).catch(()=>{/* error al gelogd in fetchICalText */});
-    return _filterEventsByRange(cached.events,tMin,tMax);
-  }
-  /* Cold path: niet eerder gefetched → wachten op eerste fetch */
-  const events=await _refreshSourceEvents(source);
-  return _filterEventsByRange(events,tMin,tMax);
-}
-
-function renderAgendaPlaceholder(){
-  document.getElementById('agendaContent').innerHTML=`
-    <div class="cal-placeholder">
-      <div style="font-size:36px">📅</div>
-      <p>Begin meteen met een nieuwe afspraak, of importeer je bestaande agenda als .ics bestand.</p>
-      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
-        <button class="btn btn-sm btn-primary" onclick="openEventModalNew()">+ Nieuwe afspraak</button>
-        <button class="btn btn-sm" onclick="openIcsImport()">↓ Importeer .ics</button>
-      </div>
-      <small style="margin-top:4px">Of via ⚙ rechtsboven: koppel een Outlook / Google / iCal-bron</small>
-    </div>`;
-}
-
-/* ─ Week navigation ─ */
-function getWeekStart(offset){
-  const now=new Date();
-  const day=now.getDay();
-  const monday=new Date(now);
-  monday.setDate(now.getDate()-(day===0?6:day-1)+offset*7);
-  monday.setHours(0,0,0,0);
-  return monday;
-}
-/* changeWeek kept for backward compat */
-function changeWeek(delta){changeAgendaPeriod(delta);}
-
-function signInGoogle(){}
-function toggleAgendaCalSettings(){openCalSourcesModal();}
-
-/* ─ Calendar sources management ─ */
-function migrateCalSettings(){
-  if(!rawState.settings)rawState.settings={};
-  if(rawState.settings.calSources)return;
-  rawState.settings.calSources=[];
-  if(rawState.settings.icalUrl){
-    rawState.settings.calSources.push({id:uid(),type:'ical',url:rawState.settings.icalUrl,name:'iCal Agenda',color:'#3b5bdb',enabled:true});
-  }
-  /* Remove any leftover google sources from old data */
-  rawState.settings.calSources=(rawState.settings.calSources||[]).filter(s=>s.type!=='google');
-}
-function openCalSourcesModal(){
-  migrateCalSettings();
-  renderCalSourcesList();
-  document.getElementById('calAddForm').style.display='none';
-  document.getElementById('calSourcesModal').classList.add('open');
-}
-
-/* Agenda-topbalk — overloopmenu (… → Importeer / Beheren / sync-info) */
-function toggleAgendaOverflow(e){
-  if(e)e.stopPropagation();
-  const root=document.getElementById('agendaOverflow');
-  if(!root)return;
-  const willOpen=!root.classList.contains('open');
-  root.classList.toggle('open');
-  const menu=document.getElementById('agendaOverflowMenu');
-  if(willOpen&&menu)requestAnimationFrame(()=>clampDropdownToViewport(menu));
-  else if(menu){menu.style.left='';menu.style.right='';}
-}
-function closeAgendaOverflow(){
-  const root=document.getElementById('agendaOverflow');
-  if(!root)return;
-  root.classList.remove('open');
-  const menu=document.getElementById('agendaOverflowMenu');
-  if(menu){menu.style.left='';menu.style.right='';}
-}
-document.addEventListener('click',e=>{
-  const root=document.getElementById('agendaOverflow');
-  if(root&&!root.contains(e.target))root.classList.remove('open');
-});
-document.addEventListener('keydown',e=>{
-  if(e.key==='Escape')closeAgendaOverflow();
-});
-
-function closeCalSourcesModal(){document.getElementById('calSourcesModal').classList.remove('open');}
-const CAL_PALETTE=['#4285f4','#ea4335','#fbbc04','#34a853','#ff6d00','#46bdc6','#7986cb','#9c27b0','#0078d4','#e03131','#2f9e44','#f08c00'];
-function renderAgendaSourceBar(){
-  const bar=document.getElementById('agendaSourceBar');if(!bar)return;
-  const allSources=rawState.settings?.calSources||[];
-  const sources=allSources.filter(sourceMatchesActiveClient);
-  if(!sources.length){bar.style.display='none';return;}
-  bar.style.display='flex';
-  bar.innerHTML=sources.map(s=>{
-    const color=s.color||'#3b5bdb';
-    const on=s.enabled!==false;
-    /* Symmetrische chips: identieke vorm/maat. Kleur zit alleen in de dot
-       zodat alle "klant blokken" visueel even zwaar zijn. */
-    return `<button class="src-chip ${on?'on':'off'}"
-      data-action="toggleCalSourceEnabled" data-arg1="${s.id}"
-      title="${escapeHtml(s.name)} — klik om ${on?'te verbergen':'te tonen'}">
-      <span class="src-chip-dot" style="background:${color}"></span>
-      ${escapeHtml(s.name)}
-    </button>`;
-  }).join('');
-}
-function renderCalSourcesList(){
-  const sources=rawState.settings?.calSources||[];
-  const el=document.getElementById('calSourcesList');if(!el)return;
-  if(!sources.length){el.innerHTML='<p style="font-size:12px;color:var(--text-hint);margin-bottom:10px">Nog geen agenda\'s gekoppeld.</p>';return;}
-  el.innerHTML=sources.map(s=>{
-    const color=s.color||'#3b5bdb';
-    const typeLbl='iCal / Outlook';
-    const on=s.enabled!==false;
-    const statusHtml='';
-    return `<div class="cal-source-item" id="csi-${s.id}" style="flex-direction:column;align-items:stretch">
-      <div style="display:flex;align-items:center;gap:8px">
-        <div style="width:14px;height:14px;border-radius:50%;background:${color};flex-shrink:0"></div>
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;gap:6px">
-            <span class="cal-source-name">${escapeHtml(s.name)}</span>
-            <span class="cal-source-type">${typeLbl}</span>
-            ${statusHtml}
-          </div>
-          ${s.type==='ical'?`<div style="font-size:10px;color:var(--text-hint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px">${escapeHtml(s.url||'')}</div>`:''}
-        </div>
-        <button class="btn btn-xs" data-action="toggleSourceEditor" data-arg1="${s.id}" title="Naam & kleur bewerken" style="padding:3px 7px">✎</button>
-        <button class="cal-source-toggle ${on?'on':'off'}" title="${on?'Verbergen':'Tonen'}" data-action="toggleCalSourceEnabled" data-arg1="${s.id}"></button>
-        <button class="btn btn-xs btn-danger" data-action="removeCalSource" data-arg1="${s.id}" title="Verwijderen" style="padding:3px 7px">✕</button>
-      </div>
-    </div>`;
-  }).join('');
-}
-function toggleSourceEditor(id){
-  const item=document.getElementById('csi-'+id);if(!item)return;
-  const existing=item.querySelector('.csi-editor');
-  if(existing){existing.remove();return;}
-  const s=(rawState.settings?.calSources||[]).find(x=>x.id===id);if(!s)return;
-  const currentColor=s.type==='google'?'#4285f4':(s.color||'#3b5bdb');
-  const editor=document.createElement('div');
-  editor.className='csi-editor';
-  editor.style.cssText='margin-top:8px;padding-top:8px;border-top:0.5px solid var(--border);display:flex;flex-direction:column;gap:8px';
-  const swatches=CAL_PALETTE.map(c=>`<div class="cal-color-swatch${c===currentColor?' selected':''}" style="background:${c}" data-action="csiPickColor" data-arg1="${c}" data-arg2="${id}"></div>`).join('');
-  const clients=kanbanState?.clients||[];
-  const clientOpts='<option value="">— Geen klant (altijd zichtbaar)</option>'
-    +clients.map(c=>`<option value="${c.id}"${s.clientId===c.id?' selected':''}>${escapeHtml(c.name)}</option>`).join('');
-  editor.innerHTML=`
-    <div style="display:flex;flex-direction:column;gap:4px">
-      <label style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em">Naam</label>
-      <input id="csi-name-${id}" type="text" value="${escapeHtml(s.name)}"
-        style="padding:5px 8px;border:0.5px solid var(--border-strong);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:12px;font-family:inherit;width:100%"/>
-    </div>
-    ${s.type==='ical'?`
-    <div style="display:flex;flex-direction:column;gap:4px">
-      <label style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em">iCal-link</label>
-      <input id="csi-url-${id}" type="text" value="${escapeHtml(s.url||'')}"
-        style="padding:5px 8px;border:0.5px solid var(--border-strong);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:12px;font-family:inherit;width:100%"/>
-    </div>`:''}
-    <div style="display:flex;flex-direction:column;gap:4px">
-      <label style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em">Klant</label>
-      <select id="csi-client-${id}" style="padding:5px 8px;font-size:12px">${clientOpts}</select>
-    </div>
-    ${s.type!=='google'?`
-    <div style="display:flex;flex-direction:column;gap:5px">
-      <label style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em">Kleur</label>
-      <div class="cal-color-row" id="csi-palette-${id}">${swatches}</div>
-    </div>`:''}
-    <div style="display:flex;gap:6px">
-      <button class="btn btn-sm" data-action="toggleSourceEditor" data-arg1="${id}">Annuleer</button>
-      <button class="btn btn-sm btn-primary" data-action="saveSourceEdit" data-arg1="${id}">Opslaan</button>
-    </div>`;
-  item.appendChild(editor);
-}
-let _csiColors={};
-function csiPickColor(el,color,id){
-  _csiColors[id]=color;
-  document.querySelectorAll(`#csi-palette-${id} .cal-color-swatch`).forEach(s=>s.classList.remove('selected'));
-  el.classList.add('selected');
-}
-function saveSourceEdit(id){
-  const s=(rawState.settings?.calSources||[]).find(x=>x.id===id);if(!s)return;
-  const nameEl=document.getElementById('csi-name-'+id);
-  const urlEl=document.getElementById('csi-url-'+id);
-  const clientEl=document.getElementById('csi-client-'+id);
-  const name=(nameEl?.value||'').trim();
-  if(!name){nameEl?.focus();return;}
-  s.name=name;
-  if(urlEl)s.url=urlEl.value.trim();
-  if(clientEl)s.clientId=clientEl.value||null;
-  if(_csiColors[id]&&s.type!=='google')s.color=_csiColors[id];
-  delete _csiColors[id];
-  scheduleSave();
-  renderCalSourcesList();renderAgendaSourceBar();
-  if(activeModule==='agenda')renderAgendaModule();
-}
-function toggleCalSourceEnabled(id){
-  const s=(rawState.settings?.calSources||[]).find(x=>x.id===id);
-  if(s)s.enabled=s.enabled===false;
-  scheduleSave();renderCalSourcesList();renderAgendaSourceBar();
-  if(activeModule==='agenda')renderAgendaModule();
-}
-function removeCalSource(id){
-  const list=rawState.settings?.calSources||[];
-  const idx=list.findIndex(x=>x.id===id);
-  if(idx<0)return;
-  const removed=list[idx];
-  /* Don't auto-revoke Google token here — user can re-add and we want
-     undo to work without re-auth */
-  list.splice(idx,1);
-  scheduleSave();renderCalSourcesList();renderAgendaSourceBar();
-  if(activeModule==='agenda')renderAgendaModule();
-  renderDashCal();
-  appToast(`Agenda "${removed.name}" verwijderd`,{type:'success',undo:()=>{
-    list.splice(idx,0,removed);
-    scheduleSave();renderCalSourcesList();renderAgendaSourceBar();
-    if(activeModule==='agenda')renderAgendaModule();
-    renderDashCal();
-  }});
-}
-let _pickedColor=CAL_PALETTE[0];
-function showAddIcalForm(){
-  _pickedColor=CAL_PALETTE[0];
-  const swatches=CAL_PALETTE.map((c,i)=>`<div class="cal-color-swatch${i===0?' selected':''}" style="background:${c}" data-color="${c}" data-action="pickCalColor" data-arg1="${c}"></div>`).join('');
-  document.getElementById('calAddForm').innerHTML=`
-    <div class="cal-ical-form">
-      <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em">Naam</label>
-      <input type="text" id="icalSrcName" placeholder="bijv. Outlook — Bedrijf A"/>
-      <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-top:2px">iCal-link (URL)</label>
-      <input type="text" id="icalSrcUrl" placeholder="https://outlook.office365.com/ical/..."/>
-      <div class="cal-setup-hint" style="font-size:11px;color:var(--text-hint);line-height:1.5">
-        <strong>Outlook 365:</strong> Agenda → ··· → Agenda-instellingen → Gedeeld → ICS-koppeling<br>
-        <strong>Google:</strong> Agenda-instellingen → Integreer agenda → Geheim iCal-adres
-      </div>
-      <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-top:2px">Kleur</label>
-      <div class="cal-color-row" id="calColorRow">${swatches}</div>
-      <div style="display:flex;gap:6px;margin-top:4px">
-        <button class="btn btn-sm" data-action="hideCalAddForm">Annuleer</button>
-        <button class="btn btn-sm btn-primary" data-action="saveIcalSource">Koppelen</button>
-      </div>
-    </div>`;
-  document.getElementById('calAddForm').style.display='block';
-}
-function pickCalColor(el,color){
-  _pickedColor=color;
-  document.querySelectorAll('#calColorRow .cal-color-swatch').forEach(s=>s.classList.remove('selected'));
-  el.classList.add('selected');
-}
-function saveIcalSource(){
-  const name=document.getElementById('icalSrcName')?.value.trim();
-  const url=document.getElementById('icalSrcUrl')?.value.trim();
-  if(!name){alert('Vul een naam in.');return;}
-  if(!url){alert('Vul een iCal-link in.');return;}
-  migrateCalSettings();
-  rawState.settings.calSources.push({id:uid(),type:'ical',url,name,color:_pickedColor,enabled:true});
-  scheduleSave();
-  document.getElementById('calAddForm').style.display='none';
-  renderCalSourcesList();renderAgendaSourceBar();
-  const sb=document.getElementById('agendaSettingsBtn');const cb=document.getElementById('agendaConnectBtn');
-  if(sb)sb.style.display='';if(cb)cb.style.display='none';
-  if(activeModule==='agenda')renderAgendaModule();
-  renderDashCal();
-}
-
-function dateStr(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
-
-/* ─ iCal background refresh (every 10 min) ─ */
-function startIcalBackgroundRefresh(){
-  clearInterval(icalBgInterval);
-  bgRefreshIcal(); // immediate on load
-  icalBgInterval=setInterval(bgRefreshIcal,10*60*1000);
-}
-async function bgRefreshIcal(){
-  migrateCalSettings();
-  const icalSources=(rawState.settings?.calSources||[]).filter(s=>s.type==='ical'&&s.enabled!==false&&s.url);
-  if(!icalSources.length)return;
-  if(activeModule==='agenda'){
-    fetchAndRenderView();
-    return;
-  }
-  // Silent background cache for the current view time range
-  try{
-    let timeMin,timeMax;
-    if(agendaView==='week'){
-      const ws=getWeekStart(agendaWeekOffset);const we=new Date(ws);we.setDate(ws.getDate()+7);
-      timeMin=ws.toISOString();timeMax=we.toISOString();
-    } else if(agendaView==='day'){
-      const d=getDayDate(agendaDayOffset);const de=new Date(d);de.setDate(d.getDate()+1);
-      timeMin=d.toISOString();timeMax=de.toISOString();
-    } else {
-      const ms=getMonthStart(agendaMonthOffset);
-      const gs=new Date(ms);const dow=gs.getDay();gs.setDate(gs.getDate()-(dow===0?6:dow-1));
-      const ge=new Date(ms.getFullYear(),ms.getMonth()+1,1);const ld=ge.getDay();if(ld!==1)ge.setDate(ge.getDate()+(ld===0?1:8-ld));
-      timeMin=gs.toISOString();timeMax=ge.toISOString();
-    }
-    const events=[];
-    await Promise.all(icalSources.map(async s=>{
-      try{const evs=await fetchSourceEvents(s,timeMin,timeMax);events.push(...evs);}catch(e){}
-    }));
-    if(events.length){
-      events.sort((a,b)=>{const at=a.start?.dateTime||a.start?.date||'';const bt=b.start?.dateTime||b.start?.date||'';return at<bt?-1:1;});
-      cachedWeekEvents=events;
-    }
-    lastIcalRefresh=new Date();
-    updateIcalRefreshLabel();
-  }catch(e){}
-}
-function updateIcalRefreshLabel(){
-  const el=document.getElementById('icalRefreshLbl');
-  if(!el||!lastIcalRefresh)return;
-  el.textContent='Bijgewerkt om '+lastIcalRefresh.toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});
-}
-
-/* ─ Day grid render ─ */
-function renderDayGrid(events,day,container){
-  _clearCalTooltipData();
-  const today=new Date();today.setHours(0,0,0,0);
-  const isToday=day.getTime()===today.getTime();
-  const hours=Array.from({length:HOUR_END-HOUR_START},(_,i)=>HOUR_START+i);
-  const allDay=events.filter(ev=>ev.start?.date&&!ev.start?.dateTime);
-  const timed=events.filter(ev=>ev.start?.dateTime);
-  const dayName=day.toLocaleDateString('nl-NL',{weekday:'long'}).toUpperCase();
-  let html=`<div class="cal-grid-outer">`;
-  html+=`<div class="cal-day-hdr-row" style="grid-template-columns:48px 1fr">
-    <div style="border-bottom:none"></div>
-    <div class="cal-day-hdr${isToday?' today':''}">
-      <div class="cal-day-name">${dayName}</div>
-      <div class="cal-day-num">${day.getDate()}</div>
-    </div></div>`;
-  html+=`<div class="cal-allday-row" style="grid-template-columns:48px 1fr">
-    <div class="cal-allday-label">Hele dag</div>
-    <div class="cal-allday-cell">`;
-  allDay.forEach(ev=>{const ttId=_registerCalTooltip(ev);html+=`<div class="cal-allday-ev" data-tt="${ttId}" style="background:${ev._calColor}" aria-label="${escapeHtml(ev.summary||'')} (hele dag)">${escapeHtml(ev.summary||'(geen titel)')}</div>`;});
-  html+=`</div></div>`;
-  html+=`<div class="cal-grid-scroll"><div class="cal-grid-inner" style="grid-template-columns:48px 1fr">`;
-  html+=`<div class="cal-time-col">`;
-  hours.forEach(h=>html+=`<div class="cal-time-label">${h}:00</div>`);
-  html+=`</div>`;
-  html+=`<div class="cal-day-col${isToday?' today':''}">`;
-  hours.forEach((_,i)=>html+=`<div class="cal-hour-line" style="top:${i*PX_PER_HOUR}px"></div>`);
-  if(isToday){const now=new Date();const mins=(now.getHours()-HOUR_START)*60+now.getMinutes();if(mins>=0&&mins<=(HOUR_END-HOUR_START)*60)html+=`<div class="cal-time-now" style="top:${mins}px"></div>`;}
-  layoutTimedEvents(timed).forEach(item=>{html+=evBlockHtml(item);});
-  html+=`</div></div></div></div>`;
-  container.innerHTML=html;
-}
-
-/* ─ Month grid render ─ */
-const DAY_NAMES_MONTH=['MA','DI','WO','DO','VR','ZA','ZO'];
-function renderMonthGrid(events,monthStart,container){
-  _clearCalTooltipData();
-  const today=new Date();today.setHours(0,0,0,0);
-  /* Build grid (Mon-aligned) */
-  const gridStart=new Date(monthStart);const dow=gridStart.getDay();
-  gridStart.setDate(gridStart.getDate()-(dow===0?6:dow-1));
-  const weeks=[];let cur=new Date(gridStart);
-  for(let w=0;w<6;w++){
-    const week=[];for(let i=0;i<7;i++){week.push(new Date(cur));cur.setDate(cur.getDate()+1);}
-    weeks.push(week);
-    if(w>=3&&cur.getMonth()!==monthStart.getMonth())break;
-  }
-  /* Index events by date */
-  const byDate={};
-  events.forEach(ev=>{
-    let ds;
-    if(ev.start?.dateTime)ds=dateStr(new Date(ev.start.dateTime));
-    else if(ev.start?.date)ds=ev.start.date;
-    else return;
-    if(!byDate[ds])byDate[ds]=[];byDate[ds].push(ev);
-  });
-  let html=`<div class="cal-month-outer"><div class="cal-month-hdr-row">`;
-  DAY_NAMES_MONTH.forEach(n=>html+=`<div class="cal-month-hdr">${n}</div>`);
-  html+=`</div><div class="cal-month-grid">`;
-  weeks.forEach(week=>{
-    html+=`<div class="cal-month-week">`;
-    week.forEach(d=>{
-      const ds=dateStr(d);
-      const isToday=d.getTime()===today.getTime();
-      const other=d.getMonth()!==monthStart.getMonth();
-      const evs=byDate[ds]||[];
-      html+=`<div class="cal-month-cell${isToday?' today':''}${other?' other-month':''}" data-action="jumpToDay" data-arg1="${ds}">`;
-      html+=`<div class="cal-month-day-num">${d.getDate()}</div>`;
-      const compact=evs.length>3;
-      const veryCompact=evs.length>6;
-      const pillStyle=veryCompact?'font-size:9px;padding:1px 3px;margin-bottom:1px':compact?'font-size:9px;padding:1px 4px;margin-bottom:1px':'font-size:10px;padding:1px 5px;margin-bottom:1px';
-      evs.forEach(ev=>{
-        const showTime=!compact&&ev.start?.dateTime;
-        /* De tijd in een eigen span, zodat de mobiele laag hem kan weglaten:
-           in een cel van 50px vult '09:00 ' de hele pil en blijft er van de
-           titel niets over. In een maandoverzicht is wát je hebt nuttiger
-           dan hoe laat; voor de tijd tik je de dag aan. */
-        const timeStr=showTime?'<span class="cal-pil-tijd">'+new Date(ev.start.dateTime).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'})+' </span>':'';
-        const title=escapeHtml(ev.summary||'(geen titel)');
-        const ttId=_registerCalTooltip(ev);html+=`<div class="cal-month-ev-pill" data-tt="${ttId}" style="background:${ev._calColor};${pillStyle}" aria-label="${escapeHtml(ev.summary||'')}">${timeStr}${title}</div>`;
-      });
-      html+=`</div>`;
-    });
-    html+=`</div>`;
-  });
-  html+=`</div></div>`;
-  container.innerHTML=html;
-}
-function jumpToDay(ds){
-  const d=new Date(ds+'T00:00:00');const today=new Date();today.setHours(0,0,0,0);
-  agendaDayOffset=Math.round((d-today)/86400000);
-  switchAgendaView('day');
-}
-
-/* ─ Overlap layout for timed events ─ */
-function layoutTimedEvents(dayEvs){
-  const items=dayEvs.map(ev=>{
-    const start=new Date(ev.start.dateTime);
-    const end=ev.end?.dateTime?new Date(ev.end.dateTime):new Date(start.getTime()+30*60000);
-    const startMin=(start.getHours()-HOUR_START)*60+start.getMinutes();
-    const endMin=(end.getHours()-HOUR_START)*60+end.getMinutes();
-    const top=Math.max(startMin,0);
-    const height=Math.max(Math.min(endMin,(HOUR_END-HOUR_START)*60)-top,18);
-    const timeStr=start.toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});
-    return{ev,start,end,top,height,timeStr,col:0,totalCols:1};
-  }).sort((a,b)=>a.start-b.start);
-  /* Assign column slots (interval graph coloring) */
-  const colEnds=[];
-  items.forEach(item=>{
-    let col=0;
-    while(col<colEnds.length&&colEnds[col]>item.start)col++;
-    item.col=col;colEnds[col]=item.end;
-  });
-  /* For each event: totalCols = max column of any overlapping peer + 1 */
-  items.forEach(item=>{
-    let maxCol=item.col;
-    items.forEach(other=>{
-      if(other===item)return;
-      if(other.start<item.end&&other.end>item.start)maxCol=Math.max(maxCol,other.col);
-    });
-    item.totalCols=maxCol+1;
-  });
-  return items;
-}
-/* Globale lookup voor tooltip-data — gevuld bij render, gebruikt bij hover */
-const _calTooltipData=new Map();
-function _registerCalTooltip(ev){
-  const id='ev_'+(_calTooltipData.size+1);
-  _calTooltipData.set(id,ev);
-  return id;
-}
-function _clearCalTooltipData(){_calTooltipData.clear();}
-
-function evBlockHtml(item){
-  const{ev,top,height,timeStr,col,totalCols}=item;
-  const colW=100/totalCols;
-  const leftPct=col*colW;const rightPct=100-leftPct-colW;
-  const editable=ev._native&&ev._nativeId;
-  const dataAttr=editable?` data-action="openEventModalEdit" data-arg1="${ev._nativeId}"`:'';
-  const tooltipId=_registerCalTooltip(ev);
-  /* Block <= 26px: korte variant (tijd + titel inline) */
-  const isShort=height<=26;
-  const shortClass=isShort?' cal-ev-short':'';
-  return`<div class="cal-ev-block${editable?' cal-ev-editable':''}${shortClass}" data-tt="${tooltipId}"
-    style="top:${top}px;height:${height}px;left:calc(${leftPct}% + 2px);right:calc(${rightPct}% + 1px);background:${ev._calColor}22;border-left-color:${ev._calColor};color:var(--text)"${dataAttr}
-    aria-label="${escapeHtml(ev.summary||'')} — ${timeStr}">
-    <div class="cal-ev-time">${timeStr}</div>
-    <div class="cal-ev-title">${escapeHtml(ev.summary||'(geen titel)')}</div>
-  </div>`;
-}
-
-/* ── Custom tooltip systeem ────────────────────────────────────────────
-   Listent op delegated mouseover/mouseout voor alle .cal-ev-block en
-   .cal-allday-ev elementen. Toont een rich popover met titel, tijd,
-   duur, locatie en bron. Hover-delay van 220ms voorkomt flikkeren bij
-   snel langs events bewegen. */
-let _calTooltipEl=null;
-let _calTooltipTimer=null;
-function _ensureCalTooltipEl(){
-  if(_calTooltipEl)return _calTooltipEl;
-  const el=document.createElement('div');
-  el.className='cal-ev-tooltip';
-  el.setAttribute('role','tooltip');
-  document.body.appendChild(el);
-  _calTooltipEl=el;
-  return el;
-}
-function _formatEvTime(ev){
-  const isAllDay=!!(ev.start?.date)&&!ev.start?.dateTime;
-  if(isAllDay){
-    const dStr=ev.start.date;
-    const d=new Date(dStr);
-    return{timeLine:'Hele dag · '+d.toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long'}),durationStr:''};
-  }
-  const s=new Date(ev.start.dateTime);
-  const e=ev.end?.dateTime?new Date(ev.end.dateTime):null;
-  const dateStr=s.toLocaleDateString('nl-NL',{weekday:'short',day:'numeric',month:'short'});
-  const startStr=s.toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});
-  const endStr=e?e.toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'}):'';
-  let durationStr='';
-  if(e){
-    const min=Math.round((e-s)/60000);
-    if(min<60)durationStr=`${min} min`;
-    else if(min%60===0)durationStr=`${min/60} uur`;
-    else durationStr=`${Math.floor(min/60)}u ${min%60}m`;
-  }
-  return{timeLine:`${dateStr} · ${startStr}${endStr?' — '+endStr:''}`,durationStr};
-}
-function _buildCalTooltipHtml(ev){
-  const{timeLine,durationStr}=_formatEvTime(ev);
-  const calName=ev._calName||'';
-  const calColor=ev._calColor||'var(--accent)';
-  const title=ev.summary||'(geen titel)';
-  const loc=ev.location||'';
-  const editable=ev._native&&ev._nativeId;
-  return`
-    ${calName?`<div class="tt-source"><span class="tt-dot" style="background:${calColor}"></span>${escapeHtml(calName)}</div>`:''}
-    <div class="tt-title">${escapeHtml(title)}</div>
-    <div class="tt-row">
-      <span class="tt-icon">⏰</span>
-      <span class="tt-time">${escapeHtml(timeLine)}</span>
-      ${durationStr?`<span class="tt-duration">${durationStr}</span>`:''}
-    </div>
-    ${loc?`<div class="tt-row"><span class="tt-icon">📍</span><span>${escapeHtml(loc)}</span></div>`:''}
-    ${editable?`<div class="tt-row" style="margin-top:4px;font-size:11px;color:var(--text-hint)"><span class="tt-icon">✎</span><span>Klik om te bewerken</span></div>`:''}
-  `;
-}
-function _showCalTooltipNow(blockEl,ev){
-  const t=_ensureCalTooltipEl();
-  t.innerHTML=_buildCalTooltipHtml(ev);
-  /* Position right of block; flip to left if it would overflow viewport */
-  const rect=blockEl.getBoundingClientRect();
-  const margin=8;
-  /* Force-render to measure */
-  t.style.left='-9999px';t.style.top='0px';t.classList.add('is-open');
-  const ttW=t.offsetWidth,ttH=t.offsetHeight;
-  let left=rect.right+margin;
-  if(left+ttW>window.innerWidth-margin)left=Math.max(margin,rect.left-ttW-margin);
-  let top=rect.top;
-  if(top+ttH>window.innerHeight-margin)top=Math.max(margin,window.innerHeight-ttH-margin);
-  t.style.left=left+'px';
-  t.style.top=top+'px';
-}
-function _hideCalTooltip(){
-  clearTimeout(_calTooltipTimer);
-  if(_calTooltipEl)_calTooltipEl.classList.remove('is-open');
-}
-function _onCalEvMouseOver(e){
-  const blockEl=e.target.closest('[data-tt]');
-  if(!blockEl)return;
-  const id=blockEl.getAttribute('data-tt');
-  const ev=_calTooltipData.get(id);
-  if(!ev)return;
-  clearTimeout(_calTooltipTimer);
-  _calTooltipTimer=setTimeout(()=>_showCalTooltipNow(blockEl,ev),220);
-}
-function _onCalEvMouseOut(e){
-  const blockEl=e.target.closest('[data-tt]');
-  if(!blockEl)return;
-  /* If moving to another event, _onCalEvMouseOver fires after this — so just always hide */
-  _hideCalTooltip();
-}
-/* Delegated listeners — installed once */
-if(!window._calTooltipBound){
-  document.addEventListener('mouseover',_onCalEvMouseOver);
-  document.addEventListener('mouseout',_onCalEvMouseOut);
-  document.addEventListener('scroll',_hideCalTooltip,true);
-  window.addEventListener('blur',_hideCalTooltip);
-  window._calTooltipBound=true;
-}
-
-/* ═══════════════════════════════════════════════════
-   NATIVE EVENT CRUD + MODAL
-   ═══════════════════════════════════════════════════ */
-let _editingEventId=null;
-let _evPickedColor=null;
-
-function ensureAgendaState(){
-  if(!rawState.agenda)rawState.agenda={};
-  if(!Array.isArray(rawState.agenda.events))rawState.agenda.events=[];
-  return rawState.agenda;
-}
-
-function openEventModalNew(presetDate){
-  _editingEventId=null;
-  _evPickedColor=CAL_PALETTE[0];
-  document.getElementById('eventModalTitle').textContent='Nieuwe afspraak';
-  document.getElementById('evDeleteBtn').style.display='none';
-  document.getElementById('evTitle').value='';
-  document.getElementById('evAllDay').checked=false;
-  /* Default: today, in 1 hour, for 1 hour */
-  const now=presetDate?new Date(presetDate):new Date();
-  const startD=now.toISOString().slice(0,10);
-  const startH=String(Math.min(now.getHours(),22)).padStart(2,'0');
-  const startM='00';
-  const endH=String(Math.min(now.getHours()+1,23)).padStart(2,'0');
-  document.getElementById('evStartDate').value=startD;
-  document.getElementById('evStartTime').value=`${startH}:${startM}`;
-  document.getElementById('evEndDate').value=startD;
-  document.getElementById('evEndTime').value=`${endH}:${startM}`;
-  document.getElementById('evLocation').value='';
-  document.getElementById('evDescription').value='';
-  populateEvClientSelect('');
-  renderEvColorRow();
-  onEventAllDayChange();
-  /* Reset herhaling */
-  setEventRecurFromData(null);
-  document.getElementById('eventModal').classList.add('open');
-  setTimeout(()=>document.getElementById('evTitle').focus(),30);
-}
-function openEventModalEdit(id){
-  const ev=ensureAgendaState().events.find(e=>e.id===id);
-  if(!ev)return;
-  _editingEventId=id;
-  _evPickedColor=ev.color||CAL_PALETTE[0];
-  document.getElementById('eventModalTitle').textContent='Afspraak bewerken';
-  document.getElementById('evDeleteBtn').style.display='';
-  document.getElementById('evTitle').value=ev.title||'';
-  document.getElementById('evAllDay').checked=!!ev.allDay;
-  if(ev.allDay){
-    document.getElementById('evStartDate').value=ev.start;
-    document.getElementById('evEndDate').value=ev.end||ev.start;
-    document.getElementById('evStartTime').value='';
-    document.getElementById('evEndTime').value='';
-  } else {
-    const s=new Date(ev.start),e=new Date(ev.end||ev.start);
-    document.getElementById('evStartDate').value=s.toISOString().slice(0,10);
-    document.getElementById('evStartTime').value=`${String(s.getHours()).padStart(2,'0')}:${String(s.getMinutes()).padStart(2,'0')}`;
-    document.getElementById('evEndDate').value=e.toISOString().slice(0,10);
-    document.getElementById('evEndTime').value=`${String(e.getHours()).padStart(2,'0')}:${String(e.getMinutes()).padStart(2,'0')}`;
-  }
-  document.getElementById('evLocation').value=ev.location||'';
-  document.getElementById('evDescription').value=ev.description||'';
-  populateEvClientSelect(ev.clientId||'');
-  renderEvColorRow();
-  onEventAllDayChange();
-  /* Populate herhaling vanuit opgeslagen data */
-  setEventRecurFromData(ev.recurrence||null);
-  document.getElementById('eventModal').classList.add('open');
-}
-function closeEventModal(){
-  document.getElementById('eventModal').classList.remove('open');
-  _editingEventId=null;
-}
-function onEventAllDayChange(){
-  const allDay=document.getElementById('evAllDay').checked;
-  document.getElementById('evStartTime').style.display=allDay?'none':'';
-  document.getElementById('evEndTime').style.display=allDay?'none':'';
-}
-
-/* ── Native event recurrence helpers ──────────────────────────────────── */
-function onEventRecurChange(){
-  const freq=document.getElementById('evRecurFreq').value;
-  const opts=document.getElementById('evRecurOptions');
-  opts.style.display=freq?'flex':'none';
-  const unitMap={DAILY:'dag',WEEKLY:'week',MONTHLY:'maand',YEARLY:'jaar'};
-  const unitEl=document.getElementById('evRecurUnit');
-  if(unitEl)unitEl.textContent=unitMap[freq]||'';
-}
-function onEventRecurEndChange(){
-  const sel=document.querySelector('input[name="evRecurEnd"]:checked');
-  const val=sel?sel.value:'never';
-  document.getElementById('evRecurUntil').disabled=val!=='until';
-  document.getElementById('evRecurCount').disabled=val!=='count';
-}
-/* Vul de herhalings-formvelden vanuit een rec object (of null = reset). */
-function setEventRecurFromData(rec){
-  const freqEl=document.getElementById('evRecurFreq');
-  const intEl=document.getElementById('evRecurInterval');
-  const untilEl=document.getElementById('evRecurUntil');
-  const countEl=document.getElementById('evRecurCount');
-  if(!freqEl)return;
-  if(!rec||!rec.freq){
-    freqEl.value='';
-    intEl.value='1';
-    untilEl.value='';
-    countEl.value='10';
-    document.querySelectorAll('input[name="evRecurEnd"]').forEach(r=>{r.checked=(r.value==='never');});
-    onEventRecurChange();
-    onEventRecurEndChange();
-    return;
-  }
-  freqEl.value=rec.freq;
-  intEl.value=rec.interval||1;
-  let endVal='never';
-  if(rec.until){endVal='until';untilEl.value=rec.until;}
-  else if(rec.count){endVal='count';countEl.value=rec.count;}
-  document.querySelectorAll('input[name="evRecurEnd"]').forEach(r=>{r.checked=(r.value===endVal);});
-  onEventRecurChange();
-  onEventRecurEndChange();
-}
-/* Lees herhalings-formvelden naar een rec-object (of null). */
-function getEventRecurFromForm(){
-  const freq=document.getElementById('evRecurFreq').value;
-  if(!freq)return null;
-  const interval=Math.max(1,parseInt(document.getElementById('evRecurInterval').value)||1);
-  const endSel=document.querySelector('input[name="evRecurEnd"]:checked');
-  const endVal=endSel?endSel.value:'never';
-  const rec={freq,interval};
-  if(endVal==='until'){
-    const u=document.getElementById('evRecurUntil').value;
-    if(u)rec.until=u;
-  }else if(endVal==='count'){
-    const c=parseInt(document.getElementById('evRecurCount').value);
-    if(c>0)rec.count=c;
-  }
-  return rec;
-}
-function populateEvClientSelect(selectedId){
-  const sel=document.getElementById('evClientId');
-  if(!sel)return;
-  const clients=kanbanState?.clients||[];
-  sel.innerHTML='<option value="">— Geen klant —</option>'+
-    clients.map(c=>`<option value="${c.id}"${c.id===selectedId?' selected':''}>${escapeHtml(c.name)}</option>`).join('');
-}
-function renderEvColorRow(){
-  const el=document.getElementById('evColorRow');if(!el)return;
-  el.innerHTML=CAL_PALETTE.map(c=>
-    `<div class="cal-color-swatch${c===_evPickedColor?' selected':''}" data-action="evPickColor" data-arg1="${c}" style="background:${c}"></div>`
-  ).join('');
-}
-function evPickColor(c){
-  _evPickedColor=c;
-  renderEvColorRow();
-}
-function saveEvent(){
-  const title=document.getElementById('evTitle').value.trim();
-  if(!title){document.getElementById('evTitle').focus();return;}
-  const allDay=document.getElementById('evAllDay').checked;
-  const startD=document.getElementById('evStartDate').value;
-  const endD=document.getElementById('evEndDate').value||startD;
-  if(!startD){appToast('Vul een startdatum in',{type:'warning'});return;}
-  let start,end;
-  if(allDay){
-    start=startD;end=endD;
-  } else {
-    const startT=document.getElementById('evStartTime').value||'09:00';
-    const endT=document.getElementById('evEndTime').value||'10:00';
-    start=`${startD}T${startT}`;
-    end=`${endD}T${endT}`;
-    if(new Date(end)<=new Date(start)){
-      appToast('De eindtijd moet na de starttijd zijn',{type:'warning'});return;
-    }
-  }
-  const data={
-    title,
-    allDay,
-    start,end,
-    location:document.getElementById('evLocation').value.trim(),
-    description:document.getElementById('evDescription').value.trim(),
-    clientId:document.getElementById('evClientId').value||null,
-    color:_evPickedColor||CAL_PALETTE[0],
-    recurrence:getEventRecurFromForm()
-  };
-  const events=ensureAgendaState().events;
-  if(_editingEventId){
-    const ev=events.find(e=>e.id===_editingEventId);
-    if(ev)Object.assign(ev,data,{updatedAt:Date.now()});
-  } else {
-    events.push({id:uid(),...data,createdAt:Date.now(),updatedAt:Date.now()});
-  }
-  closeEventModal();
-  scheduleSave();
-  if(activeModule==='agenda')fetchAndRenderView();
-  appToast(_editingEventId?'Afspraak opgeslagen':'Afspraak aangemaakt',{type:'success',duration:3000});
-}
-function deleteEvent(){
-  if(!_editingEventId)return;
-  const events=ensureAgendaState().events;
-  const idx=events.findIndex(e=>e.id===_editingEventId);
-  if(idx<0)return;
-  const removed=events[idx];
-  events.splice(idx,1);
-  closeEventModal();
-  scheduleSave();
-  if(activeModule==='agenda')fetchAndRenderView();
-  appToast(`"${removed.title}" verwijderd`,{type:'success',undo:()=>{
-    events.splice(idx,0,removed);
-    scheduleSave();
-    if(activeModule==='agenda')fetchAndRenderView();
-  }});
-}
-/* Close on backdrop click + Escape */
-document.getElementById('eventModal')?.addEventListener('click',e=>{
-  if(e.target.id==='eventModal')closeEventModal();
-});
-document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'&&document.getElementById('eventModal')?.classList.contains('open'))closeEventModal();
-  if(e.key==='Escape'&&document.getElementById('icsImportModal')?.classList.contains('open'))closeIcsImport();
-});
-
-/* ═══════════════════════════════════════════════════
-   ICS FILE IMPORT — drag-drop / file picker → preview → confirm
-   ═══════════════════════════════════════════════════ */
-let _icsParsedEvents=null;
-function openIcsImport(){
-  _icsParsedEvents=null;
-  document.getElementById('icsPreview').style.display='none';
-  document.getElementById('icsPreview').innerHTML='';
-  document.getElementById('icsImportBtn').disabled=true;
-  document.getElementById('icsFileInput').value='';
-  document.getElementById('icsImportModal').classList.add('open');
-}
-function closeIcsImport(){
-  document.getElementById('icsImportModal').classList.remove('open');
-  _icsParsedEvents=null;
-}
-async function handleIcsFile(file){
-  if(!file)return;
-  try{
-    const text=await file.text();
-    if(!text.includes('BEGIN:VCALENDAR')){
-      appToast('Dit lijkt geen iCalendar (.ics) bestand',{type:'error'});
-      return;
-    }
-    const parsed=parseICS(text);
-    /* Expand recurring events for the next 12 months so user gets all instances */
-    const fromDate=new Date();fromDate.setMonth(fromDate.getMonth()-1);
-    const toDate=new Date();toDate.setMonth(toDate.getMonth()+12);
-    const expanded=expandEvents(parsed,fromDate,toDate);
-    _icsParsedEvents=expanded;
-    /* Preview */
-    const prev=document.getElementById('icsPreview');
-    prev.style.display='';
-    prev.innerHTML=`<div style="background:var(--surface2);padding:10px 12px;border-radius:6px">
-      <div style="font-size:13px;font-weight:600;color:var(--text)">${expanded.length} afspra${expanded.length===1?'ak':'ken'} gevonden in <em>${escapeHtml(file.name)}</em></div>
-      <div style="font-size:11.5px;color:var(--text-muted);margin-top:4px">Tijdsspanne: ${fromDate.toLocaleDateString('nl-NL')} – ${toDate.toLocaleDateString('nl-NL')}</div>
-      ${expanded.length?'':'<div style="font-size:11.5px;color:var(--warning);margin-top:6px">⚠ Geen afspraken in deze periode. Probeer een ander bestand.</div>'}
-    </div>`;
-    document.getElementById('icsImportBtn').disabled=expanded.length===0;
-  }catch(e){
-    appToast(`Fout bij lezen: ${e.message}`,{type:'error'});
-  }
-}
-function confirmIcsImport(){
-  if(!_icsParsedEvents||!_icsParsedEvents.length)return;
-  const events=ensureAgendaState().events;
-  const now=Date.now();
-  const importedColor=CAL_PALETTE[1];
-  const imported=_icsParsedEvents.map(ev=>{
-    const allDay=!!ev.occStart?.allDay;
-    const start=allDay?dateStr(ev.occStart.date):ev.occStart.date.toISOString().slice(0,16);
-    const end=ev.occEnd?(allDay?dateStr(ev.occEnd.date):ev.occEnd.date.toISOString().slice(0,16)):start;
-    return{
-      id:uid(),
-      title:ev.title||'(geen titel)',
-      allDay,
-      start,end,
-      location:ev.location||'',
-      description:'',
-      clientId:activeClientFilter||null,
-      color:importedColor,
-      _imported:true,
-      createdAt:now,updatedAt:now
-    };
-  });
-  events.push(...imported);
-  scheduleSave();
-  closeIcsImport();
-  if(activeModule==='agenda')fetchAndRenderView();
-  appToast(`${imported.length} afspra${imported.length===1?'ak':'ken'} geïmporteerd`,{type:'success'});
-}
-/* Drag-drop on the drop zone */
-document.addEventListener('DOMContentLoaded',()=>{
-  const dz=document.getElementById('icsDropZone');
-  if(!dz)return;
-  dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('dragover');});
-  dz.addEventListener('dragleave',()=>dz.classList.remove('dragover'));
-  dz.addEventListener('drop',e=>{
-    e.preventDefault();dz.classList.remove('dragover');
-    if(e.dataTransfer.files.length)handleIcsFile(e.dataTransfer.files[0]);
-  });
-});
-
-/* ─ Weekly grid render ─ */
-const DAY_NAMES_SHORT=['MA','DI','WO','DO','VR','ZA','ZO'];
-const HOUR_START=7,HOUR_END=20,PX_PER_HOUR=60;
-
-function renderWeekGrid(events,weekStart,container){
-  _clearCalTooltipData();
-  const today=new Date();today.setHours(0,0,0,0);
-  const days=Array.from({length:7},(_,i)=>{const d=new Date(weekStart);d.setDate(weekStart.getDate()+i);return d;});
-  const hours=Array.from({length:HOUR_END-HOUR_START},(_,i)=>HOUR_START+i);
-
-  /* Split all-day vs timed */
-  const allDay=events.filter(ev=>ev.start?.date&&!ev.start?.dateTime);
-  const timed=events.filter(ev=>ev.start?.dateTime);
-
-  /* Build HTML. De extra class merkt dit als het zeven-koloms raster: op
-     een telefoon krijgt alléén dit een minimumbreedte en schuift het opzij.
-     Het dagraster deelt dezelfde onderdelen en heeft maar één kolom, dus
-     dat moet er buiten blijven. */
-  let html=`<div class="cal-grid-outer cal-grid-week">`;
-
-  /* Day header row */
-  html+=`<div class="cal-day-hdr-row"><div style="border-bottom:none"></div>`;
-  days.forEach((d,i)=>{
-    const isToday=d.getTime()===today.getTime();
-    html+=`<div class="cal-day-hdr${isToday?' today':''}">
-      <div class="cal-day-name">${DAY_NAMES_SHORT[i]}</div>
-      <div class="cal-day-num">${d.getDate()}</div>
-    </div>`;
-  });
-  html+=`</div>`;
-
-  /* All-day row */
-  html+=`<div class="cal-allday-row"><div class="cal-allday-label">Hele dag</div>`;
-  days.forEach(d=>{
-    const dayStr=dateStr(d);
-    const dayEvs=allDay.filter(ev=>{
-      const evDate=ev.start.date;return evDate===dayStr;
-    });
-    html+=`<div class="cal-allday-cell">`;
-    dayEvs.forEach(ev=>{
-      html+=`<div class="cal-allday-ev" style="background:${ev._calColor}" title="${escapeHtml(ev.summary||'')}">${escapeHtml(ev.summary||'(geen titel)')}</div>`;
-    });
-    html+=`</div>`;
-  });
-  html+=`</div>`;
-
-  /* Scrollable grid */
-  html+=`<div class="cal-grid-scroll"><div class="cal-grid-inner">`;
-  /* Time labels column */
-  html+=`<div class="cal-time-col">`;
-  hours.forEach(h=>html+=`<div class="cal-time-label">${h}:00</div>`);
-  html+=`</div>`;
-
-  /* Day columns */
-  days.forEach((d,di)=>{
-    const isToday=d.getTime()===today.getTime();
-    html+=`<div class="cal-day-col${isToday?' today':(di===5||di===6?' weekend':'')}" id="daycol-${di}">`;
-    /* Hour lines */
-    hours.forEach((_,i)=>html+=`<div class="cal-hour-line" style="top:${i*PX_PER_HOUR}px"></div>`);
-    /* Current time indicator */
-    if(isToday){
-      const now=new Date();const mins=(now.getHours()-HOUR_START)*60+now.getMinutes();
-      if(mins>=0&&mins<=(HOUR_END-HOUR_START)*60)
-        html+=`<div class="cal-time-now" style="top:${mins}px"></div>`;
-    }
-    /* Timed events with overlap layout */
-    const dayEvs=timed.filter(ev=>{
-      const d2=new Date(ev.start.dateTime);
-      return d2.getFullYear()===d.getFullYear()&&d2.getMonth()===d.getMonth()&&d2.getDate()===d.getDate();
-    });
-    layoutTimedEvents(dayEvs).forEach(item=>{html+=evBlockHtml(item);});
-    html+=`</div>`;
-  });
-  html+=`</div></div></div>`;/* close cal-grid-inner, cal-grid-scroll, cal-grid-outer */
-  container.innerHTML=html;
-}
-
-/* ─ ICS parser (reused for iCal) ─ */
-function parseICS(text){
-  const unfolded=text.replace(/\r\n([ \t])/g,'$1').replace(/\n([ \t])/g,'$1');
-  const lines=unfolded.split(/\r\n|\n|\r/);
-  const events=[];let cur=null;
-  for(const line of lines){
-    if(line==='BEGIN:VEVENT'){cur={};}
-    else if(line==='END:VEVENT'&&cur){events.push(cur);cur=null;}
-    else if(cur){
-      const ci=line.indexOf(':');if(ci<0)continue;
-      const keyPart=line.slice(0,ci);const val=line.slice(ci+1);const key=keyPart.split(';')[0];
-      const params={};keyPart.split(';').slice(1).forEach(p=>{const[k,v]=p.split('=');params[k]=v;});
-      if(key==='DTSTART'||key==='DTEND')cur[key]=parseICSDate(val,params.TZID);
-      else if(key==='SUMMARY')cur.title=val.replace(/\\n/g,' ').replace(/\\,/g,',').replace(/\\\\/g,'\\');
-      else if(key==='LOCATION')cur.location=val.replace(/\\n/g,' ').replace(/\\,/g,',');
-      else if(key==='RRULE')cur.rrule=val;
-      else if(key==='STATUS')cur.status=val;
-      else cur[key]=val;
-    }
-  }
-  return events;
-}
-function parseICSDate(val,tzid){
-  if(/^\d{8}$/.test(val)){return{date:new Date(parseInt(val.slice(0,4)),parseInt(val.slice(4,6))-1,parseInt(val.slice(6,8))),allDay:true};}
-  if(val.endsWith('Z')){return{date:new Date(val.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/,'$1-$2-$3T$4:$5:$6Z')),allDay:false};}
-  const m=val.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/);
-  if(m)return{date:new Date(m[1],m[2]-1,m[3],m[4],m[5],m[6]),allDay:false};
-  return{date:new Date(val),allDay:false};
-}
-function expandEvents(events,fromDate,toDate){
-  const result=[];
-  events.forEach(ev=>{
-    if(ev.status==='CANCELLED'||!ev.DTSTART)return;
-    const start=ev.DTSTART.date;
-    if(!ev.rrule){
-      const evEnd=ev.DTEND?ev.DTEND.date:new Date(start.getTime()+86400000);
-      if(start<=toDate&&evEnd>=fromDate)result.push({...ev,occStart:ev.DTSTART,occEnd:ev.DTEND});
-      return;
-    }
-    const rr={};ev.rrule.split(';').forEach(p=>{const[k,v]=p.split('=');rr[k]=v;});
-    const freq=rr.FREQ;const until=rr.UNTIL?parseICSDate(rr.UNTIL,null).date:toDate;
-    const count=rr.COUNT?parseInt(rr.COUNT):9999;const interval=parseInt(rr.INTERVAL||'1');
-    let cur=new Date(start);let n=0;
-    while(cur<=until&&cur<=toDate&&n<count){
-      if(cur>=fromDate){const diff=cur-start;const occEnd=ev.DTEND?{date:new Date(ev.DTEND.date.getTime()+diff),allDay:ev.DTEND.allDay}:null;result.push({...ev,occStart:{date:new Date(cur),allDay:ev.DTSTART.allDay},occEnd});}
-      if(freq==='DAILY')cur=new Date(cur.getTime()+interval*86400000);
-      else if(freq==='WEEKLY')cur=new Date(cur.getTime()+interval*7*86400000);
-      else if(freq==='MONTHLY'){const d=new Date(cur);d.setMonth(d.getMonth()+interval);cur=d;}
-      else if(freq==='YEARLY'){const d=new Date(cur);d.setFullYear(d.getFullYear()+interval);cur=d;}
-      else break;
-      n++;
-    }
-  });
-  result.sort((a,b)=>a.occStart.date-b.occStart.date);return result;
-}
-
-/* ─ Dashboard calendar fetcher (all iCal sources) ─ */
-async function fetchDashIcalCal(body){
-  body.innerHTML='<div class="cal-loading"><span>Laden...</span></div>';
-  try{
-    migrateCalSettings();
-    const sources=(rawState.settings?.calSources||[]).filter(s=>s.type==='ical'&&s.enabled!==false&&s.url);
-    const now=new Date();const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
-    const windowEnd=new Date(today.getTime()+14*86400000);
-    /* Gebruik de centrale fetchSourceEvents — die deelt de 5-maands cache
-       met de agenda module, dus het dashboard krijgt instant data zodra
-       de gebruiker de agenda eerder heeft geopend (en vice versa). */
-    const allEvents=[];
-    await Promise.all(sources.map(async s=>{
-      try{
-        const evs=await fetchSourceEvents(s,today.toISOString(),windowEnd.toISOString());
-        allEvents.push(...evs);
-      }catch(e){}
-    }));
-    allEvents.sort((a,b)=>{const at=a.start?.dateTime||a.start?.date||'';const bt=b.start?.dateTime||b.start?.date||'';return at<bt?-1:at>bt?1:0;});
-    renderDashCalList(allEvents,body);
-  }catch(e){body.innerHTML=`<div class="cal-error">${escapeHtml(e.message)}</div>`;}
-}
-function renderDashCalList(events,body){
-  const today=new Date();today.setHours(0,0,0,0);
-  const dayNames=['zondag','maandag','dinsdag','woensdag','donderdag','vrijdag','zaterdag'];
-  const monthNames=['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
-  if(!events.length){body.innerHTML='<div class="cal-events"><div class="cal-empty">Geen afspraken de komende 7 dagen</div></div>';return;}
-  const byDay={};
-  events.forEach(ev=>{
-    const startStr=ev.start?.dateTime||ev.start?.date||'';const d=new Date(startStr);
-    const key=d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
-    if(!byDay[key])byDay[key]=[];byDay[key].push(ev);
-  });
-  let html='<div class="cal-events">';
-  Object.keys(byDay).sort().forEach(key=>{
-    const[y,m,d]=key.split('-').map(Number);const dayDate=new Date(y,m-1,d);
-    const diffDays=Math.round((dayDate-today)/86400000);
-    const label=diffDays===0?'Vandaag':diffDays===1?'Morgen':dayNames[dayDate.getDay()]+' '+d+' '+monthNames[m-1];
-    html+=`<div class="cal-day-hdr-lbl">${label}</div>`;
-    byDay[key].forEach(ev=>{
-      const isAllDay=!!ev.start?.date&&!ev.start?.dateTime;
-      const timeStr=isAllDay?'Hele dag':new Date(ev.start.dateTime).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});
-      const loc=ev.location?`<div class="cal-event-loc">📍 ${escapeHtml(ev.location)}</div>`:'';
-      html+=`<div class="cal-event">
-        <div class="cal-event-time">${timeStr}</div>
-        <div class="cal-event-dot" style="background:${ev._calColor}"></div>
-        <div><div class="cal-event-title">${escapeHtml(ev.summary||'(geen titel)')}</div>${loc}</div>
-      </div>`;
-    });
-  });
-  html+='</div>';body.innerHTML=html;
-}
-
-/* ─ Event delegation registrations (Agenda) ─ */
-Object.assign(APP_ACTIONS,{
-  fetchAndRenderView:()=>fetchAndRenderView(),
-  openCalSourcesModal:()=>openCalSourcesModal(),
-  toggleCalSourceEnabled:(el,e,id)=>toggleCalSourceEnabled(id),
-  toggleSourceEditor:(el,e,id)=>toggleSourceEditor(id),
-  removeCalSource:(el,e,id)=>removeCalSource(id),
-  saveSourceEdit:(el,e,id)=>saveSourceEdit(id),
-  csiPickColor:(el,e,color,id)=>csiPickColor(el,color,id),
-  pickCalColor:(el,e,color)=>pickCalColor(el,color),
-  hideCalAddForm:()=>{const f=document.getElementById('calAddForm');if(f)f.style.display='none';},
-  saveIcalSource:()=>saveIcalSource(),
-  jumpToDay:(el,e,ds)=>jumpToDay(ds),
-  /* Native events */
-  openEventModalNew:()=>openEventModalNew(),
-  openEventModalEdit:(el,e,id)=>{e.stopPropagation();openEventModalEdit(id);},
-  evPickColor:(el,e,c)=>evPickColor(c),
-  openIcsImport:()=>openIcsImport()
 });
 
 /* ═══════════════════════════════════════════════════
@@ -19253,7 +16698,7 @@ function factuurSnapshotBijwerken(id){
    administraties: eigen nummerreeks, eigen btw-nummer, eigen aangifte.
    De Facturen-module kijkt daarom naar één bedrijf tegelijk, of naar
    alles bij elkaar. Bewust alléén hier: klanten, uren, notities en de
-   agenda zijn van jou en niet van een B.V., dus die blijven gedeeld.
+   notities zijn van jou en niet van een B.V., dus die blijven gedeeld.
    Vandaar ook dat de scope in factuurState.settings zit en niet in
    rawState.settings. */
 function facBedrijfScope(){
@@ -24063,7 +21508,7 @@ function _buildQuickAddSystemPrompt(){
   const today=now.toISOString().slice(0,10);
   const todayDow=dows[now.getDay()];
   const clients=(kanbanState?.clients||[]).map(c=>({id:c.id,name:c.name}));
-  return `Je bent een NL-talige parser die natuurlijke beschrijvingen omzet naar gestructureerde taken en agenda-events voor een productivity-app.
+  return `Je bent een NL-talige parser die natuurlijke beschrijvingen omzet naar gestructureerde taken voor een productivity-app.
 
 Vandaag is ${todayDow} ${today}.
 
@@ -24071,20 +21516,13 @@ Beschikbare klanten (gebruik exact deze id's bij clientId, of null als geen klan
 ${clients.length?clients.map(c=>`- ${c.id}: ${c.name}`).join('\n'):'(geen klanten gedefinieerd)'}
 
 Regels:
-- Geef ALTIJD een JSON-object terug met velden: tasks (array), events (array), summary (string).
+- Geef ALTIJD een JSON-object terug met velden: tasks (array), summary (string).
 - "tasks" = checklist-items met een TE DOEN ding. Velden per item:
   - text (string, kort en actionable, NL — de KOPTAAK, niet alle deeltaken)
   - clientId (string of null — match losse termen zoals "Boskalis" tegen klantenlijst)
   - deadline (YYYY-MM-DD of null — interpreteer "morgen", "vrijdag", "volgende week" relatief aan vandaag; default null als niet genoemd)
   - priority ("laag" | "middel" | "hoog" — default "middel"; "asap"/"urgent"/"belangrijk" → "hoog")
   - subtasks (array van strings, optioneel — zie regels hieronder)
-- "events" = agenda-afspraken (alleen als concrete tijd/datum genoemd wordt). Velden per item:
-  - title (string)
-  - start (YYYY-MM-DDTHH:MM voor tijden, of YYYY-MM-DD voor hele dag)
-  - end (zelfde format, of null → +1 uur na start)
-  - allDay (boolean)
-  - location (string of null)
-  - clientId (string of null)
 - "summary" = 1 zin NL die kort beschrijft wat is aangemaakt.
 
 SUBTASKS-regels (belangrijk — wees terughoudend):
@@ -24138,13 +21576,12 @@ async function parseQuickAddAI(){
         :[];
       return {...t,subtasks:subs};
     }):[];
-    const events=Array.isArray(data.events)?data.events.filter(e=>e&&e.title&&e.start):[];
     const summary=typeof data.summary==='string'?data.summary:'';
-    if(!tasks.length&&!events.length){
-      _aiSetError(errEl,'AI heeft geen taken of afspraken kunnen herleiden. Probeer wat meer detail.','parseQuickAddAI');
+    if(!tasks.length){
+      _aiSetError(errEl,'AI heeft geen taken kunnen herleiden. Probeer wat meer detail.','parseQuickAddAI');
       return;
     }
-    _quickAddAIResult={tasks,events,summary};
+    _quickAddAIResult={tasks,summary};
     _renderQuickAddPreview(_quickAddAIResult);
     _attachQuickAddPreviewListeners();
     prevEl.style.display='';
@@ -24204,20 +21641,6 @@ function _renderQuickAddPreview(d){
       </div>
     </div>`;
   });
-  d.events.forEach((e,i)=>{
-    html+=`<div class="qa-card qa-card-event" data-qa-type="event" data-qa-idx="${i}">
-      <span class="qa-card-icon">📅</span>
-      <div class="qa-card-body">
-        <input class="qa-edit qa-edit-text" data-field="title" value="${escapeHtml(e.title||'')}" placeholder="Afspraak..."/>
-        <div class="qa-edit-row">
-          <input type="datetime-local" class="qa-edit-chip" data-field="start" value="${escapeHtml(normalizeDT(e.start))}" title="Start"/>
-          <select class="qa-edit-chip" data-field="clientId" title="Klant">${clientOpts(e.clientId)}</select>
-          <input class="qa-edit-chip qa-edit-location" data-field="location" value="${escapeHtml(e.location||'')}" placeholder="📍 Locatie"/>
-        </div>
-        <button class="qa-card-remove" data-qa-remove title="Verwijder uit preview" type="button">×</button>
-      </div>
-    </div>`;
-  });
   if(d.summary)html+=`<div class="qa-summary">${escapeHtml(d.summary)}</div>`;
   prevEl.innerHTML=html;
 }
@@ -24237,7 +21660,7 @@ function _onQuickAddPreviewEdit(e){
   if(!card||!_quickAddAIResult)return;
   const type=card.dataset.qaType;
   const idx=parseInt(card.dataset.qaIdx);
-  const arr=type==='task'?_quickAddAIResult.tasks:_quickAddAIResult.events;
+  const arr=_quickAddAIResult.tasks;
   if(!arr[idx])return;
   /* Subtask-edit binnen task-card */
   const subField=target.dataset.subField;
@@ -24301,10 +21724,10 @@ function _onQuickAddPreviewClick(e){
   if(!card)return;
   const type=card.dataset.qaType;
   const idx=parseInt(card.dataset.qaIdx);
-  const arr=type==='task'?_quickAddAIResult.tasks:_quickAddAIResult.events;
+  const arr=_quickAddAIResult.tasks;
   arr.splice(idx,1);
   _renderQuickAddPreview(_quickAddAIResult);
-  if(!_quickAddAIResult.tasks.length&&!_quickAddAIResult.events.length){
+  if(!_quickAddAIResult.tasks.length){
     document.getElementById('quickAddAIPreview').style.display='none';
     document.getElementById('quickAddAIParseBtn').style.display='';
     document.getElementById('quickAddAIApplyBtn').style.display='none';
@@ -24315,7 +21738,7 @@ function _onQuickAddPreviewClick(e){
 /* ─ Apply: schrijf parsed result naar state, sla op, sluit modal ─ */
 function applyQuickAddAI(){
   if(!_quickAddAIResult)return;
-  const {tasks,events}=_quickAddAIResult;
+  const {tasks}=_quickAddAIResult;
   /* Tasks → checklistState */
   if(tasks.length){
     if(!checklistState.items)checklistState.items=[];
@@ -24342,42 +21765,12 @@ function applyQuickAddAI(){
       });
     });
   }
-  /* Events → rawState.agenda.events */
-  if(events.length){
-    const agendaEvents=ensureAgendaState().events;
-    events.forEach(e=>{
-      let endVal=e.end;
-      if(!endVal&&!e.allDay&&e.start){
-        /* Default eind = start + 1 uur */
-        try{const d=new Date(e.start);d.setHours(d.getHours()+1);endVal=d.toISOString().slice(0,16);}catch(err){endVal=e.start;}
-      }
-      if(!endVal)endVal=e.start;
-      agendaEvents.push({
-        id:uid(),
-        title:e.title,
-        allDay:!!e.allDay,
-        start:e.start,
-        end:endVal,
-        location:e.location||'',
-        description:'',
-        clientId:e.clientId||null,
-        color:(typeof CAL_PALETTE!=='undefined'?CAL_PALETTE[0]:'#3b5bdb'),
-        recurrence:null,
-        createdAt:Date.now(),
-        updatedAt:Date.now()
-      });
-    });
-  }
   scheduleSave();
   updateNavBadges();
   /* Refresh actieve module */
   if(activeModule==='checklist')renderChecklistModule();
-  else if(activeModule==='agenda')fetchAndRenderView();
   else if(activeModule==='dashboard')renderDashboard();
-  const parts=[];
-  if(tasks.length)parts.push(`${tasks.length} ${tasks.length===1?'taak':'taken'}`);
-  if(events.length)parts.push(`${events.length} ${events.length===1?'afspraak':'afspraken'}`);
-  appToast(`✨ ${parts.join(' + ')} toegevoegd`,{type:'success',duration:3500});
+  appToast(`✨ ${tasks.length} ${tasks.length===1?'taak':'taken'} toegevoegd`,{type:'success',duration:3500});
   closeQuickAddAI();
 }
 
