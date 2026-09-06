@@ -10,6 +10,26 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-06 · De filterknop staat overal op dezelfde plek en heeft dezelfde maat
+
+**Probleem.** Drie modules met een trechter, drie verschillende uitvoeringen. Checklist: 44×44, randloos, icoon 20px, in de topbalk. Uren en Facturen: 37×36 met rand en schaduw, icoon 13px, een rij lager tussen de tabs. Ook het pad van het icoon verschilde. Naast elkaar gezet is dat één functie in drie gedaanten.
+
+**Beslissing — plek.** De trechter hoort bij het kiezen van je periode, niet bij het kiezen van je weergave. Hij staat nu in de topbalk, op de rij van jaar en bedrijf (Facturen) en van periode en Week/Maand (Uren), tegen de rechterrand in dezelfde kolom als het ⋯ erboven. De tabsrij houdt alleen nog tabs.
+
+**Beslissing — maat.** Eén regel voor elke knop die alleen een icoon draagt: `var(--tap)` in het vierkant, geen rand, geen vulling, geen schaduw, icoon op `var(--icoon)`. Die regel dekt de trechter én het kruisje van de Checklist en de filterknoppen van Uren en Facturen — vier selectors, één set getallen, zodat er niet weer drie maten ontstaan. `FILTER_ICOON` gebruikt nu hetzelfde pad als de knop in de Checklist.
+
+**De schaduw was het addertje.** `.uren-btn` draagt `box-shadow: 0 1px 2px`. Met `border: 0` alleen bleef die schaduw een randje tekenen, en dan lijkt de knop nog steeds niet op die van de Checklist. Gemeten in `getComputedStyle`, niet gezien op een screenshot.
+
+**De teller in de knop verdwijnt op een telefoon.** Naast een trechter die al mint kleurt zei "2" niets extra's, en de wisbare chips ernaast zeggen wél *wat* er aanstaat. Op een bureaublad, waar het woord "Filter" ernaast staat, blijft hij.
+
+**Twee hosts bij Facturen.** De btw-weergave zet geen filterknop maar een tijdvakkiezer van zeven knoppen in de balk; die past niet in de topbalk. `facRenderFilters()` schrijft daarom in `#facFilterTop` (topbalk) óf in `#facFilterBar` (onder de tabs), nooit in allebei.
+
+**Vier pixels.** De rij van Uren was met de trechter erbij 4px te lang, en een flexrij die mag wrappen wrapt eerder dan dat hij krimpt — de trechter belandde op een tweede regel en de balk werd 101px hoog. De 12px komen uit de zijvulling van Week/Maand (9px → 6px); die knoppen blijven ruim boven de 44px breed. Balk weer 61px, en het periodelabel wordt niet afgekapt.
+
+**Bestanden**: `index.html` — `#urenFilterTop`/`#facFilterTop` in beide topbalken, `.uren-topfilter`, `urenRenderFilters`/`facRenderFilters` schrijven naar de nieuwe host, `FILTER_ICOON` met `class="icoon"`, gedeelde icoonknop-regel in de mobiele laag; `sw.js` → `herling-v26`
+
+**Niet doen.** De btw-tijdvakkiezer alsnog naar de topbalk verplaatsen. En geen aparte maat meer per module: wie een nieuwe icoonknop maakt, zet zijn selector in die ene regel.
+
 ## 2026-09-06 · Checklist: een kruisje naast de trechter om te wissen
 
 **Probleem.** Wissen kon alleen ín het filterpaneel. Wie een filter had staan en het kwijt wilde, moest eerst het paneel openen — twee tikken voor iets wat er één hoort te zijn.

@@ -709,6 +709,10 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 
 /* ── Filter-popover ── */
 .uren-filters{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+/* De filterknop en de wisbare chips staan in de topbalk, bij de
+   periodekiezer. .uren-filters houdt de balk onder de tabs en draagt
+   daar alleen nog de tijdvakkiezer van de btw-weergave. */
+.uren-topfilter{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
 .uren-filterpop{
   position:fixed;z-index:9999;min-width:236px;padding:13px;
   background:var(--surface);border:0.5px solid var(--border-strong);
@@ -4755,42 +4759,64 @@ textarea { line-height: 1.6; resize: vertical; }
      valt: een filter dat je niet ziet is een valstrik -- je mist een taak
      en denkt dat hij weg is. Staat er iets aan, dan kleurt de balk mee en
      staat er een kruisje om alles in één tik te wissen. */
-  /* De knop: dezelfde vorm en maat als het ⋯ ernaast. */
-  .cl2-filterbtn {
+  /* ══ De icoonknop ══
+     Elke knop die alleen een icoon draagt heeft dezelfde vorm: var(--tap)
+     in het vierkant, geen rand, geen vulling, icoon op var(--icoon). Dat
+     geldt voor de trechter en het kruisje van de Checklist én voor die van
+     Uren en Facturen -- daar staat op een bureaublad het woord "Filter"
+     naast, en dan is het gewoon een .uren-btn.
+
+     Eén regel voor alle vier, zodat er niet weer drie maten ontstaan. De
+     id-selectors wegen zwaarder dan .uren-btn (h 36px) en winnen dus
+     ongeacht de volgorde in het bestand. */
+  .cl2-filterbtn,
+  .cl2-filterwis.zichtbaar,
+  #urenFilterBtn,
+  #facFilterBtn {
     display: inline-flex !important;
     align-items: center; justify-content: center;
-    width: var(--tap); height: var(--tap); min-height: var(--tap);
-    margin-left: auto;          /* het ⋯ staat vast, dus dit is de rechterrand */
-    padding: 0;
-    background: transparent; border: 0; color: var(--text);
+    width: var(--tap) !important; height: var(--tap) !important;
+    min-height: var(--tap) !important; flex: none;
+    padding: 0 !important;
+    background: transparent !important; border: 0 !important;
+    /* .uren-btn draagt een schaduw van 1px; die tekent zonder rand alsnog
+       een randje om de knop en dan lijkt hij niet op die van de Checklist. */
+    box-shadow: none !important;
+    color: var(--text) !important;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
   }
   .cl2-filterbtn:active,
-  .cl2-filterbtn.open { background: var(--surface2); border-radius: var(--radius); }
-  /* Het kruisje krijgt dezelfde vorm en gaat links van de trechter staan.
-     De rechtermarge houdt de trechter in dezelfde kolom als het ⋯ erboven,
-     dus de auto-marge verhuist mee zolang het kruisje er staat. */
-  .cl2-filterwis.zichtbaar {
-    display: inline-flex !important;
-    align-items: center; justify-content: center;
-    width: var(--tap); height: var(--tap); min-height: var(--tap);
-    margin-left: auto;
-    padding: 0;
-    background: transparent; border: 0; color: var(--text-muted);
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
+  .cl2-filterbtn.open,
+  .cl2-filterwis.zichtbaar:active,
+  #urenFilterBtn:active,
+  #facFilterBtn:active,
+  #urenFilterBtn[aria-expanded="true"],
+  #facFilterBtn[aria-expanded="true"] {
+    background: var(--surface2) !important; border-radius: var(--radius);
   }
-  .cl2-filterwis.zichtbaar:active { background: var(--surface2); border-radius: var(--radius); }
-  .cl2-filterwis.zichtbaar + .cl2-filterbtn { margin-left: 0; }
+  .cl2-filterwis.zichtbaar { color: var(--text-muted) !important; }
   /* Staat er een filter aan, dan mag je dat zien zonder het paneel te
-     openen: de trechter kleurt en er komt een stip bij. */
-  .cl2-filterbtn.aan { color: var(--mint); position: relative; }
-  .cl2-filterbtn.aan::after {
+     openen: de trechter kleurt en er komt een stip bij. De teller in de
+     knop kan daarmee weg -- die stond bij Uren en Facturen naast een
+     icoon dat het al zei, en de wisbare chips zeggen wát er aanstaat. */
+  .cl2-filterbtn.aan,
+  #urenFilterBtn.aan,
+  #facFilterBtn.aan { color: var(--mint) !important; position: relative; }
+  .cl2-filterbtn.aan::after,
+  #urenFilterBtn.aan::after,
+  #facFilterBtn.aan::after {
     content: ''; position: absolute; top: 6px; right: 6px;
     width: 7px; height: 7px; border-radius: 50%;
     background: var(--mint);
   }
+  #urenFilterBtn .cnt, #facFilterBtn .cnt { display: none !important; }
+  /* Het ⋯ staat vast bovenin, dus dit is de rechterrand van de balk.
+     Staat het kruisje er, dan neemt dát de marge over en blijft de
+     trechter in dezelfde kolom staan. */
+  .cl2-filterbtn { margin-left: auto; }
+  .cl2-filterwis.zichtbaar { margin-left: auto; }
+  .cl2-filterwis.zichtbaar + .cl2-filterbtn { margin-left: 0; }
 
   /* Het paneel klapt uit als eerste blok van de kolom -- direct onder de
      balk waar de knop staat, en dus vlak bij je duim. Bewust in de stroom
@@ -4930,7 +4956,12 @@ textarea { line-height: 1.6; resize: vertical; }
   .uren-periode button { padding: 4px 7px; }
   .uren-btn-vandaag { display: none; }
   .uren-scope { height: 36px; flex-shrink: 0; }
-  .uren-scope button { padding: 0 9px; }
+  /* Week/Maand op 6px zijvulling in plaats van 9. Met de trechter erbij was
+     de rij van Uren 4px te lang, en een flexrij die mag wrappen wrapt eerder
+     dan dat hij krimpt -- de trechter belandde dan op een tweede regel en de
+     balk werd 101px hoog. Die 12px komen uit de vulling; de knoppen blijven
+     ruim boven de 44px breed en de tikhoogte zit in de hoogte. */
+  .uren-scope button { padding: 0 6px; }
   .uren-btn { height: 36px; padding: 0 12px; }
   /* Het ⋯-menu tegen de rechterrand, op één lijn met dat van de Checklist.
      Stond bij Facturen 113px van de rand af en bij Uren 30px, omdat de
@@ -4938,10 +4969,11 @@ textarea { line-height: 1.6; resize: vertical; }
      achterblijft. margin-left:auto schuift alleen deze knop op; wat ervoor
      staat blijft links staan. */
   .uren-btn-icon { width: 36px; padding: 0; flex-shrink: 0; margin-left: auto; }
-  /* Staat er nog iets ná het menu (bij Facturen de bedrijfskiezer), dan
-     hoort dat mee naar rechts en niet los te raken van het menu. */
-  .uren-topbar .uren-btn-bedrijf:not([hidden]) ~ .uren-btn-icon { margin-left: var(--sp-1); }
-  .uren-topbar .uren-btn-bedrijf:not([hidden]) { margin-left: auto; }
+  /* De trechter is het laatste in de rij en gaat tegen de rechterrand, in
+     dezelfde kolom als het ⋯ erboven. De bedrijfskiezer schuift daarmee
+     naar links, tegen het jaar aan waar hij bij hoort. */
+  .uren-topfilter { margin-left: auto; gap: var(--sp-1) !important; }
+  .uren-topbar .uren-btn-bedrijf:not([hidden]) { margin-left: var(--sp-1); }
   /* Wrappen blijft toegestaan. Facturen deelt deze balk maar heeft er meer
      in staan (jaar, bedrijf, ⋯, Nieuwe factuur); met nowrap moest daar
      alles krimpen en werd '2026' teruggebracht tot '2'. Wrappen is daar het
@@ -4967,12 +4999,11 @@ textarea { line-height: 1.6; resize: vertical; }
     padding: 7px 4px; min-height: 36px; white-space: nowrap;
     font-size: 12px; flex: 1 1 auto; text-align: center;
   }
-  /* De filterknop wordt een trechtertje zonder woord. Dat scheelt 41px --
-     precies genoeg om alle vijf de facturentabs naast elkaar te laten
-     passen, zodat er niets meer opzij geschoven hoeft te worden. Het
+  /* De filterknop draagt geen woord meer: hij staat nu in de topbalk als
+     icoonknop (zie hierboven), en de tabsrij eronder houdt alleen tabs --
+     alle vijf de facturentabs passen daardoor naast elkaar. Het
      aria-label op de knop houdt hem leesbaar voor een schermlezer. */
   .uren-btn-lab { display: none; }
-  #urenFilterBtn, #facFilterBtn { padding: 0 11px; gap: 5px; font-size: 12px; }
   /* De popover zelf mag ook compacter: hij stond op de maten van een
      desktopvenster terwijl hij op een telefoon bijna een derde van het
      scherm vulde. */
@@ -6687,6 +6718,11 @@ textarea { line-height: 1.6; resize: vertical; }
         <div class="uren-scope" id="urenScope" role="group" aria-label="Periodebreedte"></div>
         <button class="uren-btn uren-btn-vandaag" data-uren-action="urenNavToday">Vandaag</button>
         <div class="uren-topbar-vul"></div>
+        <!-- Filteren hoort bij het kiezen van je periode, niet bij het kiezen
+             van je weergave: op een telefoon staat de trechter daarom hier,
+             in dezelfde kolom als het ⋯ erboven en in dezelfde vorm als die
+             van de Checklist. De tabsrij eronder houdt alleen nog tabs. -->
+        <div class="uren-topfilter" id="urenFilterTop"></div>
         <button class="uren-btn uren-btn-icon" id="urenMenuBtn" data-uren-action="urenToggleMenu"
           aria-haspopup="menu" aria-expanded="false" aria-label="Meer acties" title="Meer acties"><svg class="icoon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="13" cy="8" r="1.5"/></svg></button>
       </div>
@@ -6725,6 +6761,10 @@ textarea { line-height: 1.6; resize: vertical; }
         <button class="uren-btn uren-btn-bedrijf" id="facBedrijfBtn" data-fac-action="facToggleBedrijf"
           aria-haspopup="menu" aria-expanded="false" title="Bedrijf waaruit je factureert" hidden>
           <span class="nm" id="facBedrijfLbl">Alle bedrijven</span><span class="cv" aria-hidden="true">▾</span></button>
+        <!-- Zie de topbalk van Uren: de trechter staat op de rij van jaar en
+             bedrijf. In de btw-weergave is er niets te filteren; dan staat er
+             de tijdvakkiezer in de balk eronder. -->
+        <div class="uren-topfilter" id="facFilterTop"></div>
         <button class="uren-btn uren-btn-icon" id="facMenuBtn" data-fac-action="facToggleMenu"
           aria-haspopup="menu" aria-expanded="false" aria-label="Meer acties" title="Meer acties"><svg class="icoon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="13" cy="8" r="1.5"/></svg></button>
         <button class="uren-btn uren-btn-primary" data-fac-action="facNieuwStart">+ Nieuwe factuur</button>
@@ -14717,20 +14757,26 @@ function urenRenderScope(){
    dat teken zit in lang niet elk lettertype: op iOS viel het terug op een
    vervanger die boven de regel uitstak en aan de onderkant werd afgeknipt.
    Een <svg> tekent altijd hetzelfde en schaalt met de knop mee. */
-const FILTER_ICOON='<svg viewBox="0 0 16 16" width="13" height="13" fill="none" '+
-  'stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" '+
-  'aria-hidden="true" focusable="false"><path d="M2 3.5h12L9.5 8.6V13L6.5 11.4V8.6z"/></svg>';
+/* Zelfde trechter als in de Checklist-topbalk (zoek op cl2-filterbtn):
+   één pad, één maat via .icoon. Wie er hier een verandert, verandert daar mee. */
+const FILTER_ICOON='<svg class="icoon" viewBox="0 0 16 16" fill="none" '+
+  'stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" '+
+  'aria-hidden="true" focusable="false"><path d="M2 3h12l-4.5 5.5V13l-3 1.5V8.5L2 3z"/></svg>';
 
 /* Filters zitten achter één knop; twee altijd-zichtbare dropdowns namen
    meer breedte in beslag dan ze verdienden. Wat wél actief is staat als
    wisbare chip naast de knop, zodat een filter nooit stilletijd aanstaat. */
 function urenRenderFilters(){
-  const bar=document.getElementById('urenFilterBar');
+  /* De knop staat in de topbalk, bij de periodekiezer; de oude plek in de
+     tabsrij blijft leeg. Zie de HTML bij #urenFilterTop. */
+  const bar=document.getElementById('urenFilterTop');
+  const oud=document.getElementById('urenFilterBar');
+  if(oud)oud.innerHTML='';
   if(!bar)return;
   const actief=(urenFilterClient?1:0)+(urenFilterStatus?1:0);
   /* Het woord "Filter" zit in een eigen span zodat het op telefoonbreedte
      kan wegvallen; het trechtertje en de teller blijven staan. */
-  let html=`<button class="uren-btn" id="urenFilterBtn" data-uren-action="urenToggleFilters"
+  let html=`<button class="uren-btn${actief?' aan':''}" id="urenFilterBtn" data-uren-action="urenToggleFilters"
       aria-haspopup="dialog" aria-expanded="false" aria-label="Filter">
       ${FILTER_ICOON}<span class="uren-btn-lab">Filter</span>${actief?`<span class="cnt">${actief}</span>`:''}</button>`;
   if(urenFilterClient){
@@ -17687,17 +17733,22 @@ function facZichtbaar(){
 }
 
 function facRenderFilters(){
-  const bar=document.getElementById('facFilterBar');
+  /* Twee plekken: de trechter hoort in de topbalk (bij jaar en bedrijf),
+     de tijdvakkiezer van de btw-weergave houdt de balk onder de tabs --
+     dat zijn zeven knoppen, die passen daar niet. */
+  const bar=document.getElementById('facFilterTop');
+  const balkOnder=document.getElementById('facFilterBar');
+  if(balkOnder)balkOnder.innerHTML='';
   if(!bar)return;
   /* De btw-kiezer is geen knopje maar een rij van zeven; die krijgt op een
      telefoon een eigen regel onder de tabs. De balk weet dat via deze
      klasse, zodat de CSS niet hoeft te raden wat erin staat. */
-  bar.closest('.uren-viewbar')?.classList.toggle('viewbar-btw',facView==='btw');
+  balkOnder?.closest('.uren-viewbar')?.classList.toggle('viewbar-btw',facView==='btw');
   if(facView==='klanten'){bar.innerHTML='';return;}
-  if(facView==='btw'){bar.innerHTML=facBtwKiezer();return;}
+  if(facView==='btw'){bar.innerHTML='';if(balkOnder)balkOnder.innerHTML=facBtwKiezer();return;}
   if(facView==='mails'){bar.innerHTML='';return;}
   const n=(facFilterStatus?1:0)+(facFilterClient?1:0);
-  let html=`<button class="uren-btn" id="facFilterBtn" data-fac-action="facToggleFilters"
+  let html=`<button class="uren-btn${n?' aan':''}" id="facFilterBtn" data-fac-action="facToggleFilters"
     aria-haspopup="dialog" aria-expanded="false" aria-label="Filter en periode">${FILTER_ICOON}<span class="uren-btn-lab">Filter</span>${n?`<span class="cnt">${n}</span>`:''}</button>`;
   if(facFilterStatus){
     const s=FACTUUR_STATUSSEN.find(x=>x.id===facFilterStatus);

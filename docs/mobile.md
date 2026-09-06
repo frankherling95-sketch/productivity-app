@@ -81,7 +81,7 @@ Elke module ziet er op een telefoon hetzelfde uit. Twee vaste plekken:
 | | Waar | Raakvlak | Icoon |
 |---|---|---|---|
 | ⋯-menu | rechtsboven, op de lijn van de moduletitel (`top: 4px` + safe-area, `right: 12px`) | 44×44, randloos, transparant | `var(--icoon)` |
-| filter | rechts in de balk eronder, in dezelfde kolom als het ⋯ | 44×44, randloos, transparant | `var(--icoon)` |
+| filter | rechts in de balk eronder, in dezelfde kolom als het ⋯ — bij Uren en Facturen is dat de rij van periode/jaar, niet de tabsrij | 44×44, randloos, transparant | `var(--icoon)` |
 | ronde + | rechtsonder, boven de tabbalk (`right: 17px`, `bottom: 80px` + safe-area) | 56×56 | 26px glyph |
 
 ### Eén maat voor een icoon: `--icoon`
@@ -112,6 +112,25 @@ soms aan `document.body` gehangen en bij de knop gepositioneerd — verhuizen
 maakt die verbanden los, positioneren laat ze intact. Het blok staat aan het
 **eind** van de mobiele laag: de dashboard-rasterregels staan op `!important`
 en bij gelijke specificiteit wint de laatste regel.
+
+### Een knop met alleen een icoon
+
+Eén regel in de mobiele laag dekt ze allemaal — de trechter en het kruisje van
+de Checklist, de filterknoppen van Uren en Facturen:
+
+```css
+.cl2-filterbtn, .cl2-filterwis.zichtbaar, #urenFilterBtn, #facFilterBtn {
+  width: var(--tap); height: var(--tap);
+  padding: 0; background: transparent; border: 0; box-shadow: none;
+}
+```
+
+Wie een nieuwe icoonknop maakt, zet zijn selector er**bij** in plaats van een
+eigen maat te kiezen. Zo ontstonden de drie uitvoeringen die er stonden.
+
+**Let op `box-shadow`.** `.uren-btn` draagt er een van 1px. Met alleen
+`border: 0` tekent die alsnog een randje, en dan lijkt de knop nog steeds niet
+op de andere. Zulke dingen zie je in `getComputedStyle`, niet op een screenshot.
 
 ## Geen getal twee keer in beeld
 
