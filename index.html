@@ -2170,6 +2170,14 @@ textarea { line-height: 1.6; resize: vertical; }
   animation: ha-modalIn 0.26s var(--ease);
   overflow: hidden;
 }
+/* De gekleurde kop van een eenvoudige modal: die heeft 20px padding en een
+   kop als eerste kind, dus de negatieve marges trekken hem tot de rand.
+
+   Zit de kop in een eigen balk (zie .modal-kop hieronder), dan geldt dit
+   niet -- daar kleurt de balk zelf. Zonder die uitzondering pakte deze
+   regel ook de h3 diep in zo'n balk, en omdat die vaak in een flex-kolom
+   naast de sluitknop staat, kleurde alleen die kolom mee: een gekleurd
+   blok van driekwart breedte met een kale strook ernaast. */
 .modal h2:first-child,
 .modal h3:first-child,
 .modal-content h2:first-child,
@@ -2184,6 +2192,41 @@ textarea { line-height: 1.6; resize: vertical; }
   border-top-left-radius: var(--radius-lg);
   border-top-right-radius: var(--radius-lg);
 }
+.modal-kop h2:first-child,
+.modal-kop h3:first-child,
+.modal-kop *:first-child > h2:first-child,
+.modal-kop *:first-child > h3:first-child {
+  margin: 0;
+  padding: 0;
+  background: none;
+  border-radius: 0;
+}
+
+/* ── Kopbalk van een modal met eigen indeling ──
+   De brede modals (factuureditor, voorbeeld, sjabloon, klantgegevens,
+   versiegeschiedenis, …) hebben padding:0 en een eigen balk met een titel,
+   een ondertitel en rechts een status of een sluitknop. De kleur hoort op
+   die balk, zodat hij van rand tot rand loopt. */
+.modal-kop {
+  padding: 18px 22px 16px;
+  background: var(--hero-gradient);
+  color: #fff;
+  border-bottom: 0;
+  border-top-left-radius: var(--radius-lg);
+  border-top-right-radius: var(--radius-lg);
+}
+.modal-kop h2,
+.modal-kop h3 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+/* Alles in de balk staat op een donkere ondergrond: de ondertitel, de
+   sluitknop en een eventuele statuspil moeten mee, anders vallen ze weg. */
+.modal-kop p { color: rgba(255,255,255,0.72) !important; }
+.modal-kop button { color: rgba(255,255,255,0.85) !important; }
+.modal-kop button:hover { color: #fff !important; background: rgba(255,255,255,0.12) !important; }
 @keyframes ha-modalIn {
   from { opacity: 0; transform: scale(0.97) translateY(8px); }
   to   { opacity: 1; transform: scale(1); }
@@ -4993,6 +5036,15 @@ textarea { line-height: 1.6; resize: vertical; }
   }
   .fac-sj-preview { padding: 12px 16px 16px; }
   .fac-sj-preview iframe { min-height: 320px; }
+  /* Templates: de vaste kolom van 320px liet op een telefoon 70px over
+     voor de lijst ernaast -- "Opgeslagen templates" brak daar over vijf
+     regels van één woord. Onder elkaar dus, met het formulier eerst. */
+  .uren-tpl-body {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-auto-rows: min-content !important;
+    overflow-y: auto !important;
+  }
+  .uren-tpl-body > div:first-child { border-right: 0 !important; border-bottom: 0.5px solid var(--border); }
   /* Rijen die op een telefoon te smal worden, stapelen. Een keuzelijst
      met klantnamen of sjabloonnamen is naast een tekstveld niet meer te
      lezen; losse datumparen passen wel en blijven dus naast elkaar.
@@ -6650,7 +6702,7 @@ textarea { line-height: 1.6; resize: vertical; }
 <!-- ── Facturen: editor ── -->
 <div class="modal-bg" id="facEditorModal">
   <div class="modal" style="max-width:900px;padding:0;display:flex;flex-direction:column;max-height:92vh">
-    <div style="padding:18px 22px 14px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0">
+    <div class="modal-kop" style="display:flex;align-items:center;gap:12px;flex-shrink:0">
       <div style="flex:1;min-width:0">
         <h3 style="font-size:18px;font-weight:700;margin:0" id="facEditorTitel">Factuur</h3>
         <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0" id="facEditorSub"></p>
@@ -6670,7 +6722,7 @@ textarea { line-height: 1.6; resize: vertical; }
      in te kunnen. -->
 <div class="modal-bg" id="facBetaalModal">
   <div class="modal" style="max-width:460px;padding:0;display:flex;flex-direction:column">
-    <div style="padding:18px 22px 14px;border-bottom:0.5px solid var(--border);flex-shrink:0">
+    <div class="modal-kop" style="flex-shrink:0">
       <h3 style="font-size:17px;font-weight:700;margin:0" id="facBetaalTitel">Betaling registreren</h3>
       <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0" id="facBetaalSub"></p>
     </div>
@@ -6691,7 +6743,7 @@ textarea { line-height: 1.6; resize: vertical; }
      wat je hier ziet is letterlijk het bestand dat de klant krijgt. -->
 <div class="modal-bg" id="facPreviewModal">
   <div class="modal" style="max-width:960px;padding:0;display:flex;flex-direction:column;height:94vh;max-height:94vh">
-    <div style="padding:16px 20px 12px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0">
+    <div class="modal-kop" style="display:flex;align-items:center;gap:12px;flex-shrink:0">
       <div style="flex:1;min-width:0">
         <h3 style="font-size:17px;font-weight:700;margin:0" id="facPreviewTitel">Voorbeeld</h3>
         <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0" id="facPreviewSub"></p>
@@ -6716,7 +6768,7 @@ textarea { line-height: 1.6; resize: vertical; }
 <!-- ── Klantgegevens ── -->
 <div class="modal-bg" id="klantModal">
   <div class="modal" style="max-width:620px;padding:0;display:flex;flex-direction:column;max-height:92vh">
-    <div style="padding:18px 22px 14px;border-bottom:0.5px solid var(--border);flex-shrink:0">
+    <div class="modal-kop" style="flex-shrink:0">
       <h3 style="font-size:18px;font-weight:700;margin:0" id="klantModalTitel">Klantgegevens</h3>
       <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0">Deze gegevens komen op de factuur en bepalen het tarief bij het overnemen van uren.</p>
     </div>
@@ -6734,7 +6786,7 @@ textarea { line-height: 1.6; resize: vertical; }
 <!-- ── Factuursjabloon: instellingen links, live PDF-preview rechts ── -->
 <div class="modal-bg" id="facSjabloonModal">
   <div class="modal" style="max-width:1180px;padding:0;display:flex;flex-direction:column;max-height:94vh">
-    <div style="padding:18px 22px 14px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0">
+    <div class="modal-kop" style="display:flex;align-items:center;gap:12px;flex-shrink:0">
       <div style="flex:1">
         <h3 style="font-size:18px;font-weight:700;margin:0">Factuursjabloon</h3>
         <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0">Wijzigingen zie je meteen rechts. Geldt voor alle facturen.</p>
@@ -6764,7 +6816,7 @@ textarea { line-height: 1.6; resize: vertical; }
 <!-- ── Versiegeschiedenis: oudere versies uit Drive terughalen ── -->
 <div class="modal-bg" id="versiesModal" onclick="if(event.target===this)closeVersiesModal()">
   <div class="modal" style="max-width:760px;padding:0;display:flex;flex-direction:column;max-height:92vh">
-    <div style="padding:18px 22px 14px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0">
+    <div class="modal-kop" style="display:flex;align-items:center;gap:12px;flex-shrink:0">
       <div style="flex:1;min-width:0">
         <h3 style="font-size:18px;font-weight:700;margin:0">Versiegeschiedenis</h3>
         <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0;line-height:1.5">
@@ -6802,7 +6854,7 @@ textarea { line-height: 1.6; resize: vertical; }
 <!-- ── Facturatie-instellingen (eigen bedrijfsgegevens + nummering) ── -->
 <div class="modal-bg" id="facInstellingenModal">
   <div class="modal" style="max-width:620px;padding:0;display:flex;flex-direction:column;max-height:92vh">
-    <div style="padding:18px 22px 14px;border-bottom:0.5px solid var(--border);flex-shrink:0">
+    <div class="modal-kop" style="flex-shrink:0">
       <h3 style="font-size:18px;font-weight:700;margin:0">Facturatie-instellingen</h3>
       <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0">Je eigen gegevens zoals ze op elke factuur komen te staan.</p>
     </div>
@@ -6820,7 +6872,7 @@ textarea { line-height: 1.6; resize: vertical; }
 <div class="modal-bg" id="urenTemplatesModal">
   <div class="modal" style="max-width:720px;padding:0;overflow:hidden;display:flex;flex-direction:column;max-height:90vh">
     <!-- Header -->
-    <div style="padding:18px 22px 14px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+    <div class="modal-kop" style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
       <div>
         <h3 style="font-size:18px;font-weight:700;margin:0">Templates & Herhaling</h3>
         <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0">Definieer een weekpatroon per klant en stel in hoe lang het herhaald wordt.</p>
@@ -6828,7 +6880,7 @@ textarea { line-height: 1.6; resize: vertical; }
       <button data-uren-action="closeUrenTemplatesModal" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--text-muted);padding:4px 8px;border-radius:var(--radius)">✕</button>
     </div>
     <!-- Two-panel body -->
-    <div style="display:grid;grid-template-columns:320px 1fr;flex:1;overflow:hidden;min-height:0">
+    <div class="uren-tpl-body" style="display:grid;grid-template-columns:320px 1fr;flex:1;overflow:hidden;min-height:0">
       <!-- Left: create/edit form -->
       <div style="border-right:0.5px solid var(--border);padding:16px;overflow-y:auto;display:flex;flex-direction:column;gap:12px">
         <div style="font-size:13px;font-weight:700;color:var(--text)" id="urenTplFormTitle">Nieuw template</div>
