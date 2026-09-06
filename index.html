@@ -659,12 +659,12 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .uren-btn:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
 .uren-btn-icon{width:32px;padding:0;line-height:1;color:var(--text-muted)}
 .uren-btn-icon:hover{color:var(--text)}
-/* ── Het ⋯-icoon ──
-   Vier modules, vier keer hetzelfde menu, dus één icoon en één maat.
-   Stond eerder als tekstglyph ⋯ in Uren en Facturen (inkt 16×3px) en
-   als svg van 14px in Checklist en Dashboard (inkt 11,2×2,4px) -- naast
-   elkaar zichtbaar verschillend. Nu overal deze svg op var(--icoon). */
-.icoon-meer{width:var(--icoon);height:var(--icoon);flex:none;display:block}
+/* ── De maat van een icoon in een knop ──
+   Eén class, één token. Het ⋯ stond eerder als tekstglyph in Uren en
+   Facturen (inkt 16×3px) en als svg van 14px in Checklist en Dashboard
+   (inkt 11,2×2,4px) -- naast elkaar zichtbaar verschillend. Wie een
+   icoonknop maakt, geeft de svg deze class en verder niets. */
+.icoon{width:var(--icoon);height:var(--icoon);flex:none;display:block}
 .uren-btn[aria-expanded="true"]{background:var(--surface2);border-color:var(--text-hint);color:var(--text)}
 .uren-btn .cnt{
   display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;
@@ -2737,9 +2737,20 @@ textarea { line-height: 1.6; resize: vertical; }
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
 }
 .cl2-filter-body { display: contents; }
-/* De samenvattende kop hoort bij de mobiele laag; op een bureaublad is er
-   ruimte genoeg om de filters gewoon te tonen. */
-.cl2-filter-kop { display: none; }
+/* Op een bureaublad staat de filterrij gewoon in beeld, dus is de knop in de
+   topbalk daar overbodig -- zie de mobiele laag. */
+.cl2-filterbtn { display: none; }
+.cl2-filter-wis {
+  padding: 5px 10px;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--surface2);
+  border: 0.5px solid var(--border-strong);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.cl2-filter-wis:hover { color: var(--text); border-color: var(--text-hint); }
 
 /* ── ⋯-menu van de Checklist ──
    Op een bureaublad staat alles gewoon in de balk, dus
@@ -4744,66 +4755,55 @@ textarea { line-height: 1.6; resize: vertical; }
      valt: een filter dat je niet ziet is een valstrik -- je mist een taak
      en denkt dat hij weg is. Staat er iets aan, dan kleurt de balk mee en
      staat er een kruisje om alles in één tik te wissen. */
-  .cl2-filter { flex-wrap: wrap !important; gap: var(--sp-2) !important; }
-  .cl2-filter-kop {
-    display: flex !important;
-    align-items: center;
-    gap: var(--sp-2);
-    width: 100%;
-    min-height: var(--tap);
-    padding: 0 var(--sp-3);
-    background: var(--surface);
-    border: 0.5px solid var(--border-strong);
-    border-radius: var(--radius-md);
-    color: var(--text-muted);
-    font-family: inherit;
-    font-size: var(--fs-klein);
+  /* De knop: dezelfde vorm en maat als het ⋯ ernaast. */
+  .cl2-filterbtn {
+    display: inline-flex !important;
+    align-items: center; justify-content: center;
+    width: var(--tap); height: var(--tap); min-height: var(--tap);
+    margin-left: auto;          /* het ⋯ staat vast, dus dit is de rechterrand */
+    padding: 0;
+    background: transparent; border: 0; color: var(--text);
     cursor: pointer;
-    text-align: left;
     -webkit-tap-highlight-color: transparent;
   }
-  .cl2-filter-kop:active { background: var(--surface2); }
-  .cl2-filter-icoon { flex-shrink: 0; }
-  .cl2-filter-sam {
-    flex: 1; min-width: 0;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  .cl2-filterbtn:active,
+  .cl2-filterbtn.open { background: var(--surface2); border-radius: var(--radius); }
+  /* Staat er een filter aan, dan mag je dat zien zonder het paneel te
+     openen: de trechter kleurt en er komt een stip bij. */
+  .cl2-filterbtn.aan { color: var(--mint); position: relative; }
+  .cl2-filterbtn.aan::after {
+    content: ''; position: absolute; top: 6px; right: 6px;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--mint);
   }
-  .cl2-filter-kop-telling {
-    flex-shrink: 0;
-    font-family: var(--font-mono);
-    font-variant-numeric: tabular-nums;
-    color: var(--text-hint);
+
+  /* Het paneel klapt uit als eerste blok van de kolom -- direct onder de
+     balk waar de knop staat, en dus vlak bij je duim. Bewust in de stroom
+     en niet zwevend: bij een takenlijst wissel je vaak tussen Alles en
+     Hoog en wil je de lijst zien meebewegen; een venster verbergt juist
+     het resultaat waar het je om gaat. (.cl2-wrap is al een kolom-flex,
+     dus order:-1 is genoeg. Zweven kan hier bovendien niet: .cl2-scroll
+     heeft een fade-in met transform, en dat maakt hem het ankerpunt voor
+     position:fixed -- het paneel zou 113px te laag beginnen.) */
+  .cl2-filter { display: none !important; }
+  .cl2-filter.open {
+    display: flex !important;
+    order: -1;
+    flex-wrap: wrap !important;
+    gap: var(--sp-2) !important;
+    padding: var(--sp-3) !important;
+    background: var(--surface);
+    border: 0.5px solid var(--border-strong);
+    border-radius: var(--radius-lg);
   }
-  .cl2-filter-chev { flex-shrink: 0; transition: transform .15s var(--ease); }
-  .cl2-filter.open .cl2-filter-chev { transform: rotate(180deg); }
-  /* Staat er een filter aan, dan mag je dat zien zonder uit te klappen. */
-  .cl2-filter.heeft-filter .cl2-filter-kop {
-    border-color: var(--mint);
-    background: var(--mint-soft);
-    color: var(--text);
-    font-weight: 600;
-  }
-  .cl2-filter-wis {
-    flex-shrink: 0;
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 26px; height: 26px; margin: 0 -4px;
-    border-radius: 50%;
-    color: var(--text-muted);
-    font-size: var(--fs-klein);
-  }
-  .cl2-filter-wis:active { background: var(--surface3); }
-  /* display:contents op desktop, hier een echte rij die open of dicht kan. */
   .cl2-filter-body {
-    display: none !important;
+    display: flex !important;
     width: 100%;
     flex-wrap: wrap;
     gap: var(--sp-2);
     align-items: center;
   }
-  .cl2-filter.open .cl2-filter-body { display: flex !important; }
   .cl2-filter-lbl { display: none !important; }
-  /* De telling staat al in de kop; in de uitgeklapte rij stond hij dubbel. */
-  .cl2-filter-body .cl2-filter-counter { display: none !important; }
   .cl2-filter .cl2-seg {
     flex: 1 1 100% !important;
     display: flex !important;
@@ -4823,14 +4823,19 @@ textarea { line-height: 1.6; resize: vertical; }
     white-space: nowrap !important;
     min-height: var(--tap) !important;
   }
+  /* Eigen regel: anders duwt het zoekveld de telling en Wissen uit elkaar
+     over twee regels. */
   .cl2-filter-search {
-    flex: 1 1 auto !important; min-width: 0 !important;
+    flex: 1 1 100% !important; min-width: 0 !important;
     font-size: var(--fs-basis) !important;
     min-height: var(--tap) !important;
   }
   .ios-tab .cl2-filter-search { font-size: 16px !important; }
   .cl2-filter-search::placeholder { font-size: var(--fs-klein) !important; }
-  .cl2-filter-counter { flex-shrink: 0 !important; margin-left: 0 !important; }
+  .cl2-filter-counter { flex-shrink: 0 !important; margin-left: 0 !important;
+    font-size: var(--fs-klein) !important; }
+  .cl2-filter-wis { min-height: var(--tap) !important; margin-left: auto !important;
+    font-size: var(--fs-klein) !important; }
   /* ── Taakrij: titel eerst, knoppen eronder ──
      Naast elkaar hielden vier icoonknoppen plus greep en vinkje ruim 200
      van de 393px bezet; wat overbleef voor de titel was zo smal dat
@@ -6385,7 +6390,7 @@ textarea { line-height: 1.6; resize: vertical; }
           <div class="dash-mobile-settings" id="dashMobileSettings">
             <button class="btn btn-sm" onclick="toggleDashMobileSettings(event)"
               aria-haspopup="menu" aria-expanded="false" aria-label="Meer opties" title="Meer opties">
-              <svg class="icoon-meer" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="13" cy="8" r="1.5"/></svg>
+              <svg class="icoon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="13" cy="8" r="1.5"/></svg>
             </button>
             <div class="dash-mobile-settings-menu" id="dashMobileSettingsMenu">
               <!-- Op mobiel staan 'Nieuwe klant' en 'Wekelijkse review' hier in
@@ -6599,6 +6604,17 @@ textarea { line-height: 1.6; resize: vertical; }
             <button type="button" id="clGroupToggle" class="cl2-seg-btn" data-action="toggleClGroupByPriority"
               title="Sorteer binnen prioriteitsgroepen (Hoog → Middel → Laag)">Prio-groepen</button>
           </div>
+          <!-- Filteren en zoeken: op een telefoon één icoonknop in deze
+               balk, in dezelfde vorm als het ⋯ ernaast. Het paneel zelf is
+               #clFilterRow verderop; dat wordt bij het openen onder de balk
+               gehangen (plaatsClFilterPaneel). Op een bureaublad staat die
+               rij gewoon in beeld en blijft deze knop verborgen. -->
+          <button type="button" class="cl2-filterbtn" id="clFilterBtn" data-action="toggleClFilters"
+            aria-haspopup="true" aria-expanded="false" aria-label="Filteren en zoeken" title="Filteren en zoeken">
+            <svg class="icoon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"
+              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M2 3h12l-4.5 5.5V13l-3 1.5V8.5L2 3z"/></svg>
+          </button>
           <!-- Alles wat op een telefoon niet in de balk of de hero past.
                Op een bureaublad staat het daar gewoon en blijft dit menu
                verborgen; de inhoud wordt in renderClOverflowMenu() gezet
@@ -6606,7 +6622,7 @@ textarea { line-height: 1.6; resize: vertical; }
           <div class="cl-overflow" id="clOverflow">
             <button class="btn btn-sm" id="clOverflowBtn" type="button" data-action="toggleClOverflow"
               aria-haspopup="menu" aria-expanded="false" aria-label="Meer opties" title="Meer opties">
-              <svg class="icoon-meer" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="13" cy="8" r="1.5"/></svg>
+              <svg class="icoon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="13" cy="8" r="1.5"/></svg>
             </button>
             <div class="cl-overflow-menu" id="clOverflowMenu" role="menu"></div>
           </div>
@@ -6649,7 +6665,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <button class="uren-btn uren-btn-vandaag" data-uren-action="urenNavToday">Vandaag</button>
         <div class="uren-topbar-vul"></div>
         <button class="uren-btn uren-btn-icon" id="urenMenuBtn" data-uren-action="urenToggleMenu"
-          aria-haspopup="menu" aria-expanded="false" aria-label="Meer acties" title="Meer acties"><svg class="icoon-meer" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="13" cy="8" r="1.5"/></svg></button>
+          aria-haspopup="menu" aria-expanded="false" aria-label="Meer acties" title="Meer acties"><svg class="icoon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="13" cy="8" r="1.5"/></svg></button>
       </div>
 
       <div class="uren-viewbar">
@@ -6687,7 +6703,7 @@ textarea { line-height: 1.6; resize: vertical; }
           aria-haspopup="menu" aria-expanded="false" title="Bedrijf waaruit je factureert" hidden>
           <span class="nm" id="facBedrijfLbl">Alle bedrijven</span><span class="cv" aria-hidden="true">▾</span></button>
         <button class="uren-btn uren-btn-icon" id="facMenuBtn" data-fac-action="facToggleMenu"
-          aria-haspopup="menu" aria-expanded="false" aria-label="Meer acties" title="Meer acties"><svg class="icoon-meer" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="13" cy="8" r="1.5"/></svg></button>
+          aria-haspopup="menu" aria-expanded="false" aria-label="Meer acties" title="Meer acties"><svg class="icoon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="13" cy="8" r="1.5"/></svg></button>
         <button class="uren-btn uren-btn-primary" data-fac-action="facNieuwStart">+ Nieuwe factuur</button>
       </div>
 
@@ -9845,7 +9861,10 @@ function renderDashCardCounts(){
     el.textContent=(n===null||n===undefined||n===0)?'':n;
   };
   set('dashCountNotes',(s.allPages||[]).length);
-  set('dashCountChecklist',s.openClCount);
+  /* Geen telling op de Checklist-kaart: dat is s.openClCount, en dat getal
+     staat al in de hero erboven ('X open taken'). De notitiekaart houdt de
+     zijne wel -- het aantal pagina's staat nergens anders. */
+  set('dashCountChecklist','');
 }
 
 /* ─── Dashboard: Hero + KPI derived values ───────────────────────────────── */
@@ -13548,7 +13567,6 @@ function renderChecklistHero({notArchived,doneItems,archivedCount}){
   const dash=(pct/100)*157;
   const totalSubs=notArchived.reduce((s,i)=>s+(i.subtasks?.length||0),0);
   const doneSubs=notArchived.reduce((s,i)=>s+(i.subtasks||[]).filter(x=>x.done).length,0);
-  const openCount=totalActive-itemsDone;
   const completedCount=itemsDone;
   hero.innerHTML=`
     <div class="cl2-hero-ring">
@@ -13561,7 +13579,9 @@ function renderChecklistHero({notArchived,doneItems,archivedCount}){
     <div class="cl2-hero-text">
       <div class="cl2-hero-eyebrow">Voortgang</div>
       <div class="cl2-hero-heading"><span class="num">${itemsDone}</span> van <span class="num">${totalActive}</span> taken afgerond</div>
-      <div class="cl2-hero-meta">${doneSubs}/${totalSubs} subtaken · ${openCount} openstaand</div>
+      <!-- 'X openstaand' stond hier ook; dat is totalActive min itemsDone,
+           allebei één regel hoger. Hetzelfde getal twee keer op één kaart. -->
+      <div class="cl2-hero-meta">${doneSubs}/${totalSubs} subtaken</div>
     </div>
     ${(()=>{
       /* Build subtask-bulk-toggle knop alleen als er items met subtaken zijn */
@@ -13870,6 +13890,16 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeClOverflow();});
 
+/* Escape sluit het filterpaneel van de Checklist. Buiten klikken doet dat
+   bewust niet: het paneel staat in de stroom en duwt de lijst omlaag, dus
+   het staat niet in de weg -- en tijdens het filteren tik je juist in de
+   lijst eronder om te zien wat er overblijft. */
+function sluitClFilters(){
+  if(!clFiltersOpen)return;
+  clFiltersOpen=false;renderClFilterBar();
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')sluitClFilters();});
+
 function renderClFilterBar(){
   const el=document.getElementById('clFilterRow');if(!el)return;
 
@@ -13905,38 +13935,33 @@ function renderClFilterBar(){
     return `<button type="button" class="cl2-seg-btn${active?' active':''}" data-action="setClFilter" data-arg1="period" data-arg2="${s.v===null?'':s.v}">${s.l}</button>`;
   }).join('');
 
-  /* ── Samenvatting voor de ingeklapte balk (alleen zichtbaar op mobiel) ──
+  /* ── Staat er een filter aan? ──
      Een filter dat je niet ziet is een valstrik: je mist een taak en denkt
-     dat hij weg is. Daarom staat in de dichte balk wát er aanstaat, niet
-     alleen dát er gefilterd kan worden. */
-  const PRIO_LBL={hoog:'Hoog',middel:'Middel',laag:'Laag'};
-  const PERIODE_LBL={week:'Deze week',month:'Deze maand'};
+     dat hij weg is. De knop in de topbalk kleurt daarom mee en krijgt een
+     stip; in het paneel staat een knop om alles in één tik te wissen. */
   const actief=[];
-  if(clFilters.prio)actief.push(PRIO_LBL[clFilters.prio]||clFilters.prio);
-  if(clFilters.period)actief.push(PERIODE_LBL[clFilters.period]||clFilters.period);
-  if((clFilters.search||'').trim())actief.push('"'+clFilters.search.trim()+'"');
-  const samenvatting=actief.length?actief.join(' · '):'Filteren en zoeken';
+  if(clFilters.prio)actief.push(clFilters.prio);
+  if(clFilters.period)actief.push(clFilters.period);
+  if((clFilters.search||'').trim())actief.push('zoek');
+
+  const knop=document.getElementById('clFilterBtn');
+  if(knop){
+    knop.classList.toggle('aan',actief.length>0);
+    knop.classList.toggle('open',clFiltersOpen);
+    knop.setAttribute('aria-expanded',clFiltersOpen?'true':'false');
+  }
 
   el.className='cl2-filter'+(clFiltersOpen?' open':'')+(actief.length?' heeft-filter':'');
+  /* De telling alleen als er gefilterd is. Zonder filter is het hetzelfde
+     getal als in de voortgangskaart erboven, twee regels verderop. */
   el.innerHTML=`
-    <button type="button" class="cl2-filter-kop" data-action="toggleClFilters"
-      aria-expanded="${clFiltersOpen?'true':'false'}">
-      <svg class="cl2-filter-icoon" width="14" height="14" viewBox="0 0 16 16" fill="none"
-        stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M2 3h12l-4.5 5.5V13l-3 1.5V8.5L2 3z"/></svg>
-      <span class="cl2-filter-sam">${escapeHtml(samenvatting)}</span>
-      ${actief.length?`<span class="cl2-filter-wis" data-action="clearClFilters" role="button" tabindex="0" title="Filters wissen">✕</span>`:''}
-      <span class="cl2-filter-kop-telling">${countLbl}</span>
-      <svg class="cl2-filter-chev" width="12" height="12" viewBox="0 0 12 12" fill="none"
-        stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M3 4.5L6 7.5L9 4.5"/></svg>
-    </button>
     <div class="cl2-filter-body">
       <span class="cl2-filter-lbl">Filter</span>
       <div class="cl2-seg">${segHtml}</div>
       <div class="cl2-seg">${periodHtml}</div>
       <input type="text" id="clSearchInput" class="cl2-filter-search" placeholder="🔍 Zoek in taken..." value="${escapeHtml(clFilters.search||'')}" oninput="setClSearch(this.value)"/>
-      <span class="cl2-filter-counter">${countLbl}</span>
+      ${actief.length?`<span class="cl2-filter-counter">${countLbl}</span>
+      <button type="button" class="cl2-filter-wis" data-action="clearClFilters">Wissen</button>`:''}
     </div>`;
 
   if(wasFocused){
@@ -17819,7 +17844,8 @@ function facRenderKaarten(lijst,totaal){
       ${f.betreft?`<span class="betreft">${escapeHtml(f.betreft)}</span>`:''}
       <span class="voet">${facStatusPil(f)}
         <span class="mbedragen"><span class="bedrag">${factuurFmtBedrag(t.incl)}</span>
-          <span class="excl">${factuurFmtBedrag(t.excl)} excl.</span></span></span>
+          ${Math.round(t.excl*100)!==Math.round(t.incl*100)
+            ?`<span class="excl">${factuurFmtBedrag(t.excl)} excl.</span>`:''}</span></span>
       ${facVerstuurdRegel(f)}
     </button>`;
   });

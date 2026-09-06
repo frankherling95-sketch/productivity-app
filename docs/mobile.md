@@ -81,6 +81,7 @@ Elke module ziet er op een telefoon hetzelfde uit. Twee vaste plekken:
 | | Waar | Raakvlak | Icoon |
 |---|---|---|---|
 | ⋯-menu | rechtsboven, op de lijn van de moduletitel (`top: 4px` + safe-area, `right: 12px`) | 44×44, randloos, transparant | `var(--icoon)` |
+| filter | rechts in de balk eronder, in dezelfde kolom als het ⋯ | 44×44, randloos, transparant | `var(--icoon)` |
 | ronde + | rechtsonder, boven de tabbalk (`right: 17px`, `bottom: 80px` + safe-area) | 56×56 | 26px glyph |
 
 ### Eén maat voor een icoon: `--icoon`
@@ -93,7 +94,7 @@ het ⋯ op twee manieren getekend werd: als tekstglyph `⋯` in Uren en
 Facturen (inkt 16×3px bij 20px/600 Inter) en als svg van 14px in Checklist en
 Dashboard (inkt 11,2×2,4px). Naast elkaar scheelde dat 43% in breedte.
 
-Nu is er één vorm — `.icoon-meer`, een svg met drie stippen op
+Nu is er één vorm — `.icoon`, een svg met drie stippen op
 `var(--icoon)` — en meet het icoon op alle vier de pagina's 20×20 met inkt
 van 16,3×3,8px, gecentreerd op precies hetzelfde punt.
 
@@ -111,6 +112,22 @@ soms aan `document.body` gehangen en bij de knop gepositioneerd — verhuizen
 maakt die verbanden los, positioneren laat ze intact. Het blok staat aan het
 **eind** van de mobiele laag: de dashboard-rasterregels staan op `!important`
 en bij gelijke specificiteit wint de laatste regel.
+
+## Geen getal twee keer in beeld
+
+Staat een getal al ergens in dezelfde weergave, dan hoort het er niet nog een
+keer — ook niet anders geformuleerd. Een **afgeleide** waarde telt als
+hetzelfde getal: "31 openstaand" naast "75 van 106 afgerond" is 106 min 75.
+
+Wat wél mag: een telling die een eigen deelverzameling telt (een groepskop,
+een dagtotaal), en een telling die het antwoord is op wat je net deed — het
+aantal treffers na een filter. Die laatste hoort er dan ook alleen te staan
+*als* er gefilterd is.
+
+Zoek dit niet met het oog. Loop per module de zichtbare tekstknopen langs,
+haal de getallen eruit en kijk welke waarde twee keer voorkomt; dan scheid je
+echte herhaling van toeval. Zie de entry van 2026-09-06 in
+[`decisions.md`](decisions.md).
 
 ## Werkwijze bij een mobiele wijziging
 

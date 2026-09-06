@@ -10,6 +10,47 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-06 · Nooit twee keer hetzelfde getal in beeld
+
+**Probleem.** De Checklist toonde "106 taken" in de filterbalk, twee regels onder "75 van 106 taken afgerond" in de voortgangskaart. Zelfde getal, zelfde scherm, en daarmee zegt geen van beide nog iets.
+
+**Aanpak.** Niet op het oog gezocht maar gemeten: per module alle zichtbare tekstknopen doorlopen, de getallen eruit gehaald en gekeken welke waarde op twee verschillende plekken terugkomt. Dat scheidt echte herhaling van toeval (twee dingen die nu net allebei 1 zijn).
+
+**Drie keer echt dubbel, drie keer opgelost:**
+
+- **Checklist, filterbalk.** De telling verscheen ook zonder filter. Nu alleen nog als er gefilterd is — dan is het juist het antwoord op wat je net deed, en anders is het de kaart erboven.
+- **Checklist, voortgangskaart.** "31 openstaand" is `totalActive - itemsDone`, en die twee staan één regel hoger in "75 van 106 taken afgerond". Weg; `4/6 subtaken` blijft, want dat staat nergens anders.
+- **Dashboard, Checklist-kaart.** De telling op die kaart was letterlijk `s.openClCount` — dezelfde variabele als "9 open taken" in de hero erboven. Weg. De notitiekaart houdt de zijne: het aantal pagina's staat nergens anders.
+- **Facturen, factuurkaart.** Het bedrag stond er twee keer als incl. en excl. gelijk zijn (0% of btw verlegd). De regel "… excl." verschijnt nu alleen bij een verschil.
+
+**Wat bewust bleef staan.** Een factuur toont zijn datum rechtsboven én "gemaild <datum>" eronder, en die vallen vaak samen. Het zijn twee verschillende feiten (factuurdatum en verzenddatum); één ervan verbergen zodra ze gelijk zijn maakt onduidelijk óf er gemaild is. Ook gebleven: groepstellingen ("Prioriteit: hoog · 18") en dagtotalen in Uren — die tellen elk een eigen deelverzameling.
+
+**De regel.** Staat een getal al ergens in dezelfde weergave, dan hoort het er niet nog een keer — ook niet in een andere formulering. Een afgeleide waarde (totaal min afgerond) telt als hetzelfde getal.
+
+**Bestanden**: `index.html` — `renderClFilterBar`, de checklist-hero, `dashCountChecklist`, de factuurkaart
+
+**Niet doen.** Een telling weghalen die de enige plek is waar dat aantal staat, of twee tellingen samenvoegen die verschillende dingen tellen. Het gaat om herhaling, niet om zuinigheid.
+
+## 2026-09-06 · Checklist: filteren achter één icoonknop in de balk
+
+**Probleem.** De ingeklapte filterbalk (2026-09-05) kostte een volle regel van 44px plus de marge eronder, en droeg twee dingen die er niet hoefden te staan: het woord "Filteren en zoeken" — dat is wat een trechter al betekent — en een telling die zonder filter hetzelfde getal was als in de kaart erboven.
+
+**Beslissing.** De balk verdwijnt. Wat overblijft is een trechterknop in de topbalk, rechts naast het klantfilter, in **precies dezelfde vorm als het ⋯ erboven**: 44×44, randloos, transparant, icoon op `var(--icoon)`. Het paneel klapt uit als eerste blok van de kolom, direct onder die balk.
+
+**Zichtbaar dat er gefilterd is.** Dat was de reden dat de dichte balk een samenvatting droeg — een filter dat je niet ziet is een valstrik. Nu draagt de knop het: de trechter kleurt mint en krijgt een stip. In het paneel staat de telling én een knop "Wissen", allebei alleen als er iets aanstaat.
+
+**In de stroom, niet zwevend.** Een uitklappaneel en geen venster, om dezelfde reden als in 2026-09-05: bij een takenlijst wissel je vaak tussen Alles en Hoog en wil je de lijst zien meebewegen. Er is ook een technische reden: `.cl2-scroll` heeft een fade-in met `transform`, en een transform maakt een element het ankerpunt voor `position: fixed` binnen zijn subboom — een zwevend paneel begon daardoor 113px te laag. Gemeten, niet vermoed.
+
+**Op een bureaublad verandert er niets.** Daar staat de filterrij gewoon in de kolom en blijft de knop verborgen; de telling en Wissen gedragen zich er hetzelfde (alleen bij een actief filter).
+
+**Wat het oplevert.** De eerste taak stond op y=356, daarna op y=305 (snelveld weg), nu op **y=251**.
+
+**Bestanden**: `index.html` — `.cl2-filterbtn` in de checklist-topbalk, `renderClFilterBar` zonder kop, `.cl2-filter-kop`/`-sam`/`-chev`/`-icoon` en hun CSS verwijderd, `.cl2-filter.open` als uitklapkaart met `order:-1`; `sw.js` → `herling-v24`
+
+**Vervangt** de dichte samenvattingsbalk uit *2026-09-05 · Checklist op een telefoon*. De afweging daar (uitklappen boven een venster) blijft staan; alleen de dichte toestand is nu een icoon in plaats van een balk.
+
+**Niet doen.** De knop ergens anders neerzetten dan rechts in de balk — hij hoort in dezelfde kolom als het ⋯ erboven. En het paneel niet alsnog laten zweven zonder eerst die transform op `.cl2-scroll` weg te halen.
+
 ## 2026-09-06 · Eén maat voor een icoon: het token `--icoon`
 
 **Probleem.** Het ⋯-menu stond na de vorige stap op alle vier de pagina's op dezelfde plek, maar zag er niet even groot uit. Gemeten op 375px: in Uren en Facturen was het de tekstglyph `⋯` (inkt **16 × 3px** bij 20px/600 Inter), in Checklist en Dashboard een svg van 14px (inkt **11,2 × 2,4px**). Dat is 43% verschil in breedte, in hetzelfde hoekje van hetzelfde scherm. Bovendien was het raakvlak op het Dashboard geen 44×44 maar **28×44**: de wrapper hield 8px zijpadding uit de rasterregel, en met `border-box` bleef daar voor de knop erin 28px van over.
