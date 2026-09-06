@@ -10,6 +10,34 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-06 · Eén maat voor een icoon: het token `--icoon`
+
+**Probleem.** Het ⋯-menu stond na de vorige stap op alle vier de pagina's op dezelfde plek, maar zag er niet even groot uit. Gemeten op 375px: in Uren en Facturen was het de tekstglyph `⋯` (inkt **16 × 3px** bij 20px/600 Inter), in Checklist en Dashboard een svg van 14px (inkt **11,2 × 2,4px**). Dat is 43% verschil in breedte, in hetzelfde hoekje van hetzelfde scherm. Bovendien was het raakvlak op het Dashboard geen 44×44 maar **28×44**: de wrapper hield 8px zijpadding uit de rasterregel, en met `border-box` bleef daar voor de knop erin 28px van over.
+
+**Beslissing.** Eén vorm en één token. `.icoon-meer` is een svg met drie stippen (`viewBox 0 0 16 16`, `r=1.5`), en zijn maat komt uit het nieuwe token **`--icoon`: 16px op desktop, 20px op mobiel** — naast `--tap`, want het raakvlak en het icoon erin zijn twee verschillende maten. De 20px is gekozen op de grootste van de vier: de glyph in Uren gaf inkt van 16×3px, de svg op 20px geeft 16,3×3,8px. Zo groeit wat te klein was en krimpt er niets.
+
+**Waarom een tekstglyph niet deugt als icoon.** Zijn maat hangt aan `font-size`, `font-weight` én aan welk font er daadwerkelijk laadt. Twee knoppen met dezelfde `font-size` kunnen dus alsnog verschillen, en je ziet het pas op het scherm. Een svg heeft één maat, in één token, op één plek te wijzigen.
+
+**Gemeten na afloop**, alle vier: raakvlak 44×44 op `right: 12px`, icoon 20×20, middelpunt op x=341 en y=26 — tot op de pixel gelijk. Op desktop (1400px) staan Uren en Facturen op 32×32 met een icoon van 16px (inkt 13×3px), praktisch de oude glyphmaat op 17px.
+
+**Meegenomen.** De regel `.dash-mobile-settings > button svg { margin-right: 2px }` was een restant van het tandwiel-met-label en duwde het icoon 1px uit het midden. En het klantfilter op het dashboard: dat heeft op mobiel de eerste regel voor zichzelf, maar de basisregel kapte de knop af op `max-width: 220px`, waardoor er 104px leeg naast stond. Alleen daar opgeheven.
+
+**Bestanden**: `index.html` — token `--icoon` in `:root` en in de mobiele laag, nieuwe class `.icoon-meer`, vier knoppen (`#urenMenuBtn`, `#facMenuBtn`, `#clOverflowBtn`, de dashboardknop) met dezelfde svg, `padding: 0 !important` op de vier vaste wrappers; `docs/mobile.md`; `sw.js` → `herling-v23`
+
+**Niet doen.** Terug naar een tekstglyph omdat het "korter" is in de HTML. En: `--icoon` niet oprekken tot een tweede `--tap` — het is de maat van de tekening, niet van het gebied waar je op tikt.
+
+## 2026-09-06 · Checklist: het snelveld gaat op een telefoon uit
+
+**Probleem.** Er stonden twee wegen naar dezelfde taak: het veld "Nieuwe taak toevoegen…" boven de lijst en de ronde knop rechtsonder. Het veld klapte bij aanraken uit tot prioriteit, klant en datum — precies wat het venster achter de ronde knop ook vraagt, maar dan geperst in een balk van 375px.
+
+**Beslissing.** `.cl2-newitem { display: none }` in de mobiele laag, met alle uitklapregels die erbij hoorden. De eerste taak staat daardoor op y=305 in plaats van y=356: **51px minder bediening** boven de lijst.
+
+**Op een bureaublad blijft het staan.** Daar is dit veld de enige plek om een taak toe te voegen — de ronde knop is op desktop verborgen en de topbalk heeft geen toevoegknop. Nagemeten op 1400px: het veld is er nog (880×51).
+
+**Bestanden**: `index.html` — het blok `.cl2-newitem` in `@media (max-width:768px)` vervangen door één hide-regel
+
+**Niet doen.** Het veld ook op desktop weghalen zonder daar eerst een andere toevoegknop te zetten.
+
 ## 2026-09-06 · Eén mobiele paginavorm: ⋯ rechtsboven, ronde + rechtsonder
 
 **Probleem.** Elke module had zijn eigen bediening bedacht. Uren en Facturen hadden een zwevende ronde knop, Notities een `+ Nieuw` in de balk, Checklist een breed veld, het Dashboard een keuzeknop met icoon en tekst. Het ⋯-menu stond overal op een andere hoogte en een andere afstand tot de rand, en de instellingenknop op het Dashboard was een tandwiel met het woord "Instellingen" ernaast. Op een telefoon betekent dat: per pagina opnieuw zoeken waar je moet tikken.

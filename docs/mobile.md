@@ -78,10 +78,28 @@ kost 44px. Een knop die je niet raakt kost een handeling.
 
 Elke module ziet er op een telefoon hetzelfde uit. Twee vaste plekken:
 
-| | Waar | Maat |
-|---|---|---|
-| ⋯-menu | rechtsboven, op de lijn van de moduletitel (`top: 4px` + safe-area, `right: 12px`) | 44×44, randloos, transparant |
-| ronde + | rechtsonder, boven de tabbalk (`right: 17px`, `bottom: 80px` + safe-area) | 56×56 |
+| | Waar | Raakvlak | Icoon |
+|---|---|---|---|
+| ⋯-menu | rechtsboven, op de lijn van de moduletitel (`top: 4px` + safe-area, `right: 12px`) | 44×44, randloos, transparant | `var(--icoon)` |
+| ronde + | rechtsonder, boven de tabbalk (`right: 17px`, `bottom: 80px` + safe-area) | 56×56 | 26px glyph |
+
+### Eén maat voor een icoon: `--icoon`
+
+**16px op desktop, 20px op mobiel** — een eigen token naast `--tap`, want een
+raakvlak en het icoon erin zijn twee verschillende maten.
+
+Hetzelfde icoon hoort op elke pagina even groot te zijn. Dat ging mis omdat
+het ⋯ op twee manieren getekend werd: als tekstglyph `⋯` in Uren en
+Facturen (inkt 16×3px bij 20px/600 Inter) en als svg van 14px in Checklist en
+Dashboard (inkt 11,2×2,4px). Naast elkaar scheelde dat 43% in breedte.
+
+Nu is er één vorm — `.icoon-meer`, een svg met drie stippen op
+`var(--icoon)` — en meet het icoon op alle vier de pagina's 20×20 met inkt
+van 16,3×3,8px, gecentreerd op precies hetzelfde punt.
+
+**Een tekstglyph is geen icoon.** Zijn maat hangt aan `font-size`, `font-weight`
+én aan welk font er laadt; twee knoppen met dezelfde `font-size` kunnen alsnog
+verschillen. Wie een icoon wil, tekent het.
 
 De brede "+ Nieuw"-knoppen in de topbalken gaan op mobiel uit; de ronde knop
 doet hetzelfde. Wie een module toevoegt of een knop verplaatst: zet hem op
@@ -160,7 +178,5 @@ een container die niet opzij schuift en schuift het gewoon mee weg.
 
 - **De zwevende + dekt tijdens het scrollen de onderste regel af.** Dat hoort
   bij een zwevende knop, maar in Uren staat hij precies op het bedrag.
-- **Checklist heeft nu twee manieren om een taak toe te voegen**: de ronde
-  knop (met datum, prioriteit en klant) en het snelveld "Nieuwe taak
-  toevoegen…" in de lijst. Het snelveld is geen knop maar een tekstveld en
-  is daarom blijven staan; of het weg mag is nog een open vraag.
+- **Notities heeft geen ⋯-menu.** De vier andere modules wel, op dezelfde
+  plek. Komt er ooit een, dan hoort hij daar ook.

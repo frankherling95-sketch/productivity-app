@@ -129,6 +129,10 @@
   /* Minimale maat van iets waar een vinger op moet landen. Op desktop
      mag een knop kleiner: daar wijst een muis exact aan. */
   --tap:36px;
+
+  /* Maat van een icoon binnen zo'n raakvlak. Eén getal, zodat hetzelfde
+     icoon op elke pagina even groot is -- zie docs/mobile.md. */
+  --icoon:16px;
 }
 @media(prefers-color-scheme:dark){:root{
   --bg:#0f0f10;--surface:#1a1a1c;--surface2:#242427;--surface3:#2f2f33;
@@ -653,8 +657,14 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .uren-btn:hover{background:var(--surface2);border-color:var(--text-hint);box-shadow:0 2px 4px rgba(0,0,0,.10)}
 .uren-btn:active{transform:translateY(1px);box-shadow:none}
 .uren-btn:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
-.uren-btn-icon{width:32px;padding:0;font-size:17px;line-height:1;color:var(--text-muted)}
+.uren-btn-icon{width:32px;padding:0;line-height:1;color:var(--text-muted)}
 .uren-btn-icon:hover{color:var(--text)}
+/* ── Het ⋯-icoon ──
+   Vier modules, vier keer hetzelfde menu, dus één icoon en één maat.
+   Stond eerder als tekstglyph ⋯ in Uren en Facturen (inkt 16×3px) en
+   als svg van 14px in Checklist en Dashboard (inkt 11,2×2,4px) -- naast
+   elkaar zichtbaar verschillend. Nu overal deze svg op var(--icoon). */
+.icoon-meer{width:var(--icoon);height:var(--icoon);flex:none;display:block}
 .uren-btn[aria-expanded="true"]{background:var(--surface2);border-color:var(--text-hint);color:var(--text)}
 .uren-btn .cnt{
   display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;
@@ -3918,6 +3928,7 @@ textarea { line-height: 1.6; resize: vertical; }
     --fs-kop:20px;
     --fs-cijfer:26px;
     --tap:44px;
+    --icoon:20px;
   }
 }
 
@@ -4358,6 +4369,10 @@ textarea { line-height: 1.6; resize: vertical; }
   .dash-topbar .dash-mobile-settings,
   .dash-topbar .dash-mobile-settings > button {
     width: 100% !important;
+    /* De basisregel kapt deze knop af op 220px -- zinnig in een balk waar
+       hij naast andere knoppen staat, maar hier heeft hij de regel voor
+       zichzelf en bleef er 104px leeg naast staan. */
+    max-width: none !important;
     justify-content: center !important;
     min-height: var(--tap) !important;
     height: var(--tap) !important;
@@ -4372,7 +4387,6 @@ textarea { line-height: 1.6; resize: vertical; }
     white-space: nowrap !important;
     overflow: hidden !important;
   }
-  .dash-topbar .dash-mobile-settings > button svg { margin-right: 2px !important; }
   /* Op mobiel staat de modulenaam al in de topbalk. Een eigen kop in de
      inhoud herhaalt hem dan letterlijk, één regel lager -- 'Checklist'
      boven 'Checklist'. Dat kostte ongeveer honderd pixels aan een woord
@@ -4690,26 +4704,15 @@ textarea { line-height: 1.6; resize: vertical; }
     min-width: min(280px, calc(100vw - 24px));
     max-width: calc(100vw - 24px);
   }
-  /* ── Nieuwe taak: pas uitklappen als je erin tikt ──
-     Prioriteit, klant, datum en de knop stonden altijd open en kostten
-     166px, elke keer dat je de lijst bekeek. Ingeklapt is het één
-     invoerregel; zodra je hem aanraakt verschijnt de rest. :focus-within
-     doet dat zonder JS, en omdat de knop binnen hetzelfde blok staat
-     blijft het open terwijl je 'Toevoegen' aantikt. */
-  .cl2-newitem {
-    padding: 8px 10px !important;
-    flex-wrap: wrap !important;
-    gap: 6px !important;
-  }
-  .cl2-newitem-input { flex-basis: 0 !important; order: 0 !important; }
-  .cl2-newitem > .cl2-newitem-select,
-  .cl2-newitem > .cl2-newitem-date,
-  .cl2-newitem > .btn { display: none !important; }
-  .cl2-newitem:focus-within { padding: 10px !important; }
-  .cl2-newitem:focus-within > .cl2-newitem-input { flex-basis: 100% !important; order: -1 !important; }
-  .cl2-newitem:focus-within > .cl2-newitem-select { display: inline-flex !important; }
-  .cl2-newitem:focus-within > .cl2-newitem-date  { display: inline-block !important; }
-  .cl2-newitem:focus-within > .btn { display: inline-flex !important; }
+  /* ── Snel-toevoegen gaat op een telefoon uit ──
+     Er stonden twee wegen naar dezelfde taak: dit veld boven de lijst en
+     de ronde knop rechtsonder. Het veld klapte bij aanraken uit tot
+     prioriteit, klant en datum -- precies wat het venster achter de ronde
+     knop ook vraagt, maar dan geperst in een balk van 375px breed.
+
+     Op een bureaublad blijft het staan: daar is dit veld de enige plek
+     om een taak toe te voegen (de ronde knop is daar verborgen). */
+  .cl2-newitem { display: none !important; }
 
   /* Filterbalk: label weg (de knoppen spreken voor zich) en de teller
      achter het zoekveld op dezelfde regel. Scheelt twee regels. */
@@ -5204,6 +5207,10 @@ textarea { line-height: 1.6; resize: vertical; }
     right: 12px !important;
     left: auto !important;
     margin: 0 !important;
+    /* De rasterregel van het dashboard gaf deze wrapper 8px zijpadding.
+       Met border-box bleef daar 28px over voor de knop erin: een kleiner
+       raakvlak dan de andere drie, terwijl het icoon wel goed stond. */
+    padding: 0 !important;
     width: var(--tap) !important;
     height: var(--tap) !important;
     min-width: var(--tap) !important;
@@ -6378,7 +6385,7 @@ textarea { line-height: 1.6; resize: vertical; }
           <div class="dash-mobile-settings" id="dashMobileSettings">
             <button class="btn btn-sm" onclick="toggleDashMobileSettings(event)"
               aria-haspopup="menu" aria-expanded="false" aria-label="Meer opties" title="Meer opties">
-              <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><circle cx="3" cy="8" r="1.4"/><circle cx="8" cy="8" r="1.4"/><circle cx="13" cy="8" r="1.4"/></svg>
+              <svg class="icoon-meer" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="13" cy="8" r="1.5"/></svg>
             </button>
             <div class="dash-mobile-settings-menu" id="dashMobileSettingsMenu">
               <!-- Op mobiel staan 'Nieuwe klant' en 'Wekelijkse review' hier in
@@ -6599,7 +6606,7 @@ textarea { line-height: 1.6; resize: vertical; }
           <div class="cl-overflow" id="clOverflow">
             <button class="btn btn-sm" id="clOverflowBtn" type="button" data-action="toggleClOverflow"
               aria-haspopup="menu" aria-expanded="false" aria-label="Meer opties" title="Meer opties">
-              <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><circle cx="3" cy="8" r="1.4"/><circle cx="8" cy="8" r="1.4"/><circle cx="13" cy="8" r="1.4"/></svg>
+              <svg class="icoon-meer" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="13" cy="8" r="1.5"/></svg>
             </button>
             <div class="cl-overflow-menu" id="clOverflowMenu" role="menu"></div>
           </div>
@@ -6642,7 +6649,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <button class="uren-btn uren-btn-vandaag" data-uren-action="urenNavToday">Vandaag</button>
         <div class="uren-topbar-vul"></div>
         <button class="uren-btn uren-btn-icon" id="urenMenuBtn" data-uren-action="urenToggleMenu"
-          aria-haspopup="menu" aria-expanded="false" title="Meer acties">⋯</button>
+          aria-haspopup="menu" aria-expanded="false" aria-label="Meer acties" title="Meer acties"><svg class="icoon-meer" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="13" cy="8" r="1.5"/></svg></button>
       </div>
 
       <div class="uren-viewbar">
@@ -6680,7 +6687,7 @@ textarea { line-height: 1.6; resize: vertical; }
           aria-haspopup="menu" aria-expanded="false" title="Bedrijf waaruit je factureert" hidden>
           <span class="nm" id="facBedrijfLbl">Alle bedrijven</span><span class="cv" aria-hidden="true">▾</span></button>
         <button class="uren-btn uren-btn-icon" id="facMenuBtn" data-fac-action="facToggleMenu"
-          aria-haspopup="menu" aria-expanded="false" title="Meer acties">⋯</button>
+          aria-haspopup="menu" aria-expanded="false" aria-label="Meer acties" title="Meer acties"><svg class="icoon-meer" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="13" cy="8" r="1.5"/></svg></button>
         <button class="uren-btn uren-btn-primary" data-fac-action="facNieuwStart">+ Nieuwe factuur</button>
       </div>
 
