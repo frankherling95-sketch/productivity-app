@@ -10,6 +10,27 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-06 · Voetknoppen van een modaal: één regel als het past, anders de hoofdknop eronder
+
+**Probleem.** De voet van een modaal is `[knop links] [Annuleer] [hoofdknop]`, waarbij de laatste twee in een eigen groepje zitten. Op een telefoon paste dat niet: "Lege factuur", "Annuleer" en "Factuur opstellen" zijn samen 335px op een blad van 331. Het afbreken viel tússen de groepen, dus je kreeg één losse knop links op de eerste regel en het paar rechts eronder — scheef, en de hoofdknop was met 122px het smalste doel van de drie terwijl hij het vaakst wordt aangetikt.
+
+**Beslissing.** Op mobiel lost het groepje op in de voet (`display: contents`) en is elke knop een vak dat meegroeit (`flex: 1 1 auto`, `min-height: var(--tap)`). Daarmee valt het afbreken tussen knoppen in plaats van tussen groepen: past alles op één regel, dan verdelen ze die; past het niet, dan zakt de laatste — altijd de hoofdknop — naar een eigen regel over de volle breedte.
+
+**Waarom niet de tekst inkorten.** Dat was de andere weg: "Opstellen" in plaats van "Factuur opstellen", en dan passen er drie naast elkaar van elk 107px. Maar dan staat de belangrijkste knop even breed als "Annuleer" en heet hij minder dan hij doet. De volle regel is duidelijker én een groter doel.
+
+**Wat het over de hele app doet** (19 modaalvoeten, allemaal nagemeten op 375px):
+- drie knoppen → twee gedeeld op regel 1, hoofdknop 313px op regel 2 (factuurwizard, mailinstellingen)
+- twee knoppen → naast elkaar, samen de volle breedte (~150px elk)
+- één knop → volle breedte
+
+Alle voetknoppen zijn nu 44px hoog; ze stonden op de 40px van `.btn-sm`.
+
+**Op een bureaublad verandert er niets.** De regels staan in de mobiele laag; daar blijft het links een knop, rechts het paar, op hun eigen breedte (28px hoog).
+
+**Bestanden**: `index.html` — de regel `.modal-footer{flex-wrap:wrap}` in `@media (max-width:768px)` vervangen door de drie regels hierboven; `sw.js` → `herling-v28`
+
+**Niet doen.** Per modaal een eigen voetindeling maken. Het zijn er negentien; wat hier goed staat, staat overal goed.
+
 ## 2026-09-06 · De filterknop staat overal op dezelfde plek en heeft dezelfde maat
 
 **Probleem.** Drie modules met een trechter, drie verschillende uitvoeringen. Checklist: 44×44, randloos, icoon 20px, in de topbalk. Uren en Facturen: 37×36 met rand en schaduw, icoon 13px, een rij lager tussen de tabs. Ook het pad van het icoon verschilde. Naast elkaar gezet is dat één functie in drie gedaanten.

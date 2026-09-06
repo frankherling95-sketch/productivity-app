@@ -132,6 +132,23 @@ eigen maat te kiezen. Zo ontstonden de drie uitvoeringen die er stonden.
 `border: 0` tekent die alsnog een randje, en dan lijkt de knop nog steeds niet
 op de andere. Zulke dingen zie je in `getComputedStyle`, niet op een screenshot.
 
+### De voet van een modaal
+
+Elke knop is een vak dat meegroeit; de groepen (`.modal-footer-left` /
+`-right`) lossen op in de voet met `display: contents`. Zo valt het afbreken
+tússen knoppen in plaats van tussen groepen:
+
+- drie knoppen → twee delen regel 1, de hoofdknop krijgt regel 2 over de
+  volle breedte
+- twee knoppen → naast elkaar, samen de volle breedte
+- één knop → volle breedte
+
+Alle voetknoppen zijn `var(--tap)` hoog — niet de 40px van `.btn-sm`.
+
+**Kort de tekst niet in om er drie naast elkaar te krijgen.** Dan staat de
+belangrijkste knop even breed als "Annuleer" en heet hij minder dan hij doet.
+Een volle regel is duidelijker én een groter doel.
+
 ## Geen getal twee keer in beeld
 
 Staat een getal al ergens in dezelfde weergave, dan hoort het er niet nog een
