@@ -2033,4 +2033,26 @@ die excl. btw is. Omzet houdt `excl. btw · verstuurd en betaald`.
 de klant nog moet overmaken; dat bedrag stáát inclusief btw op de factuur.
 Daar excl. van maken zou een getal opleveren dat nergens terugkomt.
 
+**Nog een keer, want de eerste poging was niet genoeg.** Met alleen "incl.
+btw" erbij bleef de vraag staan: Betaald € 110.261,24 *inclusief* is minder
+dan Omzet € 118.944,39 *exclusief*, en dat kan niet. Het kon wél, want het zijn
+verschillende verzamelingen: Omzet dekt alle 23 verstuurde en betaalde
+facturen, Betaald alleen de 20 die binnen zijn. Voluit:
+
+| | excl. btw | incl. btw |
+|---|---|---|
+| 20 betaald | 91.125,00 | 110.261,24 |
+| 3 openstaand | 27.819,39 | 33.661,47 |
+| 23 totaal | **118.944,39** | 143.922,71 |
+
+De strip toont dus drie cellen uit verschillende hoeken van die tabel. Daarom
+staat nu ook het **aantal** in de bijregel: `23 facturen` bij Omzet en
+`20 van 23 facturen` bij Betaald. Dan zie je dat het over minder facturen gaat
+in plaats van te denken dat de btw de verkeerde kant op staat.
+
+Bewust niet alles gelijkgetrokken: omzet hoort exclusief btw (dat is wat in je
+resultatenrekening staat) en openstaand inclusief (dat is wat de klant
+overmaakt). Ze horen niet op te tellen; ze horen alleen niet te suggereren van
+wel.
+
 **Bestanden.** `index.html` — `facRenderKpis()`, `facRenderDebiteuren()`.

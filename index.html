@@ -18792,13 +18792,20 @@ function facRenderKpis(){
   /* De periode staat in de kop van de tegel, niet het jaar: anders leest
      'Omzet 2026' boven een bedrag dat over augustus gaat. */
   const per=facPeriode().kort;
+  /* Waarom hier het aantal bij staat: Omzet gaat over álle verstuurde en
+     betaalde facturen en is exclusief btw; Betaald gaat over alleen de
+     betaalde en is inclusief btw. Dan is het betaalde bedrag lager dan de
+     omzet terwijl het "incl." heet, en dat leest als een rekenfout. Met
+     "20 van 23" zie je meteen dat het over minder facturen gaat. */
+  const geteld=lijst.filter(f=>f.status!=='concept').length;
   box.innerHTML=`
-    ${facKpi('Omzet '+per,factuurFmtBedrag(omzet),'','excl. btw · verstuurd en betaald','var(--mint)')}
+    ${facKpi('Omzet '+per,factuurFmtBedrag(omzet),'','excl. btw · '+geteld+' factu'+(geteld===1?'ur':'ren'),'var(--mint)')}
     ${facKpi('Openstaand',factuurFmtBedrag(openstaand.reduce((s,f)=>s+factuurTotalen(f).openstaand,0)),'',
       'incl. btw · '+openstaand.length+' factu'+(openstaand.length===1?'ur':'ren')+' onbetaald','var(--info)')}
     ${facKpi('Te laat',factuurFmtBedrag(teLaat.reduce((s,f)=>s+factuurTotalen(f).openstaand,0)),'',
       teLaat.length?'incl. btw · '+teLaat.length+' over de vervaldatum':'niets over de vervaldatum',teLaat.length?'var(--danger)':'var(--success)')}
-    ${facKpi('Betaald '+per,factuurFmtBedrag(som(betaald)),'','incl. btw · '+betaald.length+' factu'+(betaald.length===1?'ur':'ren'),'var(--success)')}`;
+    ${facKpi('Betaald '+per,factuurFmtBedrag(som(betaald)),'',
+      'incl. btw · '+betaald.length+' van '+geteld+' factu'+(geteld===1?'ur':'ren'),'var(--success)')}`;
 }
 function facKpi(lab,val,eenheid,sub,kleur){
   return `<div class="uren-kpi" style="--k:${kleur}">
