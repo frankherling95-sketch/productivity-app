@@ -18795,10 +18795,10 @@ function facRenderKpis(){
   box.innerHTML=`
     ${facKpi('Omzet '+per,factuurFmtBedrag(omzet),'','excl. btw · verstuurd en betaald','var(--mint)')}
     ${facKpi('Openstaand',factuurFmtBedrag(openstaand.reduce((s,f)=>s+factuurTotalen(f).openstaand,0)),'',
-      openstaand.length+' factu'+(openstaand.length===1?'ur':'ren')+' onbetaald','var(--info)')}
+      'incl. btw · '+openstaand.length+' factu'+(openstaand.length===1?'ur':'ren')+' onbetaald','var(--info)')}
     ${facKpi('Te laat',factuurFmtBedrag(teLaat.reduce((s,f)=>s+factuurTotalen(f).openstaand,0)),'',
-      teLaat.length?teLaat.length+' over de vervaldatum':'niets over de vervaldatum',teLaat.length?'var(--danger)':'var(--success)')}
-    ${facKpi('Betaald '+per,factuurFmtBedrag(som(betaald)),'',betaald.length+' factu'+(betaald.length===1?'ur':'ren'),'var(--success)')}`;
+      teLaat.length?'incl. btw · '+teLaat.length+' over de vervaldatum':'niets over de vervaldatum',teLaat.length?'var(--danger)':'var(--success)')}
+    ${facKpi('Betaald '+per,factuurFmtBedrag(som(betaald)),'','incl. btw · '+betaald.length+' factu'+(betaald.length===1?'ur':'ren'),'var(--success)')}`;
 }
 function facKpi(lab,val,eenheid,sub,kleur){
   return `<div class="uren-kpi" style="--k:${kleur}">
@@ -18973,10 +18973,12 @@ function facRenderDebiteuren(){
   const groepen={lopend:[],d30:[],d60:[],d90:[],d90plus:[]};
   open.forEach(f=>groepen[factuurOuderdom(f)].push(f));
   const som=arr=>arr.reduce((s,f)=>s+factuurTotalen(f).openstaand,0);
+  /* Ook deze bedragen zijn wat de klant nog moet overmaken, dus inclusief
+     btw -- naast een tegel "Omzet" die excl. btw is, moet dat erbij staan. */
   const cel=(lab,key,kleur)=>`<div class="fac-aging-cel" style="--k:${kleur}">
     <div class="fac-aging-lab">${lab}</div>
     <div class="fac-aging-val">${factuurFmtBedrag(som(groepen[key]))}</div>
-    <div class="fac-aging-sub">${groepen[key].length} factu${groepen[key].length===1?'ur':'ren'}</div></div>`;
+    <div class="fac-aging-sub">incl. btw · ${groepen[key].length} factu${groepen[key].length===1?'ur':'ren'}</div></div>`;
   /* Het aantal te late facturen, niet het bedrag: dat bedrag staat al in de
      voet van de tabel eronder, en dan zou de regel die de cijfers wegstopt
      zelf een cijfer verdubbelen. */
@@ -19003,7 +19005,7 @@ function facRenderDebiteuren(){
       <div class="fac-aging-sub">${escapeHtml(sub)}</div></div>`;
     html+=`<div class="fac-aging fac-aging-2">
       ${kpi('Omzet '+per,omzet,'excl. btw · verstuurd en betaald','var(--mint)')}
-      ${kpi('Betaald '+per,betaaldSom,betaald.length+' factu'+(betaald.length===1?'ur':'ren'),'var(--success)')}</div>`;
+      ${kpi('Betaald '+per,betaaldSom,'incl. btw · '+betaald.length+' factu'+(betaald.length===1?'ur':'ren'),'var(--success)')}</div>`;
   }
   if(cijfersAan)html+=`<div class="fac-aging">
     ${cel('Nog niet vervallen','lopend','var(--success)')}

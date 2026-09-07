@@ -2011,3 +2011,26 @@ gebruiken (facturen, debiteuren, btw).
 **Niet doen.** Betreft over twee regels zetten zonder de rijhoogte vast te
 zetten: dan wordt elke rij een andere hoogte en oogt de tabel rommeliger dan
 met een afgekapte regel.
+
+## 2026-09-07 · Elke tegel zegt of het bedrag in- of exclusief btw is
+
+**Probleem.** Frank vroeg of de berekening wel klopte: Omzet € 118.944,39,
+Openstaand € 33.661,47, Betaald € 110.261,24. Die tellen niet op zoals je
+verwacht — tot je weet dat **Omzet exclusief btw is en de andere twee
+inclusief**. Alleen bij Omzet stond dat erbij.
+
+Nagerekend: betaald + openstaand = € 143.922,71, en omzet × 1,21 =
+€ 143.922,71. Klopt tot op de cent. Het was dus een leesprobleem, geen
+rekenprobleem — maar wel eentje dat je aan je eigen cijfers laat twijfelen,
+en dat is erger dan een lelijke tegel.
+
+**Beslissing.** De bijregel van élke tegel met een bedrag begint met de basis:
+`incl. btw · 3 facturen onbetaald`, `incl. btw · 20 facturen`. Ook de vijf
+ouderdomstegels bij Debiteuren, want die staan straks naast een tegel "Omzet"
+die excl. btw is. Omzet houdt `excl. btw · verstuurd en betaald`.
+
+**Waarom niet alles gelijktrekken naar excl.** Openstaand en Te laat zijn wat
+de klant nog moet overmaken; dat bedrag stáát inclusief btw op de factuur.
+Daar excl. van maken zou een getal opleveren dat nergens terugkomt.
+
+**Bestanden.** `index.html` — `facRenderKpis()`, `facRenderDebiteuren()`.
