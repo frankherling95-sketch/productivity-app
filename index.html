@@ -1542,8 +1542,12 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
   box-shadow:var(--shadow-card);position:relative;overflow:hidden;
 }
 .fac-klantkaart::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c)}
-.fac-klantkaart h4{font-size:14.5px;font-weight:700;margin:0;display:flex;align-items:center;gap:8px}
+.fac-klantkaart h4{font-size:14.5px;font-weight:700;margin:0;display:flex;align-items:center;gap:8px;min-width:0}
+.fac-klantkaart h4 .sw{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+.fac-klantkaart h4 .nm{min-width:0}
 .fac-klantkaart .adres{font-size:12.5px;color:var(--text-muted);line-height:1.55}
+.fac-klantkaart .fac-klant-extra{font-size:11.5px;color:var(--text-muted)}
+.fac-klantkaart .fac-klant-extra b{color:var(--text)}
 .fac-klantkaart .meta{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--text-muted)}
 .fac-klantkaart .meta b{font-family:var(--font-cijfer);color:var(--text);font-weight:600}
 .fac-klantkaart .acties{display:flex;gap:6px;margin-top:2px}
@@ -2532,7 +2536,19 @@ textarea { line-height: 1.6; resize: vertical; }
 /* ═════════════════════════════════════════════════════════════════════════════
    CLIENT FILTER — unified dropdown component (every module topbar)
    ════════════════════════════════════════════════════════════════════════════ */
-.client-filter { position: relative; display: inline-block; }
+.client-filter { position: relative; display: inline-flex; align-items: center; gap: 2px; }
+/* Icoonknop naast de klantenbalk — zelfde vorm als de trechter en het ⋯
+   (zie docs/stijlgids.md §2): raakvlak var(--tap), randloos, icoon op
+   var(--icoon). Uitgegrijsd zolang er niet op één klant gefilterd is. */
+.client-filter-info {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: var(--tap); height: var(--tap); flex: none;
+  padding: 0; background: transparent; border: 0; box-shadow: none;
+  color: var(--text-muted); cursor: pointer; border-radius: var(--radius);
+  transition: var(--transition-fast);
+}
+.client-filter-info:hover:not(:disabled) { color: var(--text); background: var(--surface2); }
+.client-filter-info:disabled { opacity: .35; cursor: default; }
 .client-filter-btn {
   display: inline-flex;
   align-items: center;
@@ -2648,9 +2664,19 @@ textarea { line-height: 1.6; resize: vertical; }
   color: var(--text);
 }
 .cd-row:hover { background: var(--surface3); }
+/* De drie snelknoppen. Op een bureaublad passen ze naast elkaar in de 680px
+   van het venster. */
+.cd-acties { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
 @media (max-width: 768px){
   .cd-kpi-num { font-size: 17px; }
   #clientDashModal .modal { max-width: 96vw !important; }
+  /* Op een telefoon paste er geen tweede knop naast, dus vielen ze alle drie
+     op een eigen regel met de halve breedte aan wit ernaast. Dezelfde vorm
+     als een modaalvoet: de hoofdknop vol op regel één, de twee andere
+     daaronder naast elkaar. Zo staat er geen knop meer half in het niets. */
+  .cd-acties { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .cd-acties .btn { width: 100%; min-height: var(--tap); justify-content: center; }
+  .cd-acties .btn-primary { grid-column: 1 / -1; }
 }
 
 /* "+ Klant" button variant — ghost with mint accent on hover */
@@ -4999,6 +5025,7 @@ textarea { line-height: 1.6; resize: vertical; }
   #facFilterBtn,
   #urenMenuBtn,
   #facMenuBtn,
+  .client-filter-info,
   #mod-notes .notes-groep-mob {
     display: inline-flex !important;
     align-items: center; justify-content: center;
@@ -5023,6 +5050,10 @@ textarea { line-height: 1.6; resize: vertical; }
     background: var(--surface2) !important; border-radius: var(--radius);
   }
   .cl2-filterwis.zichtbaar { color: var(--text-muted) !important; }
+  /* De gedeelde regel hierboven zet de kleur hard op --text; uitgegrijsd
+     moet uitgegrijsd blijven. */
+  .client-filter-info { color: var(--text-muted) !important; }
+  .client-filter-info:not(:disabled) { color: var(--text) !important; }
   /* Staat er een filter aan, dan mag je dat zien zonder het paneel te
      openen: de trechter kleurt en er komt een stip bij. De teller in de
      knop kan daarmee weg -- die stond bij Uren en Facturen naast een
@@ -5377,6 +5408,24 @@ textarea { line-height: 1.6; resize: vertical; }
   .fac-msom { display: flex; }
   .fac-aging { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-2); margin-bottom: var(--sp-3); }
   .fac-klanten { grid-template-columns: 1fr; }
+  /* Klantkaart op een telefoon: de knop stond op een eigen regel onderaan met
+     de halve kaartbreedte aan wit ernaast. Hij hoort bij de klant in de kop,
+     dus staat hij daar -- en dat scheelt meteen een regel. De naam kapt af in
+     plaats van over twee regels te lopen; de rest loopt onder beide kolommen
+     door. "N facturen" is naar de meta-regel verhuisd, want dat is een
+     gegeven en geen knop. */
+  .fac-klantkaart {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center; gap: 7px 10px; padding: 11px 13px;
+  }
+  .fac-klantkaart h4 { grid-column: 1; font-size: var(--fs-basis); }
+  .fac-klantkaart h4 .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fac-klantkaart .acties { grid-column: 2; grid-row: 1; margin: 0 }
+  .fac-klantkaart .adres,
+  .fac-klantkaart .fac-klant-extra,
+  .fac-klantkaart .meta { grid-column: 1 / -1; }
+  .fac-klantkaart .adres { font-size: var(--fs-micro); line-height: 1.45; }
+  .fac-klantkaart .meta { gap: 4px 12px; font-size: var(--fs-micro); }
   /* 12,5px en niet 13: Uren en Facturen delen dezelfde chrome, dus een
      tab of knop hoort in beide modules even groot te zijn. */
   #mod-facturen { flex-direction: column; --uren-ui: 12.5px; }
@@ -9948,16 +9997,34 @@ function renderOneClientFilter(host){
     })
   ];
   if(!clients.length)optionsHtml.push(`<div class="client-filter-empty">Nog geen klanten. Klik op + Klant.</div>`);
+  /* Het klantoverzicht zat alleen achter de ℹ in een regel van het
+     uitklapmenu, en die verschijnt op hover -- op een telefoon dus nergens.
+     Hier staat hij naast de balk: aan zodra je op één klant filtert, uit
+     zolang het "Alle klanten" is, want een overzicht van alle klanten
+     tegelijk bestaat niet. */
   host.innerHTML=`
     <button type="button" class="client-filter-btn" data-cf-trigger>
       <span class="cf-dot" style="${dotStyle}"></span>
       <span class="cf-name">${escapeHtml(label)}</span>
       <svg class="cf-caret" width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M2 3.5L4.5 6L7 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
+    <button type="button" class="client-filter-info" data-cf-overzicht
+      ${active?'':'disabled'}
+      aria-label="${active?'Overzicht van '+escapeHtml(active.name):'Kies eerst één klant'}"
+      title="${active?'Overzicht van '+escapeHtml(active.name):'Kies eerst één klant'}">
+      <svg class="icoon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="8" cy="8" r="6.1"/><path d="M8 7.2v3.6"/><path d="M8 5.1v.1"/></svg>
+    </button>
     <div class="client-filter-menu" role="menu">${optionsHtml.join('')}</div>`;
   wireClientFilter(host);
 }
 function wireClientFilter(host){
+  const overzicht=host.querySelector('[data-cf-overzicht]');
+  if(overzicht)overzicht.addEventListener('click',e=>{
+    e.stopPropagation();
+    if(activeClientFilter)openClientDash(activeClientFilter);
+  });
   const trigger=host.querySelector('[data-cf-trigger]');
   const menu=host.querySelector('.client-filter-menu');
   const setOpen=on=>{
@@ -10137,7 +10204,7 @@ function openClientDash(id){
   </div>`;
 
   /* Quick actions */
-  html+=`<div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap">
+  html+=`<div class="cd-acties">
     <button class="btn btn-sm btn-primary" type="button" onclick="closeClientDash();activeClientFilter='${c.id}';switchModule('checklist');renderClientFilters();">→ Open in Checklist</button>
     <button class="btn btn-sm" type="button" onclick="closeClientDash();activeClientFilter='${c.id}';switchModule('notes');renderClientFilters();">→ Open in Notities</button>
     <button class="btn btn-sm" type="button" onclick="copyLastNoteForClient('${c.id}')" title="Kopieer een nieuwe notitie op basis van de laatste">⎘ Notitie kopiëren</button>
@@ -19197,29 +19264,29 @@ function facRenderKlanten(){
     const vast=c.bedrijfId&&facMeerdereBedrijven()
       ?factuurSettings().bedrijven.find(b=>b.id===c.bedrijfId):null;
     html+=`<div class="fac-klantkaart" style="--c:${col.bg}">
-      <h4><span style="width:10px;height:10px;border-radius:2px;background:${col.bg};flex-shrink:0"></span>
-        ${escapeHtml(c.bedrijfsnaam||c.name)}</h4>
+      <h4><span class="sw" style="background:${col.bg}"></span>
+        <span class="nm">${escapeHtml(c.bedrijfsnaam||c.name)}</span></h4>
       <div class="adres">${compleet
         ? escapeHtml(v.adres)+'<br>'+escapeHtml((v.postcode||'')+' '+(v.plaats||''))+
           (geerfd?`<br><span class="fac-geerfd">van ${escapeHtml(v.viaPartijNaam)}</span>`:'')
         : '<span class="fac-onvolledig">⚠ Adresgegevens ontbreken</span>'}</div>
       ${c.factuurPartijId&&factuurKlant(c.factuurPartijId)
-        ? `<div style="font-size:11.5px;color:var(--text-muted)">Factuur gaat naar
-             <b style="color:var(--text)">${escapeHtml((factuurKlant(c.factuurPartijId).bedrijfsnaam)||factuurKlant(c.factuurPartijId).name)}</b></div>`
+        ? `<div class="fac-klant-extra">Factuur gaat naar
+             <b>${escapeHtml((factuurKlant(c.factuurPartijId).bedrijfsnaam)||factuurKlant(c.factuurPartijId).name)}</b></div>`
         : (factuurKlantenVanPartij(c.id).length>1
-            ? `<div style="font-size:11.5px;color:var(--text-muted)">Ontvangt ook de facturen van
-                 <b style="color:var(--text)">${factuurKlantenVanPartij(c.id).length-1} andere klant${factuurKlantenVanPartij(c.id).length===2?'':'en'}</b></div>`
+            ? `<div class="fac-klant-extra">Ontvangt ook de facturen van
+                 <b>${factuurKlantenVanPartij(c.id).length-1} andere klant${factuurKlantenVanPartij(c.id).length===2?'':'en'}</b></div>`
             : '')}
-      ${vast?`<div style="font-size:11.5px;color:var(--text-muted)">Factureren vanuit
-             <b style="color:var(--text)">${escapeHtml(vast.naam||'')}</b></div>`:''}
+      ${vast?`<div class="fac-klant-extra">Factureren vanuit
+             <b>${escapeHtml(vast.naam||'')}</b></div>`:''}
       <div class="meta">
         <span>Tarief <b>${v.tarief?factuurFmtBedrag(v.tarief):'—'}</b></span>
         <span>Termijn <b>${v.betaaltermijn||factuurSettings().betaaltermijn}d</b></span>
         <span>Omzet <b>${factuurFmtBedrag(omzet)}</b></span>
+        ${facturen.length?`<span>${facturen.length} factu${facturen.length===1?'ur':'ren'}</span>`:''}
       </div>
       <div class="acties">
         <button class="uren-btn" data-fac-action="facKlantBewerk" data-fac-arg1="${c.id}">Gegevens</button>
-        ${facturen.length?`<span style="align-self:center;font-size:11.5px;color:var(--text-muted)">${facturen.length} factu${facturen.length===1?'ur':'ren'}</span>`:''}
       </div></div>`;
   });
   return html+'</div>';

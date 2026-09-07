@@ -1691,3 +1691,41 @@ twee knoppen in de opmaak.
 **Blijft staan.** De zoekbalk (Ctrl+K) sluit via een `addEventListener` in
 plaats van een `onclick`-attribuut en is daar niet mee te vinden; hij is ook
 alleen met een toetsenbord te openen.
+
+## 2026-09-07 · Klantoverzicht krijgt een eigen knop, klantkaart wordt compacter
+
+**Probleem.** Drie dingen op één plek.
+
+1. Het klantoverzicht (`openClientDash`) zat alleen achter een ℹ in een regel
+   van het klant-uitklapmenu. Die knoppen verschijnen op hover — op een
+   telefoon dus nergens.
+2. De drie snelknoppen ín dat venster stonden op mobiel elk op een eigen regel
+   met de halve breedte aan wit ernaast: ze passen niet met z'n tweeën naast
+   elkaar, dus `flex-wrap` zette ze los onder elkaar op hun eigen breedte.
+3. De klantkaart op het tabblad Klanten had de knop "Gegevens" op een eigen
+   regel onderaan, met dezelfde witruimte ernaast, en de naam liep over twee
+   regels.
+
+**Beslissing.**
+
+1. `.client-filter-info` — een icoonknop naast de klantenbalk, in alle vier de
+   topbalken die een klantfilter hebben. Aan zodra je op één klant filtert,
+   `disabled` en op `opacity:.35` zolang het "Alle klanten" is: een overzicht
+   van alle klanten tegelijk bestaat niet. Hij sluit aan bij de gedeelde
+   icoonknop-regel, dus hij is even groot als de trechter en het ⋯.
+2. `.cd-acties` wordt op mobiel een raster van twee kolommen met de hoofdknop
+   over de volle breedte — dezelfde vorm als een modaalvoet (2026-09-06).
+3. De klantkaart wordt op mobiel een raster: naam links (afgekapt), "Gegevens"
+   rechts op dezelfde regel, de rest eronder over beide kolommen. "N facturen"
+   is van de knoppenrij naar de meta-regel verhuisd — het is een gegeven, geen
+   knop. Vier klanten in beeld in plaats van tweeënhalf.
+
+**Waarom.** Een knop die de halve regel leeg laat leest als een fout. En een
+functie die alleen met een muis te bereiken is, bestaat op een telefoon niet.
+
+**Bestanden.** `index.html` — `renderOneClientFilter()`, `wireClientFilter()`,
+`.client-filter`/`.client-filter-info`, `.cd-acties`, `.fac-klantkaart` +
+mobiele laag, `facRenderKlanten()`. `docs/stijlgids.md` §2.
+
+**Niet doen.** De ℹ uit het uitklapmenu halen — op een bureaublad is dat nog
+steeds de snelste weg als je niet eerst wilt filteren.

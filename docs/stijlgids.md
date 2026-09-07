@@ -60,7 +60,8 @@ in één CSS-regel in de mobiele laag, zodat er geen zevende maat kan ontstaan:
 ```css
 .cl2-filterbtn, .cl2-filterwis.zichtbaar,
 #urenFilterBtn, #facFilterBtn,
-#urenMenuBtn,   #facMenuBtn {
+#urenMenuBtn,   #facMenuBtn,
+.client-filter-info, #mod-notes .notes-groep-mob {
   width: var(--tap); height: var(--tap);
   padding: 0; background: transparent; border: 0; box-shadow: none;
 }
@@ -73,6 +74,7 @@ in één CSS-regel in de mobiele laag, zodat er geen zevende maat kan ontstaan:
 | rand / vulling / schaduw | geen |
 | kleur | `var(--text)`, of `var(--mint)` als er iets aanstaat |
 | aan-staat | mint + een stip van 7px rechtsboven |
+| uit-staat | `disabled`, `opacity: .35`, geen cursor — niet weghalen: een knop die er soms wel en soms niet is, is geen knop |
 
 > **Let op `box-shadow`.** `.uren-btn` draagt er een van 1px. Met alleen
 > `border: 0` tekent die alsnog een randje — in het lichte thema zichtbaar als
