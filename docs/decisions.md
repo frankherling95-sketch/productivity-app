@@ -10,6 +10,24 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-07 · De voortgangskaart telt binnen de gekozen klant
+
+**Probleem.** Kies je een klant, dan filtert de lijst mee maar bleef de kaart erboven het totaal van alles tonen: "78 van 103 taken afgerond" boven twee zichtbare taken. Het cijfer waar je naar keek ging niet over waar je naar keek.
+
+**Beslissing.** De kaart telt binnen het klantfilter. Staat er een klant gekozen, dan staat zijn naam in de eyebrow — "Voortgang · Staedion" — want "0 van 2 afgerond" is anders een raadsel naast een lijst van honderd taken.
+
+**Waarom alleen dit filter en niet de andere.** Het klantfilter is een keuze van *bereik*: ik werk nu voor Staedion. Prioriteit, periode en het zoekveld zijn zoekhulpen — een *lens*, geen bereik. Zou de ring daarop meebewegen, dan verspringt hij bij elke tik en zegt "3 van 3 afgerond" niets meer. Dezelfde scheiding zit al in de filterbalk: de telling daar verschijnt alleen als je filtert, en dan is dat precies het antwoord op wat je net deed.
+
+**Het archief blijft ongefilterd geteld.** Die weergave laat sowieso alles zien, ongeacht de gekozen klant; een knop die een ander aantal noemt dan wat erachter zit is erger dan een knop die het totaal noemt.
+
+**Geldt op beide breedtes** — dit is geen mobiele kwestie maar een rekenfout in wat het getal beweert te zijn.
+
+**Bewijs.** Gemeten: zonder filter "1 van 10 · 10% · 4/6 subtaken" bij negen zichtbare taken; met Bakkerij Roos & Zn "0 van 2 · 0% · 2/3 subtaken" bij twee zichtbare taken; filter weg → weer het totaal.
+
+**Bestanden**: `index.html` — `renderChecklistModule()` geeft een op klant gefilterde set aan `renderChecklistHero()`, plus de klantnaam voor de eyebrow; `sw.js` → `herling-v43`
+
+**Niet doen.** De hele filterset op de kaart loslaten. Dan is het geen voortgang meer maar een telling van je zoekresultaat, en dat staat al in de filterbalk.
+
 ## 2026-09-07 · Wie de actieve notitie verandert, moet ook het scherm meenemen
 
 **Probleem.** Verwijder je op een telefoon de notitie die je open hebt, dan bleef je in de editor staan — met "Geen notitie geselecteerd" als enige inhoud. Een scherm van een pagina die er niet meer is, terwijl je naar de lijst wilde.

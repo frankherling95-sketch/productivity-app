@@ -13770,8 +13770,23 @@ function renderChecklistModule(){
   const doneItems=notArchived.filter(i=>i.done);
   const archived=checklistState.items.filter(i=>i.archived);
 
-  /* Hero always rendered (shows progress over notArchived) */
-  renderChecklistHero({notArchived,doneItems,archivedCount:archived.length});
+  /* ── De voortgangskaart telt binnen de gekozen klant ──
+     Het klantfilter is een keuze van bereik -- "ik werk nu voor Staedion" --
+     en daar hoort de voortgang bij te horen. De prioriteit, de periode en het
+     zoekveld zijn iets anders: dat zijn zoekhulpen, en als de ring daarop
+     meebewoog zou hij bij elke tik verspringen en zou "3 van 3 afgerond"
+     niets meer zeggen.
+
+     Het archief blijft ongefilterd geteld: die weergave laat sowieso alles
+     zien, ongeacht welke klant er gekozen is. */
+  const heroKlant=clFilters.clientId
+    ? (kanbanState.clients||[]).find(c=>c.id===clFilters.clientId)
+    : null;
+  const heroItems=clFilters.clientId
+    ? notArchived.filter(i=>i.clientId===clFilters.clientId)
+    : notArchived;
+  renderChecklistHero({notArchived:heroItems,doneItems:heroItems.filter(i=>i.done),
+    archivedCount:archived.length,klantNaam:heroKlant?(heroKlant.bedrijfsnaam||heroKlant.name):''});
 
   /* New-item inline card + filter bar: hidden while in archive view */
   if(checklistState.showArchived){
@@ -14173,7 +14188,7 @@ function archiveItem(id){
 }
 
 /* ─ Progress Hero render ─ */
-function renderChecklistHero({notArchived,doneItems,archivedCount}){
+function renderChecklistHero({notArchived,doneItems,archivedCount,klantNaam}){
   const hero=document.getElementById('clHero');if(!hero)return;
   const totalActive=notArchived.length;
   const itemsDone=doneItems.length;
@@ -14191,7 +14206,9 @@ function renderChecklistHero({notArchived,doneItems,archivedCount}){
       <div class="cl2-hero-ring-pct">${pct}%</div>
     </div>
     <div class="cl2-hero-text">
-      <div class="cl2-hero-eyebrow">Voortgang</div>
+      <!-- Staat er een klant gekozen, dan hoort dat hier te staan: anders is
+           "2 van 2 afgerond" een raadsel naast een lijst van honderd taken. -->
+      <div class="cl2-hero-eyebrow">Voortgang${klantNaam?' · '+escapeHtml(klantNaam):''}</div>
       <div class="cl2-hero-heading"><span class="num">${itemsDone}</span> van <span class="num">${totalActive}</span> taken afgerond</div>
       <!-- 'X openstaand' stond hier ook; dat is totalActive min itemsDone,
            allebei één regel hoger. Hetzelfde getal twee keer op één kaart. -->
