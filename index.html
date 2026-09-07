@@ -515,6 +515,9 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .cl-cal-day.today{font-weight:700;color:var(--accent)}
 .cl-cal-day.selected{background:var(--accent)!important;color:#fff!important;font-weight:700}
 .cl-cal-footer{display:flex;justify-content:space-between;margin-top:8px;border-top:0.5px solid var(--border);padding-top:6px}
+/* Een klantnaam als "Van der Meer Logistiek & Transport Nederland B.V." liep
+   over drie regels en maakte die ene knop drie keer zo hoog als de rest. */
+#clClientBtns .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 
 
 /* ── Modals ── */
@@ -5837,6 +5840,58 @@ textarea { line-height: 1.6; resize: vertical; }
   /* Laatste losse waarde onder de ondergrens. */
   .cl2-client-tag { font-size: var(--fs-micro) !important; }
 
+  /* ══ Nieuwe taak: één kolom in plaats van twee ══
+     De twee kolommen van het bureaublad (170px keuzes, de rest kalender)
+     lieten op een telefoon een kalender van 150px over: dagvakjes van 20px,
+     ver onder de 44px die je moet kunnen raken. Tegelijk namen drie
+     prioriteitsknoppen onder elkaar bijna 170px in beslag voor een keuze uit
+     drie.
+
+     Alles onder elkaar dus, met de ruimte anders verdeeld: prioriteit als één
+     rij van drie, klanten twee naast elkaar, en de kalender over de volle
+     breedte. Netto ongeveer even hoog, maar de kalender is ruim twee keer zo
+     groot en elk vakje is een raakvlak. */
+  #clItemModal .cl-taak-grid {
+    display: flex !important; flex-direction: column; gap: 14px !important;
+  }
+  /* De linkerkolom lost op, zodat prioriteit en klant losse blokken worden
+     die met order verplaatst kunnen worden. */
+  /* !important, want de kolom draagt een inline style="display:flex" en die
+     wint van elke selector zonder. */
+  #clItemModal .cl-taak-links { display: contents !important; }
+  #clItemModal .cl-taak-prio  { order: 1; }
+  #clItemModal .cl-taak-cal   { order: 2; }
+  #clItemModal .cl-taak-klant { order: 3; margin-top: 0 !important; }
+  #clItemModal .cl-taak-herhaal { order: 4; margin-top: 0 !important; }
+
+  /* Drie keuzes naast elkaar: even breed, en op de tikhoogte. */
+  #clItemModal .cl-pri-rij { flex-direction: row !important; gap: 8px !important; }
+  #clItemModal .cl-pri-btn {
+    flex: 1 1 0; min-width: 0; min-height: var(--tap);
+    text-align: center !important; padding: 8px 4px !important;
+    font-size: var(--fs-klein) !important;
+  }
+  #clItemModal .cl-pri-btn span { margin-right: 4px !important; }
+
+  /* Twee klanten naast elkaar; de lijst blijft begrensd zodat het venster
+     niet meegroeit met het aantal klanten. */
+  #clItemModal #clClientBtns {
+    display: grid !important; grid-template-columns: 1fr 1fr; gap: 7px !important;
+    max-height: 208px !important;
+  }
+  /* De knop moet zelf mogen krimpen, anders heeft de ellipsis op .nm niets
+     om binnen te blijven en steekt de naam er gewoon uit. */
+  #clItemModal #clClientBtns button {
+    min-height: var(--tap); min-width: 0; overflow: hidden;
+  }
+
+  /* De kalender krijgt de volle breedte. aspect-ratio houdt de vakjes
+     vierkant, dus ze groeien mee: van ~20px naar ~46px. */
+  #clItemModal .cl-cal-days { gap: 4px; }
+  #clItemModal .cl-cal-day { font-size: var(--fs-klein); }
+  #clItemModal .cl-cal-weekdays { font-size: var(--fs-micro); margin-bottom: 6px; }
+  #clItemModal .cl-cal-footer button { font-size: var(--fs-klein) !important; min-height: 36px; }
+
   /* Uren en Facturen delen deze componenten */
   .uren-kpi-lab,
   .uren-pill,
@@ -7730,14 +7785,14 @@ textarea { line-height: 1.6; resize: vertical; }
     </div>
 
     <!-- Two-column: priority+client left, calendar right -->
-    <div style="display:grid;grid-template-columns:170px 1fr;gap:16px;margin-top:12px">
+    <div class="cl-taak-grid" style="display:grid;grid-template-columns:170px 1fr;gap:16px;margin-top:12px">
 
       <!-- Left: priority + client (scrollable) -->
-      <div style="display:flex;flex-direction:column;gap:0;min-height:0">
+      <div class="cl-taak-links" style="display:flex;flex-direction:column;gap:0;min-height:0">
         <!-- Priority -->
-        <div style="flex-shrink:0">
+        <div class="cl-taak-prio" style="flex-shrink:0">
           <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Prioriteit</div>
-          <div style="display:flex;flex-direction:column;gap:6px">
+          <div class="cl-pri-rij" style="display:flex;flex-direction:column;gap:6px">
             <button type="button" class="cl-pri-btn" data-pri="hoog" onclick="selectClPriority('hoog')"
               style="padding:10px 12px;border-radius:var(--radius);border:2px solid transparent;background:#fbeaea;color:#8b1a1a;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;text-align:left">
               <span style="font-size:15px;margin-right:6px">①</span>Hoog
@@ -7754,7 +7809,7 @@ textarea { line-height: 1.6; resize: vertical; }
           <input type="hidden" id="clItemPriority" value="middel"/>
         </div>
         <!-- Client -->
-        <div style="margin-top:14px;flex:1;display:flex;flex-direction:column;min-height:0">
+        <div class="cl-taak-klant" style="margin-top:14px;flex:1;display:flex;flex-direction:column;min-height:0">
           <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Klant</div>
           <div id="clClientBtns" style="display:flex;flex-direction:column;gap:5px;overflow-y:auto;max-height:130px;padding-right:2px"></div>
           <input type="hidden" id="clItemClient" value=""/>
@@ -7762,7 +7817,7 @@ textarea { line-height: 1.6; resize: vertical; }
       </div>
 
       <!-- Inline calendar -->
-      <div>
+      <div class="cl-taak-cal">
         <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Deadline</div>
         <div class="cl-inline-cal">
           <div class="cl-cal-hdr">
@@ -7781,7 +7836,7 @@ textarea { line-height: 1.6; resize: vertical; }
         </div>
         <input type="hidden" id="clItemDeadline"/>
       </div>
-      <div class="modal-field" style="margin-top:14px">
+      <div class="modal-field cl-taak-herhaal" style="margin-top:14px">
         <label class="ev-lbl">Herhaling</label>
         <select id="clItemRecurrence" style="width:100%">
           <option value="none">Geen — eenmalige taak</option>
@@ -7791,7 +7846,7 @@ textarea { line-height: 1.6; resize: vertical; }
           <option value="monthly">Maandelijks</option>
           <option value="yearly">Jaarlijks</option>
         </select>
-        <small style="font-size:11px;color:var(--text-hint);margin-top:4px;display:block">Bij voltooien wordt automatisch een nieuwe instance aangemaakt met de volgende deadline.</small>
+        <small style="font-size:11px;color:var(--text-hint);margin-top:4px;display:block">Bij voltooien komt de volgende er automatisch bij.</small>
       </div>
     </div>
 
@@ -15017,7 +15072,8 @@ function renderClClientBtns(){
     const active=selected===c.id;
     return `<button type="button" data-action="selectClClient" data-arg1="${c.id}"
       style="padding:7px 10px;border-radius:var(--radius);border:2px solid ${active?col.tx:'transparent'};background:${active?col.bg:'var(--surface2)'};color:${active?col.tx:'var(--text-muted)'};font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;transition:all .15s;display:flex;align-items:center;gap:7px">
-      <span style="width:10px;height:10px;border-radius:3px;background:${col.bg};border:1.5px solid ${col.tx};flex-shrink:0"></span>${escapeHtml(c.name)}
+      <span style="width:10px;height:10px;border-radius:3px;background:${col.bg};border:1.5px solid ${col.tx};flex-shrink:0"></span>
+      <span class="nm">${escapeHtml(c.name)}</span>
     </button>`;
   }).join('');
 }

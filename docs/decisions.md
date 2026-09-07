@@ -2133,3 +2133,41 @@ in `.uren-content`.
 `urenCijfersOpen/urenToggleCijfers/urenKpiTegels/urenCijferBalk`,
 `urenRenderKpis` (leegt alleen nog de oude plek), `urenRenderBody`,
 `facCijferBalk` (gebruikt nu de gedeelde functie).
+
+## 2026-09-07 · Nieuwe taak op een telefoon: één kolom, grote kalender
+
+**Probleem.** Het venster hield op een telefoon de twee kolommen van het
+bureaublad aan: 170px voor de keuzes, de rest voor de kalender. Wat daarvan
+overbleef was een kalender van 150px met **dagvakjes van 15,4px** — ver onder
+de 44px die je moet kunnen raken, en het lastigste onderdeel van het hele
+venster. Tegelijk namen drie prioriteitsknoppen ónder elkaar bijna 170px in
+beslag voor een keuze uit drie, en liep een lange klantnaam over drie regels
+waardoor die ene knop drie keer zo hoog werd als de rest.
+
+**Beslissing.** Op mobiel alles onder elkaar, met de ruimte anders verdeeld:
+
+| | was | wordt |
+|---|---|---|
+| prioriteit | drie knoppen onder elkaar, ~170px | één rij van drie, 44px |
+| deadline | 150px breed, vakjes 15,4px | volle breedte, vakjes **38,4px** |
+| klant | één per regel, lange naam over 3 regels | twee naast elkaar, naam kapt af |
+| herhaling-hint | vier regels | één regel |
+
+Volgorde: omschrijving → prioriteit → deadline → klant → herhaling. De
+linkerkolom lost op met `display:contents !important` (het element draagt een
+inline `display:flex` en die wint van elke selector zonder `!important`),
+zodat prioriteit en klant losse blokken worden die met `order` te verplaatsen
+zijn.
+
+**Gemeten.** Het venster is **747px hoog, vóór én na** — precies wat Frank
+vroeg: dezelfde ruimte, strakker ingericht. De kalender is 2,5 keer zo groot.
+
+**Bureaublad blijft zoals het was**; alleen de klantnaam kapt daar nu ook af
+(de knoppen zijn daardoor even hoog) en de hint bij Herhaling is korter.
+
+**Bestanden.** `index.html` — haken `.cl-taak-grid/-links/-prio/-klant/-cal/
+-herhaal` en `.cl-pri-rij` in de opmaak, een mobiel blok dat ze herschikt,
+`.nm` in `renderClClientBtns()`.
+
+**Niet doen.** De dagvakjes kleiner maken om het venster korter te krijgen.
+Dat vakje is precies waar je op moet tikken.
