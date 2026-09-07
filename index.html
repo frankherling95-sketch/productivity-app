@@ -536,6 +536,17 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
    ervoor, want .btn zet zelf display:inline-flex en staat verderop -- bij
    gelijke specificiteit wint de laatste. */
 #mod-notes .notes-groep-mob{display:none}
+/* De klantkiezer van een notitie. Zelfde pilvorm als het klantfilter ernaast,
+   maar met een andere betekenis: dit bepaalt waar de notitie bíj hoort, niet
+   wat je ziet. Op een bureaublad staan lijst en editor naast elkaar en kan de
+   balk niet wisselen; daar loopt het nog via het rechtsklikmenu in de boom. */
+#mod-notes .notes-klant-kies{display:none;align-items:center;gap:7px;
+  padding:0 4px 0 10px;background:var(--surface);border:0.5px solid var(--border);
+  border-radius:var(--radius);min-width:0}
+.nkk-dot{width:9px;height:9px;border-radius:2px;border:1.5px solid;flex-shrink:0}
+.nkk-sel{border:0;background:transparent;color:var(--text);font-family:inherit;
+  font-size:var(--fs-klein);font-weight:500;outline:none;min-width:0;
+  max-width:100%;text-overflow:ellipsis;cursor:pointer;padding:0 2px}
 .modal-footer-left{display:flex;gap:6px}
 .modal-footer-right{display:flex;gap:6px}
 .tag-chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px;min-height:20px}
@@ -4752,14 +4763,33 @@ textarea { line-height: 1.6; resize: vertical; }
      ronde knop, de nieuwe groep op de titelregel. Dat scheelt een regel en
      vult meteen de lege rechterhelft van die balk. */
   #mod-notes .notes-tree-hdr { display: none !important; }
-  #mod-notes .module-topbar > div:last-child { flex: 1; }
+  /* min-width:0, anders kan deze rij niet krimpen onder de eigen breedte van
+     zijn inhoud -- en een klantnaam als "Van der Meer Logistiek & Transport
+     Nederland B.V." maakte de kiezer 440px op een blad van 375. */
+  #mod-notes .module-topbar > div:last-child { flex: 1; min-width: 0; }
   #mod-notes .notes-groep-mob { display: inline-flex !important; margin-left: auto; }
+  /* In de editor kijk je naar één pagina: filteren op klant zegt daar niets,
+     en een nieuwe groep maken hoort bij de lijst. Die twee gaan uit en de
+     klantkiezer van deze notitie neemt hun plek in -- dezelfde balk, dezelfde
+     hoogte, en de vraag die er wél toe doet. */
+  #mod-notes.mobile-editing #notesClientFilter,
+  #mod-notes.mobile-editing .notes-groep-mob { display: none !important; }
+  #mod-notes.mobile-editing .notes-klant-kies {
+    display: flex !important;
+    flex: 1; min-width: 0;
+    height: var(--tap);
+  }
+  #mod-notes.mobile-editing .nkk-sel { flex: 1 1 0; width: 0; min-width: 0; font-size: var(--fs-basis); }
   #mod-notes .notes-sidebar { display: flex !important; }
   #mod-notes .notes-editor { display: none !important; }
   #mod-notes.mobile-editing .notes-sidebar { display: none !important; }
   #mod-notes.mobile-editing .notes-editor { display: flex !important; }
   /* Back button injected by JS appears in the editor header */
   .notes-editor-hdr { padding: 12px 16px !important; }
+  /* De titel houdt de eerste regel voor zich, de meta gaat eronder. Zonder dit
+     hangt het ervan af hoe breed die meta toevallig is: bij een notitie zonder
+     tijdstempel paste alles op één regel en kromp de titel tot "Van de". */
+  #mod-notes .notes-editor-meta { flex: 1 1 100%; }
   .notes-mobile-back {
     display: inline-flex !important;
     align-items: center;
@@ -6791,6 +6821,11 @@ textarea { line-height: 1.6; resize: vertical; }
                plek waar elke module zijn icoonknop heeft: rechts op de
                titelregel. Op een bureaublad blijft de kop staan en is deze
                knop verborgen. -->
+          <!-- Aan welke klant hóórt deze notitie? Iets anders dan het filter
+               ernaast, dat alleen bepaalt wát je ziet. Op een telefoon staat de
+               editor op hetzelfde scherm als deze balk, dus daar wisselen ze
+               elkaar af: in de lijst het filter, in de editor deze kiezer. -->
+          <div class="notes-klant-kies" id="noteKlantKies"></div>
           <button class="btn btn-xs notes-groep-mob" onclick="startFolderCreate()"
             aria-label="Nieuwe groep" title="Nieuwe groep">
             <svg class="icoon" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"
@@ -12396,6 +12431,29 @@ function confirmRename(){
 function setNoteClient(id,clientId){
   const r=findNode(notesState.tree,id);if(!r)return;
   r.node.clientId=clientId||null;r.node.updatedAt=Date.now();scheduleSave();renderNotesTree();
+  renderNoteKlantKies();
+}
+/* De klantkiezer in de topbalk van Notities. Staat alleen in beeld terwijl je
+   een notitie bewerkt (zie .mobile-editing in de mobiele laag); daar is het
+   filter ernaast niet aan de orde -- je kijkt naar één pagina.
+
+   Het stipje links toont de kleur van de gekozen klant, net als in het filter,
+   zodat je in één oogopslag ziet waar deze notitie bij hoort. */
+function renderNoteKlantKies(){
+  const host=document.getElementById('noteKlantKies');
+  if(!host)return;
+  const r=notesState.activeId?findNode(notesState.tree,notesState.activeId):null;
+  if(!r||r.node.type==='folder'){host.innerHTML='';return;}
+  const klanten=kanbanState.clients||[];
+  const huidig=klanten.find(c=>c.id===r.node.clientId);
+  const kleur=huidig?CLIENT_COLORS[huidig.colorIdx%CLIENT_COLORS.length]:null;
+  host.innerHTML=`
+    <span class="nkk-dot" style="background:${kleur?kleur.bg:'var(--surface3)'};border-color:${kleur?kleur.tx:'var(--border-strong)'}"></span>
+    <select class="nkk-sel" aria-label="Klant van deze notitie" title="Klant van deze notitie"
+      onchange="setNoteClient('${r.node.id}',this.value)">
+      <option value=""${r.node.clientId?'':' selected'}>Geen klant</option>
+      ${klanten.map(c=>`<option value="${c.id}"${r.node.clientId===c.id?' selected':''}>${escapeHtml(c.bedrijfsnaam||c.name)}</option>`).join('')}
+    </select>`;
 }
 
 
@@ -12826,6 +12884,7 @@ function renderNoteEditor(){
   const r=findNode(notesState.tree,notesState.activeId);
   if(!r||r.node.type==='folder'){notesState.activeId=null;renderNoteEditor();return;}
   const node=r.node;
+  renderNoteKlantKies();
   const ts=node.updatedAt?new Date(node.updatedAt).toLocaleString('nl-NL'):'';
 
   const fontOpts=NOTE_FONT_OPTIONS.map(o=>`<option value="${o.value}">${o.label}</option>`).join('');
