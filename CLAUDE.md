@@ -117,6 +117,10 @@ Bij toevoegen van een nieuw state-veld: voeg een hydratie-stap toe in `hydrateer
 - Manual: `:root[data-theme="..."]`
 - Voorkeur in `rawState.settings.theme`
 
+**Font tokens**: `--font-display` (koppen), `--font-body` (tekst),
+`--font-cijfer` (álle getallen — is de body-letter; uitlijnen doet
+`tabular-nums`), `--font-mono` (alleen echte code: codeblok, kbd, pincodeveld).
+
 **Color tokens**: `--navy #0F1B3D`, `--navy-dark #0A1330`, `--teal #0D3D3A`, `--mint #00E5B0`, plus `--bg/--surface/--text/--border/--accent/--danger` etc. Volledige set in regels 798–893.
 
 ## Mobile

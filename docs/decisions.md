@@ -1628,3 +1628,37 @@ onder de statuspil in de tabel. `docs/stijlgids.md` §4.
 
 **Niet doen.** De tabel op desktop meeveranderen: die heeft de ruimte wél en
 toont dezelfde gegevens in kolommen.
+
+## 2026-09-07 · Cijfers staan overal in de huisstijl-tekst
+
+**Probleem.** Getallen stonden in twee lettertypes door elkaar. Facturen zette
+`--font-mono` lokaal op de huisstijl-tekst (2026-08-19, om de kolombreedte);
+alle andere modules gebruikten JetBrains Mono. Naast elkaar — de KPI-strip van
+Uren tegenover die van Facturen, dezelfde kaart, hetzelfde getal — lees je dat
+als twee verschillende schermen. Frank: *"Kan je ook het lettertype van alle
+cijfers overal hetzelfde maken? Doe maar de stijl van de facturen pagina."*
+
+**Beslissing.** Nieuw token `--font-cijfer: var(--font-body)`. Alle 62 plekken
+die `var(--font-mono)` gebruikten voor een getal, datum, teller of bedrag zijn
+omgezet. `--font-mono` blijft bestaan maar alleen nog voor wat écht code is:
+een codeblok in een notitie (`.note-editor code`, `.wr-content code`), een
+toets in de sneltoetsenlijst (`.gs-kbd`, `.shortcut-row kbd`) en het
+pincodeveld (losse tekens met 8px ertussen). De lokale override van Facturen is
+weg — die deed nu hetzelfde als de regel eronder.
+
+Uitlijnen doet `font-variant-numeric: tabular-nums`, niet het lettertype; waar
+getallen in een kolom onder elkaar staan is dat toegevoegd waar het nog miste.
+
+**Waarom.** Eén token in plaats van 62 losse regels betekent dat wat er later
+bij komt vanzelf meedoet. En de huisstijl-tekst is smaller: dat was in 2026-08-19
+al de reden om het in Facturen te doen.
+
+**Bewijs.** Op zes modules en zes vensters, op 375 én 1400px, staat geen enkel
+zichtbaar element meer in JetBrains Mono (gemeten met `getComputedStyle`).
+
+**Bestanden.** `index.html` — token in `:root`, 62 omzettingen, vijf
+code-plekken teruggezet, `#mod-facturen{--font-mono:…}`-blok weg.
+`docs/stijlgids.md` §1.
+
+**Niet doen.** JetBrains Mono uit de Google-Fonts-link halen: de codeblokken in
+Notities gebruiken hem nog.

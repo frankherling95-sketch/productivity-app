@@ -33,6 +33,18 @@ wildgroei opnieuw.
 | `--icoon` | 16px | **20px** | de tekening ín zo'n raakvlak |
 | `--sp-1…6` | 4 / 8 / 12 / 16 / 24 / 32px | idem | tussenruimte |
 
+### Het lettertype van een getal
+
+**Alle** getallen — bedragen, uren, datums, tellers, percentages, badges —
+staan in `var(--font-cijfer)`, en dat is de huisstijl-tekst. Uitlijnen doet
+`font-variant-numeric: tabular-nums`; daar is geen apart lettertype voor nodig,
+en de schrijfmachineletter is fors breder (een tabel van acht kolommen liep
+erop vast).
+
+`var(--font-mono)` is er nog, maar alleen voor wat écht code is: een codeblok
+in een notitie, een toets in de sneltoetsenlijst, het pincodeveld. Zet je een
+getal in `--font-mono`, dan valt het uit de toon met de rest van de app.
+
 `--fs-micro` is de ondergrens. Niets in beeld is kleiner. `validate.mjs`
 waarschuwt bij een nieuwe `font-size` onder 11,5px in de mobiele laag.
 
