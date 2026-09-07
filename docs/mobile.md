@@ -120,7 +120,9 @@ Eén regel in de mobiele laag dekt ze allemaal — de trechter en het kruisje va
 de Checklist, de filterknoppen van Uren en Facturen:
 
 ```css
-.cl2-filterbtn, .cl2-filterwis.zichtbaar, #urenFilterBtn, #facFilterBtn {
+.cl2-filterbtn, .cl2-filterwis.zichtbaar,
+#urenFilterBtn, #facFilterBtn,
+#urenMenuBtn,   #facMenuBtn {
   width: var(--tap); height: var(--tap);
   padding: 0; background: transparent; border: 0; box-shadow: none;
 }
@@ -131,7 +133,11 @@ eigen maat te kiezen. Zo ontstonden de drie uitvoeringen die er stonden.
 
 **Let op `box-shadow`.** `.uren-btn` draagt er een van 1px. Met alleen
 `border: 0` tekent die alsnog een randje, en dan lijkt de knop nog steeds niet
-op de andere. Zulke dingen zie je in `getComputedStyle`, niet op een screenshot.
+op de andere. Zulke dingen zie je in `getComputedStyle`, niet op een screenshot
+— in het lichte thema wel met het blote oog, want daar steekt zo'n schaduw af
+tegen wit. Deze fout is twee keer gemaakt: eerst bij de filterknoppen, daarna
+bij de ⋯-knoppen die nog een eigen regel hadden. Vandaar één regel voor alle
+zes: wie een icoonknop maakt, zet zijn selector erbíj.
 
 ### De tabstrip
 
