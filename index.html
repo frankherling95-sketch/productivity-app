@@ -1265,22 +1265,25 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 }
 .uren-mcard{
   background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-md);
-  padding:12px 13px;display:flex;gap:12px;box-shadow:var(--shadow-card);
+  padding:10px 13px;display:flex;flex-direction:column;gap:3px;box-shadow:var(--shadow-card);
   position:relative;overflow:hidden;width:100%;text-align:left;
   font-family:inherit;color:var(--text);cursor:pointer;
 }
 .uren-mcard::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c,var(--mint))}
 .uren-mcard:active{background:var(--surface2)}
-.uren-mcard .body{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
-.uren-mcard .kl{display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:600}
+.uren-mcard .rij{display:flex;align-items:center;gap:9px;width:100%;min-width:0}
+.uren-mcard .kl{display:flex;align-items:center;gap:7px;font-size:var(--fs-klein);font-weight:600;
+  flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .uren-mcard .kl .sw{width:9px;height:9px;border-radius:2px;flex-shrink:0}
 .uren-mcard .ds{
-  font-size:12.5px;color:var(--text-muted);line-height:1.5;
-  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  font-size:var(--fs-micro);color:var(--text-muted);line-height:1.45;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
+/* Zelfde maat als het bedrag op een factuurkaart: allebei het getal op een
+   regel in een lijst. Stond op 19px en was daarmee het grootste op het scherm. */
 .uren-mcard .hrs{
-  font-family:var(--font-mono);font-size:19px;font-weight:600;font-variant-numeric:tabular-nums;
-  text-align:right;white-space:nowrap;padding-top:1px;
+  font-family:var(--font-mono);font-size:var(--fs-basis);font-weight:600;
+  font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;flex-shrink:0;
 }
 .uren-mcard .hrs small{font-size:11px;font-weight:400;color:var(--text-muted)}
 .uren-mpiv{
@@ -15633,13 +15636,17 @@ function urenRenderRegView(){
   const list=urenVisibleEntries();
   const p=urenPeriod();
   urenDraftEnsure(p,true);
-  /* Groepeer per dag, nieuwste dag eerst */
+  /* Groepeer per dag, chronologisch: maandag bovenaan.
+     Stond op nieuwste eerst. Voor een logboek is dat de gewone volgorde, maar
+     dit is een week- of maandoverzicht waarin je je eigen week naloopt -- en
+     dan lees je van maandag naar vrijdag, niet andersom. Geldt voor beide
+     periodes, want het is dezelfde lijst. */
   const byDay=new Map();
   list.forEach(e=>{
     if(!byDay.has(e.date))byDay.set(e.date,[]);
     byDay.get(e.date).push(e);
   });
-  const days=[...byDay.keys()].sort((a,b)=>b.localeCompare(a));
+  const days=[...byDay.keys()].sort((a,b)=>a.localeCompare(b));
   const today=urenToday();
 
   let html=urenRenderSelbar(list);
@@ -15713,14 +15720,17 @@ function urenRenderRegView(){
     rows.forEach(e=>{
       const col=urenClientColor(e.clientId);
       const st=urenStatusMeta(urenStatusOf(e));
+      /* Klant, status en uren op één regel; de omschrijving alleen eronder
+         als er een is. Stond eerder als drie regels boven elkaar met het
+         aantal uren ernaast -- drie keer zo hoog voor dezelfde inhoud. */
       html+=`<button class="uren-mcard" style="--c:${col.bg}"
         data-uren-action="urenEditEntry" data-uren-arg1="${e.id}">
-        <span class="body">
+        <span class="rij">
           <span class="kl"><span class="sw" style="background:${col.bg}"></span>${escapeHtml(urenClientName(e.clientId))}</span>
-          ${e.description?`<span class="ds">${escapeHtml(e.description)}</span>`:''}
-          <span><span class="uren-pill ${st.cls}" style="cursor:default">${st.icon}${st.label}</span></span>
+          <span class="uren-pill ${st.cls}" style="cursor:default">${st.icon}${st.label}</span>
+          <span class="hrs">${urenFmt(e.hours)}<small>u</small></span>
         </span>
-        <span class="hrs">${urenFmt(e.hours)}<small>u</small></span>
+        ${e.description?`<span class="ds">${escapeHtml(e.description)}</span>`:''}
       </button>`;
     });
   });

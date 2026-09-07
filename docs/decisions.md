@@ -10,6 +10,22 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-07 · Urenregels: één regel per registratie, en de dagen chronologisch
+
+**Probleem 1 — de dagvolgorde.** De registraties stonden met de nieuwste dag bovenaan. Voor een logboek is dat de gewone volgorde, maar dit is een week- of maandoverzicht waarin je je eigen week naloopt — en dan lees je van maandag naar vrijdag. Bij een maand betekende het dat je onderaan begon.
+
+**Beslissing.** `days` sorteert chronologisch. Dat is één lijst voor beide periodes én voor beide breedtes: de mobiele kaarten en de tabel op een bureaublad lezen nu allebei van boven naar beneden in de tijd.
+
+**Probleem 2 — de hoogte.** Een registratie was drie regels boven elkaar (klant, omschrijving, statuspil) met het aantal uren ernaast in 19px: het grootste getal op het scherm, voor de eenheid die het minst wisselt. Vier registraties vulden een scherm.
+
+**Beslissing.** Klant, status en uren op één regel; de omschrijving alleen daaronder als er een is. Het getal gaat naar `var(--fs-basis)` — dezelfde maat als het bedrag op een factuurkaart, want het is hetzelfde soort ding: het getal op een regel in een lijst. **Kaart van 93px naar 64px**, en zonder omschrijving korter.
+
+**Bewijs.** Gemeten op 375px: kaart 93 → 64px, uren 19 → 15px, en de maandweergave loopt van "Di 1 sep" naar "Ma 7 sep" in plaats van andersom.
+
+**Bestanden**: `index.html` — `urenRenderRegView()` (dagsortering en kaartmarkup), `.uren-mcard` en zijn onderdelen; `sw.js` → `herling-v46`
+
+**Niet doen.** De omschrijving inline achter de klantnaam zetten om écht alles op één regel te krijgen. Op 375px blijft daar na de naam, de pil en het getal geen leesbare breedte voor over.
+
 ## 2026-09-07 · Een stijlgids, omdat het steeds dezelfde knop met andere tekst is
 
 **Probleem.** Vandaag ging het vier keer over hetzelfde soort fout: het ⋯ had drie maten, de filterknop twee, het taakmenu stond op 15px terwijl elk ander menu 13px is, en twee keer bleef er een schaduw op een knop staan die randloos hoorde te zijn. Steeds omdat een nieuw onderdeel een eigen CSS-blok kreeg in plaats van aan te sluiten bij de bestaande regel.
