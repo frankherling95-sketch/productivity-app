@@ -10,6 +10,26 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-07 · Notities krijgt een ⋯-menu, en de editor houdt alleen wat over de pagina gaat
+
+**Probleem.** Notities was de enige module zonder ⋯-menu. Alles wat niet in de balk paste bestond gewoon niet: de boom in- of uitklappen kon alleen groep voor groep, en sorteren kon helemaal niet — de volgorde was die van de boom. Tegelijk stond in het editscherm nog steeds de bediening van de lijst: een klantfilter en een knop voor een nieuwe groep, terwijl je naar één pagina kijkt.
+
+**Beslissing — één knop, twee inhouden.** Op een telefoon staan de lijst en de editor op hetzelfde scherm, dus wat in het menu hoort hangt af van waar je bent. In de lijst gaat het over de lijst (alles in-/uitklappen, sorteren); in de editor over de pagina die je open hebt (aan welke klant hij hoort). Dezelfde afspraak als bij Facturen, waar de balk per tab meewisselt. De knop zelf staat op de vaste plek uit 2026-09-06: rechtsboven, 44×44, `var(--icoon)`.
+
+**Sorteren** krijgt een eigen veld, `notesState.sortBy`, met drie standen: *handmatig* (de sleepvolgorde, en dan raakt `notesSorteer()` de lijst niet aan), *laatst gewijzigd* en *naam A–Z*. Groepen staan altijd boven losse pagina's: een groep heeft geen eigen datum en zou anders tussen de pagina's door schuiven.
+
+**In-/uitklappen pakt beide lagen.** De boom heeft er twee: klantgroepen (`clientGroupCollapsed`) en mappen daarbinnen (`collapsed`). Alleen de bovenste dichtklappen laat de mappen eronder openstaan, en dan klapt "alles uitklappen" iets uit wat al open was.
+
+**De klantbalk in de editor is weg.** Die stond er sinds vanochtend als kiezer voor de klant van de notitie, maar een hele balk voor iets wat je zelden wijzigt is te veel; hij zit nu in het ⋯. Daarmee gaat in de editor de hele topbalk uit — filter, mapknop en kiezer waren de enige inhoud.
+
+**Het ⋯ staat bewust buiten die topbalk in de DOM.** Een `display:none` op een ouder haalt ook het kind uit beeld, hoe vast het zelf ook gepositioneerd is; in de topbalk zou het menu in de editor verdwijnen — precies waar de klantkeuze nu in zit.
+
+**Bewijs.** Gemeten op 375px: knop 44×44 op `right:12px`/`top:4px` met een icoon van 20px, menu 260px breed en volledig in beeld, "Alles inklappen" brengt vier open groepen naar nul, en in de editor toont het menu de klantenlijst met een vinkje op de huidige — wisselen werkt en de notitie verhuist in de lijst mee. Op 1400px is de knop verborgen en staat de topbalk er gewoon.
+
+**Bestanden**: `index.html` — `notesSorteer()` + `NOTES_SORTEER`, `notesState.sortBy` met hydratiestap, `toggleAlleNoteGroepen()`, `renderNotesOverflowMenu()`/`toggleNotesOverflow()`, vier nieuwe acties in `APP_ACTIONS`, `.notes-overflow*` in de basis- en de mobiele laag; `sw.js` → `herling-v40`
+
+**Niet doen.** Het menu vullen met alles wat kan. Wat in de lijst hoort staat in de lijst, wat over één pagina gaat in de editor — en wat je met één tik in de balk kunt doen, hoort niet in een menu.
+
 ## 2026-09-07 · Tabstrip op een telefoon: onderstreept in plaats van pillen
 
 **Probleem.** De tabs stonden op `flex: 1 1 auto` en groeiden dus vanaf hun eigen tekstbreedte: Facturen 66px, Debiteuren 79, Btw 38, Verzonden 78, Klanten 60. Vijf omlijnde vakken van vijf verschillende maten, vlak onder de topbalk, boven een scherm dat al vol staat met kaarten met randen.

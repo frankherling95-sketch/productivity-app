@@ -536,6 +536,31 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
    ervoor, want .btn zet zelf display:inline-flex en staat verderop -- bij
    gelijke specificiteit wint de laatste. */
 #mod-notes .notes-groep-mob{display:none}
+/* Het ⋯ van Notities. Op een bureaublad staat alles gewoon in beeld -- de
+   boom naast de editor, met zijn eigen knoppen -- dus daar is het overbodig. */
+#mod-notes .notes-overflow{position:relative;display:none}
+.notes-overflow-menu{
+  display:none;position:absolute;top:calc(100% + 6px);right:0;z-index:90;
+  min-width:min(260px,calc(100vw - 24px));max-width:calc(100vw - 24px);
+  background:var(--surface);border:0.5px solid var(--border-strong);
+  border-radius:var(--radius-md);box-shadow:var(--shadow-modal);padding:6px;
+}
+.notes-overflow.open .notes-overflow-menu{display:block}
+.notes-ovf-kop{
+  padding:6px 10px 4px;font-size:var(--fs-micro);font-weight:700;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);
+}
+.notes-ovf-item{
+  display:block;width:100%;text-align:left;padding:9px 10px;border:0;
+  background:transparent;color:var(--text);font-family:inherit;
+  font-size:var(--fs-klein);border-radius:var(--radius);cursor:pointer;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.notes-ovf-item:hover{background:var(--surface2)}
+.notes-ovf-item.aan{font-weight:700;color:var(--text)}
+.notes-ovf-item.aan::before{content:'✓  '}
+.notes-ovf-scheiding{height:1px;background:var(--border);margin:5px 0}
+
 /* De klantkiezer van een notitie. Zelfde pilvorm als het klantfilter ernaast,
    maar met een andere betekenis: dit bepaalt waar de notitie bíj hoort, niet
    wat je ziet. Op een bureaublad staan lijst en editor naast elkaar en kan de
@@ -4772,14 +4797,21 @@ textarea { line-height: 1.6; resize: vertical; }
      en een nieuwe groep maken hoort bij de lijst. Die twee gaan uit en de
      klantkiezer van deze notitie neemt hun plek in -- dezelfde balk, dezelfde
      hoogte, en de vraag die er wél toe doet. */
+  /* In de editor kijk je naar één pagina: filteren op klant zegt daar niets,
+     en een nieuwe groep maken hoort bij de lijst. De klant van de notitie
+     zelf staat in het ⋯-menu -- een balk ervoor is een balk voor iets wat je
+     zelden wijzigt. */
   #mod-notes.mobile-editing #notesClientFilter,
-  #mod-notes.mobile-editing .notes-groep-mob { display: none !important; }
-  #mod-notes.mobile-editing .notes-klant-kies {
-    display: flex !important;
-    flex: 1; min-width: 0;
-    height: var(--tap);
-  }
-  #mod-notes.mobile-editing .nkk-sel { flex: 1 1 0; width: 0; min-width: 0; font-size: var(--fs-basis); }
+  #mod-notes.mobile-editing .notes-groep-mob,
+  #mod-notes .notes-klant-kies { display: none !important; }
+  /* De topbalk houdt in de editor alleen het ⋯ over; zonder dit blijft er
+     een lege balk van 44px staan. */
+  #mod-notes.mobile-editing .module-topbar { display: none !important; }
+  /* Het ⋯ staat vast in de hoek (zie het blok verderop) en hoort dus ook in
+     de editor in beeld te blijven, ook al is de balk eromheen weg. */
+  #mod-notes .notes-overflow { display: block !important; }
+  /* Opgeslagen-melding links, de knoppen rechts -- zoals overal. */
+  #mod-notes .notes-editor-meta > .cl2-iconbtn:first-of-type { margin-left: auto; }
   #mod-notes .notes-sidebar { display: flex !important; }
   #mod-notes .notes-editor { display: none !important; }
   #mod-notes.mobile-editing .notes-sidebar { display: none !important; }
@@ -5479,6 +5511,7 @@ textarea { line-height: 1.6; resize: vertical; }
   #urenMenuBtn,
   #facMenuBtn,
   .cl-overflow,
+  #mod-notes .notes-overflow,
   .dash-topbar .dash-mobile-settings {
     position: fixed !important;
     top: calc(env(safe-area-inset-top, 0px) + 4px) !important;
@@ -5496,6 +5529,7 @@ textarea { line-height: 1.6; resize: vertical; }
   }
   /* De knop binnen een wrapper vult die wrapper. */
   .cl-overflow > button,
+  #mod-notes .notes-overflow > button,
   .dash-topbar .dash-mobile-settings > button {
     width: 100% !important;
     height: 100% !important;
@@ -6832,6 +6866,21 @@ textarea { line-height: 1.6; resize: vertical; }
               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4.5a1 1 0 0 1 1-1h2.5l1.2 1.2H11a1 1 0 0 1 1 1V11a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V4.5z"/><line x1="7" y1="7" x2="7" y2="10"/><line x1="5.5" y1="8.5" x2="8.5" y2="8.5"/></svg>
           </button>
         </div>
+      </div>
+      <!-- Wat op een telefoon niet in de balk past. De inhoud wisselt met het
+           scherm waar je in zit: in de lijst gaat het over de lijst
+           (uitklappen, sorteren), in de editor over de pagina die je open
+           hebt. Gevuld door renderNotesOverflowMenu().
+
+           Bewust buiten de topbalk: die gaat in de editor uit, en een
+           display:none op een ouder haalt ook het kind uit beeld -- hoe
+           vast het zelf ook gepositioneerd is. -->
+      <div class="notes-overflow" id="notesOverflow">
+        <button class="btn btn-sm" id="notesOverflowBtn" type="button" data-action="toggleNotesOverflow"
+          aria-haspopup="menu" aria-expanded="false" aria-label="Meer opties" title="Meer opties">
+          <svg class="icoon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="13" cy="8" r="1.5"/></svg>
+        </button>
+        <div class="notes-overflow-menu" id="notesOverflowMenu" role="menu"></div>
       </div>
       <!-- Zelfde ronde knop als in Uren en Facturen; de knop "+ Nieuw"
            in de balk gaat op een telefoon uit. -->
@@ -8495,6 +8544,7 @@ function hydrateerState(){
   if(!kanbanState.categoryGrouping)kanbanState.categoryGrouping='grouped';
   notesState=rawState.notes||{tree:[],activeId:null,collapsed:{}};
   if(!notesState.tree)notesState.tree=[];
+  if(!notesState.sortBy)notesState.sortBy='handmatig';
   checklistState=rawState.checklist||{items:[],showArchived:false,sortBy:'newest',groupByPriority:true};
   if(!checklistState.items)checklistState.items=[];
   migreerChecklistVolgorde();
@@ -12646,6 +12696,95 @@ function searchFilterTree(nodes,q){
   },[]);
 }
 
+/* ══ Het ⋯-menu van Notities ══
+   Eén knop, twee inhouden. Op een telefoon staan de lijst en de editor op
+   hetzelfde scherm, dus wat hier hoort te staan hangt af van waar je bent:
+   in de lijst gaat het over de lijst, in de editor over één pagina. Dat is
+   dezelfde afspraak als bij Facturen, waar de balk per tab meewisselt. */
+function notesInEditor(){
+  return !!document.getElementById('mod-notes')?.classList.contains('mobile-editing');
+}
+function alleNoteGroepenDicht(){
+  const groepen=(kanbanState.clients||[]).map(c=>c.id).concat(['__orphan']);
+  return groepen.every(id=>notesState.clientGroupCollapsed&&notesState.clientGroupCollapsed[id]);
+}
+function toggleAlleNoteGroepen(){
+  const dicht=!alleNoteGroepenDicht();
+  notesState.clientGroupCollapsed=notesState.clientGroupCollapsed||{};
+  (kanbanState.clients||[]).forEach(c=>{notesState.clientGroupCollapsed[c.id]=dicht;});
+  notesState.clientGroupCollapsed['__orphan']=dicht;
+  /* Ook de mappen bínnen een klant, anders klapt de bovenste laag dicht en
+     blijft daaronder alles openstaan zodra je weer uitklapt. */
+  notesState.collapsed=notesState.collapsed||{};
+  flattenNotes(notesState.tree).filter(n=>n.type==='folder').forEach(f=>{notesState.collapsed[f.id]=dicht;});
+  scheduleSave();renderNotesTree();renderNotesOverflowMenu();
+}
+function setNotesSort(modus){
+  notesState.sortBy=NOTES_SORTEER[modus]?modus:'handmatig';
+  scheduleSave();renderNotesTree();renderNotesOverflowMenu();
+}
+function renderNotesOverflowMenu(){
+  const menu=document.getElementById('notesOverflowMenu');
+  if(!menu)return;
+  if(notesInEditor()){
+    const r=notesState.activeId?findNode(notesState.tree,notesState.activeId):null;
+    const klanten=kanbanState.clients||[];
+    const nu=r?r.node.clientId:null;
+    menu.innerHTML=`
+      <div class="notes-ovf-kop">Klant van deze notitie</div>
+      <button class="notes-ovf-item${nu?'':' aan'}" data-action="setNoteClientUitMenu" data-arg1="">Geen klant</button>
+      ${klanten.map(c=>`<button class="notes-ovf-item${nu===c.id?' aan':''}" data-action="setNoteClientUitMenu" data-arg1="${c.id}">${escapeHtml(c.bedrijfsnaam||c.name)}</button>`).join('')}`;
+    return;
+  }
+  const dicht=alleNoteGroepenDicht();
+  menu.innerHTML=`
+    <button class="notes-ovf-item" data-action="toggleAlleNoteGroepen">${dicht?'Alles uitklappen':'Alles inklappen'}</button>
+    <div class="notes-ovf-scheiding"></div>
+    <div class="notes-ovf-kop">Sorteren</div>
+    ${Object.keys(NOTES_SORTEER).map(k=>
+      `<button class="notes-ovf-item${(notesState.sortBy||'handmatig')===k?' aan':''}" data-action="setNotesSort" data-arg1="${k}">${NOTES_SORTEER[k]}</button>`).join('')}`;
+}
+function toggleNotesOverflow(e){
+  if(e)e.stopPropagation();
+  const wrap=document.getElementById('notesOverflow');if(!wrap)return;
+  const open=!wrap.classList.contains('open');
+  if(open)renderNotesOverflowMenu();
+  wrap.classList.toggle('open',open);
+  document.getElementById('notesOverflowBtn')?.setAttribute('aria-expanded',open?'true':'false');
+  const menu=document.getElementById('notesOverflowMenu');
+  if(open&&menu)requestAnimationFrame(()=>clampDropdownToViewport(menu));
+  else if(menu){menu.style.left='';menu.style.right='';}
+}
+function closeNotesOverflow(){
+  const wrap=document.getElementById('notesOverflow');if(!wrap)return;
+  wrap.classList.remove('open');
+  document.getElementById('notesOverflowBtn')?.setAttribute('aria-expanded','false');
+}
+document.addEventListener('click',e=>{
+  const root=document.getElementById('notesOverflow');
+  if(root&&!root.contains(e.target))closeNotesOverflow();
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeNotesOverflow();});
+
+/* ── Volgorde binnen een lijst notities ──
+   'handmatig' is de volgorde waarin je ze zelf hebt gesleept -- dat is de
+   volgorde in de boom, dus dan raken we niets aan. De andere twee sorteren
+   binnen dezelfde lijst, met groepen altijd boven losse pagina's: een groep
+   heeft geen eigen datum en zou anders tussen de pagina's door schuiven. */
+const NOTES_SORTEER={handmatig:'Handmatig (slepen)',gewijzigd:'Laatst gewijzigd',naam:'Naam A–Z'};
+function notesSorteer(nodes){
+  const modus=notesState.sortBy||'handmatig';
+  if(modus==='handmatig'||!nodes||nodes.length<2)return nodes;
+  const kopie=[...nodes];
+  kopie.sort((a,b)=>{
+    const groepVerschil=(a.type==='folder'?0:1)-(b.type==='folder'?0:1);
+    if(groepVerschil)return groepVerschil;
+    if(modus==='naam')return (a.title||'').localeCompare(b.title||'','nl');
+    return (b.updatedAt||0)-(a.updatedAt||0);
+  });
+  return kopie;
+}
+
 /* ─ Recently opened tracking ─ */
 function pushRecentNote(id){
   notesState.recentIds=notesState.recentIds||[];
@@ -12699,7 +12838,7 @@ function renderNotesTree(){
   if(notesSearchQuery){
     const filtered=searchFilterTree(notesState.tree,notesSearchQuery);
     el.innerHTML=filtered.length
-      ? filtered.map(n=>renderNoteNode(n,0)).join('')
+      ? notesSorteer(filtered).map(n=>renderNoteNode(n,0)).join('')
       : `<div style="color:var(--text-hint);font-size:11px;padding:12px;text-align:center">Geen resultaten voor "${escapeHtml(notesSearchQuery)}"</div>`;
     renderRecentNotes();
     return;
@@ -12709,7 +12848,7 @@ function renderNotesTree(){
   if(activeClientFilter){
     const t=filterNoteTree(notesState.tree,activeClientFilter);
     el.innerHTML=t.length
-      ? t.map(n=>renderNoteNode(n,0)).join('')
+      ? notesSorteer(t).map(n=>renderNoteNode(n,0)).join('')
       : `<div style="color:var(--text-hint);font-size:11px;padding:8px;text-align:center">Geen notities voor deze klant</div>`;
     renderRecentNotes();
     return;
@@ -12721,7 +12860,7 @@ function renderNotesTree(){
   if(!clients.length){
     const t=notesState.tree||[];
     el.innerHTML=t.length
-      ? t.map(n=>renderNoteNode(n,0)).join('')
+      ? notesSorteer(t).map(n=>renderNoteNode(n,0)).join('')
       : `<div style="color:var(--text-hint);font-size:11px;padding:8px;text-align:center">Geen pagina's</div>`;
     renderRecentNotes();
     return;
@@ -12745,7 +12884,7 @@ function renderNotesTree(){
             <button data-action="createNoteForClient" data-arg1="${c.id}" title="Nieuwe notitie voor ${escapeHtml(c.name)}">+</button>
           </span>
         </div>
-        ${collapsed?'':`<div class="note-client-body">${sub.length?sub.map(n=>renderNoteNode(n,0)).join(''):'<div class="note-client-empty">Geen notities</div>'}</div>`}
+        ${collapsed?'':`<div class="note-client-body">${sub.length?notesSorteer(sub).map(n=>renderNoteNode(n,0)).join(''):'<div class="note-client-empty">Geen notities</div>'}</div>`}
       </div>`);
   });
   /* 'Geen klant' — notes without clientId */
@@ -12761,7 +12900,7 @@ function renderNotesTree(){
           <span class="note-client-name" style="color:var(--text-muted)">Geen klant</span>
           <span class="note-client-count">${count}</span>
         </div>
-        ${collapsed?'':`<div class="note-client-body">${orphan.map(n=>renderNoteNode(n,0)).join('')}</div>`}
+        ${collapsed?'':`<div class="note-client-body">${notesSorteer(orphan).map(n=>renderNoteNode(n,0)).join('')}</div>`}
       </div>`);
   }
   el.innerHTML=groupHtml.join('')||`<div style="color:var(--text-hint);font-size:11px;padding:8px;text-align:center">Geen notities</div>`;
@@ -13268,6 +13407,13 @@ function setNoteSaveStatus(state){
 /* ─ Notes: acties via event-delegatie ─ */
 Object.assign(APP_ACTIONS,{
   selectNote:(el,e,id)=>selectNote(id),
+  toggleNotesOverflow:(el,e)=>toggleNotesOverflow(e),
+  toggleAlleNoteGroepen:()=>{closeNotesOverflow();toggleAlleNoteGroepen();},
+  setNotesSort:(el,e,modus)=>{closeNotesOverflow();setNotesSort(modus);},
+  setNoteClientUitMenu:(el,e,clientId)=>{
+    closeNotesOverflow();
+    if(notesState.activeId)setNoteClient(notesState.activeId,clientId||'');
+  },
   selectNoteStop:(el,e,id)=>{e.stopPropagation();selectNote(id);},
   toggleFolder:(el,e,id)=>{e.stopPropagation();toggleFolder(id,e);},
   createNote:(el,e,id)=>{e.stopPropagation();createNote(id);},
