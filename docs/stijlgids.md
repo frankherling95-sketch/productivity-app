@@ -177,6 +177,18 @@ kapitalen waar het een categorie is, afgeronde hoek `999px`.
 16px of groter op iOS voorkomt dat Safari inzoomt bij focus; daarom staat het
 zoekveld daar op 16px (`.ios-tab`).
 
+### Klant kiezen
+
+Een klant kiezen in een formulier gaat met `.klantkies`: een gekleurd stipje
+plus een `<select>`, in dezelfde doos als het invoerveld ernaast (`--surface2`,
+`0.5px var(--border-strong)`, minimaal `var(--tap)` hoog, tekst 15px). Zo staat
+het in het urenvenster; de facturen-editor doet hetzelfde met een kale
+`<select class="fac-ed-inp">`.
+
+**Geen rij chips.** Wat uit een lijst komt die met de administratie meegroeit —
+klanten, bedrijven, sjablonen — hoort in een uitklaplijst. Chips blijven waar
+het aantal vaststaat: de drie statussen, de vier snelknoppen bij Uren.
+
 Een `input[type="date"]` heeft een eigen voorkeursbreedte die per browser
 verschilt — in Safari ruimer dan in Chrome. Altijd begrenzen met
 `width: 100%; min-width: 0; max-width: 100%`, anders rekt hij zijn kolom op.

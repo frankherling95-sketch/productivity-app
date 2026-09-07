@@ -1570,3 +1570,30 @@ Bewust een tekstveld en geen datumbereik met twee `<input type="date">`: het is 
 **Bestanden**: `index.html` — nieuw: `clVastCmp`, `clPinSvg`, `toggleClItemPin`, `clZelfdePinGroep`, CSS `.cl2-group-pin` / `#clBody .cl-item.pinned` / `.cl2-iconbtn.pinned`; gewijzigd: `clSortCmp`, `clNieuweSortOrder` (tweede parameter `pinned`), `renderPriorityGroups`, `wireChecklistBodyEvents`, `clItemHtml`, `spawnRecurringNext`, `renderDashChecklist`, `APP_ACTIONS`. `test.html` — drie tests (32/32)
 
 **Niet doen**: het pinnetje laten vervallen bij afronden of archiveren. Een afgeronde taak die je weer openzet, of een gearchiveerde die je herstelt, hoort terug te komen zoals je hem achterliet. Ook geen aparte "pin-volgorde" invoeren: de vraag was om één taak bovenaan, niet om een tweede sorteersysteem ernaast.
+
+## 2026-09-07 · Klant kiezen in een formulier is een uitklaplijst
+
+**Probleem.** Het urenvenster gaf elke klant een eigen chip. Met vier klanten
+waren dat al vier regels — de helft van het venster ging op aan één keuze, en
+"Opslaan" viel onder de vouw. Elke klant erbij maakt het venster hoger.
+
+**Beslissing.** Eén gedeeld onderdeel `.klantkies`: een gekleurd stipje plus een
+`<select>`, in dezelfde doos als het invoerveld ernaast. In gebruik in het
+urenvenster; de facturen-editor deed dit al met een kale `<select>`.
+Vuistregel: **kiezen uit een lijst die met de administratie meegroeit is een
+uitklaplijst, geen rij chips.** Chips blijven waar het aantal vaststaat — de
+statuskeuze (drie) en de snelknoppen bij Uren.
+
+**Waarom.** Een venster hoort niet mee te groeien met het aantal klanten. Het
+stipje houdt de kleurherkenning vast die de chips gaven, en de doos is die van
+`.uren-fld .inp`, zodat het veld niet uit de toon valt.
+
+**Bestanden.** `index.html` — `.klantkies`/`-dot`/`-sel`/`-leeg` (vervangt
+`#mod-notes .notes-klant-kies` + `.nkk-*`), `.uren-klantpick` weg,
+`urenRenderEntryClients()` herschreven. Dode notitie-kiezer opgeruimd:
+`renderNoteKlantKies()`, `#noteKlantKies` en de twee aanroepen zijn weg — die
+stond sinds 2026-09-07 op `display:none` in beide lagen (de klant van een
+notitie zit in het ⋯-menu). `docs/stijlgids.md` §6.
+
+**Niet doen.** De chips terugzetten "omdat het sneller klikt". Bij vier klanten
+misschien; bij vijftien is het een muur.
