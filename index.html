@@ -528,10 +528,6 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .modal-field input:focus,.modal-field textarea:focus,.modal-field select:focus{border-color:var(--text)}
 .modal-field textarea{resize:vertical;min-height:64px}
 .modal-footer{display:flex;gap:6px;justify-content:space-between;margin-top:1rem}
-/* Het kruisje rechtsboven is er alleen op een telefoon; op een bureaublad
-   staat "Annuleer" gewoon in de voet. Kruisjes die al in een modaalkop
-   stonden blijven staan -- die krijgen alleen de klasse mee. */
-.modal-sluitrij{display:none}
 .modal-footer-left{display:flex;gap:6px}
 .modal-footer-right{display:flex;gap:6px}
 .tag-chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px;min-height:20px}
@@ -4284,38 +4280,6 @@ textarea { line-height: 1.6; resize: vertical; }
 
      Op een bureaublad verandert er niets: daar blijft het links een knop,
      rechts het paar. */
-  /* ══ Sluiten met een kruisje rechtsboven ══
-     De rij is 0px hoog en plakt bovenaan, zodat het kruisje in beeld blijft
-     als de modaal scrollt en er tegelijk niets door omlaag wordt geduwd.
-     Zit er een gekleurde kop onder, dan tekent het kruisje daarop in wit. */
-  .modal-sluitrij {
-    display: flex; justify-content: flex-end;
-    position: sticky; top: 0; z-index: 3;
-    height: 0; flex: 0 0 auto; overflow: visible;
-  }
-  .modal-sluit {
-    display: inline-flex !important;
-    align-items: center; justify-content: center;
-    width: var(--tap) !important; height: var(--tap) !important;
-    min-height: var(--tap) !important; flex: none;
-    margin: 0;
-    padding: 0 !important;
-    background: transparent !important; border: 0 !important;
-    box-shadow: none !important;
-    color: var(--text-muted) !important;
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .modal-sluit.op-kop { color: rgba(255,255,255,0.85) !important; }
-  .modal-sluit:active { background: var(--surface2) !important; border-radius: var(--radius); }
-  /* De titel loopt niet onder het kruisje door. */
-  .modal.heeft-sluit > h3,
-  .modal.heeft-sluit > .modal-kop h3,
-  .modal.heeft-sluit > .modal-kop p { padding-right: var(--tap); }
-  /* De annuleerknop is naar boven verhuisd; blijft er niets over, dan gaat
-     de hele voet weg in plaats van een lege balk achter te laten. */
-  .modal-footer .modal-annuleer { display: none !important; }
-  .modal-footer.voet-leeg { display: none !important; }
   .modal-footer { flex-wrap: wrap; gap: var(--sp-2); }
   .modal-footer-left,
   .modal-footer-right { display: contents; }
@@ -17838,12 +17802,6 @@ function facRenderFilters(){
 function facRenderKpis(){
   const box=document.getElementById('facKpis');
   if(!box)return;
-  /* Debiteuren heeft zijn eigen samenvatting: de ouderdomskaarten. Dat zijn
-     dezelfde kaarten in dezelfde vorm, en ze staan op dezelfde plek -- de
-     strip erboven zou er een tweede laag van maken met "Openstaand" als som
-     van wat er direct onder staat. Zonder strip begint de lijst 149px
-     hoger. */
-  if(facView==='debiteuren'){box.innerHTML='';return;}
   if(facView==='klanten'){
     const klanten=kanbanState.clients||[];
     const compleet=klanten.filter(factuurKlantCompleet).length;
@@ -22454,77 +22412,6 @@ document.addEventListener('keydown',e=>{
   if(qa?.classList.contains('open')){closeQuickAddAI();return;}
   if(wr?.classList.contains('open')){closeWeeklyReviewModal();return;}
 });
-
-/* ══ Sluiten met een kruisje rechtsboven (mobiel) ══
-   "Annuleer" onderin is op een telefoon een knop die ruimte kost voor iets
-   wat je zelden doet, en hij stond naast de knop die je juist wél wilt --
-   twee tegengestelde acties naast elkaar. Bovenin een kruisje is de plek
-   waar je hem zoekt, en het scheelt onderin een vak.
-
-   Eén keer bij het opstarten opgezet in plaats van in vijfentwintig
-   modalen los: elk kruisje klikt gewoon de bestaande annuleerknop aan, dus
-   alle bestaande afhandeling (dispatchers, bevestigingen, opruimen) blijft
-   ongemoeid. Modalen die al een kruisje in hun kop hebben krijgen er geen
-   tweede; die ene krijgt alleen dezelfde vorm.
-
-   De rij eromheen is 0px hoog en plakt bovenaan (position:sticky), zodat
-   het kruisje in beeld blijft ook als de modaal zelf scrollt -- en zodat
-   het niets naar beneden duwt. */
-const SLUIT_LABELS=['annuleer','annuleren','sluiten'];
-const KRUIS_TEKENS=/^[✕✖×╳✗✘❌]$/;
-const SLUIT_SVG='<svg class="icoon" viewBox="0 0 16 16" fill="none" stroke="currentColor" '+
-  'stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>';
-
-function zetModalSluitknoppen(){
-  document.querySelectorAll('.modal-bg > .modal').forEach(modal=>{
-    const voeten=[...modal.querySelectorAll('.modal-footer')];
-    if(!voeten.length)return;
-    let eerste=null;
-    voeten.forEach(voet=>{
-      const knoppen=[...voet.querySelectorAll('.btn')];
-      const weg=knoppen.find(b=>SLUIT_LABELS.includes(b.textContent.trim().toLowerCase()));
-      if(!weg)return;
-      weg.classList.add('modal-annuleer');
-      /* Was dit de enige knop, dan blijft er een lege voet over. */
-      if(knoppen.length===1)voet.classList.add('voet-leeg');
-      if(!eerste)eerste=weg;
-    });
-    if(!eerste)return;
-    modal.classList.add('heeft-sluit');
-
-    /* Al een kruisje in de kop? Dan blijft die knop met al zijn gedrag
-       staan en wisselt alleen het losse teken voor dezelfde svg, zodat
-       elk kruisje in de app dezelfde tekening en maat heeft. */
-    const bestaand=[...modal.querySelectorAll('button')].find(b=>
-      !b.closest('.modal-footer') && KRUIS_TEKENS.test(b.textContent.trim()));
-    if(bestaand){
-      bestaand.classList.add('modal-sluit');
-      if(modal.querySelector('.modal-kop')?.contains(bestaand))bestaand.classList.add('op-kop');
-      bestaand.innerHTML=SLUIT_SVG;
-      if(!bestaand.getAttribute('aria-label'))bestaand.setAttribute('aria-label','Sluiten');
-      return;
-    }
-
-    const rij=document.createElement('div');
-    rij.className='modal-sluitrij';
-    const x=document.createElement('button');
-    x.type='button';
-    x.className='modal-sluit'+(modal.querySelector('.modal-kop')?' op-kop':'');
-    x.setAttribute('aria-label','Sluiten');
-    x.title='Sluiten';
-    x.innerHTML=SLUIT_SVG;
-    x.addEventListener('click',e=>{e.preventDefault();eerste.click();});
-    rij.appendChild(x);
-    /* Heeft de modaal een gekleurde kop, dan hoort het kruisje dáár: die
-       balk schuift niet mee met de inhoud, en zijn binnenmarge is dezelfde
-       als die van een modaal zonder kop. Zonder dat staat het kruisje bij
-       een kopmodaal 3px van de rand (die .modal heeft padding 0) en bij de
-       rest op 22px. */
-    const gastheer=modal.querySelector('.modal-kop')||modal;
-    gastheer.insertBefore(rij,gastheer.firstChild);
-  });
-}
-zetModalSluitknoppen();
 
 /* ─ Globale exports voor onclick-handlers ─ */
 window.openQuickAddAI=openQuickAddAI;
