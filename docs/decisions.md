@@ -2196,3 +2196,21 @@ rest opnieuw toegepast; de div-balans is daarna vergeleken met de commit en is
 identiek. Les: bij het verplaatsen van een blok in de opmaak niet op een regex
 vertrouwen maar het resultaat teruglezen — en de balans vergelijken met HEAD,
 niet alleen met nul.
+
+## 2026-09-07 · Herhaling hoort in de keuzekolom
+
+Het veld Herhaling was de derde cel van een raster van twee kolommen en
+belandde daardoor in rij 2, ónder de kalender. Rij 1 is zo hoog als die
+kalender, dus tussen Klant en Herhaling stond zo'n 160px niets. Dat viel niet
+op zolang de klantenlijst een rij knoppen met een schuifbalkje was; met één
+uitklaplijst bleef het over.
+
+Herhaling staat nu als laatste kind ín `.cl-taak-links`. Op mobiel verandert er
+niets: die kolom staat daar op `display:contents`, dus het blijft een los blok
+met zijn eigen `order`.
+
+**Deze keer met een gerichte bewerking**, niet met een regex — zie de vorige
+entry voor waarom. Achteraf de opmaak teruggelezen en de div-balans vergeleken
+met HEAD: 930 open, 928 gesloten in beide, dus identiek.
+
+**Bestanden.** `index.html` — `#clItemModal`.
