@@ -83,7 +83,7 @@ Elke module ziet er op een telefoon hetzelfde uit. Twee vaste plekken:
 | ⋯-menu | rechtsboven, op de lijn van de moduletitel (`top: 4px` + safe-area, `right: 12px`) | 44×44, randloos, transparant | `var(--icoon)` |
 | filter | rechts in de balk eronder, in dezelfde kolom als het ⋯ — bij Uren en Facturen is dat de rij van periode/jaar, niet de tabsrij | 44×44, randloos, transparant | `var(--icoon)` |
 | ronde + | rechtsonder, boven de tabbalk (`right: 17px`, `bottom: 80px` + safe-area) | 56×56 | 26px glyph |
-| ✕ sluiten | rechtsboven in een modaal, op de binnenmarge van de kaart | 44×44, randloos, transparant | `var(--icoon)` |
+| ✕ sluiten | ín de gekleurde kopbalk van een modaal, 9px van de rechterrand | 44×44, randloos, wit op de band | `var(--icoon)` |
 
 ### Eén maat voor een icoon: `--icoon`
 
@@ -150,6 +150,20 @@ De bijregel herhaalt meestal wat er in de lijst eronder staat en kost een
 regel op élke kaart. Heeft een weergave haar eigen samenvatting in dezelfde
 vorm (Debiteuren heeft de ouderdomskaarten), dan hoort de strip erboven
 er niet ook nog te staan — zie "Geen getal twee keer in beeld".
+
+### De kop van een modaal is de band
+
+De gekleurde balk bovenin een modaal is **geen eigen element**: hij wordt
+getekend door `.modal h3:first-child`. Zet je daar iets vóór — een knop, een
+rij, wat dan ook — dan matcht die selector niet meer en valt de hele band
+weg. Dat is precies wat er op 2026-09-06 gebeurde met het sluitkruisje.
+
+Wat er in de kop moet: **erin appenden**, niet ervoor. En de negatieve marges
+die de band tot de rand trekken staan niet vast op −20px maar op
+`--modal-pad-x` / `--modal-pad-y`, die `zetModalSluitknoppen()` uit de echte
+binnenmarge leest — anders blijft er bij een modaal met 22 of 24px marge een
+strookje achtergrond naast de band staan. Diezelfde functie haalt de inline
+`margin` van zulke koppen weg, want een style-attribuut wint van elke regel.
 
 ### De voet van een modaal
 

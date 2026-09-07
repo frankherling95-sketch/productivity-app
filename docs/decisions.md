@@ -10,6 +10,28 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-07 · Het kruisje hoort ín de kopbalk — en waarom de eerste poging de balk sloopte
+
+**Wat er misging.** De eerste uitwerking (2026-09-06) zette het kruisje in een eigen rij als *eerste kind* van `.modal`. Daarmee viel de gekleurde kopbalk weg in twaalf modalen. Die balk is namelijk geen eigen element: hij wordt getekend door `.modal h3:first-child` — **de kop ís de band**. Zet je er iets voor, dan matcht de selector niet meer en is de band weg. Gemeten was alles behalve of de koppen er nog hetzelfde uitzagen; dat is precies wat een voor/na-beeld in één oogopslag had laten zien.
+
+**Beslissing.** Het kruisje gaat *in* de kop, nooit ervoor. `zetModalSluitknoppen()` kiest per modaal een gastheer, in deze volgorde:
+
+1. is er een `.modal-kop` (eigen balk), dan daarin;
+2. is het eerste kind een `h2`/`h3` (de band zelf), dan daarin;
+3. anders — alleen bij Importeren — zwevend in de modaal.
+
+In geval 1 en 2 staat het kruisje op de band en erft het `color: #fff`. Die band is in beide thema's dezelfde donkere gradient, dus dat klopt licht én donker zonder een aparte regel. Nagemeten in allebei: `rgba(255,255,255,0.9)`.
+
+**Meegenomen: de band raakte de rand niet.** De negatieve marges die de kop tot de rand trekken stonden vast op −20px, terwijl de ene modaal 20px binnenmarge heeft en de andere 22 of 24 — bij vijf modalen bleef er een strookje achtergrond naast staan, en bij Uren zelfs asymmetrisch (20 links, 22 rechts). Bovendien droegen vijf koppen een eigen `margin` in een style-attribuut, en dat wint van elke stijlregel. `zetModalSluitknoppen()` zet nu `--modal-pad-x`/`-y` uit de echte binnenmarge en haalt die inline marge weg. **Alle achttien banden lopen nu van rand tot rand en elk kruisje staat op 9px van de rechterrand** (was 9 tot 36).
+
+**Ook de kruisjes die er al stonden** (factuureditor, voorbeeld, sjablonen, versies, urensjablonen) doen mee: ze houden hun eigen knop en gedrag, maar krijgen dezelfde svg, dezelfde maat en dezelfde plek. Ook in modalen zónder voet, want anders zou juist daar een ander kruisje staan.
+
+**Bewijs.** 21 modalen nagemeten op 375px en 1400px, in licht en donker: band van rand tot rand, kruisje 44×44 op 9px, geen titel die eronder doorloopt, geen zichtbare "Annuleer" meer op mobiel, en elk kruisje sluit zijn modaal. Op 1400px is het kruisje verborgen (behalve de vijf die het altijd al hadden) en staat "Annuleer" gewoon in de voet.
+
+**Bestanden**: `index.html` — `zetModalSluitknoppen()`, `.modal > h2/h3.heeft-sluit` met `--modal-pad-x/-y`, `.modal-sluit` / `.op-band` / `.al-aanwezig` / `.los-kruis` in de mobiele laag; `sw.js` → `herling-v31`
+
+**Niet doen.** Iets vóór de kop van een modaal zetten. `:first-child` draagt daar de hele kopbalk; wie er een element voor plaatst, haalt de band weg zonder dat een maatmeting dat opmerkt.
+
 ## 2026-09-06 · Eén KPI-kaart, en een cijfertrap die niet schreeuwt
 
 **Probleem.** Bij Debiteuren stonden negen kaarten boven elkaar en begon de eerste factuur pas op y=627 — je moest scrollen om te zien wie er nog moet betalen. Erger: de bovenste vier en de onderste vijf waren *hetzelfde blok met andere tekst* (streepje links, label in kapitalen, bedrag, bijregel) maar met eigen maten: label 600 tegen 700 en .08em tegen .07em, cijfer op een telefoon 26px tegen 19px.

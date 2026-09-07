@@ -528,6 +528,10 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .modal-field input:focus,.modal-field textarea:focus,.modal-field select:focus{border-color:var(--text)}
 .modal-field textarea{resize:vertical;min-height:64px}
 .modal-footer{display:flex;gap:6px;justify-content:space-between;margin-top:1rem}
+/* Het kruisje rechtsboven is er alleen op een telefoon; op een bureaublad
+   staat "Annuleer" gewoon in de voet. Een kruisje dat al in een modaalkop
+   stond blijft daar staan -- dat krijgt alleen dezelfde svg en maat. */
+.modal-sluit:not(.al-aanwezig){display:none}
 .modal-footer-left{display:flex;gap:6px}
 .modal-footer-right{display:flex;gap:6px}
 .tag-chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px;min-height:20px}
@@ -2215,6 +2219,16 @@ textarea { line-height: 1.6; resize: vertical; }
   letter-spacing: -0.02em;
   border-top-left-radius: var(--radius-lg);
   border-top-right-radius: var(--radius-lg);
+}
+/* Zie zetModalSluitknoppen(): --modal-pad is de echte binnenmarge van deze
+   modaal. Zonder dat trekt de vaste -20px de band bij een modaal van 22 of
+   24px net niet tot de rand. */
+.modal > h2.heeft-sluit,
+.modal > h3.heeft-sluit {
+  margin-left: calc(-1 * var(--modal-pad-x, 20px));
+  margin-right: calc(-1 * var(--modal-pad-x, 20px));
+  margin-top: calc(-1 * var(--modal-pad-y, 20px));
+  margin-bottom: 14px;
 }
 .modal-kop h2:first-child,
 .modal-kop h3:first-child,
@@ -4280,6 +4294,47 @@ textarea { line-height: 1.6; resize: vertical; }
 
      Op een bureaublad verandert er niets: daar blijft het links een knop,
      rechts het paar. */
+  /* ══ Sluiten met een kruisje in de kopbalk ══
+     Het staat op de gekleurde band en erft daarvan `color: #fff`; die band
+     is in beide thema's dezelfde donkere gradient, dus dat klopt licht én
+     donker. Alleen bij Importeren, dat geen band heeft, zweeft het kruisje
+     in de modaal zelf en volgt het de tekstkleur. */
+  .modal-sluit {
+    display: inline-flex !important;
+    align-items: center; justify-content: center;
+    width: var(--tap) !important; height: var(--tap) !important;
+    min-height: var(--tap) !important; flex: none;
+    padding: 0 !important;
+    background: transparent !important; border: 0 !important;
+    box-shadow: none !important;
+    color: var(--text-muted) !important;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* Op de band: wit, en tegen de rechterrand van die band. De kop is een
+     h3 of een eigen balk, dus absoluut positioneren binnen die gastheer --
+     zo blijft de tekst ervoor gewoon in de stroom staan. */
+  .modal-kop.heeft-sluit,
+  .modal > h2.heeft-sluit,
+  .modal > h3.heeft-sluit { position: relative; padding-right: calc(var(--tap) + var(--sp-2)) !important; }
+  .modal-sluit.op-band { color: rgba(255,255,255,0.9) !important; }
+  .modal-sluit.op-band {
+    position: absolute; top: 50%; right: var(--sp-2);
+    transform: translateY(-50%);
+  }
+  .modal-sluit.op-band:active { background: rgba(255,255,255,0.16) !important; border-radius: var(--radius); }
+  /* Geen band (alleen Importeren): rechtsboven in de modaal zelf. Float
+     werkt daar niet -- die modaal is een flex-kolom, en dan wordt een
+     zwevende knop gewoon een rij. */
+  .modal.los-kruis { position: relative; }
+  .modal > .modal-sluit:not(.op-band) {
+    position: absolute; top: var(--sp-2); right: var(--sp-2); z-index: 3;
+  }
+  .modal-sluit:not(.op-band):active { background: var(--surface2) !important; border-radius: var(--radius); }
+  /* De annuleerknop is naar boven verhuisd; blijft er niets over, dan gaat
+     de hele voet weg in plaats van een lege balk achter te laten. */
+  .modal-footer .modal-annuleer { display: none !important; }
+  .modal-footer.voet-leeg { display: none !important; }
   .modal-footer { flex-wrap: wrap; gap: var(--sp-2); }
   .modal-footer-left,
   .modal-footer-right { display: contents; }
@@ -22412,6 +22467,99 @@ document.addEventListener('keydown',e=>{
   if(qa?.classList.contains('open')){closeQuickAddAI();return;}
   if(wr?.classList.contains('open')){closeWeeklyReviewModal();return;}
 });
+
+/* ══ Sluiten met een kruisje in de kopbalk (mobiel) ══
+   "Annuleer" onderin staat pal naast de knop die je juist wél wilt, en kost
+   op een telefoon een half vak in de voet voor iets wat je zelden doet.
+   Bovenin een kruisje is de plek waar je hem zoekt.
+
+   Het kruisje gaat ín de gekleurde kop, niet ervoor. Dat is geen detail:
+   die kop wordt getekend door de selector `.modal h3:first-child` -- de kop
+   ís de band. Zet je er iets vóór, dan is de h3 geen :first-child meer en
+   valt de hele band weg. Vandaar drie plekken, in deze volgorde:
+
+     1. is er een .modal-kop, dan het kruisje daarin (achteraan);
+     2. is het eerste kind een h2/h3, dan het kruisje dáárin;
+     3. anders (alleen Importeren) een zwevend kruisje in de modaal zelf.
+
+   In geval 1 en 2 staat het op de band en erft het `color: #fff` -- die
+   band is in beide thema's dezelfde donkere gradient, dus dat klopt licht
+   én donker zonder aparte regel.
+
+   Eén keer bij het opstarten opgezet in plaats van in vijfentwintig modalen
+   los: elk kruisje klikt gewoon de bestaande annuleerknop aan, dus alle
+   afhandeling (dispatchers, bevestigingen, opruimen) blijft ongemoeid. */
+const SLUIT_LABELS=['annuleer','annuleren','sluiten'];
+const KRUIS_TEKENS=/^[✕✖×╳✗✘❌]$/;
+const SLUIT_SVG='<svg class="icoon" viewBox="0 0 16 16" fill="none" stroke="currentColor" '+
+  'stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>';
+
+function zetModalSluitknoppen(){
+  document.querySelectorAll('.modal-bg > .modal').forEach(modal=>{
+    /* Stond er al een kruisje in de kop (factuureditor, voorbeeld,
+       sjablonen, versies, urensjablonen), dan blijft die knop met al zijn
+       gedrag staan en wisselt alleen het losse teken voor dezelfde svg --
+       ook in modalen zonder voet, zodat elk kruisje in de app dezelfde
+       tekening, maat en plek heeft. */
+    const bestaand=[...modal.querySelectorAll('button')].find(b=>
+      !b.closest('.modal-footer') && KRUIS_TEKENS.test(b.textContent.trim()));
+    if(bestaand){
+      const kopVan=bestaand.closest('.modal-kop');
+      bestaand.classList.add('modal-sluit','al-aanwezig');
+      if(kopVan){bestaand.classList.add('op-band');kopVan.classList.add('heeft-sluit');}
+      bestaand.innerHTML=SLUIT_SVG;
+      if(!bestaand.getAttribute('aria-label'))bestaand.setAttribute('aria-label','Sluiten');
+    }
+
+    const voeten=[...modal.querySelectorAll('.modal-footer')];
+    if(!voeten.length)return;
+    let eerste=null;
+    voeten.forEach(voet=>{
+      const knoppen=[...voet.querySelectorAll('.btn')];
+      const weg=knoppen.find(b=>SLUIT_LABELS.includes(b.textContent.trim().toLowerCase()));
+      if(!weg)return;
+      weg.classList.add('modal-annuleer');
+      if(knoppen.length===1)voet.classList.add('voet-leeg');   /* anders blijft een lege balk over */
+      if(!eerste)eerste=weg;
+    });
+    if(!eerste)return;
+
+    if(bestaand)return;   /* geen tweede kruisje */
+
+    const kop=modal.querySelector('.modal-kop');
+    const eersteKind=modal.firstElementChild;
+    const koptekst=(eersteKind&&/^H[23]$/.test(eersteKind.tagName))?eersteKind:null;
+    const gastheer=kop||koptekst||modal;
+
+    const x=document.createElement('button');
+    x.type='button';
+    x.className='modal-sluit'+(gastheer===modal?'':' op-band');
+    x.setAttribute('aria-label','Sluiten');
+    x.title='Sluiten';
+    x.innerHTML=SLUIT_SVG;
+    x.addEventListener('click',e=>{e.preventDefault();eerste.click();});
+    gastheer.appendChild(x);
+    gastheer.classList.add('heeft-sluit');
+    if(gastheer===modal)modal.classList.add('los-kruis');   /* geen band om op te staan */
+    /* De band is de kop zelf, die met negatieve marges tot de rand wordt
+       getrokken. Die marges staan vast op -20px terwijl de ene modaal 20px
+       binnenmarge heeft en de andere 22 of 24 -- dan blijft er een strookje
+       achtergrond naast de band staan, en staat het kruisje bij de ene
+       modaal 9px van de rand en bij de andere 36. Met de echte waarde als
+       variabele klopt allebei. */
+    if(gastheer===koptekst){
+      const cs=getComputedStyle(modal);
+      modal.style.setProperty('--modal-pad-x',cs.paddingRight);
+      modal.style.setProperty('--modal-pad-y',cs.paddingTop);
+      /* De kop draagt vaak een eigen marge in een style-attribuut, en dat
+         wint van elke stijlregel -- daardoor bleef de band bij vijf modalen
+         binnen de binnenmarge staan. Hier weg, zodat de regel eronder zijn
+         werk kan doen; de afstand tot de tekst eronder komt daar vandaan. */
+      koptekst.style.removeProperty('margin');
+    }
+  });
+}
+zetModalSluitknoppen();
 
 /* ─ Globale exports voor onclick-handlers ─ */
 window.openQuickAddAI=openQuickAddAI;
