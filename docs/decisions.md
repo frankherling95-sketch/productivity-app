@@ -10,6 +10,22 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-07 · De acties van een taak achter één knop
+
+**Probleem.** Elke taak droeg vijf icoonknoppen — vastpinnen, in-/uitklappen, bewerken, archiveren, verwijderen — en op een telefoon stonden die op een eigen regel onder de titel. Vijf knoppen per kaart is meer bediening dan inhoud, en bij twintig taken zijn dat twintig van die regels.
+
+**Beslissing.** Op mobiel gaan ze achter één ⋯ in de taakrij zelf, rechts naast de titel. Dat scheelt **28px per kaart** (196 → 168px) én haalt de bediening uit een kaart die over de inhoud hoort te gaan. Op een bureaublad blijft de rij staan: daar is de ruimte er, en een muis wijst exact aan wat een vinger moet zoeken.
+
+**Het menu hangt aan `document.body`, niet in de kaart.** Een kaart is klein en staat in een lijst die schuift; een menu erbinnen zou tegen de rand aanlopen of afgeknipt worden. `urenPlacePopover()` zet het onder de knop en klapt het naar boven als daar geen ruimte is — hetzelfde als bij de filterknoppen van Uren en Facturen.
+
+**De labels zijn woorden geworden.** In de rij waren het vijf icoontjes zonder tekst; in het menu staat er wat ze doen, en of het "Vastpinnen bovenaan" of "Losmaken van bovenaan" is hangt af van de taak. Verwijderen staat onder een scheidingslijn en in rood.
+
+**Bewijs.** Gemeten op 375px: knop 44×44 op 13px van de kaartrand, menu 200×245 volledig in beeld, vijf regels met de juiste labels, en "Vastpinnen bovenaan" pint de taak ook echt (één vastgepind → twee). Op 1400px is de knop verborgen en staat de rij icoontjes er onveranderd.
+
+**Bestanden**: `index.html` — `.cl2-item-meer` in `clItemHtml()`, `toggleClItemMenu()` / `closeClItemMenu()`, zeven acties in `APP_ACTIONS`, `.cl2-item-menu*` in de basis- en de mobiele laag, derde rasterkolom in `.cl2-row-head`; `sw.js` → `herling-v44`
+
+**Niet doen.** Hetzelfde met de subtaakrijen. Daar staat één kruisje per regel, en dat is precies het aantal dat nog geen menu nodig heeft.
+
 ## 2026-09-07 · De voortgangskaart telt binnen de gekozen klant
 
 **Probleem.** Kies je een klant, dan filtert de lijst mee maar bleef de kaart erboven het totaal van alles tonen: "78 van 103 taken afgerond" boven twee zichtbare taken. Het cijfer waar je naar keek ging niet over waar je naar keek.

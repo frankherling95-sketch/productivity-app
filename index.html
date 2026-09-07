@@ -2976,6 +2976,22 @@ textarea { line-height: 1.6; resize: vertical; }
 }
 #clBody .cl-item.pinned:hover { box-shadow: 0 0 0 3px var(--mint-soft), var(--shadow-card-hover) !important; }
 .cl2-iconbtn.pinned { background: var(--mint-soft); color: var(--text); }
+/* Het ⋯ van één taak. Op een bureaublad staan de vijf icoontjes gewoon in
+   de rij, dus daar is deze knop overbodig. */
+.cl-item .cl2-item-meer{display:none}
+.cl2-item-menu{
+  position:fixed;z-index:200;min-width:200px;max-width:calc(100vw - 24px);
+  background:var(--surface);border:0.5px solid var(--border-strong);
+  border-radius:var(--radius-md);box-shadow:var(--shadow-modal);padding:6px;
+}
+.cl2-item-menu-item{
+  display:block;width:100%;text-align:left;padding:10px 10px;border:0;
+  background:transparent;color:var(--text);font-family:inherit;
+  font-size:var(--fs-klein);border-radius:var(--radius);cursor:pointer;
+}
+.cl2-item-menu-item:hover{background:var(--surface2)}
+.cl2-item-menu-item.danger{color:var(--danger)}
+.cl2-item-menu-scheiding{height:1px;background:var(--border);margin:5px 0}
 .cl2-iconbtn.pinned:hover { background: var(--mint-glow); }
 
 /* ── Item card (v3) ─────────────────────────────────────────────────────────
@@ -5084,10 +5100,30 @@ textarea { line-height: 1.6; resize: vertical; }
      'Factuur POM Groep versturen' over drie regels brak. De knoppen
      verhuizen naar een eigen regel rechts uitgelijnd, zodat de titel de
      volle breedte krijgt en de rij één regel hoog blijft. */
+  /* De vijf icoontjes verdwijnen achter één knop in de rij zelf. Dat scheelt
+     per taak een hele regel van 44px -- bij twintig taken bijna twee schermen
+     -- en haalt de bediening weg uit een kaart die over de inhoud hoort te
+     gaan. Zelfde vorm als de andere icoonknoppen. */
+  .cl-item .cl2-item-actions { display: none !important; }
+  .cl-item .cl2-item-meer {
+    display: inline-flex !important;
+    align-items: center; justify-content: center;
+    width: var(--tap); height: var(--tap); min-height: var(--tap);
+    flex: none;
+    /* De rij is hier een raster; een auto-marge doet daarin niets. Derde
+       kolom, eerste regel -- naast de titel, niet eronder. */
+    grid-column: 3; grid-row: 1; align-self: start;
+    padding: 0; background: transparent; border: 0; box-shadow: none;
+    color: var(--text-muted); cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .cl-item .cl2-item-meer:active { background: var(--surface2); border-radius: var(--radius); }
+  .cl2-item-menu-item { font-size: var(--fs-basis); min-height: var(--tap); }
   .cl2-row-head {
     padding: 10px 12px !important;
     display: grid !important;
-    grid-template-columns: auto minmax(0, 1fr) !important;
+    /* Derde kolom voor het ⋯; de rij eronder met vijf icoontjes vervalt. */
+    grid-template-columns: auto minmax(0, 1fr) auto !important;
     align-items: start !important;
     gap: 6px 10px !important;
   }
@@ -14094,6 +14130,14 @@ function clItemHtml(item,isArchived=false){
         <div class="cl2-item-title${item.done?' done':''}">${escapeHtml(item.text)}</div>
         <div class="cl2-item-meta">${metaBits.join('')}</div>
       </div>
+      <!-- Op een telefoon staan de vijf icoontjes hieronder achter deze ene
+           knop: vijf knoppen op elke kaart is meer bediening dan inhoud, en
+           ze kostten een eigen regel per taak. Op een bureaublad blijft de
+           rij staan -- daar is de ruimte er en wijst een muis exact aan. -->
+      <button type="button" class="cl2-item-meer" data-action="toggleClItemMenu" data-arg1="${item.id}"
+        aria-haspopup="menu" aria-expanded="false" aria-label="Meer opties" title="Meer opties">
+        <svg class="icoon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="13" cy="8" r="1.5"/></svg>
+      </button>
       <div class="cl2-item-actions">
         <button type="button" class="cl2-iconbtn${item.pinned?' pinned':''}" data-action="toggleClItemPin" data-arg1="${item.id}" title="${item.pinned?'Losmaken van bovenaan':'Vastpinnen bovenaan'}">
           ${clPinSvg(!!item.pinned)}
@@ -14118,6 +14162,61 @@ function clItemHtml(item,isArchived=false){
     ${showSubs||showSubsAdd?`<div class="cl2-subs">${subsHtml}</div>`:''}
   </div>`;
 }
+
+/* ══ De acties van één taak, achter één knop ══
+   Op een telefoon stonden vijf icoontjes op elke kaart, op een eigen regel:
+   meer bediening dan inhoud, en bij twintig taken twintig van die regels.
+   Ze zitten nu achter het ⋯ in de rij zelf.
+
+   Het menu hangt aan document.body en niet in de kaart. Een kaart is klein
+   en staat in een lijst die schuift; een menu erbinnen zou tegen de rand
+   aanlopen of afgeknipt worden. urenPlacePopover() zet het onder de knop en
+   klapt het naar boven als daar geen ruimte meer is -- precies wat er bij de
+   filterknoppen van Uren en Facturen ook gebeurt. */
+let clItemMenuVoor=null;
+function closeClItemMenu(){
+  document.getElementById('clItemMenu')?.remove();
+  document.querySelectorAll('.cl2-item-meer[aria-expanded="true"]')
+    .forEach(b=>b.setAttribute('aria-expanded','false'));
+  clItemMenuVoor=null;
+}
+function toggleClItemMenu(id,e){
+  if(e)e.stopPropagation();
+  const stondOpen=clItemMenuVoor===id;
+  closeClItemMenu();
+  if(stondOpen)return;
+  const item=checklistState.items.find(i=>i.id===id);
+  if(!item)return;
+  const knop=document.querySelector(`.cl-item[data-id="${id}"] .cl2-item-meer`);
+  if(!knop)return;
+  const isOpen=clItemOpen[id]!==undefined?clItemOpen[id]:item.priority==='hoog';
+  const rij=(actie,arg,label,klasse)=>
+    `<button type="button" class="cl2-item-menu-item${klasse?' '+klasse:''}" data-action="${actie}" data-arg1="${arg}">${label}</button>`;
+  const pop=document.createElement('div');
+  pop.className='cl2-item-menu';
+  pop.id='clItemMenu';
+  pop.setAttribute('role','menu');
+  pop.innerHTML=
+    rij('clMenuPin',id,item.pinned?'Losmaken van bovenaan':'Vastpinnen bovenaan')+
+    rij('clMenuOpen',id,isOpen?'Inklappen':'Uitklappen')+
+    (item.done?'':rij('clMenuBewerk',id,'Bewerken'))+
+    (item.archived
+      ?rij('clMenuHerstel',id,'Terug uit archief')
+      :rij('clMenuArchief',id,'Archiveren'))+
+    '<div class="cl2-item-menu-scheiding"></div>'+
+    rij('clMenuWeg',id,'Verwijderen','danger');
+  document.body.appendChild(pop);
+  urenPlacePopover(pop,knop);
+  knop.setAttribute('aria-expanded','true');
+  clItemMenuVoor=id;
+}
+document.addEventListener('click',e=>{
+  if(!clItemMenuVoor)return;
+  if(e.target.closest('#clItemMenu')||e.target.closest('.cl2-item-meer'))return;
+  closeClItemMenu();
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeClItemMenu();});
+window.addEventListener('resize',closeClItemMenu);
 
 /* Punaise-icoon; gevuld kopje zodra de taak vastgepind staat */
 function clPinSvg(gevuld,size=12){
@@ -14736,6 +14835,13 @@ Object.assign(APP_ACTIONS,{
   toggleClGroupByPriority:()=>toggleClGroupByPriority(),
   toggleClFilters:()=>{clFiltersOpen=!clFiltersOpen;renderClFilterBar();},
   toggleClOverflow:(el,e)=>toggleClOverflow(e),
+  toggleClItemMenu:(el,e,id)=>toggleClItemMenu(id,e),
+  clMenuPin:(el,e,id)=>{closeClItemMenu();toggleClItemPin(id);},
+  clMenuOpen:(el,e,id)=>{closeClItemMenu();toggleClItemOpen(id);},
+  clMenuBewerk:(el,e,id)=>{closeClItemMenu();openChecklistItemModal(id);},
+  clMenuArchief:(el,e,id)=>{closeClItemMenu();archiveItem(id);},
+  clMenuHerstel:(el,e,id)=>{closeClItemMenu();unarchiveItem(id);},
+  clMenuWeg:(el,e,id)=>{closeClItemMenu();deleteChecklistItem(id);},
   clSetSort:(el,e,mode)=>{closeClOverflow();setChecklistSort(mode);},
   clOvfQuickAdd:()=>{closeClOverflow();openQuickAddAI();},
   clOvfDeleteDone:()=>{closeClOverflow();deleteAllDone();},
