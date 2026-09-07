@@ -880,6 +880,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .fac-aging-val{
   font-family:var(--font-cijfer);font-size:var(--fs-cijfer);font-weight:600;letter-spacing:-.02em;
   margin-top:4px;font-variant-numeric:tabular-nums;display:flex;align-items:baseline;gap:4px;color:var(--text);
+  white-space:nowrap;
 }
 .uren-kpi-val small{font-size:var(--fs-klein);font-weight:400;color:var(--text-muted);letter-spacing:0}
 .uren-kpi-sub,
@@ -18792,20 +18793,33 @@ function facRenderKpis(){
   /* De periode staat in de kop van de tegel, niet het jaar: anders leest
      'Omzet 2026' boven een bedrag dat over augustus gaat. */
   const per=facPeriode().kort;
-  /* Waarom hier het aantal bij staat: Omzet gaat over álle verstuurde en
-     betaalde facturen en is exclusief btw; Betaald gaat over alleen de
-     betaalde en is inclusief btw. Dan is het betaalde bedrag lager dan de
-     omzet terwijl het "incl." heet, en dat leest als een rekenfout. Met
-     "20 van 23" zie je meteen dat het over minder facturen gaat. */
+  /* Waarom er zoveel bij staat. Omzet gaat over álle verstuurde en betaalde
+     facturen en is exclusief btw; Betaald gaat over alleen de betaalde en is
+     inclusief btw. Dan is het betaalde bedrag láger dan de omzet terwijl het
+     "incl." heet, en dat leest als een rekenfout. Daarom staat de grondslag
+     naast het cijfer, het aantal eronder, en het bedrag op de ándere grondslag
+     erachter -- zo is elk paar met elkaar te vergelijken zonder rekenwerk. */
   const geteld=lijst.filter(f=>f.status!=='concept').length;
+  /* Het onbetaalde deel exclusief btw. Bij een deelbetaling is dat niet
+     gewoon `excl`, maar het nog openstaande aandeel daarvan. */
+  const exclDeel=arr=>arr.reduce((s,f)=>{
+    const t=factuurTotalen(f);
+    return s+(t.incl?t.excl*(t.openstaand/t.incl):0);
+  },0);
+  /* De grondslag staat in het kopje en niet achter het cijfer: op een smaller
+     scherm brak "€ 118.944,39 excl." over twee regels, en een bedrag hoort
+     niet af te breken. Het kopje is klein en in kapitalen -- daar valt een
+     woord erbij niet op. */
   box.innerHTML=`
-    ${facKpi('Omzet '+per,factuurFmtBedrag(omzet),'','excl. btw · '+geteld+' factu'+(geteld===1?'ur':'ren'),'var(--mint)')}
-    ${facKpi('Openstaand',factuurFmtBedrag(openstaand.reduce((s,f)=>s+factuurTotalen(f).openstaand,0)),'',
-      'incl. btw · '+openstaand.length+' factu'+(openstaand.length===1?'ur':'ren')+' onbetaald','var(--info)')}
-    ${facKpi('Te laat',factuurFmtBedrag(teLaat.reduce((s,f)=>s+factuurTotalen(f).openstaand,0)),'',
-      teLaat.length?'incl. btw · '+teLaat.length+' over de vervaldatum':'niets over de vervaldatum',teLaat.length?'var(--danger)':'var(--success)')}
-    ${facKpi('Betaald '+per,factuurFmtBedrag(som(betaald)),'',
-      'incl. btw · '+betaald.length+' van '+geteld+' factu'+(geteld===1?'ur':'ren'),'var(--success)')}`;
+    ${facKpi('Omzet '+per+' · excl. btw',factuurFmtBedrag(omzet),'',
+      geteld+' factu'+(geteld===1?'ur':'ren')+' · '+factuurFmtBedrag(omzet*1.21)+' incl. btw','var(--mint)')}
+    ${facKpi('Openstaand · incl. btw',factuurFmtBedrag(openstaand.reduce((s,f)=>s+factuurTotalen(f).openstaand,0)),'',
+      openstaand.length+' onbetaald · '+factuurFmtBedrag(exclDeel(openstaand))+' excl. btw','var(--info)')}
+    ${facKpi('Te laat'+(teLaat.length?' · incl. btw':''),factuurFmtBedrag(teLaat.reduce((s,f)=>s+factuurTotalen(f).openstaand,0)),'',
+      teLaat.length?teLaat.length+' over de vervaldatum · '+factuurFmtBedrag(exclDeel(teLaat))+' excl. btw'
+        :'niets over de vervaldatum',teLaat.length?'var(--danger)':'var(--success)')}
+    ${facKpi('Betaald '+per+' · incl. btw',factuurFmtBedrag(som(betaald)),'',
+      betaald.length+' van '+geteld+' · '+factuurFmtBedrag(betaald.reduce((s,f)=>s+factuurTotalen(f).excl,0))+' excl. btw','var(--success)')}`;
 }
 function facKpi(lab,val,eenheid,sub,kleur){
   return `<div class="uren-kpi" style="--k:${kleur}">
