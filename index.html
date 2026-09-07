@@ -15505,6 +15505,7 @@ const UREN_CLICK_ACTIONS={
   urenEntryStep:(a)=>urenEntryStep(parseFloat(a)),
   urenEntryShiftDate:(a)=>urenEntryShiftDate(parseInt(a,10)),
   urenEntryClearHours:()=>urenEntryClearHours(),
+  urenToggleCijfers:()=>urenToggleCijfers(),
   urenEntryPickClient:(a)=>urenEntryPickClient(a),
   urenEntryPickStatus:(a)=>urenEntryPickStatus(a),
   closeUrenEntryModal:()=>closeUrenEntryModal(),
@@ -15877,8 +15878,15 @@ function urenPlacePopover(pop,anchor){
 /* ── KPI-strip ──
    Bewust geen streefuren/normen: dit telt wat er staat, het beoordeelt niet. */
 function urenRenderKpis(){
-  const box=document.getElementById('urenKpis');
-  if(!box)return;
+  /* De oude plek in de topbalk blijft leeg; :empty haalt hem uit beeld.
+     De tegels staan nu in de inhoud, achter de uitklapbalk -- zie
+     urenCijferBalk. Dat scheelt niet alleen ruimte: zolang ze in de topbalk
+     stonden en de tabel in de inhoud, konden ze nooit met elkaar uitlijnen. */
+  const oud=document.getElementById('urenKpis');
+  if(oud)oud.innerHTML='';
+}
+function urenKpiTegels(){
+  const box={innerHTML:''};
   const list=urenVisibleEntries();
   const total=urenSum(list);
   const open=urenSum(list.filter(e=>urenStatusOf(e)==='open'));
@@ -15902,6 +15910,18 @@ function urenRenderKpis(){
       `${pct(inv)}% van de periode`,pct(inv))+
     kpi('var(--info)','Concept',urenFmtShort(concept),
       concept>0?'nog te bevestigen':'niets in concept',pct(concept));
+  return `<div class="uren-kpis">${box.innerHTML}</div>`;
+}
+function urenCijferBalk(){
+  const list=urenVisibleEntries();
+  const klanten=new Set(list.map(e=>e.clientId).filter(Boolean)).size;
+  const teDoen=list.filter(e=>urenStatusOf(e)==='open').length;
+  const sam=list.length
+    ? `${list.length} ${list.length===1?'registratie':'registraties'} · ${
+        klanten} ${klanten===1?'klant':'klanten'}${teDoen?' · '+teDoen+' te factureren':''}`
+    : 'geen registraties in deze periode';
+  return cijferBalk(urenCijfersOpen(),sam,false,
+    'data-uren-action="urenToggleCijfers"',urenKpiTegels());
 }
 
 /* ── Body: schakelt tussen de vier weergaven ── */
@@ -15913,10 +15933,11 @@ function urenRenderBody(){
       Voeg eerst een klant toe via de zijbalk — elke urenregistratie hoort bij een klant.</div>`;
     return;
   }
-  if(urenView==='reg')      body.innerHTML=urenRenderRegView();
-  else if(urenView==='klant')body.innerHTML=urenRenderKlantView();
-  else if(urenView==='week') body.innerHTML=urenRenderWeekView();
-  else                       body.innerHTML=urenRenderMaandView();
+  const kop=urenCijferBalk();
+  if(urenView==='reg')      body.innerHTML=kop+urenRenderRegView();
+  else if(urenView==='klant')body.innerHTML=kop+urenRenderKlantView();
+  else if(urenView==='week') body.innerHTML=kop+urenRenderWeekView();
+  else                       body.innerHTML=kop+urenRenderMaandView();
 }
 
 /* ══ Weergave: registraties ══ */
@@ -18892,17 +18913,9 @@ function facCijferSamenvatting(){
     +(onbetaald?' · '+onbetaald+' onbetaald':' · alles betaald'),laat:false};
 }
 function facCijferBalk(){
-  const tegels=facKpiTegels();
-  if(!tegels)return '';
-  const aan=facCijfersOpen();
   const sam=facCijferSamenvatting();
-  return `<button type="button" class="fac-cijfers-kop" data-fac-action="facToggleCijfers"
-      aria-expanded="${aan?'true':'false'}">
-    <span class="lab">Cijfers</span>
-    <span class="sam${sam.laat?' laat':''}">${escapeHtml(sam.tekst)}</span>
-    <svg class="caret icoon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"
-      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5L8 10.5 12 6.5"/></svg>
-  </button>${aan?`<div class="fac-cijfers-blok">${tegels}</div>`:''}`;
+  return cijferBalk(facCijfersOpen(),sam.tekst,sam.laat,
+    'data-fac-action="facToggleCijfers"',facKpiTegels());
 }
 function facRenderBody(){
   const body=document.getElementById('facBody');
@@ -19048,13 +19061,50 @@ function facStatusPil(f){
    jaar is juist het interessantst. */
 /* Wel of niet de cijfers erboven. Een kijkvoorkeur per apparaat, dus in
    localStorage en niet in de administratie -- net als het thema. */
-const LS_DEB_CIJFERS='herling_deb_cijfers';
-function facCijfersOpen(){
-  try{return localStorage.getItem(LS_DEB_CIJFERS)==='1';}catch(e){return false;}
+/* ══ De uitklapbalk boven de cijfers ══
+   Uren en Facturen hebben allebei een strip met tegels, en allebei open je ze
+   niet om naar een tegel te kijken maar om een regel te zoeken. Vandaar één
+   balk die je opentikt, met één opbouw voor beide modules -- anders lopen ze
+   binnen een maand weer uiteen.
+
+   Open of dicht staat per module in localStorage: het is een kijkvoorkeur van
+   dit apparaat, geen administratie. */
+const LS_CIJFERS='herling_cijfers';
+function cijfersOpen(mod){
+  try{
+    const v=JSON.parse(localStorage.getItem(LS_CIJFERS)||'{}');
+    return v[mod]===true;
+  }catch(e){return false;}
 }
+function cijfersZet(mod,aan){
+  try{
+    const v=JSON.parse(localStorage.getItem(LS_CIJFERS)||'{}');
+    v[mod]=!!aan;
+    localStorage.setItem(LS_CIJFERS,JSON.stringify(v));
+  }catch(e){}
+}
+/* De samenvatting op de dichte balk is altijd een áántal, nooit een bedrag of
+   een totaal: dat staat verderop op de pagina toch al, en dan verdubbelt de
+   regel die de cijfers wegstopt er zelf een. */
+function cijferBalk(open,sam,laat,actieAttr,tegels){
+  if(!tegels)return '';
+  return `<button type="button" class="fac-cijfers-kop" ${actieAttr}
+      aria-expanded="${open?'true':'false'}">
+    <span class="lab">Cijfers</span>
+    <span class="sam${laat?' laat':''}">${escapeHtml(sam)}</span>
+    <svg class="caret icoon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"
+      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5L8 10.5 12 6.5"/></svg>
+  </button>${open?`<div class="fac-cijfers-blok">${tegels}</div>`:''}`;
+}
+function facCijfersOpen(){return cijfersOpen('facturen');}
 function facToggleCijfers(){
-  try{localStorage.setItem(LS_DEB_CIJFERS,facCijfersOpen()?'0':'1');}catch(e){}
+  cijfersZet('facturen',!facCijfersOpen());
   facRenderAll();
+}
+function urenCijfersOpen(){return cijfersOpen('uren');}
+function urenToggleCijfers(){
+  cijfersZet('uren',!urenCijfersOpen());
+  urenRenderAll();
 }
 /* De ouderdomstegels van Debiteuren plus de omzet en het betaalde. Aparte
    functie omdat de uitklapbalk voor alle tabbladen op één plek wordt

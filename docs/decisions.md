@@ -2103,3 +2103,33 @@ afbreken.
 **Niet doen.** De `max-width` op een kaart zetten in plaats van op de kolom.
 Dan lijnt die kaart niet meer uit met zijn buren, en dat valt precies zo op als
 hier gebeurde.
+
+## 2026-09-07 · Elke cijferstrip is een uitklapbalk, uit één functie
+
+**Beslissing.** Wat op Facturen stond geldt nu ook voor Uren: de tegels zitten
+achter een balk die je opentikt, standaard dicht. Frank: *"Maak van elke KPI
+balk maar een uitklapbaar onderdeel. Ik vind het wel strakker eruit zien."*
+
+De balk wordt door beide modules uit dezelfde functie opgebouwd
+(`cijferBalk(open,sam,laat,actieAttr,tegels)`) — anders lopen twee kopieën
+binnen een maand uiteen, zoals eerder met het ⋯-icoon en de filterknop
+gebeurde. Alleen de dispatcher verschilt (`data-uren-action` tegenover
+`data-fac-action`), en die gaat als attribuut mee.
+
+Wat de balk dicht toont is een **aantal**, nooit een bedrag of een totaal: dat
+staat verderop op de pagina toch al. Uren toont *"2 registraties · 2 klanten ·
+1 te factureren"*, Facturen *"23 facturen · 3 onbetaald"*.
+
+Open of dicht staat per module in `localStorage` onder één sleutel
+(`herling_cijfers`, een object met `uren` en `facturen`). Het is een
+kijkvoorkeur van dit apparaat en geen administratie. De losse sleutel
+`herling_deb_cijfers` is daarmee vervallen.
+
+Meegenomen: de tegels van Uren stonden in de topbalk en de tabel in de inhoud —
+twee containers die nooit gegarandeerd konden uitlijnen. Ze zitten nu allebei
+in `.uren-content`.
+
+**Bestanden.** `index.html` — `cijfersOpen/cijfersZet/cijferBalk`,
+`urenCijfersOpen/urenToggleCijfers/urenKpiTegels/urenCijferBalk`,
+`urenRenderKpis` (leegt alleen nog de oude plek), `urenRenderBody`,
+`facCijferBalk` (gebruikt nu de gedeelde functie).
