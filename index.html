@@ -560,6 +560,16 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .notes-ovf-item.aan{font-weight:700;color:var(--text)}
 .notes-ovf-item.aan::before{content:'✓  '}
 .notes-ovf-scheiding{height:1px;background:var(--border);margin:5px 0}
+/* Prullenbak: per rij de titel met wanneer hij weg is gegaan, en de twee
+   wegen terug -- terugzetten of alsnog echt weg. */
+.notes-bak-rij{display:flex;align-items:center;gap:10px;padding:10px 2px;border-bottom:0.5px solid var(--border)}
+.notes-bak-rij:last-child{border-bottom:0}
+.notes-bak-tekst{flex:1;min-width:0}
+.notes-bak-titel{font-size:var(--fs-basis);font-weight:600;color:var(--text);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.notes-bak-meta{font-size:var(--fs-micro);color:var(--text-muted);margin-top:2px}
+.notes-bak-leeg{padding:22px 6px;text-align:center;color:var(--text-muted);
+  font-size:var(--fs-klein);line-height:1.6}
 
 /* De klantkiezer van een notitie. Zelfde pilvorm als het klantfilter ernaast,
    maar met een andere betekenis: dit bepaalt waar de notitie bíj hoort, niet
@@ -6899,6 +6909,13 @@ textarea { line-height: 1.6; resize: vertical; }
               <button class="btn btn-xs" onclick="startFolderCreate()" title="Nieuwe groep">
                 <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><path d="M2 4.5a1 1 0 0 1 1-1h2.5l1.2 1.2H11a1 1 0 0 1 1 1V11a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V4.5z"/><line x1="7" y1="7" x2="7" y2="10"/><line x1="5.5" y1="8.5" x2="8.5" y2="8.5"/></svg>
               </button>
+              <!-- Op een bureaublad is dit de enige ingang naar de prullenbak:
+                   het ⋯-menu is daar verborgen, want de rest staat gewoon in
+                   beeld. Deze hele kop vervalt op een telefoon; daar zit de
+                   prullenbak in het menu. -->
+              <button class="btn btn-xs" data-action="notesBakOpen" title="Prullenbak" aria-label="Prullenbak">
+                <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><path d="M2.5 3.5h9M5 3.5V2.5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1M3.5 3.5L4 12a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1l.5-8.5"/></svg>
+              </button>
             </div>
           </div>
           <div id="notesFolderForm" style="display:none"></div>
@@ -7716,6 +7733,26 @@ textarea { line-height: 1.6; resize: vertical; }
       <div></div>
       <div class="modal-footer-right">
         <button class="btn btn-sm" onclick="closeTemplatePicker()">Annuleer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Notities: prullenbak ──
+     Verwijderen ging voorheen linea recta weg, met alleen de ongedaan-knop in
+     de toast als vangnet. Die is na een paar seconden weg; dit venster is de
+     plek waar het daarna nog staat. -->
+<div class="modal-bg" id="notesPrullenbakModal">
+  <div class="modal" style="max-width:560px;padding:0;display:flex;flex-direction:column;max-height:88vh">
+    <div class="modal-kop" style="flex-shrink:0">
+      <h3 style="font-size:17px;font-weight:700;margin:0">Prullenbak</h3>
+      <p style="font-size:12px;margin:2px 0 0" id="notesPrullenbakSub"></p>
+    </div>
+    <div style="padding:14px 18px;overflow-y:auto;flex:1;min-height:0" id="notesPrullenbakBody"></div>
+    <div class="modal-footer" style="padding:14px 18px;border-top:0.5px solid var(--border);flex-shrink:0">
+      <button class="btn btn-sm btn-danger" id="notesPrullenbakLegen" data-action="notesBakLegen">Prullenbak legen</button>
+      <div class="modal-footer-right">
+        <button class="btn btn-sm" data-action="notesBakSluit">Sluiten</button>
       </div>
     </div>
   </div>
@@ -8545,6 +8582,7 @@ function hydrateerState(){
   notesState=rawState.notes||{tree:[],activeId:null,collapsed:{}};
   if(!notesState.tree)notesState.tree=[];
   if(!notesState.sortBy)notesState.sortBy='handmatig';
+  if(!Array.isArray(notesState.prullenbak))notesState.prullenbak=[];
   checklistState=rawState.checklist||{items:[],showArchived:false,sortBy:'newest',groupByPriority:true};
   if(!checklistState.items)checklistState.items=[];
   migreerChecklistVolgorde();
@@ -12425,15 +12463,99 @@ function deleteNode(id){
   const removed=JSON.parse(JSON.stringify(r.node));
   const parentArrRef=r.parentArr;
   const idx=r.index;
+  const ouderId=r.parent?r.parent.id:null;
   const wasActive=notesState.activeId===id;
   parentArrRef.splice(idx,1);
   if(wasActive)notesState.activeId=null;
+  /* De toast is de snelle weg terug, maar die is na een paar seconden weg.
+     Daarna staat het hier: één plek waar teruggehaald kan worden, in plaats
+     van een notitie die definitief weg is omdat je net wegkeek. */
+  notesState.prullenbak=notesState.prullenbak||[];
+  notesState.prullenbak.unshift({node:removed,ouderId,verwijderdOp:Date.now()});
   scheduleSave();renderNotesModule();
   appToast(`${label} verwijderd`,{type:'success',undo:()=>{
+    notesState.prullenbak=(notesState.prullenbak||[]).filter(x=>x.node.id!==removed.id);
     parentArrRef.splice(idx,0,removed);
     if(wasActive)notesState.activeId=removed.id;
     scheduleSave();renderNotesModule();
   }});
+}
+
+/* ══ Prullenbak ══
+   Terugzetten probeert de oude plek: bestaat de groep waar het in zat nog,
+   dan gaat het daarheen, anders onderaan de lijst. Definitief weggooien is
+   het enige wat hier echt weggooit -- en dat vraagt om een bevestiging,
+   want verder terug is er dan niet meer. */
+function notesPrullenbakTerug(id){
+  const bak=notesState.prullenbak||[];
+  const i=bak.findIndex(x=>x.node.id===id);
+  if(i<0)return;
+  const item=bak[i];
+  bak.splice(i,1);
+  const ouder=item.ouderId?findNode(notesState.tree,item.ouderId):null;
+  if(ouder&&ouder.node.type==='folder'){
+    ouder.node.children=ouder.node.children||[];
+    ouder.node.children.push(item.node);
+    notesState.collapsed=notesState.collapsed||{};
+    notesState.collapsed[item.ouderId]=false;
+  } else notesState.tree.push(item.node);
+  scheduleSave();renderNotesModule();renderNotesPrullenbak();
+  appToast(`"${item.node.title}" teruggezet`,{type:'success'});
+}
+function notesPrullenbakWeg(id){
+  const bak=notesState.prullenbak||[];
+  const item=bak.find(x=>x.node.id===id);
+  if(!item)return;
+  if(!confirm(`"${item.node.title}" definitief verwijderen? Dit kan niet ongedaan worden gemaakt.`))return;
+  notesState.prullenbak=bak.filter(x=>x.node.id!==id);
+  scheduleSave();renderNotesPrullenbak();
+}
+function notesPrullenbakLegen(){
+  const n=(notesState.prullenbak||[]).length;
+  if(!n)return;
+  if(!confirm(`De prullenbak bevat ${n} item${n===1?'':'s'}. Alles definitief verwijderen?`))return;
+  notesState.prullenbak=[];
+  scheduleSave();renderNotesPrullenbak();
+}
+function openNotesPrullenbak(){
+  renderNotesPrullenbak();
+  document.getElementById('notesPrullenbakModal')?.classList.add('open');
+}
+function closeNotesPrullenbak(){
+  document.getElementById('notesPrullenbakModal')?.classList.remove('open');
+}
+function renderNotesPrullenbak(){
+  const el=document.getElementById('notesPrullenbakBody');
+  if(!el)return;
+  const bak=notesState.prullenbak||[];
+  const sub=document.getElementById('notesPrullenbakSub');
+  if(sub)sub.textContent=bak.length
+    ? bak.length+' item'+(bak.length===1?'':'s')+' — hier kun je ze terugzetten of definitief weggooien'
+    : 'Leeg';
+  const legen=document.getElementById('notesPrullenbakLegen');
+  if(legen)legen.style.display=bak.length?'':'none';
+  if(!bak.length){
+    el.innerHTML=`<div class="notes-bak-leeg">Niets verwijderd.<br>
+      Wat je weggooit blijft hier staan tot je het definitief weghaalt.</div>`;
+    return;
+  }
+  el.innerHTML=bak.map(x=>{
+    const d=new Date(x.verwijderdOp||0);
+    const wanneer=x.verwijderdOp?d.toLocaleDateString('nl-NL',{day:'numeric',month:'long'})+' om '+
+      d.toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'}):'';
+    const paginas=x.node.type==='folder'
+      ? flattenNotes([x.node]).filter(n=>n.type==='page').length : 0;
+    return `<div class="notes-bak-rij">
+      <div class="notes-bak-tekst">
+        <div class="notes-bak-titel">${escapeHtml(x.node.title||'Zonder titel')}</div>
+        <div class="notes-bak-meta">${x.node.type==='folder'?'Groep · '+paginas+' notitie'+(paginas===1?'':'s')+' · ':''}${escapeHtml(wanneer)}</div>
+      </div>
+      <button class="btn btn-sm" data-action="notesBakTerug" data-arg1="${x.node.id}">Terugzetten</button>
+      <button class="cl2-iconbtn danger" data-action="notesBakWeg" data-arg1="${x.node.id}" title="Definitief verwijderen" aria-label="Definitief verwijderen">
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 3.5h9M5 3.5V2.5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1M3.5 3.5L4 12a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1l.5-8.5"/></svg>
+      </button>
+    </div>`;
+  }).join('');
 }
 function renameNode(id){
   const r=findNode(notesState.tree,id);if(!r)return;
@@ -12737,8 +12859,10 @@ function renderNotesOverflowMenu(){
     return;
   }
   const dicht=alleNoteGroepenDicht();
+  const bak=(notesState.prullenbak||[]).length;
   menu.innerHTML=`
     <button class="notes-ovf-item" data-action="toggleAlleNoteGroepen">${dicht?'Alles uitklappen':'Alles inklappen'}</button>
+    <button class="notes-ovf-item" data-action="notesBakOpen">Prullenbak${bak?' ('+bak+')':''}</button>
     <div class="notes-ovf-scheiding"></div>
     <div class="notes-ovf-kop">Sorteren</div>
     ${Object.keys(NOTES_SORTEER).map(k=>
@@ -13409,6 +13533,11 @@ Object.assign(APP_ACTIONS,{
   selectNote:(el,e,id)=>selectNote(id),
   toggleNotesOverflow:(el,e)=>toggleNotesOverflow(e),
   toggleAlleNoteGroepen:()=>{closeNotesOverflow();toggleAlleNoteGroepen();},
+  notesBakOpen:()=>{closeNotesOverflow();openNotesPrullenbak();},
+  notesBakSluit:()=>closeNotesPrullenbak(),
+  notesBakTerug:(el,e,id)=>notesPrullenbakTerug(id),
+  notesBakWeg:(el,e,id)=>notesPrullenbakWeg(id),
+  notesBakLegen:()=>notesPrullenbakLegen(),
   setNotesSort:(el,e,modus)=>{closeNotesOverflow();setNotesSort(modus);},
   setNoteClientUitMenu:(el,e,clientId)=>{
     closeNotesOverflow();

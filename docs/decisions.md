@@ -10,6 +10,26 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-07 · Notities krijgt een prullenbak
+
+**Probleem.** Notities was de enige module waar iets écht weg was. Een taak gaat naar het archief, een factuur heeft een versiegeschiedenis, maar een verwijderde notitie had alleen de ongedaan-knop in de toast — en die is na een paar seconden weg. Daarna was de tekst er niet meer, en op een telefoon is een misgetikte prullenbak-knop zo gebeurd.
+
+**Beslissing.** `notesState.prullenbak`: een lijst met `{node, ouderId, verwijderdOp}`, gevuld door `deleteNode()`. De toast blijft wat hij was — die is nog steeds de snelste weg terug — maar wat je daarna nog kunt doen staat nu in een venster: terugzetten of definitief weggooien, plus "Prullenbak legen".
+
+**Terugzetten probeert de oude plek.** `ouderId` onthoudt in welke groep het zat; bestaat die groep nog, dan gaat het daarheen (en klapt hij open), anders onderaan de lijst. Een groep die je terugzet neemt zijn notities mee — hij is als geheel opgeslagen.
+
+**Twee ingangen, want twee schermen.** Op een telefoon zit de prullenbak in het ⋯-menu, met het aantal erbij: "Prullenbak (2)". Op een bureaublad is dat menu verborgen, dus daar staat hij als derde knop in de kop "Pagina's", achter nieuwe notitie en nieuwe groep. Zonder die tweede ingang zou de webversie de prullenbak helemaal niet kunnen bereiken.
+
+**Definitief weggooien vraagt om bevestiging** — en dat is de enige plek in deze module waar iets echt verdwijnt.
+
+**Bewust geen automatische opruiming.** Een prullenbak die zichzelf na dertig dagen leegt gooit data weg zonder dat iemand het vraagt, en dat is precies wat hier voorkomen moest worden. De keerzijde: hij groeit. Een notitie kan geplakte afbeeldingen bevatten, en die gaan als data-URL mee naar Drive. Wie veel weggooit doet er goed aan de bak af en toe te legen — de knop staat er, met het aantal erboven.
+
+**Bewijs.** Nagemeten op 375px: verwijderen haalt de notitie uit de boom en het menu toont "Prullenbak (1)"; het venster noemt de titel en het tijdstip; terugzetten brengt hem terug in de boom en laat de bak leeg achter; definitief weggooien laat hem verdwijnen en verbergt de knop "legen". Op 1400px staat de derde knop in de kop en werkt hetzelfde venster.
+
+**Bestanden**: `index.html` — `notesState.prullenbak` met hydratiestap, `deleteNode()` vult de bak, `notesPrullenbakTerug/Weg/Legen()`, `renderNotesPrullenbak()`, modaal `#notesPrullenbakModal`, vijf acties in `APP_ACTIONS`, knop in de kop "Pagina's", `.notes-bak-*` stijlen; `sw.js` → `herling-v41`
+
+**Niet doen.** De bak stilletjes begrenzen op een aantal items of een aantal dagen. Wie dat wil, hoort het te kiezen — niet te ontdekken.
+
 ## 2026-09-07 · Notities krijgt een ⋯-menu, en de editor houdt alleen wat over de pagina gaat
 
 **Probleem.** Notities was de enige module zonder ⋯-menu. Alles wat niet in de balk paste bestond gewoon niet: de boom in- of uitklappen kon alleen groep voor groep, en sorteren kon helemaal niet — de volgorde was die van de boom. Tegelijk stond in het editscherm nog steeds de bediening van de lijst: een klantfilter en een knop voor een nieuwe groep, terwijl je naar één pagina kijkt.
