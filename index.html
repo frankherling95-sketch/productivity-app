@@ -5,7 +5,7 @@
 <!-- viewport-fit=cover is nodig om env(safe-area-inset-*) te laten werken.
      Zonder die vlag geeft iOS overal 0 terug en verdwijnt de onderste
      tabbalk achter de home-indicator van de iPhone. -->
-<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover"/>
 <title>Herling Analytics</title>
 <link rel="icon" type="image/svg+xml" href="herling-icon.svg"/>
 <link rel="manifest" href="manifest.json"/>
@@ -2190,6 +2190,25 @@ textarea { line-height: 1.6; resize: vertical; }
   border-left-color: var(--mint) !important;
   font-weight: 600;
 }
+
+/* ── Knijpen om te zoomen staat uit ──
+   Op een telefoon gebeurde dat vooral per ongeluk: één vinger te veel en de
+   verhoudingen klopten niet meer, met een pagina die je daarna weer recht
+   moest trekken. De app schaalt zelf al mee met het scherm, dus er valt
+   niets te vergroten.
+
+   pan-x pan-y laat schuiven in beide richtingen toe en sluit alleen knijpen
+   en dubbeltikken uit. Een muis en de browserzoom (ctrl+scroll) raakt het
+   niet -- touch-action geldt alleen voor aanraking.
+
+   Uitzondering: het PDF-voorbeeld, want daar wil je een factuur juist wel
+   kunnen vergroten. Die modal staat buiten #appScreen en valt hier dus
+   vanzelf buiten; de gesture-blokkade in de JS maakt dezelfde uitzondering.
+   Open je de PDF in een nieuw tabblad -- op iOS de gebruikelijke weg, want
+   een blob-PDF in een iframe blijft daar leeg -- dan is het Safari's eigen
+   viewer en heeft deze pagina er sowieso niets over te zeggen. */
+#appScreen,
+.modal-bg:not(#facPreviewModal) { touch-action: pan-x pan-y; }
 
 /* ─── Modal ───────────────────────────────────────────────────────────────── */
 .modal,
@@ -21223,6 +21242,7 @@ function openFacPreview(id){
   ].filter(Boolean).join(' · ');
   document.getElementById('facPreviewFrame').src=facPreviewUrl+'#toolbar=0&navpanes=0';
   document.getElementById('facPreviewModal').classList.add('open');
+  zetPaginaZoom(true);   /* hier mag je wél knijpen -- zie zetPaginaZoom() */
   /* Een lege specificatie zie je in de PDF pas op de laatste pagina --
      zeg het hier, waar je nog kunt ingrijpen. */
   const st=factuurSpecificatieStaat(f);
@@ -21234,6 +21254,7 @@ function openFacPreview(id){
 function closeFacPreview(){
   const m=document.getElementById('facPreviewModal');
   if(!m||!m.classList.contains('open'))return;
+  zetPaginaZoom(false);
   m.classList.remove('open');
   document.getElementById('facPreviewFrame')?.removeAttribute('src');
   if(facPreviewUrl&&!facPreviewLosTabblad)URL.revokeObjectURL(facPreviewUrl);
@@ -22629,6 +22650,31 @@ function zetModalSluitknoppen(){
   });
 }
 zetModalSluitknoppen();
+
+/* ══ Zoomen staat uit, behalve op het PDF-voorbeeld ══
+   Drie sloten, want geen enkel slot houdt overal:
+
+   1. `user-scalable=no` in de viewport-meta. In een app op het beginscherm
+      (standalone) luistert iOS daarnaar; in een gewoon Safari-tabblad
+      negeert het dat sinds iOS 10 bewust.
+   2. `touch-action: pan-x pan-y` in de CSS. Dat is het slot dat in Safari
+      wél werkt, en het laat schuiven ongemoeid.
+   3. De gesture-events hieronder, als vangnet voor wat daar doorheen komt.
+
+   Het voorbeeldvenster is de uitzondering: daar wil je een factuur kunnen
+   vergroten. De meta gaat dan open en bij het sluiten weer dicht, en de
+   blokkade slaat alles binnen die modal over. */
+const VIEWPORT_VAST='width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover';
+const VIEWPORT_ZOOM='width=device-width,initial-scale=1.0,maximum-scale=5.0,user-scalable=yes,viewport-fit=cover';
+function zetPaginaZoom(aan){
+  document.querySelector('meta[name="viewport"]')?.setAttribute('content',aan?VIEWPORT_ZOOM:VIEWPORT_VAST);
+}
+['gesturestart','gesturechange','gestureend'].forEach(soort=>{
+  document.addEventListener(soort,e=>{
+    if(e.target&&e.target.closest&&e.target.closest('#facPreviewModal'))return;
+    e.preventDefault();
+  },{passive:false});
+});
 
 /* ─ Globale exports voor onclick-handlers ─ */
 window.openQuickAddAI=openQuickAddAI;
