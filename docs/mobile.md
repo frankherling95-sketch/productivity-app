@@ -5,6 +5,10 @@ gelden andere maten, en die staan er bewust anders in: je houdt een telefoon
 verder weg dan een monitor staat, en je wijst met een vinger in plaats van
 met een muispunt.
 
+> Zoek je de maat van een concreet onderdeel — een knop, een menu-item, een
+> pil — kijk dan in [`stijlgids.md`](stijlgids.md). Dit bestand gaat over de
+> schaal en de afwegingen erachter; die gids over wat je moet typen.
+
 Vastgelegd op 2026-09-05. Achtergrond en de meetwaarden die eraan voorafgingen:
 zie de entry van die datum in [`decisions.md`](decisions.md).
 

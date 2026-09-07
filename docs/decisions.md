@@ -10,6 +10,22 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-07 · Een stijlgids, omdat het steeds dezelfde knop met andere tekst is
+
+**Probleem.** Vandaag ging het vier keer over hetzelfde soort fout: het ⋯ had drie maten, de filterknop twee, het taakmenu stond op 15px terwijl elk ander menu 13px is, en twee keer bleef er een schaduw op een knop staan die randloos hoorde te zijn. Steeds omdat een nieuw onderdeel een eigen CSS-blok kreeg in plaats van aan te sluiten bij de bestaande regel.
+
+**Beslissing.** [`docs/stijlgids.md`](stijlgids.md): per soort onderdeel — icoonknop, tekstknop, menu-item, kaart, pil, invoerveld, modaal — wat de maat is, welk token erbij hoort en op welke plek het staat. Gemeten met `getComputedStyle` op 375px en 1400px, niet uit het hoofd opgeschreven.
+
+**Met een lijst bekende afwijkingen.** Wat er nu níét klopt staat er ook in: `.client-filter-btn` op 12px terwijl de trap 13 is, `.cl2-item-meta` op 11px (onder de eigen ondergrens), `.btn`, `.btn-sm` en `.btn-xs` die op een telefoon alle drie op 14px uitkomen omdat twee `!important`-regels met dezelfde specificiteit elkaar overschrijven. Zo hoeven die niet opnieuw ontdekt te worden, en is duidelijk dat ze geen voorbeeld zijn om te volgen.
+
+**De regel die het bij elkaar houdt.** Nieuw onderdeel van een bestaande soort? Zet je selector **bij** de bestaande regel. Niet een eigen blok — daar komen die drie maten vandaan.
+
+**Waarom een apart bestand en niet in `mobile.md`.** Dat bestand gaat over de schaal en de afwegingen (waarom 44px, waarom zes trappen). De stijlgids gaat over wat je moet typen, en geldt op beide breedtes. `CLAUDE.md` verwijst er nu naar bij de CSS-conventies: lezen vóór vormgeefwerk.
+
+**Bestanden**: `docs/stijlgids.md` (nieuw), `CLAUDE.md` (bestandenboom, CSS-conventies, toolingtabel), `docs/mobile.md` (verwijzing bovenaan)
+
+**Niet doen.** De afwijkingenlijst stilzwijgend wegwerken in een grote opruimbeurt. Per familie, met een meting ervoor en erna, en een entry hier.
+
 ## 2026-09-07 · De acties van een taak achter één knop
 
 **Probleem.** Elke taak droeg vijf icoonknoppen — vastpinnen, in-/uitklappen, bewerken, archiveren, verwijderen — en op een telefoon stonden die op een eigen regel onder de titel. Vijf knoppen per kaart is meer bediening dan inhoud, en bij twintig taken zijn dat twintig van die regels.

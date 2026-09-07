@@ -27,6 +27,8 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 ├── manifest.json, sw.js          ← PWA + Service Worker (zie ⚠️ hieronder)
 ├── CLAUDE.md                     ← dit bestand
 ├── docs/decisions.md             ← append-only beslissingen-log (ADR-stijl)
+├── docs/stijlgids.md             ← welke maat hoort waar (lees dit vóór je iets vormgeeft)
+├── docs/mobile.md                ← de mobiele schaal en de regels erachter
 ├── validate.mjs                  ← Node syntax/structure checker
 ├── test.html                     ← browser smoke test
 ├── .githooks/pre-push            ← git hook (na `core.hooksPath` setup)
@@ -125,6 +127,14 @@ Bij toevoegen van een nieuw state-veld: voeg een hydratie-stap toe in `hydrateer
 ## CSS conventies
 
 Class-prefix per module: `.cl-` checklist, `.dash-` dashboard, `.col-` kanban, `.note(s)-` notes, `.uren-` uren, `.modal-`, `.btn-`, `.toast-`, `.nav-`, `.mod-` (generiek). Geen utility-classes, geen `!important` tenzij echt nodig.
+
+⚠️ **Ga je iets vormgeven — een knop, een menu, een kaart, een pil — lees dan
+eerst [`docs/stijlgids.md`](docs/stijlgids.md).** De app bestaat voor een groot
+deel uit dezelfde soort knop met een andere tekst; die stijlgids zegt per soort
+welke maat, welk gewicht en welk token erbij hoort, en welke afwijkingen bekend
+zijn. Nieuw onderdeel van een bestaande soort? Zet je selector **bij** de
+bestaande regel in plaats van een eigen blok te schrijven — zo zijn de drie
+verschillende maten van het ⋯-icoon en van de filterknop ontstaan.
 
 ## Dependencies (CDN)
 
@@ -276,6 +286,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | Bestand | Doel |
 |---------|------|
 | `validate.mjs` | JS syntax + tag balance + onclick-referentie checks |
+| `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
 | `test.html` | 32 smoke-, sync- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
