@@ -1729,3 +1729,38 @@ mobiele laag, `facRenderKlanten()`. `docs/stijlgids.md` §2.
 
 **Niet doen.** De ℹ uit het uitklapmenu halen — op een bureaublad is dat nog
 steeds de snelste weg als je niet eerst wilt filteren.
+
+## 2026-09-07 · Btw en Debiteuren tonen elk bedrag nog maar één keer
+
+**Probleem.** Op het btw-tabblad stond hetzelfde btw-bedrag zes keer in beeld
+en de omzet vijf keer: de tegelstrip, de rubriekentabel, de totaalrij daarvan,
+en de facturentabel met zijn eigen totaal. De tegel "Btw 21%" zei er letterlijk
+"rubriek 1a · over € 2.520,00" bij — precies de twee getallen uit de rij
+eronder. Op Debiteuren waren "Openstaand" en "Te laat" de optelsom van de
+ouderdomstegels direct eronder, en "Openstaand" stond bovendien in de
+tabelvoet.
+
+**Beslissing.**
+- **Btw** heeft geen tegelstrip meer. De rubriekenkaarten zíjn de samenvatting
+  — dat is wat je op het aangifteformulier overneemt.
+- Is er maar **één rubriek**, dan vervalt ook de totaalregel eronder (die
+  herhaalt dan diezelfde rubriek). De verwijzing "rubriek 5a" verhuist naar de
+  btw-cel van de rij zelf, want dát is de informatie: welk vakje op het
+  formulier. Bij twee of meer rubrieken komt de totaalregel gewoon terug.
+- **Debiteuren** houdt van de strip alleen "Omzet" en "Betaald" over — die twee
+  staan nergens anders op dat tabblad.
+- `.uren-kpis` gaat van `repeat(4,1fr)` naar `repeat(auto-fit,minmax(160px,1fr))`,
+  anders lieten die twee tegels de halve balk leeg. Bij vier tegels komt het op
+  hetzelfde neer (pixel-identiek op 1400px gecontroleerd).
+
+Het tabblad Facturen houdt zijn vier tegels: daar is de strip de enige
+samenvatting.
+
+**Waarom.** Vraag: is dit hetzelfde getal als dat hierboven, of net een ander?
+Zodra je die vraag moet stellen, is de pagina langzamer geworden.
+
+**Bestanden.** `index.html` — `facRenderKpis()`, `facRenderBtw()`,
+`facBtwRubriekKaarten()`, `.uren-kpis`.
+
+**Niet doen.** Ook de voetregel van de facturentabel weghalen: een tabel die
+zijn eigen kolom optelt is geen herhaling, dat is de tabel afmaken.

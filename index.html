@@ -857,7 +857,10 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .uren-tab:focus-visible{outline:2px solid var(--mint);outline-offset:1px}
 
 /* ── KPI strip ── */
-.uren-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:14px 16px 2px;flex-shrink:0}
+/* auto-fit en niet repeat(4): Debiteuren houdt er nog twee over en die
+   hoorden dan de halve balk leeg te laten. Met vier tegels komt het op
+   hetzelfde neer. */
+.uren-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;padding:14px 16px 2px;flex-shrink:0}
 /* Leeg betekent: deze weergave heeft haar eigen samenvatting (Debiteuren).
    Zonder dit blijft de padding als een strook van 10px staan. */
 .uren-kpis:empty{display:none}
@@ -18544,17 +18547,26 @@ function facRenderKpis(){
         open.length?'var(--warning)':'var(--success)')}`;
     return;
   }
-  if(facView==='btw'){
-    /* Geen tegels boven een scherm dat om een keuze vraagt -- dan zou het
-       totaal er alsnog staan. */
-    if(facBtwVraagtBedrijf()){box.innerHTML='';return;}
-    const o=factuurBtwOverzicht(facJaar,facBtwKwartaal,facBtwStelsel(),facBedrijfScope());
-    const per=t=>o.perTarief[t]||{grondslag:0,btw:0};
+  /* Btw heeft geen tegelstrip. Die stond er wel, en herhaalde regel voor
+     regel de rubriekentabel eronder -- de tegel "Btw 21%" zei zelfs
+     letterlijk "rubriek 1a · over € 2.520,00", dus precies de twee getallen
+     uit de rij eronder. Op één scherm stond hetzelfde btw-bedrag zo zes
+     keer. De rubriekenkaarten zíjn de samenvatting: dat is wat je op het
+     aangifteformulier overneemt. */
+  if(facView==='btw'){box.innerHTML='';return;}
+
+  /* Debiteuren houdt alleen wat de ouderdomstegels niet al zeggen. De
+     tegels "Openstaand" en "Te laat" waren de optelsom van de tegels
+     direct eronder (en "Openstaand" stond ook nog in de tabelvoet). */
+  if(facView==='debiteuren'){
+    const lijst=facZichtbaar();
+    const som=arr=>arr.reduce((s,f)=>s+factuurTotalen(f).incl,0);
+    const betaald=lijst.filter(f=>f.status==='betaald');
+    const omzet=lijst.filter(f=>f.status!=='concept').reduce((s,f)=>s+factuurTotalen(f).excl,0);
+    const per=facPeriode().kort;
     box.innerHTML=`
-      ${facKpi('Omzet',factuurFmtBedrag(o.grondslagTotaal),'','excl. btw · '+o.aantal+' factu'+(o.aantal===1?'ur':'ren'),'var(--mint)')}
-      ${facKpi('Btw 21%',factuurFmtBedrag(per('21').btw),'','rubriek 1a · over '+factuurFmtBedrag(per('21').grondslag),'var(--info)')}
-      ${facKpi('Btw 9%',factuurFmtBedrag(per('9').btw),'','rubriek 1b · over '+factuurFmtBedrag(per('9').grondslag),'var(--info)')}
-      ${facKpi('Af te dragen',factuurFmtBedrag(o.btwTotaal),'','vóór aftrek voorbelasting','var(--warning)')}`;
+      ${facKpi('Omzet '+per,factuurFmtBedrag(omzet),'','excl. btw · verstuurd en betaald','var(--mint)')}
+      ${facKpi('Betaald '+per,factuurFmtBedrag(som(betaald)),'',betaald.length+' factu'+(betaald.length===1?'ur':'ren'),'var(--success)')}`;
     return;
   }
   const lijst=facZichtbaar();
@@ -18981,11 +18993,16 @@ function facRenderBtw(){
     html+=`<tr><td><span class="fac-nr">${r.code}</span></td>
       <td>${r.oms}${(k==='verlegd'||k==='0')?' <small class="fac-btw-nb">— geen btw af te dragen</small>':''}</td>
       <td class="num"><span class="fac-bedrag">${factuurFmtBedrag(v.grondslag)}</span></td>
-      <td class="num"><span class="fac-bedrag">${factuurFmtBedrag(v.btw)}</span></td></tr>`;
+      <td class="num"><span class="fac-bedrag">${factuurFmtBedrag(v.btw)}</span>${
+        Object.keys(o.perTarief).length<2?'<small class="fac-btw-nb"> — rubriek 5a</small>':''}</td></tr>`;
   });
-  html+=`</tbody><tfoot><tr><td colspan="2">Totaal — de btw-kolom is rubriek 5a</td>
+  /* Een totaalrij onder één rubriek herhaalt die rubriek. Dan verhuist de
+     verwijzing naar rubriek 5a naar de rij zelf, want dát is de informatie:
+     welk vakje op het formulier. */
+  const eenRubriek=Object.keys(o.perTarief).length<2;
+  html+=`</tbody>${eenRubriek?'':`<tfoot><tr><td colspan="2">Totaal — de btw-kolom is rubriek 5a</td>
     <td class="num">${factuurFmtBedrag(o.grondslagTotaal)}</td>
-    <td class="num">${factuurFmtBedrag(o.btwTotaal)}</td></tr></tfoot></table></div>`;
+    <td class="num">${factuurFmtBedrag(o.btwTotaal)}</td></tr></tfoot>`}</table></div>`;
   html+=facBtwRubriekKaarten(o,volgorde);
 
   html+=`<div class="fac-btw-let"><b>Dit is niet het bedrag dat je overmaakt.</b>
@@ -19025,17 +19042,20 @@ function facRenderBtw(){
    waarschuwing letterlijk niets stond. Dit zijn die tegenhangers. */
 function facBtwRubriekKaarten(o,volgorde){
   const rang=k=>{const i=volgorde.indexOf(k);return i<0?99:i;};
+  /* Zie de tabel hierboven: bij één rubriek is de totaalregel diezelfde
+     rubriek nog een keer. */
+  const eenRubriek=Object.keys(o.perTarief).length<2;
   let html='<div class="fac-mlist">';
   Object.keys(o.perTarief).sort((a,b)=>rang(a)-rang(b)).forEach(k=>{
     const r=facBtwRubriek(k), v=o.perTarief[k];
     html+=`<div class="fac-mrub">
       <span class="kop"><span class="fac-nr">${r.code}</span><span class="oms">${r.oms}</span></span>
       <span class="rij"><span>Omzet excl. btw</span><b>${factuurFmtBedrag(v.grondslag)}</b></span>
-      <span class="rij"><span>Btw</span><b>${factuurFmtBedrag(v.btw)}</b></span>
+      <span class="rij"><span>Btw${eenRubriek?' — rubriek 5a':''}</span><b>${factuurFmtBedrag(v.btw)}</b></span>
       ${(k==='verlegd'||k==='0')?'<span class="nb">Geen btw af te dragen</span>':''}
     </div>`;
   });
-  html+=`</div><div class="fac-msom">Rubriek 5a<b>${factuurFmtBedrag(o.btwTotaal)}</b></div>`;
+  html+=`</div>${eenRubriek?'':`<div class="fac-msom">Rubriek 5a<b>${factuurFmtBedrag(o.btwTotaal)}</b></div>`}`;
   return html;
 }
 function facBtwRegelKaarten(o,stelsel){
