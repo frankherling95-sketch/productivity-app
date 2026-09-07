@@ -10,6 +10,31 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-07 · De factuureditor: geen zijwaartse schuif meer, en een knoppenbalk in twee kolommen
+
+**Probleem 1 — de pagina kon opzij.** Op 2026-09-06 is `overflow-x: hidden` gezet op `html`, `body`, `#appScreen`, `.main-area`, `.module` en de modals. De factuureditor ontsnapte daaraan: zijn inhoud zit in `#facEditorBody`, een div met een eigen `overflow-y: auto` in een style-attribuut. Zodra één as op `auto` staat maakt de browser de andere óók schuifbaar — dus daar kon je alsnog slepen.
+
+**Beslissing.** `#facEditorBody` krijgt op mobiel `overflow-x: hidden`. Dat mag: het enige brede onderdeel is de regeltabel, en die staat op een telefoon als blokjes onder elkaar. Op een bureaublad blijft `auto` staan, want daar is het wél een tabel.
+
+**Probleem 2 — de oorzaak, niet alleen het symptoom.** Een `input[type="date"]` heeft een eigen voorkeursbreedte, en die verschilt per browser: Safari is ruimer dan Chrome. Is hij breder dan zijn kolom, dan rekt hij het raster op. In Chrome viel het niet op — vandaar dat het hier niet te reproduceren was terwijl het op de telefoon zichtbaar was. Elk datum- en tijdveld krijgt daarom `width: 100%; min-width: 0; max-width: 100%`.
+
+**Probleem 3 — de knoppenbalk.** Op een bureaublad is dat één regel: links beheer, rechts wat je met de factuur doet, met een vuldiv ertussen. Op een telefoon werd het een rafelrand: bij een verstuurde factuur zeven knoppen over vier regels, elk 35px hoog, elk een andere breedte, en de vuldiv die "Voorbeeld" halverwege naar rechts duwde.
+
+**Beslissing.** De vuldiv (nu `.fac-ed-actievul`) gaat op mobiel weg en elke knop wordt een half vak: `flex: 1 1 calc(50% - 4px)`, `var(--tap)` hoog. De hoofdknop krijgt de volle breedte en `order: 1`, dus hij staat altijd onderaan.
+
+**Waarom halve vakken en niet "groei tot het past"** (zoals in de voet van een modaal): met vijf tot zeven knoppen levert dat losse knoppen op die over de volle breedte uitrekken en dan als hoofdknop lezen. Twee vaste kolommen lijnen uit, ongeacht het aantal:
+
+```
+Verwijderen        | Dupliceren
+← Terug naar conc. | Voorbeeld
+↧ PDF              | ✉ Opnieuw mailen
+Betaling registreren (volle breedte)
+```
+
+**Bestanden**: `index.html` — `#facEditorBody { overflow-x: hidden }` en het blok `#facEditorActies` in de mobiele laag, `.fac-ed-actievul` in plaats van vier `<div style="flex:1">`, datum/tijd-velden begrensd; `sw.js` → `herling-v32`
+
+**Niet doen.** `overflow-x: hidden` op een schuifvlak zetten zonder te kijken wát er breed is. Hier mag het omdat de tabel op mobiel geen tabel meer is; bij Uren en het kanbanbord is schuiven juist de bedoeling (zie de lijst uitzonderingen in de mobiele laag).
+
 ## 2026-09-07 · Het kruisje hoort ín de kopbalk — en waarom de eerste poging de balk sloopte
 
 **Wat er misging.** De eerste uitwerking (2026-09-06) zette het kruisje in een eigen rij als *eerste kind* van `.modal`. Daarmee viel de gekleurde kopbalk weg in twaalf modalen. Die balk is namelijk geen eigen element: hij wordt getekend door `.modal h3:first-child` — **de kop ís de band**. Zet je er iets voor, dan matcht de selector niet meer en is de band weg. Gemeten was alles behalve of de koppen er nog hetzelfde uitzagen; dat is precies wat een voor/na-beeld in één oogopslag had laten zien.

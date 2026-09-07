@@ -1528,6 +1528,10 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
   font-family:inherit;color:var(--text);outline:none;box-sizing:border-box;
 }
 .fac-ed-inp:focus{border-color:var(--mint);box-shadow:0 0 0 3px var(--mint-soft)}
+/* Scheidt in de actiebalk het beheer (verwijderen, dupliceren) van wat je
+   met de factuur dóét. Op een telefoon valt hij weg -- daar staan de
+   knoppen onder elkaar. */
+.fac-ed-actievul{flex:1}
 .fac-ed-inp.num{text-align:right;font-family:var(--font-mono);font-variant-numeric:tabular-nums;-moz-appearance:textfield}
 .fac-ed-inp.num::-webkit-inner-spin-button,.fac-ed-inp.num::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 .fac-ed-del{
@@ -4381,7 +4385,14 @@ textarea { line-height: 1.6; resize: vertical; }
     padding-right: 26px !important;
   }
   /* Het knopje van een datumveld schaalt met de tekst mee. */
-  input[type="date"], input[type="time"] { padding-right: 8px !important; }
+  /* Een datumveld heeft een eigen voorkeursbreedte, en die verschilt per
+     browser -- in Safari is hij ruimer dan in Chrome. Is hij breder dan zijn
+     kolom, dan rekt hij het raster op en kun je de hele pagina opzij slepen.
+     Vandaar hier een harde bovengrens; het veld vult zijn kolom en niet meer. */
+  input[type="date"], input[type="time"] {
+    padding-right: 8px !important;
+    width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box;
+  }
 
   /* Safari-tabblad op iOS: terug naar 16px, anders springt het scherm. */
   .ios-tab input:not([type="checkbox"]):not([type="radio"]),
@@ -5241,7 +5252,37 @@ textarea { line-height: 1.6; resize: vertical; }
      Op een klasse en niet op :first-of-type -- die selector keek naar de
      eerste div in de editor, en zodra "Factureren vanuit" ervoor stond
      (dus zodra je een tweede bedrijf had) raakte hij niets meer. */
+  /* De editor heeft zijn eigen schuifvlak (inline overflow-y:auto), en zodra
+     één as op auto staat maakt de browser de andere óók schuifbaar. Alles wat
+     hier breed is -- de regeltabel -- staat op een telefoon als blokjes
+     onder elkaar, dus er valt niets te schuiven en dit mag dicht. */
+  #facEditorBody { overflow-x: hidden !important; }
   #facEditorBody .fac-ed-stapel { grid-template-columns: minmax(0, 1fr); }
+
+  /* ══ Knoppenbalk van de editor ══
+     Op een bureaublad is dit één regel: links beheer, rechts wat je met de
+     factuur doet, met een vuldiv ertussen. Op een telefoon paste dat niet en
+     werd het een rafelrand -- bij een verstuurde factuur zeven knoppen over
+     vier regels, elk 35px hoog en elk een andere breedte.
+
+     Zelfde afspraak als de voet van een modaal: de vuldiv gaat weg, elke knop
+     is een vak dat meegroeit, en de hoofdknop krijgt zijn eigen regel over de
+     volle breedte. Zo vult elke regel zich netjes en staat de knop die je
+     zoekt onderaan, waar je duim al is. */
+  .fac-ed-actievul { display: none; }
+  #facEditorActies { gap: var(--sp-2) !important; padding: 12px !important; }
+  /* Twee per regel, en niet "groei maar tot het past": met vijf tot zeven
+     knoppen levert dat laatste losse knoppen op die over de volle breedte
+     uitrekken en dan als hoofdknop lezen. Vaste halve vakken geven een
+     raster van twee kolommen waarin alles uitlijnt. */
+  #facEditorActies .uren-btn {
+    flex: 1 1 calc(50% - var(--sp-1));
+    min-width: 0;
+    justify-content: center;
+    height: var(--tap); min-height: var(--tap);
+  }
+  #facEditorActies .uren-btn-primary { flex-basis: 100%; order: 1; }
+
 
   .fac-ed-regelbalk { flex-wrap: wrap; gap: 6px; }
   .fac-ed-regelbalk-vul { display: none; }
@@ -7091,7 +7132,7 @@ textarea { line-height: 1.6; resize: vertical; }
     <div style="padding:12px 20px;border-top:0.5px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex-shrink:0">
       <!-- Een PDF in een iframe blijft leeg op iOS; daar is dit de weg eromheen. -->
       <button class="uren-btn" data-fac-action="facPreviewNieuwTab">Openen in nieuw tabblad</button>
-      <div style="flex:1"></div>
+      <div class="fac-ed-actievul"></div>
       <button class="uren-btn" data-fac-action="facPreviewPdf">↧ PDF opslaan</button>
       <button class="uren-btn uren-btn-primary" data-fac-action="closeFacPreview">Sluiten</button>
     </div>
@@ -7589,7 +7630,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <select id="bulkClientSel"><option value="">— Klant —</option></select>
         <select id="bulkCatSel"><option value="">— Categorie —</option></select>
         <button class="btn btn-xs btn-primary" onclick="applyBulk()">Toepassen</button>
-        <div style="flex:1"></div>
+        <div class="fac-ed-actievul"></div>
         <label style="display:flex;align-items:center;gap:5px;cursor:pointer">
           <input type="checkbox" id="selectAllChk" onchange="toggleSelectAll(this.checked)"/> Alles
         </label>
@@ -18992,7 +19033,7 @@ function facEditorRender(){
     acties=`<button class="uren-btn" data-fac-action="facVerwijder">Verwijderen</button>
       <button class="uren-btn" data-fac-action="facDupliceer"
         title="Maak een nieuw concept met dezelfde regels en gegevens">Dupliceren</button>
-      <div style="flex:1"></div>
+      <div class="fac-ed-actievul"></div>
       <button class="uren-btn" data-fac-action="facPreview">Voorbeeld</button>
       <button class="uren-btn" data-fac-action="facPdf">↧ PDF</button>
       <button class="uren-btn uren-btn-primary" data-fac-action="facVerstuur">Versturen</button>`;
@@ -19000,7 +19041,7 @@ function facEditorRender(){
     acties=`<button class="uren-btn" data-fac-action="facVerwijder">Verwijderen</button>
       <button class="uren-btn" data-fac-action="facDupliceer">Dupliceren</button>
       <button class="uren-btn" data-fac-action="facTerugConcept">← Terug naar concept</button>
-      <div style="flex:1"></div>
+      <div class="fac-ed-actievul"></div>
       <button class="uren-btn" data-fac-action="facPreview">Voorbeeld</button>
       <button class="uren-btn" data-fac-action="facPdf">↧ PDF</button>
       <button class="uren-btn${f.gemaildOp?'':' uren-btn-primary'}" data-fac-action="facMail"
