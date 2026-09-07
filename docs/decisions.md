@@ -1823,3 +1823,35 @@ administratie: het is een kijkvoorkeur per apparaat, net als het thema.
 
 **Niet doen.** De tegels weghalen. Ze kloppen en ze zijn nuttig — ze hoeven
 alleen niet elke keer als eerste in beeld te staan.
+
+## 2026-09-07 · Klantgroepen verbergen in Notities
+
+**Probleem.** Elke klant krijgt een eigen groep in de notitieboom, ook een
+klant waar al een jaar niets meer voor gebeurt. Die staan dan tussen de
+lopende dossiers in.
+
+**Beslissing.** `notesState.verborgenKlanten` — een lijst met klant-id's
+waarvan de groep niet in de boom staat. Verbergen is een **weergave**, geen
+verwijdering: de notities blijven, de klant blijft, en in het klantfilter
+(dat van alle modules samen is) staat hij gewoon.
+
+- **Verbergen** gebeurt in de groepskop zelf, naast de `+`: een oog met een
+  streep erdoor. Daar zie je de klant, dus daar hoort de knop. Op mobiel staan
+  die knoppen al op `opacity:1` (2026-09-05), dus één tik is genoeg.
+- **Het overzicht** staat onderaan de boom: *"3 klanten verborgen"*, uitklapbaar
+  naar een lijst met per klant een oog om hem terug te halen, plus "Alles weer
+  tonen". Onderaan, want het gaat over wat je juist niet hoeft te zien — maar
+  wél in beeld, anders is het weg zonder dat je weet dat het weg is.
+- Verbergen geeft een toast met **ongedaan maken**, zoals elke verwijderactie.
+
+**Waarom niet in het klantfilter.** Frank stelde dat voor. Maar dat filter
+wordt door alle modules gedeeld, en de knopjes die daar in de regels stonden
+kostten op een telefoon de eerste tik — daarom zijn ze er eerder vandaag juist
+uitgehaald. Ze terugzetten voor een oog zou dezelfde fout opnieuw maken.
+
+**Bestanden.** `index.html` — `notesKlantVerborgen/Verbergen/Tonen()`,
+`notesToonAlleKlanten()`, `toggleNotesVerborgen()`, `renderNotesTree()`,
+`.note-verborgen*`, hydratiestap, `NOTES_OOG_DICHT/OPEN`. `CLAUDE.md`.
+
+**Niet doen.** Er een globale "inactieve klant" van maken zonder het te vragen:
+dat raakt ook de Checklist, Uren en Facturen, en dat is een andere beslissing.

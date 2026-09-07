@@ -2747,6 +2747,33 @@ textarea { line-height: 1.6; resize: vertical; }
 }
 .note-client-hdr .note-client-actions button:hover { background: var(--surface3); color: var(--text); }
 .note-client-body { padding-left: 12px; padding-top: 2px; }
+/* Verborgen klanten: één regel onderaan de boom, zodat je ziet dát er iets
+   verborgen is. Uitklappen geeft de lijst met een oog om ze terug te halen. */
+.note-verborgen { margin-top: 10px; border-top: 1px solid var(--border); padding-top: 8px; }
+.note-verborgen-kop {
+  display: flex; align-items: center; gap: 7px; width: 100%;
+  padding: 6px 8px; background: transparent; border: 0; border-radius: 6px;
+  font-family: inherit; font-size: 11px; font-weight: 600;
+  color: var(--text-hint); cursor: pointer; text-align: left;
+}
+.note-verborgen-kop:hover { background: var(--surface2); color: var(--text-muted); }
+.note-verborgen-kop .lab { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.note-verborgen-kop .chev { font-size: 10px; transition: transform 0.15s; }
+.note-verborgen.open .note-verborgen-kop .chev { transform: rotate(180deg); }
+.note-verborgen-rij {
+  display: flex; align-items: center; gap: 7px;
+  padding: 4px 8px 4px 4px; font-size: 11.5px; color: var(--text-muted);
+}
+.note-verborgen-rij .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.note-verborgen-rij button {
+  background: transparent; border: 0; color: var(--text-hint); cursor: pointer;
+  padding: 1px 6px; border-radius: 4px; line-height: 1; display: inline-flex; align-items: center;
+}
+.note-verborgen-rij button:hover { background: var(--surface3); color: var(--text); }
+.note-verborgen-alles {
+  background: transparent; border: 0; color: var(--accent); cursor: pointer;
+  font-family: inherit; font-size: 11px; font-weight: 600; padding: 5px 8px;
+}
 .note-client-empty { font-size: 10.5px; color: var(--text-hint); padding: 4px 8px; font-style: italic; }
 
 /* ═════════════════════════════════════════════════════════════════════════════
@@ -5764,7 +5791,8 @@ textarea { line-height: 1.6; resize: vertical; }
      waren ze onzichtbaar én raakbaar tegelijk -- 19x14px onzichtbare knop
      naast de naam. Op mobiel dus gewoon zichtbaar, en groot genoeg. */
   .note-client-hdr .note-client-actions { opacity: 1 !important; }
-  .note-client-hdr .note-client-actions button {
+  .note-client-hdr .note-client-actions button,
+  .note-verborgen-rij button {
     min-width: 32px;
     min-height: 32px;
     display: inline-flex;
@@ -5772,6 +5800,9 @@ textarea { line-height: 1.6; resize: vertical; }
     justify-content: center;
     font-size: var(--fs-klein);
   }
+  .note-verborgen-kop,
+  .note-verborgen-rij { font-size: var(--fs-micro) !important; }
+  .note-verborgen-kop { min-height: var(--tap); }
 
   /* Laatste losse waarde onder de ondergrens. */
   .cl2-client-tag { font-size: var(--fs-micro) !important; }
@@ -8700,6 +8731,9 @@ function hydrateerState(){
   if(!notesState.tree)notesState.tree=[];
   if(!notesState.sortBy)notesState.sortBy='handmatig';
   if(!Array.isArray(notesState.prullenbak))notesState.prullenbak=[];
+  /* Klanten waarvan de groep niet in de notitieboom staat. Alleen hier:
+     de klant bestaat gewoon door, met al zijn notities, uren en facturen. */
+  if(!Array.isArray(notesState.verborgenKlanten))notesState.verborgenKlanten=[];
   checklistState=rawState.checklist||{items:[],showArchived:false,sortBy:'newest',groupByPriority:true};
   if(!checklistState.items)checklistState.items=[];
   migreerChecklistVolgorde();
@@ -12579,6 +12613,42 @@ function startInlineRename(id,labelEl){
   };
 }
 function toggleFolder(id,e){if(e)e.stopPropagation();notesState.collapsed[id]=!notesState.collapsed[id];renderNotesTree();}
+
+/* ── Klantgroepen verbergen ──
+   Een oude klant waar je niets meer voor doet houdt wel zijn dossier, maar
+   hoeft niet elke dag in de boom te staan. Verbergen is dus een weergave en
+   geen verwijdering: de notities blijven, de klant blijft, en in het
+   klantfilter staat hij gewoon. Alleen de groep in deze lijst gaat weg.
+
+   Bewust niet in het klantfilter zelf gezet: dat filter is van alle modules
+   samen, en de knopjes die daar in de regels stonden kostten op een telefoon
+   de eerste tik (zie de beslissing van 2026-09-07). Hier staat het waar je de
+   klant ziet: in zijn eigen groepskop. */
+function notesKlantVerborgen(id){
+  return (notesState.verborgenKlanten||[]).includes(id);
+}
+function notesKlantVerbergen(id){
+  notesState.verborgenKlanten=notesState.verborgenKlanten||[];
+  if(!notesState.verborgenKlanten.includes(id))notesState.verborgenKlanten.push(id);
+  scheduleSave();renderNotesTree();
+  const c=clientById(id);
+  appToast(`${c?c.name:'Klant'} verborgen in Notities`,{type:'success',undo:()=>notesKlantTonen(id)});
+}
+function notesKlantTonen(id){
+  notesState.verborgenKlanten=(notesState.verborgenKlanten||[]).filter(x=>x!==id);
+  scheduleSave();renderNotesTree();
+}
+function notesToonAlleKlanten(){
+  notesState.verborgenKlanten=[];
+  scheduleSave();renderNotesTree();
+}
+/* Open of dicht is niets om te bewaren: je klapt het open om iets terug te
+   zetten en daarna is het klaar. */
+let notesVerborgenOpen=false;
+function toggleNotesVerborgen(){
+  notesVerborgenOpen=!notesVerborgenOpen;
+  renderNotesTree();
+}
 function deleteNode(id){
   const r=findNode(notesState.tree,id);if(!r)return;
   const label=r.node.type==='folder'?'Groep "'+r.node.title+'"':'Notitie "'+r.node.title+'"';
@@ -13098,6 +13168,7 @@ function renderNotesTree(){
   notesState.clientGroupCollapsed=notesState.clientGroupCollapsed||{};
   const groupHtml=[];
   clients.forEach(c=>{
+    if(notesKlantVerborgen(c.id))return;
     const sub=filterNoteTree(notesState.tree,c.id);
     const col=CLIENT_COLORS[c.colorIdx%CLIENT_COLORS.length];
     const collapsed=!!notesState.clientGroupCollapsed[c.id];
@@ -13111,6 +13182,9 @@ function renderNotesTree(){
           <span class="note-client-count">${count}</span>
           <span class="note-client-actions">
             <button data-action="createNoteForClient" data-arg1="${c.id}" title="Nieuwe notitie voor ${escapeHtml(c.name)}">+</button>
+            <button data-action="notesKlantVerbergen" data-arg1="${c.id}"
+              title="${escapeHtml(c.name)} verbergen in Notities"
+              aria-label="${escapeHtml(c.name)} verbergen in Notities">${NOTES_OOG_DICHT}</button>
           </span>
         </div>
         ${collapsed?'':`<div class="note-client-body">${sub.length?notesSorteer(sub).map(n=>renderNoteNode(n,0)).join(''):'<div class="note-client-empty">Geen notities</div>'}</div>`}
@@ -13132,9 +13206,50 @@ function renderNotesTree(){
         ${collapsed?'':`<div class="note-client-body">${notesSorteer(orphan).map(n=>renderNoteNode(n,0)).join('')}</div>`}
       </div>`);
   }
-  el.innerHTML=groupHtml.join('')||`<div style="color:var(--text-hint);font-size:11px;padding:8px;text-align:center">Geen notities</div>`;
+  /* Wat verborgen is, blijft zichtbaar als regel -- anders is het weg zonder
+     dat je weet dat het weg is. Onderaan, want het gaat over wat je niet
+     hoeft te zien. */
+  const verborgen=(notesState.verborgenKlanten||[])
+    .map(id=>clients.find(c=>c.id===id)).filter(Boolean);
+  let bakHtml='';
+  if(verborgen.length){
+    bakHtml=`<div class="note-verborgen${notesVerborgenOpen?' open':''}">
+      <button type="button" class="note-verborgen-kop" data-action="toggleNotesVerborgen"
+        aria-expanded="${notesVerborgenOpen?'true':'false'}">
+        ${NOTES_OOG_DICHT}
+        <span class="lab">${verborgen.length} klant${verborgen.length===1?'':'en'} verborgen</span>
+        <span class="chev">\u25be</span>
+      </button>
+      ${notesVerborgenOpen?`<div class="note-verborgen-lijst">
+        ${verborgen.map(c=>{
+          const col=CLIENT_COLORS[c.colorIdx%CLIENT_COLORS.length];
+          const n=flattenNotes(filterNoteTree(notesState.tree,c.id)).filter(x=>x.type==='page').length;
+          return `<div class="note-verborgen-rij">
+            <span class="note-client-dot" style="background:${col.bg}"></span>
+            <span class="nm">${escapeHtml(c.name)}</span>
+            <span class="note-client-count">${n}</span>
+            <button type="button" data-action="notesKlantTonen" data-arg1="${c.id}"
+              title="${escapeHtml(c.name)} weer tonen" aria-label="${escapeHtml(c.name)} weer tonen">${NOTES_OOG_OPEN}</button>
+          </div>`;
+        }).join('')}
+        ${verborgen.length>1?`<button type="button" class="note-verborgen-alles"
+          data-action="notesToonAlleKlanten">Alles weer tonen</button>`:''}
+      </div>`:''}
+    </div>`;
+  }
+  el.innerHTML=(groupHtml.join('')||`<div style="color:var(--text-hint);font-size:11px;padding:8px;text-align:center">Geen notities</div>`)+bakHtml;
   renderRecentNotes();
 }
+
+/* Oog dicht = verbergen, oog open = weer tonen. Als svg en niet als emoji:
+   een emoji-oog wisselt per toestel van kleur en van maat. */
+const NOTES_OOG_DICHT='<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" '+
+  'stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+
+  '<path d="M2 8s2.4-3.5 6-3.5S14 8 14 8s-2.4 3.5-6 3.5S2 8 2 8z"/><circle cx="8" cy="8" r="1.6"/>'+
+  '<line x1="3" y1="13" x2="13" y2="3"/></svg>';
+const NOTES_OOG_OPEN='<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" '+
+  'stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+
+  '<path d="M2 8s2.4-3.5 6-3.5S14 8 14 8s-2.4 3.5-6 3.5S2 8 2 8z"/><circle cx="8" cy="8" r="1.6"/></svg>';
 
 /* Tree of notes without any clientId (folders kept if they contain orphan descendants) */
 function filterOrphanNotes(nodes){
@@ -13658,6 +13773,10 @@ Object.assign(APP_ACTIONS,{
   },
   toggleNoteClientGroup:(el,e,id)=>toggleNoteClientGroup(id),
   createNoteForClient:(el,e,id)=>{e.stopPropagation();createNoteForClient(id);},
+  notesKlantVerbergen:(el,e,id)=>{e.stopPropagation();notesKlantVerbergen(id);},
+  notesKlantTonen:(el,e,id)=>{e.stopPropagation();notesKlantTonen(id);},
+  notesToonAlleKlanten:()=>notesToonAlleKlanten(),
+  toggleNotesVerborgen:()=>toggleNotesVerborgen(),
   pickTemplate:(el,e,id)=>pickTemplate(id),
   deleteNode:(el,e,id)=>deleteNode(id),
   /* Rich-text editor toolbar */

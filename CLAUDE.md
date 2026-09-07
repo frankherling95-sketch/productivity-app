@@ -53,7 +53,7 @@ Entry render functions: `renderDashboard()`, `renderTodoModule()`, `renderNotesM
 ```js
 rawState = {
   tasks:    kanbanState,     // {projects, activeProject, clients, tags, categoryGrouping}
-  notes:    notesState,      // {tree, activeId, collapsed, clientGroupCollapsed, recentIds, sortBy, prullenbak}
+  notes:    notesState,      // {tree, activeId, collapsed, clientGroupCollapsed, recentIds, sortBy, prullenbak, verborgenKlanten}
   checklist: checklistState, // {items, showArchived, sortBy, groupByPriority}
   uren:     urenState,       // {entries, templates}
   // agenda: verwijderd 2026-09-06; oude events blijven ongemoeid in Drive staan
