@@ -1797,3 +1797,29 @@ langer ongebruikte `editClientStop`/`deleteClientStop`.
 
 **Niet doen.** Een tweede scherm bouwen om klanten te beheren. Het tabblad
 Klanten in Facturen is dat scherm al.
+
+## 2026-09-07 · Debiteuren opent op de facturen, niet op de cijfers
+
+**Probleem.** Zeven tegels boven een lijst van twee facturen. Op een telefoon
+moest je twee schermen scrollen voordat je bij de eerste factuur was — terwijl
+je Debiteuren opent om te zien wie er nog moet betalen en om "Betaald" aan te
+tikken. Frank: *"Ik vind deze kpi blokken te veel. Kan jij een deel verbergen
+onder een knop of desnoods alle onderdelen?"*
+
+**Beslissing.** Alle zeven achter één uitklapregel, standaard dicht — dezelfde
+vorm als de filterregel in de Checklist (2026-09-06): één regel die zegt wát
+erachter zit, en die je opentikt. De regel toont het **aantal** te late
+facturen, niet het bedrag: dat bedrag staat al in de voet van de tabel, en dan
+zou de regel die de cijfers wegstopt er zelf één verdubbelen.
+
+De strip Omzet/Betaald staat nu óók in dat blok in plaats van in de topbalk;
+anders viel de helft van de cijfers buiten de schakelaar.
+
+De keuze staat in `localStorage` (`herling_deb_cijfers`), niet in de
+administratie: het is een kijkvoorkeur per apparaat, net als het thema.
+
+**Bestanden.** `index.html` — `facCijfersOpen()`/`facToggleCijfers()`,
+`facRenderDebiteuren()`, `facRenderKpis()`, `.fac-cijfers-kop`/`.fac-aging-2`.
+
+**Niet doen.** De tegels weghalen. Ze kloppen en ze zijn nuttig — ze hoeven
+alleen niet elke keer als eerste in beeld te staan.

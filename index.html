@@ -1447,7 +1447,27 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .fac-pill-oninbaar{background:var(--surface3);border-color:var(--border-strong);opacity:.7}
 
 /* Debiteuren: ouderdomskolommen */
+/* Zeven tegels boven een lijst van twee facturen: op een telefoon moest je
+   twee schermen scrollen voor je bij de eerste factuur was. Ze staan er nog,
+   maar achter deze regel -- dezelfde vorm als de filterregel in de Checklist:
+   één regel die zegt wát erachter zit, en die je opentikt. */
+.fac-cijfers-kop{
+  display:flex;align-items:center;gap:9px;width:100%;min-height:var(--tap);
+  padding:8px 13px;margin-bottom:10px;
+  background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-md);
+  font-family:inherit;font-size:var(--fs-klein);color:var(--text);
+  cursor:pointer;text-align:left;box-shadow:var(--shadow-card);
+}
+.fac-cijfers-kop:hover{border-color:var(--border-strong)}
+.fac-cijfers-kop .lab{font-weight:600}
+.fac-cijfers-kop .sam{color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fac-cijfers-kop .sam.laat{color:var(--danger);font-weight:600}
+.fac-cijfers-kop .caret{margin-left:auto;flex:none;transition:transform .15s}
+.fac-cijfers-kop[aria-expanded="true"] .caret{transform:rotate(180deg)}
 .fac-aging{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px}
+/* Omzet en Betaald horen niet in de ouderdomsreeks maar wel in hetzelfde
+   uitklapblok; twee kolommen zodat ze niet als losse ouderdomsbak lezen. */
+.fac-aging-2{grid-template-columns:repeat(2,1fr)}
 /* Zelfde doos als .uren-kpi hierboven; label, waarde en bijregel staan
    daar in dezelfde regels. */
 .fac-aging-cel{
@@ -18163,6 +18183,7 @@ let facWizard=null;       /* {clientId,from,to} tijdens "nieuwe factuur" */
 /* ── Event-delegatie (zelfde patroon als Uren) ── */
 const FAC_CLICK_ACTIONS={
   facSetView:(a)=>facSetView(a),
+  facToggleCijfers:()=>facToggleCijfers(),
   facNavPrev:()=>facNav(-1),
   facNavNext:()=>facNav(1),
   facNavHuidig:()=>{
@@ -18541,17 +18562,9 @@ function facRenderKpis(){
   /* Debiteuren houdt alleen wat de ouderdomstegels niet al zeggen. De
      tegels "Openstaand" en "Te laat" waren de optelsom van de tegels
      direct eronder (en "Openstaand" stond ook nog in de tabelvoet). */
-  if(facView==='debiteuren'){
-    const lijst=facZichtbaar();
-    const som=arr=>arr.reduce((s,f)=>s+factuurTotalen(f).incl,0);
-    const betaald=lijst.filter(f=>f.status==='betaald');
-    const omzet=lijst.filter(f=>f.status!=='concept').reduce((s,f)=>s+factuurTotalen(f).excl,0);
-    const per=facPeriode().kort;
-    box.innerHTML=`
-      ${facKpi('Omzet '+per,factuurFmtBedrag(omzet),'','excl. btw · verstuurd en betaald','var(--mint)')}
-      ${facKpi('Betaald '+per,factuurFmtBedrag(som(betaald)),'',betaald.length+' factu'+(betaald.length===1?'ur':'ren'),'var(--success)')}`;
-    return;
-  }
+  /* Debiteuren zet zijn cijfers zelf neer, achter de uitklapregel -- anders
+     staat de helft erboven en de helft eronder. */
+  if(facView==='debiteuren'){box.innerHTML='';return;}
   const lijst=facZichtbaar();
   const som=arr=>arr.reduce((s,f)=>s+factuurTotalen(f).incl,0);
   const openstaand=facBedrijfFacturen().filter(f=>f.status==='verstuurd');
@@ -18716,6 +18729,16 @@ function facStatusPil(f){
    Standaard in dit vak: hoe lang staat een factuur al open. Niet
    beperkt tot het gekozen jaar — een openstaande factuur uit vorig
    jaar is juist het interessantst. */
+/* Wel of niet de cijfers erboven. Een kijkvoorkeur per apparaat, dus in
+   localStorage en niet in de administratie -- net als het thema. */
+const LS_DEB_CIJFERS='herling_deb_cijfers';
+function facCijfersOpen(){
+  try{return localStorage.getItem(LS_DEB_CIJFERS)==='1';}catch(e){return false;}
+}
+function facToggleCijfers(){
+  try{localStorage.setItem(LS_DEB_CIJFERS,facCijfersOpen()?'0':'1');}catch(e){}
+  facRenderAll();
+}
 function facRenderDebiteuren(){
   const open=facBedrijfFacturen().filter(f=>f.status==='verstuurd');
   if(!open.length){
@@ -18731,7 +18754,35 @@ function facRenderDebiteuren(){
     <div class="fac-aging-lab">${lab}</div>
     <div class="fac-aging-val">${factuurFmtBedrag(som(groepen[key]))}</div>
     <div class="fac-aging-sub">${groepen[key].length} factu${groepen[key].length===1?'ur':'ren'}</div></div>`;
-  let html=`<div class="fac-aging">
+  /* Het aantal te late facturen, niet het bedrag: dat bedrag staat al in de
+     voet van de tabel eronder, en dan zou de regel die de cijfers wegstopt
+     zelf een cijfer verdubbelen. */
+  const telaat=open.filter(f=>factuurDagenTeLaat(f)>0).length;
+  const cijfersAan=facCijfersOpen();
+  let html=`<button type="button" class="fac-cijfers-kop" data-fac-action="facToggleCijfers"
+      aria-expanded="${cijfersAan?'true':'false'}">
+    <span class="lab">Cijfers</span>
+    <span class="sam${telaat?' laat':''}">${telaat
+      ? telaat+' factu'+(telaat===1?'ur':'ren')+' te laat'
+      : 'niets over de vervaldatum'}</span>
+    <svg class="caret icoon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"
+      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5L8 10.5 12 6.5"/></svg>
+  </button>`;
+  if(cijfersAan){
+    const lijst=facZichtbaar();
+    const betaald=lijst.filter(f=>f.status==='betaald');
+    const omzet=lijst.filter(f=>f.status!=='concept').reduce((s,f)=>s+factuurTotalen(f).excl,0);
+    const betaaldSom=betaald.reduce((s,f)=>s+factuurTotalen(f).incl,0);
+    const per=facPeriode().kort;
+    const kpi=(lab,val,sub,kleur)=>`<div class="fac-aging-cel" style="--k:${kleur}">
+      <div class="fac-aging-lab">${escapeHtml(lab)}</div>
+      <div class="fac-aging-val">${factuurFmtBedrag(val)}</div>
+      <div class="fac-aging-sub">${escapeHtml(sub)}</div></div>`;
+    html+=`<div class="fac-aging fac-aging-2">
+      ${kpi('Omzet '+per,omzet,'excl. btw · verstuurd en betaald','var(--mint)')}
+      ${kpi('Betaald '+per,betaaldSom,betaald.length+' factu'+(betaald.length===1?'ur':'ren'),'var(--success)')}</div>`;
+  }
+  if(cijfersAan)html+=`<div class="fac-aging">
     ${cel('Nog niet vervallen','lopend','var(--success)')}
     ${cel('1–30 dagen','d30','var(--warning)')}
     ${cel('31–60 dagen','d60','var(--warning)')}
