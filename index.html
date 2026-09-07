@@ -1269,15 +1269,18 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 }
 .uren-mcard{
   background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-md);
-  padding:10px 13px;display:flex;flex-direction:column;gap:3px;box-shadow:var(--shadow-card);
+  padding:10px 13px;display:flex;align-items:flex-start;gap:10px;box-shadow:var(--shadow-card);
   position:relative;overflow:hidden;width:100%;text-align:left;
   font-family:inherit;color:var(--text);cursor:pointer;
 }
 .uren-mcard::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c,var(--mint))}
 .uren-mcard:active{background:var(--surface2)}
-.uren-mcard .rij{display:flex;align-items:center;gap:9px;width:100%;min-width:0}
+.uren-mcard .links{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+/* Het getal en zijn status onder elkaar, rechts uitgelijnd: de status hoort
+   bij het getal, niet bij de klantnaam. */
+.uren-mcard .rechts{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0}
 .uren-mcard .kl{display:flex;align-items:center;gap:7px;font-size:var(--fs-klein);font-weight:600;
-  flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .uren-mcard .kl .sw{width:9px;height:9px;border-radius:2px;flex-shrink:0}
 .uren-mcard .ds{
   font-size:var(--fs-micro);color:var(--text-muted);line-height:1.45;
@@ -15720,17 +15723,20 @@ function urenRenderRegView(){
     rows.forEach(e=>{
       const col=urenClientColor(e.clientId);
       const st=urenStatusMeta(urenStatusOf(e));
-      /* Klant, status en uren op één regel; de omschrijving alleen eronder
-         als er een is. Stond eerder als drie regels boven elkaar met het
-         aantal uren ernaast -- drie keer zo hoog voor dezelfde inhoud. */
+      /* Twee kolommen: links waar het over gaat (klant, en de omschrijving
+         eronder als er een is), rechts het getal met de status eronder.
+         Stond eerder als drie regels boven elkaar met het aantal uren
+         ernaast -- drie keer zo hoog voor dezelfde inhoud. */
       html+=`<button class="uren-mcard" style="--c:${col.bg}"
         data-uren-action="urenEditEntry" data-uren-arg1="${e.id}">
-        <span class="rij">
+        <span class="links">
           <span class="kl"><span class="sw" style="background:${col.bg}"></span>${escapeHtml(urenClientName(e.clientId))}</span>
-          <span class="uren-pill ${st.cls}" style="cursor:default">${st.icon}${st.label}</span>
-          <span class="hrs">${urenFmt(e.hours)}<small>u</small></span>
+          ${e.description?`<span class="ds">${escapeHtml(e.description)}</span>`:''}
         </span>
-        ${e.description?`<span class="ds">${escapeHtml(e.description)}</span>`:''}
+        <span class="rechts">
+          <span class="hrs">${urenFmt(e.hours)}<small>u</small></span>
+          <span class="uren-pill ${st.cls}" style="cursor:default">${st.icon}${st.label}</span>
+        </span>
       </button>`;
     });
   });

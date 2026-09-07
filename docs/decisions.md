@@ -10,6 +10,14 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-07 · Urenregel: de status onder het getal, niet naast de klant
+
+**Wijziging op de entry hierboven.** De regel stond als *klant · status · uren*. De statuspil hoort echter bij het getal, niet bij de klantnaam: hij zegt of dié uren gefactureerd zijn. Nu twee kolommen — links waar het over gaat (klant, met de omschrijving eronder), rechts het getal met de status eronder, allebei rechts uitgelijnd.
+
+**Bewijs.** Gemeten op 375px: kaart 67px (van 93px in de oorspronkelijke vorm), pil precies onder het getal uitgelijnd, en een lange klantnaam kapt af met een beletselteken in plaats van de rechterkolom weg te duwen.
+
+**Bestanden**: `index.html` — `.uren-mcard` als twee kolommen (`.links` / `.rechts`); `sw.js` → `herling-v48`
+
 ## 2026-09-07 · Het sluitkruis overleeft een kop die opnieuw wordt gezet
 
 **Probleem.** In "Nieuwe registratie" ontbrak het kruisje. Het stond er wél tot je de modaal opende: `urenNewEntry()` zet de titel met `textContent`, en dat wist álle kinderen van die kop — inclusief het kruisje dat er sinds vanochtend in hangt.
