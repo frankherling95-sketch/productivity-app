@@ -33,6 +33,7 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 ├── test.html                     ← browser smoke test
 ├── .githooks/pre-push            ← git hook (na `core.hooksPath` setup)
 └── .claude/                      ← Claude Code config + hooks
+    └── skills/vormgeven/      ← werkwijze bij vormgeefwerk (triggert vanzelf)
 ```
 
 ## Modules (hash routing)
@@ -132,13 +133,16 @@ Bij toevoegen van een nieuw state-veld: voeg een hydratie-stap toe in `hydrateer
 
 Class-prefix per module: `.cl-` checklist, `.dash-` dashboard, `.col-` kanban, `.note(s)-` notes, `.uren-` uren, `.modal-`, `.btn-`, `.toast-`, `.nav-`, `.mod-` (generiek). Geen utility-classes, geen `!important` tenzij echt nodig.
 
-⚠️ **Ga je iets vormgeven — een knop, een menu, een kaart, een pil — lees dan
-eerst [`docs/stijlgids.md`](docs/stijlgids.md).** De app bestaat voor een groot
-deel uit dezelfde soort knop met een andere tekst; die stijlgids zegt per soort
-welke maat, welk gewicht en welk token erbij hoort, en welke afwijkingen bekend
-zijn. Nieuw onderdeel van een bestaande soort? Zet je selector **bij** de
-bestaande regel in plaats van een eigen blok te schrijven — zo zijn de drie
-verschillende maten van het ⋯-icoon en van de filterknop ontstaan.
+⚠️ **Ga je iets vormgeven — een knop, een menu, een kaart, een pil — gebruik dan
+de skill [`vormgeven`](.claude/skills/vormgeven/SKILL.md).** Die bevat de hele
+werkwijze: eerst [`docs/stijlgids.md`](docs/stijlgids.md) lezen (per soort
+onderdeel de maat, het gewicht en het token, plus de bekende afwijkingen),
+aansluiten bij de bestaande CSS-regel in plaats van een eigen blok schrijven,
+op 375px én desktop meten met `getComputedStyle`, en voor/na laten zien.
+
+De app bestaat voor een groot deel uit dezelfde soort knop met een andere
+tekst. Een eigen blok in plaats van aansluiten is hoe het ⋯-icoon drie
+verschillende maten kreeg en de filterknop twee.
 
 ## Dependencies (CDN)
 
@@ -296,6 +300,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |
 | `.claude/launch.json` | Preview-server config (`npx http-server` op poort 8765) |
+| `.claude/skills/vormgeven/` | Werkwijze bij vormgeefwerk — triggert vanzelf op UI-vragen |
 
 ## Privacy & security
 
