@@ -9365,15 +9365,23 @@ async function handleRestoreFile(file){
     if(!incoming||typeof incoming!=='object'){
       throw new Error('Bestand bevat geen geldige state');
     }
-    /* Show a preview-confirm modal before nuking current state */
+    /* Wat zit erin? Deze regel is het enige wat je ziet voordat je je huidige
+       data overschrijft, dus hij hoort élk onderdeel te noemen dat meegaat --
+       anders lijkt het alsof je facturen of uren kwijtraakt terwijl ze gewoon
+       in hetzelfde bestand staan. Alles zit in één state; er wordt niets
+       apart bewaard. */
     const counts=[];
+    const tel=(n,enk,mv)=>counts.push(`${n} ${n===1?enk:mv}`);
     if(incoming.notes?.tree){
       const flat=[];
       (function walk(n){(n||[]).forEach(x=>{flat.push(x);if(x.children)walk(x.children);});})(incoming.notes.tree);
-      counts.push(`${flat.filter(n=>n.type!=='folder').length} notities`);
+      tel(flat.filter(n=>n.type!=='folder').length,'notitie','notities');
     }
-    if(incoming.checklist?.items)counts.push(`${incoming.checklist.items.length} checklist items`);
-    if(incoming.tasks?.clients)counts.push(`${incoming.tasks.clients.length} klanten`);
+    if(incoming.checklist?.items)tel(incoming.checklist.items.length,'checklist item','checklist items');
+    if(incoming.tasks?.clients)tel(incoming.tasks.clients.length,'klant','klanten');
+    if(incoming.facturen?.invoices)tel(incoming.facturen.invoices.length,'factuur','facturen');
+    if(incoming.uren?.entries)tel(incoming.uren.entries.length,'urenregel','urenregels');
+    if(incoming.uren?.templates?.length)tel(incoming.uren.templates.length,'urensjabloon','urensjablonen');
     const summary=counts.length?counts.join(' · '):'Bestand bevat data';
     const ts=payload._exportedAt?new Date(payload._exportedAt).toLocaleString('nl-NL'):'onbekend';
     if(!confirm(`Backup terugzetten?\n\nGeëxporteerd: ${ts}\nInhoud: ${summary}\n\nDe huidige data wordt OVERSCHREVEN. Doorgaan?`))return;
