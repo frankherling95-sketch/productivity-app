@@ -2056,3 +2056,50 @@ overmaakt). Ze horen niet op te tellen; ze horen alleen niet te suggereren van
 wel.
 
 **Bestanden.** `index.html` — `facRenderKpis()`, `facRenderDebiteuren()`.
+
+## 2026-09-07 · Cijfers achter één balk op élk factuur-tabblad, en één kolombreedte
+
+**Probleem.** Drie dingen die samenhangen.
+
+1. De uitklapbalk stond alleen op Debiteuren. Op de andere tabbladen kwamen de
+   cijfers nog steeds als eerste in beeld, terwijl je een tabblad opent om een
+   factuur te zoeken en niet om naar een tegel te kijken.
+2. De tegels stonden in de **topbalk** (`#facKpis`) en de tabel in de
+   **inhoud** (`.uren-content`). Twee containers, en toen de tabel een
+   `max-width` kreeg liep de balk erboven wél door tot de rand en de tabel
+   niet. Frank markeerde precies dat gat: *"Het moet wel mooi uitgelijnd zijn
+   als er zaken van dezelfde breedte onder elkaar staan."*
+3. `SB-2026-0002` paste in geen van de vier factuurtabellen in de
+   nummerkolom — elke tabel had zijn eigen vaste breedte (96, 104, 114, 118px).
+
+**Beslissing.**
+- `facCijferBalk()` bouwt de balk op één plek en `facRenderBody()` zet hem voor
+  élke weergave. `facKpiTegels()` levert de tegels als HTML in plaats van ze in
+  de topbalk te schrijven; Debiteuren heeft zijn eigen set
+  (`facDebiteurenTegels`). De btw-weergave heeft geen tegels en dus ook geen
+  balk. Wat de balk dicht toont is een **aantal**, nooit een bedrag — dat staat
+  verderop toch al.
+- De `max-width` staat op de **kolom** (`#mod-facturen .uren-content`), niet op
+  losse kaarten. Alles in die kolom deelt daarmee dezelfde linker- én
+  rechterrand: balk, tegels, tabel, knoppen.
+- `facNummerBreedte(lijst)` berekent de nummerkolom uit de langste nummerreeks
+  en wordt door alle vier de tabellen gebruikt.
+
+**Wat er onderweg misging, als waarschuwing.** Bij het verplaatsen van de
+tegels bleef `const som` achter in `facRenderDebiteuren` terwijl de tabel eronder
+hem nog gebruikte: `ReferenceError`, `facRenderBody` brak af, en het scherm
+bleef de vórige weergave tonen — het tabblad lichtte wél op. Dat ziet er niet
+uit als een fout maar als "de tab doet niets". Alleen de console verried het.
+Sindsdien wordt elke weergave op `Uncaught` gecontroleerd, niet alleen op het
+oog. Tweede misser: de tegels kwamen zonder rasterwikkel terug en vielen op een
+telefoon onder elkaar — zichtbaar op 375px, niet op 1700px.
+
+**Bestanden.** `index.html` — `facRenderKpis/facKpiTegels/facKpiRaster/
+facDebiteurenTegels/facCijferBalk/facCijferSamenvatting/facNummerBreedte`,
+`facRenderBody`, `#mod-facturen .uren-content`, `.fac-cijfers-blok`, de
+kolomkoppen van vier tabellen, en het kopje van een KPI-tegel dat op mobiel mag
+afbreken.
+
+**Niet doen.** De `max-width` op een kaart zetten in plaats van op de kolom.
+Dan lijnt die kaart niet meer uit met zijn buren, en dat valt precies zo op als
+hier gebeurde.

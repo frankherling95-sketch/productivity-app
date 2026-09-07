@@ -1377,12 +1377,20 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
    Nu houdt die kolom minstens ~250px, en onder deze breedte schuift de kaart
    zijwaarts (overflow-x:auto) in plaats van de tekst plat te drukken. */
 .fac-table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;min-width:1080px;font-family:var(--font-body);table-layout:fixed}
-/* Betreft is de enige kolom zonder vaste breedte en slokt dus alles op wat
-   een breed scherm overhoudt. Op 1920px werd dat 640px: één lange regel die
-   dwars door de tabel loopt, en op de korte regels een gat van een halve
-   meter tussen de klant en de bedragen. Boven deze breedte houdt de kaart op
-   met meegroeien; de ruimte komt naast de tabel te staan in plaats van erin. */
-#mod-facturen .uren-sheet-card{max-width:1400px}
+/* Betreft is de enige kolom zonder vaste breedte en slokt dus alles op wat een
+   breed scherm overhoudt: op 1920px werd dat 640px, met een gat tussen de
+   klant en de bedragen. Daarom houdt de inhoud op met meegroeien.
+
+   De grens staat op de kolom en niet op de kaart. Stond hij op de kaart, dan
+   stopte de tabel eerder dan de uitklapbalk erboven en liepen twee blokken
+   die pal onder elkaar staan niet gelijk -- precies wat je ziet als je erop
+   let. Alles wat in deze kolom zit deelt nu dezelfde linker- én rechterrand. */
+#mod-facturen .uren-content{max-width:1432px}
+/* De tegels zitten in het uitklapblok en houden dus vanzelf dezelfde breedte;
+   dit haalt alleen de padding weg die de strip in de topbalk nodig had. */
+.fac-cijfers-blok .uren-kpis{padding:0;margin-bottom:10px}
+.fac-cijfers-blok .fac-aging{margin-bottom:10px}
+.fac-cijfers-blok>:last-child{margin-bottom:14px}
 .fac-table thead th{
   position:sticky;top:0;z-index:3;background:var(--surface2);
   font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
@@ -5412,6 +5420,13 @@ textarea { line-height: 1.6; resize: vertical; }
   .fac-aging-cel { padding: 10px 8px 11px 11px; }
   .uren-kpi-lab,
   .fac-aging-lab { letter-spacing: .04em; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* Sinds de grondslag in het kopje staat ("Omzet 2026 · excl. btw") past het
+     op een telefoon niet meer op één regel, en de bijregel -- waar het anders
+     had gekund -- is daar verborgen. Dan liever twee korte regels dan een
+     afgekapt woord; de tegels staan in een raster en houden dus dezelfde
+     hoogte. */
+  #mod-facturen .uren-kpi-lab,
+  #mod-facturen .fac-aging-lab { white-space: normal; }
   .uren-kpi-val,
   .fac-aging-val { margin-top: 2px; }
   /* De bijregel valt weg: hij herhaalt wat er in de lijst eronder staat en
@@ -18739,9 +18754,34 @@ function facRenderFilters(){
     document.getElementById('facFilterBtn')?.setAttribute('aria-expanded','true');
 }
 
+/* De strip boven de tabel is een uitklapblok in de inhoud geworden, op elk
+   tabblad. Twee redenen. Cijfers zijn niet waarvoor je een tabblad opent --
+   je opent Debiteuren om te zien wie moet betalen, Facturen om een factuur te
+   zoeken. En zolang de tegels in de topbalk stonden en de tabel in de inhoud,
+   stonden ze in verschillende containers: de een liep door tot de rand en de
+   ander stopte eerder. Nu staat alles in dezelfde kolom en lijnt het uit. */
 function facRenderKpis(){
+  /* De oude plek in de topbalk blijft leeg; :empty haalt hem uit beeld. */
   const box=document.getElementById('facKpis');
-  if(!box)return;
+  if(box)box.innerHTML='';
+}
+/* De losse tegels moeten in het raster staan, anders vallen ze op een telefoon
+   onder elkaar in plaats van twee naast elkaar. Debiteuren levert zijn eigen
+   wikkels (.fac-aging), die gaan hier niet doorheen. */
+/* De nummerkolom past zich aan de reeks aan. Een vaste breedte gokt: F000092
+   past in 96px, SB-2026-0002 niet, en dan kapt hij af of loopt hij over de
+   kolom ernaast heen. Ondergrens 7 tekens zodat de kop "Nummer" er altijd in
+   past. Alle vier de factuurtabellen gebruiken dit, want ze tonen dezelfde
+   nummers. */
+function facNummerBreedte(lijst){
+  const n=Math.max(7,...(lijst||[]).map(f=>String((f&&f.nummer)||'').length));
+  return Math.min(190,Math.round(n*8.5+30));
+}
+function facKpiRaster(html){
+  return html?`<div class="uren-kpis">${html}</div>`:'';
+}
+function facKpiTegels(){
+  const box={innerHTML:''};
   if(facView==='klanten'){
     const klanten=kanbanState.clients||[];
     const compleet=klanten.filter(factuurKlantCompleet).length;
@@ -18750,7 +18790,7 @@ function facRenderKpis(){
       ${facKpi('Factuurklaar',compleet,'',compleet===klanten.length?'alle gegevens compleet':(klanten.length-compleet)+' missen adresgegevens','var(--info)')}
       ${facKpi('Met uurtarief',klanten.filter(c=>Number(c.tarief)>0).length,'','','var(--success)')}
       ${facKpi('Actief dit jaar',new Set(facZichtbaar().map(f=>f.clientId)).size,'','gefactureerd in '+facJaar,'var(--warning)')}`;
-    return;
+    return facKpiRaster(box.innerHTML);
   }
   if(facView==='mails'){
     const lijst=facMailsVanJaar();
@@ -18768,7 +18808,7 @@ function facRenderKpis(){
       ${facKpi('Nog niet gemaild',open.length,'',
         open.length?open.map(f=>f.nummer).slice(0,3).join(', '):'alles is de deur uit',
         open.length?'var(--warning)':'var(--success)')}`;
-    return;
+    return facKpiRaster(box.innerHTML);
   }
   /* Btw heeft geen tegelstrip. Die stond er wel, en herhaalde regel voor
      regel de rubriekentabel eronder -- de tegel "Btw 21%" zei zelfs
@@ -18776,14 +18816,12 @@ function facRenderKpis(){
      uit de rij eronder. Op één scherm stond hetzelfde btw-bedrag zo zes
      keer. De rubriekenkaarten zíjn de samenvatting: dat is wat je op het
      aangifteformulier overneemt. */
-  if(facView==='btw'){box.innerHTML='';return;}
+  if(facView==='btw')return '';
 
-  /* Debiteuren houdt alleen wat de ouderdomstegels niet al zeggen. De
-     tegels "Openstaand" en "Te laat" waren de optelsom van de tegels
-     direct eronder (en "Openstaand" stond ook nog in de tabelvoet). */
-  /* Debiteuren zet zijn cijfers zelf neer, achter de uitklapregel -- anders
-     staat de helft erboven en de helft eronder. */
-  if(facView==='debiteuren'){box.innerHTML='';return;}
+  /* Debiteuren heeft zijn eigen set: de ouderdomstegels plus omzet en
+     betaald. "Openstaand" en "Te laat" staan er niet bij -- dat zijn de
+     optelsommen van de ouderdomstegels eronder. */
+  if(facView==='debiteuren')return facDebiteurenTegels();
   const lijst=facZichtbaar();
   const som=arr=>arr.reduce((s,f)=>s+factuurTotalen(f).incl,0);
   const openstaand=facBedrijfFacturen().filter(f=>f.status==='verstuurd');
@@ -18820,7 +18858,9 @@ function facRenderKpis(){
         :'niets over de vervaldatum',teLaat.length?'var(--danger)':'var(--success)')}
     ${facKpi('Betaald '+per+' · incl. btw',factuurFmtBedrag(som(betaald)),'',
       betaald.length+' van '+geteld+' · '+factuurFmtBedrag(betaald.reduce((s,f)=>s+factuurTotalen(f).excl,0))+' excl. btw','var(--success)')}`;
+  return facKpiRaster(box.innerHTML);
 }
+
 function facKpi(lab,val,eenheid,sub,kleur){
   return `<div class="uren-kpi" style="--k:${kleur}">
     <div class="uren-kpi-lab">${escapeHtml(lab)}</div>
@@ -18828,14 +18868,51 @@ function facKpi(lab,val,eenheid,sub,kleur){
     <div class="uren-kpi-sub">${escapeHtml(sub||'')}</div></div>`;
 }
 
+/* Wat de balk toont als hij dicht is: het aantal, niet het bedrag. Een bedrag
+   staat verderop op de pagina toch al, en dan verdubbelt de regel die de
+   cijfers juist wegstopt er zelf een. */
+function facCijferSamenvatting(){
+  if(facView==='debiteuren'){
+    const n=facBedrijfFacturen().filter(f=>f.status==='verstuurd'&&factuurDagenTeLaat(f)>0).length;
+    return n?{tekst:n+' factu'+(n===1?'ur':'ren')+' te laat',laat:true}
+            :{tekst:'niets over de vervaldatum',laat:false};
+  }
+  if(facView==='klanten'){
+    const k=kanbanState.clients||[];
+    const mist=k.length-k.filter(factuurKlantCompleet).length;
+    return {tekst:k.length+' klant'+(k.length===1?'':'en')+(mist?' · '+mist+' zonder adresgegevens':''),laat:!!mist};
+  }
+  if(facView==='mails'){
+    const n=facMailsVanJaar().length;
+    return {tekst:n+' bericht'+(n===1?'':'en')+' verstuurd',laat:false};
+  }
+  const lijst=facZichtbaar().filter(f=>f.status!=='concept');
+  const onbetaald=lijst.filter(f=>f.status==='verstuurd').length;
+  return {tekst:lijst.length+' factu'+(lijst.length===1?'ur':'ren')
+    +(onbetaald?' · '+onbetaald+' onbetaald':' · alles betaald'),laat:false};
+}
+function facCijferBalk(){
+  const tegels=facKpiTegels();
+  if(!tegels)return '';
+  const aan=facCijfersOpen();
+  const sam=facCijferSamenvatting();
+  return `<button type="button" class="fac-cijfers-kop" data-fac-action="facToggleCijfers"
+      aria-expanded="${aan?'true':'false'}">
+    <span class="lab">Cijfers</span>
+    <span class="sam${sam.laat?' laat':''}">${escapeHtml(sam.tekst)}</span>
+    <svg class="caret icoon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"
+      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5L8 10.5 12 6.5"/></svg>
+  </button>${aan?`<div class="fac-cijfers-blok">${tegels}</div>`:''}`;
+}
 function facRenderBody(){
   const body=document.getElementById('facBody');
   if(!body)return;
-  if(facView==='klanten'){body.innerHTML=facRenderKlanten();return;}
-  if(facView==='debiteuren'){body.innerHTML=facRenderDebiteuren();return;}
+  const kop=facCijferBalk();
+  if(facView==='klanten'){body.innerHTML=kop+facRenderKlanten();return;}
+  if(facView==='debiteuren'){body.innerHTML=kop+facRenderDebiteuren();return;}
   if(facView==='btw'){body.innerHTML=facRenderBtw();return;}
-  if(facView==='mails'){body.innerHTML=facRenderMails();return;}
-  body.innerHTML=facRenderLijst();
+  if(facView==='mails'){body.innerHTML=kop+facRenderMails();return;}
+  body.innerHTML=kop+facRenderLijst();
 }
 
 /* ── Facturenlijst ── */
@@ -18857,11 +18934,7 @@ function facRenderLijst(){
      de kaart. Het bedrijf staat onder het nummer en niet in een eigen
      kolom -- ze horen bij elkaar (elke administratie heeft zijn eigen
      nummerreeks) en het scheelt een kolom op een toch al brede tabel. */
-  /* De nummerkolom past zich aan de reeks aan. Een vaste breedte gokt: F000092
-     past in 96px, SB-2026-0002 niet, en dan kapt hij af of loopt hij over de
-     datum heen. Ondergrens 96 zodat de kop "Nummer" er altijd in past. */
-  const nrTekens=Math.max(7,...lijst.map(f=>String(f.nummer||'').length));
-  const nrBreed=Math.min(190,Math.round(nrTekens*8.5+30));
+  const nrBreed=facNummerBreedte(lijst);
   let html=`<div class="uren-sheet-card"><table class="fac-table"><thead><tr>
     <th style="width:${toonBd?nrBreed+20:nrBreed}px">Nummer</th><th style="width:88px">Datum</th>
     <th style="width:164px">Klant</th><th>Betreft</th>
@@ -18983,6 +19056,47 @@ function facToggleCijfers(){
   try{localStorage.setItem(LS_DEB_CIJFERS,facCijfersOpen()?'0':'1');}catch(e){}
   facRenderAll();
 }
+/* De ouderdomstegels van Debiteuren plus de omzet en het betaalde. Aparte
+   functie omdat de uitklapbalk voor alle tabbladen op één plek wordt
+   opgebouwd (facCijferBalk). */
+function facDebiteurenTegels(){
+  const open=facBedrijfFacturen().filter(f=>f.status==='verstuurd');
+  const groepen={lopend:[],d30:[],d60:[],d90:[],d90plus:[]};
+  open.forEach(f=>groepen[factuurOuderdom(f)].push(f));
+  const som=arr=>arr.reduce((s,f)=>s+factuurTotalen(f).openstaand,0);
+  const exclDeel=arr=>arr.reduce((s,f)=>{
+    const t=factuurTotalen(f);
+    return s+(t.incl?t.excl*(t.openstaand/t.incl):0);
+  },0);
+  /* Ook deze bedragen zijn wat de klant nog moet overmaken, dus inclusief
+     btw -- naast een tegel "Omzet" die excl. btw is, moet dat erbij staan. */
+  const cel=(lab,key,kleur)=>`<div class="fac-aging-cel" style="--k:${kleur}">
+    <div class="fac-aging-lab">${lab} · incl. btw</div>
+    <div class="fac-aging-val">${factuurFmtBedrag(som(groepen[key]))}</div>
+    <div class="fac-aging-sub">${groepen[key].length} factu${groepen[key].length===1?'ur':'ren'} · ${
+      factuurFmtBedrag(exclDeel(groepen[key]))} excl. btw</div></div>`;
+  const lijst=facZichtbaar();
+  const betaald=lijst.filter(f=>f.status==='betaald');
+  const geteld=lijst.filter(f=>f.status!=='concept').length;
+  const omzet=lijst.filter(f=>f.status!=='concept').reduce((s,f)=>s+factuurTotalen(f).excl,0);
+  const betaaldSom=betaald.reduce((s,f)=>s+factuurTotalen(f).incl,0);
+  const betaaldExcl=betaald.reduce((s,f)=>s+factuurTotalen(f).excl,0);
+  const per=facPeriode().kort;
+  const kpi=(lab,val,sub,kleur)=>`<div class="fac-aging-cel" style="--k:${kleur}">
+    <div class="fac-aging-lab">${escapeHtml(lab)}</div>
+    <div class="fac-aging-val">${factuurFmtBedrag(val)}</div>
+    <div class="fac-aging-sub">${escapeHtml(sub)}</div></div>`;
+  return `<div class="fac-aging fac-aging-2">
+      ${kpi('Omzet '+per+' · excl. btw',omzet,geteld+' factu'+(geteld===1?'ur':'ren')+' · '+factuurFmtBedrag(omzet*1.21)+' incl. btw','var(--mint)')}
+      ${kpi('Betaald '+per+' · incl. btw',betaaldSom,betaald.length+' van '+geteld+' · '+factuurFmtBedrag(betaaldExcl)+' excl. btw','var(--success)')}
+    </div>
+    <div class="fac-aging">
+      ${cel('Nog niet vervallen','lopend','var(--success)')}
+      ${cel('1–30 dagen','d30','var(--warning)')}
+      ${cel('31–60 dagen','d60','var(--warning)')}
+      ${cel('61–90 dagen','d90','var(--danger)')}
+      ${cel('90+ dagen','d90plus','var(--danger)')}</div>`;
+}
 function facRenderDebiteuren(){
   const open=facBedrijfFacturen().filter(f=>f.status==='verstuurd');
   if(!open.length){
@@ -18991,55 +19105,18 @@ function facRenderDebiteuren(){
       scope?' bij '+escapeHtml(facBedrijfNaam(scope)):''}</b>
       Alle verstuurde facturen zijn betaald.</div>`;
   }
-  const groepen={lopend:[],d30:[],d60:[],d90:[],d90plus:[]};
-  open.forEach(f=>groepen[factuurOuderdom(f)].push(f));
+  /* Het openstaande bedrag per factuur; de tabel sorteert erop en telt hem
+     op in de voet. (De ouderdomstegels hebben hun eigen kopie in
+     facDebiteurenTegels -- die staan in het uitklapblok en worden los
+     opgebouwd.) */
   const som=arr=>arr.reduce((s,f)=>s+factuurTotalen(f).openstaand,0);
-  /* Ook deze bedragen zijn wat de klant nog moet overmaken, dus inclusief
-     btw -- naast een tegel "Omzet" die excl. btw is, moet dat erbij staan. */
-  const cel=(lab,key,kleur)=>`<div class="fac-aging-cel" style="--k:${kleur}">
-    <div class="fac-aging-lab">${lab}</div>
-    <div class="fac-aging-val">${factuurFmtBedrag(som(groepen[key]))}</div>
-    <div class="fac-aging-sub">incl. btw · ${groepen[key].length} factu${groepen[key].length===1?'ur':'ren'}</div></div>`;
-  /* Het aantal te late facturen, niet het bedrag: dat bedrag staat al in de
-     voet van de tabel eronder, en dan zou de regel die de cijfers wegstopt
-     zelf een cijfer verdubbelen. */
-  const telaat=open.filter(f=>factuurDagenTeLaat(f)>0).length;
-  const cijfersAan=facCijfersOpen();
-  let html=`<button type="button" class="fac-cijfers-kop" data-fac-action="facToggleCijfers"
-      aria-expanded="${cijfersAan?'true':'false'}">
-    <span class="lab">Cijfers</span>
-    <span class="sam${telaat?' laat':''}">${telaat
-      ? telaat+' factu'+(telaat===1?'ur':'ren')+' te laat'
-      : 'niets over de vervaldatum'}</span>
-    <svg class="caret icoon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"
-      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5L8 10.5 12 6.5"/></svg>
-  </button>`;
-  if(cijfersAan){
-    const lijst=facZichtbaar();
-    const betaald=lijst.filter(f=>f.status==='betaald');
-    const omzet=lijst.filter(f=>f.status!=='concept').reduce((s,f)=>s+factuurTotalen(f).excl,0);
-    const betaaldSom=betaald.reduce((s,f)=>s+factuurTotalen(f).incl,0);
-    const per=facPeriode().kort;
-    const kpi=(lab,val,sub,kleur)=>`<div class="fac-aging-cel" style="--k:${kleur}">
-      <div class="fac-aging-lab">${escapeHtml(lab)}</div>
-      <div class="fac-aging-val">${factuurFmtBedrag(val)}</div>
-      <div class="fac-aging-sub">${escapeHtml(sub)}</div></div>`;
-    html+=`<div class="fac-aging fac-aging-2">
-      ${kpi('Omzet '+per,omzet,'excl. btw · verstuurd en betaald','var(--mint)')}
-      ${kpi('Betaald '+per,betaaldSom,'incl. btw · '+betaald.length+' factu'+(betaald.length===1?'ur':'ren'),'var(--success)')}</div>`;
-  }
-  if(cijfersAan)html+=`<div class="fac-aging">
-    ${cel('Nog niet vervallen','lopend','var(--success)')}
-    ${cel('1–30 dagen','d30','var(--warning)')}
-    ${cel('31–60 dagen','d60','var(--warning)')}
-    ${cel('61–90 dagen','d90','var(--danger)')}
-    ${cel('90+ dagen','d90plus','var(--danger)')}</div>`;
+  let html='';
 
   /* Per klant samengevat, want je belt een klant, niet een factuur */
   const perKlant={};
   open.forEach(f=>{(perKlant[f.clientId]=perKlant[f.clientId]||[]).push(f);});
   html+=`<div class="uren-sheet-card"><table class="fac-table"><thead><tr>
-    <th style="width:104px">Nummer</th><th style="width:190px">Klant</th><th>Betreft</th>
+    <th style="width:${facNummerBreedte(open)}px">Nummer</th><th style="width:190px">Klant</th><th>Betreft</th>
     <th style="width:96px">Vervallen</th><th style="width:132px">Ouderdom</th>
     <th class="num" style="width:118px">Openstaand</th>
     <th style="width:172px"></th></tr></thead><tbody>`;
@@ -19291,7 +19368,7 @@ function facRenderBtw(){
 
   /* Onderbouwing: welke facturen zitten erin. Klikbaar naar de factuur. */
   html+=`<div class="uren-sheet-card" style="margin-top:16px"><table class="fac-table"><thead><tr>
-    <th style="width:118px">Nummer</th><th style="width:100px">${stelsel==='kas'?'Ontvangen':'Factuurdatum'}</th>
+    <th style="width:${facNummerBreedte(o.regels.map(r=>r.f))}px">Nummer</th><th style="width:118px">${stelsel==='kas'?'Ontvangen':'Factuurdatum'}</th>
     <th style="width:190px">Klant</th><th>Betreft</th>
     <th class="num" style="width:130px">Excl. btw</th>
     <th class="num" style="width:120px">Btw</th></tr></thead><tbody>`;
@@ -19401,7 +19478,7 @@ function facRenderMails(){
       Zodra je een factuur mailt, komt het bericht hier te staan.</div>`;
   }
   let html=`<div class="uren-sheet-card"><table class="fac-table"><thead><tr>
-    <th style="width:104px">Datum</th><th style="width:114px">Nummer</th>
+    <th style="width:104px">Datum</th><th style="width:${facNummerBreedte(lijst)}px">Nummer</th>
     <th style="width:270px">Aan</th><th>Onderwerp</th>
     <th style="width:118px">Status</th></tr></thead><tbody>`;
   lijst.forEach(m=>{
