@@ -7491,6 +7491,29 @@ textarea { line-height: 1.6; resize: vertical; }
   </div>
 </div>
 
+<!-- ── Oude factuur vastleggen ──
+     Een factuur die buiten deze app is gemaakt, zodat de administratie van dit
+     jaar klopt: btw-overzicht, omzet en debiteuren rekenen mee met wat hier
+     staat. Bewust geen factuureditor: daar horen sjabloon, regels, PDF en
+     mailen bij, en niets daarvan geldt voor een factuur die al bestaat. -->
+<div class="modal-bg" id="facOudModal">
+  <div class="modal" style="max-width:560px;padding:0;display:flex;flex-direction:column;max-height:92vh">
+    <div class="modal-kop" style="flex-shrink:0">
+      <h3 style="font-size:18px;font-weight:700;margin:0" id="facOudTitel">Oude factuur toevoegen</h3>
+      <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0" id="facOudSub">Voor een factuur die je buiten deze app hebt gemaakt.</p>
+    </div>
+    <div style="padding:20px 22px;overflow-y:auto;overflow-x:hidden;flex:1;min-height:0" id="facOudBody"></div>
+    <div class="modal-footer" style="padding:14px 22px;border-top:0.5px solid var(--border);flex-shrink:0">
+      <div class="modal-footer-left"></div>
+      <div class="modal-footer-right">
+        <button class="btn btn-sm" data-fac-action="closeFacOud">Annuleer</button>
+        <button class="btn btn-sm" data-fac-action="facOudOpslaanVolgende">Opslaan en volgende</button>
+        <button class="btn btn-sm btn-primary" data-fac-action="facOudOpslaan">Opslaan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ── Factuursjabloon: instellingen links, live PDF-preview rechts ── -->
 <div class="modal-bg" id="facSjabloonModal">
   <div class="modal" style="max-width:1180px;padding:0;display:flex;flex-direction:column;max-height:94vh">
@@ -18402,6 +18425,10 @@ const FAC_CLICK_ACTIONS={
   facVerwijder:(a)=>facVerwijderActie(a||facEditId),
   facKlantBewerk:(a)=>openKlantModal(a),
   facKlantVerwijder:()=>facKlantVerwijder(),
+  facOudNieuw:()=>facOudNieuw(),
+  closeFacOud:()=>closeFacOud(),
+  facOudOpslaan:()=>facOudOpslaan(),
+  facOudOpslaanVolgende:()=>facOudOpslaanVolgende(),
   facKlantNieuw:()=>openKlantModal(null),
   facKlantOpslaan:()=>klantModalOpslaan(),
   closeKlantModal:()=>closeKlantModal(),
@@ -20293,6 +20320,192 @@ function facVerwijderActie(id){
   factuurVerwijder([fid]);
 }
 
+/* ══ Oude factuur vastleggen ══
+   Voor de inhaalslag: facturen die eerder dit jaar buiten de app zijn
+   gemaakt. Ze moeten meetellen in het btw-overzicht, de omzet en de
+   debiteuren, en daarvoor is alleen het cijfermatige nodig -- niet het
+   document. Vandaar één regel op de factuur met het bedrag excl. btw. */
+const FAC_OUD_BTW=[
+  {id:'21',      label:'21%'},
+  {id:'9',       label:'9%'},
+  {id:'0',       label:'0% / vrijgesteld'},
+  {id:'verlegd', label:'Btw verlegd'}
+];
+function factuurOudToevoegen(g){
+  const s=factuurSettings();
+  const klant=factuurKlantVol(g.clientId);
+  const termijn=(klant&&klant.betaaltermijn)||s.betaaltermijn;
+  const bedrijfId=facBedrijfScope()||(klant&&klant.bedrijfId)||s.standaardBedrijf;
+  const verlegd=g.btw==='verlegd';
+  const f={
+    id:factuurUid(), bedrijfId,
+    /* Het nummer staat al op papier; de reeks in de app mag er niet
+       overheen lopen, dus zetten we hem meteen vast. */
+    nummer:g.nummer, nummerVast:true,
+    status:'verstuurd',
+    clientId:g.clientId||null,
+    datum:g.datum,
+    vervaldatum:factuurVervaldatum(g.datum,termijn),
+    betreft:g.betreft||'', referentie:'',
+    regels:[{id:factuurUid(),omschrijving:g.betreft||'Werkzaamheden',
+      aantal:1,eenheid:'',stuksprijs:g.excl,btwTarief:verlegd?0:Number(g.btw)}],
+    btwVerlegd:verlegd,
+    notitie:'', specificatie:false,
+    urenPeriode:null, urenKlanten:null,
+    betalingen:[],
+    /* Vlag zodat later te zien is dat dit een vastgelegde factuur is en
+       geen door de app opgebouwde -- er hangt geen uren-administratie aan. */
+    extern:true,
+    verstuurdOp:(g.verstuurdOp||g.datum)+'T12:00:00.000Z',
+    createdAt:Date.now(), updatedAt:Date.now()
+  };
+  factuurState.invoices.push(f);
+  /* Zonder betaalregel komt een oude factuur bij Debiteuren als openstaand
+     te staan -- de app leidt "betaald" af uit de betalingen, niet uit de
+     status. */
+  if(g.betaaldOp){
+    const t=factuurTotalen(f);
+    f.betalingen.push({datum:g.betaaldOp,bedrag:t.incl});
+    f.status='betaald';
+    f.betaaldOp=g.betaaldOp+'T12:00:00.000Z';
+  }
+  scheduleSave();
+  return f;
+}
+let facOudForm=null;
+function facOudLeeg(){
+  return {nummer:'',datum:dateStr(new Date()),clientId:'',betreft:'',
+    excl:'',btw:'21',verstuurdOp:'',betaaldOp:''};
+}
+function facOudNieuw(){
+  closeFacMenu();
+  facOudForm=facOudLeeg();
+  facOudRender();
+  document.getElementById('facOudModal').classList.add('open');
+  setTimeout(()=>document.getElementById('faOudNummer')?.focus(),60);
+}
+function closeFacOud(){
+  document.getElementById('facOudModal').classList.remove('open');
+  facOudForm=null;
+}
+function facOudRender(){
+  const g=facOudForm; if(!g)return;
+  const box=document.getElementById('facOudBody'); if(!box)return;
+  const klanten=kanbanState.clients||[];
+  const huidig=klanten.find(c=>c.id===g.clientId);
+  const kleur=huidig?CLIENT_COLORS[huidig.colorIdx%CLIENT_COLORS.length]:null;
+  const excl=Number(String(g.excl).replace(',','.'))||0;
+  const pct=g.btw==='verlegd'?0:Number(g.btw);
+  const incl=Math.round((excl+excl*pct/100)*100)/100;
+  box.innerHTML=`
+    <div class="fac-ed-grid">
+      <div class="uren-fld"><label for="faOudNummer">Factuurnummer</label>
+        <input type="text" class="fac-ed-inp" id="faOudNummer" value="${escapeHtml(g.nummer)}"
+          placeholder="2026-012" data-fac-input="nummer"/></div>
+      <div class="uren-fld"><label for="faOudDatum">Factuurdatum</label>
+        <input type="date" class="fac-ed-inp" id="faOudDatum" value="${escapeHtml(g.datum)}"
+          data-fac-input="datum"/></div>
+    </div>
+    <div class="uren-fld" style="margin-top:12px"><label>Klant</label>
+      ${klanten.length?`<div class="klantkies">
+        <span class="klantkies-dot" style="background:${kleur?kleur.bg:'var(--surface3)'};border-color:${kleur?kleur.tx:'var(--border-strong)'}"></span>
+        <select class="klantkies-sel" aria-label="Klant" data-fac-input="clientId">
+          <option value=""${huidig?'':' selected'}>— kies klant —</option>
+          ${klanten.map(c=>`<option value="${c.id}"${g.clientId===c.id?' selected':''}>${escapeHtml(c.name)}</option>`).join('')}
+        </select></div>`
+      :`<div class="klantkies"><span class="klantkies-leeg">Voeg eerst een klant toe.</span></div>`}</div>
+    <div class="uren-fld" style="margin-top:12px"><label for="faOudBetreft">Betreft</label>
+      <input type="text" class="fac-ed-inp" id="faOudBetreft" value="${escapeHtml(g.betreft)}"
+        placeholder="Werkzaamheden maart 2026" data-fac-input="betreft"/></div>
+    <div class="fac-ed-grid" style="margin-top:12px">
+      <div class="uren-fld"><label for="faOudExcl">Bedrag excl. btw (€)</label>
+        <input type="text" inputmode="decimal" class="fac-ed-inp num" id="faOudExcl"
+          value="${escapeHtml(String(g.excl))}" placeholder="1050,00" data-fac-input="excl"/></div>
+      <div class="uren-fld"><label for="faOudBtw">Btw</label>
+        <select class="fac-ed-inp" id="faOudBtw" data-fac-input="btw">
+          ${FAC_OUD_BTW.map(b=>`<option value="${b.id}"${g.btw===b.id?' selected':''}>${b.label}</option>`).join('')}
+        </select></div>
+    </div>
+    <div class="fac-uren-info" style="margin-top:8px">Incl. btw <b>${factuurFmtBedrag(incl)}</b></div>
+    <div class="fac-ed-grid" style="margin-top:14px">
+      <div class="uren-fld"><label for="faOudVerstuurd">Verstuurd op</label>
+        <input type="date" class="fac-ed-inp" id="faOudVerstuurd" value="${escapeHtml(g.verstuurdOp)}"
+          data-fac-input="verstuurdOp"/>
+        <small style="font-size:11px;color:var(--text-hint)">Leeg = de factuurdatum</small></div>
+      <div class="uren-fld"><label for="faOudBetaald">Betaald op</label>
+        <input type="date" class="fac-ed-inp" id="faOudBetaald" value="${escapeHtml(g.betaaldOp)}"
+          data-fac-input="betaaldOp"/>
+        <small style="font-size:11px;color:var(--text-hint)">Leeg = staat nog open</small></div>
+    </div>
+    ${facOudKwartaalWaarschuwing(g.datum)}`;
+}
+/* Een factuur uit een afgesloten kwartaal verandert het btw-overzicht van dat
+   kwartaal met terugwerkende kracht. Als die aangifte al de deur uit is, wil
+   je dat weten voordat je op Opslaan drukt. */
+function facOudKwartaalWaarschuwing(datum){
+  if(!datum)return '';
+  const d=new Date(datum+'T00:00:00'); if(isNaN(d))return '';
+  const nu=new Date();
+  const kw=x=>x.getFullYear()*4+Math.floor(x.getMonth()/3);
+  if(kw(d)>=kw(nu))return '';
+  const q=Math.floor(d.getMonth()/3)+1;
+  return `<div class="fac-btw-let" style="margin-top:14px"><b>Dit valt in Q${q} ${d.getFullYear()}.</b>
+    Het btw-overzicht van dat kwartaal verandert hierdoor. Is die aangifte al gedaan,
+    houd dan bij wat je alsnog moet corrigeren.</div>`;
+}
+function facOudSync(){
+  const g=facOudForm; if(!g)return;
+  document.querySelectorAll('#facOudModal [data-fac-input]').forEach(el=>{
+    g[el.dataset.facInput]=el.value;
+  });
+}
+function facOudBewaar(){
+  facOudSync();
+  const g=facOudForm; if(!g)return false;
+  const nummer=(g.nummer||'').trim();
+  if(!nummer){appToast('Vul het factuurnummer in',{type:'warning'});return false;}
+  if(factuurState.invoices.some(f=>f.nummer===nummer)){
+    appToast(`Factuurnummer ${nummer} bestaat al`,{type:'warning'});return false;}
+  if(!g.clientId){appToast('Kies een klant',{type:'warning'});return false;}
+  if(!g.datum){appToast('Vul de factuurdatum in',{type:'warning'});return false;}
+  const excl=Number(String(g.excl).replace(',','.'));
+  if(!excl||excl<=0){appToast('Vul een bedrag excl. btw in',{type:'warning'});return false;}
+  const f=factuurOudToevoegen({...g,nummer,excl:Math.round(excl*100)/100});
+  facRenderAll();
+  appToast(`${f.nummer} toegevoegd — ${factuurFmtBedrag(factuurTotalen(f).incl)}`,{type:'success'});
+  return true;
+}
+function facOudOpslaan(){
+  if(facOudBewaar())closeFacOud();
+}
+function facOudOpslaanVolgende(){
+  if(!facOudBewaar())return;
+  /* Klant, btw en de datum blijven staan: bij een stapel van dezelfde klant
+     scheelt dat het meeste typewerk. */
+  const vorig=facOudForm;
+  facOudForm={...facOudLeeg(),clientId:vorig.clientId,btw:vorig.btw,datum:vorig.datum};
+  facOudRender();
+  document.getElementById('faOudNummer')?.focus();
+}
+/* Tijdens het typen alleen bijhouden; pas bij het verlaten van een veld
+   opnieuw tekenen. Anders verlies je de cursor bij elke aanslag -- en de
+   regel "Incl. btw" en de kwartaalwaarschuwing hoeven alleen te kloppen
+   zodra je klaar bent met dat veld. */
+document.getElementById('facOudModal')?.addEventListener('input',e=>{
+  const el=e.target.closest('[data-fac-input]');
+  if(el&&facOudForm)facOudForm[el.dataset.facInput]=el.value;
+});
+document.getElementById('facOudModal')?.addEventListener('change',e=>{
+  const el=e.target.closest('[data-fac-input]');
+  if(!el||!facOudForm)return;
+  const veld=el.dataset.facInput;
+  facOudForm[veld]=el.value;
+  if(!['btw','datum','excl','clientId'].includes(veld))return;
+  facOudRender();
+  const terug=document.querySelector(`#facOudModal [data-fac-input="${veld}"]`);
+  if(terug)terug.focus();
+});
+
 /* ── Klantgegevens ── */
 let klantModalId=null;
 /* Verwijderen zat achter een ✕ in het klantfilter, zichtbaar op hover -- dus
@@ -21329,6 +21542,10 @@ function facToggleMenu(){
       <span>Standaardtekst mail<small>Onderwerp en bericht bij het versturen</small></span></button>
     <button class="uren-menu-item" role="menuitem" data-fac-action="facKlantNieuw">
       <span class="ic" aria-hidden="true">+</span><span>Klant toevoegen</span></button>
+    <div class="uren-menu-sep"></div>
+    <button class="uren-menu-item" role="menuitem" data-fac-action="facOudNieuw">
+      <span class="ic" aria-hidden="true">✎</span>
+      <span>Oude factuur toevoegen<small>Handmatig, voor een factuur van buiten deze app</small></span></button>
     <div class="uren-menu-sep"></div>
     <button class="uren-menu-item" role="menuitem" data-fac-action="facExportBoekhouding">
       <span class="ic" aria-hidden="true">↧</span>
