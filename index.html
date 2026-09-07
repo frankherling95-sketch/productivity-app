@@ -1214,7 +1214,11 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 }
 .uren-dur-in::-webkit-inner-spin-button,.uren-dur-in::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 .uren-dur-in:focus{border-color:var(--mint);box-shadow:0 0 0 3px var(--mint-soft)}
-.uren-dur-chips{display:flex;gap:6px;flex-wrap:wrap}
+/* Vijf gelijke vakken op één regel: +15m, +30m, +1u, +2u en wis. Ze deden
+   eerder hun eigen breedte en wrapten dan half, met "wis" alleen op een
+   tweede regel. */
+.uren-dur-chips{display:flex;gap:6px}
+.uren-dur-chips .uren-chip{flex:1 1 0;min-width:0;text-align:center;padding-left:4px;padding-right:4px}
 .uren-chip{
   border:0.5px solid var(--border-strong);background:var(--surface);border-radius:20px;
   padding:6px 12px;font-family:var(--font-mono);font-size:12px;font-weight:600;
@@ -5388,6 +5392,9 @@ textarea { line-height: 1.6; resize: vertical; }
   .uren-dur-btn { width: 52px; height: 52px; font-size: 22px; }
   .uren-dur-in { font-size: 26px; padding: 12px 8px; }
   .uren-chip { padding: 9px 14px; font-size: 13px; }
+  /* Vijf naast elkaar op 375px: de zijvulling zit al in de flexverdeling,
+     de hoogte hoort een raakvlak te zijn. */
+  .uren-dur-chips .uren-chip { min-height: var(--tap); padding: 0 4px; }
   .uren-kchip { padding: 9px 15px; font-size: 13px; }
 
   /* ── Factuurregels: van tabel naar blokjes ──
@@ -7174,11 +7181,6 @@ textarea { line-height: 1.6; resize: vertical; }
           <input type="date" class="inp" id="urenEntryDate"/>
           <button class="uren-dur-btn" style="width:38px;height:38px;font-size:15px" data-uren-action="urenEntryShiftDate" data-uren-arg1="1" title="Dag later" aria-label="Dag later">›</button>
         </div>
-        <div class="uren-dur-chips" style="margin-top:2px">
-          <button class="uren-chip" data-uren-action="urenEntrySetDate" data-uren-arg1="0">Vandaag</button>
-          <button class="uren-chip" data-uren-action="urenEntrySetDate" data-uren-arg1="-1">Gisteren</button>
-          <button class="uren-chip" data-uren-action="urenEntrySetDate" data-uren-arg1="-2">Eergisteren</button>
-        </div>
       </div>
 
       <div class="uren-fld">
@@ -7193,7 +7195,6 @@ textarea { line-height: 1.6; resize: vertical; }
           <button class="uren-chip" data-uren-action="urenEntryStep" data-uren-arg1="0.5">+30m</button>
           <button class="uren-chip" data-uren-action="urenEntryStep" data-uren-arg1="1">+1u</button>
           <button class="uren-chip" data-uren-action="urenEntryStep" data-uren-arg1="2">+2u</button>
-          <button class="uren-chip" data-uren-action="urenEntryStep" data-uren-arg1="4">+4u</button>
           <button class="uren-chip uren-chip-clear" data-uren-action="urenEntryClearHours">wis</button>
         </div>
         <small style="font-size:11px;color:var(--text-hint)">Typen mag ook: <code>3,5</code> · <code>3:30</code> · <code>3u30</code> · <code>90m</code></small>
@@ -15214,7 +15215,6 @@ const UREN_CLICK_ACTIONS={
   urenEntrySave:()=>urenEntrySave(),
   urenEntryDelete:()=>urenEntryDelete(),
   urenEntryStep:(a)=>urenEntryStep(parseFloat(a)),
-  urenEntrySetDate:(a)=>urenEntrySetDate(parseInt(a,10)),
   urenEntryShiftDate:(a)=>urenEntryShiftDate(parseInt(a,10)),
   urenEntryClearHours:()=>urenEntryClearHours(),
   urenEntryPickClient:(a)=>urenEntryPickClient(a),
@@ -16577,10 +16577,6 @@ function urenEntryClearHours(){
   urenEntryForm.hours=0;
   document.getElementById('urenEntryHours').value=urenFmt(0);
   document.getElementById('urenEntryHours').focus();
-}
-function urenEntrySetDate(dayOffset){
-  urenEntryForm.date=urenShiftIso(urenToday(),dayOffset);
-  document.getElementById('urenEntryDate').value=urenEntryForm.date;
 }
 function urenEntryShiftDate(delta){
   urenEntrySyncFromForm();
@@ -23092,8 +23088,14 @@ const KRUIS_TEKENS=/^[✕✖×╳✗✘❌]$/;
 const SLUIT_SVG='<svg class="icoon" viewBox="0 0 16 16" fill="none" stroke="currentColor" '+
   'stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>';
 
-function zetModalSluitknoppen(){
-  document.querySelectorAll('.modal-bg > .modal').forEach(modal=>{
+function zetModalSluitknoppen(root){
+  const modalen=root?[root]:[...document.querySelectorAll('.modal-bg > .modal')];
+  modalen.forEach(modal=>{
+    if(!modal)return;
+    /* Al voorzien? Dan niets doen -- deze functie draait ook bij het openen
+       van een modaal (zie de observer onderaan), en zonder deze regel kwam
+       er dan elke keer een kruisje bij. */
+    if(modal.querySelector('.modal-sluit'))return;
     /* Stond er al een kruisje in de kop (factuureditor, voorbeeld,
        sjablonen, versies, urensjablonen), dan blijft die knop met al zijn
        gedrag staan en wisselt alleen het losse teken voor dezelfde svg --
@@ -23158,6 +23160,21 @@ function zetModalSluitknoppen(){
   });
 }
 zetModalSluitknoppen();
+
+/* ── En opnieuw zodra een modaal opengaat ──
+   Sommige modalen zetten hun titel bij het openen met textContent, en dat
+   wist alle kinderen van die kop -- ook het kruisje dat erin hangt. Dat gaf
+   een "Nieuwe registratie" zonder weg-knop. In plaats van elke titelregel
+   aan te passen kijkt deze observer of de modaal er nog een heeft zodra
+   hij opengaat, en zet hem er anders opnieuw in. */
+new MutationObserver(muts=>{
+  muts.forEach(m=>{
+    const bg=m.target;
+    if(!bg.classList||!bg.classList.contains('open'))return;
+    const modal=bg.querySelector(':scope > .modal');
+    if(modal)zetModalSluitknoppen(modal);
+  });
+}).observe(document.body,{subtree:true,attributes:true,attributeFilter:['class']});
 
 /* ══ Zoomen staat uit, behalve op het PDF-voorbeeld ══
    Drie sloten, want geen enkel slot houdt overal:

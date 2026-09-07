@@ -10,6 +10,20 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-07 · Het sluitkruis overleeft een kop die opnieuw wordt gezet
+
+**Probleem.** In "Nieuwe registratie" ontbrak het kruisje. Het stond er wél tot je de modaal opende: `urenNewEntry()` zet de titel met `textContent`, en dat wist álle kinderen van die kop — inclusief het kruisje dat er sinds vanochtend in hangt.
+
+**Beslissing.** Niet elke titelregel aanpassen, maar één observer: zodra een `.modal-bg` de klasse `open` krijgt, kijkt `zetModalSluitknoppen(modal)` of er nog een kruisje in zit en zet het er anders opnieuw in. De functie slaat een modaal die er al een heeft over, dus herhalen is gratis en er komt er nooit een tweede bij.
+
+**Waarom een observer en niet elke opener aanpassen.** De modalen gaan open op ruim twintig plekken, en een nieuwe opener zou de val opnieuw kunnen inlopen. Dit vangt het bij de enige gebeurtenis die ze delen: de klasse `open`.
+
+**Bewijs.** Alle 19 modalen met een voet nagemeten: elk precies één kruisje, geen enkele zonder. Ook via de echte openers (`urenNewEntry`, `openChecklistItemModal`): één kruisje, niet twee.
+
+**Bestanden**: `index.html` — `zetModalSluitknoppen(root)` met een overslaan-als-aanwezig, plus een `MutationObserver` op `class`
+
+**Niet doen.** De titel met `innerHTML` zetten om het kruisje mee te schrijven. Dan staat de knop op twintig plekken in de code in plaats van op één.
+
 ## 2026-09-07 · Urenregels: één regel per registratie, en de dagen chronologisch
 
 **Probleem 1 — de dagvolgorde.** De registraties stonden met de nieuwste dag bovenaan. Voor een logboek is dat de gewone volgorde, maar dit is een week- of maandoverzicht waarin je je eigen week naloopt — en dan lees je van maandag naar vrijdag. Bij een maand betekende het dat je onderaan begon.
