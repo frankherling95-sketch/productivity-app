@@ -10,6 +10,18 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-07 · Wie de actieve notitie verandert, moet ook het scherm meenemen
+
+**Probleem.** Verwijder je op een telefoon de notitie die je open hebt, dan bleef je in de editor staan — met "Geen notitie geselecteerd" als enige inhoud. Een scherm van een pagina die er niet meer is, terwijl je naar de lijst wilde.
+
+**Oorzaak, en het is de tweede keer.** Deze module toont op een telefoon óf de boom óf de editor, en dat hangt aan één klasse: `mobile-editing` op `#mod-notes`. Alleen `selectNote()` zette die klasse. Vandaag bleek eerst dat een notitie maken vanuit een sjabloon hem niet zette (je maakte iets aan en zag niets gebeuren), en nu dat verwijderen hem niet weghaalt.
+
+**De regel die eruit volgt:** elke functie die `notesState.activeId` verandert, hoort ook te zeggen welk van de twee schermen daarbij hoort. Aanzetten bij openen en aanmaken, uitzetten bij verwijderen — en bij *ongedaan maken* weer aan, want dan sta je weer in die notitie.
+
+**Bestanden**: `index.html` — `deleteNode()` haalt `mobile-editing` weg als de verwijderde notitie de actieve was, en de undo-tak zet hem terug; `sw.js` → `herling-v42`
+
+**Niet doen.** De klasse ergens centraal "afleiden" uit `activeId`. Openen en aanmaken zetten hem aan, terug naar de lijst zet hem uit terwijl `activeId` gewoon blijft staan — die twee zijn niet hetzelfde en horen apart te blijven.
+
 ## 2026-09-07 · Notities krijgt een prullenbak
 
 **Probleem.** Notities was de enige module waar iets écht weg was. Een taak gaat naar het archief, een factuur heeft een versiegeschiedenis, maar een verwijderde notitie had alleen de ongedaan-knop in de toast — en die is na een paar seconden weg. Daarna was de tekst er niet meer, en op een telefoon is een misgetikte prullenbak-knop zo gebeurd.

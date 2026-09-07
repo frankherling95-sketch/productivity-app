@@ -12466,7 +12466,14 @@ function deleteNode(id){
   const ouderId=r.parent?r.parent.id:null;
   const wasActive=notesState.activeId===id;
   parentArrRef.splice(idx,1);
-  if(wasActive)notesState.activeId=null;
+  if(wasActive){
+    notesState.activeId=null;
+    /* Op een telefoon stond je in de editor van juist deze notitie. Zonder
+       dit blijf je daar staan, met "Geen notitie geselecteerd" als enige
+       inhoud -- een scherm van een pagina die er niet meer is. Terug naar
+       de lijst is waar je heen wilde. */
+    document.getElementById('mod-notes')?.classList.remove('mobile-editing');
+  }
   /* De toast is de snelle weg terug, maar die is na een paar seconden weg.
      Daarna staat het hier: één plek waar teruggehaald kan worden, in plaats
      van een notitie die definitief weg is omdat je net wegkeek. */
@@ -12476,7 +12483,11 @@ function deleteNode(id){
   appToast(`${label} verwijderd`,{type:'success',undo:()=>{
     notesState.prullenbak=(notesState.prullenbak||[]).filter(x=>x.node.id!==removed.id);
     parentArrRef.splice(idx,0,removed);
-    if(wasActive)notesState.activeId=removed.id;
+    if(wasActive){
+      notesState.activeId=removed.id;
+      /* Ongedaan maken zet ook het scherm terug: je stond in deze notitie. */
+      document.getElementById('mod-notes')?.classList.add('mobile-editing');
+    }
     scheduleSave();renderNotesModule();
   }});
 }
