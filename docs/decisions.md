@@ -1890,3 +1890,33 @@ te voegen, en dat is de plek waar je daarvoor kijkt.
 
 **Niet doen.** De storage-items terugzetten in het mobiele ⋯-menu "omdat het
 daar sneller is". Dat is precies hoe de twee lijsten uit elkaar zijn gelopen.
+
+## 2026-09-07 · Gemini: 403 uitgelegd, 503 stil opgevangen
+
+**Probleem.** Twee foutmeldingen die allebei als een muur voelden maar iets
+heel verschillends betekenen.
+
+- **403 "Your project has been denied access. Please contact support."** —
+  Google's eigen tekst, onveranderd doorgegeven. Hij zegt niet wat je moet
+  doen. In de praktijk twee oorzaken: een **spend cap van € 0** op dat project
+  (die pauzeert de service), of een sleutel bij een **Workspace-account onder
+  een organisatie**, waar de gratis laag vaak niet beschikbaar is. Dat laatste
+  was het hier; een sleutel via een persoonlijk Google-account kwam er wél
+  door. Let op de valkuil die daarbij opdook: AI Studio maakt een *nieuw*
+  project aan, dat dezelfde naam kan krijgen als een bestaand project met een
+  ander id — de cap die je denkt te hebben ingesteld staat dan ergens anders.
+- **503** — het verzoek is geaccepteerd, Google heeft het alleen even te druk.
+  Op de gratis laag van Flash komt dat regelmatig voor.
+
+**Beslissing.** Bij een 403 noemt de melding nu die twee oorzaken en waar je ze
+controleert. Een 503 wordt stil tot twee keer opnieuw geprobeerd (1,2s en
+3,5s) voordat de melding verschijnt. Alléén bij 503: een 429 is een limiet en
+die los je niet op door harder te vragen, en een 4xx wordt niet vanzelf beter.
+De teller loopt alleen op bij een geslaagde call, dus herkansingen tellen niet
+mee.
+
+**Bestanden.** `index.html` — `_aiParseErrorResponse()`, `callGemini()`.
+
+**Niet doen.** Hetzelfde in `_streamGemini()` proberen zonder na te denken: die
+levert de tekst stukje bij beetje aan de wekelijkse review, en halverwege
+opnieuw beginnen betekent dat je het begin twee keer ziet.
