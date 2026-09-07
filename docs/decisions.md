@@ -1764,3 +1764,36 @@ Zodra je die vraag moet stellen, is de pagina langzamer geworden.
 
 **Niet doen.** Ook de voetregel van de facturentabel weghalen: een tabel die
 zijn eigen kolom optelt is geen herhaling, dat is de tabel afmaken.
+
+## 2026-09-07 · Het klantfilter kiest alleen nog; beheren zit in het ⋯-menu
+
+**Probleem.** Achter elke regel van het klantfilter stonden drie knopjes —
+overzicht (ℹ), hernoemen (✎), verwijderen (✕) — die pas bij hover verschenen.
+Op een telefoon bestaat hover niet: de eerste tik zette de hover-staat en pas
+de tweede koos de klant. Frank: *"Dan moet de selectie ook een single click
+worden ipv nu dat je dubbel moet klikken."*
+
+**Beslissing.** Het filter filtert, meer niet. De drie knopjes zijn weg, dus
+één tik kiest — op elk apparaat. Wat ze deden is verhuisd:
+
+| Was | Is nu |
+|---|---|
+| ℹ overzicht | de ⓘ naast de balk (2026-09-07) |
+| ✎ hernoemen | het veld "Weergavenaam" in Klantgegevens |
+| ✕ verwijderen | de knop "Verwijderen" linksonder in Klantgegevens |
+
+En elk ⋯-menu op een pagina met een klantfilter — Dashboard, Checklist,
+Notities — krijgt **Klanten beheren**: dat springt naar Facturen → Klanten,
+waar het beheer al zat. Eén adres, geen tweede beheerscherm.
+
+**Waarom.** Een bedieningsknop die alleen met een muis tevoorschijn komt,
+bestaat op een telefoon niet — en hij kostte daar bovendien de eerste tik.
+
+**Bestanden.** `index.html` — `renderOneClientFilter()`, `wireClientFilter()`,
+`.cf-actions`/`.cf-actbtn` weg, `openKlantenBeheer()`, `facKlantVerwijder()`,
+voet van `#klantModal`, drie ⋯-menu's. Opgeruimd: `editClient()` en de tak
+`renameTarget='client:'` waren hiermee onbereikbaar geworden, net als de al
+langer ongebruikte `editClientStop`/`deleteClientStop`.
+
+**Niet doen.** Een tweede scherm bouwen om klanten te beheren. Het tabblad
+Klanten in Facturen is dat scherm al.

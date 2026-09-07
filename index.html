@@ -2630,20 +2630,6 @@ textarea { line-height: 1.6; resize: vertical; }
 .client-filter-option:focus-visible { outline: 2px solid var(--mint); outline-offset: -1px; }
 .client-filter-option .cf-dot { width: 12px; height: 12px; border-radius: 4px; flex-shrink: 0; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1); }
 .client-filter-option .cf-opt-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.client-filter-option .cf-actions { display: inline-flex; gap: 2px; opacity: 0; transition: opacity 0.12s; flex-shrink: 0; }
-.client-filter-option:hover .cf-actions { opacity: 1; }
-.client-filter-option .cf-actbtn {
-  background: transparent;
-  border: 0;
-  color: var(--text-hint);
-  cursor: pointer;
-  padding: 3px 6px;
-  border-radius: 4px;
-  font-size: 11px;
-  line-height: 1;
-  font-family: inherit;
-}
-.client-filter-option .cf-actbtn:hover { background: var(--surface2); color: var(--text); }
 .client-filter-empty { padding: 10px 12px; font-size: 11.5px; color: var(--text-hint); text-align: center; }
 
 /* Klant dashboard modal */
@@ -6824,6 +6810,7 @@ textarea { line-height: 1.6; resize: vertical; }
                    niet symmetrisch op telefoonbreedte, en dit zijn de twee die
                    je zelden midden in je werk nodig hebt. -->
               <button type="button" onclick="closeDashMobileSettings();openNewClientModal()">＋ Nieuwe klant</button>
+              <button type="button" onclick="closeDashMobileSettings();openKlantenBeheer()">⚙ Klanten beheren</button>
               <button type="button" onclick="closeDashMobileSettings();openWeeklyReviewModal()">📊 Wekelijkse review</button>
               <div class="dash-mobile-settings-divider"></div>
               <button type="button" onclick="closeDashMobileSettings();refreshGist()">↻ Data opnieuw laden</button>
@@ -7424,7 +7411,12 @@ textarea { line-height: 1.6; resize: vertical; }
     </div>
     <div style="padding:20px 22px;overflow-y:auto;flex:1;min-height:0" id="klantModalBody"></div>
     <div class="modal-footer" style="padding:14px 22px;border-top:0.5px solid var(--border);flex-shrink:0">
-      <div></div>
+      <div class="modal-footer-left">
+        <!-- Stond als ✕ achter een regel van het klantfilter, zichtbaar op
+             hover. Verwijderen hoort niet achter een hover-knopje op de plek
+             waar je fltert; het hoort hier, bij de rest van het beheer. -->
+        <button class="btn btn-sm btn-danger" data-fac-action="facKlantVerwijder">Verwijderen</button>
+      </div>
       <div class="modal-footer-right">
         <button class="btn btn-sm" data-fac-action="closeKlantModal">Annuleer</button>
         <button class="btn btn-sm btn-primary" data-fac-action="facKlantOpslaan">Opslaan</button>
@@ -9937,7 +9929,7 @@ window.addEventListener('load',()=>{
    ───────────────────────────────────────────────────
      ═══ STATE ═══  kanbanState.clients[], activeClientFilter,
                     _newClientColorIdx (alleen binnen de modal).
-     ═══ LOGIC ═══  setClientFilter, deleteClient, editClient,
+     ═══ LOGIC ═══  setClientFilter, deleteClient, openKlantenBeheer,
                     flattenNotes (notitieboom → platte lijst pagina's).
      ═══ VIEW  ═══  renderClientFilters (dropdown in elke topbalk),
                     openNewClientModal/saveNewClient (nieuwe klant).
@@ -9985,17 +9977,17 @@ function renderOneClientFilter(host){
        <span class="cf-dot" style="background:var(--surface3)"></span>
        <span class="cf-opt-name">Alle klanten</span>
      </div>`,
+    /* Alleen kiezen, verder niets. Er stonden drie knopjes achter elke regel
+       -- overzicht, hernoemen, verwijderen -- die pas bij hover verschenen.
+       Op een telefoon bestaat hover niet: de eerste tik ging naar die
+       hover-staat en pas de tweede koos de klant. Het overzicht staat nu
+       naast de balk, hernoemen en verwijderen onder Klanten beheren. */
     ...clients.map(c=>{
       const col=CLIENT_COLORS[c.colorIdx%CLIENT_COLORS.length];
       const sel=activeClientFilter===c.id?' selected':'';
       return `<div class="client-filter-option${sel}" role="button" tabindex="0" data-cid="${c.id}">
         <span class="cf-dot" style="background:${col.bg}"></span>
         <span class="cf-opt-name">${escapeHtml(c.name)}</span>
-        <span class="cf-actions">
-          <button type="button" class="cf-actbtn" data-cf-info="${c.id}" title="Klant overzicht">ℹ</button>
-          <button type="button" class="cf-actbtn" data-cf-edit="${c.id}" title="Hernoemen">✎</button>
-          <button type="button" class="cf-actbtn" data-cf-del="${c.id}" title="Verwijderen">✕</button>
-        </span>
       </div>`;
     })
   ];
@@ -10043,12 +10035,6 @@ function wireClientFilter(host){
   });
   host.querySelectorAll('.client-filter-option').forEach(opt=>{
     opt.addEventListener('click',e=>{
-      const del=e.target.closest('[data-cf-del]');
-      const edt=e.target.closest('[data-cf-edit]');
-      const inf=e.target.closest('[data-cf-info]');
-      if(del){e.stopPropagation();deleteClient(del.dataset.cfDel);return;}
-      if(edt){e.stopPropagation();editClient(edt.dataset.cfEdit);return;}
-      if(inf){e.stopPropagation();setOpen(false);openClientDash(inf.dataset.cfInfo);return;}
       e.stopPropagation();
       const cid=opt.dataset.cid;
       /* Direct set (not toggle) — user picks 'Alle klanten' to clear */
@@ -10156,17 +10142,13 @@ function deleteClient(id){
     scheduleSave();renderClientFilters();rerenderActiveModule();
   }});
 }
-function editClient(id){
-  const c=clientById(id);if(!c)return;
-  /* Use the consistent renameModal — same as notes / projects */
-  renameTarget='client:'+id;
-  document.getElementById('renameModalTitle').textContent='Klant hernoemen';
-  document.getElementById('renameInput').value=c.name;
-  document.getElementById('renameModal').classList.add('open');
-  setTimeout(()=>{
-    const inp=document.getElementById('renameInput');
-    if(inp){inp.focus();inp.select();}
-  },30);
+/* Klantbeheer heeft één adres: het tabblad Klanten in Facturen. Daar staat
+   alles al -- naam, adres, btw-nummer, uurtarief, factuurpartij -- en sinds
+   vandaag ook verwijderen. Vanuit elk ⋯-menu op een pagina met een
+   klantfilter kom je daar in één tik. */
+function openKlantenBeheer(){
+  switchModule('facturen');
+  facSetView('klanten');
 }
 /* ─── Klant dashboard — aggregated overview for one client ─── */
 function openClientDash(id){
@@ -10732,8 +10714,6 @@ window.addEventListener('hashchange',()=>{
 Object.assign(APP_ACTIONS,{
   switchModule:(el,e,mod)=>switchModule(mod),
   setClientFilter:(el,e,id)=>setClientFilter(id),
-  editClientStop:(el,e,id)=>{e.stopPropagation();editClient(id,e);},
-  deleteClientStop:(el,e,id)=>{e.stopPropagation();deleteClient(id,e);},
   dashClToggle:(el,e,id)=>dashClToggle(id),
   dashClToggleSubtask:(el,e,itemId,stId)=>dashClToggleSubtask(itemId,stId)
 });
@@ -12704,17 +12684,10 @@ function confirmRename(){
   if(!renameTarget)return;
   const v=document.getElementById('renameInput').value.trim();
   if(!v){closeRenameModal();return;}
-  /* Typed targets: 'client:<id>' / 'project:<name>' / plain string = note id */
-  if(typeof renameTarget==='string'&&renameTarget.startsWith('client:')){
-    const id=renameTarget.slice(7);
-    const c=clientById(id);
-    if(c){
-      c.name=v;
-      scheduleSave();
-      renderClientFilters();
-      rerenderActiveModule();
-    }
-  } else if(typeof renameTarget==='string'&&renameTarget.startsWith('project:')){
+  /* Typed targets: 'project:<name>' / plain string = note id.
+     'client:' hoorde hier ook bij; een klant hernoemen gaat sinds
+     2026-09-07 via het veld "Weergavenaam" in Klantgegevens. */
+  if(typeof renameTarget==='string'&&renameTarget.startsWith('project:')){
     const oldName=renameTarget.slice(8);
     if(kanbanState.projects[v]&&v!==oldName){
       appToast('Project met deze naam bestaat al',{type:'warning'});
@@ -12974,6 +12947,7 @@ function renderNotesOverflowMenu(){
   menu.innerHTML=`
     <button class="notes-ovf-item" data-action="toggleAlleNoteGroepen">${dicht?'Alles uitklappen':'Alles inklappen'}</button>
     <button class="notes-ovf-item" data-action="notesBakOpen">Prullenbak${bak?' ('+bak+')':''}</button>
+    <button class="notes-ovf-item" data-action="notesKlanten">Klanten beheren</button>
     <div class="notes-ovf-scheiding"></div>
     <div class="notes-ovf-kop">Sorteren</div>
     ${Object.keys(NOTES_SORTEER).map(k=>
@@ -13644,6 +13618,7 @@ Object.assign(APP_ACTIONS,{
   toggleNotesOverflow:(el,e)=>toggleNotesOverflow(e),
   toggleAlleNoteGroepen:()=>{closeNotesOverflow();toggleAlleNoteGroepen();},
   notesBakOpen:()=>{closeNotesOverflow();openNotesPrullenbak();},
+  notesKlanten:()=>{closeNotesOverflow();openKlantenBeheer();},
   notesBakSluit:()=>closeNotesPrullenbak(),
   notesBakTerug:(el,e,id)=>notesPrullenbakTerug(id),
   notesBakWeg:(el,e,id)=>notesPrullenbakWeg(id),
@@ -14651,6 +14626,12 @@ function renderClOverflowMenu(){
   } else {
     html+=`<button type="button" role="menuitem" data-action="clOvfArchief"><span class="cl-ovf-vink"></span>← Terug naar actief</button>`;
   }
+
+  /* Op deze pagina filter je op klant; dan hoort het beheer van die klanten
+     hier ook bereikbaar te zijn -- de knopjes achter een regel van dat filter
+     zijn weg (zie renderOneClientFilter). */
+  html+='<div class="cl-ovf-scheiding"></div>';
+  html+=`<button type="button" role="menuitem" data-action="clOvfKlanten"><span class="cl-ovf-vink"></span>Klanten beheren</button>`;
   el.innerHTML=html;
 }
 function toggleClOverflow(e){
@@ -14909,6 +14890,7 @@ Object.assign(APP_ACTIONS,{
   clOvfQuickAdd:()=>{closeClOverflow();openQuickAddAI();},
   clOvfDeleteDone:()=>{closeClOverflow();deleteAllDone();},
   clOvfArchief:()=>{closeClOverflow();toggleChecklistArchived();},
+  clOvfKlanten:()=>{closeClOverflow();openKlantenBeheer();},
   /* De wis-knop zit ín de kop-knop, dus zonder stopPropagation klapt de
      balk ook nog open of dicht bij het wissen. */
   clearClFilters:(el,e)=>{if(e)e.stopPropagation();
@@ -18232,6 +18214,7 @@ const FAC_CLICK_ACTIONS={
   facDupliceer:(a)=>facDupliceerActie(a||facEditId),
   facVerwijder:(a)=>facVerwijderActie(a||facEditId),
   facKlantBewerk:(a)=>openKlantModal(a),
+  facKlantVerwijder:()=>facKlantVerwijder(),
   facKlantNieuw:()=>openKlantModal(null),
   facKlantOpslaan:()=>klantModalOpslaan(),
   closeKlantModal:()=>closeKlantModal(),
@@ -20095,10 +20078,27 @@ function facVerwijderActie(id){
 
 /* ── Klantgegevens ── */
 let klantModalId=null;
+/* Verwijderen zat achter een ✕ in het klantfilter, zichtbaar op hover -- dus
+   op een telefoon nergens, en op een bureaublad naast de knopjes waarmee je
+   filtert. Het hoort bij het beheer, dus staat het hier. deleteClient() doet
+   het echte werk: verwijzingen loskoppelen, toast met ongedaan maken. */
+function facKlantVerwijder(){
+  if(!klantModalId)return;
+  const c=clientById(klantModalId);
+  if(!c)return;
+  if(!confirm(`Klant "${c.name}" verwijderen? Taken, notities en uren blijven bestaan, maar raken deze klant kwijt.`))return;
+  const id=klantModalId;
+  closeKlantModal();
+  deleteClient(id);
+  facRenderAll();
+}
 function openKlantModal(id){
   klantModalId=id||null;
   const c=id?factuurKlant(id):null;
   document.getElementById('klantModalTitel').textContent=c?('Klantgegevens · '+(c.bedrijfsnaam||c.name)):'Nieuwe klant';
+  /* Bij een nieuwe klant valt er nog niets te verwijderen. */
+  const wegBtn=document.querySelector('#klantModal [data-fac-action="facKlantVerwijder"]');
+  if(wegBtn)wegBtn.style.display=c?'':'none';
   const v=(k,d)=>escapeHtml(String((c&&c[k])||d||''));
   const s=factuurSettings();
   document.getElementById('klantModalBody').innerHTML=`
