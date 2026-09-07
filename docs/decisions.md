@@ -2214,3 +2214,27 @@ entry voor waarom. Achteraf de opmaak teruggelezen en de div-balans vergeleken
 met HEAD: 930 open, 928 gesloten in beide, dus identiek.
 
 **Bestanden.** `index.html` — `#clItemModal`.
+
+## 2026-09-07 · Zijbalk: strepen in plaats van kopjes
+
+**Probleem.** De zijbalk had twee kopjes: "Navigatie" en "Administratie".
+Het eerste vertelt boven een navigatiemenu dat het een navigatiemenu is. Het
+tweede klopte niet helemaal: Externe tools stond eronder en dat is geen
+administratie maar een link naar buiten. Frank: *"Navigatie en Administratie is
+niet echt een goede verdeling."*
+
+**Beslissing.** De woorden eruit, de groepering houden met een dunne streep:
+Dashboard/Notities/Checklist — Uren/Facturen — Externe tools.
+
+**Waarom niet één doorlopende lijst.** Het verschil tussen "een notitie
+schrijven" en "een factuur versturen" is echt: bij de tweede groep moet het
+kloppen. Een streep zegt dat zonder een woord te gebruiken dat voor een van de
+items niet waar is. Elk alternatief woord liep daarop stuk — "Werk" boven
+Dashboard klopt niet, want dat is juist het overzicht over allebei.
+
+Bijkomend: bij een ingeklapte zijbalk werden die kopjes onzichtbaar
+(`opacity:0`) maar hielden ze hun ruimte. Een streep werkt in beide standen.
+
+**Bestanden.** `index.html` — `.sidebar-sec-lijn`, de twee
+`.sidebar-sec-label`-regels uit de zijbalk. `.sidebar-sec-label` blijft in de
+CSS staan: hij wordt elders nog gebruikt.
