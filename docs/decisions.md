@@ -2171,3 +2171,28 @@ vroeg: dezelfde ruimte, strakker ingericht. De kalender is 2,5 keer zo groot.
 
 **Niet doen.** De dagvakjes kleiner maken om het venster korter te krijgen.
 Dat vakje is precies waar je op moet tikken.
+
+## 2026-09-07 · Klant kiezen in het taakvenster is ook een uitklaplijst
+
+Doorgetrokken van 2026-09-07 (het urenvenster): wat uit een lijst komt die met
+de administratie meegroeit hoort in een `.klantkies` — stipje plus `<select>`
+— en niet in een rij knoppen. In het taakvenster kostte die rij vijf regels,
+of een schuifbalkje van 130px zodra je meer dan drie klanten hebt.
+
+Meegenomen: het klantveld stond op `flex:1` en rekte mee met de hoogte van de
+kalender ernaast. Als rij knoppen viel dat niet op; met één regel bleef er
+lucht onder staan.
+
+**Bestanden.** `index.html` — `renderClClientBtns()`, `#clClientBtns` krijgt
+`.klantkies`, de mobiele twee-koloms-regels en de dode dispatcher
+`selectClClient` weg.
+
+**Wat er misging.** Ik wilde ook het veld Herhaling naar de keuzekolom
+verplaatsen om een gat op het bureaublad te sluiten, en knipte met een regex
+één `</div>` te veel weg. `validate.mjs` gaf gröen — die telt tags over het
+hele bestand, en er ging er één weg die elders werd ingehaald. Alleen het
+teruglezen van de opmaak liet het zien. Teruggedraaid met `git checkout` en de
+rest opnieuw toegepast; de div-balans is daarna vergeleken met de commit en is
+identiek. Les: bij het verplaatsen van een blok in de opmaak niet op een regex
+vertrouwen maar het resultaat teruglezen — en de balans vergelijken met HEAD,
+niet alleen met nul.

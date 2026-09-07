@@ -515,9 +515,10 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .cl-cal-day.today{font-weight:700;color:var(--accent)}
 .cl-cal-day.selected{background:var(--accent)!important;color:#fff!important;font-weight:700}
 .cl-cal-footer{display:flex;justify-content:space-between;margin-top:8px;border-top:0.5px solid var(--border);padding-top:6px}
-/* Een klantnaam als "Van der Meer Logistiek & Transport Nederland B.V." liep
-   over drie regels en maakte die ene knop drie keer zo hoog als de rest. */
-#clClientBtns .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+/* Het klantveld rekte mee met de hoogte van de kalender ernaast (flex:1).
+   Als rij knoppen viel dat niet op; met één uitklaplijst bleef er lucht
+   onder staan. */
+#clItemModal .cl-taak-klant{flex:none!important}
 
 
 /* ── Modals ── */
@@ -5873,18 +5874,6 @@ textarea { line-height: 1.6; resize: vertical; }
   }
   #clItemModal .cl-pri-btn span { margin-right: 4px !important; }
 
-  /* Twee klanten naast elkaar; de lijst blijft begrensd zodat het venster
-     niet meegroeit met het aantal klanten. */
-  #clItemModal #clClientBtns {
-    display: grid !important; grid-template-columns: 1fr 1fr; gap: 7px !important;
-    max-height: 208px !important;
-  }
-  /* De knop moet zelf mogen krimpen, anders heeft de ellipsis op .nm niets
-     om binnen te blijven en steekt de naam er gewoon uit. */
-  #clItemModal #clClientBtns button {
-    min-height: var(--tap); min-width: 0; overflow: hidden;
-  }
-
   /* De kalender krijgt de volle breedte. aspect-ratio houdt de vakjes
      vierkant, dus ze groeien mee: van ~20px naar ~46px. */
   #clItemModal .cl-cal-days { gap: 4px; }
@@ -7811,7 +7800,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Client -->
         <div class="cl-taak-klant" style="margin-top:14px;flex:1;display:flex;flex-direction:column;min-height:0">
           <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Klant</div>
-          <div id="clClientBtns" style="display:flex;flex-direction:column;gap:5px;overflow-y:auto;max-height:130px;padding-right:2px"></div>
+          <div id="clClientBtns" class="klantkies"></div>
           <input type="hidden" id="clItemClient" value=""/>
         </div>
       </div>
@@ -15055,27 +15044,29 @@ function toggleChecklistArchived(){
   renderChecklistModule();
 }
 
-/* ── Client button selection (checklist modal) ── */
+/* ── Klant kiezen in het taakvenster ──
+   Eén regel met een stipje en een uitklaplijst, hetzelfde onderdeel als in het
+   urenvenster en de factuureditor (zie .klantkies, docs/stijlgids.md §6): wat
+   uit een lijst komt die met de administratie meegroeit hoort in een
+   uitklaplijst. Als knoppen kostte het hier vijf regels -- of een schuifbalkje
+   van 130px zodra je meer dan drie klanten hebt. */
 function renderClClientBtns(){
   const el=document.getElementById('clClientBtns');
   if(!el)return;
   const selected=document.getElementById('clItemClient')?.value||'';
-  if(!kanbanState.clients.length){
-    el.innerHTML=`<span style="font-size:12px;color:var(--text-hint)">Geen klanten aangemaakt</span>`;
+  const klanten=kanbanState.clients||[];
+  if(!klanten.length){
+    el.innerHTML=`<span class="klantkies-leeg">Nog geen klanten aangemaakt.</span>`;
     return;
   }
-  el.innerHTML=`<button type="button" data-action="selectClClient" data-arg1=""
-    style="padding:7px 10px;border-radius:var(--radius);border:2px solid ${selected===''?'var(--text)':'transparent'};background:var(--surface2);color:var(--text-muted);font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;text-align:left;transition:all .15s">
-    — Geen klant
-  </button>`+kanbanState.clients.map(c=>{
-    const col=CLIENT_COLORS[c.colorIdx%CLIENT_COLORS.length];
-    const active=selected===c.id;
-    return `<button type="button" data-action="selectClClient" data-arg1="${c.id}"
-      style="padding:7px 10px;border-radius:var(--radius);border:2px solid ${active?col.tx:'transparent'};background:${active?col.bg:'var(--surface2)'};color:${active?col.tx:'var(--text-muted)'};font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;transition:all .15s;display:flex;align-items:center;gap:7px">
-      <span style="width:10px;height:10px;border-radius:3px;background:${col.bg};border:1.5px solid ${col.tx};flex-shrink:0"></span>
-      <span class="nm">${escapeHtml(c.name)}</span>
-    </button>`;
-  }).join('');
+  const huidig=klanten.find(c=>c.id===selected);
+  const kleur=huidig?CLIENT_COLORS[huidig.colorIdx%CLIENT_COLORS.length]:null;
+  el.innerHTML=`
+    <span class="klantkies-dot" style="background:${kleur?kleur.bg:'var(--surface3)'};border-color:${kleur?kleur.tx:'var(--border-strong)'}"></span>
+    <select class="klantkies-sel" aria-label="Klant" onchange="selectClClient(this.value)">
+      <option value=""${huidig?'':' selected'}>Geen klant</option>
+      ${klanten.map(c=>`<option value="${c.id}"${selected===c.id?' selected':''}>${escapeHtml(c.name)}</option>`).join('')}
+    </select>`;
 }
 function selectClClient(id){
   document.getElementById('clItemClient').value=id;
@@ -15179,7 +15170,6 @@ Object.assign(APP_ACTIONS,{
   deleteAllDone:()=>deleteAllDone(),
   clAddInlineItem:()=>clAddInlineItem(),
   setClFilter:(el,e,type,val)=>setClFilter(type,val||null),
-  selectClClient:(el,e,id)=>selectClClient(id||''),
   clCalSelect:(el,e,iso)=>clCalSelect(iso),
   toggleClGroupByPriority:()=>toggleClGroupByPriority(),
   toggleClFilters:()=>{clFiltersOpen=!clFiltersOpen;renderClFilterBar();},
