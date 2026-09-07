@@ -6411,6 +6411,9 @@ textarea { line-height: 1.6; resize: vertical; }
   background-color: var(--success-bg);
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14' fill='none'><rect x='1.5' y='2.5' width='3' height='3' rx='0.5' stroke='%230A9D78' stroke-width='1.3'/><rect x='1.5' y='8.5' width='3' height='3' rx='0.5' stroke='%230A9D78' stroke-width='1.3'/><path d='M6.5 4h6M6.5 10h6' stroke='%230A9D78' stroke-width='1.4' stroke-linecap='round'/></svg>");
 }
+.ha-newitem-option[data-kind="ai"] .ha-newitem-option-icon {
+  background: linear-gradient(135deg, #00E5B0 0%, #3B5BDB 100%);
+}
 .ha-newitem-option[data-kind="note"] .ha-newitem-option-icon {
   background-color: var(--info-bg);
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14' fill='none'><path d='M3 1.5h5.5L11.5 4.5v8a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-10a1 1 0 0 1 1-1z' stroke='%232563EB' stroke-width='1.3'/><path d='M8.5 1.5v3h3' stroke='%232563EB' stroke-width='1.3'/></svg>");
@@ -6837,6 +6840,18 @@ textarea { line-height: 1.6; resize: vertical; }
                 </span>
                 <svg class="ha-newitem-option-arrow" viewBox="0 0 11 11" fill="none"><path d="M3 2L7 5.5L3 9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </button>
+              <!-- Zat alleen in de ⋯-menu's van het Dashboard en de Checklist, en
+                   die staan allebei op display:none op een bureaublad -- daar was
+                   Slim toevoegen dus nergens te vinden. Hier hoort het ook: het is
+                   een manier om items toe te voegen. -->
+              <button type="button" class="ha-newitem-option" data-kind="ai" role="menuitem">
+                <span class="ha-newitem-option-icon"></span>
+                <span class="ha-newitem-option-body">
+                  <span class="ha-newitem-option-title">Slim toevoegen met AI</span>
+                  <span class="ha-newitem-option-sub">Beschrijf in normale taal wat je wil</span>
+                </span>
+                <svg class="ha-newitem-option-arrow" viewBox="0 0 11 11" fill="none"><path d="M3 2L7 5.5L3 9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
             </div>
           </div>
           <!-- Client filter (shared) -->
@@ -6863,14 +6878,14 @@ textarea { line-height: 1.6; resize: vertical; }
               <button type="button" onclick="closeDashMobileSettings();openNewClientModal()">＋ Nieuwe klant</button>
               <button type="button" onclick="closeDashMobileSettings();openKlantenBeheer()">⚙ Klanten beheren</button>
               <button type="button" onclick="closeDashMobileSettings();openWeeklyReviewModal()">📊 Wekelijkse review</button>
+              <button type="button" onclick="closeDashMobileSettings();openQuickAddAI()">✨ Slim toevoegen</button>
               <div class="dash-mobile-settings-divider"></div>
-              <button type="button" onclick="closeDashMobileSettings();refreshGist()">↻ Data opnieuw laden</button>
-              <div class="dash-mobile-settings-divider"></div>
-              <button type="button" onclick="closeDashMobileSettings();openVersiesModal()">↺ Versiegeschiedenis</button>
-              <button type="button" onclick="closeDashMobileSettings();downloadBackup()">↓ Backup downloaden (JSON)</button>
-              <button type="button" onclick="closeDashMobileSettings();document.getElementById('restoreFileInput').click()">↑ Backup terugzetten</button>
-              <div class="dash-mobile-settings-divider"></div>
-              <button type="button" onclick="closeDashMobileSettings();requestNotifPermission()">🔔 Notificaties inschakelen</button>
+              <!-- Opslag, de API-key en notificaties gaan over de héle app en
+                   staan daarom onder Instellingen in de zijbalk, niet hier.
+                   Ze stonden hier wél en daar niet, en omdat dit menu alleen
+                   op een telefoon bestaat waren ze op een bureaublad nergens
+                   te vinden -- de API-key voorop. -->
+              <button type="button" onclick="closeDashMobileSettings();toggleSidebarMobile();">⚙ Instellingen…</button>
             </div>
             <input type="file" id="restoreFileInput" accept=".json,application/json" style="display:none" onchange="handleRestoreFile(this.files[0])"/>
           </div>
@@ -10887,14 +10902,40 @@ function toggleAppInstellingen(e){
   const m=document.createElement('div');
   m.className='uren-menu';m.id='appInstelMenu';m.setAttribute('role','menu');
   const dagen=facBackupLeeftijd();
+  /* Alles wat over de hele app gaat, staat hier. Het ging mis doordat het
+     ⋯-menu op het Dashboard (alleen mobiel) meer kon dan deze knop: de
+     API-key, opnieuw laden, een back-up terugzetten en notificaties zaten
+     daar wel en hier niet. Op een bureaublad waren die dus onbereikbaar. */
+  const key=(()=>{try{return localStorage.getItem(LS_GEMINI_KEY)||'';}catch(e){return '';}})();
   m.innerHTML=`
-    <div class="uren-menu-lab">Opslag</div>
-    <button class="uren-menu-item" role="menuitem" data-app-instel="versies">
+    <div class="uren-menu-lab">Gegevens</div>
+    <button class="uren-menu-item" role="menuitem" data-app-instel="verversen">
       <span class="ic" aria-hidden="true">&#8635;</span>
+      <span>Opnieuw laden uit Drive<small>Haal de laatste versie op</small></span></button>
+    <button class="uren-menu-item" role="menuitem" data-app-instel="versies">
+      <span class="ic" aria-hidden="true">&#8634;</span>
       <span>Versiegeschiedenis<small>Een oudere versie uit Drive terughalen</small></span></button>
     <button class="uren-menu-item" role="menuitem" data-app-instel="backup">
       <span class="ic" aria-hidden="true">&#9739;</span>
       <span>Back-up downloaden<small>${dagen===null?'Nog nooit gedaan':dagen===0?'Vandaag gedaan':'Laatst '+dagen+' '+(dagen===1?'dag':'dagen')+' geleden'}</small></span></button>
+    <button class="uren-menu-item" role="menuitem" data-app-instel="herstel">
+      <span class="ic" aria-hidden="true">&#8593;</span>
+      <span>Back-up terugzetten<small>Een eerder gedownload JSON-bestand</small></span></button>
+    <div class="uren-menu-sep"></div>
+    <div class="uren-menu-lab">AI</div>
+    <button class="uren-menu-item" role="menuitem" data-app-instel="aikey">
+      <span class="ic" aria-hidden="true">&#9881;</span>
+      <span>Gemini API-key<small>${key?'Ingesteld op dit apparaat':'Nog niet ingesteld'}</small></span></button>
+    <button class="uren-menu-item" role="menuitem" data-app-instel="slim">
+      <span class="ic" aria-hidden="true">&#10022;</span>
+      <span>Slim toevoegen<small>Taken uit een zin laten halen</small></span></button>
+    <button class="uren-menu-item" role="menuitem" data-app-instel="review">
+      <span class="ic" aria-hidden="true">&#9635;</span>
+      <span>Wekelijkse review<small>Samenvatting van je week</small></span></button>
+    <div class="uren-menu-sep"></div>
+    <button class="uren-menu-item" role="menuitem" data-app-instel="notif">
+      <span class="ic" aria-hidden="true">&#128276;</span>
+      <span>Notificaties inschakelen<small>Melding bij een deadline</small></span></button>
 `;
   document.body.appendChild(m);
   /* Boven de knop uitlijnen; de zijbalk staat onderaan het scherm. */
@@ -10918,6 +10959,12 @@ document.addEventListener('click',e=>{
   closeAppInstellingen();
   if(wat==='backup')downloadBackup();
   if(wat==='versies')openVersiesModal();
+  if(wat==='verversen')refreshGist();
+  if(wat==='herstel')document.getElementById('restoreFileInput')?.click();
+  if(wat==='aikey')openGeminiKeyPrompt();
+  if(wat==='slim')openQuickAddAI();
+  if(wat==='review')openWeeklyReviewModal();
+  if(wat==='notif')requestNotifPermission();
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeAppInstellingen();});
 
@@ -22523,12 +22570,15 @@ function facExportBoekhouding(){
 
   trigger.addEventListener('click',e=>{e.stopPropagation();toggle();});
 
-  root.querySelectorAll('[data-ha-newitem-target]').forEach(opt=>{
+  root.querySelectorAll('.ha-newitem-option').forEach(opt=>{
     opt.addEventListener('click',e=>{
       e.stopPropagation();
       const target=opt.getAttribute('data-ha-newitem-target');
       const kind=opt.getAttribute('data-kind');
       setOpen(false);
+      /* Slim toevoegen blijft waar je bent: het venster vraagt zelf wat je
+         wil en zet het daarna in de goede module. */
+      if(kind==='ai'){openQuickAddAI();return;}
       /* Navigate to the target module, then open the creation flow */
       switchModule(target);
       /* Wait a tick for the module to render, then trigger new-item flow */

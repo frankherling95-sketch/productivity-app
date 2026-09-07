@@ -1855,3 +1855,38 @@ uitgehaald. Ze terugzetten voor een oog zou dezelfde fout opnieuw maken.
 
 **Niet doen.** Er een globale "inactieve klant" van maken zonder het te vragen:
 dat raakt ook de Checklist, Uren en Facturen, en dat is een andere beslissing.
+
+## 2026-09-07 · Alles wat app-breed is staat onder Instellingen
+
+**Probleem.** Frank kon de knop "Slim toevoegen" op zijn bureaublad niet
+vinden — en terecht: hij bestond daar niet. De ingang zat alleen in het
+⋯-menu van het Dashboard en dat van de Checklist, en die staan allebei op
+`display:none` buiten de mobiele laag. Hetzelfde gold voor de **Gemini
+API-key**, "Data opnieuw laden", "Back-up terugzetten" en "Notificaties": wél
+in dat mobiele menu, niet onder Instellingen. Twee menu's met verschillende
+inhoud voor dezelfde app, en het grootste ervan bestond alleen op een telefoon.
+
+Frank: *"Ik zou verwachten dat alles onder de knop instellingen zou moeten
+vallen."*
+
+**Beslissing.** Eén plek voor wat over de hele app gaat: de knop
+**Instellingen** in de zijbalk, op elk scherm. Die had twee items en heeft er
+nu negen, in drie groepen — Gegevens (opnieuw laden, versiegeschiedenis,
+back-up downloaden en terugzetten), AI (API-key, Slim toevoegen, Wekelijkse
+review) en Notificaties. Bij de API-key staat meteen of er een is ingesteld
+*op dit apparaat*, want hij zit in `localStorage` en niet in Drive.
+
+Het ⋯-menu op het Dashboard houdt alleen wat over dát scherm gaat — nieuwe
+klant, klanten beheren, wekelijkse review, slim toevoegen — plus een regel
+"Instellingen…" die de zijbalk opent. Geen twee lijsten meer die uit elkaar
+kunnen lopen.
+
+Daarnaast staat **Slim toevoegen met AI** nu ook in de knop `+ Nieuw item`,
+naast Checklist item en Notitie. Daar hoort het: het is een manier om items toe
+te voegen, en dat is de plek waar je daarvoor kijkt.
+
+**Bestanden.** `index.html` — `toggleAppInstellingen()` en zijn afhandeling,
+`#dashMobileSettingsMenu`, de `+ Nieuw item`-opties en hun dispatcher.
+
+**Niet doen.** De storage-items terugzetten in het mobiele ⋯-menu "omdat het
+daar sneller is". Dat is precies hoe de twee lijsten uit elkaar zijn gelopen.
