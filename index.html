@@ -7514,6 +7514,8 @@ textarea { line-height: 1.6; resize: vertical; }
   </div>
 </div>
 
+<input type="file" id="facScanInput" accept="application/pdf,image/*" style="display:none"/>
+
 <!-- ── Factuursjabloon: instellingen links, live PDF-preview rechts ── -->
 <div class="modal-bg" id="facSjabloonModal">
   <div class="modal" style="max-width:1180px;padding:0;display:flex;flex-direction:column;max-height:94vh">
@@ -18426,6 +18428,7 @@ const FAC_CLICK_ACTIONS={
   facKlantBewerk:(a)=>openKlantModal(a),
   facKlantVerwijder:()=>facKlantVerwijder(),
   facOudNieuw:()=>facOudNieuw(),
+  facScanKies:()=>facScanKies(),
   closeFacOud:()=>closeFacOud(),
   facOudOpslaan:()=>facOudOpslaan(),
   facOudOpslaanVolgende:()=>facOudOpslaanVolgende(),
@@ -20372,6 +20375,103 @@ function factuurOudToevoegen(g){
   scheduleSave();
   return f;
 }
+/* ══ Factuur inscannen ══
+   Dezelfde route als hierboven, alleen vult Gemini het formulier vast in in
+   plaats van jij. Wat eruit komt is een voorstel: je ziet elk veld en drukt
+   zelf op Opslaan. Eén verkeerd overgenomen bedrag zit anders meteen in je
+   btw-aangifte. */
+const FAC_SCAN_MAX=12*1024*1024;   /* boven ~12 MB weigert het verzoek */
+let facOudBezig=false;             /* leest hij nu een bestand? */
+let facOudBron='';                 /* bestandsnaam, als bewijs van herkomst */
+function facScanKies(){
+  closeFacMenu();
+  const inp=document.getElementById('facScanInput');
+  if(!inp)return;
+  inp.value='';
+  inp.onchange=()=>{const f=inp.files&&inp.files[0];if(f)facScanLees(f);};
+  inp.click();
+}
+async function facScanLees(file){
+  if(file.size>FAC_SCAN_MAX){
+    appToast(`${file.name} is ${(file.size/1048576).toFixed(1)} MB — maximaal 12 MB`,{type:'warning'});
+    return;
+  }
+  facOudForm=facOudLeeg();
+  facOudBezig=true;
+  facOudBron=file.name;
+  facOudRender();
+  document.getElementById('facOudModal').classList.add('open');
+  try{
+    const data=await facScanBestandNaarBase64(file);
+    const g=await facScanVraagGemini({mime:file.type||'application/pdf',data});
+    Object.assign(facOudForm,g);
+    facOudBezig=false;
+    facOudRender();
+    appToast('Ingelezen — controleer de velden voor je opslaat',{type:'success'});
+  }catch(e){
+    facOudBezig=false;
+    facOudBron='';
+    facOudRender();
+    appToast('Inlezen mislukt: '+e.message,{type:'error',duration:12000});
+  }
+}
+function facScanBestandNaarBase64(file){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onerror=()=>rej(new Error('kon het bestand niet lezen'));
+    /* readAsDataURL geeft "data:<mime>;base64,<data>" -- alleen het deel
+       achter de komma gaat mee. */
+    r.onload=()=>res(String(r.result).split(',')[1]||'');
+    r.readAsDataURL(file);
+  });
+}
+async function facScanVraagGemini(bestand){
+  const klanten=(kanbanState.clients||[]).map(c=>
+    `- id ${c.id}: ${c.name}${c.bedrijfsnaam&&c.bedrijfsnaam!==c.name?' ('+c.bedrijfsnaam+')':''}`).join('\n');
+  const system=`Je leest één factuur en geeft de gegevens terug als JSON. Antwoord met
+uitsluitend JSON, zonder uitleg.
+
+Velden:
+- nummer: het factuurnummer zoals het op de factuur staat (string)
+- datum: de factuurdatum als YYYY-MM-DD
+- clientId: het id van de klant uit onderstaande lijst aan wie de factuur is
+  gericht, of "" als geen enkele erop lijkt. Kies alleen bij een duidelijke
+  match op naam of bedrijfsnaam.
+- klantOpFactuur: de tenaamstelling zoals die op de factuur staat (string)
+- betreft: waar de factuur over gaat, kort (string)
+- excl: het totaalbedrag EXCLUSIEF btw als getal, punt als decimaalteken.
+  Staat alleen het bedrag inclusief btw erop, reken dan terug.
+- btw: "21", "9", "0" of "verlegd" — het btw-tarief over dat bedrag.
+  Staat er "btw verlegd" of "reverse charge", gebruik dan "verlegd".
+
+Let op:
+- Nederlandse notatie: 1.234,56 betekent duizend tweehonderdvierendertig komma
+  zesenvijftig. Geef het terug als 1234.56.
+- Dit is een factuur die IK heb verstuurd; de klant is de ontvanger, niet de
+  afzender. Bij twijfel is de afzender het bedrijf dat de factuur opstelde.
+- Kun je een veld niet vinden, geef dan "" (of 0 bij excl.). Verzin niets.
+
+Bekende klanten:
+${klanten||'(nog geen klanten)'}`;
+  const d=await callGemini({system,user:'Lees deze factuur uit.',bestand,temperature:0});
+  /* Alles wat terugkomt is een voorstel, dus normaliseren en begrenzen. */
+  const btw=['21','9','0','verlegd'].includes(String(d.btw))?String(d.btw):'21';
+  const datum=/^\d{4}-\d{2}-\d{2}$/.test(String(d.datum||''))?String(d.datum):'';
+  const bekend=(kanbanState.clients||[]).some(c=>c.id===d.clientId);
+  const excl=Number(d.excl);
+  return {
+    nummer:String(d.nummer||'').trim(),
+    datum:datum||dateStr(new Date()),
+    clientId:bekend?d.clientId:'',
+    betreft:String(d.betreft||'').trim(),
+    /* Altijd twee decimalen: het is een bedrag, en "2340,5" leest als een
+       half getal in plaats van als geld. */
+    excl:excl>0?excl.toFixed(2).replace('.',','):'',
+    btw,
+    klantOpFactuur:String(d.klantOpFactuur||'').trim(),
+    verstuurdOp:'', betaaldOp:''
+  };
+}
 let facOudForm=null;
 function facOudLeeg(){
   return {nummer:'',datum:dateStr(new Date()),clientId:'',betreft:'',
@@ -20380,13 +20480,14 @@ function facOudLeeg(){
 function facOudNieuw(){
   closeFacMenu();
   facOudForm=facOudLeeg();
+  facOudBezig=false; facOudBron='';
   facOudRender();
   document.getElementById('facOudModal').classList.add('open');
   setTimeout(()=>document.getElementById('faOudNummer')?.focus(),60);
 }
 function closeFacOud(){
   document.getElementById('facOudModal').classList.remove('open');
-  facOudForm=null;
+  facOudForm=null; facOudBezig=false; facOudBron='';
 }
 function facOudRender(){
   const g=facOudForm; if(!g)return;
@@ -20397,7 +20498,16 @@ function facOudRender(){
   const excl=Number(String(g.excl).replace(',','.'))||0;
   const pct=g.btw==='verlegd'?0:Number(g.btw);
   const incl=Math.round((excl+excl*pct/100)*100)/100;
-  box.innerHTML=`
+  /* Bovenaan staat waar deze gegevens vandaan komen. Bij een ingelezen
+     bestand is dat geen detail: je moet weten dat je een voorstel nakijkt
+     en geen eigen invoer. */
+  const bron=facOudBezig
+    ? `<div class="fac-uren-info" style="margin-bottom:14px">✲ <b>${escapeHtml(facOudBron)}</b> wordt gelezen…</div>`
+    : facOudBron
+      ? `<div class="fac-btw-let" style="margin-bottom:14px"><b>Ingelezen uit ${escapeHtml(facOudBron)}.</b>
+         Loop de velden na voor je opslaat${g.klantOpFactuur?` — op de factuur staat “${escapeHtml(g.klantOpFactuur)}”`:''}.</div>`
+      : '';
+  box.innerHTML=bron+`
     <div class="fac-ed-grid">
       <div class="uren-fld"><label for="faOudNummer">Factuurnummer</label>
         <input type="text" class="fac-ed-inp" id="faOudNummer" value="${escapeHtml(g.nummer)}"
@@ -20484,6 +20594,7 @@ function facOudOpslaanVolgende(){
      scheelt dat het meeste typewerk. */
   const vorig=facOudForm;
   facOudForm={...facOudLeeg(),clientId:vorig.clientId,btw:vorig.btw,datum:vorig.datum};
+  facOudBron='';
   facOudRender();
   document.getElementById('faOudNummer')?.focus();
 }
@@ -21546,6 +21657,9 @@ function facToggleMenu(){
     <button class="uren-menu-item" role="menuitem" data-fac-action="facOudNieuw">
       <span class="ic" aria-hidden="true">✎</span>
       <span>Oude factuur toevoegen<small>Handmatig, voor een factuur van buiten deze app</small></span></button>
+    <button class="uren-menu-item" role="menuitem" data-fac-action="facScanKies">
+      <span class="ic" aria-hidden="true">✲</span>
+      <span>Factuur inscannen<small>PDF of foto — AI vult het formulier vast in</small></span></button>
     <div class="uren-menu-sep"></div>
     <button class="uren-menu-item" role="menuitem" data-fac-action="facExportBoekhouding">
       <span class="ic" aria-hidden="true">↧</span>
@@ -22896,11 +23010,16 @@ async function _aiParseErrorResponse(r){
 }
 
 /* ─ Generic Gemini API caller (sync JSON) ─ */
-async function callGemini({system,user,schema,temperature=0.2}){
+async function callGemini({system,user,schema,bestand,temperature=0.2}){
   const key=localStorage.getItem(LS_GEMINI_KEY);
   if(!key)throw new Error('Geen Gemini API-key ingesteld. Klik op ⚙ API-key.');
+  /* Een PDF of foto gaat als tweede deel mee in hetzelfde verzoek. Flash
+     leest een PDF rechtstreeks, dus er hoeft geen bibliotheek bij om er
+     eerst tekst of plaatjes uit te halen. */
+  const parts=[{text:user}];
+  if(bestand)parts.push({inline_data:{mime_type:bestand.mime,data:bestand.data}});
   const body={
-    contents:[{role:'user',parts:[{text:user}]}],
+    contents:[{role:'user',parts}],
     generationConfig:{responseMimeType:'application/json',temperature}
   };
   if(system)body.systemInstruction={parts:[{text:system}]};

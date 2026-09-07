@@ -1920,3 +1920,56 @@ mee.
 **Niet doen.** Hetzelfde in `_streamGemini()` proberen zonder na te denken: die
 levert de tekst stukje bij beetje aan de wekelijkse review, en halverwege
 opnieuw beginnen betekent dat je het begin twee keer ziet.
+
+## 2026-09-07 · Oude facturen: handmatig én inscannen
+
+**Probleem.** De administratie van dit jaar liep niet gelijk met de app: er
+staan facturen van vóór ingebruikname buiten de app. Zolang die er niet in
+staan kloppen het btw-overzicht, de omzet en de debiteuren niet.
+
+**Beslissing.** Twee ingangen in het ⋯-menu van Facturen, met één formulier
+eronder.
+
+1. **Oude factuur toevoegen** — nummer, datum, klant, betreft, bedrag excl.
+   btw, btw-tarief, verstuurd op, betaald op. Bewust géén factuureditor: daar
+   horen sjabloon, regels, PDF en mailen bij, en niets daarvan geldt voor een
+   factuur die al bestaat en al verstuurd is. Er komt één regel op met het
+   bedrag; dat is genoeg voor alles wat de app ermee rekent.
+2. **Factuur inscannen** — PDF of foto erin, Gemini leest nummer, datum,
+   klant, betreft, bedrag en btw eruit en vult hetzelfde formulier vast in. Je
+   ziet elk veld en drukt zelf op Opslaan; bovenaan staat uit welk bestand het
+   komt en welke tenaamstelling er op de factuur stond.
+
+Details die ertoe doen:
+- **Het nummer wordt meteen vastgezet** (`nummerVast`), anders trekt de app er
+  bij een volgende actie een nieuw nummer overheen uit haar eigen reeks.
+- **Zonder betaaldatum komt hij als openstaand bij Debiteuren.** De app leidt
+  "betaald" af uit de betalingen, niet uit de status, dus de betaaldatum maakt
+  een echte betaalregel voor het volle bedrag.
+- **Valt de datum in een afgesloten kwartaal**, dan waarschuwt het formulier
+  dat het btw-overzicht van dat kwartaal met terugwerkende kracht verandert.
+- `f.extern=true` markeert een vastgelegde factuur: er hangt geen
+  uren-administratie aan.
+- **"Opslaan en volgende"** houdt klant, btw en datum vast — bij een stapel van
+  dezelfde klant scheelt dat het meeste typewerk.
+- Het document zelf wordt **niet** bewaard. Dat zou als base64 in het
+  Drive-bestand belanden dat bij elke wijziging in zijn geheel wordt
+  weggeschreven; twintig PDF's maken dat 4 MB zwaar. De originelen staan al in
+  de mail of in een map.
+
+`callGemini()` kan nu een bestand meesturen als `inline_data`. Flash leest een
+PDF rechtstreeks, dus er is geen PDF-bibliotheek bij gekomen.
+
+**Bestanden.** `index.html` — `#facOudModal`, `#facScanInput`,
+`factuurOudToevoegen()`, `facOudNieuw/Render/Sync/Bewaar/Opslaan(Volgende)()`,
+`facOudKwartaalWaarschuwing()`, `facScanKies/Lees/BestandNaarBase64/VraagGemini()`,
+`callGemini({bestand})`, twee menu-ingangen.
+
+**Bewezen.** De hele scanketen is getest met een vervangen `callGemini` — base64
+zonder data-URL-prefix, mime-type, normalisatie van het bedrag naar Nederlandse
+notatie met twee decimalen, klantmatch op id, en het formulier dat erna klopt.
+Het opslaan is getest met een echte invoer: de factuur landde in de lijst, met
+betaalregel, en de omzet-KPI liep mee.
+
+**Niet doen.** Het ingelezen resultaat automatisch opslaan. Eén verkeerd
+overgenomen bedrag zit anders meteen in een btw-aangifte.
