@@ -22665,6 +22665,15 @@ async function _aiParseErrorResponse(r){
   try{const j=await r.json();if(j.error?.message)msg=j.error.message;}catch(e){}
   if(r.status===400&&/API key/i.test(msg))msg='Ongeldige API-key. Check via ⚙ API-key.';
   if(r.status===429)msg='Limiet bereikt (1500/dag of 15/min). Wacht even of probeer morgen.';
+  /* Google's eigen tekst hierbij is "Your project has been denied access" --
+     dat zegt niet wát je moet doen. De sleutel is dan geldig; het project
+     erachter mag de API niet. In de praktijk twee oorzaken. */
+  if(r.status===403&&/denied access|not have access|blocked|disabled/i.test(msg))
+    msg='Google weigert het project achter deze sleutel. Twee dingen om te controleren op '
+      +'aistudio.google.com/apikey: (1) staat er een spend cap van € 0 op dat project, '
+      +'dan pauzeert de API — zet hem hoger of gebruik een ander project; (2) hoort de '
+      +'sleutel bij een Workspace-account, dan is de gratis laag daar vaak niet beschikbaar '
+      +'— maak er dan een met een persóónlijk Google-account.';
   if(r.status>=500)msg='Gemini-server tijdelijk niet beschikbaar (status '+r.status+'). Probeer over een minuut opnieuw.';
   return msg;
 }
