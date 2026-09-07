@@ -1597,3 +1597,34 @@ notitie zit in het ⋯-menu). `docs/stijlgids.md` §6.
 
 **Niet doen.** De chips terugzetten "omdat het sneller klikt". Bij vier klanten
 misschien; bij vijftien is het een muur.
+
+## 2026-09-07 · Factuurkaart krijgt de vorm van de urenkaart
+
+**Probleem.** Een factuur op een telefoon was vijf tot zeven regels boven
+elkaar: nummer + datum, vervalregel, klant, betreft (twee regels), status +
+bedrag, en "gemaild op". Twee facturen vulden het scherm.
+
+**Beslissing.** Dezelfde twee kolommen als `.uren-mcard`: links waar het over
+gaat (klant, `nummer · datum`, betreft op één regel), rechts het bedrag met
+excl. en de statuspil eronder. De losse vervalregel en de "gemaild"-regel zijn
+één regel geworden (`facTijdRegel()`): *Gemaild 28/08/2026 · nog 20 dagen*.
+Klantnaam van 14px naar `--fs-klein`, betreft van 12,5px naar `--fs-micro` en
+één regel in plaats van twee — dezelfde trappen als de urenkaart.
+
+Geldt voor alle drie de plekken die `.fac-mcard` gebruiken: de facturenlijst,
+Debiteuren (de knoppenrij pakt als derde kind de volle breedte) en de
+btw-regelkaarten (grondslag als hoofdgetal, btw als bijregel eronder, in plaats
+van twee gelabelde voetregels).
+
+**Waarom.** Vijf facturen in beeld in plaats van twee en een halve; kaarthoogte
+van ~150px naar ~80px. En het is dezelfde kaart als in Uren, dus er valt niets
+apart te onthouden.
+
+**Bestanden.** `index.html` — `.fac-mcard` (`.links`/`.rechts`/`.meta`/`.tijd`,
+`.kop`/`.voet`/`.nr`/`.dat`/`.mbedragen`/`.fac-mlab`/`.fac-mverval` weg),
+`facRenderKaarten()`, `facRenderDebiteuren()`, `facBtwRegelKaarten()`,
+nieuwe `facTijdRegel()`. `facVerstuurdRegel()` blijft — die staat op desktop
+onder de statuspil in de tabel. `docs/stijlgids.md` §4.
+
+**Niet doen.** De tabel op desktop meeveranderen: die heeft de ruimte wél en
+toont dezelfde gegevens in kolommen.

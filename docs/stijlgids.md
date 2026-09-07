@@ -141,14 +141,24 @@ Eén blok, twee namen: `.uren-kpi` (Uren, Facturen) en `.fac-aging-cel`
 | meta-regel | 11px |
 | acties | mobiel achter één ⋯ rechts naast de titel; desktop een rij icoontjes |
 
-### Factuurkaart (mobiel)
+### Lijstkaart op mobiel — `.uren-mcard` en `.fac-mcard`
+
+Eén vorm, twee namen. Twee kolommen: **links** waar het over gaat, **rechts**
+het getal met de status eronder.
 
 | | |
 |---|---|
-| nummer | 13px / 600 |
-| klantnaam | 14px / 600 |
-| bedrag | `var(--fs-basis)` |
-| datum, status | `var(--fs-micro)` |
+| doos | `--surface`, `0.5px var(--border)`, `radius-md`, vulling `10px 13px`, streepje van 3px links in de klantkleur |
+| links, regel 1 | klantnaam — `var(--fs-klein)` / 600, kleurblokje van 9px ervoor, één regel met `…` |
+| links, regel 2 | meta (`nummer · datum`) — `var(--fs-micro)`, `--text-muted`, tabular |
+| links, regel 3 | omschrijving of betreft — `var(--fs-micro)`, `--text-muted`, één regel met `…` |
+| links, regel 4 | tijdregel (verstuurd/vervalt) — `var(--fs-micro)` / 500, kleur uit de vervaltermijn |
+| rechts, regel 1 | het getal — `var(--fs-basis)` / 600, tabular |
+| rechts, regel 2 | bijgetal (excl. btw) — `var(--fs-micro)`, muted |
+| rechts, regel 3 | statuspil — `var(--fs-micro)` |
+
+Alles wat niet in die zeven plekken past hoort er niet op. Twee regels over
+dezelfde datum worden één regel met een `·` ertussen.
 
 ---
 
@@ -236,7 +246,6 @@ om te volgen.
 | `.cl2-item-title` | 13,5px | `var(--fs-basis)` |
 | `.cl2-item-meta` | 11px | `var(--fs-micro)` — dit valt onder de ondergrens |
 | `.cl2-hero-eyebrow` | 11,5px mobiel / 13px desktop | mobiel hoort niet kleiner te zijn dan desktop |
-| `.fac-mcard .nr` / `.klant` | 13px / 14px | `--fs-klein` / `--fs-basis` |
 | menu-gewichten | 400, 500 en 600 door elkaar | één gewicht kiezen |
 | `.btn` / `.btn-sm` / `.btn-xs` | alle drie 14px op mobiel | drie trappen, of twee klassen minder |
 
