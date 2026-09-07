@@ -1973,3 +1973,41 @@ betaalregel, en de omzet-KPI liep mee.
 
 **Niet doen.** Het ingelezen resultaat automatisch opslaan. Eén verkeerd
 overgenomen bedrag zit anders meteen in een btw-aangifte.
+
+## 2026-09-07 · Facturentabel: nummer past, betreft kapt af met een tooltip
+
+**Probleem.** Drie dingen in dezelfde tabel, zichtbaar zodra er echte data in
+zat.
+
+1. Een nummer als `SB-2026-0002` is breder dan de kolom van 96px. `.fac-nr`
+   had `white-space:nowrap` zonder `overflow`, en dan kapt er niets af — de
+   tekst liep dwars over de datum ernaast heen.
+2. Betreft is de enige kolom zonder vaste breedte en slokt dus alles op wat
+   een breed scherm overhoudt. Op 1920px werd dat 640px: één lange regel dwars
+   door de tabel, en op de korte regels een gat tussen de klant en de bedragen.
+3. Andersom op een smal scherm: de zeven vaste kolommen zijn samen ruim 800px,
+   dus bij `min-width:820px` hield Betreft nog geen 100px over — "POM Ge…".
+
+**Beslissing.**
+- De **nummerkolom past zich aan de reeks aan**: `nrTekens*8.5+30`, ondergrens
+  7 tekens, bovengrens 190px. Een vaste breedte gokt, en die gok is fout zodra
+  er een andere nummerreeks bij komt (self-billing, een tweede administratie).
+  Plus `overflow:hidden`/ellipsis als vangnet.
+- De kaart houdt op met meegroeien boven **1400px**; de ruimte komt náást de
+  tabel in plaats van erin.
+- `min-width` van de tabel van 820 naar **1080px**, zodat Betreft minstens
+  ~250px houdt en de kaart daaronder zijwaarts schuift (`overflow-x:auto`)
+  in plaats van de tekst plat te drukken.
+- **Eén regel met een ellipsis plus een `title`**, niet twee regels. Een tabel
+  leest op gelijke rijhoogtes; deze heeft al twee kolommen met een bijregel
+  (Vervalt, Status), en een derde kolom die soms één en soms twee regels hoog
+  is maakt het ritme onrustig. De volledige tekst zie je door erop te wijzen —
+  ook op de klantnaam en het nummer, die om dezelfde reden afkappen.
+
+**Bestanden.** `index.html` — `.fac-nr`, `.fac-table`,
+`#mod-facturen .uren-sheet-card`, de drie tabellen die `.fac-betreft`
+gebruiken (facturen, debiteuren, btw).
+
+**Niet doen.** Betreft over twee regels zetten zonder de rijhoogte vast te
+zetten: dan wordt elke rij een andere hoogte en oogt de tabel rommeliger dan
+met een afgekapte regel.
