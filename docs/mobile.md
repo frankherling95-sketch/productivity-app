@@ -133,6 +133,17 @@ eigen maat te kiezen. Zo ontstonden de drie uitvoeringen die er stonden.
 `border: 0` tekent die alsnog een randje, en dan lijkt de knop nog steeds niet
 op de andere. Zulke dingen zie je in `getComputedStyle`, niet op een screenshot.
 
+### De tabstrip
+
+Geen pillen op een telefoon: geen randen, geen achtergrond, geen tussenruimte
+— één onderrand op de balk en een mintstreepje onder de actieve tab. De tabs
+delen de breedte gelijk (`flex: 1 1 0`).
+
+**Waarom geen gelijke pillen.** Vijf gelijke vakken passen op 351px met 67px
+per tab, en "Debiteuren" is op 12px al 64px plus rand. Eén pixel speling is
+geen ontwerp. Zonder pillen komt precies die ruimte vrij, dus de vakken zijn
+gelijk én de tekst blijft 12px.
+
 ### De KPI-kaart
 
 Eén blok, twee namen: `.uren-kpi` (Uren en Facturen) en `.fac-aging-cel`

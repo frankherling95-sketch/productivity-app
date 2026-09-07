@@ -10,6 +10,24 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-07 · Tabstrip op een telefoon: onderstreept in plaats van pillen
+
+**Probleem.** De tabs stonden op `flex: 1 1 auto` en groeiden dus vanaf hun eigen tekstbreedte: Facturen 66px, Debiteuren 79, Btw 38, Verzonden 78, Klanten 60. Vijf omlijnde vakken van vijf verschillende maten, vlak onder de topbalk, boven een scherm dat al vol staat met kaarten met randen.
+
+**Waarom gelijke pillen niet konden.** Er is 351px beschikbaar; vijf gelijke vakken met tussenruimte geeft 67px per tab. "Debiteuren" is op 12px al 64px breed plus 2px rand — één pixel speling. Dat is te weinig om op te bouwen: een ander toestel of een terugvalfont en het kapt af. Kleiner zetten kon (11,5px, de ondergrens uit `docs/mobile.md`), maar dan lever je leesbaarheid in voor een vorm.
+
+**Beslissing.** De pillen gaan eraf. Geen randen, geen achtergrond, geen tussenruimte; de balk krijgt één onderrand en de actieve tab een mintstreepje dat op die lijn valt. **De ruimte die je daarmee wint is precies de ruimte die je tekortkwam** — de randen en de tussenruimte — dus de vakken kunnen wél gelijk zijn zonder de tekst te verkleinen. Gemeten: Facturen 5 × 69px, Uren 4 × 87,8px, alle tabs 44px hoog, niets afgekapt.
+
+**Meegenomen: 14px die nergens voor stond.** Naast de tabs stond nog het balkje waar de filterknop uit verhuisd is (2026-09-06). Leeg, maar het nam wel breedte in. `.uren-filters:empty { display: none }`.
+
+**Waarom Uren mee verandert.** `.uren-tab` is dezelfde component in beide modules. Wat er in Facturen goed staat, hoort in Uren net zo te staan — daar zijn het vier tabs met ruim genoeg speling.
+
+**Op een bureaublad verandert er niets:** daar blijft het een segmented control met pillen in een eigen spoor. Daar is de ruimte er wel, en de balk staat naast andere knoppen die dezelfde vorm hebben.
+
+**Bestanden**: `index.html` — `.uren-viewbar` / `.uren-tabs` / `.uren-tab` / `.uren-tab.active` in de mobiele laag herschreven, de losse regel `.uren-tab.active { background: var(--navy) }` verderop verwijderd (restant van de pilvorm), `.uren-filters:empty`; `sw.js` → `herling-v33`
+
+**Niet doen.** De tabs alsnog gelijk maken *met* pillen door de tekst naar 11,5px te brengen. Dat is de ondergrens van de schaal, en je betaalt hem hier voor een rand die niets toevoegt.
+
 ## 2026-09-07 · De factuureditor: geen zijwaartse schuif meer, en een knoppenbalk in twee kolommen
 
 **Probleem 1 — de pagina kon opzij.** Op 2026-09-06 is `overflow-x: hidden` gezet op `html`, `body`, `#appScreen`, `.main-area`, `.module` en de modals. De factuureditor ontsnapte daaraan: zijn inhoud zit in `#facEditorBody`, een div met een eigen `overflow-y: auto` in een style-attribuut. Zodra één as op `auto` staat maakt de browser de andere óók schuifbaar — dus daar kon je alsnog slepen.

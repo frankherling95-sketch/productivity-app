@@ -5083,17 +5083,47 @@ textarea { line-height: 1.6; resize: vertical; }
      en stonden 'Verzonden' en 'Klanten' dus altijd buiten beeld. Nu
      krijgt de strip de volle regel en zijn de tabs zo gemaakt dat ze
      samen passen: krap in de breedte, maar de tikhoogte blijft 36px. */
-  .uren-viewbar { padding: 9px 12px; gap: 8px; flex-wrap: nowrap; }
+  /* ══ Tabstrip: onderstreept in plaats van pillen ══
+     De tabs stonden op flex:1 1 auto en groeiden dus vanaf hun eigen
+     tekstbreedte: Facturen 66px, Debiteuren 79, Btw 38, Verzonden 78,
+     Klanten 60 -- vijf omlijnde vakken van vijf verschillende maten, vlak
+     onder de topbalk, boven een scherm dat al vol kaarten met randen staat.
+
+     Gelijke vakken wás krap: er is 351px, dus 67px per tab, en "Debiteuren"
+     is op 12px al 64px plus rand. Eén pixel speling is te weinig om op te
+     bouwen -- een ander toestel of een terugvalfont en het kapt af.
+
+     Zonder pillen komt die ruimte vanzelf vrij: de randen en de tussenruimte
+     die je weghaalt zijn precies wat je tekortkwam. Vijf gelijke vakken van
+     70px, tekst op 12px, en een mintstreepje onder de actieve tab. */
+  .uren-viewbar { padding: 0 12px; gap: 8px; flex-wrap: nowrap; }
   .uren-tabs {
     flex: 1; min-width: 0;
-    background: transparent; border: 0; padding: 0; gap: 4px;
+    background: transparent; border: 0; padding: 0; gap: 0;
     display: flex;
   }
   .uren-filters { flex-shrink: 0; }
+  /* De filterknop is naar de topbalk verhuisd; wat overblijft is een leeg
+     vak dat wel 14px opeet -- precies de ruimte die de tabs nodig hebben. */
+  .uren-filters:empty { display: none; }
   .uren-tab {
-    border: 0.5px solid var(--border-strong); border-radius: 20px;
-    padding: 7px 4px; min-height: 36px; white-space: nowrap;
-    font-size: 12px; flex: 1 1 auto; text-align: center;
+    border: 0; border-radius: 0; background: transparent;
+    box-shadow: none;
+    flex: 1 1 0; min-width: 0; text-align: center;
+    padding: 11px 2px; min-height: var(--tap);
+    font-size: 12px; white-space: nowrap;
+    color: var(--text-muted);
+    position: relative;
+  }
+  .uren-tab.active {
+    background: transparent; color: var(--text); font-weight: 700;
+    border: 0; box-shadow: none;
+  }
+  /* Het streepje valt samen met de onderrand van de balk, zodat het eruitziet
+     als één lijn waar de actieve tab uit oplicht. */
+  .uren-tab.active::after {
+    content: ''; position: absolute; left: 6px; right: 6px; bottom: -1px;
+    height: 2px; border-radius: 2px; background: var(--mint);
   }
   /* De filterknop draagt geen woord meer: hij staat nu in de topbalk als
      icoonknop (zie hierboven), en de tabsrij eronder houdt alleen tabs --
@@ -5122,7 +5152,6 @@ textarea { line-height: 1.6; resize: vertical; }
     width: 100%; height: 34px; padding: 0 3px;
     font-size: 11.5px; overflow: hidden;
   }
-  .uren-tab.active { background: var(--navy); color: #fff; border-color: var(--navy); box-shadow: none; }
   /* ── KPI-strip ──
      Deze stond eerst als 2×2-blok van 163px, wat de eerste urenregel naar
      394px duwde: een half scherm bediening voor je je eigen uren zag.
