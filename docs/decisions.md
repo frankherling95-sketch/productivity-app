@@ -1662,3 +1662,32 @@ code-plekken teruggezet, `#mod-facturen{--font-mono:…}`-blok weg.
 
 **Niet doen.** JetBrains Mono uit de Google-Fonts-link halen: de codeblokken in
 Notities gebruiken hem nog.
+
+## 2026-09-07 · Vier vensters hadden geen uitgang op een telefoon
+
+**Probleem.** `zetModalSluitknoppen()` hing het kruisje op aan een
+annuleerknop in een `.modal-footer`. Vier vensters hebben die niet — het
+klantoverzicht, de wekelijkse review, Slim toevoegen en de zoekbalk — en gaan
+alleen dicht door náást het venster te tikken. Op een telefoon is een modaal
+zo goed als schermvullend: daar valt niets naast te tikken.
+
+**Beslissing.** Is er geen annuleerknop maar heeft de `.modal-bg` wél een eigen
+`onclick`-afhandeling, dan komt het kruisje er alsnog en klikt het de
+achtergrond aan (`bg.click()` zet `event.target` op de achtergrond zelf,
+precies waar die afhandeling op wacht). Het venster blijft dus zijn eigen
+sluitlogica houden. Het kruisje krijgt daarbij de klasse `via-achtergrond`:
+komt de inhoud later zelf met een kruisje (het klantoverzicht vult zijn kop pas
+bij het openen), dan wijkt het onze.
+
+Meegenomen: `.modal-annuleer` verbergt nu ook buiten een `.modal-footer`, zodat
+de handgemaakte voeten van Slim toevoegen en de wekelijkse review niet én een
+kruisje én een sluitknop tonen. Alleen op mobiel; desktop houdt beide.
+
+**Waarom.** Een venster zonder zichtbare uitgang is geen stijlkwestie.
+
+**Bestanden.** `index.html` — `zetModalSluitknoppen()`, `.modal-annuleer`,
+twee knoppen in de opmaak.
+
+**Blijft staan.** De zoekbalk (Ctrl+K) sluit via een `addEventListener` in
+plaats van een `onclick`-attribuut en is daar niet mee te vinden; hij is ook
+alleen met een toetsenbord te openen.

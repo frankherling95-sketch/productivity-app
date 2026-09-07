@@ -4433,7 +4433,7 @@ textarea { line-height: 1.6; resize: vertical; }
   .modal-sluit:not(.op-band):active { background: var(--surface2) !important; border-radius: var(--radius); }
   /* De annuleerknop is naar boven verhuisd; blijft er niets over, dan gaat
      de hele voet weg in plaats van een lege balk achter te laten. */
-  .modal-footer .modal-annuleer { display: none !important; }
+  .modal-annuleer { display: none !important; }
   .modal-footer.voet-leeg { display: none !important; }
   .modal-footer { flex-wrap: wrap; gap: var(--sp-2); }
   .modal-footer-left,
@@ -7935,7 +7935,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <span class="ai-quota-badge" id="aiQuotaBadgeReview" title="API-calls vandaag (Gemini Flash gratis tier = 1500/dag)"></span>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn btn-sm" type="button" onclick="closeWeeklyReviewModal()">Sluiten</button>
+        <button class="btn btn-sm modal-annuleer" type="button" onclick="closeWeeklyReviewModal()">Sluiten</button>
         <button class="btn btn-sm" id="weeklyReviewRegenBtn" type="button" onclick="regenerateWeeklyReview()" style="display:none" title="Genereer een nieuwe versie">🔄 Opnieuw</button>
         <button class="btn btn-sm" id="weeklyReviewCopyBtn" type="button" onclick="copyWeeklyReview()" style="display:none">📋 Kopiëren</button>
         <button class="btn btn-sm btn-primary" id="weeklyReviewSaveBtn" type="button" onclick="saveWeeklyReviewAsNote()" style="display:none">💾 Opslaan als notitie</button>
@@ -7968,7 +7968,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <span class="ai-quota-badge" id="aiQuotaBadgeQuick" title="API-calls vandaag (Gemini Flash gratis tier = 1500/dag)"></span>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn btn-sm" type="button" onclick="closeQuickAddAI()">Annuleren</button>
+        <button class="btn btn-sm modal-annuleer" type="button" onclick="closeQuickAddAI()">Annuleren</button>
         <button class="btn btn-sm btn-primary" id="quickAddAIParseBtn" type="button" onclick="parseQuickAddAI()">✨ Parseer</button>
         <button class="btn btn-sm btn-primary" id="quickAddAIApplyBtn" type="button" onclick="applyQuickAddAI()" style="display:none">✓ Toevoegen</button>
       </div>
@@ -23110,7 +23110,19 @@ function zetModalSluitknoppen(root){
     /* Al voorzien? Dan niets doen -- deze functie draait ook bij het openen
        van een modaal (zie de observer onderaan), en zonder deze regel kwam
        er dan elke keer een kruisje bij. */
-    if(modal.querySelector('.modal-sluit'))return;
+    if(modal.querySelector('.modal-sluit')){
+      /* Ons noodkruisje (zie onderaan) staat er alleen omdat er niets anders
+         was. Vensters waarvan de inhoud pas bij het openen wordt gevuld --
+         het klantoverzicht -- brengen daarna hun éíen kruisje mee; dan
+         maakt dat van ons er twee. In dat geval wint dat van de inhoud. */
+      const eigen=modal.querySelector('.modal-sluit.via-achtergrond');
+      if(!eigen)return;
+      const ander=[...modal.querySelectorAll('button')].find(b=>
+        !b.classList.contains('modal-sluit')&&!b.closest('.modal-footer')&&
+        KRUIS_TEKENS.test(b.textContent.trim()));
+      if(!ander)return;
+      eigen.remove();
+    }
     /* Stond er al een kruisje in de kop (factuureditor, voorbeeld,
        sjablonen, versies, urensjablonen), dan blijft die knop met al zijn
        gedrag staan en wisselt alleen het losse teken voor dezelfde svg --
@@ -23127,7 +23139,6 @@ function zetModalSluitknoppen(root){
     }
 
     const voeten=[...modal.querySelectorAll('.modal-footer')];
-    if(!voeten.length)return;
     let eerste=null;
     voeten.forEach(voet=>{
       const knoppen=[...voet.querySelectorAll('.btn')];
@@ -23137,9 +23148,19 @@ function zetModalSluitknoppen(root){
       if(knoppen.length===1)voet.classList.add('voet-leeg');   /* anders blijft een lege balk over */
       if(!eerste)eerste=weg;
     });
-    if(!eerste)return;
 
     if(bestaand)return;   /* geen tweede kruisje */
+
+    /* Geen annuleerknop in de voet? Dan sluit het kruisje via de achtergrond.
+       Vier vensters (klantoverzicht, wekelijkse review, slim toevoegen,
+       zoeken) hadden helemaal geen uitgang: ze gaan alleen dicht door naast
+       het venster te tikken, en op een telefoon is een modaal zo goed als
+       schermvullend -- daar valt niets naast te tikken. `bg.click()` zet
+       event.target op de achtergrond zelf, precies waar hun eigen
+       onclick-afhandeling op wacht, dus het gedrag blijft van het venster. */
+    const bg=modal.parentElement;
+    const viaAchtergrond=!eerste&&bg&&bg.classList.contains('modal-bg')&&bg.hasAttribute('onclick');
+    if(!eerste&&!viaAchtergrond)return;
 
     const kop=modal.querySelector('.modal-kop');
     const eersteKind=modal.firstElementChild;
@@ -23148,11 +23169,12 @@ function zetModalSluitknoppen(root){
 
     const x=document.createElement('button');
     x.type='button';
-    x.className='modal-sluit'+(gastheer===modal?'':' op-band');
+    x.className='modal-sluit'+(gastheer===modal?'':' op-band')+(eerste?'':' via-achtergrond');
     x.setAttribute('aria-label','Sluiten');
     x.title='Sluiten';
     x.innerHTML=SLUIT_SVG;
-    x.addEventListener('click',e=>{e.preventDefault();eerste.click();});
+    x.addEventListener('click',e=>{e.preventDefault();
+      if(eerste)eerste.click(); else bg.click();});
     gastheer.appendChild(x);
     gastheer.classList.add('heeft-sluit');
     if(gastheer===modal)modal.classList.add('los-kruis');   /* geen band om op te staan */
