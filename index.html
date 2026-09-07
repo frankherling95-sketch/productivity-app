@@ -20516,6 +20516,7 @@ function facOudRender(){
         <input type="date" class="fac-ed-inp" id="faOudDatum" value="${escapeHtml(g.datum)}"
           data-fac-input="datum"/></div>
     </div>
+    ${facOudDubbelRegel(g.nummer)}
     <div class="uren-fld" style="margin-top:12px"><label>Klant</label>
       ${klanten.length?`<div class="klantkies">
         <span class="klantkies-dot" style="background:${kleur?kleur.bg:'var(--surface3)'};border-color:${kleur?kleur.tx:'var(--border-strong)'}"></span>
@@ -20548,6 +20549,21 @@ function facOudRender(){
         <small style="font-size:11px;color:var(--text-hint)">Leeg = staat nog open</small></div>
     </div>
     ${facOudKwartaalWaarschuwing(g.datum)}`;
+}
+/* Bestaat dit nummer al? Bij het opslaan wordt het toch geweigerd, maar dan
+   heb je de rest al ingetypt -- of, bij een ingescande stapel, sta je te kijken
+   naar een venster dat er precies zo uitziet als het vorige. Dus meteen
+   melden, met de factuur erbij die er al staat. */
+function facOudDubbelRegel(nummer){
+  const nr=(nummer||'').trim();
+  if(!nr)return '';
+  const f=factuurState.invoices.find(x=>x.nummer===nr);
+  if(!f)return '';
+  const klant=factuurKlant(f.clientId);
+  return `<div class="fac-btw-let" style="margin-top:12px;border-left-color:var(--danger)">
+    <b>${escapeHtml(nr)} staat er al.</b> ${factuurFmtDatum(f.datum)} ·
+    ${escapeHtml(f.klant?f.klant.naam:(klant?(klant.bedrijfsnaam||klant.name):'zonder klant'))} ·
+    ${factuurFmtBedrag(factuurTotalen(f).incl)}. Opslaan met dit nummer lukt niet.</div>`;
 }
 /* Een factuur uit een afgesloten kwartaal verandert het btw-overzicht van dat
    kwartaal met terugwerkende kracht. Als die aangifte al de deur uit is, wil
@@ -20611,7 +20627,7 @@ document.getElementById('facOudModal')?.addEventListener('change',e=>{
   if(!el||!facOudForm)return;
   const veld=el.dataset.facInput;
   facOudForm[veld]=el.value;
-  if(!['btw','datum','excl','clientId'].includes(veld))return;
+  if(!['btw','datum','excl','clientId','nummer'].includes(veld))return;
   facOudRender();
   const terug=document.querySelector(`#facOudModal [data-fac-input="${veld}"]`);
   if(terug)terug.focus();
