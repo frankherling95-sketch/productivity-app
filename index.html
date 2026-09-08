@@ -1419,7 +1419,11 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 /* Hoeveel tijd de klant nog heeft, onder de vervaldatum. Klein en
    grijs zolang het rustig is, oranje in de laatste week. */
 .fac-deb-acties{text-align:right;white-space:nowrap}
-.fac-mcard-deb{cursor:default}
+/* Kaarten die je niet aanklikt: de debiteurenkaart en een regel uit het
+   inleeslogboek. Verder precies de gewone lijstkaart. */
+.fac-mcard-deb,.fac-log-regel{cursor:default}
+.fac-log-regel:active{background:var(--surface)}
+.fac-log-lijst{display:flex;flex-direction:column;gap:8px}
 .fac-mdeb-acties{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px}
 .fac-mdeb-acties .uren-btn{flex:1;min-width:88px;height:34px;font-size:12px}
 .fac-deb-acties .uren-btn{height:28px;padding:0 10px;font-size:11.5px;margin-left:5px}
@@ -7584,6 +7588,23 @@ textarea { line-height: 1.6; resize: vertical; }
 
 <input type="file" id="facScanInput" accept="application/pdf,image/*" multiple style="display:none"/>
 
+<!-- ── Inleeslogboek ── -->
+<div class="modal-bg" id="facScanLogModal">
+  <div class="modal" style="max-width:560px;padding:0;display:flex;flex-direction:column;max-height:92vh">
+    <div class="modal-kop" style="flex-shrink:0">
+      <h3 style="font-size:18px;font-weight:700;margin:0">Inleeslogboek</h3>
+      <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0" id="facScanLogSub"></p>
+    </div>
+    <div style="padding:20px 22px;overflow-y:auto;overflow-x:hidden;flex:1;min-height:0" id="facScanLogBody"></div>
+    <div class="modal-footer" style="padding:14px 22px;border-top:0.5px solid var(--border);flex-shrink:0">
+      <div class="modal-footer-left"></div>
+      <div class="modal-footer-right">
+        <button class="btn btn-sm btn-primary" data-fac-action="closeFacScanLog">Sluiten</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ── Factuursjabloon: instellingen links, live PDF-preview rechts ── -->
 <div class="modal-bg" id="facSjabloonModal">
   <div class="modal" style="max-width:1180px;padding:0;display:flex;flex-direction:column;max-height:94vh">
@@ -8888,6 +8909,10 @@ function hydrateerState(){
   }
   factuurState=rawState.facturen||{invoices:[],settings:{}};
   if(!factuurState.invoices)factuurState.invoices=[];
+  /* Logboek van ingescande bestanden. Staat in factuurState en gaat dus mee
+     naar Drive: op je andere computer weet de app óók welke PDF's je al
+     hebt gehad. */
+  if(!Array.isArray(factuurState.scanLog))factuurState.scanLog=[];
   factuurSettings();
   factuurMailsAanvullen();
   if(!rawState.settings)rawState.settings={};
@@ -18552,6 +18577,9 @@ const FAC_CLICK_ACTIONS={
   facOudOpslaanVolgende:()=>facOudOpslaanVolgende(),
   facScanOversla:()=>facScanOversla(),
   facScanHerkans:()=>facScanHerkans(),
+  facScanTochInlezen:()=>facScanTochInlezen(),
+  openFacScanLog:()=>openFacScanLog(),
+  closeFacScanLog:()=>closeFacScanLog(),
   facKlantNieuw:()=>openKlantModal(null),
   facKlantOpslaan:()=>klantModalOpslaan(),
   closeKlantModal:()=>closeKlantModal(),
@@ -20630,7 +20658,60 @@ let facOudBron='';                 /* bestandsnaam, als bewijs van herkomst */
    Nakijken blijft per factuur: één verkeerd overgenomen bedrag zit anders
    in je btw-aangifte. Een stapel verandert daar niets aan -- alleen het
    kiezen van de bestanden gebeurt in één keer. */
-let facScanRij=[];        /* [{naam,file,status,data,fout,getoond}] */
+/* ══ Inleeslogboek ══
+   Elk bestand dat je hebt ingescand komt hier terecht, met een vingerafdruk
+   van de inhoud. Daarmee herkent de app een PDF die je al gehad hebt vóórdat
+   er ook maar één verzoek de deur uit gaat -- ook als het bestand inmiddels
+   anders heet, want de hash gaat over de inhoud en niet over de naam.
+
+   Het logboek is ook de audit trail: wanneer las je wat in, wat kwam eruit,
+   en is het opgeslagen, overgeslagen of misgegaan. */
+const FAC_LOG_MAX=3000;   /* ruim; een record is een paar honderd bytes */
+
+/* SHA-256 van de bytes, als hex. Lukt dat niet (oude browser, of een pagina
+   die niet via https draait), dan vallen we terug op naam+grootte. Dat is
+   zwakker maar nog altijd beter dan niets, en het wordt als zodanig gemerkt
+   zodat het logboek niet doet alsof het zeker weet. */
+async function facScanVingerafdruk(file){
+  try{
+    const buf=await file.arrayBuffer();
+    const hash=await crypto.subtle.digest('SHA-256',buf);
+    return {hash:[...new Uint8Array(hash)].map(b=>b.toString(16).padStart(2,'0')).join(''),hard:true};
+  }catch(e){
+    return {hash:'na:'+file.name+':'+file.size,hard:false};
+  }
+}
+function facLogZoek(hash){
+  if(!hash)return null;
+  const log=factuurState.scanLog||[];
+  /* Nieuwste eerst: is een bestand twee keer ingelezen, dan is de laatste
+     afloop de interessante. */
+  for(let i=log.length-1;i>=0;i--)if(log[i].hash===hash)return log[i];
+  return null;
+}
+function facLogSchrijf(post,status,factuur){
+  if(!post||!post.hash)return;
+  const log=factuurState.scanLog;
+  const g=facOudForm||{};
+  log.push({
+    id:'sl'+Date.now().toString(36)+Math.random().toString(36).slice(2,7),
+    hash:post.hash, hard:post.hardeHash!==false,
+    naam:post.naam, grootte:post.file?post.file.size:0,
+    gescandOp:new Date().toISOString(),
+    status,                                   /* opgeslagen | overgeslagen */
+    nummer:factuur?factuur.nummer:(g.nummer||''),
+    clientId:factuur?factuur.clientId:(g.clientId||''),
+    factuurId:factuur?factuur.id:'',
+    /* Ging het lezen mis, dan staat dat erbij -- ook als je hem daarna met
+       de hand hebt ingevuld. Anders lijkt het logboek achteraf gladder dan
+       het was. */
+    fout:post.fout||''
+  });
+  if(log.length>FAC_LOG_MAX)log.splice(0,log.length-FAC_LOG_MAX);
+  scheduleSave();
+}
+
+let facScanRij=[];        /* [{naam,file,status,data,fout,getoond,hash}] */
 let facScanIdx=0;         /* welke factuur staat er in beeld */
 let facScanLoopt=false;   /* draait de leeslus? */
 let facScanGen=0;         /* hoger getal = de vorige lus mag stoppen */
@@ -20645,6 +20726,29 @@ function facScanKies(){
     if(files.length)facScanStart(files);
   };
   inp.click();
+}
+/* Vóór er iets de deur uit gaat: elk bestand een vingerafdruk geven en langs
+   het logboek houden. Wat je al hebt ingelezen komt wél in de stapel te
+   staan -- je moet kunnen zien wat er is overgeslagen en waarom -- maar
+   wordt niet nog eens naar Gemini gestuurd. */
+async function facScanMerkDubbel(rij){
+  for(const post of rij){
+    const vinger=await facScanVingerafdruk(post.file);
+    post.hash=vinger.hash;
+    post.hardeHash=vinger.hard;
+    if(post.status!=='wacht')continue;      /* al afgekeurd op grootte */
+    const eerder=facLogZoek(vinger.hash);
+    if(eerder&&eerder.status==='opgeslagen'){
+      post.status='dubbel';
+      post.eerder=eerder;
+    }
+  }
+  const n=rij.filter(p=>p.status==='dubbel').length;
+  if(n)appToast(n===1
+    ? 'Eén bestand had je al ingelezen — dat wordt overgeslagen'
+    : `${n} bestanden had je al ingelezen — die worden overgeslagen`,
+    {type:'warning',duration:6000});
+  return rij;
 }
 function facScanStart(files){
   /* Een te groot bestand houdt de stapel niet tegen; het krijgt gewoon zijn
@@ -20663,7 +20767,14 @@ function facScanStart(files){
   facOudForm=facOudLeeg();
   facScanToon();
   document.getElementById('facOudModal').classList.add('open');
-  facScanLus();
+  /* Eerst de vingerafdrukken, dan pas lezen. Dat kost een fractie van een
+     seconde en scheelt verzoeken aan bestanden die je al gehad hebt. */
+  const gen=facScanGen;
+  facScanMerkDubbel(facScanRij).then(()=>{
+    if(facScanGen!==gen)return;
+    facScanToon();
+    facScanLus();
+  });
 }
 /* Tussen twee bestanden even niets doen. Zonder pauze vuurt een stapel van
    tien verzoeken achter elkaar de deur uit, en dat is precies het ritme
@@ -20741,7 +20852,7 @@ function facScanToon(){
   if(!post)return;
   facOudBron=post.naam;
   facOudBezig=(post.status==='wacht'||post.status==='bezig');
-  if(!post.getoond&&(post.status==='klaar'||post.status==='fout')){
+  if(!post.getoond&&(post.status==='klaar'||post.status==='fout'||post.status==='dubbel')){
     /* Eenmalig invullen. Daarna is het formulier van de gebruiker, ook als
        er nog een keer getekend wordt. */
     post.getoond=true;
@@ -20763,7 +20874,22 @@ function facScanVolgende(){
   facScanToon();
 }
 function facScanOversla(){
+  /* Een dubbele overslaan is geen gebeurtenis: die staat al in het logboek
+     van de keer dat hij wél binnenkwam. Alleen een echte scan die je laat
+     lopen is het noteren waard. */
+  const post=facScanRij[facScanIdx];
+  if(post&&post.status!=='dubbel')facLogSchrijf(post,'overgeslagen',null);
   facScanVolgende();
+}
+/* Toch inlezen: de vingerafdruk blijft staan, dus als je hem opslaat komt
+   er een tweede regel in het logboek. Dat is de bedoeling — je ziet dan dat
+   dit bestand twee keer is verwerkt. */
+function facScanTochInlezen(){
+  const post=facScanRij[facScanIdx];
+  if(!post||post.status!=='dubbel')return;
+  post.status='wacht';post.eerder=null;post.getoond=false;
+  facScanToon();
+  facScanLus();
 }
 /* Eén mislukte factuur opnieuw aanbieden zonder de rest kwijt te raken. */
 function facScanHerkans(){
@@ -20774,6 +20900,56 @@ function facScanHerkans(){
   facScanLus();
 }
 function facScanBezig(){return facScanRij.length>0;}
+
+/* ─ Het logboek in beeld ─ */
+function openFacScanLog(){
+  closeFacMenu();
+  facScanLogRender();
+  document.getElementById('facScanLogModal').classList.add('open');
+}
+function closeFacScanLog(){
+  document.getElementById('facScanLogModal').classList.remove('open');
+}
+function facScanLogRender(){
+  const box=document.getElementById('facScanLogBody'); if(!box)return;
+  const log=(factuurState.scanLog||[]).slice().reverse();   /* nieuwste eerst */
+  const sub=document.getElementById('facScanLogSub');
+  if(sub)sub.textContent=log.length
+    ? `${log.length} ${log.length===1?'bestand':'bestanden'} ingelezen sinds ${factuurFmtDatum((factuurState.scanLog[0].gescandOp||'').slice(0,10))}`
+    : 'Nog niets ingescand.';
+  if(!log.length){
+    box.innerHTML=`<div class="fac-uren-info">Zodra je een factuur inscant, staat hier
+      wat je hebt ingelezen en wat ermee gebeurd is. Daarmee herkent de app een
+      bestand dat je al gehad hebt, ook als het anders heet.</div>`;
+    return;
+  }
+  /* Zelfde vorm als elke andere lijstkaart in de app (.uren-mcard): links
+     waar het over gaat, rechts de status. Alleen niet klikbaar. */
+  box.innerHTML=log.map(r=>{
+    const k=factuurKlant(r.clientId);
+    const kleur=k?CLIENT_COLORS[k.colorIdx%CLIENT_COLORS.length]:null;
+    const f=(factuurState.invoices||[]).find(x=>x.id===r.factuurId);
+    const weg=r.factuurId&&!f;   /* factuur is later verwijderd */
+    const meta=[factuurFmtDatum((r.gescandOp||'').slice(0,10))];
+    if(r.nummer)meta.push(escapeHtml(r.nummer));
+    if(k)meta.push(escapeHtml(k.bedrijfsnaam||k.name));
+    if(f)meta.push(factuurFmtBedrag(factuurTotalen(f).incl));
+    const bij=[];
+    if(weg)bij.push('factuur is later verwijderd');
+    if(r.hard===false)bij.push('op naam herkend, niet op inhoud');
+    if(r.fout)bij.push('lezen ging mis: '+r.fout);
+    return `<div class="uren-mcard fac-log-regel" style="--c:${kleur?kleur.bg:'var(--border-strong)'}">
+      <div class="links">
+        <div class="kl" title="${escapeHtml(r.naam)}">${escapeHtml(r.naam)}</div>
+        <div class="ds">${meta.join(' · ')}</div>
+        ${bij.length?`<div class="ds"><i>${escapeHtml(bij.join(' · '))}</i></div>`:''}
+      </div>
+      <div class="rechts">
+        <span class="fac-pill ${r.status==='opgeslagen'?'fac-pill-betaald':'fac-pill-concept'}">${r.status}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
 function facScanBestandNaarBase64(file){
   return new Promise((res,rej)=>{
     const r=new FileReader();
@@ -20869,7 +21045,17 @@ function facOudRender(){
      bestand is dat geen detail: je moet weten dat je een voorstel nakijkt
      en geen eigen invoer. */
   const post=facScanRij[facScanIdx];
-  const bron=post&&post.status==='fout'
+  const bron=post&&post.status==='dubbel'
+    ? (()=>{const e=post.eerder||{};
+        const k=factuurKlant(e.clientId);
+        const f=(factuurState.invoices||[]).find(x=>x.id===e.factuurId);
+        return `<div class="fac-btw-let" style="margin-bottom:14px;border-left-color:var(--danger)">
+        <b>${escapeHtml(post.naam)} heb je al ingelezen.</b>
+        ${e.gescandOp?factuurFmtDatum(e.gescandOp.slice(0,10)):'eerder'}${e.nummer?' als '+escapeHtml(e.nummer):''}${k?' · '+escapeHtml(k.bedrijfsnaam||k.name):''}${f?' · '+factuurFmtBedrag(factuurTotalen(f).incl):''}.
+        ${e.hard===false?'<br><i>Herkend op naam en grootte, niet op inhoud.</i>':''}
+        Er is niets opnieuw ingelezen. Sla hem over, of
+        <button class="btn btn-sm" type="button" data-fac-action="facScanTochInlezen" style="margin-left:4px">lees hem toch in</button></div>`;})()
+    : post&&post.status==='fout'
     ? `<div class="fac-btw-let" style="margin-bottom:14px"><b>${escapeHtml(post.naam)} kon niet gelezen worden.</b>
        ${escapeHtml(post.fout)} — vul hem met de hand in, sla hem over, of
        <button class="btn btn-sm" type="button" data-fac-action="facScanHerkans" style="margin-left:4px">probeer opnieuw</button></div>`
@@ -20997,13 +21183,19 @@ function facOudBewaar(){
   const f=factuurOudToevoegen({...g,nummer,excl:Math.round(excl*100)/100});
   facRenderAll();
   appToast(`${f.nummer} toegevoegd — ${factuurFmtBedrag(factuurTotalen(f).incl)}`,{type:'success'});
-  return true;
+  /* De factuur terug in plaats van true: de aanroeper heeft hem nodig voor
+     het inleeslogboek. Blijft waarheidswaarde-gewijs hetzelfde. */
+  return f;
 }
 function facOudOpslaan(){
-  if(!facOudBewaar())return;
+  const f=facOudBewaar();
+  if(!f)return;
   /* Zit er een stapel achter, dan is opslaan meteen "door naar de volgende";
      bij de laatste doet facScanVolgende() zelf de modaal dicht. */
-  if(facScanBezig())facScanVolgende();
+  if(facScanBezig()){
+    facLogSchrijf(facScanRij[facScanIdx],'opgeslagen',f);
+    facScanVolgende();
+  }
   else closeFacOud();
 }
 function facOudOpslaanVolgende(){
@@ -22077,7 +22269,10 @@ function facToggleMenu(){
       <span>Oude factuur toevoegen<small>Handmatig, voor een factuur van buiten deze app</small></span></button>
     <button class="uren-menu-item" role="menuitem" data-fac-action="facScanKies">
       <span class="ic" aria-hidden="true">✲</span>
-      <span>Factuur inscannen<small>PDF of foto — AI vult het formulier vast in</small></span></button>
+      <span>Factuur inscannen<small>Eén of meer PDF's — AI vult het formulier vast in</small></span></button>
+    <button class="uren-menu-item" role="menuitem" data-fac-action="openFacScanLog">
+      <span class="ic" aria-hidden="true">☰</span>
+      <span>Inleeslogboek<small>${(factuurState.scanLog||[]).length?((factuurState.scanLog||[]).length+' bestanden ingelezen'):'Nog niets ingescand'}</small></span></button>
     <div class="uren-menu-sep"></div>
     <button class="uren-menu-item" role="menuitem" data-fac-action="facExportBoekhouding">
       <span class="ic" aria-hidden="true">↧</span>

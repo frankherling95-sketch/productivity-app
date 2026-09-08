@@ -10,6 +10,56 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-08 · Inleeslogboek: een dubbele PDF herken je vóór het scannen
+
+**Probleem.** Er was al een dubbelcheck, maar die werkt op factuurnummer en
+slaat dus pas aan *nadat* Gemini het bestand heeft gelezen. Bij een stapel wil
+je het eerder weten: welke van deze twaalf PDF's heb ik al gehad?
+
+**Beslissing.** `factuurState.scanLog` — één regel per ingelezen bestand, met
+een SHA-256 van de **inhoud**. Bij het kiezen krijgt elk bestand zijn
+vingerafdruk en gaat het langs het logboek. Wat je al hebt opgeslagen komt wél
+in de stapel te staan (je moet kunnen zien wat er is overgeslagen en waarom)
+maar wordt niet naar Gemini gestuurd. In beeld staat wanneer je hem eerder las,
+onder welk nummer, bij welke klant en voor welk bedrag, met een knop om hem
+tóch in te lezen.
+
+**Waarom op inhoud en niet op naam.** `F000065.pdf` en
+`kopie-van-F000065.pdf` zijn hetzelfde bestand. Een hash over de bytes weet dat,
+een naam niet. Lukt het hashen niet (geen https, onleesbaar bestand), dan valt
+hij terug op naam+grootte en wordt dat er in het logboek bij gezet — dan doet
+het niet alsof het zeker weet.
+
+**Waarom in `factuurState` en niet in localStorage.** Het gaat mee naar Drive,
+dus op je andere computer weet de app óók welke PDF's je al hebt gehad. Dat is
+het halve punt van de vraag.
+
+**Wat er wel en niet in komt.** Opgeslagen en overgeslagen — de twee momenten
+waarop jij een besluit neemt. Een overgeslagen bestand telt níet als dubbel:
+dat mag je later alsnog inlezen. Een dubbele die je overslaat komt er niet bij,
+want die staat er al van de keer dat hij wel binnenkwam. Ging het lezen mis,
+dan staat dat bij de regel, ook als je hem daarna met de hand hebt ingevuld.
+
+**Vormgeving.** Geen nieuwe rijvorm bedacht: een logboekregel ís de bestaande
+lijstkaart `.uren-mcard` (links waar het over gaat, rechts de status) met de
+bestaande `.fac-pill`. Nieuw is alleen `cursor:default` — erbij gezet in de
+regel waar `.fac-mcard-deb` al stond, want dat is precies dezelfde uitzondering
+— en `gap:8px` op de lijst. Nagemeten op echte 375px (modaal 358px, lange naam
+afgekapt binnen de kaart, geen zijwaartse scroll) en op 1500px.
+
+**Bewijs.** 57 tests, waaronder: zelfde inhoud onder een andere naam geeft
+dezelfde hash, de kopie wordt als dubbel gemerkt en is nooit verstuurd, een
+overgeslagen bestand telt niet als dubbel, en "toch inlezen" haalt hem alsnog op.
+
+**Bestanden**: `index.html` — `factuurState.scanLog` + hydratie,
+`facScanVingerafdruk()`/`facLogZoek()`/`facLogSchrijf()`/`facScanMerkDubbel()`,
+`#facScanLogModal` + `facScanLogRender()`, menu-item Inleeslogboek;
+`test.html` — 3 tests; `sw.js` → `herling-v80`
+
+**Niet doen**: een dubbele stilzwijgend uit de stapel gooien. Je moet kunnen
+zien dát er iets is overgeslagen en waarom — anders mis je een factuur zonder
+het te merken.
+
 ## 2026-09-08 · Een rem vóór het herhalen, en de stapel loopt onbewaakt door
 
 **Probleem.** Na de vorige entry kwam er bij de tweede factuur een 429:
