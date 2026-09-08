@@ -7574,14 +7574,15 @@ textarea { line-height: 1.6; resize: vertical; }
       <div class="modal-footer-left"></div>
       <div class="modal-footer-right">
         <button class="btn btn-sm" data-fac-action="closeFacOud">Annuleer</button>
-        <button class="btn btn-sm" data-fac-action="facOudOpslaanVolgende">Opslaan en volgende</button>
-        <button class="btn btn-sm btn-primary" data-fac-action="facOudOpslaan">Opslaan</button>
+        <button class="btn btn-sm" id="facOudOverslaBtn" data-fac-action="facScanOversla" style="display:none">Overslaan</button>
+        <button class="btn btn-sm" id="facOudVolgBtn" data-fac-action="facOudOpslaanVolgende">Opslaan en volgende</button>
+        <button class="btn btn-sm btn-primary" id="facOudOpslaanBtn" data-fac-action="facOudOpslaan">Opslaan</button>
       </div>
     </div>
   </div>
 </div>
 
-<input type="file" id="facScanInput" accept="application/pdf,image/*" style="display:none"/>
+<input type="file" id="facScanInput" accept="application/pdf,image/*" multiple style="display:none"/>
 
 <!-- ── Factuursjabloon: instellingen links, live PDF-preview rechts ── -->
 <div class="modal-bg" id="facSjabloonModal">
@@ -18539,6 +18540,8 @@ const FAC_CLICK_ACTIONS={
   closeFacOud:()=>closeFacOud(),
   facOudOpslaan:()=>facOudOpslaan(),
   facOudOpslaanVolgende:()=>facOudOpslaanVolgende(),
+  facScanOversla:()=>facScanOversla(),
+  facScanHerkans:()=>facScanHerkans(),
   facKlantNieuw:()=>openKlantModal(null),
   facKlantOpslaan:()=>klantModalOpslaan(),
   closeKlantModal:()=>closeKlantModal(),
@@ -20608,38 +20611,111 @@ function factuurOudToevoegen(g){
 const FAC_SCAN_MAX=12*1024*1024;   /* boven ~12 MB weigert het verzoek */
 let facOudBezig=false;             /* leest hij nu een bestand? */
 let facOudBron='';                 /* bestandsnaam, als bewijs van herkomst */
+/* Je kunt een stapel tegelijk kiezen. Ze worden één voor één gelezen --
+   niet parallel: de gratis laag staat 15 verzoeken per minuut toe, en een
+   stapel van twintig zou daar dwars doorheen lopen. Het lezen draait op de
+   achtergrond dóór terwijl jij de vorige nakijkt, dus na de eerste is er
+   in de praktijk geen wachttijd meer.
+
+   Nakijken blijft per factuur: één verkeerd overgenomen bedrag zit anders
+   in je btw-aangifte. Een stapel verandert daar niets aan -- alleen het
+   kiezen van de bestanden gebeurt in één keer. */
+let facScanRij=[];        /* [{naam,file,status,data,fout,getoond}] */
+let facScanIdx=0;         /* welke factuur staat er in beeld */
+let facScanLoopt=false;   /* draait de leeslus? */
+let facScanGen=0;         /* hoger getal = de vorige lus mag stoppen */
+
 function facScanKies(){
   closeFacMenu();
   const inp=document.getElementById('facScanInput');
   if(!inp)return;
   inp.value='';
-  inp.onchange=()=>{const f=inp.files&&inp.files[0];if(f)facScanLees(f);};
+  inp.onchange=()=>{
+    const files=Array.from(inp.files||[]);
+    if(files.length)facScanStart(files);
+  };
   inp.click();
 }
-async function facScanLees(file){
-  if(file.size>FAC_SCAN_MAX){
-    appToast(`${file.name} is ${(file.size/1048576).toFixed(1)} MB — maximaal 12 MB`,{type:'warning'});
+function facScanStart(files){
+  /* Een te groot bestand houdt de stapel niet tegen; het krijgt gewoon zijn
+     eigen foutregel en je kunt eroverheen. */
+  facScanRij=files.map(f=>{
+    const teGroot=f.size>FAC_SCAN_MAX;
+    return {naam:f.name,file:f,
+      status:teGroot?'fout':'wacht',
+      fout:teGroot?`${(f.size/1048576).toFixed(1)} MB — maximaal 12 MB`:'',
+      data:null,getoond:false};
+  });
+  facScanIdx=0;
+  facOudForm=facOudLeeg();
+  facScanToon();
+  document.getElementById('facOudModal').classList.add('open');
+  facScanLus();
+}
+async function facScanLus(){
+  if(facScanLoopt)return;
+  facScanLoopt=true;
+  const gen=facScanGen;
+  try{
+    for(const post of facScanRij){
+      if(facScanGen!==gen)return;          /* modaal is dichtgegaan */
+      if(post.status!=='wacht')continue;
+      post.status='bezig';
+      if(facScanRij[facScanIdx]===post)facScanToon();
+      try{
+        const data=await facScanBestandNaarBase64(post.file);
+        post.data=await facScanVraagGemini({mime:post.file.type||'application/pdf',data});
+        post.status='klaar';
+      }catch(e){
+        post.status='fout';
+        post.fout=e.message;
+      }
+      if(facScanGen!==gen)return;
+      /* Alleen opnieuw tekenen als dít de factuur in beeld is -- anders
+         gooi je het formulier omver waar iemand net in typt. */
+      if(facScanRij[facScanIdx]===post)facScanToon();
+    }
+  }finally{facScanLoopt=false;}
+}
+/* Zet de factuur die nu aan de beurt is in het formulier. */
+function facScanToon(){
+  const post=facScanRij[facScanIdx];
+  if(!post)return;
+  facOudBron=post.naam;
+  facOudBezig=(post.status==='wacht'||post.status==='bezig');
+  if(!post.getoond&&(post.status==='klaar'||post.status==='fout')){
+    /* Eenmalig invullen. Daarna is het formulier van de gebruiker, ook als
+       er nog een keer getekend wordt. */
+    post.getoond=true;
+    facOudForm=post.status==='klaar'?{...facOudLeeg(),...post.data}:facOudLeeg();
+  }else if(!post.getoond){
+    facOudForm=facOudLeeg();
+  }
+  facOudRender();
+}
+/* Naar de volgende in de stapel, of sluiten als dit de laatste was. */
+function facScanVolgende(){
+  if(facScanIdx>=facScanRij.length-1){
+    const n=facScanRij.length;
+    closeFacOud();
+    if(n>1)appToast(`Stapel van ${n} afgewerkt`,{type:'success'});
     return;
   }
-  facOudForm=facOudLeeg();
-  facOudBezig=true;
-  facOudBron=file.name;
-  facOudRender();
-  document.getElementById('facOudModal').classList.add('open');
-  try{
-    const data=await facScanBestandNaarBase64(file);
-    const g=await facScanVraagGemini({mime:file.type||'application/pdf',data});
-    Object.assign(facOudForm,g);
-    facOudBezig=false;
-    facOudRender();
-    appToast('Ingelezen — controleer de velden voor je opslaat',{type:'success'});
-  }catch(e){
-    facOudBezig=false;
-    facOudBron='';
-    facOudRender();
-    appToast('Inlezen mislukt: '+e.message,{type:'error',duration:12000});
-  }
+  facScanIdx++;
+  facScanToon();
 }
+function facScanOversla(){
+  facScanVolgende();
+}
+/* Eén mislukte factuur opnieuw aanbieden zonder de rest kwijt te raken. */
+function facScanHerkans(){
+  const post=facScanRij[facScanIdx];
+  if(!post||post.status!=='fout')return;
+  post.status='wacht';post.fout='';post.getoond=false;
+  facScanToon();
+  facScanLus();
+}
+function facScanBezig(){return facScanRij.length>0;}
 function facScanBestandNaarBase64(file){
   return new Promise((res,rej)=>{
     const r=new FileReader();
@@ -20704,14 +20780,22 @@ function facOudLeeg(){
 }
 function facOudNieuw(){
   closeFacMenu();
+  facScanLeeg();
   facOudForm=facOudLeeg();
   facOudBezig=false; facOudBron='';
   facOudRender();
   document.getElementById('facOudModal').classList.add('open');
   setTimeout(()=>document.getElementById('faOudNummer')?.focus(),60);
 }
+/* De wachtrij vergeten en de lopende leeslus laten stoppen. Een verzoek dat
+   al onderweg is loopt af en wordt weggegooid -- dat is één call, niet het
+   risico waard om er een afbreekmechaniek voor te bouwen. */
+function facScanLeeg(){
+  facScanRij=[]; facScanIdx=0; facScanGen++;
+}
 function closeFacOud(){
   document.getElementById('facOudModal').classList.remove('open');
+  facScanLeeg();
   facOudForm=null; facOudBezig=false; facOudBron='';
 }
 function facOudRender(){
@@ -20726,12 +20810,18 @@ function facOudRender(){
   /* Bovenaan staat waar deze gegevens vandaan komen. Bij een ingelezen
      bestand is dat geen detail: je moet weten dat je een voorstel nakijkt
      en geen eigen invoer. */
-  const bron=facOudBezig
+  const post=facScanRij[facScanIdx];
+  const bron=post&&post.status==='fout'
+    ? `<div class="fac-btw-let" style="margin-bottom:14px"><b>${escapeHtml(post.naam)} kon niet gelezen worden.</b>
+       ${escapeHtml(post.fout)} — vul hem met de hand in, sla hem over, of
+       <button class="btn btn-sm" type="button" data-fac-action="facScanHerkans" style="margin-left:4px">probeer opnieuw</button></div>`
+    : facOudBezig
     ? `<div class="fac-uren-info" style="margin-bottom:14px">✲ <b>${escapeHtml(facOudBron)}</b> wordt gelezen…</div>`
     : facOudBron
       ? `<div class="fac-btw-let" style="margin-bottom:14px"><b>Ingelezen uit ${escapeHtml(facOudBron)}.</b>
          Loop de velden na voor je opslaat${g.klantOpFactuur?` — op de factuur staat “${escapeHtml(g.klantOpFactuur)}”`:''}.</div>`
       : '';
+  facOudKop();
   box.innerHTML=bron+`
     <div class="fac-ed-grid">
       <div class="uren-fld"><label for="faOudNummer">Factuurnummer</label>
@@ -20804,6 +20894,27 @@ function facOudKwartaalWaarschuwing(datum){
     Het btw-overzicht van dat kwartaal verandert hierdoor. Is die aangifte al gedaan,
     houd dan bij wat je alsnog moet corrigeren.</div>`;
 }
+/* Kop en voetknoppen hangen aan de wachtrij: bij een stapel wil je weten
+   waar je bent en of dit de laatste is. Zonder stapel blijft alles zoals het
+   was -- de handmatige invoer heeft zijn eigen "Opslaan en volgende". */
+function facOudKop(){
+  const n=facScanRij.length;
+  const titel=document.getElementById('facOudTitel');
+  const sub=document.getElementById('facOudSub');
+  const oversla=document.getElementById('facOudOverslaBtn');
+  const volg=document.getElementById('facOudVolgBtn');
+  const opslaan=document.getElementById('facOudOpslaanBtn');
+  const laatste=facScanIdx>=n-1;
+  if(titel)titel.textContent=n>1?`Factuur ${facScanIdx+1} van ${n}`:'Oude factuur toevoegen';
+  if(sub){
+    sub.textContent=n>1
+      ? (laatste?'Laatste van de stapel.':`Nog ${n-facScanIdx-1} te gaan na deze.`)
+      : 'Voor een factuur die je buiten deze app hebt gemaakt.';
+  }
+  if(oversla)oversla.style.display=n>1?'':'none';
+  if(volg)volg.style.display=n>0?'none':'';
+  if(opslaan)opslaan.textContent=(n>1&&!laatste)?'Opslaan en volgende':'Opslaan';
+}
 function facOudSync(){
   const g=facOudForm; if(!g)return;
   document.querySelectorAll('#facOudModal [data-fac-input]').forEach(el=>{
@@ -20827,7 +20938,11 @@ function facOudBewaar(){
   return true;
 }
 function facOudOpslaan(){
-  if(facOudBewaar())closeFacOud();
+  if(!facOudBewaar())return;
+  /* Zit er een stapel achter, dan is opslaan meteen "door naar de volgende";
+     bij de laatste doet facScanVolgende() zelf de modaal dicht. */
+  if(facScanBezig())facScanVolgende();
+  else closeFacOud();
 }
 function facOudOpslaanVolgende(){
   if(!facOudBewaar())return;

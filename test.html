@@ -287,6 +287,30 @@ function runChecks() {
       return uit === zin;
     }],
 
+    /* ── Facturen inscannen: de wachtrij ──
+       Wat hier getest kan worden zonder de API te bellen is de rand: het
+       bestandsveld accepteert een stapel, en een te groot bestand krijgt
+       zijn eigen foutregel in plaats van de hele stapel af te breken. Die
+       laatste test kiest bewust alleen te grote bestanden, dan gaat er
+       gegarandeerd geen verzoek de deur uit. */
+    ['Scan: veld accepteert meerdere bestanden', () =>
+      !!d.getElementById('facScanInput') && d.getElementById('facScanInput').multiple === true],
+    ['Scan: wachtrij-functies aanwezig',   () => ['facScanStart','facScanVolgende','facScanOversla',
+                                                  'facScanHerkans','facScanLeeg','facScanBezig']
+                                                  .every(f => typeof w[f] === 'function')],
+    ['Scan: stapel opent de modaal met een teller', () => {
+      const nep = n => ({ name:n, size:20*1024*1024, type:'application/pdf' });
+      try {
+        w.facScanStart([nep('een.pdf'), nep('twee.pdf'), nep('drie.pdf')]);
+        return w.facScanBezig() === true &&
+               d.getElementById('facOudModal').classList.contains('open') &&
+               /1 van 3/.test(d.getElementById('facOudTitel').textContent) &&
+               d.getElementById('facOudOverslaBtn').style.display !== 'none' &&
+               d.getElementById('facOudOpslaanBtn').textContent === 'Opslaan en volgende';
+      } finally { w.closeFacOud(); }
+    }],
+    ['Scan: sluiten ruimt de wachtrij op', () => w.facScanBezig() === false],
+
     ['No iframe console errors',           () => iframeErrors.length === 0]
   ];
 

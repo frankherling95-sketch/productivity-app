@@ -10,6 +10,50 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-08 · Een stapel facturen inscannen, één voor één nakijken
+
+**Probleem.** De scanner las één bestand per keer. Voor het bijwerken van een
+administratie is dat de verkeerde maat: je hebt een map met tien oude facturen,
+niet één.
+
+**Beslissing.** Het bestandsveld staat op `multiple` en de gekozen bestanden gaan
+in een wachtrij (`facScanRij`). Ze worden **één voor één** gelezen door een lus
+die op de achtergrond doorloopt terwijl jij de vorige nakijkt — na de eerste is
+er in de praktijk geen wachttijd meer. De kop telt mee ("Factuur 2 van 5"), de
+hoofdknop wordt "Opslaan en volgende", en er is een **Overslaan** ernaast.
+
+**Waarom niet parallel.** De gratis laag staat 15 verzoeken per minuut toe. Een
+stapel van twintig tegelijk loopt daar dwars doorheen, en dan mislukken er een
+paar om een reden die niets met de factuur te maken heeft. Sequentieel is snel
+genoeg omdat de gebruiker het traagste onderdeel is.
+
+**Waarom nog steeds één formulier per factuur.** De hele reden dat de scanner een
+*voorstel* invult en niet direct opslaat, is dat één verkeerd overgenomen bedrag
+in de btw-aangifte belandt. Een stapel verandert daar niets aan; alleen het
+kiezen van de bestanden gebeurt in één keer.
+
+**Wat een enkele fout doet.** Niets aan de rest. Een te groot bestand of een
+mislukte scan krijgt zijn eigen regel in beeld met "probeer opnieuw"; de lus gaat
+ondertussen door met de volgende. Sluiten breekt de lus af via een
+generatieteller (`facScanGen`); een verzoek dat al onderweg is loopt af en wordt
+weggegooid.
+
+**Bewijs.** 25 tests op de toestandsmachine: volgorde, te groot bestand, mislukte
+scan, opnieuw proberen, afbreken bij sluiten, en dat een herteken-actie het
+formulier niet overschrijft waar iemand in typt.
+
+**Bestanden**: `index.html` — `facScanRij`/`facScanLus`/`facScanToon`/
+`facScanVolgende`/`facScanHerkans`, `facOudKop()` voor kop en voetknoppen,
+`multiple` op `#facScanInput`; `test.html` — 4 tests; `sw.js` → `herling-v76`
+
+**Niet doen**: de facturen parallel inlezen om het sneller te maken, of de
+resultaten in één lijst tonen om in bulk op te slaan. Beide halen het nakijken
+per factuur weg, en dat is precies waar de scanner voor bestaat.
+
+**Bijkomend**: "Opslaan en volgende" (de knop voor een handmatige stapel) is
+verborgen zolang er een wachtrij loopt — de stapel heeft dan zijn eigen
+"volgende" en twee betekenissen naast elkaar leest verkeerd.
+
 ## 2026-09-08 · Klantnamen gaan gemaskeerd naar Gemini
 
 **Probleem.** De AI-functies praten rechtstreeks vanuit de browser met de
