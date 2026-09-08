@@ -10,6 +10,34 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-08 · De snelheidsrem moet een herlaad overleven
+
+**Probleem.** `_geminiTijden` stond alleen in het geheugen. Elke Ctrl+Shift+R
+zette de rem daarmee op nul, terwijl Google gewoon doortelt — precies de
+situatie tijdens het testen: herladen, stapel kiezen, meteen weer 429. Een
+tweede tabblad had hetzelfde gat.
+
+**Beslissing.** localStorage (`herling_gemini_tempo`) is de waarheid, niet het
+geheugen. `_geminiSlot()` leest bij elke ronde opnieuw, dus verzoeken uit een
+vorige sessie of een ander tabblad tellen mee. De geleerde snelheid
+(`_geminiPerMin`) gaat mee, zodat hij niet na elke herlaad opnieuw op 6 begint
+en het opnieuw moet ontdekken.
+
+**Waarom dit erbij hoort.** De rem van de entry hieronder was juist bedoeld om
+429's te voorkomen. Met een geheugen dat bij elke herlaad leegloopt deed hij dat
+alleen binnen één sessie — en zo wordt de app niet gebruikt.
+
+**Wat het níet verklaart.** Dat het PDF-lezen te zwaar zou zijn. Uit Frank's
+eigen statistieken: piek 2,6K input-tokens tegen een plafond van 250.000 per
+minuut. De limiet die dichtsloeg telt verzoeken, geen omvang.
+
+**Bewijs.** 43 tests, waaronder het echte scenario: twee verzoeken, dan een
+tweede exemplaar van dezelfde code op dezelfde opslag (een "herlaad"), en die
+wacht alsnog op zijn beurt.
+
+**Bestanden**: `index.html` — `LS_GEMINI_TEMPO`, `_geminiTempoLees()`/
+`_geminiTempoBewaar()`; `sw.js` → `herling-v81`
+
 ## 2026-09-08 · Inleeslogboek: een dubbele PDF herken je vóór het scannen
 
 **Probleem.** Er was al een dubbelcheck, maar die werkt op factuurnummer en

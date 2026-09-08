@@ -23657,6 +23657,26 @@ let _geminiPerMin=6;        /* voorzichtige start */
 let _geminiTijden=[];       /* wanneer de laatste verzoeken uitgingen */
 let _geminiGoed=0;          /* gelukt op rij, om de rem te laten oplopen */
 
+/* De rem moet een herlaad overleven. Stond hij alleen in het geheugen, dan
+   begon hij na elke Ctrl+Shift+R met een schone lei terwijl Google gewoon
+   doortelt -- precies de situatie waarin je zit als je aan het testen bent:
+   herladen, stapel kiezen, meteen weer 429. Hetzelfde geldt voor een tweede
+   tabblad. Daarom is localStorage hier de waarheid en niet het geheugen. */
+const LS_GEMINI_TEMPO='herling_gemini_tempo';
+function _geminiTempoLees(){
+  try{
+    const r=JSON.parse(localStorage.getItem(LS_GEMINI_TEMPO)||'{}');
+    const nu=Date.now();
+    _geminiTijden=(Array.isArray(r.tijden)?r.tijden:[])
+      .filter(t=>typeof t==='number'&&nu-t<GEMINI_VENSTER&&t<=nu);
+    if(r.perMin>=GEMINI_MIN_PER_MIN&&r.perMin<=GEMINI_MAX_PER_MIN)_geminiPerMin=r.perMin;
+  }catch(e){/* geen opslag: dan doet hij het alleen voor dit tabblad */}
+}
+function _geminiTempoBewaar(){
+  try{localStorage.setItem(LS_GEMINI_TEMPO,
+    JSON.stringify({tijden:_geminiTijden,perMin:_geminiPerMin}));}catch(e){}
+}
+
 function _geminiRuis(ms){return Math.round(ms*(0.8+Math.random()*0.4));}
 function _geminiPauze(ms){return new Promise(res=>setTimeout(res,ms));}
 function _aiTijdelijk(e){
@@ -23666,15 +23686,20 @@ function _aiTijdelijk(e){
 /* Wacht tot er ruimte is in de voortschrijdende minuut. */
 async function _geminiSlot(){
   for(;;){
+    /* Elke ronde opnieuw lezen: een ander tabblad kan er ondertussen ook
+       verzoeken uit hebben gedaan. */
+    _geminiTempoLees();
     const nu=Date.now();
-    _geminiTijden=_geminiTijden.filter(t=>nu-t<GEMINI_VENSTER);
-    if(_geminiTijden.length<_geminiPerMin){_geminiTijden.push(nu);return;}
+    if(_geminiTijden.length<_geminiPerMin){
+      _geminiTijden.push(nu);_geminiTempoBewaar();return;
+    }
     await _geminiPauze(GEMINI_VENSTER-(nu-_geminiTijden[0])+250);
   }
 }
 function _geminiRemOmlaag(){
   _geminiGoed=0;
   _geminiPerMin=Math.max(GEMINI_MIN_PER_MIN,_geminiPerMin-2);
+  _geminiTempoBewaar();   /* wat hij geleerd heeft mag niet weg bij een herlaad */
   /* De verzoeken van het afgelopen minuutje tellen nog mee; door ze te
      laten staan begint de nieuwe, lagere rem meteen te knijpen. */
 }
@@ -23682,6 +23707,7 @@ function _geminiRemOmhoog(){
   if(++_geminiGoed<8)return;
   _geminiGoed=0;
   _geminiPerMin=Math.min(GEMINI_MAX_PER_MIN,_geminiPerMin+1);
+  _geminiTempoBewaar();
 }
 async function _geminiFetch(url,body){
   let drukte=0,limiet=0;
