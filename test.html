@@ -335,6 +335,40 @@ function runChecks() {
       /paste niet/.test(w._geminiLeegUitleg({candidates:[{finishReason:'MAX_TOKENS'}]})) &&
       /tegen/.test(w._geminiLeegUitleg({candidates:[{finishReason:'SAFETY'}]}))],
 
+    /* ── Analyse ──
+       De grafieken zelf kun je hier niet beoordelen, de rekenkant wel: de
+       as-stappen, de korte notatie, en het raden van de klant achter de
+       klant. Dat laatste is het gevoeligste stuk — het verschuift omzet naar
+       een andere naam, dus het staat hier met de echte betreft-regels in. */
+    ['Analyse: functies aanwezig',         () => ['facAnData','facAnRange','facRenderAnalyse',
+                                                  'facAnSchaal','facAnKort','facEindRaad',
+                                                  'facEindklantVan','facEindRegelMatch','facAnKlantVan']
+                                                  .every(f => typeof w[f] === 'function')],
+    ['Analyse: as valt op ronde stappen',  () => {
+      const a = w.facAnSchaal(22000);
+      return a.max === 24000 && a.stap === 6000 && w.facAnSchaal(0).max > 0;
+    }],
+    ['Analyse: bedragen kort maar leesbaar', () =>
+      w.facAnKort(6000) === '€6k' && w.facAnKort(1500) === '€1,5k' &&
+      w.facAnKort(950) === '€950' && w.facAnKort(0) === '€0'],
+    ['Analyse: eindklant uit de betreft-regel', () => {
+      const r = (b, k) => w.facEindRaad(b, k);
+      return r('LabsData - Uwoon Gewerkte uren Juni/Juli 2026', 'LabsData B.V.') === 'Uwoon' &&
+             r('POM Gewerkte uren Augustus 2026', 'LabsData B.V.') === 'POM' &&
+             /* \b in de regex: zonder woordgrens vond "uren" zichzelf terug
+                in "Buren" en hield je een losse B over. */
+             r('LabsData - Buren Gewerkte uren Juli 2026', 'LabsData B.V.') === 'Buren' &&
+             r('Consultancy Boskalis 01-07-2026 t/m 31-07-2026', 'Kasparov BI B.V.') === 'Boskalis' &&
+             r('LabsData - Bibliotheek Eindhoven - Power BI Rapportage - Werkzaamheden Juni/Juli',
+               'LabsData B.V.') === 'Bibliotheek Eindhoven' &&
+             /* De klant zelf is geen eindklant, en een maand is geen naam. */
+             r('Kasparov BI B.V. Gewerkte uren Augustus 2026', 'Kasparov BI B.V.') === '' &&
+             r('Nordwind Energy Werkzaamheden Juli 2026', 'Nordwind Energy BV') === '';
+    }],
+    ['Analyse: het veld op de factuur gaat vóór de regel', () =>
+      w.facEindklantVan({eindklant:'  Uwoon  ', betreft:'Staedion Gewerkte uren Juli', clientId:'x'}) === 'Uwoon' &&
+      w.facEindklantVan({betreft:'niets herkenbaars', clientId:'x'}) === ''],
+
     /* ── Facturen inscannen: de wachtrij ──
        Wat hier getest kan worden zonder de API te bellen is de rand: het
        bestandsveld accepteert een stapel, en een te groot bestand krijgt

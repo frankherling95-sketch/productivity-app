@@ -1503,6 +1503,144 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .fac-cijfers-kop .sam.laat{color:var(--danger);font-weight:600}
 .fac-cijfers-kop .caret{margin-left:auto;flex:none;transition:transform .15s}
 .fac-cijfers-kop[aria-expanded="true"] .caret{transform:rotate(180deg)}
+/* ── Analyse ──────────────────────────────────────────────────────────
+   De twee grafiekkleuren staan als token, niet als losse hex: het donkere
+   thema heeft een eigen stap nodig, en beide standen moeten uit elkaar te
+   houden zijn voor wie kleuren anders ziet. Gekozen met de validator uit de
+   dataviz-richtlijn -- licht #0E8F73 tegen #98A2AE (ΔE 16,8 normaal / 10,9
+   bij kleurenblindheid), donker #12A583 tegen #63718A (16,4 / 11,4).
+
+   Het grijs blijft bewust grijs. Dit zijn geen twee categorieën maar nadruk:
+   de periode die je bekijkt heeft de kleur, de periode ervoor is achtergrond.
+   Zo hoef je geen twee kleuren te onthouden om te zien welke kant het opgaat.
+   Dat het grijs daarmee onder 3:1 blijft, is gedekt door het cijfer dat er
+   altijd bij staat (tegel, eindlabel, tooltip en de knop Tabel). */
+:root{--gr-nu:#0E8F73;--gr-vorig:#98A2AE;--gr-raster:rgba(0,0,0,.07)}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){--gr-nu:#12A583;--gr-vorig:#63718A;--gr-raster:rgba(255,255,255,.10)}
+}
+:root[data-theme="dark"]{--gr-nu:#12A583;--gr-vorig:#63718A;--gr-raster:rgba(255,255,255,.10)}
+
+/* Eén balk met alles wat de weergave stuurt, bóven de grafieken -- niet per
+   kaart. Twee filters op twee plekken laten de cijfers uit elkaar lopen. */
+/* De tegelrij staat hier in dezelfde stroom als de kaarten eronder en heeft
+   dus niet nóg eens zijn eigen zijkantjes nodig: met de padding van .uren-kpis
+   erbij stonden de tegels 16px naar binnen ten opzichte van de grafieken, en
+   raakten ze de eerste kaart (2px). Eén ritme: 14px tussen elk blok. */
+#facBody .fac-an-kpis{padding:0;margin-bottom:14px}
+.fac-an-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%}
+.fac-an-vul{flex:1}
+.fac-an-scope{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  font-size:var(--fs-klein);color:var(--text-muted);margin-bottom:12px;
+}
+.fac-an-kaart{
+  background:var(--surface);border:0.5px solid var(--border);
+  border-radius:var(--radius-md);padding:16px 18px;margin-bottom:14px;
+}
+.fac-an-kaartkop{margin-bottom:10px}
+.fac-an-kaartkop h3{font-size:var(--fs-groot);font-weight:600;margin:0}
+.fac-an-kaartkop p{font-size:var(--fs-klein);color:var(--text-muted);margin:2px 0 0}
+/* Bij twee reeksen hoort altijd een legenda: kleur alleen mag nooit de enige
+   drager van betekenis zijn. */
+.fac-an-leg{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:6px;
+  font-size:var(--fs-klein);color:var(--text-muted)}
+.fac-an-leg span{display:inline-flex;align-items:center;gap:6px}
+.fac-an-leg i{width:10px;height:10px;border-radius:2px;display:block}
+.fac-an-leg i.nu{background:var(--gr-nu)}
+.fac-an-leg i.vorig{background:var(--gr-vorig)}
+
+.fac-an-plot{position:relative}
+.an-svg{display:block;overflow:visible}
+.an-grid{stroke:var(--gr-raster);stroke-width:1}
+.an-as{stroke:var(--border-strong);stroke-width:1}
+.an-astekst{fill:var(--text-muted);font-size:var(--fs-micro);font-family:var(--font-body);
+  font-variant-numeric:tabular-nums}
+.an-nu{fill:var(--gr-nu)}
+.an-vorig{fill:var(--gr-vorig)}
+.an-lijn-nu{fill:none;stroke:var(--gr-nu);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.an-lijn-vorig{fill:none;stroke:var(--gr-vorig);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+/* Een ring in de kleur van het vlak, zodat een punt leesbaar blijft waar de
+   twee lijnen elkaar kruisen. */
+.an-punt-nu{fill:var(--gr-nu);stroke:var(--surface);stroke-width:2}
+.an-punt-vorig{fill:var(--gr-vorig);stroke:var(--surface);stroke-width:2}
+.an-waarde{fill:var(--text);font-size:var(--fs-micro);font-weight:700;font-family:var(--font-body);font-variant-numeric:tabular-nums}
+.an-eindlabel{fill:var(--text);font-size:var(--fs-micro);font-weight:700;font-family:var(--font-body)}
+.an-eindlabel.zacht{fill:var(--text-muted);font-weight:500}
+.an-vizier{stroke:var(--gr-vorig);stroke-width:1;opacity:.55}
+/* Het raakvlak is de hele kolom en niet de balk: op negen pixels mikken lukt
+   met een duim niet. */
+.an-band{fill:transparent;cursor:pointer}
+.an-band:hover{fill:var(--gr-nu);fill-opacity:.07}
+.an-band:focus-visible{fill:var(--gr-nu);fill-opacity:.12;outline:2px solid var(--mint);outline-offset:-2px}
+.fac-an-tip{
+  position:absolute;top:2px;z-index:3;pointer-events:none;
+  background:var(--surface);border:0.5px solid var(--border-strong);
+  border-radius:var(--radius);box-shadow:var(--shadow-popover);
+  padding:8px 10px;font-size:var(--fs-klein);min-width:132px;
+}
+.fac-an-tip .t{font-weight:700;margin-bottom:4px}
+/* De waarde eerst, het label erachter: je hebt de maand al aangewezen. */
+.fac-an-tip .r{display:flex;align-items:center;gap:6px;line-height:1.5}
+.fac-an-tip .r b{font-variant-numeric:tabular-nums}
+.fac-an-tip .r span{color:var(--text-muted)}
+.fac-an-tip i{width:10px;height:2px;border-radius:1px;flex:none}
+.fac-an-tip i.nu{background:var(--gr-nu)}
+.fac-an-tip i.vorig{background:var(--gr-vorig)}
+.fac-an-tip i.leeg{background:transparent}
+
+/* Ranglijst per klant. Bewust HTML en geen svg: een naam die niet past moet
+   kunnen afkappen met een ellips en voorleesbaar blijven. */
+.fac-an-klanten{display:flex;flex-direction:column;gap:2px}
+.fac-an-krij{
+  display:grid;grid-template-columns:minmax(110px,220px) 1fr auto;
+  align-items:center;gap:12px;width:100%;
+  background:none;border:0;border-radius:var(--radius);
+  padding:7px 8px;cursor:pointer;text-align:left;font-family:inherit;
+  color:var(--text);font-size:var(--fs-basis);
+}
+.fac-an-krij:hover{background:var(--surface2)}
+.fac-an-krij.aan{background:var(--mint-soft)}
+.fac-an-krij:focus-visible{outline:2px solid var(--mint);outline-offset:-2px}
+.fac-an-krij .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.fac-an-krij .nm small{display:block;font-weight:500;font-size:var(--fs-micro);color:var(--text-muted)}
+.fac-an-krij .bl{height:14px;background:var(--surface2);border-radius:4px;overflow:hidden}
+.fac-an-krij .vul{display:block;height:100%;background:var(--gr-nu);border-radius:4px}
+.fac-an-krij .wa{font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap;text-align:right}
+.fac-an-krij .wa small{display:block;font-weight:500;color:var(--text-muted)}
+.fac-an-krest{font-size:var(--fs-klein);color:var(--text-muted);padding:8px}
+
+.fac-an-tabelwrap{overflow-x:auto}
+.fac-an-tabel{width:100%;border-collapse:collapse;font-size:var(--fs-klein)}
+.fac-an-tabel th,.fac-an-tabel td{padding:6px 8px;border-bottom:0.5px solid var(--border);text-align:left}
+.fac-an-tabel th{font-size:var(--fs-micro);text-transform:uppercase;letter-spacing:.06em;
+  color:var(--text-muted);font-weight:600;white-space:nowrap}
+.fac-an-tabel .num{text-align:right;font-variant-numeric:tabular-nums}
+.fac-an-tabel .zacht{color:var(--text-muted)}
+.fac-an-tabel .op{color:var(--success)}
+.fac-an-tabel .af{color:var(--danger)}
+.fac-an-tabel tfoot td{font-weight:700;border-bottom:0}
+.fac-an-sub{font-size:var(--fs-basis);font-weight:600;margin:18px 0 8px}
+.fac-an-voorstellen{display:flex;flex-wrap:wrap;gap:6px}
+.fac-an-voorstellen small{color:var(--text-muted);margin-left:4px}
+.fac-an-nieuw{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:center}
+
+/* Een knop die aan of uit staat leest dat aan zijn vulling af, niet alleen
+   aan zijn tekst. Zelfde look als de filterchip die er al was. */
+.uren-btn[aria-pressed="true"]{background:var(--mint-soft);border-color:var(--mint)}
+
+@media (max-width:768px){
+  .fac-an-kaart{padding:12px;margin-bottom:10px}
+  /* De naam boven de balk in plaats van ernaast: op 375px hield een
+     naamkolom van 26% niets over voor de balk zelf. */
+  .fac-an-krij{grid-template-columns:1fr auto;gap:4px 10px;padding:8px}
+  .fac-an-krij .nm{grid-column:1;min-width:0}
+  .fac-an-krij .wa{grid-column:2;grid-row:1;text-align:right}
+  .fac-an-krij .wa small{display:inline;margin-left:6px}
+  .fac-an-krij .bl{grid-column:1/-1;grid-row:2;height:10px}
+  .fac-an-nieuw{grid-template-columns:1fr}
+  .fac-an-tip{min-width:120px}
+}
 .fac-aging{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px}
 /* Omzet en Betaald horen niet in de ouderdomsreeks maar wel in hetzelfde
    uitklapblok; twee kolommen zodat ze niet als losse ouderdomsbak lezen. */
@@ -5374,6 +5512,17 @@ textarea { line-height: 1.6; resize: vertical; }
     color: var(--text-muted);
     position: relative;
   }
+  /* Zes tabs passen niet meer in gelijke vakken: op 375px is dat 59px per vak
+     en "Debiteuren" vraagt er 62 -- "Verzonden" en "Klanten" liepen in elkaar
+     over. De vakken loslaten en de strip laten schuiven kost minder dan de
+     woorden inkorten of de tekst verkleinen, en de actieve tab wordt bij het
+     wisselen in beeld geschoven. Alleen hier: Uren heeft er vier. */
+  #mod-facturen .uren-tabs {
+    flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  #mod-facturen .uren-tabs::-webkit-scrollbar { display: none; }
+  #mod-facturen .uren-tab { flex: 0 0 auto; padding-left: 12px; padding-right: 12px; }
   .uren-tab.active {
     background: transparent; color: var(--text); font-weight: 700;
     border: 0; box-shadow: none;
@@ -5404,6 +5553,16 @@ textarea { line-height: 1.6; resize: vertical; }
      streepje hoort op de onderrand te vallen. Staat de tijdvakkiezer er
      óók in, dan sluiten Factuurstelsel en Kasstelsel zonder deze regel
      direct aan op het grijs eronder. */
+  /* Zelfde streek als bij btw: de balk met de periodekeuze past niet naast
+     de tabs. Zonder eigen regel kneep hij de tabs tot nul breedte en waren
+     ze op een telefoon simpelweg weg. */
+  .uren-viewbar.viewbar-analyse { flex-wrap: wrap; padding-bottom: var(--sp-2); }
+  .uren-viewbar.viewbar-analyse .uren-filters { flex: 1 0 100%; }
+  .viewbar-analyse .fac-an-bar { gap: 6px; }
+  .viewbar-analyse .cl2-seg { flex: 1 0 100%; }
+  .viewbar-analyse .cl2-seg-btn { flex: 1; }
+  .viewbar-analyse .fac-an-vul { display: none; }
+  .viewbar-analyse .fac-an-bar .uren-btn { flex: 1; }
   .uren-viewbar.viewbar-btw { flex-wrap: wrap; padding-bottom: var(--sp-2); }
   .uren-viewbar.viewbar-btw .uren-filters { flex: 1 0 100%; }
   .viewbar-btw .fac-btw-kiezer { width: 100%; flex-direction: column; gap: 6px; }
@@ -6884,7 +7043,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v1.86</span>
+        <span class="app-versie" title="Appversie">v1.87</span>
       </div>
     </div>
   </aside>
@@ -7330,6 +7489,7 @@ textarea { line-height: 1.6; resize: vertical; }
           <button class="uren-tab" role="tab" data-fac-action="facSetView" data-fac-arg1="btw">Btw</button>
           <button class="uren-tab" role="tab" data-fac-action="facSetView" data-fac-arg1="mails">Verzonden</button>
           <button class="uren-tab" role="tab" data-fac-action="facSetView" data-fac-arg1="klanten">Klanten</button>
+          <button class="uren-tab" role="tab" data-fac-action="facSetView" data-fac-arg1="analyse">Analyse</button>
         </div>
         <div class="uren-filters" id="facFilterBar"></div>
       </div>
@@ -7612,6 +7772,22 @@ textarea { line-height: 1.6; resize: vertical; }
 <input type="file" id="facScanInput" accept="application/pdf,image/png,image/jpeg,image/webp,image/heic,image/heif" multiple style="display:none"/>
 
 <!-- ── Inleeslogboek ── -->
+<!-- ── Eindklanten: regels die een doorbelaste factuur toewijzen ── -->
+<div class="modal-bg" id="facEindModal">
+  <div class="modal" style="max-width:640px;padding:0;display:flex;flex-direction:column;max-height:92vh">
+    <div class="modal-kop" style="flex-shrink:0">
+      <h3 style="font-size:18px;font-weight:700;margin:0">Eindklanten</h3>
+      <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0">Wie zit er achter je factuurklant?</p>
+    </div>
+    <div style="padding:20px 22px;overflow-y:auto;overflow-x:hidden;flex:1;min-height:0" id="facEindBody"></div>
+    <div class="modal-footer" style="padding:14px 22px;border-top:0.5px solid var(--border);flex-shrink:0">
+      <div class="modal-footer-left"></div>
+      <div class="modal-footer-right">
+        <button class="btn btn-sm btn-primary" data-fac-action="closeFacEindModal">Sluiten</button>
+      </div>
+    </div>
+  </div>
+</div>
 <div class="modal-bg" id="facScanLogModal">
   <div class="modal" style="max-width:560px;padding:0;display:flex;flex-direction:column;max-height:92vh">
     <div class="modal-kop" style="flex-shrink:0">
@@ -8936,6 +9112,8 @@ function hydrateerState(){
      naar Drive: op je andere computer weet de app óók welke PDF's je al
      hebt gehad. */
   if(!Array.isArray(factuurState.scanLog))factuurState.scanLog=[];
+  /* Regels die een doorbelaste factuur aan de klant erachter koppelen. */
+  if(!Array.isArray(factuurState.eindklantRegels))factuurState.eindklantRegels=[];
   factuurSettings();
   factuurMailsAanvullen();
   if(!rawState.settings)rawState.settings={};
@@ -18576,6 +18754,15 @@ let facWizard=null;       /* {clientId,from,to} tijdens "nieuwe factuur" */
 const FAC_CLICK_ACTIONS={
   facSetView:(a)=>facSetView(a),
   facToggleCijfers:()=>facToggleCijfers(),
+  facAnZetBereik:(a)=>facAnZetBereik(a),
+  facAnZetKlant:(a)=>facAnZetKlant(a),
+  facAnWisselEind:()=>facAnWisselEind(),
+  facAnWisselTabel:()=>facAnWisselTabel(),
+  openFacEindModal:()=>openFacEindModal(),
+  closeFacEindModal:()=>closeFacEindModal(),
+  facEindRegelToevoegen:()=>facEindRegelToevoegen(),
+  facEindNeemVoorstel:(a,b)=>facEindNeemVoorstel(a,b),
+  facEindRegelWeg:(a)=>facEindRegelWeg(a),
   facNavPrev:()=>facNav(-1),
   facNavNext:()=>facNav(1),
   facNavHuidig:()=>{
@@ -18757,7 +18944,7 @@ function facBackupHerinnering(){
     {type:'warning',duration:9000});
 }
 function facSetView(v){
-  if(!['facturen','debiteuren','btw','mails','klanten'].includes(v))return;
+  if(!['facturen','debiteuren','btw','mails','klanten','analyse'].includes(v))return;
   facView=v;
   facRenderAll();
 }
@@ -18832,6 +19019,13 @@ function facRenderAll(){
   if(!document.getElementById('facBody'))return;
   const p=facPeriode();
   const smal=window.matchMedia&&window.matchMedia('(max-width:768px)').matches;
+  /* Twee periodekiezers naast elkaar is er één te veel. De analyse heeft zijn
+     eigen bereik in de balk onder de tabs, dus gaan de jaarpijlen daar uit --
+     anders staat er een jaartal in beeld dat niets aanstuurt. */
+  const perWrap=document.querySelector('#mod-facturen .uren-periode');
+  if(perWrap)perWrap.style.display=facView==='analyse'?'none':'';
+  const vandaagBtn=document.getElementById('facNavHuidigBtn');
+  if(vandaagBtn)vandaagBtn.style.display=facView==='analyse'?'none':'';
   const lbl=document.getElementById('facPeriodeLabel');
   if(lbl)lbl.textContent=facView==='klanten'?'Alle klanten'
     :facView==='btw'?(facBtwKwartaal?`Q${facBtwKwartaal} ${facJaar}`:String(facJaar))
@@ -18848,8 +19042,13 @@ function facRenderAll(){
   zet('facNavNextBtn',stap[1]);
   const nu=document.getElementById('facNavHuidigBtn');
   if(nu)nu.textContent={week:'Deze week',maand:'Deze maand',jaar:'Dit jaar'}[facActieveScope()];
-  document.querySelectorAll('#mod-facturen .uren-tab').forEach(b=>
-    b.classList.toggle('active',b.dataset.facArg1===facView));
+  document.querySelectorAll('#mod-facturen .uren-tab').forEach(b=>{
+    const aan=b.dataset.facArg1===facView;
+    b.classList.toggle('active',aan);
+    /* De strip schuift op een telefoon; een tab die buiten beeld valt moet
+       je niet zelf hoeven zoeken. */
+    if(aan&&b.scrollIntoView)b.scrollIntoView({block:'nearest',inline:'nearest'});
+  });
   facRenderBedrijfKnop();
   facRenderFilters();
   facRenderKpis();
@@ -18903,9 +19102,14 @@ function facRenderFilters(){
      telefoon een eigen regel onder de tabs. De balk weet dat via deze
      klasse, zodat de CSS niet hoeft te raden wat erin staat. */
   balkOnder?.closest('.uren-viewbar')?.classList.toggle('viewbar-btw',facView==='btw');
+  balkOnder?.closest('.uren-viewbar')?.classList.toggle('viewbar-analyse',facView==='analyse');
   if(facView==='klanten'){bar.innerHTML='';return;}
   if(facView==='btw'){bar.innerHTML='';if(balkOnder)balkOnder.innerHTML=facBtwKiezer();return;}
   if(facView==='mails'){bar.innerHTML='';return;}
+  /* De analyse kiest zijn eigen tijdvak, dus de trechter en de jaarpijlen
+     doen daar niets. Alles wat de weergave stuurt staat in één balk onder
+     de tabs -- zo hoort bij een dashboard maar één periodekeuze te staan. */
+  if(facView==='analyse'){bar.innerHTML='';if(balkOnder)balkOnder.innerHTML=facAnFilterBalk();return;}
   const n=(facFilterStatus?1:0)+(facFilterClient?1:0);
   let html=`<button class="uren-btn${n?' aan':''}" id="facFilterBtn" data-fac-action="facToggleFilters"
     aria-haspopup="dialog" aria-expanded="false" aria-label="Filter en periode">${FILTER_ICOON}<span class="uren-btn-lab">Filter</span>${n?`<span class="cnt">${n}</span>`:''}</button>`;
@@ -19069,6 +19273,7 @@ function facRenderBody(){
   const body=document.getElementById('facBody');
   if(!body)return;
   const kop=facCijferBalk();
+  if(facView==='analyse'){body.innerHTML=facRenderAnalyse();return;}
   if(facView==='klanten'){body.innerHTML=kop+facRenderKlanten();return;}
   if(facView==='debiteuren'){body.innerHTML=kop+facRenderDebiteuren();return;}
   if(facView==='btw'){body.innerHTML=facRenderBtw();return;}
@@ -20133,7 +20338,17 @@ function facEditorRender(){
     <label>Betreft</label>
     <input type="text" class="fac-ed-inp" value="${escapeHtml(f.betreft||'')}"
       data-fac-change="facEdVeld" data-fac-arg1="betreft" ${bewerkbaar?'':'disabled'}
-      placeholder="Bijv. Gewerkte uren juli 2026"/></div>`;
+      placeholder="Bijv. Gewerkte uren juli 2026"/></div>
+  <div class="uren-fld" style="margin-top:12px">
+    <label>Eindklant</label>
+    <input type="text" class="fac-ed-inp" list="facEindNamenLijst" value="${escapeHtml(f.eindklant||'')}"
+      data-fac-change="facEdVeld" data-fac-arg1="eindklant"
+      placeholder="${escapeHtml(facEindRegelMatch(f)||'Zelfde als de klant hierboven')}"/>
+    <datalist id="facEindNamenLijst">${facEindNamen().map(n=>
+      `<option value="${escapeHtml(n)}"></option>`).join('')}</datalist>
+    <small style="display:block;font-size:11.5px;color:var(--text-muted);margin-top:4px">
+      Belast je door? Zet hier voor wie het werk was; onder Analyse telt de omzet
+      dan onder die naam mee. Leeg = wat de regels ervan maken.</small></div>`;
 
   /* Periode: de regel onder Betreft. Leeg = afgeleid uit de gekoppelde
      uren, en dat staat als placeholder in het veld zodat je ziet wat er
@@ -20674,6 +20889,680 @@ function facVerwijderActie(id){
   const fid=f.id;
   closeFacEditor();
   factuurVerwijder([fid]);
+}
+
+/* ══ Analyse ══
+   Wat de facturenlijst niet vertelt: loopt het op of terug, en waar komt het
+   vandaan. Eén periodekeuze bovenaan stuurt alles eronder aan -- tegels,
+   grafieken en tabel staan dus altijd voor hetzelfde tijdvak.
+
+   Wat meetelt: verstuurde en betaalde facturen. Een concept is nog geen
+   omzet. Bedragen zijn exclusief btw -- btw is geld van de Belastingdienst
+   dat alleen even bij je langskomt.
+
+   Twee vormkeuzes die het uiterlijk verklaren:
+   - "Deze periode tegen de vorige" is geen kwestie van twee categorieën maar
+     van nadruk. De huidige periode krijgt de kleur, de vorige is grijs. Je
+     hoeft dus geen twee kleuren uit elkaar te houden om te zien welke kant
+     het op gaat.
+   - De klantverdeling is een ranglijst, geen identiteitsvraag. Alle balken
+     dezelfde kleur; de naam ernaast wijst aan wie het is. Een kleur per klant
+     zou alleen overdoen wat de lengte van de balk al zegt. */
+const FAC_AN_BEREIKEN=[['jaar','Dit jaar'],['12m','12 maanden'],
+  ['vorig','Vorig jaar'],['alles','Alles']];
+let facAnBereik='jaar';
+let facAnKlant='';      /* sleutel uit facAnKlantVan(), leeg = alle klanten */
+let facAnEind=false;    /* eindklanten uitsplitsen                          */
+let facAnTabel=false;   /* de cijfers onder de grafieken                     */
+let _facAnTips=[];      /* per grafiek de regels achter een balk of punt     */
+
+/* Concepten tellen niet mee, en zonder datum kun je niets plaatsen. */
+function facAnBron(){
+  return facBedrijfFacturen().filter(f=>f&&f.datum&&f.status!=='concept');
+}
+function facAnMaandKey(datum){return String(datum||'').slice(0,7);}
+function facAnMaanden(jaar,maand,n){
+  const uit=[];
+  for(let i=0;i<n;i++){
+    const d=new Date(jaar,maand+i,1);
+    uit.push({key:d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'),
+      jaar:d.getFullYear(),maand:d.getMonth()});
+  }
+  return uit;
+}
+/* Welke maanden staan er in beeld, en waartegen zetten we ze af. Bij "Alles"
+   is er niets om tegen af te zetten -- dan is de vergelijking leeg in plaats
+   van verzonnen. Loopt dat over meer dan twee jaar, dan gaan de kolommen per
+   jaar: dertig maanden naast elkaar is geen grafiek meer maar een kam. */
+function facAnRange(){
+  const nu=new Date();
+  if(facAnBereik==='12m'){
+    const s=new Date(nu.getFullYear(),nu.getMonth()-11,1);
+    return {label:'Laatste 12 maanden',eenheid:'maand',
+      maanden:facAnMaanden(s.getFullYear(),s.getMonth(),12),
+      vorige:facAnMaanden(s.getFullYear(),s.getMonth()-12,12),
+      vorigeLabel:'12 maanden ervoor'};
+  }
+  if(facAnBereik==='vorig'){
+    const j=nu.getFullYear()-1;
+    return {label:String(j),eenheid:'maand',maanden:facAnMaanden(j,0,12),
+      vorige:facAnMaanden(j-1,0,12),vorigeLabel:String(j-1),
+      vorigeUitleg:String(j-1)};
+  }
+  if(facAnBereik==='alles'){
+    const dat=facAnBron().map(f=>f.datum).sort();
+    if(!dat.length)return {label:'Alles',eenheid:'maand',
+      maanden:facAnMaanden(nu.getFullYear(),0,12),vorige:[],vorigeLabel:''};
+    const s=new Date(dat[0]+'T00:00:00'),e=new Date(dat[dat.length-1]+'T00:00:00');
+    const n=(e.getFullYear()-s.getFullYear())*12+(e.getMonth()-s.getMonth())+1;
+    return {label:'Alles',eenheid:n>24?'jaar':'maand',
+      maanden:facAnMaanden(s.getFullYear(),n>24?0:s.getMonth(),n>24?(e.getFullYear()-s.getFullYear()+1)*12:n),
+      vorige:[],vorigeLabel:''};
+  }
+  /* Het lopende jaar loopt tot en met déze maand, niet tot december. Anders
+     zet je negen maanden omzet naast twaalf van vorig jaar en staat er een
+     daling in beeld waar groei zit -- en tekent de cumulatieve lijn een vlak
+     stuk voor maanden die nog moeten komen. */
+  const j=nu.getFullYear(), n=nu.getMonth()+1;
+  return {label:String(j),eenheid:'maand',maanden:facAnMaanden(j,0,n),
+    vorige:facAnMaanden(j-1,0,n),vorigeLabel:String(j-1),
+    vorigeUitleg:'dezelfde periode in '+(j-1)};
+}
+/* Een as met ronde getallen erop. Vier stappen van 1, 2, 2,5 of 5 keer een
+   macht van tien -- zo staat er €5k / €10k / €15k en niet €6,3k. */
+function facAnSchaal(ruw){
+  if(!(ruw>0))return {max:4,stap:1};
+  const grof=ruw/4;
+  const exp=Math.pow(10,Math.floor(Math.log10(grof)));
+  const stap=([1,1.5,2,2.5,3,4,5,6,8,10].find(s=>s*exp>=grof-0.0001)||10)*exp;
+  return {max:stap*4,stap};
+}
+
+/* ── Eindklanten ──────────────────────────────────────────────────────
+   Eén factuurklant kan een doorgeefluik zijn: je stuurt de factuur naar
+   LabsData, maar het werk was voor Uwoon, Staedion of POM. Wie dat wil zien
+   heeft niets aan een taartpunt "LabsData 68%".
+
+   Waar het vandaan komt is de betreft-regel; daar staat de naam al in. Maar
+   raden mag niet beslissen: een verkeerd gelezen naam schuift omzet naar een
+   klant die hem niet had. Vandaar regels die jíj vastlegt ("bevat Uwoon →
+   Uwoon"), met een voorstel dat de app uit je eigen facturen haalt. Wat door
+   geen regel wordt geraakt heet "<klant> · overig" en blijft dus zichtbaar,
+   in plaats van stilletjes bij de verkeerde te belanden. */
+function facEindRegels(){
+  if(!Array.isArray(factuurState.eindklantRegels))factuurState.eindklantRegels=[];
+  return factuurState.eindklantRegels;
+}
+/* Alleen wat de regels ervan maken -- gebruikt als voorbeeld in de editor. */
+function facEindRegelMatch(f){
+  const betreft=String((f&&f.betreft)||'').toLowerCase();
+  for(const r of facEindRegels()){
+    if(r.klantId&&r.klantId!==f.clientId)continue;
+    if(!r.bevat)continue;
+    if(betreft.includes(String(r.bevat).toLowerCase()))return String(r.naam||r.bevat);
+  }
+  return '';
+}
+/* Wat er op de factuur zelf staat gaat vóór de regels: een regel is een
+   vuistregel, het veld is een besluit. Zo kun je één afwijkende factuur
+   rechtzetten zonder een regel te verzinnen die alleen voor hem geldt. */
+function facEindklantVan(f){
+  const eigen=String((f&&f.eindklant)||'').trim();
+  if(eigen)return eigen;
+  return facEindRegelMatch(f);
+}
+/* Namen die al ergens in gebruik zijn, voor de keuzelijst in de editor. */
+function facEindNamen(){
+  const uit=new Set();
+  facEindRegels().forEach(r=>{if(r.naam)uit.add(String(r.naam));});
+  (factuurState.invoices||[]).forEach(f=>{if(f.eindklant)uit.add(String(f.eindklant));});
+  return [...uit].sort((a,b)=>a.localeCompare(b,'nl'));
+}
+/* Wie levert de rij in de grafiek: de factuurklant, of de eindklant erachter. */
+function facAnKlantVan(f){
+  const klant=factuurKlant(f.clientId);
+  const naam=klant?(klant.bedrijfsnaam||klant.name):'Zonder klant';
+  if(!facAnEind)return {key:f.clientId||'geen',naam};
+  const eind=facEindklantVan(f);
+  if(eind)return {key:'e:'+eind.toLowerCase(),naam:eind,via:naam};
+  /* "· overig" hoort alleen bij een klant waarvoor je regels hebt: daar zegt
+     het "hier zit nog iets ongesorteerd". Bij een klant zonder regels is er
+     niets uitgesplitst en is het gewoon die klant. */
+  const heeftRegels=facEindRegels().some(r=>!r.klantId||r.klantId===f.clientId);
+  if(!heeftRegels)return {key:f.clientId||'geen',naam};
+  return {key:(f.clientId||'geen')+':overig',naam:naam+' · overig'};
+}
+/* Uit een betreft-regel de naam vissen die er waarschijnlijk in staat.
+   Alleen als voorstel -- zie de toelichting hierboven. */
+/* Wat je op een factuur beschrijft in plaats van wie het voor was. Langste
+   eerst, want de regex pakt bij gelijke positie de eerste die past. */
+/* Woordgrenzen zijn hier geen detail: zonder \b vond "uren" zichzelf terug in
+   "Buren", en bleef er van die klant een losse B over. */
+const FAC_EIND_WERK=/\b(power bi rapportage|gewerkte uren|werkzaamheden|detachering|consultancy|rapportage|onderhoud|power bi|advies|support|project|uren)\b/i;
+function facEindRaad(betreft,klantnaam){
+  const heel=String(betreft||'').trim();
+  if(!heel)return '';
+  const maand=new RegExp('^('+MONTH_LABELS_NL.join('|')+')\\b','i');
+  const kaal=s=>String(s||'').toLowerCase().replace(/\s*b\.?v\.?$/i,'').replace(/[.,;:]+$/,'').trim();
+  const kn=kaal(klantnaam);
+  const knRe=kn?new RegExp('^'+kn.replace(/[.*+?^${}()|[\]\\]/g,'\\$&').replace(/\s+/g,'\\s+')
+    +'(\\s*b\\.?\\s*v\\.?)?\\b[\\s-–]*','i'):null;
+  for(let deel of heel.split(/\s+[-–]\s+/)){
+    deel=deel.trim();
+    if(!deel)continue;
+    /* De klant zelf zegt niets over wie erachter zit; die knippen we eraf --
+       precies zoveel als er matcht. Op de lengte van de klantnaam afgaan ging
+       mis zodra die een B.V. draagt die in de betreft ontbreekt: dan sneed hij
+       drie letters te veel weg en hield je "rkzaamheden juli" over. */
+    if(knRe)deel=deel.replace(knRe,'');
+    if(!deel)continue;
+    /* Staat de omschrijving vooraan ("Consultancy Boskalis"), dan volgt de
+       naam erna; staat hij achteraan ("Uwoon Gewerkte uren"), dan ervóór. */
+    const m=deel.match(FAC_EIND_WERK);
+    if(m)deel=(m.index===0?deel.slice(m[0].length):deel.slice(0,m.index));
+    /* Alles vanaf het eerste cijfer is een periode of een bedrag. */
+    deel=deel.split(/\s*\d/)[0].replace(/^[\s-–]+|[\s-–,;:/]+$/g,'').trim();
+    if(!deel)continue;
+    if(maand.test(deel))continue;          /* "Juni" is geen klant */
+    if(kn&&kaal(deel)===kn)continue;
+    /* Drie woorden is ruim genoeg voor "Bibliotheek Eindhoven" en houdt een
+       hele zin buiten de deur. */
+    const woorden=deel.split(/\s+/).slice(0,3).join(' ');
+    if(woorden.length>1&&woorden.length<40)return woorden;
+  }
+  return '';
+}
+/* Namen die in je eigen facturen terugkomen maar nog geen regel hebben. */
+function facEindVoorstellen(){
+  const gevonden={};
+  facAnBron().forEach(f=>{
+    if(facEindklantVan(f))return;
+    const klant=factuurKlant(f.clientId);
+    const naam=facEindRaad(f.betreft,klant?(klant.bedrijfsnaam||klant.name):'');
+    if(!naam)return;
+    const sleutel=(f.clientId||'')+'|'+naam.toLowerCase();
+    if(!gevonden[sleutel])gevonden[sleutel]={klantId:f.clientId||'',naam,aantal:0,omzet:0};
+    gevonden[sleutel].aantal++;
+    gevonden[sleutel].omzet+=factuurTotalen(f).excl;
+  });
+  return Object.values(gevonden).sort((a,b)=>b.omzet-a.omzet);
+}
+
+/* ── De cijfers achter de weergave ── */
+function facAnData(){
+  const r=facAnRange();
+  const perJaar=r.eenheid==='jaar';
+  const vakken=perJaar
+    ? [...new Set(r.maanden.map(m=>String(m.jaar)))].map(j=>({key:j,label:j,kort:j.slice(2)}))
+    : r.maanden.map(m=>({key:m.key,label:MONTH_LABELS_NL[m.maand]+' '+m.jaar,
+        kort:perJaar?String(m.jaar):MONTH_LABELS_NL[m.maand].slice(0,3)}));
+  const vakVan=f=>perJaar?String(f.datum).slice(0,4):facAnMaandKey(f.datum);
+  const inHuidig=new Set(perJaar?vakken.map(v=>v.key):r.maanden.map(m=>m.key));
+  const vorigeKeys=r.vorige.map(m=>m.key);
+  const vorigeIndex={};
+  vorigeKeys.forEach((k,i)=>{vorigeIndex[k]=i;});
+
+  const nu=vakken.map(v=>({...v,excl:0,aantal:0}));
+  const nuIndex={};
+  nu.forEach((v,i)=>{nuIndex[v.key]=i;});
+  const vorige=vakken.map(()=>0);
+  const klanten={};
+  let openstaand=0,openAantal=0;
+
+  facAnBron().forEach(f=>{
+    const t=factuurTotalen(f);
+    const k=vakVan(f);
+    if(inHuidig.has(k)){
+      const kl=facAnKlantVan(f);
+      /* Het klantfilter geldt voor de tegels en de tijdgrafieken; de
+         ranglijst laat alle klanten zien met de gekozene opgelicht -- een
+         ranglijst van één balk is geen ranglijst. */
+      if(!klanten[kl.key])klanten[kl.key]={key:kl.key,naam:kl.naam,via:kl.via||'',excl:0,aantal:0};
+      klanten[kl.key].excl+=t.excl;
+      klanten[kl.key].aantal++;
+      if(facAnKlant&&kl.key!==facAnKlant)return;
+      const i=nuIndex[k];
+      if(i!=null){nu[i].excl+=t.excl;nu[i].aantal++;}
+      if(t.openstaand>0.005){openstaand+=t.openstaand;openAantal++;}
+      return;
+    }
+    if(!perJaar&&vorigeIndex[facAnMaandKey(f.datum)]!=null){
+      const kl=facAnKlantVan(f);
+      if(facAnKlant&&kl.key!==facAnKlant)return;
+      vorige[vorigeIndex[facAnMaandKey(f.datum)]]+=t.excl;
+    }
+  });
+
+  const totaal=nu.reduce((s,v)=>s+v.excl,0);
+  const totaalVorig=vorige.reduce((s,v)=>s+v,0);
+  const aantal=nu.reduce((s,v)=>s+v.aantal,0);
+  const lijst=Object.values(klanten).sort((a,b)=>b.excl-a.excl);
+  const klantTotaal=lijst.reduce((s,k)=>s+k.excl,0);
+  /* Cumulatief: de lijn die laat zien of je vóór of achter loopt. */
+  let c1=0,c2=0;
+  const cum=nu.map((v,i)=>{c1+=v.excl;c2+=vorige[i]||0;return {label:v.label,kort:v.kort,nu:c1,vorige:c2};});
+  return {range:r,vakken:nu,vorige,cum,klanten:lijst,klantTotaal,
+    totaal:Math.round(totaal*100)/100,totaalVorig:Math.round(totaalVorig*100)/100,
+    aantal,openstaand:Math.round(openstaand*100)/100,openAantal,
+    groei:totaalVorig>0?((totaal-totaalVorig)/totaalVorig)*100:null,
+    heeftVorige:r.vorige.length>0};
+}
+
+/* ── Getallen kort genoeg voor een as ── */
+function facAnKort(n){
+  const a=Math.abs(n);
+  if(a>=1000000){const s=(n/1000000).toFixed(a>=10000000?0:1).replace(/[.,]0$/,'').replace('.',',');return '€'+s+'mln';}
+  if(a>=1000){const s=(n/1000).toFixed(a>=10000?0:1).replace(/[.,]0$/,'').replace('.',',');return '€'+s+'k';}
+  return '€'+Math.round(n);
+}
+function facAnPct(v){
+  if(v==null)return '';
+  const s=v>=0?'+':'−';
+  return s+Math.abs(v).toFixed(1).replace('.',',')+'%';
+}
+/* Een balk met een ronde bovenkant en een vierkante voet: hij groeit uit de
+   nullijn, dus daar hoort hij niet af te ronden. */
+function facAnBalkPad(x,y,w,h){
+  const r=Math.max(0,Math.min(4,w/2,h));
+  if(h<=0.5)return '';
+  return `M${x} ${y+h} L${x} ${y+r} Q${x} ${y} ${x+r} ${y} L${x+w-r} ${y} Q${x+w} ${y} ${x+w} ${y+r} L${x+w} ${y+h} Z`;
+}
+/* Hoe breed mag de grafiek zijn. Gemeten en niet geraden: een viewBox die
+   met de kaart meeschaalt maakt op een telefoon ook de tekst kleiner, en
+   onder de 11,5px leest niets meer. */
+function facAnBreedte(){
+  const el=document.getElementById('facBody');
+  const w=el?el.clientWidth:900;
+  return Math.max(280,Math.min(1100,w-(w>700?48:24)));
+}
+
+/* ── Kolommen: omzet per maand, met de vorige periode als grijze buur ── */
+function facAnKolomGrafiek(d,breed){
+  const smal=breed<520;
+  /* padT houdt ruimte vrij voor het cijfer bóven de kolom; zonder die ruimte
+     botst het label van de hoogste maand tegen de kop van de kaart. */
+  const H=smal?206:246, padL=smal?44:56, padR=smal?12:56, padT=24, padB=26;
+  const plotW=breed-padL-padR, plotH=H-padT-padB;
+  const n=d.vakken.length||1;
+  const band=plotW/n;
+  const paar=d.heeftVorige;
+  const bw=Math.max(3,Math.min(24,(band-(smal?6:10))/(paar?2:1)-(paar?1:0)));
+  const max=facAnSchaal(Math.max(...d.vakken.map(v=>v.excl),...d.vorige,1)).max;
+  const y=v=>padT+plotH-(v/max)*plotH;
+  let g='';
+  /* Hairlines, geen streepjes: een stippellijn leest als een grens. */
+  for(let i=0;i<=4;i++){
+    const v=max*i/4, yy=y(v);
+    g+=`<line x1="${padL}" y1="${yy.toFixed(1)}" x2="${breed-padR}" y2="${yy.toFixed(1)}" class="an-grid"/>`
+      +`<text x="${padL-6}" y="${(yy+3.5).toFixed(1)}" class="an-astekst" text-anchor="end">${facAnKort(v)}</text>`;
+  }
+  let balken='',labels='',banden='';
+  const tips=[];
+  const hoogste=Math.max(...d.vakken.map(v=>v.excl),0);
+  d.vakken.forEach((v,i)=>{
+    const bx=padL+band*i;
+    const groep=paar?bw*2+2:bw;
+    const start=bx+(band-groep)/2;
+    if(paar){
+      const hv=plotH-(y(d.vorige[i]||0)-padT);
+      const p=facAnBalkPad(start,y(d.vorige[i]||0),bw,hv);
+      if(p)balken+=`<path d="${p}" class="an-vorig"/>`;
+    }
+    const hn=plotH-(y(v.excl)-padT);
+    const nx=start+(paar?bw+2:0);
+    const pn=facAnBalkPad(nx,y(v.excl),bw,hn);
+    if(pn)balken+=`<path d="${pn}" class="an-nu"/>`;
+    /* Het bedrag boven de kolom van deze periode -- alleen die, want een
+       cijfer boven elke balk van beide reeksen leest niemand meer. Is de baan
+       te smal voor "€18k" met lucht eromheen, dan om de maand (en de laatste
+       altijd); de rest staat in de tooltip en in de tabel. */
+    if(v.excl>0&&(band>=40||i%2===(n-1)%2))
+      balken+=`<text x="${(nx+bw/2).toFixed(1)}" y="${(y(v.excl)-7).toFixed(1)}"
+        class="an-waarde" text-anchor="middle">${escapeHtml(facAnKort(v.excl))}</text>`;
+    /* Niet elke maand een label: op een telefoon zou dat een grijze band
+       worden. Om de twee, en de laatste altijd. */
+    const toon=!smal||n<=6||i%2===0||i===n-1;
+    if(toon)labels+=`<text x="${(bx+band/2).toFixed(1)}" y="${H-8}" class="an-astekst" text-anchor="middle">${escapeHtml(v.kort)}</text>`;
+    const vv=d.vorige[i]||0;
+    tips.push({titel:v.label,regels:[
+      {kleur:'nu',lab:d.range.label,val:factuurFmtBedrag(v.excl)},
+      ...(paar?[{kleur:'vorig',lab:d.range.vorigeLabel,val:factuurFmtBedrag(vv)}]:[]),
+      ...(paar&&vv>0?[{lab:'Verschil',val:facAnPct(((v.excl-vv)/vv)*100)}]:[]),
+      {lab:'Facturen',val:String(v.aantal)}]});
+    /* Het raakvlak is de hele kolom, niet de balk: mikken op negen pixels
+       lukt met een muis niet en met een duim al helemaal niet. */
+    banden+=`<rect x="${bx.toFixed(1)}" y="${padT}" width="${band.toFixed(1)}" height="${plotH}"
+      class="an-band" tabindex="0" role="button" data-an-band="kolom" data-an-i="${i}"
+      aria-label="${escapeHtml(v.label+': '+factuurFmtBedrag(v.excl))}"/>`;
+  });
+  _facAnTips.kolom=tips;
+  return `<svg viewBox="0 0 ${breed} ${H}" width="100%" height="${H}" class="an-svg" role="img"
+    aria-label="Omzet per ${d.range.eenheid} in ${escapeHtml(d.range.label)}">
+    ${g}<line x1="${padL}" y1="${padT+plotH}" x2="${breed-padR}" y2="${padT+plotH}" class="an-as"/>
+    ${balken}${labels}${banden}</svg>`;
+}
+
+/* ── Lijn: cumulatief, want daar zie je voorsprong of achterstand ── */
+function facAnLijnGrafiek(d,breed){
+  const smal=breed<520;
+  const H=smal?188:224, padL=smal?44:56, padR=smal?12:56, padT=14, padB=26;
+  const plotW=breed-padL-padR, plotH=H-padT-padB;
+  const n=d.cum.length||1;
+  const max=facAnSchaal(Math.max(...d.cum.map(p=>Math.max(p.nu,p.vorige)),1)).max;
+  /* Op het midden van dezelfde baan als de kolomgrafiek hierboven: een
+     cumulatief cijfer hoort bij een hele maand, niet bij de rand ervan,
+     en zo liggen de twee tijdlijnen recht onder elkaar. */
+  const bandW=plotW/n;
+  const x=i=>padL+bandW*i+bandW/2;
+  const y=v=>padT+plotH-(v/max)*plotH;
+  let g='';
+  for(let i=0;i<=4;i++){
+    const v=max*i/4, yy=y(v);
+    g+=`<line x1="${padL}" y1="${yy.toFixed(1)}" x2="${breed-padR}" y2="${yy.toFixed(1)}" class="an-grid"/>`
+      +`<text x="${padL-6}" y="${(yy+3.5).toFixed(1)}" class="an-astekst" text-anchor="end">${facAnKort(v)}</text>`;
+  }
+  const pad=(sel)=>d.cum.map((p,i)=>`${i?'L':'M'}${x(i).toFixed(1)} ${y(sel(p)).toFixed(1)}`).join(' ');
+  let lijnen='';
+  if(d.heeftVorige)lijnen+=`<path d="${pad(p=>p.vorige)}" class="an-lijn-vorig"/>`;
+  lijnen+=`<path d="${pad(p=>p.nu)}" class="an-lijn-nu"/>`;
+  const laatst=d.cum[n-1]||{nu:0,vorige:0};
+  /* Alleen het eindpunt een cijfer: een getal bij elk punt leest niemand. */
+  let eind=`<circle cx="${x(n-1).toFixed(1)}" cy="${y(laatst.nu).toFixed(1)}" r="4" class="an-punt-nu"/>`;
+  let labels='';
+  if(!smal){
+    labels+=`<text x="${(x(n-1)+8).toFixed(1)}" y="${(y(laatst.nu)+4).toFixed(1)}" class="an-eindlabel">${escapeHtml(facAnKort(laatst.nu))}</text>`;
+    if(d.heeftVorige)labels+=`<text x="${(x(n-1)+8).toFixed(1)}" y="${(y(laatst.vorige)+4).toFixed(1)}" class="an-eindlabel zacht">${escapeHtml(facAnKort(laatst.vorige))}</text>`;
+  }
+  if(d.heeftVorige)eind+=`<circle cx="${x(n-1).toFixed(1)}" cy="${y(laatst.vorige).toFixed(1)}" r="4" class="an-punt-vorig"/>`;
+  let banden='',xlabels='';
+  const tips=[];
+  d.cum.forEach((p,i)=>{
+    const bx=padL+bandW*i;
+    /* Dezelfde maandnamen als in de kolomgrafiek erboven, op dezelfde
+       plaats -- anders lees je twee tijdlijnen die niet op elkaar liggen. */
+    if(!smal||n<=6||i%2===0||i===n-1)
+      xlabels+=`<text x="${x(i).toFixed(1)}" y="${H-8}" class="an-astekst" text-anchor="middle">${escapeHtml(p.kort)}</text>`;
+    tips.push({titel:'t/m '+p.label,regels:[
+      {kleur:'nu',lab:d.range.label,val:factuurFmtBedrag(p.nu)},
+      ...(d.heeftVorige?[{kleur:'vorig',lab:d.range.vorigeLabel,val:factuurFmtBedrag(p.vorige)}]:[]),
+      ...(d.heeftVorige&&p.vorige>0?[{lab:'Verschil',val:facAnPct(((p.nu-p.vorige)/p.vorige)*100)}]:[])]});
+    banden+=`<rect x="${bx.toFixed(1)}" y="${padT}" width="${bandW.toFixed(1)}" height="${plotH}"
+      class="an-band" tabindex="0" role="button" data-an-band="lijn" data-an-i="${i}"
+      aria-label="${escapeHtml('t/m '+p.label+': '+factuurFmtBedrag(p.nu))}"/>`;
+  });
+  _facAnTips.lijn=tips;
+  return `<svg viewBox="0 0 ${breed} ${H}" width="100%" height="${H}" class="an-svg" role="img"
+    aria-label="Cumulatieve omzet in ${escapeHtml(d.range.label)}">
+    ${g}<line x1="${padL}" y1="${padT+plotH}" x2="${breed-padR}" y2="${padT+plotH}" class="an-as"/>
+    <line class="an-vizier" x1="0" y1="${padT}" x2="0" y2="${padT+plotH}" style="display:none"/>
+    ${xlabels}${lijnen}${eind}${labels}${banden}</svg>`;
+}
+
+/* ── Klanten: een ranglijst in gewone HTML ──
+   Geen svg: een naam die niet past moet met een ellips kunnen afkappen en
+   voorleesbaar blijven, en dat kan tekst in HTML wel en tekst in een svg niet. */
+function facAnKlantBalken(d){
+  if(!d.klanten.length)return '<div class="uren-empty">Geen facturen in deze periode.</div>';
+  const max=d.klanten[0].excl||1;
+  const top=d.klanten.slice(0,8);
+  const rest=d.klanten.slice(8);
+  const restSom=rest.reduce((s,k)=>s+k.excl,0);
+  const rij=(k,actief)=>{
+    const pct=d.klantTotaal>0?(k.excl/d.klantTotaal)*100:0;
+    return `<button type="button" class="fac-an-krij${actief?' aan':''}"
+      data-fac-action="facAnZetKlant" data-fac-arg1="${escapeHtml(k.key)}"
+      aria-pressed="${actief?'true':'false'}">
+      <span class="nm" title="${escapeHtml(k.naam)}">${escapeHtml(k.naam)}${
+        k.via?`<small>via ${escapeHtml(k.via)}</small>`:''}</span>
+      <span class="bl"><span class="vul" style="width:${Math.max(1,(k.excl/max)*100).toFixed(1)}%"></span></span>
+      <span class="wa">${factuurFmtBedrag(k.excl)}<small>${pct.toFixed(0)}%</small></span>
+    </button>`;
+  };
+  return `<div class="fac-an-klanten">
+    ${top.map(k=>rij(k,facAnKlant===k.key)).join('')}
+    ${rest.length?`<div class="fac-an-krest">+ ${rest.length} kleinere klanten samen ${factuurFmtBedrag(restSom)}</div>`:''}
+  </div>`;
+}
+
+/* ── De tabel achter de grafieken ──
+   Niet alleen voor wie geen kleur ziet: het is ook de plek waar je een
+   getal kunt overtypen zonder eerst met de muis een balk te zoeken. */
+function facAnTabellen(d){
+  const rijen=d.vakken.map((v,i)=>{
+    const vv=d.vorige[i]||0;
+    return `<tr><td>${escapeHtml(v.label)}</td>
+      <td class="num">${factuurFmtBedrag(v.excl)}</td>
+      ${d.heeftVorige?`<td class="num zacht">${factuurFmtBedrag(vv)}</td>
+      <td class="num ${v.excl>=vv?'op':'af'}">${vv>0?facAnPct(((v.excl-vv)/vv)*100):'—'}</td>`:''}
+      <td class="num">${v.aantal}</td></tr>`;
+  }).join('');
+  return `<div class="fac-an-tabelwrap">
+    <table class="fac-an-tabel"><thead><tr>
+      <th>${d.range.eenheid==='jaar'?'Jaar':'Maand'}</th><th class="num">Omzet excl.</th>
+      ${d.heeftVorige?`<th class="num">${escapeHtml(d.range.vorigeLabel)}</th><th class="num">Verschil</th>`:''}
+      <th class="num">Facturen</th></tr></thead>
+    <tbody>${rijen}</tbody>
+    <tfoot><tr><td>Totaal</td><td class="num">${factuurFmtBedrag(d.totaal)}</td>
+      ${d.heeftVorige?`<td class="num zacht">${factuurFmtBedrag(d.totaalVorig)}</td>
+      <td class="num ${(d.groei||0)>=0?'op':'af'}">${d.groei==null?'—':facAnPct(d.groei)}</td>`:''}
+      <td class="num">${d.aantal}</td></tr></tfoot></table>
+  </div>`;
+}
+
+function facAnLegenda(d){
+  if(!d.heeftVorige)return '';
+  return `<div class="fac-an-leg">
+    <span><i class="nu"></i>${escapeHtml(d.range.label)}</span>
+    <span><i class="vorig"></i>${escapeHtml(d.range.vorigeLabel)}</span></div>`;
+}
+
+function facRenderAnalyse(){
+  _facAnTips={};
+  const d=facAnData();
+  const breed=facAnBreedte();
+  const grootste=d.klanten[0];
+  const klantNaam=facAnKlant?(d.klanten.find(k=>k.key===facAnKlant)||{}).naam:'';
+  const tegels=`
+    ${facKpi('Omzet excl. btw',factuurFmtBedrag(d.totaal),'',
+      d.groei==null?d.range.label:facAnPct(d.groei)+' t.o.v. '+(d.range.vorigeUitleg||d.range.vorigeLabel),'var(--mint)')}
+    ${facKpi('Facturen',d.aantal,'',d.aantal?'gemiddeld '+factuurFmtBedrag(d.totaal/d.aantal):'','var(--info)')}
+    ${/* Het aandeel en niet de naam, want dit is de vraag erachter: hoe hard
+          leun je op één klant? Een naam is bovendien geen getal -- hij past
+          niet in een tegel en de bijregel valt op een telefoon weg. Wie het
+          is staat in de ranglijst eronder. */''}
+    ${facKpi('Grootste klant',grootste&&d.klantTotaal
+      ?Math.round((grootste.excl/d.klantTotaal)*100)+'%':'—','',
+      grootste?grootste.naam+' · '+factuurFmtBedrag(grootste.excl):'','var(--success)')}
+    ${facKpi('Nog openstaand',factuurFmtBedrag(d.openstaand),'',
+      d.openAantal?d.openAantal+' '+(d.openAantal===1?'factuur':'facturen'):'alles binnen','var(--warning)')}`;
+  const kop=(t)=>`<div class="fac-an-kaartkop"><h3>${escapeHtml(t)}</h3></div>`;
+  return `
+    <div class="uren-kpis fac-an-kpis">${tegels}</div>
+    ${klantNaam?`<div class="fac-an-scope">Tegels en tijdlijnen tonen alleen
+      <b>${escapeHtml(klantNaam)}</b>.
+      <button class="uren-btn" data-fac-action="facAnZetKlant" data-fac-arg1="">Alle klanten</button></div>`:''}
+    <div class="fac-an-kaart">
+      ${kop('Omzet per '+(d.range.eenheid==='jaar'?'jaar':'maand'))}
+      ${facAnLegenda(d)}
+      <div class="fac-an-plot" data-an-plot="kolom">${facAnKolomGrafiek(d,breed)}
+        <div class="fac-an-tip" hidden></div></div>
+    </div>
+    <div class="fac-an-kaart">
+      ${kop('Cumulatief')}
+      ${facAnLegenda(d)}
+      <div class="fac-an-plot" data-an-plot="lijn">${facAnLijnGrafiek(d,breed)}
+        <div class="fac-an-tip" hidden></div></div>
+    </div>
+    <div class="fac-an-kaart">
+      ${kop(facAnEind?'Waar komt het vandaan — eindklanten':'Waar komt het vandaan')}
+      ${facAnKlantBalken(d)}
+    </div>
+    ${facAnTabel?`<div class="fac-an-kaart">${kop('De cijfers')}${facAnTabellen(d)}</div>`:''}
+  `;
+}
+
+/* ── Bediening ── */
+function facAnZetBereik(v){
+  if(!FAC_AN_BEREIKEN.some(b=>b[0]===v))return;
+  facAnBereik=v;facRenderAll();
+}
+function facAnZetKlant(k){facAnKlant=(k===facAnKlant)?'':(k||'');facRenderAll();}
+function facAnWisselEind(){
+  facAnEind=!facAnEind;
+  facAnKlant='';   /* de sleutels veranderen van betekenis */
+  facRenderAll();
+}
+function facAnWisselTabel(){facAnTabel=!facAnTabel;facRenderAll();}
+function facAnFilterBalk(){
+  const d=facEindRegels().length;
+  return `<div class="fac-an-bar">
+    <div class="cl2-seg" role="group" aria-label="Periode">
+      ${FAC_AN_BEREIKEN.map(([id,lab])=>`<button class="cl2-seg-btn${facAnBereik===id?' active':''}"
+        data-fac-action="facAnZetBereik" data-fac-arg1="${id}">${lab}</button>`).join('')}
+    </div>
+    <button class="uren-btn${facAnEind?' aan':''}" data-fac-action="facAnWisselEind"
+      aria-pressed="${facAnEind?'true':'false'}"
+      title="Splits doorbelaste facturen uit naar de klant achter je klant">Eindklanten${d?` <span class="cnt">${d}</span>`:''}</button>
+    <button class="uren-btn" data-fac-action="openFacEindModal">Regels…</button>
+    <div class="fac-an-vul"></div>
+    <button class="uren-btn${facAnTabel?' aan':''}" data-fac-action="facAnWisselTabel"
+      aria-pressed="${facAnTabel?'true':'false'}">Tabel</button>
+  </div>`;
+}
+
+/* De tooltip. Waarden vóór labels: je hebt de maand al aangewezen, je wilt
+   het bedrag. */
+function facAnToonTip(plot,i){
+  const soort=plot.dataset.anPlot;
+  const tip=plot.querySelector('.fac-an-tip');
+  const data=(_facAnTips[soort]||[])[i];
+  if(!tip||!data)return;
+  tip.innerHTML=`<div class="t">${escapeHtml(data.titel)}</div>`+
+    data.regels.map(r=>`<div class="r">${r.kleur?`<i class="${r.kleur}"></i>`:'<i class="leeg"></i>'}
+      <b>${escapeHtml(r.val)}</b><span>${escapeHtml(r.lab)}</span></div>`).join('');
+  tip.hidden=false;
+  const svg=plot.querySelector('svg');
+  const band=plot.querySelector(`[data-an-i="${i}"]`);
+  if(svg&&band){
+    const s=svg.getBoundingClientRect(), b=band.getBoundingClientRect();
+    const mid=b.left-s.left+b.width/2;
+    tip.style.left=Math.max(4,Math.min(s.width-tip.offsetWidth-4,mid-tip.offsetWidth/2))+'px';
+    const vizier=svg.querySelector('.an-vizier');
+    if(vizier){
+      const schaal=svg.viewBox.baseVal.width/s.width;
+      vizier.setAttribute('x1',(mid*schaal).toFixed(1));
+      vizier.setAttribute('x2',(mid*schaal).toFixed(1));
+      vizier.style.display='';
+    }
+  }
+}
+function facAnVerbergTip(plot){
+  const tip=plot.querySelector('.fac-an-tip');
+  if(tip)tip.hidden=true;
+  const vizier=plot.querySelector('.an-vizier');
+  if(vizier)vizier.style.display='none';
+}
+document.addEventListener('pointerover',e=>{
+  const band=e.target.closest&&e.target.closest('[data-an-band]');
+  if(!band)return;
+  const plot=band.closest('.fac-an-plot');
+  if(plot)facAnToonTip(plot,Number(band.dataset.anI));
+});
+document.addEventListener('pointerleave',e=>{
+  const plot=e.target.closest&&e.target.closest('.fac-an-plot');
+  if(plot)facAnVerbergTip(plot);
+},true);
+/* Toetsenbord krijgt hetzelfde te zien als de muis. */
+document.addEventListener('focusin',e=>{
+  const band=e.target.closest&&e.target.closest('[data-an-band]');
+  if(!band)return;
+  const plot=band.closest('.fac-an-plot');
+  if(plot)facAnToonTip(plot,Number(band.dataset.anI));
+});
+document.addEventListener('focusout',e=>{
+  const plot=e.target.closest&&e.target.closest('.fac-an-plot');
+  if(plot)setTimeout(()=>{if(!plot.contains(document.activeElement))facAnVerbergTip(plot);},0);
+});
+/* De grafiek is op de pixel getekend, dus een ander formaat vraagt om
+   opnieuw tekenen. Vertraagd, anders gebeurt dat bij elke muisbeweging op
+   de rand van het venster. */
+let _facAnHertekenT=null;
+window.addEventListener('resize',()=>{
+  if(facView!=='analyse'||currentModule!=='facturen')return;
+  clearTimeout(_facAnHertekenT);
+  _facAnHertekenT=setTimeout(()=>{if(facView==='analyse')facRenderBody();},220);
+});
+
+/* ── Regels voor eindklanten ── */
+function openFacEindModal(){
+  closeFacMenu();
+  facEindRender();
+  document.getElementById('facEindModal').classList.add('open');
+}
+function closeFacEindModal(){
+  document.getElementById('facEindModal').classList.remove('open');
+}
+function facEindRender(){
+  const box=document.getElementById('facEindBody');
+  if(!box)return;
+  const regels=facEindRegels();
+  const voorstellen=facEindVoorstellen();
+  const klanten=kanbanState.clients||[];
+  const klantOpt=(sel)=>`<option value=""${sel?'':' selected'}>Alle klanten</option>`+
+    klanten.map(c=>`<option value="${c.id}"${sel===c.id?' selected':''}>${escapeHtml(c.bedrijfsnaam||c.name)}</option>`).join('');
+  box.innerHTML=`
+    <div class="fac-uren-info"><span>Factureer je één partij voor werk van meerdere
+      opdrachtgevers, dan haalt een regel de opdrachtgever uit de betreft-regel.
+      <b>Bevat</b> is een stuk tekst dat in de betreft moet staan; <b>telt als</b>
+      is de naam die je in de analyse ziet. Eén afwijkende factuur zet je recht
+      met het veld <b>Eindklant</b> in de factuur zelf; dat gaat vóór de regels.</span></div>
+    ${regels.length?`<table class="fac-an-tabel" style="margin-top:14px">
+      <thead><tr><th>Voor klant</th><th>Als betreft bevat</th><th>Telt als</th><th></th></tr></thead>
+      <tbody>${regels.map(r=>`<tr>
+        <td>${escapeHtml(r.klantId?(factuurKlant(r.klantId)||{}).name||'—':'Alle klanten')}</td>
+        <td>${escapeHtml(r.bevat)}</td><td>${escapeHtml(r.naam)}</td>
+        <td class="num"><button class="uren-btn" data-fac-action="facEindRegelWeg"
+          data-fac-arg1="${r.id}">Weg</button></td></tr>`).join('')}</tbody></table>`
+      :'<div class="uren-empty" style="margin-top:14px">Nog geen regels.</div>'}
+    ${voorstellen.length?`<h4 class="fac-an-sub">Gevonden in je facturen</h4>
+      <div class="fac-an-voorstellen">${voorstellen.slice(0,12).map(v=>`
+        <button class="uren-btn" data-fac-action="facEindNeemVoorstel"
+          data-fac-arg1="${escapeHtml(v.klantId)}" data-fac-arg2="${escapeHtml(v.naam)}">
+          + ${escapeHtml(v.naam)} <small>${v.aantal}×</small></button>`).join('')}</div>`:''}
+    <h4 class="fac-an-sub">Zelf een regel toevoegen</h4>
+    <div class="fac-an-nieuw">
+      <select id="facEindKlant" class="fac-ed-inp" aria-label="Voor klant">${klantOpt('')}</select>
+      <input type="text" id="facEindBevat" class="fac-ed-inp" placeholder="bevat, bijv. Uwoon" aria-label="Als betreft bevat"/>
+      <input type="text" id="facEindNaam" class="fac-ed-inp" placeholder="telt als, bijv. Uwoon" aria-label="Telt als"/>
+      <button class="uren-btn uren-btn-primary" data-fac-action="facEindRegelToevoegen">Toevoegen</button>
+    </div>`;
+}
+function facEindRegelToevoegen(){
+  const bevat=(document.getElementById('facEindBevat')||{}).value||'';
+  const naam=(document.getElementById('facEindNaam')||{}).value||bevat;
+  const klantId=(document.getElementById('facEindKlant')||{}).value||'';
+  if(!bevat.trim()){appToast('Vul in wat de betreft moet bevatten',{type:'warning'});return;}
+  facEindRegels().push({id:'ek'+Date.now().toString(36),klantId,
+    bevat:bevat.trim(),naam:(naam||bevat).trim()});
+  scheduleSave();
+  facEindRender();
+  if(facView==='analyse')facRenderAll();
+}
+function facEindNeemVoorstel(klantId,naam){
+  facEindRegels().push({id:'ek'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),
+    klantId:klantId||'',bevat:naam,naam});
+  scheduleSave();
+  facEindRender();
+  if(facView==='analyse')facRenderAll();
+}
+function facEindRegelWeg(id){
+  const r=facEindRegels();
+  const i=r.findIndex(x=>x.id===id);
+  if(i<0)return;
+  r.splice(i,1);
+  scheduleSave();
+  facEindRender();
+  if(facView==='analyse')facRenderAll();
 }
 
 /* ══ Oude factuur vastleggen ══

@@ -274,6 +274,39 @@ regel in `decisions.md`.
 
 ---
 
+## 11. Grafieken
+
+Twee tokens, en verder de gewone tekst- en maattokens:
+
+| Token | Licht | Donker | Waarvoor |
+|---|---|---|---|
+| `--gr-nu` | `#0E8F73` | `#12A583` | de periode die je bekijkt |
+| `--gr-vorig` | `#98A2AE` | `#63718A` | de periode ervoor, als achtergrond |
+| `--gr-raster` | 7% zwart | 10% wit | rasterlijnen, haarlijn en solide |
+
+De regels die daarbij horen:
+
+- **Twee reeksen is nadruk, geen categorie.** Huidige periode in kleur, de
+  vorige in grijs. Nooit twee even harde kleuren naast elkaar voor "nu" en
+  "toen" — dan moet de lezer eerst een legenda uit zijn hoofd leren.
+- **Een ranglijst krijgt één kleur.** Kleur per klant doet over wat de lengte
+  van de balk al zegt, en kost het enige vrije kanaal dat je hebt.
+- **Nooit twee y-assen.** Twee grootheden = twee grafieken.
+- Balk maximaal 24px dik, ronde bovenkant (4px) en vierkante voet; lijn 2px;
+  eindpunt minimaal 8px met een ring in de vlakkleur; raster een haarlijn,
+  nooit gestreept.
+- **Een cijfer bij elke reeks is te veel.** Label één reeks (de huidige), of
+  alleen het eindpunt. De rest staat in de tooltip en in de tabelweergave.
+- **Het raakvlak is de hele baan, niet de balk.** Op negen pixels mikken lukt
+  met een duim niet; de baan is ook wat de toets bereikt (`tabindex`).
+- **Elke grafiek heeft een tabelweergave.** Kleur mag nooit de enige drager
+  van een waarde zijn.
+
+Een nieuwe kleurencombinatie eerst door de validator halen (zie de
+dataviz-richtlijn): ΔE ≥ 15 bij normaal zicht, ≥ 8 bij kleurenblindheid.
+
+---
+
 ## 10. Hoe je dit controleert
 
 Niet op het oog — deze CSS zit vol `!important` en de generieke input-regel

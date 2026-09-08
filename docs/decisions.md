@@ -10,6 +10,72 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-08 · Analyse: een zesde tab in Facturen, en wie zit er achter je klant
+
+**Probleem.** De facturenlijst vertelt wat er is gefactureerd, niet of het
+oploopt of terugvalt en waar het vandaan komt. En één regel omzet klopt niet:
+LabsData is één factuurklant maar vijf opdrachtgevers.
+
+**Waar het staat.** Een zesde tab in Facturen (niet een eigen module), met een
+eigen periodekeuze in de balk onder de tabs. De jaarpijlen in de topbalk gaan
+in deze weergave uit — twee periodekiezers naast elkaar is er één te veel.
+
+**Wat er staat, en waarom in die vorm.**
+
+- *Vier tegels*: omzet excl. btw met de groei, aantal facturen met het
+  gemiddelde, het aandeel van de grootste klant, en wat er nog openstaat. Het
+  aandeel en niet de naam: een naam is geen getal, past niet in een tegel, en
+  de bijregel valt op een telefoon weg. Wie het is staat in de ranglijst.
+- *Omzet per maand*, kolommen, met de vorige periode ernaast in grijs.
+- *Cumulatief*, twee lijnen, met het bedrag aan het eind van elke lijn.
+- *Waar komt het vandaan*: een ranglijst per klant, alle balken in dezelfde
+  kleur. Kleur per klant zou alleen overdoen wat de lengte al zegt.
+- *Tabel* (knop): dezelfde cijfers om te lezen of over te nemen.
+
+**Nadruk, geen categorieën.** Twee reeksen zijn hier "deze periode" tegen "de
+vorige". De huidige krijgt de kleur, de vorige is grijs, zodat je niet twee
+kleuren uit elkaar hoeft te houden om te zien welke kant het opgaat. De twee
+stappen zijn met de validator uit de dataviz-richtlijn gekozen: licht
+`#0E8F73` tegen `#98A2AE` (ΔE 16,8 normaal / 10,9 bij kleurenblindheid),
+donker `#12A583` tegen `#63718A` (16,4 / 11,4). Het grijs blijft onder 3:1
+contrast; dat is gedekt doordat het cijfer er altijd bij staat (tegel,
+eindlabel, tooltip, tabel).
+
+**Het lopende jaar loopt tot déze maand.** Anders zet je negen maanden omzet
+naast twaalf van vorig jaar en staat er een daling in beeld waar groei zit —
+en tekent de cumulatieve lijn een vlak stuk voor maanden die nog moeten komen.
+"Dit jaar" vergelijkt dus met dezelfde maanden van vorig jaar.
+
+**Eindklanten.** Twee wegen naar dezelfde uitkomst:
+1. Een *regel* per doorgeefluik: "voor klant LabsData, als de betreft `Uwoon`
+   bevat → telt als Uwoon". De app stelt die regels voor uit je eigen
+   facturen; `facEindRaad()` knipt de klantnaam, de omschrijving ("Gewerkte
+   uren", "Consultancy") en de periode weg en houdt de naam over.
+2. Een *veld* op de factuur zelf (Eindklant, onder Betreft). Dat gaat vóór de
+   regels: een regel is een vuistregel, het veld is een besluit.
+
+Raden mag niet beslissen — een verkeerd gelezen naam schuift omzet naar een
+klant die hem niet had. Daarom stelt de app alleen voor; jij legt vast. Wat
+door niets wordt geraakt heet "&lt;klant&gt; · overig" en blijft zichtbaar,
+in plaats van stilletjes bij de verkeerde te belanden.
+
+**Mobiel.** Zes tabs passen niet meer in gelijke vakken (59px per vak,
+"Debiteuren" vraagt er 62 — "Verzonden" en "Klanten" liepen in elkaar over).
+De strip schuift nu zijwaarts en de actieve tab wordt in beeld gezet. De
+balk met de periodekeuze krijgt een eigen regel onder de tabs, net als de
+btw-kiezer; zonder dat kneep hij de tabs tot nul breedte.
+
+**Bestanden**: `index.html` — `facAnRange/facAnData/facRenderAnalyse`,
+`facAnKolomGrafiek/facAnLijnGrafiek/facAnKlantBalken/facAnTabellen`,
+`facEindRaad/facEindklantVan/facEindRegels`, `#facEindModal`, `.fac-an-*` en
+de tokens `--gr-nu/--gr-vorig`; `docs/stijlgids.md` §11; `test.html` (67);
+`sw.js` → `herling-v87`
+
+**Niet doen**: een kleur per klant in de ranglijst, of een tweede y-as om
+omzet en aantal in één grafiek te wringen. Het eerste verspilt het enige vrije
+kanaal aan iets wat de balk al zegt; het tweede laat de lezer een verband zien
+dat er niet is.
+
 ## 2026-09-08 · Eén mintknop in de voet van een factuur, en de voet past
 
 **Probleem.** Bij een verstuurde factuur die te laat was zakte "Betaling
