@@ -10,6 +10,54 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-08 · Welke quota op is staat niet in `message` maar in `details`
+
+**Probleem.** De app meldde *"Te snel achter elkaar voor de gratis laag"* bij
+**1 tot 3 verzoeken per minuut**. Aan een limiet per minuut kun je op drie
+verzoeken niet komen, dus de melding klopte niet.
+
+**Oorzaak.** `_aiParseErrorResponse()` keek alleen naar `error.message`, en
+daar staat bij een 429 alleen *"You exceeded your current quota, please check
+your plan and billing details."* — geen woord over wélke quota. Het onderscheid
+zit in `error.details[]`: een `QuotaFailure` met een `quotaId`
+(`...PerDayPerProjectPerModel-FreeTier` versus `...PerMinute...`) en een
+`RetryInfo` met `retryDelay`. Die lazen we niet. Een opgeraakt **dagquotum**
+kwam daardoor binnen als een limiet per minuut — waarna de app de hele dag
+bleef proberen aan iets dat pas morgen weer opengaat.
+
+**Beslissing.** De parser leest `details`: `quotaId` en `quotaMetric` bepalen
+`perDag`, en `retryDelay` levert de wachttijd (voorheen alleen de
+`Retry-After`-header, die hier niet meekomt). Zegt Google zelf dat je langer
+dan vijf minuten moet wachten, dan telt dat óók als niet-wegwachtbaar, ook als
+de quotaId niets prijsgeeft.
+
+**Tweede fout, bij de limiet per minuut.** Daar wachtten we 20 seconden en
+probeerden we opnieuw — maar twintig seconden later zit je nog in hetzelfde
+venster en krijg je dezelfde 429 terug. Nu legt een 429 alles stil tot het
+venster om is (`_geminiStopTot`, ook bewaard zodat een herlaad hem niet wist).
+
+**Derde: de rem begon te hoog.** 6 per minuut bleek nog te veel. Nu 4, en hij
+kruipt omhoog. Wat de gratis laag per model toestaat is niet gepubliceerd —
+Google verwijst naar AI Studio — dus laag beginnen en leren is de enige manier
+die niet op een gok berust.
+
+**Vierde: de badge loog.** Er stond `X / 1500 vandaag` als feit. Dat plafond
+verschilt per model en bleek veel lager. Een verzonnen plafond dat op 12% staat
+terwijl je quotum al op is, laat je de fout op de verkeerde plek zoeken. Nu
+alleen nog de telling.
+
+**Bewijs.** 46 tests, waaronder een nagebootst 429-antwoord in Google's echte
+vorm: dagquotum wordt herkend uit `quotaId` (niet uit `message`), er volgt geen
+herhaling, `retryDelay` wordt gelezen, en een lange `retryDelay` telt als
+niet-wegwachtbaar.
+
+**Bestanden**: `index.html` — `_aiParseErrorResponse()` leest `details`,
+`_geminiStopTot`, start op 4, `_updateAIQuotaBadges()` zonder plafond;
+`sw.js` → `herling-v83`
+
+**Niet doen**: bij een 429 op `error.message` afgaan. Die tekst is voor beide
+soorten limieten hetzelfde.
+
 ## 2026-09-08 · Een nieuwe factuur bestaat pas na Opslaan
 
 **Probleem.** `factuurNieuw()` duwde de factuur meteen in

@@ -6884,7 +6884,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v1.82</span>
+        <span class="app-versie" title="Appversie">v1.83</span>
       </div>
     </div>
   </aside>
@@ -8176,7 +8176,7 @@ textarea { line-height: 1.6; resize: vertical; }
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;gap:8px;flex-wrap:wrap">
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <button class="btn btn-sm" type="button" onclick="openGeminiKeyPrompt()" title="Gemini API-key instellen" style="font-size:11px">⚙ API-key</button>
-        <span class="ai-quota-badge" id="aiQuotaBadgeReview" title="API-calls vandaag (Gemini Flash gratis tier = 1500/dag)"></span>
+        <span class="ai-quota-badge" id="aiQuotaBadgeReview" title="Aantal API-verzoeken vandaag vanaf dit apparaat. Je werkelijke limiet staat op aistudio.google.com"></span>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-sm modal-annuleer" type="button" onclick="closeWeeklyReviewModal()">Sluiten</button>
@@ -8209,7 +8209,7 @@ textarea { line-height: 1.6; resize: vertical; }
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;gap:8px;flex-wrap:wrap">
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <button class="btn btn-sm" type="button" onclick="openGeminiKeyPrompt()" title="Gemini API-key instellen" style="font-size:11px">⚙ API-key</button>
-        <span class="ai-quota-badge" id="aiQuotaBadgeQuick" title="API-calls vandaag (Gemini Flash gratis tier = 1500/dag)"></span>
+        <span class="ai-quota-badge" id="aiQuotaBadgeQuick" title="Aantal API-verzoeken vandaag vanaf dit apparaat. Je werkelijke limiet staat op aistudio.google.com"></span>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-sm modal-annuleer" type="button" onclick="closeQuickAddAI()">Annuleren</button>
@@ -23617,7 +23617,8 @@ function facExportBoekhouding(){
      • Bewerkbare preview (gebruiker kan AI-fouten direct fixen)
      • Streaming response (woord voor woord, voelt 5× sneller)
      • Concurrent-guard, retry-knop bij errors, escape-key sluit modals
-     • Quota-badge: aantal requests vandaag (gratis tier = 1500/dag)
+     • Quota-badge: aantal verzoeken vandaag vanaf dit apparaat (elke
+       poging telt; het werkelijke plafond staat in AI Studio)
      • Vorige-week navigatie in review (← Vorige | Deze week →)
    Architectuur: generieke callGemini() (sync JSON) + _streamGemini()
    (async iterator) — herbruikbaar voor toekomstige AI-features.
@@ -23650,8 +23651,13 @@ function _aiBumpUsage(){
 }
 function _updateAIQuotaBadges(){
   const u=_aiGetUsage();
-  const text=`${u.count} / 1500 vandaag`;
-  const cls=u.count>=1400?'high':u.count>=1000?'mid':'';
+  /* Geen "/ 1500" meer. Dat getal stond hier als feit, maar wat de gratis
+     laag per dag toestaat verschilt per model, is niet gepubliceerd (Google
+     verwijst naar AI Studio) en bleek in de praktijk veel lager. Een verzonnen
+     plafond dat op 12% staat terwijl je quotum al op is, is erger dan geen
+     plafond: dan zoek je de fout op de verkeerde plek. */
+  const text=`${u.count} vandaag`;
+  const cls=u.count>=400?'high':u.count>=150?'mid':'';
   ['aiQuotaBadgeQuick','aiQuotaBadgeReview'].forEach(id=>{
     const el=document.getElementById(id);
     if(el){el.textContent=text;el.className='ai-quota-badge '+cls;}
@@ -23680,18 +23686,44 @@ function _aiSetError(el,message,retryFnName){
    gokken hoe lang het duurt. */
 async function _aiParseErrorResponse(r){
   let msg='Gemini API fout '+r.status;
-  let ruw='';
-  try{const j=await r.json();if(j.error?.message){msg=j.error.message;ruw=j.error.message;}}catch(e){}
-  const perDag=r.status===429&&/per\s*day|perday|daily|dag/i.test(ruw);
-  let wacht=0;
+  let ruw='',quota='',wacht=0;
+  try{
+    const j=await r.json();
+    if(j.error?.message){msg=j.error.message;ruw=j.error.message;}
+    /* Waar het bij een 429 werkelijk om gaat staat NIET in `message` -- daar
+       staat alleen "You exceeded your current quota". Welke quota op is
+       (PerDay of PerMinute) en hoe lang je moet wachten zit in `details`:
+       een QuotaFailure met quotaId, en een RetryInfo met retryDelay.
+       Dat we die niet lazen is precies waarom een opgeraakt dagquotum hier
+       als "te snel achter elkaar" verscheen -- en de app dus de hele dag
+       bleef proberen aan iets dat pas morgen weer kan. */
+    (j.error?.details||[]).forEach(d=>{
+      (d.violations||[]).forEach(v=>{
+        if(v.quotaId)quota+=' '+v.quotaId;
+        if(v.quotaMetric)quota+=' '+v.quotaMetric;
+      });
+      const rd=String(d.retryDelay||'').match(/([\d.]+)s/);
+      if(rd)wacht=Math.min(Math.ceil(parseFloat(rd[1])*1000),3600000);
+    });
+  }catch(e){}
   try{
     const h=r.headers?.get?.('retry-after');
-    if(h&&/^\d+$/.test(h.trim()))wacht=Math.min(Number(h.trim())*1000,300000);
+    if(!wacht&&h&&/^\d+$/.test(h.trim()))wacht=Math.min(Number(h.trim())*1000,3600000);
   }catch(e){}
+  /* Zegt Google zelf "wacht langer dan vijf minuten", dan is het geen drukte
+     maar een grens die je vandaag niet meer wegwacht. */
+  const perDag=r.status===429&&
+    (/per\s*day|perday|daily/i.test(quota)||/per\s*day|perday|daily/i.test(ruw)||wacht>300000);
+  const perMinuut=r.status===429&&/per\s*minute|perminute|per_minute/i.test(quota);
   if(r.status===400&&/API key/i.test(msg))msg='Ongeldige API-key. Check via ⚙ API-key.';
   if(r.status===429)msg=perDag
-    ? 'Dagquotum van de gratis laag op. Morgen weer, of hang een betaald project achter je sleutel.'
-    : 'Te snel achter elkaar voor de gratis laag. De app houdt zichzelf voortaan in en probeert vanzelf verder.';
+    ? 'Het dagquotum voor dit model is op. Dat wacht je niet weg — het schuift pas '
+      +'morgen weer open. Wil je vandaag verder, zet dan facturering aan op je project '
+      +'(aistudio.google.com/apikey); dan gelden er ruimere limieten.'
+    : perMinuut
+      ? 'Te snel achter elkaar. De app zit de minuut uit en gaat daarna vanzelf verder.'
+      : 'Limiet bereikt bij Google. De app wacht en probeert het vanzelf opnieuw. '
+        +'Blijft dit terugkomen, kijk dan op aistudio.google.com/apikey welke quota op is.';
   /* Google's eigen tekst hierbij is "Your project has been denied access" --
      dat zegt niet wát je moet doen. De sleutel is dan geldig; het project
      erachter mag de API niet. In de praktijk twee oorzaken. */
@@ -23720,12 +23752,19 @@ async function _aiParseErrorResponse(r){
    omlaag; een reeks gelukte verzoeken laat hem weer voorzichtig oplopen.
    Zo hoeven we het getal niet te raden. */
 const GEMINI_WACHT=[2000,5000,12000];           /* 503: overbelast   */
-const GEMINI_LIMIET_WACHT=[20000,45000,90000];  /* 429: te snel      */
+const GEMINI_LIMIET_POGINGEN=3;                 /* 429: zo vaak de minuut uitzitten */
 const GEMINI_MIN_PER_MIN=3, GEMINI_MAX_PER_MIN=12;
 const GEMINI_VENSTER=60000; /* de "minuut" waarover de rem telt */
-let _geminiPerMin=6;        /* voorzichtige start */
+/* Begint op 4 en niet op 6. Wat de gratis laag per model toestaat is niet
+   gepubliceerd -- Google verwijst je naar AI Studio -- en in de praktijk bleek
+   6 nog te hoog. Omhoog kruipen kost je niets, te hoog beginnen kost je een
+   mislukte factuur. */
+let _geminiPerMin=4;
 let _geminiTijden=[];       /* wanneer de laatste verzoeken uitgingen */
 let _geminiGoed=0;          /* gelukt op rij, om de rem te laten oplopen */
+/* Tot wanneer er helemaal niets uit mag. Na een limiet-per-minuut is dat de
+   enige juiste reactie: zie _geminiFetch. */
+let _geminiStopTot=0;
 
 /* De rem moet een herlaad overleven. Stond hij alleen in het geheugen, dan
    begon hij na elke Ctrl+Shift+R met een schone lei terwijl Google gewoon
@@ -23740,11 +23779,14 @@ function _geminiTempoLees(){
     _geminiTijden=(Array.isArray(r.tijden)?r.tijden:[])
       .filter(t=>typeof t==='number'&&nu-t<GEMINI_VENSTER&&t<=nu);
     if(r.perMin>=GEMINI_MIN_PER_MIN&&r.perMin<=GEMINI_MAX_PER_MIN)_geminiPerMin=r.perMin;
+    /* Ook de stilte na een limiet moet een herlaad overleven, anders begin je
+       na Ctrl+Shift+R meteen weer te vragen terwijl de minuut nog loopt. */
+    _geminiStopTot=(typeof r.stopTot==='number'&&r.stopTot-nu<=GEMINI_VENSTER*2)?r.stopTot:0;
   }catch(e){/* geen opslag: dan doet hij het alleen voor dit tabblad */}
 }
 function _geminiTempoBewaar(){
   try{localStorage.setItem(LS_GEMINI_TEMPO,
-    JSON.stringify({tijden:_geminiTijden,perMin:_geminiPerMin}));}catch(e){}
+    JSON.stringify({tijden:_geminiTijden,perMin:_geminiPerMin,stopTot:_geminiStopTot}));}catch(e){}
 }
 
 function _geminiRuis(ms){return Math.round(ms*(0.8+Math.random()*0.4));}
@@ -23760,6 +23802,12 @@ async function _geminiSlot(){
        verzoeken uit hebben gedaan. */
     _geminiTempoLees();
     const nu=Date.now();
+    /* Zit er een opgelegde stilte op, dan gaat er niets uit -- ook geen
+       herkansing. */
+    if(_geminiStopTot>nu){
+      await _geminiPauze(Math.min(_geminiStopTot-nu,GEMINI_VENSTER)+250);
+      continue;
+    }
     if(_geminiTijden.length<_geminiPerMin){
       _geminiTijden.push(nu);_geminiTempoBewaar();return;
     }
@@ -23803,10 +23851,15 @@ async function _geminiFetch(url,body){
     }
     if(r.status===429&&!fout.perDag){
       _geminiRemOmlaag();
-      if(limiet<GEMINI_LIMIET_WACHT.length){
-        await _geminiPauze(fout.wacht||_geminiRuis(GEMINI_LIMIET_WACHT[limiet++]));
-        continue;
-      }
+      /* Hier ging het mis: eerst wachtten we 20 seconden en probeerden we
+         het opnieuw. Maar een limiet per minuut wacht je alleen weg door
+         die minuut echt uit te zitten -- twintig seconden later zit je nog
+         in hetzelfde venster en krijg je precies dezelfde 429 terug. Nu
+         ligt alles stil tot het venster om is (of tot Google's eigen
+         Retry-After, als die meekomt). */
+      _geminiStopTot=Date.now()+(fout.wacht||GEMINI_VENSTER);
+      _geminiTempoBewaar();
+      if(limiet++<GEMINI_LIMIET_POGINGEN)continue;   /* _geminiSlot wacht het uit */
     }
     const err=new Error(fout.msg);
     err.status=r.status;err.perDag=fout.perDag;
