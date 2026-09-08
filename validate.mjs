@@ -267,6 +267,26 @@ if (teKlein.size) {
   );
 }
 
+/* ─── Versienummer ───
+   Het nummer in de zijbalk is MAJOR.BUILD, waarbij BUILD de release-teller
+   uit sw.js is (CACHE_NAME = 'herling-v<n>'). Eén bron, twee plekken: zonder
+   deze controle blijft er vroeg of laat een oud nummer in beeld staan
+   terwijl de cache al verder is. */
+{
+  const inBeeld = html.match(/class="app-versie"[^>]*>v(\d+)\.(\d+)</);
+  let sw = '';
+  try { sw = readFileSync('sw.js', 'utf8'); } catch (e) { /* geen sw.js */ }
+  const cache = sw.match(/CACHE_NAME\s*=\s*['"]herling-v(\d+)['"]/);
+  if (!inBeeld) {
+    errors.push('Versienummer niet gevonden in de zijbalk (span.app-versie, vorm "v1.81")');
+  } else if (cache && inBeeld[2] !== cache[1]) {
+    errors.push(
+      `Versienummer loopt uit de pas: zijbalk toont v${inBeeld[1]}.${inBeeld[2]}, ` +
+      `sw.js staat op herling-v${cache[1]}. Zet ze gelijk (build = het getal uit CACHE_NAME).`
+    );
+  }
+}
+
 /* ─── Output ─── */
 if (errors.length) {
   console.error('✗ VALIDATION FAILED');

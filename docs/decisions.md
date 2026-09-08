@@ -10,6 +10,40 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-08 · Versienummer in de zijbalk, met één bron
+
+**Probleem.** Er stond nergens in beeld welke versie je voor je had. Bij "ik zie
+de oude versie" of "sinds vandaag gaat X mis" is dat het eerste wat je wilt
+weten, en het was alleen te achterhalen via DevTools.
+
+**Beslissing.** Rechtsonder naast *Inklappen*: `v1.81`. Vorm is **MAJOR.BUILD**,
+waarbij BUILD de release-teller uit `sw.js` is (`CACHE_NAME = 'herling-v81'`).
+MAJOR gaat naar 2 bij een echte herziening.
+
+**Waarom niet een eigen nummering.** Een tweede teller die je met de hand
+bijhoudt loopt vroeg of laat uit de pas met de cache — en dan wijst het nummer
+in beeld naar iets anders dan wat er draait, wat erger is dan geen nummer.
+`CACHE_NAME` moest sowieso al bij elke release omhoog, dus dat ís de teller.
+`validate.mjs` vergelijkt de twee en blokkeert een push als ze verschillen.
+
+**Waarom geen datum.** `2026.09.08` zegt meer over ouderdom, maar twee releases
+op één dag krijgen hetzelfde nummer — en dat gebeurt hier regelmatig.
+
+**Vormgeving.** `--fs-micro` in `--text-hint`: de stilste combinatie die de
+stijlgids kent, want dit is metadata en mag niet met de navigatie concurreren.
+De inklapknop hield zijn volle breedte (`flex:1`); het nummer staat er rechts
+naast. Ingeklapt verdwijnt het (`display:none`), op mobiel valt de inklapknop
+weg en houdt `margin-left:auto` het nummer rechts.
+
+**Bewijs.** Nagemeten op desktop (10,5px, geen overlap met de knop, binnen de
+balk) en in de mobiele laag (11,5px). Voor/na-beeld gemaakt met de echte CSS.
+
+**Bestanden**: `index.html` — `.sidebar-onderrij`, `.app-versie`;
+`validate.mjs` — controle tegen `CACHE_NAME`
+
+**Niet doen**: het nummer met de hand ophogen zonder `sw.js` mee te nemen.
+Validate blokkeert dat, en terecht.
+
 ## 2026-09-08 · De snelheidsrem moet een herlaad overleven
 
 **Probleem.** `_geminiTijden` stond alleen in het geheugen. Elke Ctrl+Shift+R
