@@ -10,6 +10,60 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-08 · Een rem vóór het herhalen, en de stapel loopt onbewaakt door
+
+**Probleem.** Na de vorige entry kwam er bij de tweede factuur een 429:
+*"Limiet bereikt"*. De statistieken van Google lieten zien wat er gebeurde:
+pieken van 7–8 verzoeken vlak achter elkaar, eerst 503's en daar bovenop 429's,
+en een success rate van 0%. Het verbruik zelf was minimaal (piek 2,6K input
+tokens) — het dagquotum was dus nergens in zicht.
+
+**Oorzaak: de vorige entry.** Vier pogingen per bestand bij een 503, drie
+bestanden achter elkaar, en er staan er twaalf in een minuut. Dan slaat de
+limiet per minuut dicht. Het geduld dat 503 moest opvangen produceerde 429.
+
+**Beslissing.** De rem staat nu vóór het herhalen: `_geminiSlot()` laat er nooit
+meer dan `_geminiPerMin` in een voortschrijdende minuut door, hoeveel er ook
+klaarstaan. Herhalen gebeurt binnen die rem, niet eromheen.
+
+**Waarom de rem zichzelf bijstelt.** Wat de gratis laag toestaat verschilt per
+model en verandert; de badge zei "15/min" maar bij 7–8 ging het al mis. In
+plaats van een getal te raden begint hij op 6, gaat bij een 429-per-minuut twee
+omlaag (bodem 3) en na acht gelukte verzoeken één omhoog (plafond 12). Zo vindt
+hij zelf de goede snelheid.
+
+**Twee dingen die daarbij bovenkwamen.** (1) De badge telde alleen gelúkte
+verzoeken — precies waarom hij laag stond terwijl de limiet dichtsloeg. Nu telt
+elke poging, want die belasten allemaal je quotum. (2) De 429-melding gooide
+Google's eigen tekst weg en noemde "1500/dag of 15/min", terwijl je juist wilt
+weten wélke. `_aiParseErrorResponse()` geeft nu `{msg, perDag, wacht}` terug —
+inclusief Google's `Retry-After`, zodat we niet hoeven te gokken hoe lang.
+
+**Onbewaakt doorlopen.** De wachtrij doet niet één maar zes rondes, oplopend van
+20s naar 10 minuten (samen ruim een half uur). Je kunt het venster open laten en
+weglopen; in beeld staat dan dat het druk is en dat hij vanzelf verder gaat. Een
+dagquotum is de uitzondering: dat wacht je niet weg, dus `_aiTijdelijk()` geeft
+daar `false` en de stapel stopt ermee.
+
+**Wat níet is veranderd.** Opslaan blijft per factuur. De vraag of complete,
+niet-dubbele facturen automatisch opgeslagen mogen worden staat nog open —
+dat is een aparte afweging, want een verkeerd gelezen bedrag komt dan ongezien
+in het btw-overzicht.
+
+**Bewijs.** 41 tests op de API-kant (rem houdt echt tegen, 429 zet de rem omlaag,
+dagquotum wordt niet herhaald, elke poging telt, Retry-After overgenomen) en 40
+op de wachtrij (zeven pogingen over zes rondes, dagquotum stopt meteen, een al
+getoonde fout wordt met rust gelaten).
+
+**Bestanden**: `index.html` — `_geminiSlot()`/`_geminiRemOmlaag()`/
+`_geminiRemOmhoog()`/`GEMINI_VENSTER`, `_aiParseErrorResponse()` geeft een
+object, `_aiBumpUsage()` verhuisd naar `_geminiFetch()`, `FAC_SCAN_RONDES`;
+`sw.js` → `herling-v79`
+
+**Niet doen**: de rem hoger zetten om een stapel sneller binnen te halen. Dat is
+precies de fout die deze entry repareert — sneller vragen levert bij een limiet
+minder op, niet meer.
+
 ## 2026-09-08 · Bij een 503 wachten we nu net zo lang als we beloven
 
 **Probleem.** Een factuur uit een stapel viel om met *"Gemini-server tijdelijk

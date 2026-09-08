@@ -20656,7 +20656,7 @@ function facScanStart(files){
       fout:teGroot?`${(f.size/1048576).toFixed(1)} MB — maximaal 12 MB`:'',
       /* Te groot is niet tijdelijk: dat bestand wordt over een minuut niet
          kleiner, dus dat krijgt geen automatische herkansing. */
-      tijdelijk:false,autoHerkanst:false,
+      tijdelijk:false,opgegeven:false,
       data:null,getoond:false};
   });
   facScanIdx=0;
@@ -20671,7 +20671,12 @@ function facScanStart(files){
    druk was, dan wachten we langer voor we de volgende proberen. */
 const FAC_SCAN_PAUZE=700;
 const FAC_SCAN_DRUK=6000;
-const FAC_SCAN_RONDE_PAUZE=20000;
+/* Blijft het misgaan, dan komt de hele stapel in steeds rustiger rondes
+   terug: samen ruim een half uur. Je kunt dus weglopen -- staat het er nog
+   steeds niet, dan is het geen drukte maar iets anders, en dan heeft nog
+   langer wachten geen zin. */
+const FAC_SCAN_RONDES=[20000,45000,90000,180000,300000,600000];
+let facScanRustTot=0;     /* tot wanneer de lus stilstaat, voor de melding */
 function facScanAdem(ms){return new Promise(res=>setTimeout(res,ms));}
 
 async function facScanLus(){
@@ -20679,10 +20684,10 @@ async function facScanLus(){
   facScanLoopt=true;
   const gen=facScanGen;
   try{
-    /* Twee rondes: eerst alles, daarna nog één keer wat tijdelijk misging
-       (503, een limiet, een wegvallende verbinding). Tegen die tijd is de
-       drukte meestal voorbij en heb jij er niets voor hoeven doen. */
-    for(let ronde=0;ronde<2;ronde++){
+    /* Eerst alles, daarna in steeds rustiger rondes alles wat tijdelijk
+       misging (503, de limiet per minuut, een wegvallende verbinding). Je
+       hoeft er niets voor te doen: loop weg en kom terug. */
+    for(let ronde=0;;ronde++){
       let eerste=true,pauze=FAC_SCAN_PAUZE;
       for(const post of facScanRij){
         if(facScanGen!==gen)return;        /* modaal is dichtgegaan */
@@ -20709,14 +20714,22 @@ async function facScanLus(){
            gooi je het formulier omver waar iemand net in typt. */
         if(facScanRij[facScanIdx]===post)facScanToon();
       }
-      /* Wie nog niet in beeld is geweest mag stil een tweede kans krijgen.
+      /* Wie nog niet in beeld is geweest gaat stil de volgende ronde in.
          Heb je hem al gezien, dan kun je er zelf iets in hebben getypt en
          blijft het bij de knop "probeer opnieuw". */
       const opnieuw=facScanRij.filter(p=>
-        p.status==='fout'&&p.tijdelijk&&!p.autoHerkanst&&!p.getoond);
+        p.status==='fout'&&p.tijdelijk&&!p.opgegeven&&!p.getoond);
       if(!opnieuw.length)break;
-      opnieuw.forEach(p=>{p.autoHerkanst=true;p.status='wacht';p.fout='';});
-      await facScanAdem(FAC_SCAN_RONDE_PAUZE);
+      if(ronde>=FAC_SCAN_RONDES.length){
+        opnieuw.forEach(p=>{p.opgegeven=true;});
+        if(facScanRij[facScanIdx])facScanToon();
+        break;
+      }
+      opnieuw.forEach(p=>{p.status='wacht';p.fout='';});
+      facScanRustTot=Date.now()+FAC_SCAN_RONDES[ronde];
+      if(facScanRij[facScanIdx]&&facScanRij[facScanIdx].status==='wacht')facScanToon();
+      await facScanAdem(FAC_SCAN_RONDES[ronde]);
+      facScanRustTot=0;
       if(facScanGen!==gen)return;
       if(facScanRij[facScanIdx]&&facScanRij[facScanIdx].status==='wacht')facScanToon();
     }
@@ -20756,7 +20769,7 @@ function facScanOversla(){
 function facScanHerkans(){
   const post=facScanRij[facScanIdx];
   if(!post||post.status!=='fout')return;
-  post.status='wacht';post.fout='';post.getoond=false;
+  post.status='wacht';post.fout='';post.getoond=false;post.opgegeven=false;
   facScanToon();
   facScanLus();
 }
@@ -20836,7 +20849,7 @@ function facOudNieuw(){
    al onderweg is loopt af en wordt weggegooid -- dat is één call, niet het
    risico waard om er een afbreekmechaniek voor te bouwen. */
 function facScanLeeg(){
-  facScanRij=[]; facScanIdx=0; facScanGen++;
+  facScanRij=[]; facScanIdx=0; facScanGen++; facScanRustTot=0;
 }
 function closeFacOud(){
   document.getElementById('facOudModal').classList.remove('open');
@@ -20860,6 +20873,10 @@ function facOudRender(){
     ? `<div class="fac-btw-let" style="margin-bottom:14px"><b>${escapeHtml(post.naam)} kon niet gelezen worden.</b>
        ${escapeHtml(post.fout)} — vul hem met de hand in, sla hem over, of
        <button class="btn btn-sm" type="button" data-fac-action="facScanHerkans" style="margin-left:4px">probeer opnieuw</button></div>`
+    : facOudBezig&&facScanRustTot>Date.now()
+    ? `<div class="fac-uren-info" style="margin-bottom:14px">✲ Het is druk bij Google.
+       <b>${escapeHtml(facOudBron)}</b> staat in de wachtrij en wordt vanzelf opnieuw
+       geprobeerd — je kunt dit venster open laten staan en weglopen.</div>`
     : facOudBezig
     ? `<div class="fac-uren-info" style="margin-bottom:14px">✲ <b>${escapeHtml(facOudBron)}</b> wordt gelezen…</div>`
     : facOudBron
@@ -23392,11 +23409,24 @@ function _aiSetError(el,message,retryFnName){
 }
 
 /* ─ Gemeenschappelijke error-parser voor Gemini-responses ─ */
+/* Geeft {msg, perDag, wacht} terug. `perDag` scheidt het dagquotum van de
+   limiet per minuut: die eerste wacht je niet weg, die tweede wel. `wacht`
+   is Google's eigen Retry-After, als die meekomt -- dan hoeven we niet te
+   gokken hoe lang het duurt. */
 async function _aiParseErrorResponse(r){
   let msg='Gemini API fout '+r.status;
-  try{const j=await r.json();if(j.error?.message)msg=j.error.message;}catch(e){}
+  let ruw='';
+  try{const j=await r.json();if(j.error?.message){msg=j.error.message;ruw=j.error.message;}}catch(e){}
+  const perDag=r.status===429&&/per\s*day|perday|daily|dag/i.test(ruw);
+  let wacht=0;
+  try{
+    const h=r.headers?.get?.('retry-after');
+    if(h&&/^\d+$/.test(h.trim()))wacht=Math.min(Number(h.trim())*1000,300000);
+  }catch(e){}
   if(r.status===400&&/API key/i.test(msg))msg='Ongeldige API-key. Check via ⚙ API-key.';
-  if(r.status===429)msg='Limiet bereikt (1500/dag of 15/min). Wacht even of probeer morgen.';
+  if(r.status===429)msg=perDag
+    ? 'Dagquotum van de gratis laag op. Morgen weer, of hang een betaald project achter je sleutel.'
+    : 'Te snel achter elkaar voor de gratis laag. De app houdt zichzelf voortaan in en probeert vanzelf verder.';
   /* Google's eigen tekst hierbij is "Your project has been denied access" --
      dat zegt niet wát je moet doen. De sleutel is dan geldig; het project
      erachter mag de API niet. In de praktijk twee oorzaken. */
@@ -23407,30 +23437,62 @@ async function _aiParseErrorResponse(r){
       +'sleutel bij een Workspace-account, dan is de gratis laag daar vaak niet beschikbaar '
       +'— maak er dan een met een persóónlijk Google-account.';
   if(r.status>=500)msg='Gemini-server tijdelijk niet beschikbaar (status '+r.status+'). Probeer over een minuut opnieuw.';
-  return msg;
+  return {msg,perDag,wacht};
 }
 
-/* ─ Eén ingang naar de API, met geduld ───────────────────────────────
-   503 betekent dat het model overbelast is. Dat lost zichzelf op, maar niet
-   binnen een paar seconden -- eerder was het 1,2s en 3,5s, terwijl de
-   melding "probeer over een minuut opnieuw" zei. Nu vier pogingen die
-   oplopen tot samen zo'n 19 seconden, met ruis erop zodat een stapel niet
-   in hetzelfde ritme tegen dezelfde dichte deur blijft lopen.
+/* ─ Eén ingang naar de API, met een rem ──────────────────────────────
+   Herhalen alleen was niet genoeg -- het was zelfs de oorzaak. Bij een
+   stapel deed elk bestand tot vier pogingen bij een 503, en drie bestanden
+   achter elkaar zetten er zo een stuk of twaalf in een minuut de deur uit.
+   Dan slaat de limiet per minuut dicht en krijg je 429 boven op de 503.
 
-   Alleen bij 503. Een 429 is een limiet en die wacht je binnen één verzoek
-   niet weg; een 4xx wordt sowieso niet vanzelf beter; en een 500 kan aan het
-   verzoek zelf liggen, dus daar helpt herhalen ook niet.
+   Vandaar dat de rem hier vóór het herhalen staat: er gaan er nooit meer
+   dan `_geminiPerMin` in een voortschrijdende minuut uit, hoeveel er ook
+   staan te wachten. Wie te vroeg is, wacht gewoon zijn beurt af.
 
-   De fout krijgt de statuscode mee, zodat de aanroeper kan zien of het zin
-   heeft om het later nog eens te proberen. */
-const GEMINI_WACHT=[2000,5000,12000];
+   De hoogte van die rem stelt zichzelf bij, want wat de gratis laag
+   toestaat verschilt per model en verandert. Een 429 per minuut zet hem
+   omlaag; een reeks gelukte verzoeken laat hem weer voorzichtig oplopen.
+   Zo hoeven we het getal niet te raden. */
+const GEMINI_WACHT=[2000,5000,12000];           /* 503: overbelast   */
+const GEMINI_LIMIET_WACHT=[20000,45000,90000];  /* 429: te snel      */
+const GEMINI_MIN_PER_MIN=3, GEMINI_MAX_PER_MIN=12;
+const GEMINI_VENSTER=60000; /* de "minuut" waarover de rem telt */
+let _geminiPerMin=6;        /* voorzichtige start */
+let _geminiTijden=[];       /* wanneer de laatste verzoeken uitgingen */
+let _geminiGoed=0;          /* gelukt op rij, om de rem te laten oplopen */
+
 function _geminiRuis(ms){return Math.round(ms*(0.8+Math.random()*0.4));}
+function _geminiPauze(ms){return new Promise(res=>setTimeout(res,ms));}
 function _aiTijdelijk(e){
-  return !!e&&(e.netwerk===true||e.status===429||e.status>=500);
+  if(!e||e.perDag)return false;   /* een dagquotum wacht je niet weg */
+  return e.netwerk===true||e.status===429||e.status>=500;
+}
+/* Wacht tot er ruimte is in de voortschrijdende minuut. */
+async function _geminiSlot(){
+  for(;;){
+    const nu=Date.now();
+    _geminiTijden=_geminiTijden.filter(t=>nu-t<GEMINI_VENSTER);
+    if(_geminiTijden.length<_geminiPerMin){_geminiTijden.push(nu);return;}
+    await _geminiPauze(GEMINI_VENSTER-(nu-_geminiTijden[0])+250);
+  }
+}
+function _geminiRemOmlaag(){
+  _geminiGoed=0;
+  _geminiPerMin=Math.max(GEMINI_MIN_PER_MIN,_geminiPerMin-2);
+  /* De verzoeken van het afgelopen minuutje tellen nog mee; door ze te
+     laten staan begint de nieuwe, lagere rem meteen te knijpen. */
+}
+function _geminiRemOmhoog(){
+  if(++_geminiGoed<8)return;
+  _geminiGoed=0;
+  _geminiPerMin=Math.min(GEMINI_MAX_PER_MIN,_geminiPerMin+1);
 }
 async function _geminiFetch(url,body){
-  let r;
-  for(let poging=0;;poging++){
+  let drukte=0,limiet=0;
+  for(;;){
+    await _geminiSlot();
+    let r;
     try{
       r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},
                          body:JSON.stringify(body)});
@@ -23438,14 +23500,27 @@ async function _geminiFetch(url,body){
       const err=new Error('Geen verbinding met Gemini: '+(e.message||'netwerkfout'));
       err.netwerk=true;throw err;
     }
-    if(r.status!==503||poging>=GEMINI_WACHT.length)break;
-    await new Promise(res=>setTimeout(res,_geminiRuis(GEMINI_WACHT[poging])));
+    /* Élke poging telt mee in de badge, ook een mislukte -- ze belasten
+       allemaal je quotum. Dat het alleen de gelukte telde is precies waarom
+       de teller laag stond terwijl de limiet al dichtsloeg. */
+    _aiBumpUsage();
+    if(r.ok){_geminiRemOmhoog();return r;}
+    const fout=await _aiParseErrorResponse(r);   /* body kan maar één keer */
+    if(r.status===503&&drukte<GEMINI_WACHT.length){
+      await _geminiPauze(fout.wacht||_geminiRuis(GEMINI_WACHT[drukte++]));
+      continue;
+    }
+    if(r.status===429&&!fout.perDag){
+      _geminiRemOmlaag();
+      if(limiet<GEMINI_LIMIET_WACHT.length){
+        await _geminiPauze(fout.wacht||_geminiRuis(GEMINI_LIMIET_WACHT[limiet++]));
+        continue;
+      }
+    }
+    const err=new Error(fout.msg);
+    err.status=r.status;err.perDag=fout.perDag;
+    throw err;
   }
-  if(!r.ok){
-    const err=new Error(await _aiParseErrorResponse(r));
-    err.status=r.status;throw err;
-  }
-  return r;
 }
 
 /* ─ Anonimiseren — namen gaan gemaskeerd de deur uit ─────────────────
@@ -23625,7 +23700,7 @@ async function callGemini({system,user,schema,bestand,temperature=0.2,maskeer=fa
   const r=await _geminiFetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(key)}`,
     body);
-  _aiBumpUsage();
+  /* Tellen gebeurt in _geminiFetch(), per poging. */
   const data=await r.json();
   const text=data.candidates?.[0]?.content?.parts?.[0]?.text||'';
   if(!text){
@@ -23654,7 +23729,7 @@ async function* _streamGemini({system,user,temperature=0.5,maskeer=false}){
   const r=await _geminiFetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:streamGenerateContent?alt=sse&key=${encodeURIComponent(key)}`,
     body);
-  _aiBumpUsage();
+  /* Tellen gebeurt in _geminiFetch(), per poging. */
   const reader=r.body.getReader();
   const decoder=new TextDecoder();
   /* Terugvertalen gebeurt hier, niet bij de ontvanger: die plakt de
