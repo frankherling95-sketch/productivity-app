@@ -10,6 +10,55 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-08 · Een nieuwe factuur bestaat pas na Opslaan
+
+**Probleem.** `factuurNieuw()` duwde de factuur meteen in
+`factuurState.invoices` en sloeg op. Drukte je op "Factuur opstellen" en
+bedacht je je, dan stond er een leeg concept in je administratie dat je apart
+moest opruimen. Frank: *"dat je dan eerst op opslaan moet drukken voordat een
+factuur pas daadwerkelijk wordt aangemaakt."*
+
+**Beslissing.** Een nieuwe factuur leeft eerst in `facConcept`, buiten de
+lijst. `factuurById()` kent hem wél, zodat de hele editor zonder verdere
+aanpassing blijft werken — die vraagt overal via die ene functie. Pas
+`facConceptVastleggen()` zet hem in de administratie: via **Opslaan**, of via
+**Versturen** (dat is een steviger besluit dan opslaan, dus dat legt hem
+vanzelf eerst vast).
+
+**Waarom dit veilig kan.** `factuurSyncUren()` slaat concepten over, dus een
+niet-bewaard concept houdt geen urenregistraties vast. Een verworpen concept
+laat daardoor niets achter — geen halve koppeling, geen vergrendelde uren. Het
+factuurnummer was al voorlopig tot het versturen, dus daar wordt ook geen
+teller op verbruikt.
+
+**Waarom de vraag bij het sluiten.** Weggooien is gratis zolang je er niets in
+hebt gedaan, dus dan gebeurt het zonder ophef. Heb je er wél in gewerkt
+(`updatedAt > createdAt`), dan wordt het nagevraagd — een Escape of een misklik
+op ✕ is zo gegeven. Dat zit in `closeFacEditor()`, het enige sluitpunt van de
+editor, dus ✕, Verwerpen en Escape lopen er allemaal langs.
+
+**Wat níet verandert.** Een bestáánde factuur bewerk je nog steeds live, zoals
+altijd. De vraag ging over aanmaken, en een tweede bewerkmodel ernaast zou
+alleen maar verwarren.
+
+**Knoppen bij een concept.** Verwerpen · Voorbeeld · Versturen · **Opslaan**.
+Geen "Verwijderen" (er is niets om te verwijderen) en geen "Dupliceren" (van
+iets dat nog niet bestaat).
+
+**Bewijs.** 22 tests: niet in de administratie maar wel vindbaar voor de
+editor, Opslaan maakt hem aan en tweemaal opslaan geeft geen dubbele, sluiten
+zonder wijzigingen vraagt niets en laat niets achter, met wijzigingen wordt het
+gevraagd en "nee" houdt de editor open. Plus een end-to-end test in `test.html`.
+
+**Bestanden**: `index.html` — `facConcept`, `factuurNieuw()` zonder push,
+`factuurById()`/`facIsConcept()`/`facConceptVastleggen()`/`facConceptOpslaan()`,
+guard in `closeFacEditor()`, concept-knoppen in de editor, `facVerstuur()`;
+`test.html` — 2 tests; `sw.js` → `herling-v82`
+
+**Niet doen**: het concept ook bij een bestaande factuur invoeren. Live
+bewerken is daar de bestaande afspraak, en twee modellen naast elkaar maakt
+onduidelijk wanneer iets nu wel of niet vastligt.
+
 ## 2026-09-08 · Versienummer in de zijbalk, met één bron
 
 **Probleem.** Er stond nergens in beeld welke versie je voor je had. Bij "ik zie

@@ -321,6 +321,22 @@ function runChecks() {
     ['Log: modaal aanwezig',               () => !!d.getElementById('facScanLogModal') &&
                                                  !!d.getElementById('facScanLogBody')],
 
+    /* ── Nieuwe factuur is pas echt na Opslaan ──
+       De hele belofte in één test: maak er een, sluit zonder opslaan, en er
+       mag niets in de administratie zijn beland. */
+    ['Concept: functies aanwezig',         () => ['factuurNieuw','facIsConcept','facConceptOpslaan',
+                                                  'facConceptVastleggen','facOpenEditor','closeFacEditor']
+                                                  .every(f => typeof w[f] === 'function')],
+    ['Concept: nieuw staat nog niet in de administratie', () => {
+      const inLijst = id => (w.huidigeStateSnapshot().facturen.invoices || []).some(x => x.id === id);
+      const f = w.factuurNieuw(null, null, null);
+      const nogNiet = !inLijst(f.id);
+      const vindbaar = w.factuurById(f.id) === f && w.facIsConcept(f);
+      w.facOpenEditor(f.id);
+      w.closeFacEditor();                       /* niets gewijzigd → geen vraag */
+      return nogNiet && vindbaar && !inLijst(f.id) && w.factuurById(f.id) === null;
+    }],
+
     ['No iframe console errors',           () => iframeErrors.length === 0]
   ];
 

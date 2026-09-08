@@ -6884,7 +6884,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v1.81</span>
+        <span class="app-versie" title="Appversie">v1.82</span>
       </div>
     </div>
   </aside>
@@ -18340,11 +18340,34 @@ function factuurNieuw(clientId,from,to,alleenKlanten){
     betalingen:[],
     createdAt:Date.now(), updatedAt:Date.now()
   };
+  /* Nog niet in de administratie: hij blijft los tot je Opslaan drukt.
+     Zie facConcept. */
+  facConcept=f;
+  return f;
+}
+/* Ook het onbewaarde concept vindbaar maken, zodat de hele editor er zonder
+   verdere aanpassing mee werkt -- hij vraagt overal via deze functie. */
+function factuurById(id){
+  if(facConcept&&facConcept.id===id)return facConcept;
+  return factuurState.invoices.find(f=>f.id===id)||null;
+}
+function facIsConcept(f){return !!(f&&facConcept&&facConcept.id===f.id);}
+/* Het concept alsnog in de administratie zetten. Losstaand van opslaan-en-
+   sluiten, want Versturen moet hem ook eerst vastleggen. */
+function facConceptVastleggen(){
+  if(!facConcept)return null;
+  const f=facConcept;
+  facConcept=null;
   factuurState.invoices.push(f);
   scheduleSave();
   return f;
 }
-function factuurById(id){return factuurState.invoices.find(f=>f.id===id)||null;}
+function facConceptOpslaan(){
+  const f=facConceptVastleggen();
+  if(!f)return;
+  closeFacEditor();
+  appToast(`${f.nummer} aangemaakt — ${factuurFmtBedrag(factuurTotalen(f).incl)}`,{type:'success'});
+}
 function factuurUpdate(id,patch){
   const f=factuurById(id);
   if(!f)return null;
@@ -18528,6 +18551,14 @@ let facBtwKwartaal=Math.floor(new Date().getMonth()/3)+1;  /* 1-4, of 0 voor hee
 let facFilterStatus='';
 let facFilterClient='';
 let facEditId=null;       /* factuur die in de editor openstaat */
+/* Een nieuwe factuur bestaat eerst alleen hier, buiten factuurState.invoices.
+   Pas bij Opslaan (of Versturen) belandt hij in de administratie. Daarvóór
+   telt hij dus nergens mee: niet in de lijst, niet in de omzet, niet in het
+   btw-overzicht. Sluit je zonder op te slaan, dan is er niets gebeurd.
+
+   Dat kan omdat factuurSyncUren() concepten overslaat: een niet-bewaard
+   concept houdt geen uren vast, dus er blijft ook niets achter. */
+let facConcept=null;
 let facWizard=null;       /* {clientId,from,to} tijdens "nieuwe factuur" */
 
 /* ── Event-delegatie (zelfde patroon als Uren) ── */
@@ -18561,6 +18592,7 @@ const FAC_CLICK_ACTIONS={
   facRegelVerwijder:(a)=>facRegelVerwijder(a),
   facUrenOphalen:()=>facUrenOphalen(),
   facEditorSluit:()=>closeFacEditor(),
+  facConceptOpslaan:()=>facConceptOpslaan(),
   facVerstuur:()=>facVerstuur(),
   facPdf:(a)=>facPdfDownload(a||facEditId),
   facPreview:(a)=>openFacPreview(a||facEditId),
@@ -19969,6 +20001,15 @@ function facOpenEditor(id){
   document.getElementById('facEditorModal').classList.add('open');
 }
 function closeFacEditor(){
+  /* Een onbewaard concept verdwijnt hier zonder spoor -- er is niets
+     aangemaakt. Wel eerst vragen als je er al in hebt gewerkt: een Escape
+     of een misklik op ✕ is zo gegeven. Dit is het enige sluitpunt van de
+     editor, dus deze ene plek dekt ✕, Verwerpen en Escape. */
+  if(facConcept&&facConcept.id===facEditId){
+    if(facConcept.updatedAt>facConcept.createdAt&&
+       !confirm('Deze factuur is nog niet opgeslagen. Wijzigingen weggooien?'))return;
+    facConcept=null;
+  }
   document.getElementById('facEditorModal').classList.remove('open');
   facEditId=null;
   facRenderAll();
@@ -20194,7 +20235,17 @@ function facEditorRender(){
 
   /* Acties onderin, afhankelijk van de status */
   let acties='';
-  if(!definitief){
+  if(facIsConcept(f)){
+    /* Nog niet aangemaakt. Geen "Verwijderen" (er is niets om te
+       verwijderen) en geen "Dupliceren" (van iets dat nog niet bestaat).
+       Versturen blijft wél staan: dat legt hem vanzelf eerst vast, want
+       versturen is een steviger besluit dan opslaan. */
+    acties=`<button class="uren-btn" data-fac-action="facEditorSluit">Verwerpen</button>
+      <div class="fac-ed-actievul"></div>
+      <button class="uren-btn" data-fac-action="facPreview">Voorbeeld</button>
+      <button class="uren-btn" data-fac-action="facVerstuur">Versturen</button>
+      <button class="uren-btn uren-btn-primary" data-fac-action="facConceptOpslaan">Opslaan</button>`;
+  } else if(!definitief){
     acties=`<button class="uren-btn" data-fac-action="facVerwijder">Verwijderen</button>
       <button class="uren-btn" data-fac-action="facDupliceer"
         title="Maak een nieuw concept met dezelfde regels en gegevens">Dupliceren</button>
@@ -20462,6 +20513,9 @@ function facVerstuur(){
     (urenAantal?`${urenAantal} urenregistratie${urenAantal===1?'':'s'} gaan op "gefactureerd".\n`:'')+
     `Het factuurnummer wordt definitief vastgelegd.`;
   if(!confirm(bevestig))return;
+  /* Pas hier vastleggen: gaat de controle hierboven mis of klik je de
+     bevestiging weg, dan is er nog steeds niets aangemaakt. */
+  facConceptVastleggen();
   factuurMarkeerVerstuurd(f.id);
   facEditorRender();
   facRenderAll();
