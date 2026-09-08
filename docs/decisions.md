@@ -10,6 +10,37 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-08 · Op een gratis laag volg je geen "-latest"
+
+**Probleem.** Het dagquotum was op na **~23 geslaagde verzoeken**, terwijl voor
+Gemini 3 Flash 1.500 per dag geldt. Frank zat dus nergens in de buurt van de
+gepubliceerde limiet en kon toch niet verder.
+
+**Oorzaak.** `GEMINI_MODEL` stond op `gemini-flash-latest`. Die alias wijst
+altijd naar de nieuwste Flash — bij Frank **Gemini 3.8 Flash** — en juist het
+nieuwste model heeft de krapste gratis laag. De 1.500/dag uit de documentatie
+gaat over een ouder model. Je plafond verandert daarmee onder je handen zodra
+Google een nieuwe Flash uitbrengt, zonder dat je iets doet.
+
+**Beslissing.** Vastgezet op `gemini-2.5-flash` en instelbaar gemaakt
+(Instellingen → AI-model, bewaard in `localStorage`). Drie voorgestelde
+keuzes: 2.5-flash (ruime laag, leest PDF goed), 2.5-flash-lite (ruimer en
+sneller, iets minder nauwkeurig) en `-latest` voor wie het nieuwste wil.
+
+**Waarom instelbaar en niet gewoon een andere constante.** Welk model welke
+gratis laag krijgt verandert, en is niet gepubliceerd. Met een schakelaar kost
+uitproberen een minuut in plaats van een release.
+
+**Waarom dit ná de vorige entry pas zichtbaar werd.** Zolang de app een
+dagquotum als "te snel achter elkaar" meldde, leek dit een pacing-probleem. Pas
+toen de melding klopte, viel op dat het aantal veel te laag was voor 1.500.
+
+**Bestanden**: `index.html` — `geminiModel()`, `GEMINI_MODELLEN`,
+`openGeminiModelPrompt()`, menu-item AI-model; `sw.js` → `herling-v84`
+
+**Niet doen**: terug naar een `-latest`-alias zolang je op de gratis laag zit.
+Dan is je dagplafond een bewegend doel.
+
 ## 2026-09-08 · Welke quota op is staat niet in `message` maar in `details`
 
 **Probleem.** De app meldde *"Te snel achter elkaar voor de gratis laag"* bij

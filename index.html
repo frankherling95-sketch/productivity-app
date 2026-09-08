@@ -6884,7 +6884,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v1.83</span>
+        <span class="app-versie" title="Appversie">v1.84</span>
       </div>
     </div>
   </aside>
@@ -11083,6 +11083,9 @@ function toggleAppInstellingen(e){
     <button class="uren-menu-item" role="menuitem" data-app-instel="aikey">
       <span class="ic" aria-hidden="true">&#9881;</span>
       <span>Gemini API-key<small>${key?'Ingesteld op dit apparaat':'Nog niet ingesteld'}</small></span></button>
+    <button class="uren-menu-item" role="menuitem" data-app-instel="aimodel">
+      <span class="ic" aria-hidden="true">&#9673;</span>
+      <span>AI-model<small>${escapeHtml(geminiModel())}</small></span></button>
     <button class="uren-menu-item" role="menuitem" data-app-instel="aimask">
       <span class="ic" aria-hidden="true">&#9788;</span>
       <span>Namen maskeren<small>${maskAan?'Aan — klantnamen gaan als code weg':'Uit — namen gaan onbewerkt mee'}</small></span></button>
@@ -11123,6 +11126,7 @@ document.addEventListener('click',e=>{
   if(wat==='herstel')document.getElementById('restoreFileInput')?.click();
   if(wat==='aikey')openGeminiKeyPrompt();
   if(wat==='aimask')aiMaskerenWissel();
+  if(wat==='aimodel')openGeminiModelPrompt();
   if(wat==='slim')openQuickAddAI();
   if(wat==='review')openWeeklyReviewModal();
   if(wat==='notif')requestNotifPermission();
@@ -23625,7 +23629,43 @@ function facExportBoekhouding(){
    ═══════════════════════════════════════════════════════════════════ */
 const LS_GEMINI_KEY='herling_gemini_api_key';
 const LS_AI_USAGE='herling_ai_usage';
-const GEMINI_MODEL='gemini-flash-latest';
+/* NIET meer 'gemini-flash-latest'. Die alias wijst altijd naar de nieuwste
+   Flash, en juist het nieuwste model heeft de krapste gratis laag: op
+   8 september 2026 was het dagquotum na ~23 verzoeken op, terwijl voor de
+   vorige Flash 1.500 per dag gold. Op een gratis laag wil je dus geen
+   "latest" volgen -- dan verandert je plafond zonder dat je iets doet.
+
+   Vastgezet op een model met een bruikbare gratis laag, en te wisselen via
+   Instellingen als je iets anders wilt proberen. */
+const GEMINI_MODEL_STANDAARD='gemini-2.5-flash';
+const LS_GEMINI_MODEL='herling_gemini_model';
+/* Wat je zonder typwerk kunt kiezen. De eerste is de standaard. */
+const GEMINI_MODELLEN=[
+  ['gemini-2.5-flash','ruime gratis laag, leest PDF goed'],
+  ['gemini-2.5-flash-lite','nog ruimer en sneller, iets minder nauwkeurig'],
+  ['gemini-flash-latest','altijd het nieuwste — maar krappe gratis laag']
+];
+function geminiModel(){
+  try{return localStorage.getItem(LS_GEMINI_MODEL)||GEMINI_MODEL_STANDAARD;}
+  catch(e){return GEMINI_MODEL_STANDAARD;}
+}
+function openGeminiModelPrompt(){
+  const nu=geminiModel();
+  const lijst=GEMINI_MODELLEN.map(([m,uitleg])=>`  ${m}\n     ${uitleg}`).join('\n');
+  const v=prompt(
+    'Welk Gemini-model gebruikt de app?\n\n'+lijst+'\n\n'+
+    'Een "-latest"-alias volgt het nieuwste model; die hebben op de gratis\n'+
+    'laag vaak een veel lager dagquotum. Leeg = terug naar de standaard.',
+    nu
+  );
+  if(v===null)return;
+  const gekozen=(v||'').trim();
+  try{
+    if(!gekozen)localStorage.removeItem(LS_GEMINI_MODEL);
+    else localStorage.setItem(LS_GEMINI_MODEL,gekozen);
+  }catch(e){}
+  appToast('Model: '+geminiModel(),{type:'success',duration:3000});
+}
 /* State */
 let _quickAddAIResult=null;        /* tijdelijke buffer tussen parse en apply */
 let _weeklyReviewMarkdown='';      /* buffer voor copy/save acties */
@@ -24042,7 +24082,7 @@ async function callGemini({system,user,schema,bestand,temperature=0.2,maskeer=fa
      met je verzoek of je sleutel -- op de gratis laag komt dat regelmatig
      voor. Het geduld zit in _geminiFetch(). */
   const r=await _geminiFetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(key)}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel()}:generateContent?key=${encodeURIComponent(key)}`,
     body);
   /* Tellen gebeurt in _geminiFetch(), per poging. */
   const data=await r.json();
@@ -24071,7 +24111,7 @@ async function* _streamGemini({system,user,temperature=0.5,maskeer=false}){
   /* Ook hier het geduld van _geminiFetch(): de herkansing gebeurt vóór er
      ook maar iets is uitgelezen, dus er kan geen halve tekst dubbel komen. */
   const r=await _geminiFetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:streamGenerateContent?alt=sse&key=${encodeURIComponent(key)}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel()}:streamGenerateContent?alt=sse&key=${encodeURIComponent(key)}`,
     body);
   /* Tellen gebeurt in _geminiFetch(), per poging. */
   const reader=r.body.getReader();
@@ -24917,6 +24957,8 @@ window.closeQuickAddAI=closeQuickAddAI;
 window.parseQuickAddAI=parseQuickAddAI;
 window.applyQuickAddAI=applyQuickAddAI;
 window.openGeminiKeyPrompt=openGeminiKeyPrompt;
+window.openGeminiModelPrompt=openGeminiModelPrompt;
+window.geminiModel=geminiModel;
 /* Ook naar buiten zodat je in de console kunt kijken wat er écht weggaat:
    aiMaskerder().maskeer('rapport voor <klantnaam>') */
 window.aiMaskerenAan=aiMaskerenAan;
