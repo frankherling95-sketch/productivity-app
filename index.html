@@ -6884,7 +6884,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v1.85</span>
+        <span class="app-versie" title="Appversie">v1.86</span>
       </div>
     </div>
   </aside>
@@ -7491,7 +7491,12 @@ textarea { line-height: 1.6; resize: vertical; }
 
 <!-- ── Facturen: editor ── -->
 <div class="modal-bg" id="facEditorModal">
-  <div class="modal" style="max-width:900px;padding:0;display:flex;flex-direction:column;max-height:92vh">
+  <!-- 1000px en niet de 900 van hiervoor. Dit is de breedste inhoud van de
+       app: een regeltabel van zes kolommen én een voet met acht knoppen. Op
+       900 paste de laatste knop er niet meer bij (hij zakte naar een tweede
+       regel) en kapte de btw-kolom af tot "21% (h". Andere modalen blijven
+       640/720 -- die dragen een formulier, geen tabel. -->
+  <div class="modal" style="max-width:1000px;padding:0;display:flex;flex-direction:column;max-height:92vh">
     <div class="modal-kop" style="display:flex;align-items:center;gap:12px;flex-shrink:0">
       <div style="flex:1;min-width:0">
         <h3 style="font-size:18px;font-weight:700;margin:0" id="facEditorTitel">Factuur</h3>
@@ -7501,7 +7506,9 @@ textarea { line-height: 1.6; resize: vertical; }
       <button data-fac-action="facEditorSluit" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--text-muted);padding:4px 8px;border-radius:var(--radius)">✕</button>
     </div>
     <div style="padding:20px 22px;overflow-y:auto;flex:1;min-height:0" id="facEditorBody"></div>
-    <div style="padding:14px 22px;border-top:0.5px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex-shrink:0" id="facEditorActies"></div>
+    <!-- gap 6px, zoals elke andere modaalvoet (.modal-footer). Stond hier op
+         8 en dat is over acht knoppen 16px die je aan het eind tekortkomt. -->
+    <div style="padding:14px 22px;border-top:0.5px solid var(--border);display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex-shrink:0" id="facEditorActies"></div>
   </div>
 </div>
 
@@ -20258,17 +20265,23 @@ function facEditorRender(){
       <button class="uren-btn" data-fac-action="facPdf">↧ PDF</button>
       <button class="uren-btn uren-btn-primary" data-fac-action="facVerstuur">Versturen</button>`;
   } else {
+    /* Eén mintknop, en altijd dezelfde: op een verstuurde factuur is
+       "Betaling registreren" wat er nog moet gebeuren. Het mint sprong eerder
+       heen en weer -- Mailen zolang je niet gemaild had, daarna Betaling
+       registreren -- waardoor dezelfde balk er per factuur anders uitzag. Bij
+       een factuur die je print of post komt dat mailmoment nooit, en dan bleef
+       de mintknop wijzen naar iets wat je niet gaat doen. */
     acties=`<button class="uren-btn" data-fac-action="facVerwijder">Verwijderen</button>
       <button class="uren-btn" data-fac-action="facDupliceer">Dupliceren</button>
       <button class="uren-btn" data-fac-action="facTerugConcept">← Terug naar concept</button>
       <div class="fac-ed-actievul"></div>
       <button class="uren-btn" data-fac-action="facPreview">Voorbeeld</button>
       <button class="uren-btn" data-fac-action="facPdf">↧ PDF</button>
-      <button class="uren-btn${f.gemaildOp?'':' uren-btn-primary'}" data-fac-action="facMail"
+      <button class="uren-btn" data-fac-action="facMail"
         title="${f.gemaildOp?'Opnieuw mailen':'Mailen met de PDF als bijlage'}">✉ ${f.gemaildOp?'Opnieuw mailen':'Mailen'}</button>
       ${factuurDagenTeLaat(f)>0?`<button class="uren-btn" data-fac-action="facHerinnering"
         title="Stuur een betalingsherinnering met de factuur als bijlage">Herinnering</button>`:''}
-      ${f.status!=='betaald'?`<button class="uren-btn${f.gemaildOp?' uren-btn-primary':''}" data-fac-action="facBetaald">Betaling registreren</button>`:''}`;
+      ${f.status!=='betaald'?`<button class="uren-btn uren-btn-primary" data-fac-action="facBetaald">Betaling registreren</button>`:''}`;
   }
   document.getElementById('facEditorActies').innerHTML=acties;
 }

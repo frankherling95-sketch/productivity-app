@@ -10,6 +10,44 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-08 · Eén mintknop in de voet van een factuur, en de voet past
+
+**Probleem.** Bij een verstuurde factuur die te laat was zakte "Betaling
+registreren" naar een tweede regel, en stond het mint op *Mailen*. Bij een
+factuur die je wél gemaild had stond het mint juist op Betaling registreren en
+paste alles wel. Dezelfde balk zag er dus per factuur anders uit.
+
+**Beslissing, deel 1 — het mint staat vast.** Op een verstuurde factuur is
+"Betaling registreren" altijd de mintknop; Mailen is altijd secundair. Is de
+factuur betaald, dan valt die knop weg en is er geen mintknop. Eén primaire
+knop per scherm blijft gelden — hij verhuist alleen niet meer.
+
+**Waarom niet "wat je nog niet gedaan hebt".** Dat was de oude regel: mint op
+Mailen zolang `gemaildOp` leeg was. Bij een factuur die je print of post komt
+dat moment nooit, dus bleef het mint eeuwig wijzen naar iets wat je niet gaat
+doen — precies het geval hier, een factuur van 113 dagen oud.
+
+**Beslissing, deel 2 — de editor is 1000px breed.** Acht knoppen vragen 886px
+plus 44px padding; op 900px was er 854px. Dat is 48px tekort, en dat haal je
+niet uit kortere labels zonder er één onherkenbaar te maken. Deze modaal draagt
+bovendien als enige een tabel van zes kolommen: op 900px kapte de btw-kolom af
+tot "21% (h" (86px voor tekst die er 95 vraagt), op 1000px staat er "21% (hoog)".
+De gap ging van 8 naar 6px, gelijk aan elke andere modaalvoet.
+
+**Waarom niet gewoon laten omslaan.** Een tweede regel met één knop leest als
+een aparte handeling, terwijl het er een van de rij is. En de knop die eronder
+valt is juist degene die je zoekt.
+
+**Mobiel** verandert niets aan de opzet: twee kolommen, de mintknop over de
+volle breedte onderaan. Die is nu Betaling registreren, dus waar je duim al is.
+
+**Bestanden**: `index.html` — `facEditorRender()` (tak `definitief`),
+`#facEditorModal` (max-width, gap); `docs/stijlgids.md` §7; `test.html`
+(voettest, 62); `sw.js` → `herling-v86`
+
+**Niet doen**: het mint terug laten afhangen van `gemaildOp`. Dan springt de
+kleur weer tussen twee knoppen en betekent mint niet meer "dit is de handeling".
+
 ## 2026-09-08 · Een vaste modelnaam is even breekbaar als een alias
 
 **Probleem.** Inscannen brak opnieuw, nu met: *"This model models/gemini-2.5-flash

@@ -423,6 +423,36 @@ function runChecks() {
       return nogNiet && vindbaar && !inLijst(f.id) && w.factuurById(f.id) === null;
     }],
 
+    /* ── De voet van een verstuurde factuur ──
+       Twee dingen die je niet aan de code ziet: er is precies één mintknop
+       (hij sprong eerder tussen Mailen en Betaling registreren, afhankelijk
+       van of je gemaild had), en alle knoppen passen op één regel. Dat
+       laatste toetsen we tegen de breedte van de editor zelf en niet tegen
+       het testvenster — anders zakt de test met het venster mee. */
+    ['Voet: één mintknop, en dat is Betaling registreren', () => {
+      const f = w.factuurNieuw(null, null, null);
+      w.facConceptVastleggen();                 /* pas dan telt hij niet meer als concept */
+      f.status = 'verstuurd';
+      f.vervaldatum = '2020-01-01';             /* te laat, dus óók de knop Herinnering */
+      try {
+        w.facOpenEditor(f.id);
+        const bar = d.getElementById('facEditorActies');
+        const knoppen = [...bar.children].filter(el => el.textContent.trim());
+        const mint = knoppen.filter(el => el.classList.contains('uren-btn-primary'));
+        const nodig = knoppen.reduce((a, el) => a + el.offsetWidth, 0) + 6 * (knoppen.length - 1);
+        return knoppen.length === 8 && mint.length === 1 &&
+               mint[0].textContent.trim() === 'Betaling registreren' &&
+               nodig <= 1000 - 44;              /* 1000px modaal, 22px padding links en rechts */
+      } finally {
+        w.closeFacEditor();
+        /* factuurState is een top-level `let` en staat dus niet op window;
+           de snapshot geeft dezelfde array terug, dus opruimen kan hier. */
+        const arr = (w.huidigeStateSnapshot().facturen || {}).invoices || [];
+        const i = arr.findIndex(x => x.id === f.id);
+        if (i >= 0) arr.splice(i, 1);
+      }
+    }],
+
     ['No iframe console errors',           () => iframeErrors.length === 0]
   ];
 

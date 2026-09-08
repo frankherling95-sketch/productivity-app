@@ -229,6 +229,12 @@ verschilt — in Safari ruimer dan in Chrome. Altijd begrenzen met
 | sluitkruis | icoonknop, ín de kopbalk, 9px van de rechterrand — alleen mobiel |
 | voet | knoppen groeien mee; past het niet, dan zakt de hoofdknop naar een eigen volle regel |
 | voetknop | ≥ `var(--tap)` hoog |
+| breedte | 640 (formulier) · 720 (lijst) · **1000** (factuureditor) |
+
+> **Breedte is geen smaak.** De factuureditor staat op 1000px omdat er een
+> regeltabel van zes kolommen in zit én een voet met acht knoppen; op 900
+> kapte de btw-kolom af en zakte de laatste knop naar een tweede regel. Een
+> modaal met alleen een formulier heeft dat niet nodig en blijft 640 of 720.
 
 > **De kop ís de band.** Die gekleurde balk wordt getekend door
 > `.modal h3:first-child`. Zet je daar iets vóór, dan matcht de selector niet
