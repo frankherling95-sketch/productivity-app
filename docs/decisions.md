@@ -10,6 +10,50 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-08 · Klantnamen gaan gemaskeerd naar Gemini
+
+**Probleem.** De AI-functies praten rechtstreeks vanuit de browser met de
+Gemini-API, op de gratis laag. Daar mag Google de inhoud voor training
+gebruiken. Bij "slim toevoegen" is dat onschuldig, maar de wekelijkse review
+stuurt de complete takenlijst mee — met klantnamen erin.
+
+**Beslissing.** Een `aiMaskerder()` om `callGemini()`/`_streamGemini()` heen.
+Klantnamen, contactpersonen, mailadressen, adressen, KVK- en btw-nummers uit de
+klantenkaart worden vervangen door `{{KLANT_1}}`-achtige tokens; het antwoord
+wordt lokaal weer teruggezet. Aan/uit in Instellingen → *Namen maskeren*,
+standaard aan. Aangezet bij "slim toevoegen" en de wekelijkse review.
+
+**Waarom geen NER en geen proxy.** Namen herkennen die *niet* in de klantenkaart
+staan vraagt een taalmodel of een woordenlijst, en dat past niet in een app
+zonder build step. Een proxy (het gangbare advies) betekent infrastructuur die de
+data óók ziet — dat verplaatst het probleem. Wat we wél kennen, kennen we exact,
+en dat is zoeken-en-vervangen zonder model.
+
+**Waarom opt-in per aanroep en niet standaard aan.** De factuurscan stuurt een
+PDF mee en heeft de klantenlijst juist leesbaar nodig om de naam op de factuur
+ertegen te matchen. `callGemini()` slaat maskeren daarom sowieso over zodra er
+een bestand meegaat, maar de vlag staat per aanroepplek zodat het een bewuste
+keuze blijft.
+
+**Drie dingen die stuk gingen zonder dat je het ziet.** (1) Systeemprompt en
+gebruikerstekst moeten door *dezelfde* kaart, anders krijgt de klantenlijst een
+ander token dan de naam in de zin en kan het model ze niet meer koppelen.
+(2) Bij streaming breekt een token over twee chunks (`{{KLA` + `NT_1}}`);
+`_aiKnippunt()` houdt de staart vast tot de rest binnen is. (3) Langste term
+eerst vervangen, anders maakt "Staedion" van "Staedion B.V." een halve naam.
+
+**Wat het niet is.** Geen slot. Bedragen, uren, deadlines en omschrijvingen gaan
+onveranderd mee, en een naam die nergens in de klantenkaart staat wordt niet
+herkend. Wie dit echt dicht wil, neemt een betaalde API-key — daar vervalt de
+traindata-clausule, ook voor de factuurscan die niet te maskeren is.
+
+**Bestanden**: `index.html` — maskeerblok vóór `callGemini()`, `maskeer`-vlag in
+`callGemini()`/`_streamGemini()`, schakelaar in `toggleAppInstellingen()`;
+`test.html` — 7 tests; `sw.js` → `herling-v75`
+
+**Niet doen**: het maskeren aanzetten bij `facScanVraagGemini()`. Die stuurt een
+PDF en moet de klantnamen kunnen lezen.
+
 ## 2026-09-07 · Urenregel: de status onder het getal, niet naast de klant
 
 **Wijziging op de entry hierboven.** De regel stond als *klant · status · uren*. De statuspil hoort echter bij het getal, niet bij de klantnaam: hij zegt of dié uren gefactureerd zijn. Nu twee kolommen — links waar het over gaat (klant, met de omschrijving eronder), rechts het getal met de status eronder, allebei rechts uitgelijnd.

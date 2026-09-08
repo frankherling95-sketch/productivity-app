@@ -230,6 +230,63 @@ function runChecks() {
       return zonder !== 0 && zonder === met;
     }],
 
+    /* ── Anonimiseren ──
+       De maskeerder draait op de echte klantenlijst uit de iframe, dus deze
+       tests toetsen niet één vaste naam maar de eigenschap die telt: wat
+       eruit komt is weer precies wat erin ging. Zijn er geen klanten, dan
+       zeggen de eerste twee niets en worden ze overgeslagen. */
+    ['Masker: functies aanwezig',          () => ['aiMaskerder','aiMaskerenAan','aiMaskerenWissel']
+                                                  .every(f => typeof w[f] === 'function')],
+    ['Masker: klantnaam gaat eruit en weer terug', () => {
+      const klant = (w.huidigeStateSnapshot().tasks.clients || [])[0];
+      if (!klant || !klant.name || klant.name.length < 3) return true;   /* niets te maskeren */
+      const m = w.aiMaskerder();
+      const zin = 'rapport voor ' + klant.name + ' afronden';
+      const weg = m.maskeer(zin);
+      return !weg.includes(klant.name) && /\{\{KLANT_\d\}\}/.test(weg) && m.ontmaskeer(weg) === zin;
+    }],
+    ['Masker: mail en telefoon gaan eruit', () => {
+      const m = w.aiMaskerder();
+      const zin = 'bel 06-12345678 of mail naar iemand@voorbeeld.nl';
+      const weg = m.maskeer(zin);
+      return !weg.includes('12345678') && !weg.includes('@') && m.ontmaskeer(weg) === zin;
+    }],
+    ['Masker: deelwoord blijft ongemoeid', () => {
+      const m = w.aiMaskerder();
+      /* Een token mag niet middenin een langer woord landen. */
+      const zin = 'onbekendbedrijfplein 4 is geen klant';
+      return m.maskeer(zin) === zin;
+    }],
+    ['Masker: slordig teruggeschreven token landt toch', () => {
+      const klant = (w.huidigeStateSnapshot().tasks.clients || [])[0];
+      if (!klant || !klant.name || klant.name.length < 3) return true;
+      const m = w.aiMaskerder();
+      m.maskeer(klant.name);
+      const t = m.maskeer(klant.name).match(/\{\{(KLANT_\d)\}\}/)[1];
+      return m.ontmaskeer('bij {{ ' + t + ' }} gedaan') === 'bij ' + klant.name + ' gedaan' &&
+             m.ontmaskeer('bij ' + t + ' gedaan')       === 'bij ' + klant.name + ' gedaan';
+    }],
+    ['Masker: JSON-antwoord wordt diep terugvertaald', () => {
+      const m = w.aiMaskerder();
+      const weg = m.maskeer('mail naar iemand@voorbeeld.nl');
+      const uit = m.ontmaskeerDiep({ a:[{ b:weg }], c:{ [weg]:null }, d:false });
+      return uit.a[0].b === 'mail naar iemand@voorbeeld.nl' &&
+             Object.keys(uit.c)[0] === 'mail naar iemand@voorbeeld.nl' &&
+             uit.c[Object.keys(uit.c)[0]] === null && uit.d === false;
+    }],
+    ['Masker: stroom lijmt een gebroken token', () => {
+      /* Het echte risico bij de wekelijkse review: {{KLA + NT_1}} over twee
+         chunks. In stukjes van 3 tekens breekt elk token gegarandeerd. */
+      const m = w.aiMaskerder();
+      const zin = 'mail naar iemand@voorbeeld.nl en bel 06-12345678';
+      const weg = m.maskeer(zin);
+      const s = m.stroom();
+      let uit = '';
+      for (let i = 0; i < weg.length; i += 3) uit += s.duw(weg.slice(i, i + 3));
+      uit += s.slot();
+      return uit === zin;
+    }],
+
     ['No iframe console errors',           () => iframeErrors.length === 0]
   ];
 

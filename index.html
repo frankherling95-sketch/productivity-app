@@ -11011,6 +11011,7 @@ function toggleAppInstellingen(e){
      API-key, opnieuw laden, een back-up terugzetten en notificaties zaten
      daar wel en hier niet. Op een bureaublad waren die dus onbereikbaar. */
   const key=(()=>{try{return localStorage.getItem(LS_GEMINI_KEY)||'';}catch(e){return '';}})();
+  const maskAan=aiMaskerenAan();
   m.innerHTML=`
     <div class="uren-menu-lab">Gegevens</div>
     <button class="uren-menu-item" role="menuitem" data-app-instel="verversen">
@@ -11030,6 +11031,9 @@ function toggleAppInstellingen(e){
     <button class="uren-menu-item" role="menuitem" data-app-instel="aikey">
       <span class="ic" aria-hidden="true">&#9881;</span>
       <span>Gemini API-key<small>${key?'Ingesteld op dit apparaat':'Nog niet ingesteld'}</small></span></button>
+    <button class="uren-menu-item" role="menuitem" data-app-instel="aimask">
+      <span class="ic" aria-hidden="true">&#9788;</span>
+      <span>Namen maskeren<small>${maskAan?'Aan — klantnamen gaan als code weg':'Uit — namen gaan onbewerkt mee'}</small></span></button>
     <button class="uren-menu-item" role="menuitem" data-app-instel="slim">
       <span class="ic" aria-hidden="true">&#10022;</span>
       <span>Slim toevoegen<small>Taken uit een zin laten halen</small></span></button>
@@ -11066,6 +11070,7 @@ document.addEventListener('click',e=>{
   if(wat==='verversen')refreshGist();
   if(wat==='herstel')document.getElementById('restoreFileInput')?.click();
   if(wat==='aikey')openGeminiKeyPrompt();
+  if(wat==='aimask')aiMaskerenWissel();
   if(wat==='slim')openQuickAddAI();
   if(wat==='review')openWeeklyReviewModal();
   if(wat==='notif')requestNotifPermission();
@@ -23245,10 +23250,166 @@ async function _aiParseErrorResponse(r){
   return msg;
 }
 
+/* ─ Anonimiseren — namen gaan gemaskeerd de deur uit ─────────────────
+   Wat Gemini te zien krijgt is "{{KLANT_1}}", niet "Staedion". De kaart
+   van token naar echte waarde blijft hier in de browser; het antwoord
+   wordt lokaal weer teruggezet. Dat scheelt de gevoeligste gegevens,
+   maar het is geen slot: bedragen, uren, deadlines en omschrijvingen
+   gaan onveranderd mee, en een naam die nergens in de klantenkaart
+   staat (een contactpersoon in een losse notitie) wordt niet herkend.
+
+   Alleen voor tekst. Een PDF of foto valt erbuiten -- bij de factuurscan
+   is het uitlezen van de naam juist de bedoeling, dus die vraagt er niet
+   om, en callGemini slaat het sowieso over zodra er een bestand meegaat.
+
+   Aan/uit staat in Instellingen; standaard aan. Heeft een klant een naam
+   die ook een gewoon woord is, dan wordt dat woord overal vervangen en
+   kan het antwoord er slechter van worden -- dan is de schakelaar de
+   uitweg. */
+const LS_AI_MASKEER='herling_ai_maskeren';
+function aiMaskerenAan(){
+  try{return localStorage.getItem(LS_AI_MASKEER)!=='uit';}catch(e){return true;}
+}
+function aiMaskerenWissel(){
+  const aan=aiMaskerenAan();
+  try{localStorage.setItem(LS_AI_MASKEER,aan?'uit':'aan');}catch(e){}
+  appToast(aan?'Namen gaan nu onbewerkt mee naar Gemini'
+              :'Namen worden voortaan gemaskeerd voor ze weggaan',
+           {type:aan?'warning':'success'});
+}
+
+/* Welke klantvelden gemaskeerd worden, en onder welk label. Kort spul
+   (minder dan 3 tekens) slaan we over: dat raakt te veel gewone tekst. */
+const AI_MASKEER_VELDEN=[
+  ['name','KLANT'],['bedrijfsnaam','KLANT'],['contactpersoon','PERSOON'],
+  ['email','MAIL'],['adres','ADRES'],['postcode','POSTCODE'],
+  ['kvk','KVK'],['btwNummer','BTW'],['iban','IBAN']
+];
+/* Wat niet in de klantenkaart staat maar wel een vaste vorm heeft. */
+const AI_MASKEER_PATRONEN=[
+  {label:'MAIL',re:/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g},
+  {label:'IBAN',re:/\b[A-Z]{2}\d{2}[A-Z0-9]{10,28}\b/g},
+  {label:'TEL', re:/\b(?:\+31[\s-]?|0)\d(?:[\s-]?\d){8}\b/g}
+];
+function _aiReQuote(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
+
+/* Alle te maskeren termen uit de klantenlijst, langste eerst -- anders
+   vervangt "Staedion" de eerste helft van "Staedion B.V." en blijft er
+   een halve naam staan. */
+function _aiMaskeerTermen(){
+  const gezien=new Set(),uit=[];
+  const lijst=(typeof kanbanState!=='undefined'&&kanbanState&&kanbanState.clients)||[];
+  lijst.forEach(c=>{
+    if(!c)return;
+    AI_MASKEER_VELDEN.forEach(([veld,label])=>{
+      const w=(c[veld]==null?'':String(c[veld])).trim();
+      if(w.length<3)return;
+      const sl=label+' '+w.toLowerCase();
+      if(gezien.has(sl))return;
+      gezien.add(sl);
+      uit.push({woord:w,label});
+    });
+  });
+  uit.sort((a,b)=>b.woord.length-a.woord.length);
+  return uit;
+}
+
+/* Tot waar een stuk stroomtekst veilig terugvertaald kan worden. Een
+   token kan halverwege afbreken -- "{{KLA" in de ene chunk, "NT_1}}" in
+   de volgende -- en moet dan blijven staan tot de rest binnen is. Alles
+   tot de eerste accolade die nog niet is afgesloten mag weg. */
+function _aiKnippunt(s){
+  const eind=s.lastIndexOf('}}');
+  const open=s.indexOf('{',eind>=0?eind+2:0);
+  return open<0?s.length:open;
+}
+
+/* Eén maskeerder per API-verzoek. Systeemprompt en gebruikerstekst gaan
+   door dezelfde kaart, anders krijgt de klantenlijst in de ene een ander
+   token dan de naam in de andere en kan het model ze niet meer aan
+   elkaar knopen. */
+function aiMaskerder(){
+  const kaart=new Map();      /* token -> originele waarde */
+  const omgekeerd=new Map();  /* waarde (klein) -> token    */
+  const tellers=Object.create(null);
+  const termen=_aiMaskeerTermen();
+  function token(label,waarde){
+    const sl=label+' '+waarde.toLowerCase();
+    if(omgekeerd.has(sl))return omgekeerd.get(sl);
+    tellers[label]=(tellers[label]||0)+1;
+    const t='{{'+label+'_'+tellers[label]+'}}';
+    omgekeerd.set(sl,t);kaart.set(t,waarde);
+    return t;
+  }
+  function maskeer(tekst){
+    if(!tekst)return tekst;
+    let uit=String(tekst);
+    termen.forEach(({woord,label})=>{
+      const re=new RegExp('(?<![\\p{L}\\p{N}])'+_aiReQuote(woord)+'(?![\\p{L}\\p{N}])','giu');
+      uit=uit.replace(re,m=>token(label,m));
+    });
+    AI_MASKEER_PATRONEN.forEach(({label,re})=>{
+      uit=uit.replace(re,m=>token(label,m));
+    });
+    return uit;
+  }
+  /* Het model schrijft een token soms net anders terug -- {{ KLANT_1 }},
+     {{klant 1}}, of zonder accolades. Alle drie worden herkend; wat niet
+     in de kaart staat blijft staan zoals het is. */
+  function ontmaskeer(tekst){
+    if(!tekst)return tekst;
+    let uit=String(tekst);
+    uit=uit.replace(/\{\{\s*([A-Za-z]+)[\s_-]*(\d+)\s*\}\}/g,(m,label,nr)=>{
+      const t='{{'+label.toUpperCase()+'_'+nr+'}}';
+      return kaart.has(t)?kaart.get(t):m;
+    });
+    uit=uit.replace(/\b([A-Z]{3,12})_(\d+)\b/g,(m,label,nr)=>{
+      const t='{{'+label+'_'+nr+'}}';
+      return kaart.has(t)?kaart.get(t):m;
+    });
+    return uit;
+  }
+  /* Een JSON-antwoord komt binnen als object: elke string erin terug
+     vertalen, sleutels incluis (een antwoord kan op klantnaam groeperen). */
+  function ontmaskeerDiep(w){
+    if(typeof w==='string')return ontmaskeer(w);
+    if(Array.isArray(w))return w.map(ontmaskeerDiep);
+    if(w&&typeof w==='object'){
+      const uit={};
+      Object.keys(w).forEach(k=>{uit[ontmaskeer(k)]=ontmaskeerDiep(w[k]);});
+      return uit;
+    }
+    return w;
+  }
+  /* Terugvertalen terwijl de tekst binnendruppelt. duw() geeft terug wat
+     veilig is, slot() de rest die nog werd vastgehouden. */
+  function stroom(){
+    let rest='';
+    return {
+      duw:(chunk)=>{
+        rest+=chunk;
+        const knip=_aiKnippunt(rest);
+        const klaar=rest.slice(0,knip);
+        rest=rest.slice(knip);
+        return ontmaskeer(klaar);
+      },
+      slot:()=>{const r=ontmaskeer(rest);rest='';return r;}
+    };
+  }
+  return {maskeer,ontmaskeer,ontmaskeerDiep,stroom,kaart};
+}
+
 /* ─ Generic Gemini API caller (sync JSON) ─ */
-async function callGemini({system,user,schema,bestand,temperature=0.2}){
+async function callGemini({system,user,schema,bestand,temperature=0.2,maskeer=false}){
   const key=localStorage.getItem(LS_GEMINI_KEY);
   if(!key)throw new Error('Geen Gemini API-key ingesteld. Klik op ⚙ API-key.');
+  /* Namen eruit voor het verzoek de deur uit gaat, en er weer in zodra
+     het antwoord terug is. Beide prompts door dezelfde kaart, zie
+     aiMaskerder(). Gaat er een bestand mee, dan slaan we het over: een
+     PDF valt niet te maskeren en de klantenlijst in de systeemprompt
+     moet dan juist leesbaar blijven om ertegen te kunnen matchen. */
+  const masker=(maskeer&&!bestand&&aiMaskerenAan())?aiMaskerder():null;
+  if(masker){system=masker.maskeer(system);user=masker.maskeer(user);}
   /* Een PDF of foto gaat als tweede deel mee in hetzelfde verzoek. Flash
      leest een PDF rechtstreeks, dus er hoeft geen bibliotheek bij om er
      eerst tekst of plaatjes uit te halen. */
@@ -23284,14 +23445,18 @@ async function callGemini({system,user,schema,bestand,temperature=0.2}){
     const reason=data.candidates?.[0]?.finishReason||'onbekend';
     throw new Error('Lege response (reason: '+reason+')');
   }
-  try{return JSON.parse(text);}catch(e){throw new Error('Gemini gaf ongeldige JSON');}
+  let uit;
+  try{uit=JSON.parse(text);}catch(e){throw new Error('Gemini gaf ongeldige JSON');}
+  return masker?masker.ontmaskeerDiep(uit):uit;
 }
 
 /* ─ Streaming Gemini caller — async iterator die chunks yielded ─
    Gebruikt voor de wekelijkse review: tekst verschijnt woord voor woord. */
-async function* _streamGemini({system,user,temperature=0.5}){
+async function* _streamGemini({system,user,temperature=0.5,maskeer=false}){
   const key=localStorage.getItem(LS_GEMINI_KEY);
   if(!key)throw new Error('Geen Gemini API-key ingesteld. Klik op ⚙ API-key.');
+  const masker=(maskeer&&aiMaskerenAan())?aiMaskerder():null;
+  if(masker){if(system)system=masker.maskeer(system);user=masker.maskeer(user);}
   const body={
     contents:[{role:'user',parts:[{text:user}]}],
     generationConfig:{temperature}
@@ -23308,6 +23473,9 @@ async function* _streamGemini({system,user,temperature=0.5}){
   _aiBumpUsage();
   const reader=r.body.getReader();
   const decoder=new TextDecoder();
+  /* Terugvertalen gebeurt hier, niet bij de ontvanger: die plakt de
+     chunks aan elkaar en rendert ze, en krijgt dus meteen echte namen. */
+  const terug=masker?masker.stroom():null;
   let buffer='';
   while(true){
     const {done,value}=await reader.read();
@@ -23323,11 +23491,16 @@ async function* _streamGemini({system,user,temperature=0.5}){
         try{
           const data=JSON.parse(line.slice(6));
           const chunk=data.candidates?.[0]?.content?.parts?.[0]?.text;
-          if(chunk)yield chunk;
+          if(!chunk)continue;
+          if(!terug){yield chunk;continue;}
+          const stuk=terug.duw(chunk);
+          if(stuk)yield stuk;
         }catch(e){/* malformed event, skip */}
       }
     }
   }
+  /* Wat werd vastgehouden omdat het een half token kon zijn. */
+  if(terug){const rest=terug.slot();if(rest)yield rest;}
 }
 
 /* ─ API-key beheer ─ */
@@ -23435,7 +23608,7 @@ async function parseQuickAddAI(){
   applyBtn.style.display='none';
   try{
     const system=_buildQuickAddSystemPrompt();
-    const data=await callGemini({system,user:input});
+    const data=await callGemini({system,user:input,maskeer:true});
     /* Defensieve normalisatie — Gemini kan velden weglaten of fout-getypeerd retourneren */
     const tasks=Array.isArray(data.tasks)?data.tasks.filter(t=>t&&t.text).map(t=>{
       /* Subtasks: filter naar string-array, max 10 om over-eager AI te begrenzen */
@@ -23888,7 +24061,7 @@ async function generateWeeklyReview(){
     const prompt=_buildWeeklyReviewPrompt(_weeklyReviewMeta);
     let fullText='';
     let lastRender=0;
-    for await (const chunk of _streamGemini({user:prompt,temperature:0.5})){
+    for await (const chunk of _streamGemini({user:prompt,temperature:0.5,maskeer:true})){
       fullText+=chunk;
       /* Throttle marked.parse calls naar max 10 fps voor performance */
       const now=Date.now();
@@ -24141,6 +24314,11 @@ window.closeQuickAddAI=closeQuickAddAI;
 window.parseQuickAddAI=parseQuickAddAI;
 window.applyQuickAddAI=applyQuickAddAI;
 window.openGeminiKeyPrompt=openGeminiKeyPrompt;
+/* Ook naar buiten zodat je in de console kunt kijken wat er écht weggaat:
+   aiMaskerder().maskeer('rapport voor <klantnaam>') */
+window.aiMaskerenAan=aiMaskerenAan;
+window.aiMaskerenWissel=aiMaskerenWissel;
+window.aiMaskerder=aiMaskerder;
 window.openWeeklyReviewModal=openWeeklyReviewModal;
 window.closeWeeklyReviewModal=closeWeeklyReviewModal;
 window.generateWeeklyReview=generateWeeklyReview;
