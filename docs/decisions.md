@@ -10,6 +10,53 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-08 · Bij een 503 wachten we nu net zo lang als we beloven
+
+**Probleem.** Een factuur uit een stapel viel om met *"Gemini-server tijdelijk
+niet beschikbaar (status 503). Probeer over een minuut opnieuw."* 503 is
+overbelasting aan Google's kant — niet een te zwaar verzoek (dat geeft 400) en
+niet een limiet (429). Op de gratis laag komt het regelmatig voor.
+
+**Twee dingen aan onze kant maakten het erger.** De herkansing in `callGemini()`
+wachtte 1,2s en 3,5s: samen krap vijf seconden, terwijl de melding eronder
+"probeer over een minuut opnieuw" zei. En de wachtrij van vanochtend vuurde de
+bestanden zonder tussenruimte achter elkaar de deur uit — precies het ritme
+waarop een overbelaste server je afwijst.
+
+**Beslissing.** Drie dingen:
+1. Eén gedeelde `_geminiFetch()` voor de gewone én de streaming-aanroep, met
+   vier pogingen die oplopen (2s, 5s, 12s) en ruis erop, zodat een stapel niet
+   synchroon tegen dezelfde dichte deur loopt. De streaming-kant had daarvóór
+   helemaal geen herkansing.
+2. Een adempauze tussen twee bestanden (700ms), en 6s als het net misging omdat
+   het druk was.
+3. Een tweede ronde aan het eind van de stapel voor wat *tijdelijk* misging,
+   zodat je er zelf niets voor hoeft te doen.
+
+**Waarom alleen bij 503 en niet bij 500.** Een 500 kan aan het verzoek zelf
+liggen; dan is vier keer hetzelfde sturen zonde van de tijd én van je quotum.
+Voor de vraag of iets later nog eens geprobeerd mag worden geldt een ruimere
+regel (`_aiTijdelijk()`: netwerkfout, 429, 5xx) — dat is een andere afweging,
+want daar zit al een lange pauze tussen.
+
+**Waarom niet alles automatisch herkansen.** Alleen bestanden die je nog niet in
+beeld hebt gehad. Heb je de foutmelding gezien, dan kun je het formulier
+ondertussen met de hand hebben ingevuld, en dat mag een late scan niet
+overschrijven. Daar blijft de knop "probeer opnieuw" voor.
+
+**Bewijs.** 30 tests op de API-kant (twee keer 503 dan raak, vier pogingen en
+dan opgeven met de juiste melding en statuscode, een 4xx die níet herhaald
+wordt, netwerkfout herkend) en 37 op de wachtrij, waaronder de stille tweede
+ronde, het overslaan van blijvende fouten, en dat een al getoonde fout met rust
+wordt gelaten.
+
+**Bestanden**: `index.html` — `_geminiFetch()`/`_aiTijdelijk()`/`GEMINI_WACHT`,
+`facScanLus()` met pauzes en tweede ronde; `sw.js` → `herling-v78`
+
+**Niet doen**: de wachttijden verder oprekken om 503 helemaal weg te krijgen.
+Voorbij een halve minuut per bestand wordt een stapel onwerkbaar; de echte
+oplossing voor structurele drukte is de betaalde laag.
+
 ## 2026-09-08 · Een stapel facturen inscannen, één voor één nakijken
 
 **Probleem.** De scanner las één bestand per keer. Voor het bijwerken van een
