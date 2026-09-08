@@ -6884,7 +6884,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v1.84</span>
+        <span class="app-versie" title="Appversie">v1.85</span>
       </div>
     </div>
   </aside>
@@ -7602,7 +7602,7 @@ textarea { line-height: 1.6; resize: vertical; }
   </div>
 </div>
 
-<input type="file" id="facScanInput" accept="application/pdf,image/*" multiple style="display:none"/>
+<input type="file" id="facScanInput" accept="application/pdf,image/png,image/jpeg,image/webp,image/heic,image/heif" multiple style="display:none"/>
 
 <!-- ── Inleeslogboek ── -->
 <div class="modal-bg" id="facScanLogModal">
@@ -20720,14 +20720,36 @@ function factuurOudToevoegen(g){
    plaats van jij. Wat eruit komt is een voorstel: je ziet elk veld en drukt
    zelf op Opslaan. Eén verkeerd overgenomen bedrag zit anders meteen in je
    btw-aangifte. */
-const FAC_SCAN_MAX=12*1024*1024;   /* boven ~12 MB weigert het verzoek */
+/* Een bestand gaat als base64 mee in het verzoek zelf, en dat maakt het een
+   derde groter. Google's grens ligt op 20 MB voor het hele verzoek, dus
+   12 MB aan bestand (→ ~16 MB) is de veilige kant daarvan. */
+const FAC_SCAN_MAX=12*1024*1024;
+/* Wat we meesturen als mime-type. file.type is niet te vertrouwen: een PDF
+   uit Drive komt binnen als application/octet-stream en een foto van een
+   telefoon soms zonder type. Stond er dan "application/pdf" op een JPG, dan
+   kwam er een 400 terug die naar de factuur leek te wijzen in plaats van
+   naar ons. Gemini leest PDF, PNG, JPEG, WEBP, HEIC en HEIF; de rest heeft
+   geen zin om te versturen -- dat kost een verzoek uit je dagquotum voor een
+   antwoord dat je van tevoren weet. */
+const FAC_SCAN_TYPES={'application/pdf':1,'image/png':1,'image/jpeg':1,
+  'image/webp':1,'image/heic':1,'image/heif':1};
+const FAC_SCAN_EXT={pdf:'application/pdf',png:'image/png',jpg:'image/jpeg',
+  jpeg:'image/jpeg',webp:'image/webp',heic:'image/heic',heif:'image/heif'};
+function facScanMime(file){
+  const t=String((file&&file.type)||'').toLowerCase().split(';')[0].trim();
+  if(FAC_SCAN_TYPES[t])return t;
+  if(t==='image/jpg')return 'image/jpeg';      /* komt voor, bestaat niet */
+  const ext=String((file&&file.name)||'').split('.').pop().toLowerCase();
+  return FAC_SCAN_EXT[ext]||'';
+}
 let facOudBezig=false;             /* leest hij nu een bestand? */
 let facOudBron='';                 /* bestandsnaam, als bewijs van herkomst */
 /* Je kunt een stapel tegelijk kiezen. Ze worden één voor één gelezen --
-   niet parallel: de gratis laag staat 15 verzoeken per minuut toe, en een
-   stapel van twintig zou daar dwars doorheen lopen. Het lezen draait op de
-   achtergrond dóór terwijl jij de vorige nakijkt, dus na de eerste is er
-   in de praktijk geen wachttijd meer.
+   niet parallel: hoeveel verzoeken per minuut de gratis laag toestaat is
+   niet gepubliceerd en verschilt per model, en een stapel van twintig loopt
+   daar hoe dan ook dwars doorheen. De rem in _geminiSlot() bepaalt het
+   tempo. Het lezen draait op de achtergrond dóór terwijl jij de vorige
+   nakijkt, dus na de eerste is er in de praktijk geen wachttijd meer.
 
    Nakijken blijft per factuur: één verkeerd overgenomen bedrag zit anders
    in je btw-aangifte. Een stapel verandert daar niets aan -- alleen het
@@ -20828,12 +20850,16 @@ function facScanStart(files){
   /* Een te groot bestand houdt de stapel niet tegen; het krijgt gewoon zijn
      eigen foutregel en je kunt eroverheen. */
   facScanRij=files.map(f=>{
-    const teGroot=f.size>FAC_SCAN_MAX;
-    return {naam:f.name,file:f,
-      status:teGroot?'fout':'wacht',
-      fout:teGroot?`${(f.size/1048576).toFixed(1)} MB — maximaal 12 MB`:'',
-      /* Te groot is niet tijdelijk: dat bestand wordt over een minuut niet
-         kleiner, dus dat krijgt geen automatische herkansing. */
+    const mime=facScanMime(f);
+    const fout=f.size>FAC_SCAN_MAX
+      ? `${(f.size/1048576).toFixed(1)} MB — maximaal 12 MB`
+      : !mime
+        ? `dit soort bestand kan niet gelezen worden — maak er een PDF of foto van`
+        : '';
+    return {naam:f.name,file:f,mime,
+      status:fout?'fout':'wacht', fout,
+      /* Te groot of een verkeerd soort bestand is niet tijdelijk: dat wordt
+         over een minuut niet anders, dus geen automatische herkansing. */
       tijdelijk:false,opgegeven:false,
       data:null,getoond:false};
   });
@@ -20886,7 +20912,7 @@ async function facScanLus(){
         if(facScanRij[facScanIdx]===post)facScanToon();
         try{
           const data=await facScanBestandNaarBase64(post.file);
-          post.data=await facScanVraagGemini({mime:post.file.type||'application/pdf',data});
+          post.data=await facScanVraagGemini({mime:post.mime||facScanMime(post.file),data});
           post.status='klaar';
         }catch(e){
           post.status='fout';
@@ -21024,6 +21050,43 @@ function facScanLogRender(){
     </div>`;
   }).join('');
 }
+/* ─ Wat er terugkomt is tekst, ook als je om een getal vraagt ─────────
+   De prompt vraagt om 1234.56, maar een model dat een Nederlandse factuur
+   leest geeft geregeld "1.234,56" of "€ 1.234,56" terug. Number() maakt daar
+   NaN van, en dan stond het bedrag leeg zonder dat iets zei waarom -- precies
+   het veld waarvoor je het inscannen deed.
+
+   Welk teken het decimaalteken is, zegt de laatste van de twee: bij
+   "1.234,56" de komma, bij "1,234.56" de punt. Staat er maar één en volgen er
+   precies drie cijfers, dan is het een duizendtal ("1.234" = 1234). */
+function facScanBedrag(v){
+  if(typeof v==='number')return isFinite(v)?v:0;
+  let s=String(v==null?'':v).replace(/[^\d,.-]/g,'');
+  if(!s)return 0;
+  const k=s.lastIndexOf(','),p=s.lastIndexOf('.');
+  if(k>=0&&p>=0)s=k>p?s.replace(/\./g,'').replace(',','.'):s.replace(/,/g,'');
+  else if(k>=0)s=/,\d{3}$/.test(s)?s.replace(/,/g,''):s.replace(',','.');
+  else if(/\.\d{3}$/.test(s))s=s.replace(/\./g,'');
+  const n=Number(s);
+  return isFinite(n)?n:0;
+}
+/* Zelfde verhaal voor de datum: gevraagd wordt YYYY-MM-DD, maar op de factuur
+   staat 31-03-2026 en dat neemt een model soms over. Dat viel buiten het
+   patroon en werd dus vandaag -- terwijl de goede datum er gewoon stond, in
+   de Nederlandse volgorde. Die lezen we nu ook. Lukt het echt niet, dan blijft
+   het vandaag (de aanroeper vult dat aan), net als bij een lege invoer. */
+function facScanDatum(v){
+  const s=String(v||'').trim();
+  let m=s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+  if(!m){
+    const nl=s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
+    if(nl)m=[nl[0],nl[3],nl[2],nl[1]];      /* dag-maand-jaar, Nederlands */
+  }
+  if(!m)return '';
+  const mnd=Number(m[2]),dag=Number(m[3]);
+  if(mnd<1||mnd>12||dag<1||dag>31)return '';
+  return m[1]+'-'+String(mnd).padStart(2,'0')+'-'+String(dag).padStart(2,'0');
+}
 function facScanBestandNaarBase64(file){
   return new Promise((res,rej)=>{
     const r=new FileReader();
@@ -21065,9 +21128,9 @@ ${klanten||'(nog geen klanten)'}`;
   const d=await callGemini({system,user:'Lees deze factuur uit.',bestand,temperature:0});
   /* Alles wat terugkomt is een voorstel, dus normaliseren en begrenzen. */
   const btw=['21','9','0','verlegd'].includes(String(d.btw))?String(d.btw):'21';
-  const datum=/^\d{4}-\d{2}-\d{2}$/.test(String(d.datum||''))?String(d.datum):'';
+  const datum=facScanDatum(d.datum);
   const bekend=(kanbanState.clients||[]).some(c=>c.id===d.clientId);
-  const excl=Number(d.excl);
+  const excl=facScanBedrag(d.excl);
   return {
     nummer:String(d.nummer||'').trim(),
     datum:datum||dateStr(new Date()),
@@ -23629,42 +23692,148 @@ function facExportBoekhouding(){
    ═══════════════════════════════════════════════════════════════════ */
 const LS_GEMINI_KEY='herling_gemini_api_key';
 const LS_AI_USAGE='herling_ai_usage';
-/* NIET meer 'gemini-flash-latest'. Die alias wijst altijd naar de nieuwste
-   Flash, en juist het nieuwste model heeft de krapste gratis laag: op
-   8 september 2026 was het dagquotum na ~23 verzoeken op, terwijl voor de
-   vorige Flash 1.500 per dag gold. Op een gratis laag wil je dus geen
-   "latest" volgen -- dan verandert je plafond zonder dat je iets doet.
+/* ─ Welk model, en wat als het er niet meer is ────────────────────────
+   Twee keer achter elkaar liep het hier vast, om twee verschillende redenen:
 
-   Vastgezet op een model met een bruikbare gratis laag, en te wisselen via
-   Instellingen als je iets anders wilt proberen. */
-const GEMINI_MODEL_STANDAARD='gemini-2.5-flash';
+   1. 'gemini-flash-latest' volgt altijd de nieuwste Flash, en juist die
+      heeft de krapste gratis laag -- het dagquotum was na ~23 verzoeken op.
+   2. Daarna vastgezet op 'gemini-2.5-flash'. Dat model bestaat nog voor wie
+      het al gebruikte, maar Google laat er geen nieuwe projecten meer op
+      toe: "no longer available to new users".
+
+   Eén vaste naam is dus net zo breekbaar als een alias -- hij breekt alleen
+   op een ander moment. Daarom staat er nu een voorkeursvolgorde, en stapt de
+   app zelf door naar de volgende zodra Google er een dichtzet (zie
+   _geminiVolgendModel). Wélke modellen deze sleutel mag gebruiken vraagt hij
+   dan op bij Google zelf; dat is het enige antwoord dat telt.
+
+   De volgorde begint bewust niet bij het nieuwste. Nieuw is duur en dus krap
+   op de gratis laag, en een generatie terug leest een factuur even goed. */
+const GEMINI_MODEL_STANDAARD='gemini-3.5-flash';
 const LS_GEMINI_MODEL='herling_gemini_model';
-/* Wat je zonder typwerk kunt kiezen. De eerste is de standaard. */
+/* Terugvalvolgorde: gewone Flash eerst, de -lite's achteraan. Die zijn het
+   ruimst op de gratis laag maar zetten een bedrag vaker op de verkeerde
+   regel, en dat is bij een factuur duurder dan wachten. */
+const GEMINI_TERUGVAL=[
+  'gemini-3.5-flash','gemini-3.6-flash','gemini-3.7-flash','gemini-3.8-flash',
+  'gemini-3.5-flash-lite','gemini-3.1-flash-lite'
+];
+/* Wat je zonder typwerk kunt kiezen, met wat het je kost of oplevert. */
 const GEMINI_MODELLEN=[
-  ['gemini-2.5-flash','ruime gratis laag, leest PDF goed'],
-  ['gemini-2.5-flash-lite','nog ruimer en sneller, iets minder nauwkeurig'],
-  ['gemini-flash-latest','altijd het nieuwste — maar krappe gratis laag']
+  ['gemini-3.5-flash','een generatie terug — ruimste gratis laag van de gewone Flash'],
+  ['gemini-3.5-flash-lite','sneller en nog ruimer, iets minder nauwkeurig'],
+  ['gemini-3.6-flash','nieuwer, krappere gratis laag'],
+  ['gemini-3.8-flash','het nieuwste — krapste gratis laag']
 ];
 function geminiModel(){
   try{return localStorage.getItem(LS_GEMINI_MODEL)||GEMINI_MODEL_STANDAARD;}
   catch(e){return GEMINI_MODEL_STANDAARD;}
 }
-function openGeminiModelPrompt(){
+function geminiZetModel(m){
+  try{
+    if(!m||m===GEMINI_MODEL_STANDAARD)localStorage.removeItem(LS_GEMINI_MODEL);
+    else localStorage.setItem(LS_GEMINI_MODEL,m);
+  }catch(e){}
+}
+/* Gemini 3 denkt standaard na en kent thinkingLevel; 2.5 kent alleen
+   thinkingBudget. Een veld dat het model niet kent is een 400, dus kijken. */
+function geminiIsDrie(m){return /^gemini-3/.test(m||'');}
+
+/* De modellenlijst van Google zelf. De documentatie noemt modellen die jouw
+   project niet krijgt, en laat er weg die je wél hebt; supportedGeneration-
+   Methods zegt bovendien of dit model door deze ingang te bereiken is. */
+async function geminiHaalModellen(){
+  const key=localStorage.getItem(LS_GEMINI_KEY);
+  if(!key)throw new Error('Geen Gemini API-key ingesteld. Klik op ⚙ API-key.');
+  const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models'
+    +'?pageSize=200&key='+encodeURIComponent(key));
+  if(!r.ok)throw new Error((await _aiParseErrorResponse(r)).msg);
+  const j=await r.json();
+  return (j.models||[])
+    .filter(m=>{
+      const kan=m&&m.supportedGenerationMethods;
+      /* Ontbreekt het veld, dan niet wegfilteren -- liever een model te veel
+         in de lijst dan een werkend model eruit. */
+      return !Array.isArray(kan)||kan.includes('generateContent');
+    })
+    .map(m=>String((m&&m.name)||'').replace(/^models\//,''))
+    .filter(Boolean);
+}
+/* Versies vergelijken per cijfergroep, niet als kommagetal: 3.10 komt ná
+   3.8, en als getal is 3.10 juist kleiner. */
+function _geminiVersie(naam){
+  const m=String(naam).match(/^gemini-([\d.]+)-/);
+  return m?m[1].split('.').map(Number):[0];
+}
+/* Oudste eerst. Op de gratis laag is oud juist wat je wilt: het plafond ligt
+   er hoger en een factuur uitlezen vraagt niet om het nieuwste model. */
+function geminiFlashModellen(namen){
+  return (namen||[]).filter(n=>/^gemini-[\d.]+-flash(-lite)?$/.test(n))
+    .sort((a,b)=>{
+      const x=_geminiVersie(a),y=_geminiVersie(b);
+      for(let i=0;i<Math.max(x.length,y.length);i++){
+        const d=(x[i]||0)-(y[i]||0);
+        if(d)return d;
+      }
+      return a.localeCompare(b);
+    });
+}
+/* "no longer available to new users", "is not found", "not supported for
+   generateContent" -- allemaal hetzelfde probleem: dít model kun je niet
+   (meer) gebruiken. Alleen de ruwe tekst van Google telt hier; onze eigen
+   vertaling zou de woorden juist weghalen. */
+function _geminiModelWeg(status,ruw){
+  if(status!==400&&status!==404)return false;
+  return /no longer available|not found|is not supported|not supported for|does not exist|deprecated|retired/i.test(ruw||'');
+}
+/* Het model dat we net gebruikten mag niet meer. Zoek het beste alternatief
+   dat deze sleutel wél heeft en onthoud het -- anders loopt elke volgende
+   factuur uit de stapel tegen dezelfde muur. */
+async function _geminiVolgendModel(kapot){
+  let beschikbaar=[];
+  try{beschikbaar=await geminiHaalModellen();}catch(e){/* dan blind verder */}
+  const kandidaten=beschikbaar.length
+    ? GEMINI_TERUGVAL.filter(m=>beschikbaar.includes(m))
+        .concat(geminiFlashModellen(beschikbaar))
+    : GEMINI_TERUGVAL.slice();
+  const nieuw=kandidaten.find(m=>m&&m!==kapot);
+  if(!nieuw)return '';
+  geminiZetModel(nieuw);
+  return nieuw;
+}
+async function openGeminiModelPrompt(){
   const nu=geminiModel();
-  const lijst=GEMINI_MODELLEN.map(([m,uitleg])=>`  ${m}\n     ${uitleg}`).join('\n');
-  const v=prompt(
-    'Welk Gemini-model gebruikt de app?\n\n'+lijst+'\n\n'+
-    'Een "-latest"-alias volgt het nieuwste model; die hebben op de gratis\n'+
-    'laag vaak een veel lager dagquotum. Leeg = terug naar de standaard.',
+  let regels=GEMINI_MODELLEN.map(([m,uitleg])=>`  ${m}\n     ${uitleg}`);
+  let kop='Welk Gemini-model gebruikt de app?';
+  try{
+    const flash=geminiFlashModellen(await geminiHaalModellen());
+    if(flash.length){
+      regels=flash.map(m=>{
+        const uitleg=(GEMINI_MODELLEN.find(x=>x[0]===m)||[])[1];
+        return '  '+m+(uitleg?'\n     '+uitleg:'');
+      });
+      kop='Deze Flash-modellen mag jouw sleutel gebruiken (oudste eerst):';
+    }
+  }catch(e){
+    kop='Welk Gemini-model gebruikt de app?\n(de lijst ophalen bij Google lukte niet: '+e.message+')';
+  }
+  const v=prompt(kop+'\n\n'+regels.join('\n')+'\n\n'+
+    'Hoe nieuwer het model, hoe krapper de gratis laag.\n'+
+    'Leeg = terug naar '+GEMINI_MODEL_STANDAARD+'.',
     nu
   );
   if(v===null)return;
-  const gekozen=(v||'').trim();
+  geminiZetModel((v||'').trim());
+  const m=geminiModel();
+  /* Meteen uitproberen. Een naam die niet bestaat merk je anders pas als je
+     een factuur inleest, en dan lijkt het aan die factuur te liggen. */
+  appToast('Model: '+m+' — even proberen…',{type:'info',duration:2500});
   try{
-    if(!gekozen)localStorage.removeItem(LS_GEMINI_MODEL);
-    else localStorage.setItem(LS_GEMINI_MODEL,gekozen);
-  }catch(e){}
-  appToast('Model: '+geminiModel(),{type:'success',duration:3000});
+    await callGemini({user:'Antwoord met {"ok":true}',temperature:0,geenTerugval:true});
+    appToast('Model '+m+' werkt',{type:'success',duration:3000});
+  }catch(e){
+    appToast('Model '+m+': '+e.message,{type:'error',duration:12000});
+  }
 }
 /* State */
 let _quickAddAIResult=null;        /* tijdelijke buffer tussen parse en apply */
@@ -23774,7 +23943,9 @@ async function _aiParseErrorResponse(r){
       +'sleutel bij een Workspace-account, dan is de gratis laag daar vaak niet beschikbaar '
       +'— maak er dan een met een persóónlijk Google-account.';
   if(r.status>=500)msg='Gemini-server tijdelijk niet beschikbaar (status '+r.status+'). Probeer over een minuut opnieuw.';
-  return {msg,perDag,wacht};
+  /* `ruw` gaat mee omdat de vertaling hierboven juist de woorden weghaalt
+     waaraan _geminiModelWeg() een ingetrokken model herkent. */
+  return {msg,ruw,perDag,wacht};
 }
 
 /* ─ Eén ingang naar de API, met een rem ──────────────────────────────
@@ -23867,17 +24038,40 @@ function _geminiRemOmhoog(){
   _geminiPerMin=Math.min(GEMINI_MAX_PER_MIN,_geminiPerMin+1);
   _geminiTempoBewaar();
 }
-async function _geminiFetch(url,body){
-  let drukte=0,limiet=0;
+/* De ingang wordt hier opgebouwd en niet door de aanroeper meegegeven, want
+   dan kan deze functie van model wisselen zonder dat er iets van weet. */
+function _geminiUrl(model,methode,extra){
+  const key=localStorage.getItem(LS_GEMINI_KEY)||'';
+  return 'https://generativelanguage.googleapis.com/v1beta/models/'
+    +encodeURIComponent(model)+':'+methode
+    +'?'+(extra?extra+'&':'')+'key='+encodeURIComponent(key);
+}
+/* Een verzoek dat blijft hangen hield de hele stapel tegen: geen fout, geen
+   antwoord, alleen een spinner. Twee minuten is ruim voor een PDF van tien
+   bladzijden en kort genoeg om de rest van de stapel niet te gijzelen. */
+const GEMINI_TIJDLIMIET=120000;
+async function _geminiFetch(methode,body,opties){
+  const extra=(opties&&opties.extra)||'';
+  let drukte=0,limiet=0,gewisseld=false;
   for(;;){
     await _geminiSlot();
+    const model=geminiModel();
     let r;
+    const stop=new AbortController();
+    const wekker=setTimeout(()=>stop.abort(),GEMINI_TIJDLIMIET);
     try{
-      r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},
-                         body:JSON.stringify(body)});
+      r=await fetch(_geminiUrl(model,methode,extra),
+        {method:'POST',headers:{'Content-Type':'application/json'},
+         body:JSON.stringify(body),signal:stop.signal});
     }catch(e){
-      const err=new Error('Geen verbinding met Gemini: '+(e.message||'netwerkfout'));
+      const err=new Error(e&&e.name==='AbortError'
+        ? 'Gemini antwoordde niet binnen twee minuten.'
+        : 'Geen verbinding met Gemini: '+(e.message||'netwerkfout'));
       err.netwerk=true;throw err;
+    }finally{
+      /* Alleen de kop van het antwoord staat onder de klok. Bij een stroom
+         (streamGenerateContent) loopt het lezen daarna gewoon door. */
+      clearTimeout(wekker);
     }
     /* Élke poging telt mee in de badge, ook een mislukte -- ze belasten
        allemaal je quotum. Dat het alleen de gelukte telde is precies waarom
@@ -23885,6 +24079,27 @@ async function _geminiFetch(url,body){
     _aiBumpUsage();
     if(r.ok){_geminiRemOmhoog();return r;}
     const fout=await _aiParseErrorResponse(r);   /* body kan maar één keer */
+    /* Een model dat Google heeft ingetrokken is geen fout van dít verzoek en
+       gaat vanzelf niet over. Eén keer overstappen en opnieuw proberen; de
+       nieuwe keuze wordt onthouden, zodat de rest van de stapel niet tegen
+       dezelfde muur loopt. */
+    if(!gewisseld&&!(opties&&opties.geenTerugval)&&_geminiModelWeg(r.status,fout.ruw)){
+      gewisseld=true;
+      const nieuw=await _geminiVolgendModel(model);
+      if(nieuw){
+        /* thinkingLevel bestaat alleen op Gemini 3. Het verzoek was voor het
+           oude model opgebouwd, dus het veld moet mee verhuizen: eraf bij een
+           ouder model (daar is het een 400), erop bij een 3 -- anders denkt
+           juist die eerste na de wissel weer op volle sterkte na. */
+        if(body&&body.generationConfig){
+          if(geminiIsDrie(nieuw))body.generationConfig.thinkingConfig={thinkingLevel:'low'};
+          else delete body.generationConfig.thinkingConfig;
+        }
+        appToast('Model '+model+' kan niet meer — overgestapt op '+nieuw,
+          {type:'warning',duration:9000});
+        continue;
+      }
+    }
     if(r.status===503&&drukte<GEMINI_WACHT.length){
       await _geminiPauze(fout.wacht||_geminiRuis(GEMINI_WACHT[drukte++]));
       continue;
@@ -24057,7 +24272,7 @@ function aiMaskerder(){
 }
 
 /* ─ Generic Gemini API caller (sync JSON) ─ */
-async function callGemini({system,user,schema,bestand,temperature=0.2,maskeer=false}){
+async function callGemini({system,user,schema,bestand,temperature=0.2,maskeer=false,geenTerugval=false}){
   const key=localStorage.getItem(LS_GEMINI_KEY);
   if(!key)throw new Error('Geen Gemini API-key ingesteld. Klik op ⚙ API-key.');
   /* Namen eruit voor het verzoek de deur uit gaat, en er weer in zodra
@@ -24078,22 +24293,58 @@ async function callGemini({system,user,schema,bestand,temperature=0.2,maskeer=fa
   };
   if(system)body.systemInstruction={parts:[{text:system}]};
   if(schema)body.generationConfig.responseSchema=schema;
+  /* Gemini 3 denkt standaard "medium" na en dat denkwerk telt mee als uitvoer.
+     Bij het uitlezen van een factuur is dat verspilde ruimte op een krappe
+     gratis laag: er valt niets te overwegen, alleen af te lezen. "low" is het
+     laagste dat Flash 3 aankan -- helemaal uit kan daar niet meer. Op 2.5
+     bestaat het veld niet en is het een 400, dus alleen bij een 3. */
+  if(geminiIsDrie(geminiModel()))
+    body.generationConfig.thinkingConfig={thinkingLevel:'low'};
   /* 503 betekent dat Google het even te druk heeft, niet dat er iets mis is
      met je verzoek of je sleutel -- op de gratis laag komt dat regelmatig
      voor. Het geduld zit in _geminiFetch(). */
-  const r=await _geminiFetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel()}:generateContent?key=${encodeURIComponent(key)}`,
-    body);
+  const r=await _geminiFetch('generateContent',body,{geenTerugval});
   /* Tellen gebeurt in _geminiFetch(), per poging. */
   const data=await r.json();
-  const text=data.candidates?.[0]?.content?.parts?.[0]?.text||'';
-  if(!text){
-    const reason=data.candidates?.[0]?.finishReason||'onbekend';
-    throw new Error('Lege response (reason: '+reason+')');
-  }
-  let uit;
-  try{uit=JSON.parse(text);}catch(e){throw new Error('Gemini gaf ongeldige JSON');}
+  const text=_geminiTekst(data);
+  if(!text)throw new Error(_geminiLeegUitleg(data));
+  const uit=_geminiJson(text);
   return masker?masker.ontmaskeerDiep(uit):uit;
+}
+
+/* ─ Het antwoord uit de body vissen ──────────────────────────────────
+   Niet parts[0]: een denkend model (Gemini 3) zet zijn samenvatting als
+   eigen part met thought:true ervóór, en lange antwoorden komen in stukken.
+   Alles wat geen gedachte is aan elkaar plakken klopt in beide gevallen --
+   parts[0] pakken levert bij Gemini 3 het denkwerk op in plaats van de JSON. */
+function _geminiTekst(data){
+  const parts=data?.candidates?.[0]?.content?.parts||[];
+  return parts.filter(p=>p&&p.thought!==true&&typeof p.text==='string')
+              .map(p=>p.text).join('');
+}
+/* Waarom er niets uitkwam, in woorden waar je iets mee kunt. */
+function _geminiLeegUitleg(data){
+  const c=data?.candidates?.[0]||{};
+  const reden=c.finishReason||data?.promptFeedback?.blockReason||'onbekend';
+  if(reden==='MAX_TOKENS')return 'Het antwoord paste niet in de ruimte die het model heeft. '
+    +'Bied bij een lange factuur alleen de bladzijde met de totalen aan.';
+  if(/SAFETY|PROHIBITED|BLOCKLIST/i.test(reden))
+    return 'Google hield het antwoord tegen ('+reden+').';
+  if(reden==='RECITATION')
+    return 'Google hield het antwoord tegen omdat het te veel op bestaande tekst leek.';
+  return 'Leeg antwoord van Gemini (reden: '+reden+').';
+}
+/* responseMimeType:application/json hóórt kale JSON te geven, maar een model
+   dat er toch een ```json-hek omheen zet leverde "ongeldige JSON" op terwijl
+   het antwoord goed was. Eerst gewoon proberen, dan het hek eraf, dan het
+   stuk tussen de eerste { en de laatste }. */
+function _geminiJson(text){
+  try{return JSON.parse(text);}catch(e){}
+  const t=String(text).trim().replace(/^```(?:json)?\s*/i,'').replace(/```\s*$/,'').trim();
+  try{return JSON.parse(t);}catch(e){}
+  const a=t.indexOf('{'),b=t.lastIndexOf('}');
+  if(a>=0&&b>a){try{return JSON.parse(t.slice(a,b+1));}catch(e){}}
+  throw new Error('Gemini gaf geen bruikbare JSON terug.');
 }
 
 /* ─ Streaming Gemini caller — async iterator die chunks yielded ─
@@ -24108,11 +24359,14 @@ async function* _streamGemini({system,user,temperature=0.5,maskeer=false}){
     generationConfig:{temperature}
   };
   if(system)body.systemInstruction={parts:[{text:system}]};
+  /* Zie callGemini: op Gemini 3 gaat er anders eerst een denkronde overheen,
+     en bij een review die woord voor woord verschijnt is dat wachten dat je
+     ziet. Wat hier gevraagd wordt is samenvatten, niet uitpuzzelen. */
+  if(geminiIsDrie(geminiModel()))
+    body.generationConfig.thinkingConfig={thinkingLevel:'low'};
   /* Ook hier het geduld van _geminiFetch(): de herkansing gebeurt vóór er
      ook maar iets is uitgelezen, dus er kan geen halve tekst dubbel komen. */
-  const r=await _geminiFetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel()}:streamGenerateContent?alt=sse&key=${encodeURIComponent(key)}`,
-    body);
+  const r=await _geminiFetch('streamGenerateContent',body,{extra:'alt=sse'});
   /* Tellen gebeurt in _geminiFetch(), per poging. */
   const reader=r.body.getReader();
   const decoder=new TextDecoder();
@@ -24133,7 +24387,9 @@ async function* _streamGemini({system,user,temperature=0.5,maskeer=false}){
         if(!line.startsWith('data: '))continue;
         try{
           const data=JSON.parse(line.slice(6));
-          const chunk=data.candidates?.[0]?.content?.parts?.[0]?.text;
+          /* Zelfde reden als in callGemini: de gedachten van een denkend
+             model komen als eigen parts mee en horen niet in beeld. */
+          const chunk=_geminiTekst(data);
           if(!chunk)continue;
           if(!terug){yield chunk;continue;}
           const stuk=terug.duw(chunk);

@@ -287,6 +287,54 @@ function runChecks() {
       return uit === zin;
     }],
 
+    /* ── Model kiezen en het antwoord uitlezen ──
+       Twee keer op rij lag de scanner stil door iets wat niets met de
+       factuur te maken had: eerst een alias die naar het duurste model wees,
+       daarna een vaste naam die Google introk. Wat hier getest wordt is de
+       weg terug: herkennen dát een model weg is, de opvolger kiezen, en het
+       antwoord van een dénkend model goed uitlezen. Geen van deze tests
+       belt de API. */
+    ['Model: functies aanwezig',           () => ['geminiModel','geminiZetModel','geminiIsDrie',
+                                                  'geminiFlashModellen','geminiHaalModellen',
+                                                  '_geminiVolgendModel','_geminiModelWeg','_geminiUrl',
+                                                  '_geminiTekst','_geminiJson','_geminiLeegUitleg']
+                                                  .every(f => typeof w[f] === 'function')],
+    ['Model: geen "-latest" als standaard', () => {
+      /* Een alias volgt het nieuwste model, en juist dat heeft de krapste
+         gratis laag. Het plafond mag niet veranderen zonder dat je iets doet. */
+      const nu = w.geminiModel();
+      return typeof nu === 'string' && nu.length > 0 && !/latest/.test(nu);
+    }],
+    ['Model: oudste Flash eerst, 3.10 ná 3.8', () => {
+      const uit = w.geminiFlashModellen(['gemini-3.8-flash','gemini-3.10-flash',
+        'gemini-3.5-flash','gemini-3.5-flash-lite','gemini-3.1-flash-image','embedding-001']);
+      return uit.join(',') === 'gemini-3.5-flash,gemini-3.5-flash-lite,gemini-3.8-flash,gemini-3.10-flash';
+    }],
+    ['Model: ingetrokken model wordt als zodanig herkend', () =>
+      w._geminiModelWeg(400, 'This model models/gemini-2.5-flash is no longer available to new users.') === true &&
+      w._geminiModelWeg(404, 'models/gemini-x is not found for API version v1beta') === true &&
+      /* Een limiet of een kapotte sleutel is iets heel anders en mag geen
+         modelwissel uitlokken. */
+      w._geminiModelWeg(429, 'You exceeded your current quota') === false &&
+      w._geminiModelWeg(400, 'API key not valid. Please pass a valid API key.') === false],
+    ['Model: de sleutel staat in de query, niet in het pad', () => {
+      const u = w._geminiUrl('gemini-3.5-flash', 'generateContent', '');
+      return /\/v1beta\/models\/gemini-3\.5-flash:generateContent\?/.test(u) && /[?&]key=/.test(u);
+    }],
+    ['Antwoord: het denkdeel telt niet mee', () =>
+      /* Gemini 3 zet zijn samenvatting als eigen part met thought:true vóór
+         het antwoord. parts[0] pakken levert dan het denkwerk op. */
+      w._geminiTekst({candidates:[{content:{parts:[
+        {text:'even nadenken', thought:true},{text:'{"a":1}'}]}}]}) === '{"a":1}' &&
+      w._geminiTekst({candidates:[{content:{parts:[{text:'{"a":'},{text:'1}'}]}}]}) === '{"a":1}'],
+    ['Antwoord: JSON in een codehek wordt gelezen', () =>
+      w._geminiJson('{"b":2}').b === 2 &&
+      w._geminiJson('```json\n{"a":1}\n```').a === 1 &&
+      w._geminiJson('Hier is het:\n{"c":3}\nklaar').c === 3],
+    ['Antwoord: leeg antwoord noemt de reden', () =>
+      /paste niet/.test(w._geminiLeegUitleg({candidates:[{finishReason:'MAX_TOKENS'}]})) &&
+      /tegen/.test(w._geminiLeegUitleg({candidates:[{finishReason:'SAFETY'}]}))],
+
     /* ── Facturen inscannen: de wachtrij ──
        Wat hier getest kan worden zonder de API te bellen is de rand: het
        bestandsveld accepteert een stapel, en een te groot bestand krijgt
@@ -310,12 +358,50 @@ function runChecks() {
       } finally { w.closeFacOud(); }
     }],
     ['Scan: sluiten ruimt de wachtrij op', () => w.facScanBezig() === false],
+    ['Scan: mime volgt de extensie als het type ontbreekt', () =>
+      /* Een PDF uit Drive komt binnen als octet-stream en een foto soms
+         zonder type. Stond er dan "application/pdf" op een JPG, dan kwam er
+         een 400 terug die naar de factuur leek te wijzen. */
+      w.facScanMime({name:'F000069.pdf', type:''}) === 'application/pdf' &&
+      w.facScanMime({name:'foto.JPG', type:'application/octet-stream'}) === 'image/jpeg' &&
+      w.facScanMime({name:'scan.heic', type:'image/heic'}) === 'image/heic' &&
+      w.facScanMime({name:'plaatje.gif', type:'image/gif'}) === ''],
+    ['Scan: bedrag in Nederlandse notatie komt goed aan', () =>
+      /* Er wordt om een getal gevraagd, maar bij een Nederlandse factuur
+         komt er geregeld tekst terug. Number() maakte daar NaN van en dan
+         bleef juist het bedrag leeg. */
+      w.facScanBedrag(1234.5) === 1234.5 &&
+      w.facScanBedrag('1.234,56') === 1234.56 &&
+      w.facScanBedrag('€ 1.234,56') === 1234.56 &&
+      w.facScanBedrag('1,234.56') === 1234.56 &&
+      w.facScanBedrag('12,50') === 12.5 &&
+      w.facScanBedrag('1.234') === 1234 &&
+      w.facScanBedrag('') === 0 && w.facScanBedrag(null) === 0 && w.facScanBedrag('n.v.t.') === 0],
+    ['Scan: datum ook in de Nederlandse volgorde', () =>
+      w.facScanDatum('2026-03-31') === '2026-03-31' &&
+      w.facScanDatum('31-03-2026') === '2026-03-31' &&
+      w.facScanDatum('1/3/2026') === '2026-03-01' &&
+      w.facScanDatum('maart 2026') === '' && w.facScanDatum('') === '' &&
+      w.facScanDatum('2026-13-01') === ''],
+    ['Scan: onleesbaar bestandstype gaat niet de deur uit', () => {
+      /* Alle bestanden in deze stapel zijn ongeschikt, dus er kan gegarandeerd
+         geen verzoek uitgaan -- de melding komt uit de app zelf. */
+      try {
+        w.facScanStart([{ name:'plaatje.gif', size:1024, type:'image/gif' }]);
+        return /kan niet gelezen worden/.test(d.getElementById('facOudBody').textContent);
+      } finally { w.closeFacOud(); }
+    }],
 
     /* ── Inleeslogboek ──
        De vingerafdruk gaat over de inhoud, niet over de naam: dat is de hele
        reden dat de app een hernoemde PDF herkent. */
-    ['Log: scanLog bestaat in de state', () =>
-      Array.isArray(w.huidigeStateSnapshot().facturen.scanLog)],
+    ['Log: scanLog bestaat in de state', () => {
+      /* scanLog wordt gezet door hydrateerState(), en die draait pas na het
+         inloggen. In een verse browser staat de test dus op het loginscherm
+         en zegt hij niets -- dan overslaan in plaats van eeuwig op rood. */
+      if (d.getElementById('appScreen').style.display === 'none') return true;
+      return Array.isArray(w.huidigeStateSnapshot().facturen.scanLog);
+    }],
     ['Log: functies aanwezig',             () => ['facScanVingerafdruk','facLogZoek','facLogSchrijf','openFacScanLog']
                                                   .every(f => typeof w[f] === 'function')],
     ['Log: modaal aanwezig',               () => !!d.getElementById('facScanLogModal') &&

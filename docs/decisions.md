@@ -10,6 +10,66 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-08 · Een vaste modelnaam is even breekbaar als een alias
+
+**Probleem.** Inscannen brak opnieuw, nu met: *"This model models/gemini-2.5-flash
+is no longer available to new users. Please update your code to use
+models/gemini-3.6-flash."* Twee keer op rij lag de scanner dus stil om iets wat
+niets met de factuur te maken had.
+
+**Oorzaak.** Beide keren dezelfde denkfout, van twee kanten bekeken. Een alias
+(`-latest`) verandert onder je handen mee met wat Google uitbrengt; een vaste
+naam blijft staan tot Google hem intrekt. In beide gevallen kiest Google het
+moment en merk jij het pas als je een factuur inleest.
+
+**Beslissing.** Geen naam meer maar een voorkeursvolgorde (`GEMINI_TERUGVAL`),
+en een 400/404 die zegt dat het model weg is laat de app zélf overstappen:
+`_geminiVolgendModel()` vraagt bij Google op welke modellen déze sleutel mag
+gebruiken (`GET /v1beta/models`, veld `supportedGenerationMethods`), neemt de
+eerste uit de voorkeurslijst die daarin voorkomt, onthoudt die en probeert het
+verzoek één keer opnieuw. Standaard is nu `gemini-3.5-flash`: een generatie
+terug, want nieuw = duur = krap op de gratis laag. Het menu Instellingen →
+AI-model toont voortaan de lijst die je sleutel werkelijk heeft, en test je
+keuze meteen met één klein verzoek.
+
+**Waarom niet de Interactions API.** Google's eigen foutmelding raadt hem aan en
+sinds juni 2026 is het de hoofdingang. Maar `generateContent` blijft volgens
+diezelfde documentatie volledig ondersteund — de curl-voorbeelden voor Gemini
+3.8 Flash staan er gewoon — en Interactions bewaart standaard elke interactie
+server-side (`store`). Voor factuurinhoud is dat een keuze die je bewust maakt,
+niet en passant bij een storing.
+
+**Wat er verder mis was — en bij een Gemini 3-model meteen zou zijn gaan wringen.**
+
+- *Het denkdeel telde als antwoord.* `parts[0].text` was de aanname, maar een
+  denkend model (Gemini 3 staat standaard op "medium") zet zijn samenvatting als
+  eigen part met `thought:true` vóór het antwoord. `_geminiTekst()` plakt nu
+  alles zonder `thought` aan elkaar. Meteen ook `thinkingConfig.thinkingLevel:
+  "low"` meegestuurd bij een 3-model: aan een factuur valt niets te overwegen,
+  en denkwerk telt mee als uitvoer. Alleen bij een 3 — op 2.5 bestaat het veld
+  niet en is het een 400.
+- *Het bedrag verdween.* Er wordt om een getal gevraagd, maar bij een
+  Nederlandse factuur komt `"€ 1.234,56"` terug. `Number()` maakt daar NaN van,
+  dus bleef juist het veld leeg waarvoor je scande. `facScanBedrag()` leest
+  beide notaties, `facScanDatum()` leest 31-03-2026 net zo goed als 2026-03-31.
+- *Het mime-type was een gok.* `file.type||'application/pdf'` plakte "PDF" op
+  een JPG uit Drive (die komt binnen als `application/octet-stream`) — een 400
+  die naar de factuur leek te wijzen. `facScanMime()` valt terug op de extensie
+  en weigert wat Gemini niet leest vóór het een verzoek uit je dagquotum kost.
+- *Een hangend verzoek gijzelde de stapel.* Geen fout, geen antwoord, alleen een
+  spinner. Nu een `AbortController` op twee minuten; afgebroken telt als
+  tijdelijk en komt in de volgende ronde terug.
+
+**Bestanden**: `index.html` — `GEMINI_TERUGVAL`, `geminiHaalModellen()`,
+`geminiFlashModellen()`, `_geminiVolgendModel()`, `_geminiModelWeg()`,
+`_geminiUrl()`, `_geminiFetch()`, `_geminiTekst()`, `_geminiJson()`,
+`_geminiLeegUitleg()`, `facScanMime()`, `facScanBedrag()`, `facScanDatum()`;
+`test.html` (61 tests); `sw.js` → `herling-v85`
+
+**Niet doen**: bij het opstarten controleren of het model nog bestaat. Dat kost
+elke sessie een verzoek uit hetzelfde dagquotum om iets te weten te komen wat de
+eerste echte aanroep je gratis vertelt.
+
 ## 2026-09-08 · Op een gratis laag volg je geen "-latest"
 
 **Probleem.** Het dagquotum was op na **~23 geslaagde verzoeken**, terwijl voor
