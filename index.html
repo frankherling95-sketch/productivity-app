@@ -3444,9 +3444,12 @@ textarea { line-height: 1.6; resize: vertical; }
   color: var(--text-muted);
 }
 .cl2-deadline.overdue { color: var(--danger); font-weight: 600; }
+/* Voortgang van de subtaken — één onderdeel: de ring (.cl2-subring, verderop)
+   en het getal horen bij elkaar, en er staat niets meer elders op de kaart. */
 .cl2-subcount {
   display: inline-flex; align-items: center; gap: 4px;
   font-family: var(--font-cijfer);
+  font-variant-numeric: tabular-nums;
   font-size: 10.5px;
   color: var(--text-muted);
 }
@@ -3478,14 +3481,21 @@ textarea { line-height: 1.6; resize: vertical; }
 .cl2-iconbtn .chev { transition: transform 0.2s; }
 .cl2-iconbtn.open .chev { transform: rotate(180deg); }
 
-.cl2-progress {
-  height: 2px;
-  background: var(--surface2);
-  margin: 0 14px;
-}
-.cl2-progress-fill {
-  height: 100%;
-  transition: width 0.4s;
+.cl2-subring {
+  /* De voortgangsring in .cl2-subcount. Staat op de plek van de oude
+     .cl2-progress: een balkje van 2px onderaan de kaart, dat hetzelfde
+     getal een tweede keer toonde — twee regels lager, in de
+     prioriteitskleur, dus "3 van de 5 af" was bij een hoge prio rood.
+     Verder precies de ring uit de hero (.cl2-hero-ring): dezelfde draai
+     van -90°, dezelfde baan (--surface2), dezelfde vulling (--mint),
+     alleen klein genoeg om naast het getal te staan. Die 11px is de maat
+     van het lijstje-icoon dat er stond, en dat is geen toeval: de
+     metaregel houdt op 375px nog 6,3px over, dus een balkje van 20px zou
+     "3/5" naar een tweede regel duwen en de kaart 23px hoger maken. */
+  width: 11px; height: 11px;
+  flex-shrink: 0;
+  display: block;
+  transform: rotate(-90deg);
 }
 
 .cl2-subs {
@@ -14769,7 +14779,6 @@ function clItemHtml(item,isArchived=false){
   const subs=item.subtasks||[];
   const subsDone=subs.filter(s=>s.done).length;
   const subsTotal=subs.length;
-  const pct=subsTotal?Math.round((subsDone/subsTotal)*100):(item.done?100:0);
   /* Expand state: HOOG default-open, others closed (respect user override) */
   const defaultOpen=item.priority==='hoog';
   const isOpen=clItemOpen[item.id]!==undefined?clItemOpen[item.id]:defaultOpen;
@@ -14817,9 +14826,20 @@ function clItemHtml(item,isArchived=false){
       ${formatDeadline(item.deadline)}
     </span>`);
   }
+  /* Hoe ver deze taak is, zonder hem open te klappen. Het lijstje-icoon dat
+     hier stond zei alleen "er zijn subtaken" — dat stond al in het getal
+     ernaast. De ring vult zich mee: alles af = een volle mintring. Een taak
+     die je afvinkt terwijl er nog subtaken openstaan houdt gewoon 3/5; de
+     kaart is dan al gedimd en doorgestreept, en 5/5 tonen zou verzwijgen
+     dat er twee nooit zijn afgevinkt. */
   if(subsTotal>0){
-    metaBits.push(`<span class="cl2-subcount">
-      <svg width="11" height="11" viewBox="0 0 13 13" fill="none"><path d="M2 3.5h9 M2 6.5h9 M2 9.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+    const omtrek=50.27;                                  /* 2πr bij r=8 */
+    const boog=(subsDone/subsTotal)*omtrek;
+    metaBits.push(`<span class="cl2-subcount" title="${subsDone} van ${subsTotal} subtaken af">
+      <svg class="cl2-subring" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <circle cx="10" cy="10" r="8" stroke="var(--surface2)" stroke-width="4"/>
+        <circle cx="10" cy="10" r="8" stroke="var(--mint)" stroke-width="4" stroke-dasharray="${boog.toFixed(2)} ${omtrek}"/>
+      </svg>
       ${subsDone}/${subsTotal}
     </span>`);
   }
@@ -14874,7 +14894,6 @@ function clItemHtml(item,isArchived=false){
         </button>
       </div>
     </div>
-    ${subsTotal>0?`<div class="cl2-progress"><div class="cl2-progress-fill" style="width:${pct}%;background:${pct===100?'var(--mint)':cfg.tx}"></div></div>`:''}
     ${showSubs||showSubsAdd?`<div class="cl2-subs">${subsHtml}</div>`:''}
   </div>`;
 }
