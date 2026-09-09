@@ -52,6 +52,20 @@ const toon = (ref, pad) => {
   return uit;
 };
 
+/* Vergelijk nooit met de tip van main, maar met het punt waar het spoor
+   afsplitste. Loopt main ondertussen door -- en dat doet hij, want de
+   coordinator merget er contractwijzigingen in -- dan zou het verschil met de
+   tip al het werk van anderen als wijziging van dit spoor tonen, in spiegelbeeld.
+   Een agent kreeg zo vijf verzonnen "buiten je scope"-fouten te zien. */
+function basisVoor(doel) {
+  const punt = doel === '__worktree__' ? 'HEAD' : doel;
+  const mb = (gitStil(['merge-base', BASIS, punt]) || '').trim();
+  if (!mb) return BASIS;
+  const achter = (gitStil(['rev-list', '--count', mb + '..' + BASIS]) || '0').trim();
+  if (achter !== '0') notities.push(`dit spoor splitste ${achter} commit(s) geleden van ${BASIS} af — vergeleken met dat splitspunt, niet met de tip`);
+  return mb;
+}
+
 /* ═══════════════════════════════════════════════════════════════
    1. Zones — waar staat de CSS, de markup en de JS in index.html
    ═══════════════════════════════════════════════════════════════ */
@@ -158,14 +172,35 @@ const isGedeeld = (a) =>
 /* ═══════════════════════════════════════════════════════════════
    4. Referenties — wie roept dit aan / wie gebruikt deze class
    ═══════════════════════════════════════════════════════════════ */
+/* Een naam die alleen in een opmerking staat is geen gebruik. Zonder dit telde
+   `Wordt gevuld door urenExportPdf()` in een CSS-comment als een aanroep vanuit
+   Facturen, puur omdat die comment in het facturen-deel van de stylesheet staat. */
+function zonderCommentaar(regels) {
+  const uit = new Array(regels.length);
+  let inBlok = false, inHtml = false;
+  for (let i = 0; i < regels.length; i++) {
+    let r = regels[i];
+    if (inBlok) { const e = r.indexOf('*/'); if (e < 0) { uit[i] = ''; continue; } r = ' '.repeat(e + 2) + r.slice(e + 2); inBlok = false; }
+    if (inHtml) { const e = r.indexOf('-->'); if (e < 0) { uit[i] = ''; continue; } r = ' '.repeat(e + 3) + r.slice(e + 3); inHtml = false; }
+    r = r.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/<!--[\s\S]*?-->/g, ' ');
+    const b = r.indexOf('/*'); if (b >= 0) { r = r.slice(0, b); inBlok = true; }
+    const h = r.indexOf('<!--'); if (h >= 0) { r = r.slice(0, h); inHtml = true; }
+    /* Alleen een regel die zelf als commentaar begint; `https://` blijft zo heel. */
+    if (/^\s*(\/\/|\*)/.test(r)) r = '';
+    uit[i] = r;
+  }
+  return uit;
+}
+
 function gebruikers(kaart, anker) {
   const zoek = anker.soort === 'css' ? anker.naam.slice(1) : anker.naam;
   if (zoek.length < 3) return new Set();
   const re = new RegExp('(?<![\\w$-])' + zoek.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![\\w$-])');
+  const code = kaart.code || (kaart.code = zonderCommentaar(kaart.regels));
   const uit = new Set();
   for (let n = 1; n <= kaart.regels.length; n++) {
     if (n === anker.n) continue;
-    if (!re.test(kaart.regels[n - 1])) continue;
+    if (!re.test(code[n - 1])) continue;
     const a = kaart.perRegel[n];
     if (!a) continue;
     if (a === anker) continue;                          /* eigen body telt niet */
@@ -252,11 +287,12 @@ function doeScope(spoor, branch) {
     console.error(`Branch "${doel}" bestaat niet. Geef er een op met --branch.`); return 1;
   }
   const tekst = isWt ? readFileSync(BESTAND, 'utf8') : toon(doel, BESTAND);
+  const bas = basisVoor(ref);
 
-  kop(`Scope-controle · spoor ${spoor} · ${isWt ? 'working tree' : doel} tegen ${BASIS}`);
+  kop(`Scope-controle · spoor ${spoor} · ${isWt ? 'working tree' : doel} tegen ${bas === BASIS ? BASIS : BASIS + '@' + bas.slice(0, 8)}`);
 
   /* 5a. Bestanden die niemand mag aanraken */
-  for (const b of gewijzigdeBestanden(BASIS, ref)) {
+  for (const b of gewijzigdeBestanden(bas, ref)) {
     if (b === BESTAND) continue;
     if (cfg.gedeeld.bestanden.some(g => b === g || b.startsWith(g))) {
       contracten.push(`gedeeld bestand gewijzigd: ${b} — dit hoort de coordinator te doen`);
@@ -266,7 +302,7 @@ function doeScope(spoor, branch) {
   }
 
   /* 5b. index.html per anker */
-  const { kaart, geraakt, aantalRegels } = raakteAnkers(tekst, BASIS, ref);
+  const { kaart, geraakt, aantalRegels } = raakteAnkers(tekst, bas, ref);
   regel(`${aantalRegels} gewijzigde regels in ${BESTAND}, verdeeld over ${geraakt.size} ankers`);
 
   for (const [, v] of geraakt) {
@@ -286,10 +322,19 @@ function doeScope(spoor, branch) {
       contracten.push(`${naam} — geen eigenaar vast te stellen (${waar})`); continue;
     }
 
-    /* Eigen anker, maar wordt het van buiten gebruikt? */
+    /* Eigen anker, maar wordt het van buiten gebruikt? Bij CSS is dat altijd een
+       contract: elke declaratie in de regel is wat de andere module ziet. Bij een
+       functie niet -- de binnenkant mag je verbouwen zolang de aanroep hetzelfde
+       blijft. Alleen als de handtekeningregel zelf wijzigt breken de aanroepers,
+       en dat is precies de regel waar het anker op staat. */
     const g = gebruikers(kaart, a);
     g.delete(spoor);
-    if (g.size) contracten.push(`${naam} is eigen, maar wordt ook gebruikt door ${[...g].join(', ')} (${waar})`);
+    if (g.size) {
+      const handtekening = a.soort !== 'js' || v.regels.includes(a.n);
+      const tekst = `${naam} is eigen, maar wordt ook gebruikt door ${[...g].join(', ')} (${waar})`;
+      if (handtekening) contracten.push(a.soort === 'js' ? tekst + ' — en de handtekening wijzigt' : tekst);
+      else notities.push(tekst + ' — alleen de binnenkant wijzigt, dus kijk die module even na');
+    }
   }
   return rapporteer();
 }
@@ -305,9 +350,10 @@ function doeOverlap(lijst) {
   for (const s of sporen) {
     const branch = `claude/${s}`;
     if (!gitStil(['rev-parse', '--verify', branch])) { regel(`${s.padEnd(11)} — geen branch, overgeslagen`); continue; }
-    const { geraakt } = raakteAnkers(toon(branch, BESTAND), BASIS, branch);
+    const bb = basisVoor(branch);
+    const { geraakt } = raakteAnkers(toon(branch, BESTAND), bb, branch);
     perSpoor[s] = new Set([...geraakt.keys()].map(k => k.replace(/@\d+$/, '')));
-    const bst = new Set(gewijzigdeBestanden(BASIS, branch).filter(b => b !== BESTAND));
+    const bst = new Set(gewijzigdeBestanden(bb, branch).filter(b => b !== BESTAND));
     for (const b of bst) perSpoor[s].add('bestand:' + b);
     regel(`${s.padEnd(11)} raakt ${perSpoor[s].size} ankers/bestanden aan`);
   }
@@ -349,7 +395,7 @@ function doeMerge() {
   }
 
   /* 3. Welke ankers zijn in totaal geraakt, en wie gebruikt ze nog meer */
-  const { kaart, geraakt, aantalRegels } = raakteAnkers(tekst, BASIS, '__worktree__');
+  const { kaart, geraakt, aantalRegels } = raakteAnkers(tekst, basisVoor('__worktree__'), '__worktree__');
   regel(`${aantalRegels} gewijzigde regels over ${geraakt.size} ankers sinds ${BASIS}`);
 
   for (const [, v] of geraakt) {
@@ -358,7 +404,10 @@ function doeMerge() {
     if (isGedeeld(a)) { contracten.push(`gedeeld anker gewijzigd: ${a.naam} (regel ${v.regels[0]})`); continue; }
     const g = gebruikers(kaart, a);
     g.delete(a.spoor);
-    if (g.size) contracten.push(`${a.naam} (van ${a.spoor}) wordt ook gebruikt door ${[...g].join(', ')} — kijk die module na`);
+    if (!g.size) continue;
+    const tekst = `${a.naam} (van ${a.spoor}) wordt ook gebruikt door ${[...g].join(', ')} — kijk die module na`;
+    if (a.soort !== 'js' || v.regels.includes(a.n)) contracten.push(tekst);
+    else notities.push(tekst);
   }
   return rapporteer();
 }
@@ -415,7 +464,7 @@ function doeStijl() {
   if (!chrome) { notities.push('Chrome niet gevonden — stijlmeting overgeslagen (zet CHROME_PATH)'); return rapporteer(); }
 
   const nu = readFileSync(BESTAND, 'utf8');
-  const oud = toon(BASIS, BESTAND);
+  const oud = toon(basisVoor('__worktree__'), BESTAND);
   const dir = mkdtempSync(join(tmpdir(), 'parcheck-'));
   let verschillen = 0;
   try {

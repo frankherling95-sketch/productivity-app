@@ -36,6 +36,12 @@ Doelsporen: $ARGUMENTS (leeg = alle vijf: dashboard, notes, checklist, uren, fac
 
 ### Dispatch
 
+⚠️ **Agent-definities worden bij sessiestart ingelezen.** Is `.claude/agents/`
+in déze sessie aangepast of aangemaakt, dan kent de Agent-tool die namen nog
+niet en krijg je "Agent type not found". Start dan een nieuwe sessie, of val
+terug op een gewone subagent in een worktree die als eerste opdracht
+`.claude/agents/<spoor>.md` leest en opvolgt.
+
 Start per spoor één subagent via zijn definitie in `.claude/agents/<spoor>.md`.
 Die definities dragen de scope, de verboden en de conventies al; herhaal ze niet,
 maar geef mee:

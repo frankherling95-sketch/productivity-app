@@ -83,6 +83,52 @@ popover halen: de jaarknop stapt per jaar en kan ze niet bereiken.
 
 ---
 
+## 2026-09-09 · Vergelijk met het splitspunt, niet met de tip van main
+
+**Probleem.** De eerste echte proefronde: een agent werkte in zijn worktree aan
+Uren en kreeg bij het afsluiten **vijf verzonnen fouten** te zien, allemaal
+"buiten je scope geschreven", allemaal over facturen-code die hij nooit had
+aangeraakt. Oorzaak: `parallel-check.mjs` vergeleek met `main`, en main was
+ondertussen twee commits doorgelopen. Al het werk van die andere commits stond
+in het verschil — in spiegelbeeld, als verwijderingen — en werd toegeschreven
+aan het spoor dat toevallig de check draaide. Gemeten op een nagebouwd geval:
+**~200 regels andermans werk** tegenover de ene regel die het spoor echt
+gewijzigd had.
+
+**Beslissing.** Alles vergelijkt nu tegen `git merge-base`: het punt waar het
+spoor afsplitste. Dat is robuust tegen een main die doorloopt, en dat *moet*,
+want de coördinator merget er contractwijzigingen in terwijl de sporen draaien.
+Loopt een spoor achter, dan zegt de uitvoer dat erbij ("splitste 2 commit(s)
+geleden af") in plaats van er fouten van te maken.
+
+**Twee andere scherpe randen, uit dezelfde ronde.** Een naam die alleen in een
+*opmerking* stond telde als gebruik: `Wordt gevuld door urenExportPdf()` in een
+CSS-comment maakte van die functie een gedeeld anker, puur omdat de comment in
+het facturen-deel van de stylesheet stond. Commentaar telt nu niet mee. En een
+functie die een andere module aanroept werd bij élke interne wijziging als
+contract gemeld — `renderChecklistModule()` wordt echt vanuit het dashboard
+aangeroepen, maar de checklist verbouwt zijn eigen renderer voortdurend. Nu
+geldt: bij CSS is elke wijziging een contract (de declaraties *zijn* wat de
+andere module ziet), bij een functie alleen als de **handtekeningregel** zelf
+wijzigt. Anders een notitie.
+
+**Waarom dit niet uit de eerste tests kwam.** Die draaiden allemaal op branches
+die van de tip van main afsplitsten, dus was merge-base gelijk aan de tip en
+viel het verschil niet op. Het kostte een echte agent op een echte achterstand
+om het te zien. `parallel-check.test.mjs` heeft er nu een geval voor (10.1).
+
+**Bestanden**: `parallel-check.mjs` — `basisVoor()`, `zonderCommentaar()`, de
+handtekeningregel in `doeScope()`/`doeMerge()`; `parallel-check.test.mjs`
+(nieuw, 21 gevallen); `CLAUDE.md`; `.claude/commands/parallel-fanout.md`
+
+**Niet doen**: `--basis main` opvatten als "vergelijk met main zoals hij nu is".
+Het is het beginpunt van de zoektocht naar het splitspunt, niet het splitspunt
+zelf.
+
+**Ook niet doen**: `.claude/agents/*.md` aanmaken en verwachten dat je ze
+dezelfde sessie als agent-type kunt aanroepen. Die registry wordt bij
+sessiestart gebouwd; tot een herstart krijg je "Agent type not found".
+
 ## 2026-09-09 · Parallel werken aan één bestand: de grens is een naam, niet een pad
 
 **Probleem.** Twee modules tegelijk laten ontwikkelen — Uren en Facturen

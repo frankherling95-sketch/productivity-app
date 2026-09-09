@@ -247,6 +247,14 @@ node parallel-check.mjs stijl              # berekende stijlen voor/na, 4 combin
 Exit 0 = schoon · 1 = fout (buiten de scope geschreven) · 2 = alleen
 contractverzoeken.
 
+De vergelijking gaat altijd tegen het **splitspunt** van het spoor, niet tegen de
+tip van `main`. Loopt een spoor achter, dan zou dat laatste al het werk van
+anderen als wijziging van dít spoor tonen — in spiegelbeeld, dus als "buiten je
+scope geschreven".
+
+⚠️ **Agent-definities worden bij sessiestart ingelezen.** Maak of wijzig je
+`.claude/agents/*.md`, dan kent de Agent-tool die naam pas in een nieuwe sessie.
+
 ## Common patterns
 
 **Nieuwe modaal**: `<div class="modal-bg" id="<naam>Modal"><div class="modal">...</div></div>` + `openXModal()`/`closeXModal()` JS functies. CSS classes bestaan al.
@@ -372,6 +380,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 |---------|------|
 | `validate.mjs` | JS syntax + tag balance + onclick-referentie checks |
 | `parallel-check.mjs` | Bewaakt de moduleverdeling: `kaart` / `scope` / `overlap` / `merge` / `stijl`. Vangt het stille conflict dat git niet ziet — twee sporen die dezelfde gedeelde CSS-regel raken |
+| `parallel-check.test.mjs` | 21 tests op die bewaker, op een wegwerp-kloon (`node parallel-check.test.mjs`, ~1 min). Draaien na elke wijziging aan `parallel-check.mjs` of `ownership.json` |
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
