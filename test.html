@@ -342,8 +342,25 @@ function runChecks() {
        een andere naam, dus het staat hier met de echte betreft-regels in. */
     ['Analyse: functies aanwezig',         () => ['facAnData','facAnRange','facRenderAnalyse',
                                                   'facAnSchaal','facAnKort','facEindRaad',
-                                                  'facEindklantVan','facEindRegelMatch','facAnKlantVan']
+                                                  'facEindklantVan','facEindRegelMatch','facAnKlantVan',
+                                                  'facAnJaren','facAnBereikKiezer','facAnDrillLijst']
                                                   .every(f => typeof w[f] === 'function')],
+    ['Analyse: boekjaar kiezen', () => {
+      /* Een afgesloten jaar loopt van januari tot december en zet zich af
+         tegen het jaar ervoor; het lopende jaar stopt bij deze maand. */
+      try {
+        w.facAnZetBereik('2024');
+        const r = w.facAnRange();
+        const afgesloten = r.label === '2024' && r.maanden.length === 12 &&
+                           r.vorigeLabel === '2023' && r.vorige.length === 12;
+        w.facAnZetBereik('onzin');                    /* moet genegeerd worden */
+        const stevig = w.facAnRange().label === '2024';
+        const nu = String(new Date().getFullYear());
+        w.facAnZetBereik(nu);
+        const lopend = w.facAnRange().maanden.length === new Date().getMonth() + 1;
+        return afgesloten && stevig && lopend && w.facAnJaren().includes(Number(nu));
+      } finally { w.facAnZetBereik(String(new Date().getFullYear())); }
+    }],
     ['Analyse: as valt op ronde stappen',  () => {
       const a = w.facAnSchaal(22000);
       return a.max === 24000 && a.stap === 6000 && w.facAnSchaal(0).max > 0;

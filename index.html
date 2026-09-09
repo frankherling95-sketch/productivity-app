@@ -1535,15 +1535,21 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .fac-an-filterknop{display:none}
 .fac-an-poprij{display:flex;gap:6px;flex-wrap:wrap}
 .fac-an-poprij .uren-btn{flex:1;justify-content:center}
-/* Vier keuzes passen niet op één regel in een popover van 236px, dus 2x2. Dan
-   moet de vaste hoogte van .uren-scope-pop er wel af: die hield de doos op één
-   regel hoog, waarna de tweede rij over het label eronder heen liep. */
-.uren-scope-pop.fac-an-popscope{
-  display:grid;grid-template-columns:1fr 1fr;gap:4px;height:auto;
+/* Het boekjaar is een keuzelijst en geen rij knoppen: vier vaste knoppen
+   reikten niet verder terug dan vorig jaar, en een lijst groeit mee met je
+   administratie zonder breder te worden. In de popover krijgt hij de vorm van
+   de andere keuzelijsten daar (zie .uren-filterpop select). */
+.fac-an-bereiksel{
+  height:32px;max-width:220px;padding:0 8px;box-sizing:border-box;
+  background:var(--surface);border:1px solid var(--border-strong);
+  border-radius:var(--radius);box-shadow:0 1px 2px rgba(0,0,0,.07);
+  color:var(--text);font-family:var(--font-body);
+  font-size:var(--uren-ui,12.5px);font-weight:600;cursor:pointer;outline:none;
 }
-.uren-scope-pop.fac-an-popscope button{min-height:32px}
-@media (max-width:768px){
-  .uren-scope-pop.fac-an-popscope button{min-height:var(--tap)}
+.fac-an-bereiksel:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
+.uren-filterpop .fac-an-bereiksel{
+  width:100%;max-width:none;height:34px;background:var(--surface2);
+  border:0.5px solid var(--border-strong);box-shadow:none;font-size:13px;font-weight:400;
 }
 .fac-an-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%}
 .fac-an-vul{flex:1}
@@ -1723,6 +1729,30 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
   .fac-an-krij .bl{grid-column:1/-1;grid-row:2;height:10px}
   .fac-an-nieuw{grid-template-columns:1fr}
   .fac-an-tip{min-width:120px}
+  /* De cijfertabel wordt hier een lijst. Zes kolommen passen niet op 375px, en
+     een tabel die zijwaarts schuift lees je niet -- dan staat de kop van de
+     kolom buiten beeld zodra je bij het getal bent. Per maand twee regels:
+     bedrag rechts, de twee vergelijkingen eronder met hun naam ervoor. */
+  .fac-an-tabel thead{display:none}
+  .fac-an-tabel tr{
+    display:grid;grid-template-columns:1fr auto auto;
+    column-gap:10px;row-gap:1px;padding:9px 2px;
+    border-bottom:0.5px solid var(--border);
+  }
+  .fac-an-tabel td{padding:0;border:0}
+  .fac-an-tabel .k-per{grid-column:1;grid-row:1;font-size:var(--fs-basis);font-weight:600}
+  .fac-an-tabel .k-omzet{grid-column:2/4;grid-row:1;font-size:var(--fs-basis);font-weight:700}
+  .fac-an-tabel .k-mom{grid-column:1;grid-row:2;text-align:left;font-size:var(--fs-micro)}
+  .fac-an-tabel .k-jaar{grid-column:2;grid-row:2;font-size:var(--fs-micro)}
+  .fac-an-tabel .k-aantal{grid-column:3;grid-row:2;font-size:var(--fs-micro)}
+  /* Het bedrag van vorig jaar staat al in de grafiek en in de tooltip; hier
+     telt het percentage. */
+  .fac-an-tabel .k-vorig{display:none}
+  .fac-an-tabel .k-leeg{grid-column:1/-1}
+  /* Zonder kolomkop moet elk getal zichzelf uitleggen. */
+  .fac-an-tabel td[data-lab]::before{content:attr(data-lab) " ";color:var(--text-hint)}
+  .fac-an-tabel .k-aantal::after{content:" facturen";color:var(--text-hint)}
+  .fac-an-tabel tfoot tr{border-bottom:0;border-top:1px solid var(--border-strong)}
 }
 .fac-aging{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px}
 /* Omzet en Betaald horen niet in de ouderdomsreeks maar wel in hetzelfde
@@ -7133,7 +7163,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v1.90</span>
+        <span class="app-versie" title="Appversie">v1.91</span>
       </div>
     </div>
   </aside>
@@ -18969,6 +18999,7 @@ const FAC_CHANGE_ACTIONS={
   facSetFilterStatus:(el)=>{facFilterStatus=el.value;facRenderAll();},
   facSetFilterClient:(el)=>{facFilterClient=el.value;facRenderAll();},
   facAnZetKlantSel:(el)=>{facAnKlant=el.value;facRenderAll();},
+  facAnZetBereikSel:(el)=>facAnZetBereik(el.value),
   facEdVeld:(el,a)=>facEdVeld(el,a),
   facEdRegel:(el,a,b)=>facEdRegel(el,a,b),
   facWizardVeld:(el,a)=>{if(facWizard){facWizard[a]=el.value;
@@ -21035,9 +21066,11 @@ function facVerwijderActie(id){
    - De klantverdeling is een ranglijst, geen identiteitsvraag. Alle balken
      dezelfde kleur; de naam ernaast wijst aan wie het is. Een kleur per klant
      zou alleen overdoen wat de lengte van de balk al zegt. */
-const FAC_AN_BEREIKEN=[['jaar','Dit jaar'],['12m','12 maanden'],
-  ['vorig','Vorig jaar'],['alles','Alles']];
-let facAnBereik='jaar';
+/* Het bereik is een boekjaar ("2026") of een van deze twee. Vier vaste
+   knoppen konden niet verder terug dan vorig jaar; met een keuzelijst reikt
+   het zo ver als je administratie. */
+const FAC_AN_EXTRA=[['12m','Laatste 12 maanden'],['alles','Alles']];
+let facAnBereik=String(new Date().getFullYear());
 let facAnKlant='';      /* sleutel uit facAnKlantVan(), leeg = alle klanten */
 let facAnEind=false;    /* eindklanten uitsplitsen                          */
 let facAnTabel=false;   /* de cijfers onder de grafieken                     */
@@ -21061,6 +21094,16 @@ function facAnMaanden(jaar,maand,n){
    is er niets om tegen af te zetten -- dan is de vergelijking leeg in plaats
    van verzonnen. Loopt dat over meer dan twee jaar, dan gaan de kolommen per
    jaar: dertig maanden naast elkaar is geen grafiek meer maar een kam. */
+/* Welke boekjaren vallen er te kiezen: die waar iets in staat, plus dit jaar
+   (daar wil je naartoe kunnen ook als er nog geen factuur in zit). */
+function facAnJaren(){
+  const jaren=new Set([new Date().getFullYear()]);
+  facAnBron().forEach(f=>{
+    const j=Number(String(f.datum).slice(0,4));
+    if(j>1990&&j<3000)jaren.add(j);
+  });
+  return [...jaren].sort((a,b)=>b-a);
+}
 function facAnRange(){
   const nu=new Date();
   if(facAnBereik==='12m'){
@@ -21069,12 +21112,6 @@ function facAnRange(){
       maanden:facAnMaanden(s.getFullYear(),s.getMonth(),12),
       vorige:facAnMaanden(s.getFullYear(),s.getMonth()-12,12),
       vorigeLabel:'12 maanden ervoor'};
-  }
-  if(facAnBereik==='vorig'){
-    const j=nu.getFullYear()-1;
-    return {label:String(j),eenheid:'maand',maanden:facAnMaanden(j,0,12),
-      vorige:facAnMaanden(j-1,0,12),vorigeLabel:String(j-1),
-      vorigeUitleg:String(j-1)};
   }
   if(facAnBereik==='alles'){
     const dat=facAnBron().map(f=>f.datum).sort();
@@ -21086,14 +21123,16 @@ function facAnRange(){
       maanden:facAnMaanden(s.getFullYear(),n>24?0:s.getMonth(),n>24?(e.getFullYear()-s.getFullYear()+1)*12:n),
       vorige:[],vorigeLabel:''};
   }
-  /* Het lopende jaar loopt tot en met déze maand, niet tot december. Anders
-     zet je negen maanden omzet naast twaalf van vorig jaar en staat er een
-     daling in beeld waar groei zit -- en tekent de cumulatieve lijn een vlak
-     stuk voor maanden die nog moeten komen. */
-  const j=nu.getFullYear(), n=nu.getMonth()+1;
+  /* Een afgesloten boekjaar loopt van januari tot december. Het lopende jaar
+     loopt tot en met déze maand: anders zet je negen maanden omzet naast
+     twaalf van vorig jaar en staat er een daling in beeld waar groei zit, en
+     tekent de cumulatieve lijn een vlak stuk voor maanden die nog komen. */
+  const j=Number(facAnBereik)||nu.getFullYear();
+  const lopend=j===nu.getFullYear();
+  const n=lopend?nu.getMonth()+1:12;
   return {label:String(j),eenheid:'maand',maanden:facAnMaanden(j,0,n),
     vorige:facAnMaanden(j-1,0,n),vorigeLabel:String(j-1),
-    vorigeUitleg:'dezelfde periode in '+(j-1)};
+    vorigeUitleg:lopend?'dezelfde periode in '+(j-1):String(j-1)};
 }
 /* Een as met ronde getallen erop. Vier stappen van 1, 2, 2,5 of 5 keer een
    macht van tien -- zo staat er €5k / €10k / €15k en niet €6,3k. */
@@ -21277,7 +21316,10 @@ function facAnData(){
     totaal:Math.round(totaal*100)/100,totaalVorig:Math.round(totaalVorig*100)/100,
     aantal,openstaand:Math.round(openstaand*100)/100,openAantal,
     groei:totaalVorig>0?((totaal-totaalVorig)/totaalVorig)*100:null,
-    heeftVorige:r.vorige.length>0};
+    /* Een vergelijkingsperiode zonder omzet is geen vergelijking. Stond hij
+       er toch, dan tekende de grafiek twaalf grijze balken van nul en kreeg
+       de tabel een kolom "2023" met twaalf keer € 0,00 en een streepje. */
+    heeftVorige:r.vorige.length>0&&totaalVorig>0};
 }
 
 /* ── Getallen kort genoeg voor een as ── */
@@ -21377,10 +21419,17 @@ function facAnKolomGrafiek(d,breed){
     const toon=!smal||n<=6||i%2===0||i===n-1;
     if(toon)labels+=`<text x="${(bx+band/2).toFixed(1)}" y="${H-8}" class="an-astekst" text-anchor="middle">${escapeHtml(v.kort)}</text>`;
     const vv=d.vorige[i]||0;
+    /* Twee vergelijkingen, allebei met naam: "t.o.v. maart" zegt of het nú
+       aantrekt, "t.o.v. 2025" of het beter gaat dan toen. Eén regel
+       "Verschil" liet in het midden welke van de twee je las. */
+    const vorigVak=i>0?d.vakken[i-1]:null;
     tips.push({titel:v.label,regels:[
       {kleur:'nu',lab:d.range.label,val:factuurFmtBedrag(v.excl)},
+      ...(vorigVak&&vorigVak.excl>0?[{lab:'t.o.v. '+vorigVak.label,
+        val:facAnPct(((v.excl-vorigVak.excl)/vorigVak.excl)*100)}]:[]),
       ...(paar?[{kleur:'vorig',lab:d.range.vorigeLabel,val:factuurFmtBedrag(vv)}]:[]),
-      ...(paar&&vv>0?[{lab:'Verschil',val:facAnPct(((v.excl-vv)/vv)*100)}]:[]),
+      ...(paar&&vv>0?[{lab:'t.o.v. '+d.range.vorigeLabel,
+        val:facAnPct(((v.excl-vv)/vv)*100)}]:[]),
       {lab:'Facturen',val:String(v.aantal)}]});
     /* Het raakvlak is de hele kolom, niet de balk: mikken op negen pixels
        lukt met een muis niet en met een duim al helemaal niet. */
@@ -21483,24 +21532,54 @@ function facAnKlantBalken(d){
    Niet alleen voor wie geen kleur ziet: het is ook de plek waar je een
    getal kunt overtypen zonder eerst met de muis een balk te zoeken. */
 function facAnTabellen(d){
-  const rijen=d.vakken.map((v,i)=>{
+  const perJaar=d.range.eenheid==='jaar';
+  const vorigeNaam=perJaar?'vorig jaar':'vorige maand';
+  /* Twee soorten groei naast elkaar, want ze beantwoorden verschillende
+     vragen: "t.o.v. vorige maand" zegt of het nú aantrekt, "t.o.v. vorig
+     jaar" of het structureel beter gaat dan toen. Een enkel percentage
+     verwart die twee. */
+  const pct=(v)=>v==null?'<span class="zacht">—</span>'
+    :`<span class="${v>=0?'op':'af'}">${facAnPct(v)}</span>`;
+  /* Groei t.o.v. het vorige vak wordt berekend vóór het weglaten van lege
+     maanden -- anders vergelijkt maart zich ineens met januari. */
+  const alles=d.vakken.map((v,i)=>{
     const vv=d.vorige[i]||0;
-    return `<tr><td>${escapeHtml(v.label)}</td>
-      <td class="num">${factuurFmtBedrag(v.excl)}</td>
-      ${d.heeftVorige?`<td class="num zacht">${factuurFmtBedrag(vv)}</td>
-      <td class="num ${v.excl>=vv?'op':'af'}">${vv>0?facAnPct(((v.excl-vv)/vv)*100):'—'}</td>`:''}
-      <td class="num">${v.aantal}</td></tr>`;
-  }).join('');
+    const vorig=i>0?d.vakken[i-1].excl:null;
+    return {v,vv,
+      mom:(vorig!=null&&vorig>0)?((v.excl-vorig)/vorig)*100:null,
+      jaar:vv>0?((v.excl-vv)/vv)*100:null};
+  });
+  /* Een maand waar aan beide kanten niets in zit zegt niets. Staat er vorig
+     jaar wél omzet, dan blijft de nul staan: dát is het getal waar je naar
+     kijkt. */
+  const rijen=alles.filter(r=>!(r.v.excl===0&&r.vv===0));
+  /* Binnen één boekjaar staat het jaartal negen keer onder elkaar terwijl de
+     periodekiezer het al zegt. Dan alleen de maandnaam. */
+  const zelfdeJaar=!perJaar&&new Set(d.vakken.map(v=>String(v.key).slice(0,4))).size<=1;
+  const naam=v=>zelfdeJaar?String(v.label).replace(/\s+\d{4}$/,''):v.label;
+  const lijf=rijen.length?rijen.map(r=>`<tr>
+      <td class="k-per">${escapeHtml(naam(r.v))}</td>
+      <td class="num k-omzet">${factuurFmtBedrag(r.v.excl)}</td>
+      <td class="num k-mom" data-lab="${escapeHtml(vorigeNaam)}">${pct(r.mom)}</td>
+      ${d.heeftVorige?`<td class="num zacht k-vorig">${factuurFmtBedrag(r.vv)}</td>
+      <td class="num k-jaar" data-lab="${escapeHtml(d.range.vorigeLabel)}">${pct(r.jaar)}</td>`:''}
+      <td class="num k-aantal">${r.v.aantal}</td></tr>`).join('')
+    : `<tr><td colspan="${d.heeftVorige?6:4}" class="zacht k-leeg">Geen omzet in deze periode.</td></tr>`;
   return `<div class="fac-an-tabelwrap">
     <table class="fac-an-tabel"><thead><tr>
-      <th>${d.range.eenheid==='jaar'?'Jaar':'Maand'}</th><th class="num">Omzet excl.</th>
-      ${d.heeftVorige?`<th class="num">${escapeHtml(d.range.vorigeLabel)}</th><th class="num">Verschil</th>`:''}
+      <th>${perJaar?'Jaar':'Maand'}</th><th class="num">Omzet excl.</th>
+      <th class="num">T.o.v. ${escapeHtml(vorigeNaam)}</th>
+      ${d.heeftVorige?`<th class="num">${escapeHtml(d.range.vorigeLabel)}</th>
+      <th class="num">T.o.v. ${escapeHtml(d.range.vorigeLabel)}</th>`:''}
       <th class="num">Facturen</th></tr></thead>
-    <tbody>${rijen}</tbody>
-    <tfoot><tr><td>Totaal</td><td class="num">${factuurFmtBedrag(d.totaal)}</td>
-      ${d.heeftVorige?`<td class="num zacht">${factuurFmtBedrag(d.totaalVorig)}</td>
-      <td class="num ${(d.groei||0)>=0?'op':'af'}">${d.groei==null?'—':facAnPct(d.groei)}</td>`:''}
-      <td class="num">${d.aantal}</td></tr></tfoot></table>
+    <tbody>${lijf}</tbody>
+    <tfoot><tr>
+      <td class="k-per">Totaal</td>
+      <td class="num k-omzet">${factuurFmtBedrag(d.totaal)}</td>
+      <td class="num k-mom"></td>
+      ${d.heeftVorige?`<td class="num zacht k-vorig">${factuurFmtBedrag(d.totaalVorig)}</td>
+      <td class="num k-jaar" data-lab="${escapeHtml(d.range.vorigeLabel)}">${pct(d.groei)}</td>`:''}
+      <td class="num k-aantal">${d.aantal}</td></tr></tfoot></table>
   </div>`;
 }
 
@@ -21654,13 +21733,8 @@ function facAnDrillNaarFactuur(id){
 /* ── Bediening ── */
 function facAnPopInhoud(){
   const d=facAnData();
-  const knop=(id,lab)=>`<button type="button" class="${facAnBereik===id?'active':''}"
-    aria-pressed="${facAnBereik===id}" data-fac-action="facAnZetBereik" data-fac-arg1="${id}">${lab}</button>`;
   return `
-    <div><label>Periode</label>
-      <div class="uren-scope uren-scope-pop fac-an-popscope">
-        ${FAC_AN_BEREIKEN.map(([id,lab])=>knop(id,lab)).join('')}
-      </div></div>
+    <div><label>Periode</label>${facAnBereikKiezer()}</div>
     <div><label for="facAnKlantSel">Klant</label>
       <select id="facAnKlantSel" data-fac-change="facAnZetKlantSel">
         <option value="">Alle klanten</option>
@@ -21684,11 +21758,8 @@ function facAnPopInhoud(){
 function facAnPopMarkeer(){
   const pop=document.getElementById('facFilterPop');
   if(!pop)return;
-  pop.querySelectorAll('.fac-an-popscope button').forEach(b=>{
-    const aan=b.dataset.facArg1===facAnBereik;
-    b.classList.toggle('active',aan);
-    b.setAttribute('aria-pressed',String(aan));
-  });
+  const bereik=pop.querySelector('.fac-an-bereiksel');
+  if(bereik&&bereik.value!==facAnBereik)bereik.value=facAnBereik;
   const zet=(actie,aan)=>{
     const b=pop.querySelector('[data-fac-action="'+actie+'"]');
     if(b)b.setAttribute('aria-pressed',String(aan));
@@ -21702,11 +21773,26 @@ function facAnPopMarkeer(){
    knop, zodat je op een telefoon ziet dat er iets aanstaat zonder de popover
    te openen. De tabelweergave telt niet mee: dat is geen filter. */
 function facAnFilterAantal(){
-  return (facAnBereik!=='jaar'?1:0)+(facAnKlant?1:0)+(facAnEind?1:0);
+  return (facAnBereik!==String(new Date().getFullYear())?1:0)+
+    (facAnKlant?1:0)+(facAnEind?1:0);
+}
+function facAnBereikKiezer(){
+  const nu=new Date().getFullYear();
+  const opt=(w,lab)=>`<option value="${escapeHtml(String(w))}"${
+    facAnBereik===String(w)?' selected':''}>${escapeHtml(lab)}</option>`;
+  return `<select class="fac-an-bereiksel" data-fac-change="facAnZetBereikSel" aria-label="Boekjaar">
+    <optgroup label="Boekjaar">
+      ${facAnJaren().map(j=>opt(j,j===nu?j+' (dit jaar)':String(j))).join('')}
+    </optgroup>
+    <optgroup label="Anders">
+      ${FAC_AN_EXTRA.map(([id,lab])=>opt(id,lab)).join('')}
+    </optgroup>
+  </select>`;
 }
 function facAnZetBereik(v){
-  if(!FAC_AN_BEREIKEN.some(b=>b[0]===v))return;
-  facAnBereik=v;facRenderAll();facAnPopMarkeer();
+  const geldig=FAC_AN_EXTRA.some(b=>b[0]===v)||/^\d{4}$/.test(String(v));
+  if(!geldig)return;
+  facAnBereik=String(v);facRenderAll();facAnPopMarkeer();
 }
 function facAnZetKlant(k){facAnKlant=(k===facAnKlant)?'':(k||'');facRenderAll();facAnPopMarkeer();}
 function facAnWisselEind(){
@@ -21718,10 +21804,7 @@ function facAnWisselTabel(){facAnTabel=!facAnTabel;facRenderAll();facAnPopMarkee
 function facAnFilterBalk(){
   const d=facEindRegels().length;
   return `<div class="fac-an-bar">
-    <div class="cl2-seg" role="group" aria-label="Periode">
-      ${FAC_AN_BEREIKEN.map(([id,lab])=>`<button class="cl2-seg-btn${facAnBereik===id?' active':''}"
-        data-fac-action="facAnZetBereik" data-fac-arg1="${id}">${lab}</button>`).join('')}
-    </div>
+    ${facAnBereikKiezer()}
     <select class="fac-an-klantsel" data-fac-change="facAnZetKlantSel" aria-label="Klant">
       <option value="">Alle klanten</option>
       ${facAnData().klanten.map(k=>`<option value="${escapeHtml(k.key)}"${

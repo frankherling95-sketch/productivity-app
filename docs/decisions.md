@@ -10,6 +10,54 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-09 · Boekjaar kiezen, en twee soorten groei naast elkaar
+
+**Periode is een keuzelijst geworden.** Vier vaste knoppen (dit jaar / 12
+maanden / vorig jaar / alles) reikten niet verder terug dan vorig jaar, terwijl
+de administratie wél verder gaat. Nu een keuzelijst met de boekjaren waarin
+iets staat, plus dit jaar, en daaronder "Laatste 12 maanden" en "Alles". Een
+afgesloten boekjaar loopt van januari tot december en zet zich af tegen het
+jaar ervoor; het lopende jaar stopt bij deze maand en vergelijkt met dezelfde
+maanden — die regel gold al en geldt nu voor elk gekozen jaar.
+
+Meegenomen: in de popover op een telefoon vervangt die lijst het 2×2-raster van
+knoppen, dus die uitzondering (en zijn CSS) kon weg.
+
+**Twee soorten groei, allebei met naam.** De tabel had één kolom "Verschil" en
+liet in het midden waartegen. Er staan er nu twee naast elkaar, want ze
+beantwoorden verschillende vragen: *t.o.v. vorige maand* zegt of het nú
+aantrekt, *t.o.v. 2025* of het structureel beter gaat dan toen. Dezelfde twee
+staan in de tooltip boven een kolom. Bij het bereik "Alles" over meer dan twee
+jaar, waar de kolommen jaren zijn, wordt de eerste vanzelf "t.o.v. vorig jaar".
+
+De groei t.o.v. de vorige maand wordt berekend vóór het weglaten van lege
+maanden — anders vergelijkt maart zich ineens met januari.
+
+**Lege regels weg.** Een maand waar in beide periodes niets in zit zegt niets
+en verdwijnt uit de tabel. Staat er vorig jaar wél omzet, dan blijft de nul
+staan: dát is juist het getal waar je naar kijkt.
+
+**En een lege vergelijkingsperiode is geen vergelijking.** Kies je 2024 terwijl
+2023 leeg is, dan stonden er twaalf grijze balken van nul in de grafiek en een
+kolom "2023" met twaalf keer € 0,00. Die vallen nu allebei weg; `heeftVorige`
+eist omzet, geen bestaan.
+
+**De tabel op een telefoon is een lijst geworden.** Zes kolommen passen niet op
+375px, en een tabel die zijwaarts schuift lees je niet — tegen de tijd dat je
+bij het getal bent, staat de kolomkop buiten beeld. Per maand nu twee regels:
+naam en bedrag boven, de twee percentages en het aantal eronder, elk met zijn
+naam ervoor (`td[data-lab]::before`). Het bedrag van vorig jaar valt daar weg;
+dat staat al in de grafiek en in de tooltip. Binnen één boekjaar vervalt ook
+het jaartal achter de maandnaam — de periodekiezer zegt het al.
+
+**Bestanden**: `index.html` — `facAnJaren()`, `facAnBereikKiezer()`,
+`facAnRange()`, `facAnTabellen()`, tips in `facAnKolomGrafiek()`,
+`.fac-an-bereiksel` en de mobiele tabelregels; `test.html` (69);
+`sw.js` → `herling-v91`
+
+**Niet doen**: één kolom "Verschil". Twee vergelijkingen zonder naam is erger
+dan één, want dan denk je dat je de andere leest.
+
 ## 2026-09-09 · Doorklikken vanuit de analyse naar de facturen erachter
 
 **Probleem.** Een grafiek is pas te vertrouwen als je erin kunt kijken. Staat er
