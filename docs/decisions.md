@@ -10,6 +10,50 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-09 · Doorklikken vanuit de analyse naar de facturen erachter
+
+**Probleem.** Een grafiek is pas te vertrouwen als je erin kunt kijken. Staat er
+€22.022 boven april, dan wil je weten wélke facturen dat zijn — en nu moest je
+daarvoor terug naar de lijst en zelf gaan filteren op iets wat die lijst niet
+eens kan uitdrukken ("april én eindklant Uwoon").
+
+**Beslissing.** Elke kolom, elk punt op de cumulatieve lijn en elke klantbalk
+opent hetzelfde venster: de facturen die het getal maken, met hun regels
+eronder. Klikken op de balk zelf, niet op een apart knopje — je wijst het getal
+aan waar je iets van wilt weten. De tooltip zegt het erbij ("Klik voor de
+facturen"), want een balk ziet er niet klikbaar uit.
+
+Wat je krijgt hangt af van wat je aanwijst:
+
+| Je klikt op | Je ziet |
+|---|---|
+| een kolom | de facturen van díé maand (of dat jaar) |
+| een punt op de cumulatieve lijn | alles t/m die maand — dat is wat het getal zegt |
+| een klantbalk | alle facturen van die klant in de periode |
+
+Per factuur: nummer, datum, klant (met de eindklant erachter als die afwijkt),
+betreft en het bedrag excl. btw; daaronder de regels met aantal × prijs.
+Klikken op een factuur opent hem in de editor. Eén regel die woordelijk
+hetzelfde zegt als Betreft wordt weggelaten — dat is de vorm van een ingescande
+factuur en het voegt niets toe.
+
+**Waarom uit dezelfde selectie.** `facAnData()` levert nu ook de losse regels
+op, en de doorklik put daaruit. Zo kán de lijst niet uit de pas lopen met de
+balk erboven; twee keer dezelfde selectie schrijven is precies hoe dat wél
+gebeurt.
+
+**Wat het klikken op een klantbalk verving.** Dat was een filter. Filteren hoort
+in de filterrij en niet in de grafiek — dus staat de klantkeuze nu ook op een
+bureaublad in de balk onder de tabs, naast de periode. Op een telefoon zat hij
+al in de popover.
+
+**Bestanden**: `index.html` — `facAnDrillLijst/facAnDrillOpen/facAnDrillRender`,
+`#facAnDrillModal`, `.fac-an-drillrij`, `.fac-an-klantsel`, `rijen` uit
+`facAnData()`; `test.html` (68); `sw.js` → `herling-v90`
+
+**Niet doen**: de doorklik op de cumulatieve lijn beperken tot één maand. Het
+punt zegt "t/m april", dus dat is wat eronder hoort te zitten.
+
 ## 2026-09-09 · Drie dingen die pas op een echte telefoon opvielen
 
 **De tabstrip kon omhoog.** `overflow-x:auto` maakt de andere as stilzwijgend

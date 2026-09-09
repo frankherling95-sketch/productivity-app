@@ -1627,6 +1627,72 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .fac-an-krij .wa small{display:block;font-weight:500;color:var(--text-muted)}
 .fac-an-krest{font-size:var(--fs-klein);color:var(--text-muted);padding:8px}
 
+/* Klantkeuze in de balk. Sinds je op een balk doorklikt naar de facturen
+   erachter, moet het filteren ergens anders vandaan komen -- en filters horen
+   bij elkaar in die ene rij boven de grafieken. Zelfde doos als .uren-btn. */
+.fac-an-klantsel{
+  height:32px;max-width:220px;padding:0 8px;box-sizing:border-box;
+  background:var(--surface);border:1px solid var(--border-strong);
+  border-radius:var(--radius);box-shadow:0 1px 2px rgba(0,0,0,.07);
+  color:var(--text);font-family:var(--font-body);
+  font-size:var(--uren-ui,12.5px);font-weight:600;cursor:pointer;outline:none;
+}
+.fac-an-klantsel:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
+/* De tooltip zegt dat er iets achter de balk zit; zonder die regel is de
+   doorklik onvindbaar, want een balk ziet er niet klikbaar uit. */
+.fac-an-tip .klik{
+  margin-top:5px;padding-top:5px;border-top:0.5px solid var(--border);
+  font-size:var(--fs-micro);color:var(--text-hint);
+}
+
+/* ── De facturen achter een balk ── */
+.fac-an-drillrij{
+  display:block;width:100%;text-align:left;font-family:inherit;color:var(--text);
+  background:var(--surface);border:0.5px solid var(--border);
+  border-radius:var(--radius-md);padding:10px 12px;margin-bottom:8px;cursor:pointer;
+}
+.fac-an-drillrij:hover{background:var(--surface2);border-color:var(--border-strong)}
+.fac-an-drillrij:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
+.fac-an-drillrij .kop{
+  display:grid;grid-template-columns:auto auto 1fr auto;align-items:baseline;
+  gap:10px;font-size:var(--fs-basis);
+}
+.fac-an-drillrij .nr{font-variant-numeric:tabular-nums}
+.fac-an-drillrij .dt,.fac-an-drillrij .kl{color:var(--text-muted);font-size:var(--fs-klein)}
+.fac-an-drillrij .kl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fac-an-drillrij .kop .bd{font-variant-numeric:tabular-nums;white-space:nowrap}
+.fac-an-drillrij .btr{
+  display:block;margin-top:2px;font-size:var(--fs-klein);color:var(--text-muted);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+/* De regels zelf: waar het bedrag vandaan komt. Ingesprongen, stiller, en met
+   het bedrag rechts uitgelijnd onder dat van de factuur. */
+.fac-an-drillrij .rgs{
+  display:block;margin-top:8px;padding-top:8px;border-top:0.5px solid var(--border);
+}
+.fac-an-drillrij .rg{
+  display:grid;grid-template-columns:1fr auto auto;gap:10px;
+  font-size:var(--fs-klein);color:var(--text-muted);line-height:1.7;
+}
+.fac-an-drillrij .rg .om{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fac-an-drillrij .rg .an,.fac-an-drillrij .rg .bd{
+  font-variant-numeric:tabular-nums;white-space:nowrap;
+}
+.fac-an-drillrij .rg .bd{color:var(--text);min-width:86px;text-align:right}
+
+@media (max-width:768px){
+  /* Op een telefoon past de kop niet op één regel: nummer en bedrag boven,
+     datum en klant eronder. */
+  .fac-an-drillrij .kop{grid-template-columns:1fr auto;gap:2px 10px}
+  .fac-an-drillrij .nr{grid-column:1;grid-row:1}
+  .fac-an-drillrij .kop .bd{grid-column:2;grid-row:1}
+  .fac-an-drillrij .dt{grid-column:1;grid-row:2}
+  .fac-an-drillrij .kl{grid-column:2;grid-row:2;text-align:right}
+  .fac-an-drillrij .rg{grid-template-columns:1fr auto}
+  .fac-an-drillrij .rg .an{grid-column:1;grid-row:2;font-size:var(--fs-micro)}
+  .fac-an-drillrij .rg .bd{grid-column:2;grid-row:1;min-width:0}
+  .fac-an-klantsel{max-width:none;flex:1}
+}
 .fac-an-tabelwrap{overflow-x:auto}
 .fac-an-tabel{width:100%;border-collapse:collapse;font-size:var(--fs-klein)}
 .fac-an-tabel th,.fac-an-tabel td{padding:6px 8px;border-bottom:0.5px solid var(--border);text-align:left}
@@ -7067,7 +7133,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v1.89</span>
+        <span class="app-versie" title="Appversie">v1.90</span>
       </div>
     </div>
   </aside>
@@ -7796,6 +7862,22 @@ textarea { line-height: 1.6; resize: vertical; }
 <input type="file" id="facScanInput" accept="application/pdf,image/png,image/jpeg,image/webp,image/heic,image/heif" multiple style="display:none"/>
 
 <!-- ── Inleeslogboek ── -->
+<!-- ── Doorklikken vanuit de analyse: de facturen achter een balk ── -->
+<div class="modal-bg" id="facAnDrillModal">
+  <div class="modal" style="max-width:760px;padding:0;display:flex;flex-direction:column;max-height:92vh">
+    <div class="modal-kop" style="flex-shrink:0">
+      <h3 style="font-size:18px;font-weight:700;margin:0" id="facAnDrillTitel">Facturen</h3>
+      <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0" id="facAnDrillSub"></p>
+    </div>
+    <div style="padding:14px 18px;overflow-y:auto;overflow-x:hidden;flex:1;min-height:0" id="facAnDrillBody"></div>
+    <div class="modal-footer" style="padding:14px 22px;border-top:0.5px solid var(--border);flex-shrink:0">
+      <div class="modal-footer-left"></div>
+      <div class="modal-footer-right">
+        <button class="btn btn-sm btn-primary" data-fac-action="closeFacAnDrill">Sluiten</button>
+      </div>
+    </div>
+  </div>
+</div>
 <!-- ── Eindklanten: regels die een doorbelaste factuur toewijzen ── -->
 <div class="modal-bg" id="facEindModal">
   <div class="modal" style="max-width:640px;padding:0;display:flex;flex-direction:column;max-height:92vh">
@@ -18780,6 +18862,11 @@ const FAC_CLICK_ACTIONS={
   facToggleCijfers:()=>facToggleCijfers(),
   facAnZetBereik:(a)=>facAnZetBereik(a),
   facAnZetKlant:(a)=>facAnZetKlant(a),
+  facAnDrillVak:(a)=>facAnDrillVak(a),
+  facAnDrillCum:(a)=>facAnDrillCum(a),
+  facAnDrillKlant:(a)=>facAnDrillKlant(a),
+  facAnDrillNaarFactuur:(a)=>facAnDrillNaarFactuur(a),
+  closeFacAnDrill:()=>closeFacAnDrill(),
   facAnWisselEind:()=>facAnWisselEind(),
   facAnWisselTabel:()=>facAnWisselTabel(),
   openFacEindModal:()=>openFacEindModal(),
@@ -21142,6 +21229,7 @@ function facAnData(){
   const vorigeIndex={};
   vorigeKeys.forEach((k,i)=>{vorigeIndex[k]=i;});
 
+  const rijen=[];   /* elke factuur in de periode, voor het doorklikken */
   const nu=vakken.map(v=>({...v,excl:0,aantal:0}));
   const nuIndex={};
   nu.forEach((v,i)=>{nuIndex[v.key]=i;});
@@ -21154,6 +21242,10 @@ function facAnData(){
     const k=vakVan(f);
     if(inHuidig.has(k)){
       const kl=facAnKlantVan(f);
+      /* Vóór het klantfilter: de ranglijst toont alle klanten, dus moet de
+         doorklik vanaf een balk ook bij een klant kunnen die er nu is
+         uitgefilterd. Welke filter waar geldt, staat in facAnDrillLijst(). */
+      rijen.push({f,vak:k,key:kl.key,naam:kl.naam,excl:t.excl});
       /* Het klantfilter geldt voor de tegels en de tijdgrafieken; de
          ranglijst laat alle klanten zien met de gekozene opgelicht -- een
          ranglijst van één balk is geen ranglijst. */
@@ -21181,7 +21273,7 @@ function facAnData(){
   /* Cumulatief: de lijn die laat zien of je vóór of achter loopt. */
   let c1=0,c2=0;
   const cum=nu.map((v,i)=>{c1+=v.excl;c2+=vorige[i]||0;return {label:v.label,kort:v.kort,nu:c1,vorige:c2};});
-  return {range:r,vakken:nu,vorige,cum,klanten:lijst,klantTotaal,
+  return {range:r,vakken:nu,vorige,cum,klanten:lijst,klantTotaal,rijen,
     totaal:Math.round(totaal*100)/100,totaalVorig:Math.round(totaalVorig*100)/100,
     aantal,openstaand:Math.round(openstaand*100)/100,openAantal,
     groei:totaalVorig>0?((totaal-totaalVorig)/totaalVorig)*100:null,
@@ -21294,7 +21386,8 @@ function facAnKolomGrafiek(d,breed){
        lukt met een muis niet en met een duim al helemaal niet. */
     banden+=`<rect x="${bx.toFixed(1)}" y="${padT}" width="${band.toFixed(1)}" height="${plotH}"
       class="an-band" tabindex="0" role="button" data-an-band="kolom" data-an-i="${i}"
-      aria-label="${escapeHtml(v.label+': '+factuurFmtBedrag(v.excl))}"/>`;
+      data-fac-action="facAnDrillVak" data-fac-arg1="${escapeHtml(v.key)}"
+      aria-label="${escapeHtml(v.label+': '+factuurFmtBedrag(v.excl)+' — open de facturen')}"/>`;
   });
   _facAnTips.kolom=tips;
   return `<svg viewBox="0 0 ${breed} ${H}" width="100%" height="${H}" class="an-svg" role="img"
@@ -21349,7 +21442,8 @@ function facAnLijnGrafiek(d,breed){
       ...(d.heeftVorige&&p.vorige>0?[{lab:'Verschil',val:facAnPct(((p.nu-p.vorige)/p.vorige)*100)}]:[])]});
     banden+=`<rect x="${bx.toFixed(1)}" y="${padT}" width="${bandW.toFixed(1)}" height="${plotH}"
       class="an-band" tabindex="0" role="button" data-an-band="lijn" data-an-i="${i}"
-      aria-label="${escapeHtml('t/m '+p.label+': '+factuurFmtBedrag(p.nu))}"/>`;
+      data-fac-action="facAnDrillCum" data-fac-arg1="${escapeHtml(d.vakken[i]?d.vakken[i].key:'')}"
+      aria-label="${escapeHtml('t/m '+p.label+': '+factuurFmtBedrag(p.nu)+' — open de facturen')}"/>`;
   });
   _facAnTips.lijn=tips;
   return `<svg viewBox="0 0 ${breed} ${H}" width="100%" height="${H}" class="an-svg" role="img"
@@ -21371,8 +21465,8 @@ function facAnKlantBalken(d){
   const rij=(k,actief)=>{
     const pct=d.klantTotaal>0?(k.excl/d.klantTotaal)*100:0;
     return `<button type="button" class="fac-an-krij${actief?' aan':''}"
-      data-fac-action="facAnZetKlant" data-fac-arg1="${escapeHtml(k.key)}"
-      aria-pressed="${actief?'true':'false'}">
+      data-fac-action="facAnDrillKlant" data-fac-arg1="${escapeHtml(k.key)}"
+      title="Bekijk de facturen van ${escapeHtml(k.naam)}">
       <span class="nm" title="${escapeHtml(k.naam)}">${escapeHtml(k.naam)}${
         k.via?`<small>via ${escapeHtml(k.via)}</small>`:''}</span>
       <span class="bl"><span class="vul" style="width:${Math.max(1,(k.excl/max)*100).toFixed(1)}%"></span></span>
@@ -21462,6 +21556,101 @@ function facRenderAnalyse(){
   `;
 }
 
+/* ── Doorklikken naar de facturen achter een balk, punt of klant ──
+   Een grafiek is pas te vertrouwen als je erin kunt kijken. Elke kolom, elk
+   punt op de lijn en elke klantbalk opent dezelfde lijst: de facturen die het
+   getal maken, met hun regels eronder. Vandaar de klik op de balk en niet op
+   een apart knopje -- je wijst het getal aan waar je iets van wilt weten. */
+let facAnDrill=null;   /* {titel,sub,rijen} zolang het venster openstaat */
+function facAnDrillLijst(soort,sleutel){
+  const d=facAnData();
+  let rijen=d.rijen;
+  if(soort==='klant'){
+    rijen=rijen.filter(r=>r.key===sleutel);
+  }else{
+    /* De tijdgrafieken volgen het klantfilter, dus de lijst eronder ook. */
+    if(facAnKlant)rijen=rijen.filter(r=>r.key===facAnKlant);
+    const i=d.vakken.findIndex(v=>v.key===sleutel);
+    const plek=v=>d.vakken.findIndex(x=>x.key===v);
+    rijen=soort==='cum'?rijen.filter(r=>plek(r.vak)<=i&&plek(r.vak)>=0)
+                       :rijen.filter(r=>r.vak===sleutel);
+  }
+  return rijen.slice().sort((a,b)=>String(b.f.datum).localeCompare(String(a.f.datum))
+    ||String(b.f.nummer).localeCompare(String(a.f.nummer)));
+}
+function facAnDrillVak(sleutel){facAnDrillOpen('vak',sleutel);}
+function facAnDrillCum(sleutel){facAnDrillOpen('cum',sleutel);}
+function facAnDrillKlant(sleutel){facAnDrillOpen('klant',sleutel);}
+function facAnDrillOpen(soort,sleutel){
+  const d=facAnData();
+  const vak=d.vakken.find(v=>v.key===sleutel);
+  const klant=d.klanten.find(k=>k.key===sleutel);
+  const rijen=facAnDrillLijst(soort,sleutel);
+  const titel=soort==='klant'?(klant?klant.naam:'Klant')
+    :soort==='cum'?('t/m '+(vak?vak.label:''))
+    :(vak?vak.label:'');
+  const som=rijen.reduce((s,r)=>s+r.excl,0);
+  const erbij=[];
+  if(soort!=='klant'&&facAnKlant){
+    const k=d.klanten.find(x=>x.key===facAnKlant);
+    if(k)erbij.push('alleen '+k.naam);
+  }
+  if(soort==='klant')erbij.push(d.range.label.toLowerCase());
+  facAnDrill={titel,rijen,
+    sub:rijen.length+' '+(rijen.length===1?'factuur':'facturen')+' · '+
+      factuurFmtBedrag(som)+' excl. btw'+(erbij.length?' · '+erbij.join(' · '):'')};
+  facAnDrillRender();
+  document.getElementById('facAnDrillModal').classList.add('open');
+}
+function closeFacAnDrill(){
+  document.getElementById('facAnDrillModal').classList.remove('open');
+  facAnDrill=null;
+}
+function facAnDrillRender(){
+  const box=document.getElementById('facAnDrillBody');
+  if(!box||!facAnDrill)return;
+  document.getElementById('facAnDrillTitel').textContent=facAnDrill.titel;
+  document.getElementById('facAnDrillSub').textContent=facAnDrill.sub;
+  if(!facAnDrill.rijen.length){
+    box.innerHTML='<div class="uren-empty">Geen facturen in deze selectie.</div>';
+    return;
+  }
+  box.innerHTML=facAnDrill.rijen.map(r=>{
+    const f=r.f;
+    const klant=factuurKlant(f.clientId);
+    const eind=facEindklantVan(f);
+    /* Eén regel die woordelijk hetzelfde zegt als Betreft voegt niets toe --
+       dat is de vorm van een ingescande factuur. Dan alleen de kop. */
+    const lijst=(f.regels||[]);
+    const dubbel=lijst.length===1&&
+      String(lijst[0].omschrijving||'').trim()===String(f.betreft||'').trim();
+    const regels=(dubbel?[]:lijst).map(g=>{
+      const aantal=Number(g.aantal||0), prijs=Number(g.stuksprijs||0);
+      return `<div class="rg">
+        <span class="om" title="${escapeHtml(g.omschrijving||'')}">${escapeHtml(g.omschrijving||'—')}</span>
+        <span class="an">${aantal?escapeHtml(urenFmt(aantal)+(g.eenheid?' '+g.eenheid:'')+' × '+factuurFmtBedrag(prijs)):''}</span>
+        <span class="bd">${factuurFmtBedrag(factuurRegelBedrag(g))}</span>
+      </div>`;
+    }).join('');
+    return `<button type="button" class="fac-an-drillrij" data-fac-action="facAnDrillNaarFactuur"
+      data-fac-arg1="${f.id}" title="Open deze factuur">
+      <span class="kop">
+        <b class="nr">${escapeHtml(f.nummer||'—')}</b>
+        <span class="dt">${factuurFmtDatum(String(f.datum||'').slice(0,10))}</span>
+        <span class="kl">${escapeHtml(klant?(klant.bedrijfsnaam||klant.name):'Zonder klant')}${
+          eind&&klant&&eind!==(klant.bedrijfsnaam||klant.name)?' · '+escapeHtml(eind):''}</span>
+        <b class="bd">${factuurFmtBedrag(r.excl)}</b>
+      </span>
+      <span class="btr">${escapeHtml(f.betreft||'')}</span>
+      ${regels?`<span class="rgs">${regels}</span>`:''}
+    </button>`;
+  }).join('');
+}
+function facAnDrillNaarFactuur(id){
+  closeFacAnDrill();
+  facOpenEditor(id);
+}
+
 /* ── Bediening ── */
 function facAnPopInhoud(){
   const d=facAnData();
@@ -21533,6 +21722,11 @@ function facAnFilterBalk(){
       ${FAC_AN_BEREIKEN.map(([id,lab])=>`<button class="cl2-seg-btn${facAnBereik===id?' active':''}"
         data-fac-action="facAnZetBereik" data-fac-arg1="${id}">${lab}</button>`).join('')}
     </div>
+    <select class="fac-an-klantsel" data-fac-change="facAnZetKlantSel" aria-label="Klant">
+      <option value="">Alle klanten</option>
+      ${facAnData().klanten.map(k=>`<option value="${escapeHtml(k.key)}"${
+        facAnKlant===k.key?' selected':''}>${escapeHtml(k.naam)}</option>`).join('')}
+    </select>
     <button class="uren-btn${facAnEind?' aan':''}" data-fac-action="facAnWisselEind"
       aria-pressed="${facAnEind?'true':'false'}"
       title="Splits doorbelaste facturen uit naar de klant achter je klant">Eindklanten${d?` <span class="cnt">${d}</span>`:''}</button>
@@ -21552,7 +21746,8 @@ function facAnToonTip(plot,i){
   if(!tip||!data)return;
   tip.innerHTML=`<div class="t">${escapeHtml(data.titel)}</div>`+
     data.regels.map(r=>`<div class="r">${r.kleur?`<i class="${r.kleur}"></i>`:'<i class="leeg"></i>'}
-      <b>${escapeHtml(r.val)}</b><span>${escapeHtml(r.lab)}</span></div>`).join('');
+      <b>${escapeHtml(r.val)}</b><span>${escapeHtml(r.lab)}</span></div>`).join('')+
+    '<div class="klik">Klik voor de facturen</div>';
   tip.hidden=false;
   const svg=plot.querySelector('svg');
   const band=plot.querySelector(`[data-an-i="${i}"]`);

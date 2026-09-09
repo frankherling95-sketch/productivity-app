@@ -208,6 +208,7 @@ Daarna: vraag Frank om **Ctrl+Shift+R** op de live site. Optioneel `test.html` d
 
 Top-3 meest recent. Volledige log + *waarom* per beslissing: [`docs/decisions.md`](docs/decisions.md).
 
+- **2026-09-09**: Doorklikken vanuit de analyse — elke kolom, elk punt op de cumulatieve lijn en elke klantbalk opent de facturen erachter, met hun regels en een klik naar de editor. De doorklik put uit dezelfde selectie als de grafiek (`rijen` uit `facAnData()`), zodat de lijst niet uit de pas kan lopen met de balk erboven. Het klikken op een klantbalk was een filter; filteren hoort in de filterrij, dus staat de klantkeuze nu ook op een bureaublad in de balk
 - **2026-09-09**: De keuzes van de analyse zitten op een telefoon achter de trechterknop in de topbalk (zelfde plek en popover als elders); op een bureaublad blijft de brede balk onder de tabs. Beide staan in de DOM, de CSS kiest — zo hoeft een draaiend scherm niet op een hertekening te wachten
 - **2026-09-08**: Analyse-tab in Facturen — omzet per maand tegen de vorige periode, cumulatief, en een ranglijst per klant, met een eigen periodekeuze (dit jaar / 12 maanden / vorig jaar / alles) die alles eronder aanstuurt. "Dit jaar" loopt t/m déze maand en vergelijkt met dezelfde maanden vorig jaar. Twee reeksen = nadruk, geen categorieën: huidige periode in kleur, vorige in grijs (`--gr-nu`/`--gr-vorig`, gevalideerd op kleurenblindheid). Doorbelaste facturen splits je uit naar eindklant via regels ("betreft bevat X → telt als Y") of het veld Eindklant op de factuur zelf, dat vóór de regels gaat
 - **2026-09-08**: Eén mintknop in de voet van een factuur — op een verstuurde factuur is dat altijd "Betaling registreren" (Mailen is altijd secundair, betaald = geen mint). Het mint sprong eerder tussen die twee, afhankelijk van `gemaildOp`, en bij een factuur die je print komt dat moment nooit. De editor is meteen 1000px in plaats van 900: acht knoppen vragen 886px waar er 854 was, en de btw-kolom kapte af tot "21% (h"
@@ -304,7 +305,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 |---------|------|
 | `validate.mjs` | JS syntax + tag balance + onclick-referentie checks |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 67 smoke-, sync-, model- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
+| `test.html` | 68 smoke-, sync-, model- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |

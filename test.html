@@ -365,6 +365,29 @@ function runChecks() {
              r('Kasparov BI B.V. Gewerkte uren Augustus 2026', 'Kasparov BI B.V.') === '' &&
              r('Nordwind Energy Werkzaamheden Juli 2026', 'Nordwind Energy BV') === '';
     }],
+    ['Analyse: doorklikken geeft de facturen achter een balk', () => {
+      /* De doorklik moet uit dezelfde selectie putten als de grafiek erboven,
+         anders wijst een balk naar een ander getal dan hij toont. */
+      const maak = (nr) => {
+        const f = w.factuurNieuw(null, null, null);
+        w.facConceptVastleggen();
+        f.nummer = nr; f.status = 'verstuurd';
+        f.regels = [{omschrijving:'Test', aantal:1, stuksprijs:100, btwTarief:21, eenheid:'stuk'}];
+        return f;
+      };
+      const a = maak('T-1'), b = maak('T-2');
+      try {
+        const nummers = w.facAnDrillLijst('vak', String(a.datum).slice(0, 7)).map(r => r.f.nummer);
+        return nummers.includes('T-1') && nummers.includes('T-2') &&
+               w.facAnDrillLijst('vak', '1999-01').length === 0;
+      } finally {
+        const arr = (w.huidigeStateSnapshot().facturen || {}).invoices || [];
+        [a, b].forEach(f => {
+          const i = arr.findIndex(x => x.id === f.id);
+          if (i >= 0) arr.splice(i, 1);
+        });
+      }
+    }],
     ['Analyse: het veld op de factuur gaat vóór de regel', () =>
       w.facEindklantVan({eindklant:'  Uwoon  ', betreft:'Staedion Gewerkte uren Juli', clientId:'x'}) === 'Uwoon' &&
       w.facEindklantVan({betreft:'niets herkenbaars', clientId:'x'}) === ''],
