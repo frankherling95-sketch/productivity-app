@@ -1790,6 +1790,21 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
    2,3:1 en is daarmee slecht leesbaar. De rand en de tint dragen het
    signaal al. */
 .fac-btw-let b{display:block;margin-bottom:3px;color:var(--text)}
+/* Hetzelfde blok, drie toestanden. Standaard is "let op": er is iets waar je
+   van moet weten. Daarnaast "gelukt" en "mislukt" -- die stonden er eerder
+   als losse border-left-color in een style-attribuut, waardoor een geslaagde
+   scan er precies zo uitzag als de btw-waarschuwing eronder.
+
+   De tint en de rand dragen het signaal, de tekst blijft --text (zie de
+   opmerking hierboven). Het vinkje krijgt wél de kleur: één gekleurd teken
+   valt op zonder dat er iets onleesbaar wordt. */
+.fac-btw-let.let-gelukt{background:var(--success-bg);border-left-color:var(--success)}
+.fac-btw-let.let-fout{background:var(--danger-bg);border-left-color:var(--danger)}
+/* In em, niet in px: dit icoon staat in een tekstregel en hoort met die regel
+   mee te schalen -- --icoon is de maat voor een icoon in een raakvlak. */
+.fac-btw-let .let-icoon{width:1em;height:1em;vertical-align:-0.12em;margin-right:5px;flex:none}
+.fac-btw-let.let-gelukt .let-icoon{color:var(--success)}
+.fac-btw-let.let-fout .let-icoon{color:var(--danger)}
 @media (max-width:768px){
   .fac-btw-kop{flex-direction:column;gap:6px}
 }
@@ -7163,7 +7178,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v1.92</span>
+        <span class="app-versie" title="Appversie">v1.93</span>
       </div>
     </div>
   </aside>
@@ -16152,6 +16167,14 @@ function urenRenderScope(){
    Een <svg> tekent altijd hetzelfde en schaalt met de knop mee. */
 /* Zelfde trechter als in de Checklist-topbalk (zoek op cl2-filterbtn):
    één pad, één maat via .icoon. Wie er hier een verandert, verandert daar mee. */
+/* Twee tekens voor een meldingsblok: geslaagd en misgegaan. Ze staan in een
+   tekstregel, dus schalen ze mee met die regel (zie .let-icoon). */
+const VINK_ICOON='<svg class="let-icoon" viewBox="0 0 16 16" fill="none" '+
+  'stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" '+
+  'aria-hidden="true" focusable="false"><path d="M2.5 8.5l3.5 3.5 7.5-8"/></svg>';
+const UITROEP_ICOON='<svg class="let-icoon" viewBox="0 0 16 16" fill="none" '+
+  'stroke="currentColor" stroke-width="2" stroke-linecap="round" '+
+  'aria-hidden="true" focusable="false"><path d="M8 3.5v5.5"/><path d="M8 12.2v.3"/></svg>';
 const FILTER_ICOON='<svg class="icoon" viewBox="0 0 16 16" fill="none" '+
   'stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" '+
   'aria-hidden="true" focusable="false"><path d="M2 3h12l-4.5 5.5V13l-3 1.5V8.5L2 3z"/></svg>';
@@ -22500,14 +22523,14 @@ function facOudRender(){
     ? (()=>{const e=post.eerder||{};
         const k=factuurKlant(e.clientId);
         const f=(factuurState.invoices||[]).find(x=>x.id===e.factuurId);
-        return `<div class="fac-btw-let" style="margin-bottom:14px;border-left-color:var(--danger)">
-        <b>${escapeHtml(post.naam)} heb je al ingelezen.</b>
+        return `<div class="fac-btw-let let-fout" style="margin-bottom:14px">
+        <b>${UITROEP_ICOON}${escapeHtml(post.naam)} heb je al ingelezen.</b>
         ${e.gescandOp?factuurFmtDatum(e.gescandOp.slice(0,10)):'eerder'}${e.nummer?' als '+escapeHtml(e.nummer):''}${k?' · '+escapeHtml(k.bedrijfsnaam||k.name):''}${f?' · '+factuurFmtBedrag(factuurTotalen(f).incl):''}.
         ${e.hard===false?'<br><i>Herkend op naam en grootte, niet op inhoud.</i>':''}
         Er is niets opnieuw ingelezen. Sla hem over, of
         <button class="btn btn-sm" type="button" data-fac-action="facScanTochInlezen" style="margin-left:4px">lees hem toch in</button></div>`;})()
     : post&&post.status==='fout'
-    ? `<div class="fac-btw-let" style="margin-bottom:14px"><b>${escapeHtml(post.naam)} kon niet gelezen worden.</b>
+    ? `<div class="fac-btw-let let-fout" style="margin-bottom:14px"><b>${UITROEP_ICOON}${escapeHtml(post.naam)} kon niet gelezen worden.</b>
        ${escapeHtml(post.fout)} — vul hem met de hand in, sla hem over, of
        <button class="btn btn-sm" type="button" data-fac-action="facScanHerkans" style="margin-left:4px">probeer opnieuw</button></div>`
     : facOudBezig&&facScanRustTot>Date.now()
@@ -22517,7 +22540,7 @@ function facOudRender(){
     : facOudBezig
     ? `<div class="fac-uren-info" style="margin-bottom:14px">✲ <b>${escapeHtml(facOudBron)}</b> wordt gelezen…</div>`
     : facOudBron
-      ? `<div class="fac-btw-let" style="margin-bottom:14px"><b>Ingelezen uit ${escapeHtml(facOudBron)}.</b>
+      ? `<div class="fac-btw-let let-gelukt" style="margin-bottom:14px"><b>${VINK_ICOON}Ingelezen uit ${escapeHtml(facOudBron)}.</b>
          Loop de velden na voor je opslaat${g.klantOpFactuur?` — op de factuur staat “${escapeHtml(g.klantOpFactuur)}”`:''}.</div>`
       : '';
   facOudKop();
@@ -22574,8 +22597,8 @@ function facOudDubbelRegel(nummer){
   const f=factuurState.invoices.find(x=>x.nummer===nr);
   if(!f)return '';
   const klant=factuurKlant(f.clientId);
-  return `<div class="fac-btw-let" style="margin-top:12px;border-left-color:var(--danger)">
-    <b>${escapeHtml(nr)} staat er al.</b> ${factuurFmtDatum(f.datum)} ·
+  return `<div class="fac-btw-let let-fout" style="margin-top:12px">
+    <b>${UITROEP_ICOON}${escapeHtml(nr)} staat er al.</b> ${factuurFmtDatum(f.datum)} ·
     ${escapeHtml(f.klant?f.klant.naam:(klant?(klant.bedrijfsnaam||klant.name):'zonder klant'))} ·
     ${factuurFmtBedrag(factuurTotalen(f).incl)}. Opslaan met dit nummer lukt niet.</div>`;
 }

@@ -10,6 +10,49 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-09 · Een geslaagde scan hoort niet als waarschuwing te lezen
+
+**Probleem.** Na het inscannen stond er "Ingelezen uit F00005.pdf" in precies
+hetzelfde amberkleurige blok als de btw-waarschuwing twintig regels lager.
+Twee tegengestelde boodschappen in dezelfde jas: je moest de tekst lezen om te
+weten of er iets goed of iets mis was gegaan.
+
+**Beslissing.** Eén meldingsblok (`.fac-btw-let`) met drie toestanden:
+
+| Toestand | Klasse | Rand + tint | Icoon |
+|---|---|---|---|
+| let op (standaard) | — | `--warning` | geen |
+| gelukt | `.let-gelukt` | `--success` | vinkje |
+| mislukt | `.let-fout` | `--danger` | uitroepteken |
+
+Gemeten op 375px en 1400px, identiek: groen `rgba(10,157,120,.1)` met rand
+`#0A9D78` tegenover amber `rgba(217,119,6,.1)` — twee kleuren die je niet met
+elkaar verwart. Ook in het donkere thema.
+
+**Waarom geen groene balk met witte tekst**, zoals geopperd. Wit-op-kleur is in
+deze app voorbehouden aan twee dingen: de kopband van een modaal en de
+hoofdknop. Een derde variant erbij maakt de melding zwaarder dan de knop
+waarmee je hem wegklikt. De tint plus de rand plus het vinkje zeggen het al, en
+de tekst blijft daarmee op `var(--text)` staan — een statuskleur op zijn eigen
+tint haalt de leesbaarheid niet (`--warning` op `--warning-bg` is 2,3:1).
+
+**Het icoon staat in `1em`, niet in `--icoon`.** Het zit in een tekstregel en
+hoort met die regel mee te schalen; `--icoon` (16/20px) is de maat voor een
+icoon in een raakvlak. Gerenderd komt het op 13px bij 12,5px tekst.
+
+**Meegenomen: kleur uit de markup.** Drie meldingen droegen hun rood als
+`style="border-left-color:var(--danger)"` in het HTML-attribuut — een
+kleurbesluit op de plek waar je het nooit terugvindt. Die zijn nu `.let-fout`.
+Daardoor kreeg ook "kon niet gelezen worden" eindelijk de kleur die erbij
+hoort; die stond op amber.
+
+**Bestanden**: `index.html` — `.fac-btw-let.let-gelukt/.let-fout`,
+`VINK_ICOON`, `UITROEP_ICOON`, de vier aanroepen in `facOudRender()`,
+`facScanMerkDubbel()` en `facOudDubbelRegel()`; `docs/stijlgids.md` §12
+(en §11 stond tussen 9 en 10 in — nu op volgorde); `sw.js` → `herling-v93`
+
+**Niet doen**: een kleur in een style-attribuut zetten. Kies een toestand.
+
 ## 2026-09-09 · Vier dingen die pas op een breed scherm opvielen
 
 **De grafiek vulde zijn kaart niet.** Er zat een plafond van 1100px op de

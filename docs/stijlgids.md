@@ -274,6 +274,20 @@ regel in `decisions.md`.
 
 ---
 
+## 10. Hoe je dit controleert
+
+Niet op het oog — deze CSS zit vol `!important` en de generieke input-regel
+weegt zwaarder dan een losse class. Meet in de browser:
+
+1. Start de preview (`.claude/launch.json`, poort 8765).
+2. Render de app in een iframe van 375px op een hulppagina (`_shot.html`,
+   staat in `.gitignore`) en lees `getComputedStyle` uit met headless Chrome
+   plus `--dump-dom`.
+3. Vergelijk 375px en 1400px in één tabel, zoals hierboven.
+
+Zie [`mobile.md`](mobile.md) voor de details van die werkwijze, en het geheugen
+van de agent voor de seed-gegevens.
+
 ## 11. Grafieken
 
 Twee tokens, en verder de gewone tekst- en maattokens:
@@ -307,16 +321,31 @@ dataviz-richtlijn): ΔE ≥ 15 bij normaal zicht, ≥ 8 bij kleurenblindheid.
 
 ---
 
-## 10. Hoe je dit controleert
+---
 
-Niet op het oog — deze CSS zit vol `!important` en de generieke input-regel
-weegt zwaarder dan een losse class. Meet in de browser:
+## 12. Meldingsblok
 
-1. Start de preview (`.claude/launch.json`, poort 8765).
-2. Render de app in een iframe van 375px op een hulppagina (`_shot.html`,
-   staat in `.gitignore`) en lees `getComputedStyle` uit met headless Chrome
-   plus `--dump-dom`.
-3. Vergelijk 375px en 1400px in één tabel, zoals hierboven.
+Eén blok (`.fac-btw-let`) met drie toestanden. De tint en de rand links
+dragen het signaal; de tekst blijft `var(--text)`, want een statuskleur op
+zijn eigen tint haalt de leesbaarheid niet (`--warning` op `--warning-bg` is
+2,3:1). Het icoon krijgt de kleur wél — één gekleurd teken valt op zonder dat
+er iets onleesbaar wordt.
 
-Zie [`mobile.md`](mobile.md) voor de details van die werkwijze, en het geheugen
-van de agent voor de seed-gegevens.
+| Toestand | Klasse | Rand + tint | Icoon |
+|---|---|---|---|
+| let op (standaard) | — | `--warning` | geen |
+| gelukt | `.let-gelukt` | `--success` | vinkje |
+| mislukt | `.let-fout` | `--danger` | uitroepteken |
+
+| | |
+|---|---|
+| tekst | 12,5px / 1,55 |
+| kop | `<b>`, eigen regel, `var(--text)` |
+| rand | 3px links, verder geen rand |
+| icoon | `1em` — het staat in een tekstregel en schaalt daarmee mee; `--icoon` is de maat voor een icoon in een raakvlak, niet hierin |
+
+> **Een geslaagde handeling hoort niet als waarschuwing te lezen.** Tot
+> 2026-09-09 droeg "Ingelezen uit X.pdf" dezelfde amberkleur als de
+> btw-waarschuwing eronder, en stonden de rode varianten als
+> `border-left-color` in een style-attribuut. Nieuwe melding? Kies een
+> toestand, schrijf geen kleur in de markup.
