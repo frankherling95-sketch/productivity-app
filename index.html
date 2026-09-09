@@ -572,14 +572,33 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .notes-ovf-item.aan{font-weight:700;color:var(--text)}
 .notes-ovf-item.aan::before{content:'✓  '}
 .notes-ovf-scheiding{height:1px;background:var(--border);margin:5px 0}
-/* Prullenbak: per rij de titel met wanneer hij weg is gegaan, en de twee
-   wegen terug -- terugzetten of alsnog echt weg. */
-.notes-bak-rij{display:flex;align-items:center;gap:10px;padding:10px 2px;border-bottom:0.5px solid var(--border)}
+/* Prullenbak: per rij de titel, hoe lang het er al staat, en de twee wegen
+   terug -- terugzetten of alsnog echt weg.
+
+   Eén indeling voor beide breedtes, zonder eigen mobiele laag. De tekstkolom
+   vraagt 220px en de knoppen samen ruim 150; op een bureaublad (rij 520px)
+   past dat naast elkaar, op 375px (rij 335px) niet. Dan zakken de knoppen
+   naar hun eigen regel in plaats van de ouderdom weg te drukken -- en juist
+   die ouderdom is hier het antwoord op "durf ik dit weg te gooien". */
+.notes-bak-rij{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;
+  padding:10px 2px;border-bottom:0.5px solid var(--border)}
 .notes-bak-rij:last-child{border-bottom:0}
-.notes-bak-tekst{flex:1;min-width:0}
+.notes-bak-tekst{flex:1 1 220px;min-width:0}
 .notes-bak-titel{font-size:var(--fs-basis);font-weight:600;color:var(--text);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .notes-bak-meta{font-size:var(--fs-micro);color:var(--text-muted);margin-top:2px}
+/* De ouderdom draagt een getal, dus tabular: "3 dagen" en "12 dagen" onder
+   elkaar mogen niet verspringen. Hij breekt nooit af -- een datum over twee
+   regels lees je niet als één ding. Staat hij niet vast (items van vóór het
+   tijdstempel), dan zegt hij dat, in een lichtere kleur: geen verzonnen dag,
+   en ook geen lege plek. */
+.notes-bak-ouderdom{white-space:nowrap;font-variant-numeric:tabular-nums}
+.notes-bak-ouderdom.onbekend{color:var(--text-hint)}
+/* Het raakvlak volgt --tap: 36px op een bureaublad, 44 op een telefoon. */
+.notes-bak-acties{display:flex;align-items:center;gap:6px;margin-left:auto;flex:none}
+.notes-bak-acties .btn{min-height:var(--tap)}
+.notes-bak-acties .cl2-iconbtn{width:var(--tap);height:var(--tap)}
+.notes-bak-acties .cl2-iconbtn svg{width:var(--icoon);height:var(--icoon)}
 .notes-bak-leeg{padding:22px 6px;text-align:center;color:var(--text-muted);
   font-size:var(--fs-klein);line-height:1.6}
 
@@ -13333,12 +13352,26 @@ function notesPrullenbakWeg(id){
   notesState.prullenbak=bak.filter(x=>x.node.id!==id);
   scheduleSave();renderNotesPrullenbak();
 }
+/* Legen is de enige handeling in deze module die in één klap onherstelbaar
+   is -- ook de ongedaan-knop in de toast helpt hier niet meer, want die hangt
+   aan de prullenbak zelf. De vraag noemt daarom allebei: hoeveel er weggaat,
+   en dat het niet terugkomt. Een groep telt als één item maar neemt zijn
+   notities mee, en dat verschil hoort erbij: anders lees je "3 items" waar er
+   twaalf notities achter zitten. */
 function notesPrullenbakLegen(){
-  const n=(notesState.prullenbak||[]).length;
+  const bak=notesState.prullenbak||[];
+  const n=bak.length;
   if(!n)return;
-  if(!confirm(`De prullenbak bevat ${n} item${n===1?'':'s'}. Alles definitief verwijderen?`))return;
+  const paginas=bak.reduce((som,x)=>
+    som+flattenNotes([x.node]).filter(y=>y.type==='page').length,0);
+  const items=n+' item'+(n===1?'':'s');
+  /* Alleen erbij als het iets toevoegt: bij louter losse notities is het
+     hetzelfde getal, en een lege groep zou "(0 notities)" opleveren. */
+  const wat=items+(paginas&&paginas!==n?' ('+paginas+' notitie'+(paginas===1?'':'s')+')':'');
+  if(!confirm(`Prullenbak legen?\n\n${wat} ${n===1?'wordt':'worden'} definitief weggegooid.\nDit kan niet ongedaan worden gemaakt.`))return;
   notesState.prullenbak=[];
   scheduleSave();renderNotesPrullenbak();
+  appToast(`Prullenbak geleegd · ${items} definitief weg`,{type:'success'});
 }
 function openNotesPrullenbak(){
   renderNotesPrullenbak();
@@ -13346,6 +13379,39 @@ function openNotesPrullenbak(){
 }
 function closeNotesPrullenbak(){
   document.getElementById('notesPrullenbakModal')?.classList.remove('open');
+}
+/* Hoe lang staat dit er al? Dat is de vraag die je stelt vóór je iets
+   definitief weggooit, en een kale datum beantwoordt hem niet: "12 aug" moet
+   je zelf omrekenen. De eerste week leest daarom als een tijdsduur, daarna
+   wordt tellen onhandig en is de datum zelf duidelijker. Datzelfde onderscheid
+   maakt de module elders ook -- de boom toont "12 sep", kort en zonder jaar.
+
+   Elke regel begint met hetzelfde woord, zodat de kolom één ding zegt en niet
+   drie. Alleen als er geen tijdstempel is valt dat woord weg: er vált dan
+   niets te melden over wanneer. Het volledige moment gaat mee als title, voor
+   wie op een bureaublad het precieze tijdstip wil zien. */
+function notesBakWanneer(ts){
+  if(!ts)return{tekst:'Datum onbekend',titel:'',onbekend:true};
+  const d=new Date(ts),nu=new Date();
+  if(isNaN(d.getTime()))return{tekst:'Datum onbekend',titel:'',onbekend:true};
+  /* Op kalenderdagen tellen, niet op etmalen: iets van gisteravond half twaalf
+     is vanochtend "gisteren", niet "vandaag". */
+  const dag=x=>new Date(x.getFullYear(),x.getMonth(),x.getDate()).getTime();
+  const dagen=Math.round((dag(nu)-dag(d))/86400000);
+  const klok=d.toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});
+  let tekst;
+  if(dagen<=0)tekst='Verwijderd vandaag om '+klok;
+  else if(dagen===1)tekst='Verwijderd gisteren om '+klok;
+  else if(dagen<7)tekst='Verwijderd '+dagen+' dagen geleden';
+  else tekst='Verwijderd op '+d.toLocaleDateString('nl-NL',
+    d.getFullYear()===nu.getFullYear()
+      ?{day:'numeric',month:'short'}
+      :{day:'numeric',month:'short',year:'numeric'}).replace('.','');
+  return{
+    tekst,
+    titel:d.toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+' om '+klok,
+    onbekend:false
+  };
 }
 function renderNotesPrullenbak(){
   const el=document.getElementById('notesPrullenbakBody');
@@ -13356,27 +13422,45 @@ function renderNotesPrullenbak(){
     ? bak.length+' item'+(bak.length===1?'':'s')+' — hier kun je ze terugzetten of definitief weggooien'
     : 'Leeg';
   const legen=document.getElementById('notesPrullenbakLegen');
-  if(legen)legen.style.display=bak.length?'':'none';
+  if(legen){
+    legen.style.display=bak.length?'':'none';
+    /* Is de bak leeg, dan valt de hele voet weg. Op een telefoon staat
+       "Sluiten" al als kruisje in de kopbalk (zie zetModalSluitknoppen), dus
+       wat er dan overblijft is een lege balk met een streep erboven. Op een
+       bureaublad blijft "Sluiten" wel staan, maar dan rechts: .modal-footer
+       verdeelt met space-between, en één zichtbaar kind schuift daarmee naar
+       links -- precies de plek waar geen knop hoort. */
+    const voet=legen.closest('.modal-footer');
+    if(voet){
+      voet.classList.toggle('voet-leeg',!bak.length);
+      voet.style.justifyContent=bak.length?'':'flex-end';
+    }
+  }
   if(!bak.length){
     el.innerHTML=`<div class="notes-bak-leeg">Niets verwijderd.<br>
       Wat je weggooit blijft hier staan tot je het definitief weghaalt.</div>`;
     return;
   }
   el.innerHTML=bak.map(x=>{
-    const d=new Date(x.verwijderdOp||0);
-    const wanneer=x.verwijderdOp?d.toLocaleDateString('nl-NL',{day:'numeric',month:'long'})+' om '+
-      d.toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'}):'';
+    /* De ouderdom staat voorop, niet achteraan achter het soort: het is de
+       reden dat je hier kijkt. Wat het is (groep, hoeveel notities) komt
+       erachter -- dat zie je al aan de titel erboven. */
+    const w=notesBakWanneer(x.verwijderdOp);
     const paginas=x.node.type==='folder'
       ? flattenNotes([x.node]).filter(n=>n.type==='page').length : 0;
+    const soort=x.node.type==='folder'
+      ? ' · Groep, '+paginas+' notitie'+(paginas===1?'':'s') : '';
     return `<div class="notes-bak-rij">
       <div class="notes-bak-tekst">
         <div class="notes-bak-titel">${escapeHtml(x.node.title||'Zonder titel')}</div>
-        <div class="notes-bak-meta">${x.node.type==='folder'?'Groep · '+paginas+' notitie'+(paginas===1?'':'s')+' · ':''}${escapeHtml(wanneer)}</div>
+        <div class="notes-bak-meta"><span class="notes-bak-ouderdom${w.onbekend?' onbekend':''}"${w.titel?` title="${escapeHtml(w.titel)}"`:''}>${escapeHtml(w.tekst)}</span>${soort}</div>
       </div>
-      <button class="btn btn-sm" data-action="notesBakTerug" data-arg1="${x.node.id}">Terugzetten</button>
-      <button class="cl2-iconbtn danger" data-action="notesBakWeg" data-arg1="${x.node.id}" title="Definitief verwijderen" aria-label="Definitief verwijderen">
-        <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 3.5h9M5 3.5V2.5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1M3.5 3.5L4 12a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1l.5-8.5"/></svg>
-      </button>
+      <div class="notes-bak-acties">
+        <button class="btn btn-sm" data-action="notesBakTerug" data-arg1="${x.node.id}">Terugzetten</button>
+        <button class="cl2-iconbtn danger" data-action="notesBakWeg" data-arg1="${x.node.id}" title="Definitief verwijderen" aria-label="Definitief verwijderen">
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 3.5h9M5 3.5V2.5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1M3.5 3.5L4 12a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1l.5-8.5"/></svg>
+        </button>
+      </div>
     </div>`;
   }).join('');
 }
