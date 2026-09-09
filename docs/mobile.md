@@ -86,6 +86,7 @@ Elke module ziet er op een telefoon hetzelfde uit. Twee vaste plekken:
 |---|---|---|---|
 | ⋯-menu | rechtsboven, op de lijn van de moduletitel (`top: 4px` + safe-area, `right: 12px`) | 44×44, randloos, transparant | `var(--icoon)` |
 | filter | rechts in de balk eronder, in dezelfde kolom als het ⋯ — bij Uren en Facturen is dat de rij van periode/jaar, niet de tabsrij | 44×44, randloos, transparant | `var(--icoon)` |
+| `‹ jaar ›` | links in diezelfde balk, vóór de bedrijfskiezer — in **elke** weergave van Uren en Facturen, de analyse inbegrepen | 36px hoog (brede knop), het label zelf is de weg terug naar nu | — |
 | ronde + | rechtsonder, boven de tabbalk (`right: 17px`, `bottom: 80px` + safe-area) | 56×56 | 26px glyph |
 | ✕ sluiten | ín de gekleurde kopbalk van een modaal, 9px van de rechterrand | 44×44, randloos, wit op de band | `var(--icoon)` |
 

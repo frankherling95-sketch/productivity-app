@@ -10,6 +10,43 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-09 · Eén jaarknop voor elke weergave van Facturen, de analyse erbij
+
+**Probleem.** Op een telefoon had de analyse als enige tab géén `‹ 2026 ›` in de
+topbalk. Het boekjaar zat daar achter de trechterknop, als eerste keuzelijst in
+de popover. Wie van Debiteuren naar Analyse ging zag de jaarknop verdwijnen en
+moest het jaar op een andere plek, in een andere vorm en achter een extra tik
+opnieuw zoeken. Twee bedieningen voor hetzelfde begrip, in dezelfde module.
+
+**Beslissing.** De jaarknop staat op een telefoon nu ook in de analyse, op zijn
+vaste plek links van de bedrijfskiezer, en stuurt daar `facAnBereik` aan. Het
+boekjaar is uit de popover verdwenen; wat daar overblijft is een rij *Bereik*
+met de twee ruimere keuzes (12 maanden / Alles), die als schakelaar werken —
+nog een keer tikken brengt je terug bij het jaar in de topbalk. Op een
+bureaublad verandert er niets: daar staat de brede balk onder de tabs met de
+volle keuzelijst, en blijven de jaarpijlen uit (twee periodekiezers naast
+elkaar is er één te veel). Screenshots voor en na waren daar byte-gelijk.
+
+**Waarom.** Het anker is gedeeld: `facAnkerZet()` zet `facAnBereik` mee zolang
+je naar de analyse kijkt, en `facSetView()` haalt het jaar op bij binnenkomst.
+Zo staat er nooit een jaartal in beeld dat niets aanstuurt, en houd je hetzelfde
+jaar vast als je van tab wisselt — precies wat Debiteuren, Verzonden en Btw
+onderling al deden. Een gekozen "12 maanden" of "Alles" overleeft dat wisselen
+wél: dat is een bewuste keuze, geen jaar. De maand van het anker blijft staan,
+zodat een maandweergave in de facturenlijst niet stilletjes naar januari
+springt. Het bolletje op de trechter telt het bereik niet meer mee — dat staat
+nu voluit in de knop ernaast, en hetzelfde twee keer melden is ruis.
+
+**Bestanden.** `index.html` (`facSetView`, `facAnkerZet`, `facRenderAll`,
+`facAnZetBereik`, nieuw: `facAnIsJaar`/`facAnWisselBereik`/`facAnBereikKort`,
+`facAnPopInhoud`, `facAnPopMarkeer`, `facAnFilterAantal`), `docs/mobile.md`.
+
+**Niet doen.** De jaarpijlen óók op een bureaublad in de analyse tonen — daar
+staat de keuzelijst al onder de tabs. En "12 maanden"/"Alles" niet uit de
+popover halen: de jaarknop stapt per jaar en kan ze niet bereiken.
+
+---
+
 ## 2026-09-09 · Parallel werken aan één bestand: de grens is een naam, niet een pad
 
 **Probleem.** Twee modules tegelijk laten ontwikkelen — Uren en Facturen

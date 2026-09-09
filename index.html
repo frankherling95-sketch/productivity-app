@@ -1535,10 +1535,10 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .fac-an-filterknop{display:none}
 .fac-an-poprij{display:flex;gap:6px;flex-wrap:wrap}
 .fac-an-poprij .uren-btn{flex:1;justify-content:center}
-/* Het boekjaar is een keuzelijst en geen rij knoppen: vier vaste knoppen
-   reikten niet verder terug dan vorig jaar, en een lijst groeit mee met je
-   administratie zonder breder te worden. In de popover krijgt hij de vorm van
-   de andere keuzelijsten daar (zie .uren-filterpop select). */
+/* Het boekjaar is in de brede balk een keuzelijst en geen rij knoppen: vier
+   vaste knoppen reikten niet verder terug dan vorig jaar, en een lijst groeit
+   mee met je administratie zonder breder te worden. Op een telefoon staat het
+   boekjaar niet hier maar in de jaarknop van de topbalk. */
 .fac-an-bereiksel{
   height:32px;max-width:220px;padding:0 8px;box-sizing:border-box;
   background:var(--surface);border:1px solid var(--border-strong);
@@ -1547,10 +1547,6 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
   font-size:var(--uren-ui,12.5px);font-weight:600;cursor:pointer;outline:none;
 }
 .fac-an-bereiksel:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
-.uren-filterpop .fac-an-bereiksel{
-  width:100%;max-width:none;height:34px;background:var(--surface2);
-  border:0.5px solid var(--border-strong);box-shadow:none;font-size:13px;font-weight:400;
-}
 .fac-an-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%}
 .fac-an-vul{flex:1}
 .fac-an-scope{
@@ -7178,7 +7174,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v1.94</span>
+        <span class="app-versie" title="Appversie">v1.95</span>
       </div>
     </div>
   </aside>
@@ -18914,6 +18910,7 @@ const FAC_CLICK_ACTIONS={
   facSetView:(a)=>facSetView(a),
   facToggleCijfers:()=>facToggleCijfers(),
   facAnZetBereik:(a)=>facAnZetBereik(a),
+  facAnWisselBereik:(a)=>facAnWisselBereik(a),
   facAnZetKlant:(a)=>facAnZetKlant(a),
   facAnDrillVak:(a)=>facAnDrillVak(a),
   facAnDrillCum:(a)=>facAnDrillCum(a),
@@ -19112,6 +19109,11 @@ function facBackupHerinnering(){
 function facSetView(v){
   if(!['facturen','debiteuren','btw','mails','klanten','analyse'].includes(v))return;
   facView=v;
+  /* De analyse deelt de jaarknop in de topbalk met de andere weergaven, dus
+     komt hij binnen op het jaar dat daar staat. Alleen als er een boekjaar
+     gekozen was: '12 maanden' en 'Alles' zijn een bewuste keuze en die raak
+     je niet kwijt door even van tab te wisselen. */
+  if(v==='analyse'&&facAnIsJaar(facAnBereik))facAnBereik=String(facJaar);
   facRenderAll();
 }
 
@@ -19156,6 +19158,11 @@ function facPeriode(){
 function facAnkerZet(d){
   facAnker=dateStr(d);
   facJaar=d.getFullYear();
+  /* Kijk je naar de analyse, dan is de jaarknop in de topbalk zijn kiezer --
+     dezelfde knop als bij Debiteuren en Verzonden. Een gekozen '12 maanden'
+     of 'Alles' wint niet van een tik op de jaarpijl: die tik gaat over een
+     jaar, dus kom je op een jaar uit. */
+  if(facView==='analyse')facAnBereik=String(facJaar);
 }
 function facNav(dir){
   const d=new Date(facAnker+'T00:00:00');
@@ -19185,17 +19192,20 @@ function facRenderAll(){
   if(!document.getElementById('facBody'))return;
   const p=facPeriode();
   const smal=window.matchMedia&&window.matchMedia('(max-width:768px)').matches;
-  /* Twee periodekiezers naast elkaar is er één te veel. De analyse heeft zijn
-     eigen bereik in de balk onder de tabs, dus gaan de jaarpijlen daar uit --
-     anders staat er een jaartal in beeld dat niets aanstuurt. */
+  /* Twee periodekiezers naast elkaar is er één te veel. Op een bureaublad
+     kiest de analyse zijn bereik in de balk onder de tabs, dus gaan de
+     jaarpijlen daar uit. Op een telefoon staat die balk er niet: daar is de
+     jaarknop in de topbalk de kiezer, dezelfde knop op dezelfde plek als bij
+     Debiteuren en Verzonden. */
   const perWrap=document.querySelector('#mod-facturen .uren-periode');
-  if(perWrap)perWrap.style.display=facView==='analyse'?'none':'';
+  if(perWrap)perWrap.style.display=(facView==='analyse'&&!smal)?'none':'';
   const vandaagBtn=document.getElementById('facNavHuidigBtn');
   if(vandaagBtn)vandaagBtn.style.display=facView==='analyse'?'none':'';
   const lbl=document.getElementById('facPeriodeLabel');
   if(lbl)lbl.textContent=facView==='klanten'?'Alle klanten'
     :facView==='btw'?(facBtwKwartaal?`Q${facBtwKwartaal} ${facJaar}`:String(facJaar))
     :facView==='facturen'?(smal?p.mobiel:p.label)
+    :facView==='analyse'?facAnBereikKort()
     :String(facJaar);
   /* De pijlen verschuiven wat er in beeld staat -- dat is niet altijd
      een jaar meer, dus zeggen ze ook niet altijd 'jaar'. */
@@ -21091,8 +21101,10 @@ function facVerwijderActie(id){
      zou alleen overdoen wat de lengte van de balk al zegt. */
 /* Het bereik is een boekjaar ("2026") of een van deze twee. Vier vaste
    knoppen konden niet verder terug dan vorig jaar; met een keuzelijst reikt
-   het zo ver als je administratie. */
-const FAC_AN_EXTRA=[['12m','Laatste 12 maanden'],['alles','Alles']];
+   het zo ver als je administratie. Twee schrijfwijzen per stuk: voluit voor de
+   keuzelijst in de brede balk, kort voor een knop in de popover. Voor de
+   jaarknop in de topbalk is zelfs dat te lang -- zie facAnBereikKort(). */
+const FAC_AN_EXTRA=[['12m','Laatste 12 maanden','12 maanden'],['alles','Alles','Alles']];
 let facAnBereik=String(new Date().getFullYear());
 let facAnKlant='';      /* sleutel uit facAnKlantVan(), leeg = alle klanten */
 let facAnEind=false;    /* eindklanten uitsplitsen                          */
@@ -21771,7 +21783,12 @@ function facAnDrillNaarFactuur(id){
 function facAnPopInhoud(){
   const d=facAnData();
   return `
-    <div><label>Periode</label>${facAnBereikKiezer()}</div>
+    <div><label>Bereik</label>
+      <div class="fac-an-poprij">
+        ${FAC_AN_EXTRA.map(([id,lang,kort])=>`<button type="button" class="uren-btn"
+          data-fac-action="facAnWisselBereik" data-fac-arg1="${id}" title="${lang}"
+          aria-pressed="${facAnBereik===id?'true':'false'}">${kort}</button>`).join('')}
+      </div></div>
     <div><label for="facAnKlantSel">Klant</label>
       <select id="facAnKlantSel" data-fac-change="facAnZetKlantSel">
         <option value="">Alle klanten</option>
@@ -21795,8 +21812,9 @@ function facAnPopInhoud(){
 function facAnPopMarkeer(){
   const pop=document.getElementById('facFilterPop');
   if(!pop)return;
-  const bereik=pop.querySelector('.fac-an-bereiksel');
-  if(bereik&&bereik.value!==facAnBereik)bereik.value=facAnBereik;
+  pop.querySelectorAll('[data-fac-action="facAnWisselBereik"]').forEach(b=>{
+    b.setAttribute('aria-pressed',String(b.dataset.facArg1===facAnBereik));
+  });
   const zet=(actie,aan)=>{
     const b=pop.querySelector('[data-fac-action="'+actie+'"]');
     if(b)b.setAttribute('aria-pressed',String(aan));
@@ -21808,10 +21826,11 @@ function facAnPopMarkeer(){
 }
 /* Hoeveel van de keuzes staan niet op hun standaard? Dat getal staat op de
    knop, zodat je op een telefoon ziet dat er iets aanstaat zonder de popover
-   te openen. De tabelweergave telt niet mee: dat is geen filter. */
+   te openen. Twee dingen tellen niet mee: de tabelweergave is geen filter, en
+   het bereik staat voluit in de jaarknop ernaast -- dat hoeft er niet nog een
+   keer als bolletje bij. */
 function facAnFilterAantal(){
-  return (facAnBereik!==String(new Date().getFullYear())?1:0)+
-    (facAnKlant?1:0)+(facAnEind?1:0);
+  return (facAnKlant?1:0)+(facAnEind?1:0);
 }
 function facAnBereikKiezer(){
   const nu=new Date().getFullYear();
@@ -21826,10 +21845,32 @@ function facAnBereikKiezer(){
     </optgroup>
   </select>`;
 }
+/* Een bereik is een boekjaar ("2026") of een van FAC_AN_EXTRA. */
+function facAnIsJaar(v){return /^\d{4}$/.test(String(v));}
 function facAnZetBereik(v){
-  const geldig=FAC_AN_EXTRA.some(b=>b[0]===v)||/^\d{4}$/.test(String(v));
+  const geldig=FAC_AN_EXTRA.some(b=>b[0]===v)||facAnIsJaar(v);
   if(!geldig)return;
-  facAnBereik=String(v);facRenderAll();facAnPopMarkeer();
+  facAnBereik=String(v);
+  /* Kies je hier een boekjaar (de brede balk op een bureaublad), dan schuift
+     het gedeelde anker mee: de jaarknop in de topbalk en de andere tabs horen
+     hetzelfde jaar te tonen. De maand blijft staan, zodat een maandweergave in
+     de facturenlijst niet stilletjes naar januari springt. */
+  if(facAnIsJaar(facAnBereik)){
+    const d=new Date(facAnker+'T00:00:00');
+    facAnkerZet(new Date(Number(facAnBereik),d.getMonth(),1));
+  }
+  facRenderAll();facAnPopMarkeer();
+}
+/* Nog een keer tikken op een ruimer bereik brengt je terug bij het boekjaar
+   dat in de topbalk staat -- dat is de weg terug zonder dat er een tweede
+   jaarkiezer in de popover hoeft te staan. */
+function facAnWisselBereik(id){
+  facAnZetBereik(facAnBereik===id?String(facJaar):id);
+}
+/* Wat er in de jaarknop staat als je naar de analyse kijkt: het boekjaar, of
+   de naam van een ruimer bereik. Kort, want die knop is smal. */
+function facAnBereikKort(){
+  return facAnBereik==='12m'?'12 mnd':facAnBereik==='alles'?'Alles':String(facAnBereik);
 }
 function facAnZetKlant(k){facAnKlant=(k===facAnKlant)?'':(k||'');facRenderAll();facAnPopMarkeer();}
 function facAnWisselEind(){
