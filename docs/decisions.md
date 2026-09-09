@@ -10,6 +10,41 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-09 · Vier dingen die pas op een breed scherm opvielen
+
+**De grafiek vulde zijn kaart niet.** Er zat een plafond van 1100px op de
+tekenbreedte. De svg staat op `width:100%` met een viewBox van dat getal, dus
+op een breed scherm paste de browser hem in het midden van de kaart met lege
+randen links en rechts. `facAnBreedte()` rekent nu precies uit wat er
+beschikbaar is — `#facBody` min de zijkanten van `.uren-content` (2×16) en van
+`.fac-an-kaart` (2×18, op een telefoon 2×12). Gemeten: svg 1356×246 in een
+plot van 1356×246, dus één op één en zonder schaling.
+
+**De tooltip dekte de kolom af waar je naar wees.** Hij stond gecentreerd boven
+de baan, en bij de eerste maand van een reeks leek er daardoor geen balk te
+staan — de tooltip verborg precies de top én het bedrag. Hij gaat nu naast de
+baan staan: rechts ervan, en als dat niet past links. Past het aan geen van
+beide kanten, dan valt hij terug op klemmen binnen de grafiek.
+
+**De legenda kwam ook bij één reeks terug.** Sinds een vergelijkingsperiode
+zonder omzet niet meer als vergelijking telt (entry hierboven), viel bij een
+jonge administratie de tweede reeks weg — en met de ondertitels eruit stond er
+dan nergens meer welke periode je zag. De kop zegt "Omzet per maand", niet
+"2026". De legenda staat er dus altijd, met één vakje als er één reeks is.
+
+**Maandlabels op een telefoon botsten aan het eind.** De regel was "om de twee
+vanaf het begin, plus de laatste altijd", en bij een even aantal maanden waren
+die laatste twee buren: "AugSep". Nu wordt er vanaf achteren geteld
+(`(n-1-i)%2===0`), zodat de laatste maand er altijd bij staat én de afstand
+overal gelijk is.
+
+**Tabvolgorde in Facturen** volgt nu de gang van een factuur: Facturen ·
+Debiteuren · Verzonden · Analyse · Klanten · Btw.
+
+**Bestanden**: `index.html` — `facAnBreedte()`, `facAnToonTip()`,
+`facAnLegenda()`, de labelregel in beide grafieken, de tabsrij;
+`sw.js` → `herling-v92`
+
 ## 2026-09-09 · Boekjaar kiezen, en twee soorten groei naast elkaar
 
 **Periode is een keuzelijst geworden.** Vier vaste knoppen (dit jaar / 12

@@ -7163,7 +7163,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v1.91</span>
+        <span class="app-versie" title="Appversie">v1.92</span>
       </div>
     </div>
   </aside>
@@ -7606,10 +7606,10 @@ textarea { line-height: 1.6; resize: vertical; }
         <div class="uren-tabs" role="tablist">
           <button class="uren-tab active" role="tab" data-fac-action="facSetView" data-fac-arg1="facturen">Facturen</button>
           <button class="uren-tab" role="tab" data-fac-action="facSetView" data-fac-arg1="debiteuren">Debiteuren</button>
-          <button class="uren-tab" role="tab" data-fac-action="facSetView" data-fac-arg1="btw">Btw</button>
           <button class="uren-tab" role="tab" data-fac-action="facSetView" data-fac-arg1="mails">Verzonden</button>
-          <button class="uren-tab" role="tab" data-fac-action="facSetView" data-fac-arg1="klanten">Klanten</button>
           <button class="uren-tab" role="tab" data-fac-action="facSetView" data-fac-arg1="analyse">Analyse</button>
+          <button class="uren-tab" role="tab" data-fac-action="facSetView" data-fac-arg1="klanten">Klanten</button>
+          <button class="uren-tab" role="tab" data-fac-action="facSetView" data-fac-arg1="btw">Btw</button>
         </div>
         <div class="uren-filters" id="facFilterBar"></div>
       </div>
@@ -21353,10 +21353,19 @@ function facAnBalkPad(x,y,w,h){
 /* Hoe breed mag de grafiek zijn. Gemeten en niet geraden: een viewBox die
    met de kaart meeschaalt maakt op een telefoon ook de tekst kleiner, en
    onder de 11,5px leest niets meer. */
+/* Hoe breed de grafiek getekend wordt. Eén op één met de ruimte die hij
+   krijgt: de svg staat op width:100% met een viewBox van deze breedte, dus
+   wijkt dit getal af, dan schaalt de browser het geheel en staat de grafiek
+   met randen links en rechts in zijn kaart. Dat gebeurde: er zat een plafond
+   van 1100px op, en op een breed scherm stond de tekening dus in het midden
+   van een lege kaart.
+
+   Aftrekken wat er tussen #facBody en de svg zit: de zijkanten van .uren-content
+   (2×16) plus die van .fac-an-kaart (2×18, op een telefoon 2×12). */
 function facAnBreedte(){
   const el=document.getElementById('facBody');
   const w=el?el.clientWidth:900;
-  return Math.max(280,Math.min(1100,w-(w>700?48:24)));
+  return Math.max(280,w-32-(w<=768?24:36));
 }
 
 /* ── Kolommen: omzet per maand, met de vorige periode als grijze buur ── */
@@ -21415,8 +21424,10 @@ function facAnKolomGrafiek(d,breed){
         class="an-waarde" text-anchor="middle">${escapeHtml(tekst)}</text>`;
     }
     /* Niet elke maand een label: op een telefoon zou dat een grijze band
-       worden. Om de twee, en de laatste altijd. */
-    const toon=!smal||n<=6||i%2===0||i===n-1;
+       worden. Om de twee, vanaf de laatste terug geteld -- eerst telde hij
+       vanaf het begin en werd de laatste er los bij gezet, en bij een even
+       aantal maanden stonden Aug en Sep dan tegen elkaar aan. */
+    const toon=!smal||n<=6||(n-1-i)%2===0;
     if(toon)labels+=`<text x="${(bx+band/2).toFixed(1)}" y="${H-8}" class="an-astekst" text-anchor="middle">${escapeHtml(v.kort)}</text>`;
     const vv=d.vorige[i]||0;
     /* Twee vergelijkingen, allebei met naam: "t.o.v. maart" zegt of het nú
@@ -21483,7 +21494,7 @@ function facAnLijnGrafiek(d,breed){
     const bx=padL+bandW*i;
     /* Dezelfde maandnamen als in de kolomgrafiek erboven, op dezelfde
        plaats -- anders lees je twee tijdlijnen die niet op elkaar liggen. */
-    if(!smal||n<=6||i%2===0||i===n-1)
+    if(!smal||n<=6||(n-1-i)%2===0)
       xlabels+=`<text x="${x(i).toFixed(1)}" y="${H-8}" class="an-astekst" text-anchor="middle">${escapeHtml(p.kort)}</text>`;
     tips.push({titel:'t/m '+p.label,regels:[
       {kleur:'nu',lab:d.range.label,val:factuurFmtBedrag(p.nu)},
@@ -21583,11 +21594,14 @@ function facAnTabellen(d){
   </div>`;
 }
 
+/* Ook bij één reeks. De kop van de kaart zegt "Omzet per maand" en niet welke
+   periode dat is; zonder legenda staat er dan nergens of je naar 2026 of naar
+   alles kijkt. Bij twee reeksen is hij sowieso verplicht: kleur mag nooit de
+   enige drager van betekenis zijn. */
 function facAnLegenda(d){
-  if(!d.heeftVorige)return '';
   return `<div class="fac-an-leg">
     <span><i class="nu"></i>${escapeHtml(d.range.label)}</span>
-    <span><i class="vorig"></i>${escapeHtml(d.range.vorigeLabel)}</span></div>`;
+    ${d.heeftVorige?`<span><i class="vorig"></i>${escapeHtml(d.range.vorigeLabel)}</span>`:''}</div>`;
 }
 
 function facRenderAnalyse(){
@@ -21836,8 +21850,15 @@ function facAnToonTip(plot,i){
   const band=plot.querySelector(`[data-an-i="${i}"]`);
   if(svg&&band){
     const s=svg.getBoundingClientRect(), b=band.getBoundingClientRect();
-    const mid=b.left-s.left+b.width/2;
-    tip.style.left=Math.max(4,Math.min(s.width-tip.offsetWidth-4,mid-tip.offsetWidth/2))+'px';
+    /* Naast de baan, niet erboven. Gecentreerd dekte de tooltip precies de
+       kolom af waar je naar wees -- bij de eerste maand leek er dan geen balk
+       te staan. Rechts ernaast, en als dat niet past links; past het aan geen
+       van beide kanten (een smal scherm), dan valt hij terug op klemmen. */
+    const mid=b.left-s.left+b.width/2, halve=b.width/2, br=tip.offsetWidth;
+    let x=mid+halve+8;
+    if(x+br>s.width-4)x=mid-halve-8-br;
+    if(x<4)x=Math.max(4,Math.min(s.width-br-4,mid-br/2));
+    tip.style.left=x+'px';
     const vizier=svg.querySelector('.an-vizier');
     if(vizier){
       const schaal=svg.viewBox.baseVal.width/s.width;
