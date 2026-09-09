@@ -1942,10 +1942,11 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
    topbalk-varianten van .uren-periode(-lbl) worden overschreven -- die staan
    verderop in het bestand en zouden bij gelijke specificiteit winnen. De eigen
    klasse staat vooraan: dit blijft een regel van Facturen, niet van Uren.
-   var(--tap) is de maat van een raakvlak (36px desktop, 44px mobiel) en doet
-   hier het werk dat anders een tweede regel in de mobiele laag kostte. */
-.fac-ed-blader.uren-periode{height:var(--tap)}
-.fac-ed-blader.uren-periode button{min-width:var(--tap)}
+   36px is hier een vaste maat en niet var(--tap): op een bureaublad is dat
+   hetzelfde getal, maar op een telefoon hoort deze balk juist kleiner te zijn
+   dan een raakvlak -- zie de mobiele laag. */
+.fac-ed-blader.uren-periode{height:36px}
+.fac-ed-blader.uren-periode button{min-width:36px}
 .fac-ed-bladerpos.uren-periode-lbl{
   min-width:76px;padding:0 8px;color:#fff;cursor:default;
   text-decoration:none;font-family:var(--font-cijfer);
@@ -1955,7 +1956,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 /* Op een telefoon zakt het bladeren naar een eigen regel; de kop mag daarvoor
    wrappen. Op een bureaublad verandert dit niets -- daar past alles op één
    regel, dus komt het wrappen nooit aan bod. */
-.fac-ed-kop{flex-wrap:wrap}
+.fac-ed-kop{display:flex;align-items:center;gap:12px;flex-shrink:0;flex-wrap:wrap}
 /* minmax(0,1fr) en niet 1fr: een select met een lange klantnaam of een
    datumveld heeft een eigen minimumbreedte, en met 1fr duwt die de kolom
    breder dan het blad. Zo mag de kolom wel krimpen. */
@@ -5956,11 +5957,39 @@ textarea { line-height: 1.6; resize: vertical; }
      Naast de titel, de statuspil en het kruisje bleef er in de kop een strook
      van vijftig pixel over -- te weinig voor "Concept F000012" én een pijl aan
      weerskanten. Het bladeren krijgt daarom zijn eigen regel: order zet hem
-     achter de rest, de volle breedte duwt hem naar de tweede regel. Een regel
-     extra kost 44px; een pijl die je niet raakt kost een handeling. Zie
-     mobile.md, "Raakvlakken". De maten zelf staan bij .fac-ed-blader in de
-     basislaag -- var(--tap) regelt daar 36 tegen 44. */
-  .fac-ed-blader { order: 5; width: 100%; max-width: 236px; }
+     achter de rest en margin-left duwt hem naar rechts, onder het kruisje.
+
+     Klein en kaal, niet de gevulde balk van een bureaublad: dit is bijzaak op
+     een scherm waar de factuur zelf de ruimte moet krijgen. Vandaar geen doos
+     (de kopband is al donker genoeg om witte pijlen op te dragen) en 30px in
+     plaats van een raakvlak van 44. Bewuste uitzondering op de ondergrens uit
+     mobile.md: de pijlen staan vrij, met alleen het kruisje op 40px afstand,
+     en een misser kost hier een tik -- geen verkeerde factuur, want je ziet
+     meteen waar je bent.
+
+     De kop is hier een raster van twee kolommen: links de titel met zijn
+     bijregel over twee rijen, rechts de statuspil met de pijlen eronder. Als
+     eigen regel eronder liet het bladeren een lege strook van 230px naast zich
+     staan en werd de kop 116px hoog; zo vult het de ruimte die naast de
+     bijregel toch al leegstond. Het kruisje staat los (absoluut, rechts) en
+     blijft dus staan waar het stond. */
+  .fac-ed-kop {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "titel status" "titel blader";
+    align-content: center; column-gap: 12px; row-gap: 4px;
+  }
+  .fac-ed-kop > div:first-child { grid-area: titel; }
+  #facEditorStatus { grid-area: status; justify-self: end; }
+  .fac-ed-blader { grid-area: blader; justify-self: end; }
+  /* Staan er geen pijlen, dan mag de tweede regel ook geen ruimte kosten. */
+  .fac-ed-kop:has(.fac-ed-blader[hidden]) { row-gap: 0; }
+  .fac-ed-blader.uren-periode {
+    height: 30px; background: transparent; border-color: transparent; box-shadow: none;
+  }
+  .fac-ed-blader.uren-periode button { min-width: 30px; color: rgba(255,255,255,.82); }
+  .fac-ed-blader.uren-periode button:disabled { color: rgba(255,255,255,.82); }
+  .fac-ed-bladerpos.uren-periode-lbl { flex: 0 0 auto; min-width: 0; padding: 0 2px; font-size: 12px; }
 
   /* ══ Knoppenbalk van de editor ══
      Op een bureaublad is dit één regel: links beheer, rechts wat je met de
@@ -7267,7 +7296,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v1.96</span>
+        <span class="app-versie" title="Appversie">v1.97</span>
       </div>
     </div>
   </aside>
@@ -7881,7 +7910,7 @@ textarea { line-height: 1.6; resize: vertical; }
        regel) en kapte de btw-kolom af tot "21% (h". Andere modalen blijven
        640/720 -- die dragen een formulier, geen tabel. -->
   <div class="modal" style="max-width:1000px;padding:0;display:flex;flex-direction:column;max-height:92vh">
-    <div class="modal-kop fac-ed-kop" style="display:flex;align-items:center;gap:12px;flex-shrink:0">
+    <div class="modal-kop fac-ed-kop">
       <div style="flex:1;min-width:0">
         <h3 style="font-size:18px;font-weight:700;margin:0" id="facEditorTitel">Factuur</h3>
         <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0" id="facEditorSub"></p>
