@@ -7178,7 +7178,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v1.93</span>
+        <span class="app-versie" title="Appversie">v1.94</span>
       </div>
     </div>
   </aside>
@@ -22237,30 +22237,41 @@ async function facScanLus(){
        hoeft er niets voor te doen: loop weg en kom terug. */
     for(let ronde=0;;ronde++){
       let eerste=true,pauze=FAC_SCAN_PAUZE;
-      for(const post of facScanRij){
+      for(;;){
         if(facScanGen!==gen)return;        /* modaal is dichtgegaan */
-        if(post.status!=='wacht')continue;
+        const groep=await facScanVolgendeGroep();
+        if(!groep.length)break;
+        if(facScanGen!==gen)return;
         if(!eerste){
           await facScanAdem(pauze);
           if(facScanGen!==gen)return;
         }
         eerste=false;pauze=FAC_SCAN_PAUZE;
-        post.status='bezig';
-        if(facScanRij[facScanIdx]===post)facScanToon();
+        const inBeeld=()=>groep.some(g=>g.post===facScanRij[facScanIdx]);
+        groep.forEach(g=>{g.post.status='bezig';});
+        if(inBeeld())facScanToon();
         try{
-          const data=await facScanBestandNaarBase64(post.file);
-          post.data=await facScanVraagGemini({mime:post.mime||facScanMime(post.file),data});
-          post.status='klaar';
+          const uit=await facScanVraagGeminiGroep(groep);
+          groep.forEach((g,i)=>{
+            const post=g.post;
+            if(uit[i]){post.data=uit[i];post.status='klaar';post.alleen=false;return;}
+            /* Niet teruggekomen uit de stapel: één keer alleen proberen. */
+            if(!post.alleen){post.alleen=true;post.status='wacht';return;}
+            post.status='fout';post.tijdelijk=true;
+            post.fout='Kwam niet terug uit de stapel.';
+          });
         }catch(e){
-          post.status='fout';
-          post.fout=e.message;
-          post.tijdelijk=_aiTijdelijk(e);
-          if(post.tijdelijk)pauze=FAC_SCAN_DRUK;
+          groep.forEach(g=>{
+            g.post.status='fout';
+            g.post.fout=e.message;
+            g.post.tijdelijk=_aiTijdelijk(e);
+          });
+          if(_aiTijdelijk(e))pauze=FAC_SCAN_DRUK;
         }
         if(facScanGen!==gen)return;
-        /* Alleen opnieuw tekenen als dít de factuur in beeld is -- anders
-           gooi je het formulier omver waar iemand net in typt. */
-        if(facScanRij[facScanIdx]===post)facScanToon();
+        /* Alleen opnieuw tekenen als er een factuur uit deze groep in beeld
+           staat -- anders gooi je het formulier omver waar iemand net in typt. */
+        if(inBeeld())facScanToon();
       }
       /* Wie nog niet in beeld is geweest gaat stil de volgende ronde in.
          Heb je hem al gezien, dan kun je er zelf iets in hebben getypt en
@@ -22434,11 +22445,16 @@ function facScanBestandNaarBase64(file){
     r.readAsDataURL(file);
   });
 }
-async function facScanVraagGemini(bestand){
+function facScanPrompt(aantal){
   const klanten=(kanbanState.clients||[]).map(c=>
     `- id ${c.id}: ${c.name}${c.bedrijfsnaam&&c.bedrijfsnaam!==c.name?' ('+c.bedrijfsnaam+')':''}`).join('\n');
-  const system=`Je leest één factuur en geeft de gegevens terug als JSON. Antwoord met
-uitsluitend JSON, zonder uitleg.
+  const kop=aantal>1
+    ? `Je leest ${aantal} facturen. Elk document heeft een regel ervóór in de vorm
+"--- Document n: bestandsnaam ---". Antwoord met uitsluitend een JSON-array van
+${aantal} objecten, in dezelfde volgorde als de documenten, en zet in elk object
+een extra veld "bestand" met de bestandsnaam uit die regel. Geen uitleg.`
+    : 'Je leest één factuur en geeft de gegevens terug als JSON. Antwoord met\nuitsluitend JSON, zonder uitleg.';
+  return kop+`
 
 Velden:
 - nummer: het factuurnummer zoals het op de factuur staat (string)
@@ -22462,8 +22478,10 @@ Let op:
 
 Bekende klanten:
 ${klanten||'(nog geen klanten)'}`;
-  const d=await callGemini({system,user:'Lees deze factuur uit.',bestand,temperature:0});
-  /* Alles wat terugkomt is een voorstel, dus normaliseren en begrenzen. */
+}
+/* Alles wat terugkomt is een voorstel, dus normaliseren en begrenzen. */
+function facScanNormaliseer(d){
+  d=d||{};
   const btw=['21','9','0','verlegd'].includes(String(d.btw))?String(d.btw):'21';
   const datum=facScanDatum(d.datum);
   const bekend=(kanbanState.clients||[]).some(c=>c.id===d.clientId);
@@ -22480,6 +22498,54 @@ ${klanten||'(nog geen klanten)'}`;
     klantOpFactuur:String(d.klantOpFactuur||'').trim(),
     verstuurdOp:'', betaaldOp:''
   };
+}
+async function facScanVraagGemini(bestand){
+  return facScanNormaliseer(await callGemini({
+    system:facScanPrompt(1),user:'Lees deze factuur uit.',bestand,temperature:0}));
+}
+
+/* ── Een stapel in één verzoek ──────────────────────────────────────────
+   De gratis laag telt vérzoeken, niet tokens: vijf per minuut en twintig per
+   dag, met 250.000 tokens per minuut waarvan één factuur er een paar duizend
+   gebruikt. Eén factuur per verzoek liet dus 98% van de tokens liggen en
+   maakte van een stapel van tien een half uur wachten -- of het einde van je
+   dag. Vijf tegelijk is één minuut quotum in één verzoek.
+
+   Terugkoppelen gebeurt op de bestandsnaam en niet op de volgorde: slaat het
+   model één document over, dan zou alles daarna één plaats opschuiven en bij
+   de verkeerde factuur landen. Komt een document niet terug, dan gaat het in
+   zijn eentje opnieuw (post.alleen) voordat het een fout wordt. */
+const FAC_SCAN_GROEP=5;
+const FAC_SCAN_GROEP_MAX=8*1024*1024;   /* base64 samen; het verzoek mag 20 MB */
+async function facScanVolgendeGroep(){
+  const uit=[];let totaal=0;
+  for(const post of facScanRij){
+    if(post.status!=='wacht')continue;
+    const data=await facScanBestandNaarBase64(post.file);
+    /* Wie er alleen doorheen moet, gaat alleen -- ook als er ruimte is. */
+    if(post.alleen)return uit.length?uit:[{post,data}];
+    if(uit.length&&totaal+data.length>FAC_SCAN_GROEP_MAX)break;
+    uit.push({post,data});totaal+=data.length;
+    if(uit.length>=FAC_SCAN_GROEP)break;
+  }
+  return uit;
+}
+async function facScanVraagGeminiGroep(groep){
+  if(groep.length===1){
+    const g=groep[0];
+    return [await facScanVraagGemini({mime:g.post.mime||facScanMime(g.post.file),data:g.data})];
+  }
+  const bestanden=groep.map((g,i)=>({
+    mime:g.post.mime||facScanMime(g.post.file),data:g.data,
+    kop:'--- Document '+(i+1)+': '+g.post.naam+' ---'}));
+  const d=await callGemini({system:facScanPrompt(groep.length),
+    user:'Lees deze '+groep.length+' facturen uit.',bestanden,temperature:0});
+  const lijst=Array.isArray(d)?d:(d&&Array.isArray(d.facturen)?d.facturen:[]);
+  return groep.map((g,i)=>{
+    const op=lijst.find(x=>x&&String(x.bestand||'').trim()===g.post.naam)
+      ||(lijst.length===groep.length?lijst[i]:null);
+    return op?facScanNormaliseer(op):null;
+  });
 }
 let facOudForm=null;
 function facOudLeeg(){
@@ -25264,20 +25330,31 @@ async function _aiParseErrorResponse(r){
     const h=r.headers?.get?.('retry-after');
     if(!wacht&&h&&/^\d+$/.test(h.trim()))wacht=Math.min(Number(h.trim())*1000,3600000);
   }catch(e){}
-  /* Zegt Google zelf "wacht langer dan vijf minuten", dan is het geen drukte
-     maar een grens die je vandaag niet meer wegwacht. */
-  const perDag=r.status===429&&
-    (/per\s*day|perday|daily/i.test(quota)||/per\s*day|perday|daily/i.test(ruw)||wacht>300000);
-  const perMinuut=r.status===429&&/per\s*minute|perminute|per_minute/i.test(quota);
+  /* Google noemt in `details` vaak álle quota's van de emmer die je raakte --
+     dus zowel PerMinute als PerDay. Zoeken naar "day" en dan concluderen dat
+     het dagquotum op is, gaf daardoor de verkeerde melding: je zat op vijf
+     verzoeken in een minuut terwijl er drie van de twintig van die dag op
+     waren. Noemt hij ze allebei, dan beslist de wachttijd: een minuutlimiet
+     is binnen een minuut voorbij, een dagquotum niet. */
+  const noemtDag=/per\s*day|perday|daily/i.test(quota);
+  const noemtMinuut=/per\s*minute|perminute|per_minute/i.test(quota);
+  const langeWacht=wacht>15*60000;   /* een kwartier is geen drukte meer */
+  const perDag=r.status===429&&(langeWacht||(noemtDag&&!noemtMinuut));
+  /* Eén regel in de console met wat Google werkelijk zei; anders is de
+     volgende diagnose weer gissen op een melding die vertaald is. */
+  if(r.status===429)console.warn('[gemini] 429 —',
+    {quota:quota.trim()||'(geen details)',wachtMs:wacht,perDag});
   if(r.status===400&&/API key/i.test(msg))msg='Ongeldige API-key. Check via ⚙ API-key.';
+  const sec=wacht?Math.round(wacht/1000):0;
+  const geduld=sec?(sec>=90?' Google vraagt '+Math.round(sec/60)+' minuten geduld.'
+                          :' Google vraagt '+sec+' seconden geduld.'):'';
   if(r.status===429)msg=perDag
-    ? 'Het dagquotum voor dit model is op. Dat wacht je niet weg — het schuift pas '
-      +'morgen weer open. Wil je vandaag verder, zet dan facturering aan op je project '
-      +'(aistudio.google.com/apikey); dan gelden er ruimere limieten.'
-    : perMinuut
-      ? 'Te snel achter elkaar. De app zit de minuut uit en gaat daarna vanzelf verder.'
-      : 'Limiet bereikt bij Google. De app wacht en probeert het vanzelf opnieuw. '
-        +'Blijft dit terugkomen, kijk dan op aistudio.google.com/apikey welke quota op is.';
+    ? 'Het dagquotum voor dit model is op — dat schuift pas morgen weer open.'+geduld
+      +' Wil je vandaag verder: zet facturering aan op je project, of kies een ander '
+      +'model onder Instellingen → AI-model. Wat er nog open staat zie je op '
+      +'aistudio.google.com/rate-limit.'
+    : 'De limiet per minuut is bereikt.'+geduld+' De app zit hem uit en gaat daarna '
+      +'vanzelf verder — je hoeft niets te doen.';
   /* Google's eigen tekst hierbij is "Your project has been denied access" --
      dat zegt niet wát je moet doen. De sleutel is dan geldig; het project
      erachter mag de API niet. In de praktijk twee oorzaken. */
@@ -25617,7 +25694,7 @@ function aiMaskerder(){
 }
 
 /* ─ Generic Gemini API caller (sync JSON) ─ */
-async function callGemini({system,user,schema,bestand,temperature=0.2,maskeer=false,geenTerugval=false}){
+async function callGemini({system,user,schema,bestand,bestanden,temperature=0.2,maskeer=false,geenTerugval=false}){
   const key=localStorage.getItem(LS_GEMINI_KEY);
   if(!key)throw new Error('Geen Gemini API-key ingesteld. Klik op ⚙ API-key.');
   /* Namen eruit voor het verzoek de deur uit gaat, en er weer in zodra
@@ -25625,13 +25702,19 @@ async function callGemini({system,user,schema,bestand,temperature=0.2,maskeer=fa
      aiMaskerder(). Gaat er een bestand mee, dan slaan we het over: een
      PDF valt niet te maskeren en de klantenlijst in de systeemprompt
      moet dan juist leesbaar blijven om ertegen te kunnen matchen. */
-  const masker=(maskeer&&!bestand&&aiMaskerenAan())?aiMaskerder():null;
+  const masker=(maskeer&&!bestand&&!bestanden&&aiMaskerenAan())?aiMaskerder():null;
   if(masker){system=masker.maskeer(system);user=masker.maskeer(user);}
   /* Een PDF of foto gaat als tweede deel mee in hetzelfde verzoek. Flash
      leest een PDF rechtstreeks, dus er hoeft geen bibliotheek bij om er
      eerst tekst of plaatjes uit te halen. */
   const parts=[{text:user}];
-  if(bestand)parts.push({inline_data:{mime_type:bestand.mime,data:bestand.data}});
+  /* Eén of meer bestanden in hetzelfde verzoek. Elk mag een regel tekst vóór
+     zich hebben die zegt welk document het is; zonder zo'n scheiding is een
+     antwoord over meerdere documenten niet terug te koppelen. */
+  ((bestanden&&bestanden.length?bestanden:(bestand?[bestand]:[]))).forEach(b=>{
+    if(b.kop)parts.push({text:b.kop});
+    parts.push({inline_data:{mime_type:b.mime,data:b.data}});
+  });
   const body={
     contents:[{role:'user',parts}],
     generationConfig:{responseMimeType:'application/json',temperature}
@@ -25687,8 +25770,11 @@ function _geminiJson(text){
   try{return JSON.parse(text);}catch(e){}
   const t=String(text).trim().replace(/^```(?:json)?\s*/i,'').replace(/```\s*$/,'').trim();
   try{return JSON.parse(t);}catch(e){}
-  const a=t.indexOf('{'),b=t.lastIndexOf('}');
-  if(a>=0&&b>a){try{return JSON.parse(t.slice(a,b+1));}catch(e){}}
+  /* Ook een lijst: bij een stapel facturen komt er een array terug. */
+  for(const [open,dicht] of [['{','}'],['[',']']]){
+    const a=t.indexOf(open),b=t.lastIndexOf(dicht);
+    if(a>=0&&b>a){try{return JSON.parse(t.slice(a,b+1));}catch(e){}}
+  }
   throw new Error('Gemini gaf geen bruikbare JSON terug.');
 }
 

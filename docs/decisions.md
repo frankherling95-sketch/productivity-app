@@ -10,6 +10,53 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-10 · De gratis laag telt verzoeken, geen tokens — dus vijf facturen per verzoek
+
+**Wat de meters zeggen.** Gemini 3.5 Flash op de gratis laag: **5 verzoeken per
+minuut, 20 per dag, 250.000 tokens per minuut**. Bij het inscannen van een
+stapel piekte RPM op 5/5 terwijl TPM op 4.310 van de 250.000 stond en RPD op
+3 van de 20. Eén factuur per verzoek liet dus **98% van de tokens liggen** en
+maakte van een stapel van tien een half uur wachten — of het einde van je dag.
+
+**Beslissing.** Tot vijf facturen in één verzoek. Elk document krijgt een regel
+tekst vóór zich ("--- Document 3: F00005.pdf ---") en de prompt vraagt om een
+JSON-array met per object een veld `bestand`. Gemeten: zeven bestanden gaan nu
+in **twee** verzoeken in plaats van zeven.
+
+**Terugkoppelen op de naam, niet op de volgorde.** Slaat het model één document
+over, dan zou alles daarna één plaats opschuiven en bij de verkeerde factuur
+landen — een bedrag van de ene klant op de factuur van de andere. Daarom matcht
+het antwoord op `bestand`, met de positie alleen als terugval wanneer de lengte
+klopt. Komt een document niet terug, dan gaat het in zijn eentje opnieuw
+(`post.alleen`) vóórdat het een fout wordt: gemeten 5+1+2 verzoeken in plaats
+van zeven, zonder dat er iets verkeerd terechtkomt.
+
+**Waarom vijf.** Dat is precies één minuut quotum in één verzoek, en met een
+factuur van een paar duizend tokens blijft 250.000 TPM ver buiten bereik. De
+begrenzing zit elders: het verzoek zelf mag 20 MB zijn, dus de groep stopt ook
+bij 8 MB aan base64.
+
+**En de melding klopte niet.** "Het dagquotum voor dit model is op" verscheen
+terwijl er 3 van de 20 dagverzoeken op waren. Oorzaak: Google noemt in
+`error.details` vaak álle quota's van de emmer die je raakte — dus zowel
+`...PerMinutePerProjectPerModel...` als `...PerDayPerProjectPerModel...`. De
+parser zocht naar "day", vond het, en concludeerde het verkeerde. Nu geldt: het
+is alleen een dagquotum als Google *alleen* het dagquotum noemt, of als hij
+langer dan een kwartier geduld vraagt. Alles daaronder is de limiet per minuut,
+die de app gewoon uitzit. De melding noemt voortaan ook hoeveel seconden Google
+vraagt, en een `console.warn` legt de ruwe `quotaId` en `retryDelay` vast zodat
+de volgende diagnose geen giswerk is.
+
+**Bestanden**: `index.html` — `callGemini({bestanden})`, `facScanPrompt()`,
+`facScanNormaliseer()`, `facScanVolgendeGroep()`, `facScanVraagGeminiGroep()`,
+de groepslus in `facScanLus()`, `_aiParseErrorResponse()`, `_geminiJson()` (een
+array is ook een antwoord); `test.html` — runner wacht nu op async tests,
+72 tests; `sw.js` → `herling-v94`
+
+**Niet doen**: de groep groter maken zonder te meten. Meer documenten per
+verzoek betekent meer kans dat het model er één overslaat, en dat kost dan
+weer een extra verzoek — precies wat je wilde besparen.
+
 ## 2026-09-09 · Een geslaagde scan hoort niet als waarschuwing te lezen
 
 **Probleem.** Na het inscannen stond er "Ingelezen uit F00005.pdf" in precies

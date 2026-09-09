@@ -113,7 +113,7 @@ function vindNotitie(state, id) {
   return zoek((state.notes || {}).tree);
 }
 
-function runChecks() {
+async function runChecks() {
   gedraaid = true;
   let w, d;
   try {
@@ -432,6 +432,53 @@ function runChecks() {
       } finally { w.closeFacOud(); }
     }],
     ['Scan: sluiten ruimt de wachtrij op', () => w.facScanBezig() === false],
+    /* ── Een stapel in één verzoek ──
+       De gratis laag telt verzoeken (5 per minuut, 20 per dag) en nauwelijks
+       tokens, dus gaan er meerdere facturen in één verzoek. Het gevaar zit in
+       de terugkoppeling: komt het antwoord in een andere volgorde of mist er
+       een document, dan mag er geen enkel bedrag bij de verkeerde factuur
+       landen. Vandaar dat de stub hier bewust omdraait en er één weglaat. */
+    ['Scan: stapel koppelt terug op bestandsnaam, niet op volgorde', async () => {
+      const post = n => ({post:{naam:n+'.pdf', mime:'application/pdf', file:{name:n+'.pdf'}},
+                          data:'AAA'});
+      const groep = [post('F1'), post('F2'), post('F3')];
+      const echt = w.callGemini;
+      try {
+        w.callGemini = async (o) => {
+          const namen = (o.bestanden||[]).map(b =>
+            String(b.kop||'').replace(/^.*: /, '').replace(/ ---$/, ''));
+          /* omgekeerd terug, en F2 vergeten */
+          return namen.slice().reverse().filter(n => n !== 'F2.pdf')
+            .map(n => ({bestand:n, nummer:'NR-'+n, datum:'2026-01-02', excl:'100', btw:'21'}));
+        };
+        const uit = await w.facScanVraagGeminiGroep(groep);
+        return uit.length === 3 &&
+               uit[0] && uit[0].nummer === 'NR-F1.pdf' &&
+               uit[1] === null &&                       /* de vergetene */
+               uit[2] && uit[2].nummer === 'NR-F3.pdf';
+      } finally { w.callGemini = echt; }
+    }],
+    ['Scan: de prompt vraagt om een array zodra het er meer zijn', () =>
+      /JSON-array/.test(w.facScanPrompt(4)) && /4 objecten/.test(w.facScanPrompt(4)) &&
+      !/JSON-array/.test(w.facScanPrompt(1))],
+    ['429: een minuutlimiet heet geen dagquotum', async () => {
+      /* Google noemt in details vaak álle quota's van de emmer, dus zowel
+         PerMinute als PerDay. Op "day" zoeken gaf daardoor de verkeerde
+         melding terwijl er 3 van de 20 dagverzoeken op waren. */
+      const nep = (quotaIds, delay) => ({
+        status: 429, headers: {get: () => null},
+        json: async () => ({error: {message: 'You exceeded your current quota',
+          details: [{violations: quotaIds.map(q => ({quotaId: q}))}, {retryDelay: delay}]}})
+      });
+      const minuut = await w._aiParseErrorResponse(nep(
+        ['GenerateRequestsPerMinutePerProjectPerModel-FreeTier',
+         'GenerateRequestsPerDayPerProjectPerModel-FreeTier'], '31s'));
+      const dag = await w._aiParseErrorResponse(nep(
+        ['GenerateRequestsPerDayPerProjectPerModel-FreeTier'], '3600s'));
+      return minuut.perDag === false && /per minuut/i.test(minuut.msg) &&
+             /31 seconden/.test(minuut.msg) &&
+             dag.perDag === true && /dagquotum/i.test(dag.msg);
+    }],
     ['Scan: mime volgt de extensie als het type ontbreekt', () =>
       /* Een PDF uit Drive komt binnen als octet-stream en een foto soms
          zonder type. Stond er dan "application/pdf" op een JPG, dan kwam er
@@ -531,12 +578,18 @@ function runChecks() {
   ];
 
   let pass = 0, fail = 0;
-  checks.innerHTML = tests.map(([name, fn]) => {
+  /* Await per test: sommige dingen die je wilt toetsen zijn async (het
+     uitlezen van een foutantwoord, een stapel door één verzoek). Zonder await
+     kreeg zo'n test een Promise terug — altijd waar, dus altijd groen, dus
+     waardeloos. */
+  const regels = [];
+  for (const [name, fn] of tests) {
     let ok=false, err='';
-    try { ok = !!fn(); } catch(e){ err = ' — ' + e.message; }
+    try { ok = !!(await fn()); } catch(e){ err = ' — ' + e.message; }
     if (ok) pass++; else fail++;
-    return `<div class="check ${ok?'ok':'fail'}">${ok?'✓':'✗'} ${name}${err}</div>`;
-  }).join('');
+    regels.push(`<div class="check ${ok?'ok':'fail'}">${ok?'✓':'✗'} ${name}${err}</div>`);
+  }
+  checks.innerHTML = regels.join('');
 
   if (iframeErrors.length) {
     checks.innerHTML += '<div class="check warn">⚠ Console errors:</div>' +

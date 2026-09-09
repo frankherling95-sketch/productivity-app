@@ -208,6 +208,7 @@ Daarna: vraag Frank om **Ctrl+Shift+R** op de live site. Optioneel `test.html` d
 
 Top-3 meest recent. Volledige log + *waarom* per beslissing: [`docs/decisions.md`](docs/decisions.md).
 
+- **2026-09-10**: Vijf facturen per verzoek bij het inscannen — de gratis laag telt verzoeken (5/min, 20/dag) en nauwelijks tokens (4.310 van 250.000 gebruikt). Zeven bestanden gaan nu in twee verzoeken. Terugkoppelen op de bestandsnaam en niet op de volgorde, want een overgeslagen document zou alles daarna bij de verkeerde factuur laten landen; wie niet terugkomt gaat één keer alleen. Ook: een 429 heet alleen nog een dagquotum als Google alléén dat noemt of langer dan een kwartier geduld vraagt — hij noemt in `details` vaak beide quota's, waardoor een minuutlimiet als "dagquotum op" verscheen
 - **2026-09-09**: Eén meldingsblok met drie toestanden (`.fac-btw-let` + `.let-gelukt` / `.let-fout`) — een geslaagde scan stond in dezelfde amberkleur als de btw-waarschuwing eronder. Nu groen met een vinkje, mislukt rood met een uitroepteken, en de rode varianten niet meer als `border-left-color` in een style-attribuut. Het icoon staat in `1em` omdat het in een tekstregel staat; `--icoon` is de maat voor een raakvlak. Zie stijlgids §12
 - **2026-09-09**: Analyse op een breed scherm — de grafiek vult zijn kaart (het plafond van 1100px op de tekenbreedte liet hem gecentreerd staan met lege randen), de tooltip staat naast de baan in plaats van erboven (hij dekte de kolom af waar je naar wees), de legenda staat er ook bij één reeks (anders zegt niets meer welke periode je ziet) en de maandlabels op mobiel worden vanaf achteren geteld zodat de laatste twee niet botsen. Tabvolgorde in Facturen volgt de gang van een factuur: Facturen · Debiteuren · Verzonden · Analyse · Klanten · Btw
 - **2026-09-09**: Analyse — periode is een keuzelijst met boekjaren (zo ver terug als je administratie) in plaats van vier vaste knoppen, en de cijfertabel toont twee soorten groei naast elkaar: t.o.v. vorige maand en t.o.v. vorig jaar. Maanden die in beide periodes leeg zijn vallen weg, en een vergelijkingsperiode zonder omzet telt niet als vergelijking (geen grijze nulbalken, geen kolom met twaalf keer € 0,00). Op een telefoon is de tabel een lijst: zes kolommen passen daar niet en een zijwaarts schuivende tabel lees je niet
@@ -308,7 +309,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 |---------|------|
 | `validate.mjs` | JS syntax + tag balance + onclick-referentie checks |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 69 smoke-, sync-, model- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
+| `test.html` | 72 smoke-, sync-, model- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |
