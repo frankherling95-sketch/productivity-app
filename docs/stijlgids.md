@@ -153,6 +153,7 @@ Eén blok, twee namen: `.uren-kpi` (Uren, Facturen) en `.fac-aging-cel`
 |---|---|
 | titel | 13,5px / 600 |
 | meta-regel | 11px |
+| voortgang subtaken | ring van 11px ín de meta-regel, baan `--surface2`, vulling `--mint` — alleen bij een taak mét subtaken, en nergens anders op de kaart |
 | acties | mobiel achter één ⋯ rechts naast de titel; desktop een rij icoontjes |
 
 ### Lijstkaart op mobiel — `.uren-mcard` en `.fac-mcard`

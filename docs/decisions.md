@@ -10,6 +10,129 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-09 · Bladeren tussen facturen: de lijst als momentopname
+
+**Probleem.** Een factuur nakijken betekende telkens: openen, sluiten, de
+volgende zoeken, openen. Bij een reeks van tien is dat dertig handelingen.
+
+**Beslissing.** In de kop van de editor staan `‹ 3 van 8 ›`. De reeks wordt
+vastgelegd op het moment dat de editor opengaat — de ids van de rijen die je
+toen zag — en daarna nooit herrekend. Werkt vanuit elke lijst met factuurrijen
+(Facturen, Debiteuren, Verzonden, btw) en vanuit een doorklik in de analyse.
+Pijl omhoog en omlaag bladeren mee, maar alleen buiten een invoerveld, zonder
+modifier, en niet als er een ander venster over de editor ligt. Meegenomen: de
+kolomkoppen van de facturentabel sorteren, tweede klik draait om, stand niet
+naar Drive.
+
+**Waarom een momentopname.** Herreken je de volgorde tijdens het bladeren, dan
+verspringt de lijst zodra de factuur die je net bewerkt hebt van status
+verandert — en sla je de volgende over. Om dezelfde reden staan de pijlen als
+vaste markup in de kop en worden ze niet via `innerHTML` hertekend: een
+`change` die de editor opnieuw tekent zou de knop wegvagen tussen mousedown en
+click. Opslaan hoefde geen keuze te worden: de editor slaat al vanzelf op, dus
+bladeren doet hetzelfde als sluiten (blur, dan weg).
+
+**Op een telefoon bewust klein, en in het raster van de kop.** Daar is dit
+bijzaak: geen doos, 30px hoog, en niet als eigen regel maar als tweede rij van
+een raster van twee kolommen — links de titel met zijn bijregel over beide
+rijen, rechts de statuspil met de pijlen eronder. De eerste versie was de
+gevulde balk van een bureaublad (236 × 44px op een eigen regel); die kaapte het
+scherm van de factuur en liet een lege strook van 230px naast zich staan. De
+kop gaat zo van 130 naar 89px, en naar 74px als er niets te bladeren valt.
+Het kruisje staat absoluut rechts en blijft dus staan waar het stond. Dit is
+een bewuste uitzondering op de 44px-ondergrens uit `mobile.md`: de pijlen staan
+vrij, het dichtstbijzijnde andere raakvlak is het kruisje op 40px afstand, en
+een misser kost hier één tik — je ziet meteen bij welke factuur je staat.
+
+**Bestanden.** `index.html` (`facOpenEditor` krijgt een tweede, optionele
+parameter; `facBladerIds`, `facBlader`, `facZichtbareRijIds`, `facSort*`).
+
+**Niet doen.** Rondlopen aan de uiteinden, of de pijlen tonen bij een factuur
+die niet uit een lijst komt (een vers concept, een kopie, een factuur geopend
+vanuit Uren) — dan is er niets om doorheen te bladeren.
+
+---
+
+## 2026-09-09 · Prullenbak: hoe oud is dit, en durf ik het weg te gooien
+
+**Probleem.** De prullenbak van Notities kon al geleegd worden, maar de
+bevestiging zei alleen hoeveel *items* het waren — terwijl een groep er meer
+meeneemt — en je zag niet hoe oud iets was. Dan gooi je niets weg.
+
+**Beslissing.** De bevestiging noemt nu ook het aantal notities erachter en dat
+het onomkeerbaar is. Per regel staat de ouderdom vooraan: de eerste week als
+tijdsduur ("3 dagen geleden"), daarna de datum zelf. Geteld op kalenderdagen,
+niet op etmalen. Items van vóór het tijdstempel krijgen "Datum onbekend" in
+plaats van een verzonnen datum. Bij een lege bak verdwijnt de hele voet, niet
+alleen de knop.
+
+**Waarom kalenderdagen.** Iets van gisteravond half twaalf heet vanochtend
+"gisteren", niet "vandaag" — op etmalen tellen geeft precies het omgekeerde.
+
+**Bestanden.** `index.html` (`notesBakWanneer`, `notesPrullenbakLegen`,
+`renderNotesPrullenbak`, `.notes-bak-*`).
+
+**Niet doen.** Automatisch opruimen (zie 2026-09-07), en geen eigen mobiele
+laag: de rij regelt zichzelf met `flex-wrap`.
+
+---
+
+## 2026-09-09 · Voortgang van subtaken: één plek in plaats van drie
+
+**Probleem.** De taakkaart toonde "3/5" in de meta-regel én een balkje van 2px
+onderaan de kaart. Dat balkje nam de prioriteitskleur, dus "3 van de 5 af" was
+bij een hoge prio rood — de gevaarkleur — en bij een lage prio groen.
+
+**Beslissing.** Het balkje vervalt. Het lijstje-icoon vóór "3/5" is een ring
+geworden die zich meevult: dezelfde ring als in de hero, baan `--surface2`,
+vulling `--mint`, 11px. Alles af is een volle ring. Vink je de taak zelf af
+terwijl er subtaken openstaan, dan blijft de echte stand staan.
+
+**Waarom een ring en geen balk.** De meta-regel houdt op 375px in het krapste
+geval 6,3px over; een balk van 20px had "3/5" naar een tweede regel geduwd en de
+kaart 23px hoger gemaakt. De ring is precies zo groot als het icoon dat er
+stond. Kaarten mét subtaken worden nu 2px korter, geen enkele wordt hoger.
+
+**Bestanden.** `index.html` (`clItemHtml`, `.cl2-subring`; `.cl2-progress`
+verwijderd), `docs/stijlgids.md` §4.
+
+**Niet doen.** Er een tweede voortgangsvorm bij zetten. Een afgeleide waarde
+telt als hetzelfde getal (zie 2026-09-06).
+
+---
+
+## 2026-09-09 · Wat de eerste parallelle ronde opleverde, en wat niet
+
+**Wat er gebeurde.** Vijf sporen tegelijk (dashboard, notes, checklist, uren,
+facturen), elk in een eigen worktree. Technisch schoon: geen overlap, geen
+merge­conflicten, en de stijlprobe zag op vier combinaties geen enkele gedeelde
+regel van waarde veranderen. **Drie van de vijf zijn gehouden.** Het dupliceren
+van een urenregistratie en de KPI "uren deze week" op het dashboard zijn bij de
+oplevering afgewezen en niet gemerged — de branches staan er nog.
+
+**Wat dat leert over de opzet.** Parallel bouwen is goedkoop geworden, beoordelen
+niet. Vijf features tegelijk opleveren betekent vijf keer "is dit wat ik wilde",
+en twee keer was het antwoord nee. Dat is geen fout van de sporen: die bouwden
+wat er gevraagd was. Het is de prijs van fan-out op ideeën die nog niet
+uitgevraagd zijn. Bouw voortaan alleen parallel wat expliciet gevraagd is, en
+houd verkenning bij één spoor tegelijk.
+
+**Drie gaten in de eigendomskaart.** (1) `.cl2-iconbtn` staat als
+checklist-eigendom maar wordt op vijf plekken door Notes gebruikt. (2) Alles
+binnen een `@media`-blok telt als één gedeeld anker, dus geen enkel spoor kan
+mobiele CSS schrijven zonder contractverzoek — terwijl de helft van het werk in
+deze app mobiel is. (3) `renderDashKpis`, `renderDashHero`,
+`renderDashNotes` en `renderDashChecklist` hebben geen eigenaar; erger,
+`renderDashNotes` matcht op `Note` en valt formeel aan notes toe. Dezelfde
+oorzaak: de signalen matchen op een prefix, en `render…` of een selector binnen
+een `@media` valt daarbuiten.
+
+**Niet doen.** `.claude/ownership.json` bijstellen tijdens een lopende ronde —
+dat maakt de scope-controles van de sporen ongeldig. De herijking gaat via
+`/parallel-setup`, ná de merge.
+
+---
+
 ## 2026-09-09 · De cijfers van de analyse achter dezelfde uitklapbalk
 
 **Probleem.** De analyse was het laatste tabblad met een vaste tegelstrip. Op
