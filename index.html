@@ -1416,6 +1416,33 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 }
 .fac-table tbody tr{cursor:pointer}
 .fac-table tbody tr:hover td{background:var(--surface2)}
+/* ── Sorteren op een kolomkop ──
+   De kop ís de knop: hij draagt al de naam van wat eronder staat, dus er hoeft
+   niets naast. Het pijltje staat alleen bij de kolom waarop gesorteerd wordt --
+   een pijl bij elke kop leest als acht knoppen die allemaal aanstaan. De ruimte
+   ervoor blijft wél gereserveerd (een lege span van dezelfde breedte), anders
+   verspringt de koptekst bij elke klik.
+
+   Een echte <button> in de cel en geen role="button" op de <th> zelf: dan
+   blijft de th een kolomkop (aria-sort hoort daarop) en krijgt het aantikbare
+   deel gratis focus, Enter en spatie. De vulling verhuist mee naar de knop,
+   zodat het hele vak aantikbaar is en niet alleen de letters. */
+.fac-table th.fac-sortkop{padding:0}
+.fac-table th.fac-sortkop>button{
+  display:flex;align-items:center;width:100%;padding:9px 12px;
+  background:none;border:0;border-radius:0;color:inherit;cursor:pointer;
+  font:inherit;letter-spacing:inherit;text-transform:inherit;
+  user-select:none;-webkit-user-select:none;
+}
+.fac-table th.num.fac-sortkop>button{justify-content:flex-end}
+.fac-table th.fac-sortkop>button:hover{color:var(--accent)}
+.fac-table th.fac-sortkop>button:focus-visible{outline:2px solid var(--mint);outline-offset:-2px}
+/* --fs-micro is de ondergrens in beeld; de pijl staat op dezelfde trap als de
+   koptekst ernaast. De vaste breedte houdt de tekst op zijn plek. */
+.fac-sortpijl{
+  display:inline-block;width:11px;margin-left:5px;flex:none;
+  font-size:var(--fs-micro);line-height:1;color:var(--accent);
+}
 /* Een nummer als SB-2026-0002 is breder dan de kolom en liep zonder dit
    dwars over de datum ernaast heen -- nowrap zonder overflow kapt niet af,
    die laat de tekst gewoon uitsteken. */
@@ -18942,6 +18969,12 @@ let facAnker=dateStr(new Date());   /* ISO-dag binnen de getoonde periode */
 let facBtwKwartaal=Math.floor(new Date().getMonth()/3)+1;  /* 1-4, of 0 voor heel jaar */
 let facFilterStatus='';
 let facFilterClient='';
+/* Sorteerstand van de facturenlijst. Een kijkvoorkeur van dit moment en niet
+   iets van de administratie: hij gaat net zomin naar Drive als het gekozen
+   jaar of het filter ernaast. Standaard blijft wat het altijd was -- de
+   nieuwste factuur bovenaan. */
+let facSortKol='datum';
+let facSortOp=false;      /* false = aflopend, true = oplopend */
 let facEditId=null;       /* factuur die in de editor openstaat */
 /* De reeks waarin de pijlen in de editorkop je laten bladeren: de rijen zoals
    ze in beeld stonden op het moment dat je de editor opende. Bewust een
@@ -19002,6 +19035,7 @@ const FAC_CLICK_ACTIONS={
   facOpen:(a)=>facOpenEditor(a,facZichtbareRijIds()),
   facBladerVorige:()=>facBlader(-1),
   facBladerVolgende:()=>facBlader(1),
+  facSorteer:(a)=>facSorteer(a),
   facRegelToevoegen:()=>facRegelToevoegen(),
   facKmToevoegen:()=>facKmToevoegen(),
   facRegelVerwijder:(a)=>facRegelVerwijder(a),
@@ -19540,9 +19574,70 @@ function facRenderBody(){
   body.innerHTML=kop+facRenderLijst();
 }
 
+/* ── Sorteren van de facturenlijst ──
+   Wat er per kolom vergeleken wordt. Tekst gaat met localeCompare (numeric,
+   zodat F9 vóór F10 komt), een bedrag als getal, een datum als ISO-tekst --
+   die sorteert vanzelf goed en kent geen tijdzone die er een dag naast zit. */
+function facSortWaarde(f,kol){
+  const klant=factuurKlant(f.clientId);
+  switch(kol){
+    case 'nummer':  return String(f.nummer||'');
+    case 'klant':   return f.klant?f.klant.naam:(klant?(klant.bedrijfsnaam||klant.name):'');
+    case 'betreft': return String(f.betreft||'');
+    case 'vervalt': return String(f.vervaldatum||'');
+    /* De statuspil zegt drie dingen door elkaar: de status zelf, "deels
+       betaald" en "X dagen te laat". Sorteren gaat op de status en binnen één
+       status op hoe laat hij is -- dat is de volgorde waarin je ernaar kijkt
+       als je de kolom aanklikt. */
+    case 'status':  return FACTUUR_STATUSSEN.findIndex(s=>s.id===f.status)*10000
+                           +Math.min(9999,factuurDagenTeLaat(f));
+    case 'excl':    return factuurTotalen(f).excl;
+    case 'incl':    return factuurTotalen(f).incl;
+    default:        return String(f.datum||'');
+  }
+}
+function facSortLijst(lijst){
+  const kol=facSortKol, richting=facSortOp?1:-1;
+  return lijst.slice().sort((a,b)=>{
+    const x=facSortWaarde(a,kol), y=facSortWaarde(b,kol);
+    const d=(typeof x==='number'&&typeof y==='number')
+      ? (x-y) : String(x).localeCompare(String(y),'nl',{numeric:true});
+    /* Gelijke waarden krijgen altijd dezelfde volgorde, anders wisselt een rij
+       van plek bij elke hertekening -- en de bladervolgorde in de editor komt
+       uit precies deze rijen. Het nummer is uniek binnen een administratie en
+       daarmee de rustigste tiebreaker; hij volgt de gekozen richting mee, zodat
+       twee facturen van dezelfde dag niet omgekeerd staan aan de kolom waarop
+       je sorteert. Aflopend op datum geeft daarmee precies de volgorde die de
+       lijst altijd al had. */
+    return (d?d:String(a.nummer||'').localeCompare(String(b.nummer||''),'nl',{numeric:true}))*richting;
+  });
+}
+/* Tweede klik op dezelfde kop draait om; een andere kop begint bij de
+   volgorde die je daar verwacht -- een datum of een bedrag bij het grootste
+   (nieuwste, duurste), tekst bij A. */
+function facSorteer(kol){
+  if(!kol)return;
+  if(facSortKol===kol)facSortOp=!facSortOp;
+  else{
+    facSortKol=kol;
+    facSortOp=['nummer','klant','betreft','status'].includes(kol);
+  }
+  facRenderBody();
+}
+function facSortKop(kol,label,klasse,breedte){
+  const aan=facSortKol===kol;
+  const richting=aan?(facSortOp?'oplopend':'aflopend'):'';
+  return `<th class="fac-sortkop${klasse?' '+klasse:''}"${breedte?` style="width:${breedte}"`:''}
+    aria-sort="${aan?(facSortOp?'ascending':'descending'):'none'}"><button type="button"
+    data-fac-action="facSorteer" data-fac-arg1="${kol}"
+    title="Sorteren op ${escapeHtml(label.toLowerCase())}${aan?' — nu '+richting:''}">${
+      escapeHtml(label)}<span class="fac-sortpijl" aria-hidden="true">${
+      aan?(facSortOp?'▲':'▼'):''}</span></button></th>`;
+}
+
 /* ── Facturenlijst ── */
 function facRenderLijst(){
-  const lijst=facZichtbaar();
+  const lijst=facSortLijst(facZichtbaar());
   const scope=facBedrijfScope();
   const toonBd=facToonBedrijfKolom();
   if(!lijst.length){
@@ -19560,12 +19655,18 @@ function facRenderLijst(){
      kolom -- ze horen bij elkaar (elke administratie heeft zijn eigen
      nummerreeks) en het scheelt een kolom op een toch al brede tabel. */
   const nrBreed=facNummerBreedte(lijst);
+  /* De koppen zijn knoppen: klikken sorteert, nog eens klikken draait om.
+     Zie facSorteer(); de stand staat in facSortKol/facSortOp en gaat niet mee
+     naar Drive. */
   let html=`<div class="uren-sheet-card"><table class="fac-table"><thead><tr>
-    <th style="width:${toonBd?nrBreed+20:nrBreed}px">Nummer</th><th style="width:88px">Datum</th>
-    <th style="width:164px">Klant</th><th>Betreft</th>
-    <th style="width:92px">Vervalt</th><th style="width:142px">Status</th>
-    <th class="num" style="width:112px">Excl. btw</th>
-    <th class="num" style="width:112px">Incl. btw</th></tr></thead><tbody>`;
+    ${facSortKop('nummer','Nummer',null,(toonBd?nrBreed+20:nrBreed)+'px')}
+    ${facSortKop('datum','Datum',null,'88px')}
+    ${facSortKop('klant','Klant',null,'164px')}
+    ${facSortKop('betreft','Betreft')}
+    ${facSortKop('vervalt','Vervalt',null,'92px')}
+    ${facSortKop('status','Status',null,'142px')}
+    ${facSortKop('excl','Excl. btw','num','112px')}
+    ${facSortKop('incl','Incl. btw','num','112px')}</tr></thead><tbody>`;
   lijst.forEach(f=>{
     const t=factuurTotalen(f);
     excl+=t.excl;incl+=t.incl;
