@@ -30,9 +30,13 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 ├── docs/stijlgids.md             ← welke maat hoort waar (lees dit vóór je iets vormgeeft)
 ├── docs/mobile.md                ← de mobiele schaal en de regels erachter
 ├── validate.mjs                  ← Node syntax/structure checker
+├── parallel-check.mjs            ← bewaakt de moduleverdeling bij parallel werk
 ├── test.html                     ← browser smoke test
 ├── .githooks/pre-push            ← git hook (na `core.hooksPath` setup)
 └── .claude/                      ← Claude Code config + hooks
+    ├── ownership.json            ← wie bezit welk stuk index.html (bron voor parallel-check)
+    ├── agents/                   ← één definitie per spoor (worktree-geïsoleerd)
+    ├── commands/                 ← /parallel-fanout, /parallel-merge, /parallel-setup
     └── skills/vormgeven/      ← werkwijze bij vormgeefwerk (triggert vanzelf)
 ```
 
@@ -184,6 +188,65 @@ Daarna: vraag Frank om **Ctrl+Shift+R** op de live site. Optioneel `test.html` d
 
 **Branches**: voorkeur is direct naar `main`, maar **PRs zijn toegestaan** voor grotere/risicovolle wijzigingen (`gh pr create` of via web UI).
 
+## Module ownership
+
+Voor parallel werk: meerdere agents tegelijk aan verschillende modules. Alles zit
+in één bestand, dus de grens is een **naamgrens**, geen bestandsgrens. De
+machineleesbare bron is [`.claude/ownership.json`](.claude/ownership.json); deze
+tabel is de leesbare versie. Wijzig ze samen.
+
+| Spoor | JS | CSS | Markup |
+|-------|-----|-----|--------|
+| `dashboard` | `dash*`, `renderDashboard` | `.dash-` | `#mod-dashboard` |
+| `notes` | `note*`, `notes*`, `*Note*` | `.note`, `.notes-` | `#mod-notes` |
+| `checklist` | `cl` + hoofdletter, `*Checklist*`, `*Subtask*` | `.cl-`, `.cl2-` | `#mod-checklist` |
+| `uren` | `uren*`, `_uren*` | `.uren-` **minus de 42 gedeelde** | `#mod-uren` |
+| `facturen` | `fac*`, `_fac*`, `factuur*` | `.fac-` | `#mod-facturen` |
+
+`#mod-todo` (Kanban) heeft te weinig eigen code voor een eigen spoor en valt onder
+de coördinator.
+
+### Regels
+
+- Elke agent schrijft uitsluitend binnen zijn eigen signalen. Lezen mag overal.
+- Wijzigingen in gedeelde ankers worden **niet** doorgevoerd maar gerapporteerd
+  als contractverzoek aan de coördinerende sessie.
+- Een nieuw state-veld is een contractwijziging (`hydrateerState()` en
+  `verzamelModuleState()` zijn gedeeld) — eerst aanvragen, niet zelf toevoegen.
+- Geen nieuwe dependencies. Geen `git push` vanuit een spoor.
+- `docs/decisions.md` en `sw.js` schrijft alleen de coördinator, ná de merge.
+  Beide hebben één regel waar iedereen tegelijk wil zijn.
+
+### ⚠️ De 42 gedeelde `.uren-*` regels
+
+Facturen leent 42 van de 101 `.uren-*` CSS-regels — samen 150+ voorkomens in die
+module (`uren-btn`, `uren-fld`, `uren-kpi`, `uren-tabs`, `uren-menu-item`, …).
+**Wie er één wijzigt, wijzigt twee modules, en git laat geen conflict zien.** Ze
+staan daarom op de gedeelde lijst en zijn voor beide sporen op slot. De 59
+Uren-eigen regels (`.uren-kal-*`, `.uren-tpl-*`, `.uren-mpiv-*`, `.uren-row`, …)
+mag het uren-spoor wel vrij vormgeven.
+
+### Werkwijze
+
+```bash
+/parallel-fanout uren facturen     # start de sporen parallel in eigen worktrees
+/parallel-merge uren facturen      # controleren, samenvoegen, bewijzen dat het heel is
+/parallel-setup                    # de verdeling herijken als de code verschoven is
+```
+
+Controle met de hand:
+
+```bash
+node parallel-check.mjs kaart              # hoe is index.html nu verdeeld
+node parallel-check.mjs scope <spoor>      # blijft dit spoor binnen zijn grenzen
+node parallel-check.mjs overlap            # botsen de sporen onderling
+node parallel-check.mjs merge              # na het samenvoegen
+node parallel-check.mjs stijl              # berekende stijlen voor/na, 4 combinaties
+```
+
+Exit 0 = schoon · 1 = fout (buiten de scope geschreven) · 2 = alleen
+contractverzoeken.
+
 ## Common patterns
 
 **Nieuwe modaal**: `<div class="modal-bg" id="<naam>Modal"><div class="modal">...</div></div>` + `openXModal()`/`closeXModal()` JS functies. CSS classes bestaan al.
@@ -308,6 +371,9 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | Bestand | Doel |
 |---------|------|
 | `validate.mjs` | JS syntax + tag balance + onclick-referentie checks |
+| `parallel-check.mjs` | Bewaakt de moduleverdeling: `kaart` / `scope` / `overlap` / `merge` / `stijl`. Vangt het stille conflict dat git niet ziet — twee sporen die dezelfde gedeelde CSS-regel raken |
+| `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
+| `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
 | `test.html` | 72 smoke-, sync-, model- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |

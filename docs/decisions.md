@@ -10,6 +10,65 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-09 · Parallel werken aan één bestand: de grens is een naam, niet een pad
+
+**Probleem.** Twee modules tegelijk laten ontwikkelen — Uren en Facturen
+bijvoorbeeld — vraagt om eigendom per agent. De gangbare opzet verdeelt dat op
+bestandspaden. Hier is alles één `index.html` van 26.663 regels, dus zou elke
+agent hetzelfde bestand bezitten en valt de verdeling weg.
+
+**Gemeten dat het toch kan.** Een merge-proef op een kloon: spoor uren voegt een
+CSS-regel toe op 1.390, een functie op 17.960 en een regel in
+`verzamelModuleState()`; spoor facturen doet hetzelfde op zijn eigen plekken,
+met de twee regels in `verzamelModuleState()` één regel uit elkaar. **Beide
+merges schoon, nul conflicten.** Git merget per hunk, en de modules blijken
+netjes geclusterd: uren 15.653–17.987, facturen 17.988–25.005, notes
+13.141–14.255, checklist 14.412–15.091, dashboard 10.874–11.207. Het slechtste
+geval — beide sporen wijzigen regel 716 en zetten allebei iets onderaan de CSS —
+geeft twee conflictjes van drie regels.
+
+**Beslissing.** Eigendom op **naamgrens** in plaats van padgrens: functie-prefix,
+selector-prefix en `#mod-`container. Vastgelegd in `.claude/ownership.json`, één
+agent-definitie per spoor met `isolation: worktree`, en drie commando's
+(`/parallel-fanout`, `/parallel-merge`, `/parallel-setup`).
+
+**Het echte gat zit elders.** Niet in wat git meldt, maar in wat het níét meldt.
+Facturen leent **42 van de 101 `.uren-*` CSS-regels**, samen 150+ voorkomens in
+die module. Zet het uren-spoor `.uren-btn` op 34px, dan merget dat schoon en is
+Facturen stil kapot. Daarom `parallel-check.mjs`, dat per gewijzigd anker
+uitrekent welke ándere modules het gebruiken, en dat de berekende stijl van alle
+gedeelde selectors voor en na vergelijkt in headless Chrome — desktop en mobiel,
+licht en donker, ongeveer vijf seconden. Op de proef vond hij precies
+`height: 32px → 34px` en `padding: 0px 13px → 0px 15px`, en zag hij dat mobiel
+niet verandert omdat de media query daar de hoogte al overschrijft.
+
+**Waarom een eigen script en niet alleen git.** Een merge-conflict is de
+makkelijke helft: die zie je. De helft die geld kost is de schone merge die de
+app breekt. `validate.mjs` controleert syntaxis, niet betekenis; `test.html`
+raakt de opmaak niet. Er was niets dat "deze regel wordt door twee modules
+gebruikt" kon zeggen.
+
+**Wat de coördinator houdt.** `docs/decisions.md` (nieuwste bovenaan, dus
+iedereen wil op regel 13 schrijven), `CACHE_NAME` in `sw.js` (één regel),
+`hydrateerState()`, `verzamelModuleState()`, `updateNavBadges()`, `renderAll()`,
+de tokens in `:root` en elke `@media`. Agents vragen daar een contractwijziging
+voor aan; die gaat er sequentieel in vóór de merge.
+
+**Bestanden**: `parallel-check.mjs` (nieuw), `.claude/ownership.json` (nieuw),
+`.claude/agents/{dashboard,notes,checklist,uren,facturen}.md` (nieuw),
+`.claude/commands/parallel-{setup,fanout,merge}.md` (nieuw), `CLAUDE.md` →
+sectie *Module ownership*
+
+**Niet doen**: eigendom op regelnummers vastleggen. Die schuiven bij de eerste
+edit. De signalen in `ownership.json` staan op namen; een anker zonder
+herkenbare naam erft alleen als beide buren het eens zijn, en blijft anders
+"onbekend" — wat betekent dat elke wijziging eraan gemeld wordt. Dat is de
+veilige kant om op te falen.
+
+**Ook niet doen**: het uren-spoor de gedeelde `.uren-*` regels laten
+vormgeven omdat ze nu eenmaal zo heten. Ze horen bij niemand. De 59
+Uren-eigen regels (`.uren-kal-*`, `.uren-tpl-*`, `.uren-mpiv-*`, …) zijn wél vrij.
+
 ## 2026-09-10 · De gratis laag telt verzoeken, geen tokens — dus vijf facturen per verzoek
 
 **Wat de meters zeggen.** Gemini 3.5 Flash op de gratis laag: **5 verzoeken per
