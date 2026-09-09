@@ -1535,7 +1535,16 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .fac-an-filterknop{display:none}
 .fac-an-poprij{display:flex;gap:6px;flex-wrap:wrap}
 .fac-an-poprij .uren-btn{flex:1;justify-content:center}
-.uren-scope-pop.fac-an-popscope{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+/* Vier keuzes passen niet op één regel in een popover van 236px, dus 2x2. Dan
+   moet de vaste hoogte van .uren-scope-pop er wel af: die hield de doos op één
+   regel hoog, waarna de tweede rij over het label eronder heen liep. */
+.uren-scope-pop.fac-an-popscope{
+  display:grid;grid-template-columns:1fr 1fr;gap:4px;height:auto;
+}
+.uren-scope-pop.fac-an-popscope button{min-height:32px}
+@media (max-width:768px){
+  .uren-scope-pop.fac-an-popscope button{min-height:var(--tap)}
+}
 .fac-an-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%}
 .fac-an-vul{flex:1}
 .fac-an-scope{
@@ -5528,7 +5537,16 @@ textarea { line-height: 1.6; resize: vertical; }
   #mod-facturen .uren-tabs {
     flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
+    /* Dezelfde valkuil als op 2026-09-06 bij het scherm zelf: overflow op één
+       as maakt de andere stilzwijgend ook scrollbaar. Hier was dat 1px -- het
+       streepje onder de actieve tab steekt onder zijn vak uit -- en precies
+       genoeg om de hele strip een stukje omhoog te kunnen duwen. */
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
   }
+  /* Het streepje gaat daarom binnen het vak staan in plaats van er 1px onder;
+     anders knipt overflow-y het af. */
+  #mod-facturen .uren-tab.active::after { bottom: 0; }
   #mod-facturen .uren-tabs::-webkit-scrollbar { display: none; }
   #mod-facturen .uren-tab { flex: 0 0 auto; padding-left: 12px; padding-right: 12px; }
   .uren-tab.active {
@@ -7049,7 +7067,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v1.88</span>
+        <span class="app-versie" title="Appversie">v1.89</span>
       </div>
     </div>
   </aside>
@@ -21177,6 +21195,15 @@ function facAnKort(n){
   if(a>=1000){const s=(n/1000).toFixed(a>=10000?0:1).replace(/[.,]0$/,'').replace('.',',');return '€'+s+'k';}
   return '€'+Math.round(n);
 }
+/* Boven een kolom hoeft geen decimaal. "€4,9k" is vijf tekens en past op een
+   telefoon niet meer in een baan van 33px; "€5k" wel, en het euroteken mag dan
+   blijven staan. Het precieze bedrag staat in de tooltip en in de tabel. */
+function facAnLabel(n){
+  const a=Math.abs(n);
+  if(a>=1000000)return '€'+Math.round(n/1000000)+'mln';
+  if(a>=1000)return '€'+Math.round(n/1000)+'k';
+  return '€'+Math.round(n);
+}
 function facAnPct(v){
   if(v==null)return '';
   const s=v>=0?'+':'−';
@@ -21220,6 +21247,18 @@ function facAnKolomGrafiek(d,breed){
   }
   let balken='',labels='',banden='';
   const tips=[];
+  /* Hoeveel past er boven een kolom? Op een telefoon is een baan 33px breed
+     bij negen maanden en 25px bij twaalf, en "€29k" vraagt er ongeveer 27.
+     In plaats van het euroteken altijd weg te laten of de letter onder de
+     ondergrens van 11,5px te duwen, kiest de grafiek de ruimste vorm die
+     past: mét euroteken, anders zonder, en pas als ook dat niet lukt om de
+     maand. Zo staat er op een breed scherm "€29k" en op een smal scherm bij
+     elke maand nog een cijfer. */
+  const fs=smal?11.5:10.5;
+  const past=(rijtje)=>Math.max(...rijtje.map(t=>t.length))*fs*0.64+1<=band;
+  const metEuro=d.vakken.filter(v=>v.excl>0).map(v=>facAnLabel(v.excl));
+  const kaal=metEuro.map(t=>t.replace('€',''));
+  const vorm=!metEuro.length||past(metEuro)?'euro':past(kaal)?'kaal':'omdeandere';
   const hoogste=Math.max(...d.vakken.map(v=>v.excl),0);
   d.vakken.forEach((v,i)=>{
     const bx=padL+band*i;
@@ -21234,13 +21273,13 @@ function facAnKolomGrafiek(d,breed){
     const nx=start+(paar?bw+2:0);
     const pn=facAnBalkPad(nx,y(v.excl),bw,hn);
     if(pn)balken+=`<path d="${pn}" class="an-nu"/>`;
-    /* Het bedrag boven de kolom van deze periode -- alleen die, want een
-       cijfer boven elke balk van beide reeksen leest niemand meer. Is de baan
-       te smal voor "€18k" met lucht eromheen, dan om de maand (en de laatste
-       altijd); de rest staat in de tooltip en in de tabel. */
-    if(v.excl>0&&(band>=40||i%2===(n-1)%2))
+    /* Alleen boven de kolom van deze periode: een cijfer boven elke balk van
+       beide reeksen leest niemand meer. */
+    if(v.excl>0&&(vorm!=='omdeandere'||i%2===(n-1)%2)){
+      const tekst=vorm==='kaal'?facAnLabel(v.excl).replace('€',''):facAnLabel(v.excl);
       balken+=`<text x="${(nx+bw/2).toFixed(1)}" y="${(y(v.excl)-7).toFixed(1)}"
-        class="an-waarde" text-anchor="middle">${escapeHtml(facAnKort(v.excl))}</text>`;
+        class="an-waarde" text-anchor="middle">${escapeHtml(tekst)}</text>`;
+    }
     /* Niet elke maand een label: op een telefoon zou dat een grijze band
        worden. Om de twee, en de laatste altijd. */
     const toon=!smal||n<=6||i%2===0||i===n-1;

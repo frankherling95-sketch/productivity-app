@@ -10,6 +10,43 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-09 · Drie dingen die pas op een echte telefoon opvielen
+
+**De tabstrip kon omhoog.** `overflow-x:auto` maakt de andere as stilzwijgend
+óók scrollbaar — dezelfde valkuil als op 2026-09-06 bij het scherm zelf. Hier
+ging het om één pixel: het streepje onder de actieve tab staat op `bottom:-1px`
+en steekt dus onder zijn vak uit. Genoeg om de hele strip een stukje omhoog te
+kunnen duwen. Nu `overflow-y:hidden`, en het streepje staat binnen het vak
+(`bottom:0`) zodat het niet wordt afgeknipt. `overscroll-behavior-x:contain`
+houdt de zijwaartse beweging bovendien in de strip.
+
+**De periodekiezer liep over het label eronder.** `.uren-scope-pop` heeft een
+vaste hoogte van 34px, gemaakt voor één rij knoppen. Vier keuzes passen niet op
+één regel in een popover van 236px, dus staan ze 2×2 — maar de doos bleef 34px
+hoog en de tweede rij landde boven op "KLANT". Hoogte nu `auto`, knoppen
+`var(--tap)` hoog op een telefoon.
+
+**Niet elke maand had een cijfer.** De regel was "past het niet, dan om de
+maand", en dat viel op een telefoon uit op de helft. Gemeten in plaats van
+geschat: "€18k" is 30px bij 11,5px in een baan van 33px — het pást dus. De
+schatting eromheen was te ruim afgesteld.
+
+De grafiek kiest nu de ruimste vorm die past: mét euroteken, anders zonder, en
+pas als ook dat niet lukt om de maand. Bij "Dit jaar" (negen banen van 33px)
+staat er `€18k` boven elke maand; bij twaalf maanden (banen van 25px) `17k`,
+ook boven elke maand. Datalabels hebben bovendien geen decimaal meer: "€4,9k"
+is vijf tekens en past niet, "€5k" wel — en het precieze bedrag staat in de
+tooltip en in de tabel.
+
+**Waarom niet gewoon een kleinere letter.** Dat was de vraag, en het zou
+werken: 10px past altijd. Maar 11,5px is de ondergrens uit de mobiele schaal
+(2026-09-05) en die staat er omdat een app vol kleine uitzonderingen precies zo
+ontstaat. De vorm aanpassen kost hier niets en de regel blijft heel.
+
+**Bestanden**: `index.html` — `#mod-facturen .uren-tabs`,
+`.uren-scope-pop.fac-an-popscope`, `facAnLabel()` en de vormkeuze in
+`facAnKolomGrafiek()`; `sw.js` → `herling-v89`
+
 ## 2026-09-09 · De keuzes van de analyse zitten op een telefoon achter de trechter
 
 **Probleem.** De balk met periode, uitsplitsing en tabelknop past op een
