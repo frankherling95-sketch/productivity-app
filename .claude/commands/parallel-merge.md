@@ -46,6 +46,8 @@ Uitslag lezen:
 
 ```bash
 node parallel-check.mjs overlap <spoor> <spoor> ...
+# heet de branch niet claude/<spoor>, zoals bij een worktree:
+node parallel-check.mjs overlap uren=<branch> facturen=<branch>
 ```
 
 Raken twee sporen hetzelfde anker aan, dan is dat geen mergeprobleem maar een

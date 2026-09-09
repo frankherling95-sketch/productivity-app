@@ -343,13 +343,19 @@ function doeScope(spoor, branch) {
    MODUS: overlap — botsen de sporen onderling
    ═══════════════════════════════════════════════════════════════ */
 function doeOverlap(lijst) {
-  const sporen = lijst.length ? lijst : SPOREN;
+  /* Een spoor heet `uren`, maar zijn branch heet niet altijd `claude/uren` --
+     een worktree krijgt zijn eigen naam. Daarom ook `uren=<branch>`. */
+  const paren = (lijst.length ? lijst : SPOREN).map(a => {
+    const i = a.indexOf('=');
+    return i < 0 ? { spoor: a, branch: `claude/${a}` } : { spoor: a.slice(0, i), branch: a.slice(i + 1) };
+  });
+  const onbekend = paren.filter(p => !SPOREN.includes(p.spoor));
+  if (onbekend.length) { console.error(`Onbekend spoor: ${onbekend.map(p => p.spoor).join(', ')}. Bekend: ${SPOREN.join(', ')}`); return 1; }
   const perSpoor = {};
-  kop(`Overlap-controle · ${sporen.join(', ')} tegen ${BASIS}`);
+  kop(`Overlap-controle · ${paren.map(p => p.spoor).join(', ')} tegen ${BASIS}`);
 
-  for (const s of sporen) {
-    const branch = `claude/${s}`;
-    if (!gitStil(['rev-parse', '--verify', branch])) { regel(`${s.padEnd(11)} — geen branch, overgeslagen`); continue; }
+  for (const { spoor: s, branch } of paren) {
+    if (!gitStil(['rev-parse', '--verify', branch])) { regel(`${s.padEnd(11)} — branch ${branch} bestaat niet, overgeslagen`); continue; }
     const bb = basisVoor(branch);
     const { geraakt } = raakteAnkers(toon(branch, BESTAND), bb, branch);
     perSpoor[s] = new Set([...geraakt.keys()].map(k => k.replace(/@\d+$/, '')));
