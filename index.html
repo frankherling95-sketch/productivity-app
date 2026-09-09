@@ -1523,11 +1523,6 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 
 /* Eén balk met alles wat de weergave stuurt, bóven de grafieken -- niet per
    kaart. Twee filters op twee plekken laten de cijfers uit elkaar lopen. */
-/* De tegelrij staat hier in dezelfde stroom als de kaarten eronder en heeft
-   dus niet nóg eens zijn eigen zijkantjes nodig: met de padding van .uren-kpis
-   erbij stonden de tegels 16px naar binnen ten opzichte van de grafieken, en
-   raakten ze de eerste kaart (2px). Eén ritme: 14px tussen elk blok. */
-#facBody .fac-an-kpis{padding:0;margin-bottom:14px}
 /* Op een bureaublad staan de keuzes in de balk onder de tabs; de trechter
    in de topbalk is dan dubbelop. Op een telefoon precies andersom -- daar
    is die ene regel te duur en staat de trechter waar hij in elke andere
@@ -7174,7 +7169,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v1.95</span>
+        <span class="app-versie" title="Appversie">v1.96</span>
       </div>
     </div>
   </aside>
@@ -19386,6 +19381,9 @@ function facKpiTegels(){
      betaald. "Openstaand" en "Te laat" staan er niet bij -- dat zijn de
      optelsommen van de ouderdomstegels eronder. */
   if(facView==='debiteuren')return facDebiteurenTegels();
+  /* De analyse ook: die telt over zijn eigen bereik en niet over de periode
+     van de facturenlijst. */
+  if(facView==='analyse')return facAnKpiTegels();
   const lijst=facZichtbaar();
   const som=arr=>arr.reduce((s,f)=>s+factuurTotalen(f).incl,0);
   const openstaand=facBedrijfFacturen().filter(f=>f.status==='verstuurd');
@@ -19436,6 +19434,15 @@ function facKpi(lab,val,eenheid,sub,kleur){
    staat verderop op de pagina toch al, en dan verdubbelt de regel die de
    cijfers juist wegstopt er zelf een. */
 function facCijferSamenvatting(){
+  if(facView==='analyse'){
+    const d=facAnData();
+    /* Twee aantallen, geen bedrag. Het aantal klanten valt weg zodra je op
+       één klant filtert: dan telt het over álle klanten in de periode en het
+       aantal facturen over die ene, en staan er twee getallen naast elkaar
+       die niet bij elkaar horen. Wie het is staat in de regel eronder. */
+    return {tekst:d.aantal+' factu'+(d.aantal===1?'ur':'ren')
+      +(facAnKlant?'':' · '+d.klanten.length+' klant'+(d.klanten.length===1?'':'en')),laat:false};
+  }
   if(facView==='debiteuren'){
     const n=facBedrijfFacturen().filter(f=>f.status==='verstuurd'&&factuurDagenTeLaat(f)>0).length;
     return n?{tekst:n+' factu'+(n===1?'ur':'ren')+' te laat',laat:true}
@@ -19464,7 +19471,7 @@ function facRenderBody(){
   const body=document.getElementById('facBody');
   if(!body)return;
   const kop=facCijferBalk();
-  if(facView==='analyse'){body.innerHTML=facRenderAnalyse();return;}
+  if(facView==='analyse'){body.innerHTML=kop+facRenderAnalyse();return;}
   if(facView==='klanten'){body.innerHTML=kop+facRenderKlanten();return;}
   if(facView==='debiteuren'){body.innerHTML=kop+facRenderDebiteuren();return;}
   if(facView==='btw'){body.innerHTML=facRenderBtw();return;}
@@ -21639,13 +21646,13 @@ function facAnLegenda(d){
     ${d.heeftVorige?`<span><i class="vorig"></i>${escapeHtml(d.range.vorigeLabel)}</span>`:''}</div>`;
 }
 
-function facRenderAnalyse(){
-  _facAnTips={};
+/* De tegels van de analyse. Aparte functie omdat de uitklapbalk voor alle
+   tabbladen op één plek wordt opgebouwd (facCijferBalk) -- zelfde reden als
+   bij facDebiteurenTegels(). */
+function facAnKpiTegels(){
   const d=facAnData();
-  const breed=facAnBreedte();
   const grootste=d.klanten[0];
-  const klantNaam=facAnKlant?(d.klanten.find(k=>k.key===facAnKlant)||{}).naam:'';
-  const tegels=`
+  return facKpiRaster(`
     ${facKpi('Omzet excl. btw',factuurFmtBedrag(d.totaal),'',
       d.groei==null?d.range.label:facAnPct(d.groei)+' t.o.v. '+(d.range.vorigeUitleg||d.range.vorigeLabel),'var(--mint)')}
     ${facKpi('Facturen',d.aantal,'',d.aantal?'gemiddeld '+factuurFmtBedrag(d.totaal/d.aantal):'','var(--info)')}
@@ -21657,10 +21664,16 @@ function facRenderAnalyse(){
       ?Math.round((grootste.excl/d.klantTotaal)*100)+'%':'—','',
       grootste?grootste.naam+' · '+factuurFmtBedrag(grootste.excl):'','var(--success)')}
     ${facKpi('Nog openstaand',factuurFmtBedrag(d.openstaand),'',
-      d.openAantal?d.openAantal+' '+(d.openAantal===1?'factuur':'facturen'):'alles binnen','var(--warning)')}`;
+      d.openAantal?d.openAantal+' '+(d.openAantal===1?'factuur':'facturen'):'alles binnen','var(--warning)')}`);
+}
+
+function facRenderAnalyse(){
+  _facAnTips={};
+  const d=facAnData();
+  const breed=facAnBreedte();
+  const klantNaam=facAnKlant?(d.klanten.find(k=>k.key===facAnKlant)||{}).naam:'';
   const kop=(t)=>`<div class="fac-an-kaartkop"><h3>${escapeHtml(t)}</h3></div>`;
   return `
-    <div class="uren-kpis fac-an-kpis">${tegels}</div>
     ${klantNaam?`<div class="fac-an-scope">Tegels en tijdlijnen tonen alleen
       <b>${escapeHtml(klantNaam)}</b>.
       <button class="uren-btn" data-fac-action="facAnZetKlant" data-fac-arg1="">Alle klanten</button></div>`:''}

@@ -10,6 +10,42 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-09 · De cijfers van de analyse achter dezelfde uitklapbalk
+
+**Probleem.** De analyse was het laatste tabblad met een vaste tegelstrip. Op
+een telefoon kostte dat 165px voordat de eerste grafiek begon, terwijl je die
+tab juist opent om naar een grafiek te kijken — de tegels zeggen wat de grafiek
+eronder al tekent. Op Facturen, Debiteuren, Verzonden en Klanten zaten de
+tegels al achter de balk "Cijfers", dus stond er binnen één module twee keer
+een andere afspraak.
+
+**Beslissing.** De analysetegels gaan achter diezelfde balk. Ze zijn verhuisd
+uit `facRenderAnalyse()` naar een eigen `facAnKpiTegels()`, en
+`facKpiTegels()` verwijst ernaar zoals hij dat voor Debiteuren al deed —
+zo blijft er één plek waar de balk wordt opgebouwd (`facCijferBalk`). De
+samenvatting op de dichte balk is "6 facturen · 4 klanten": twee aantallen,
+geen bedrag, net als de andere tabbladen. Filter je op één klant, dan valt het
+aantal klanten weg — dat telt dan over alle klanten in de periode en het aantal
+facturen over die ene, en dat leest als een rekenfout. Wie het is staat toch al
+in de regel eronder.
+
+**Waarom.** Open of dicht staat per module in `localStorage` en niet per
+tabblad, dus de keuze die je op Facturen maakt geldt nu ook hier — één
+kijkvoorkeur voor de hele module. De tegels erven de maten van het uitklapblok
+(`.fac-cijfers-blok .uren-kpis`), waardoor de eigen regel `#facBody
+.fac-an-kpis` overbodig werd en is verdwenen: tegels, balk en grafiekkaarten
+staan nu aantoonbaar op dezelfde linker- en rechterrand (12px op 375px).
+
+**Bestanden.** `index.html` (`facKpiTegels`, `facCijferSamenvatting`,
+`facRenderBody`, `facRenderAnalyse`, nieuw: `facAnKpiTegels`; CSS-regel
+`#facBody .fac-an-kpis` verwijderd).
+
+**Niet doen.** De balk een eigen open/dicht-stand voor de analyse geven. Het is
+één module en één kijkvoorkeur; twee standen betekent dat je hem twee keer moet
+wegklikken.
+
+---
+
 ## 2026-09-09 · Eén jaarknop voor elke weergave van Facturen, de analyse erbij
 
 **Probleem.** Op een telefoon had de analyse als enige tab géén `‹ 2026 ›` in de
