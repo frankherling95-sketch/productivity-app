@@ -45,7 +45,7 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 | `#notes` | Notes | Boomstructuur (folders/pages) met rich-text editor (marked.js) |
 | `#checklist` | Checklist | Taken met subtaken, filters (prio/klant/periode), vastpinnen, drag-drop, archief |
 | `#uren` | Uren | Urenregistratie per regel, week/maand, Excel export |
-| `#facturen` | Facturen | Facturen uit geschreven uren, sjabloonbouwer, debiteuren, btw-overzicht, mailen via Gmail |
+| `#facturen` | Facturen | Facturen uit geschreven uren, sjabloonbouwer, debiteuren, btw-overzicht, mailen via Gmail, analyse |
 
 Entry render functions: `renderDashboard()`, `renderTodoModule()`, `renderNotesModule()`, `renderChecklistModule()`, `renderUrenModule()`, `renderFacturenModule()`. `renderAll()` wordt aangeroepen na elke `loadGist()`.
 
@@ -208,6 +208,7 @@ Daarna: vraag Frank om **Ctrl+Shift+R** op de live site. Optioneel `test.html` d
 
 Top-3 meest recent. Volledige log + *waarom* per beslissing: [`docs/decisions.md`](docs/decisions.md).
 
+- **2026-09-08**: Analyse-tab in Facturen — omzet per maand tegen de vorige periode, cumulatief, en een ranglijst per klant, met een eigen periodekeuze (dit jaar / 12 maanden / vorig jaar / alles) die alles eronder aanstuurt. "Dit jaar" loopt t/m déze maand en vergelijkt met dezelfde maanden vorig jaar. Twee reeksen = nadruk, geen categorieën: huidige periode in kleur, vorige in grijs (`--gr-nu`/`--gr-vorig`, gevalideerd op kleurenblindheid). Doorbelaste facturen splits je uit naar eindklant via regels ("betreft bevat X → telt als Y") of het veld Eindklant op de factuur zelf, dat vóór de regels gaat
 - **2026-09-08**: Eén mintknop in de voet van een factuur — op een verstuurde factuur is dat altijd "Betaling registreren" (Mailen is altijd secundair, betaald = geen mint). Het mint sprong eerder tussen die twee, afhankelijk van `gemaildOp`, en bij een factuur die je print komt dat moment nooit. De editor is meteen 1000px in plaats van 900: acht knoppen vragen 886px waar er 854 was, en de btw-kolom kapte af tot "21% (h"
 - **2026-09-08**: Een vaste modelnaam is even breekbaar als een alias — na `gemini-flash-latest` (krapste gratis laag) sneuvelde ook `gemini-2.5-flash` ("no longer available to new users"). Nu een voorkeursvolgorde `GEMINI_TERUGVAL` met `gemini-3.5-flash` als standaard, en bij een 400/404 over een ingetrokken model stapt de app zelf over: `GET /v1beta/models` zegt wat déze sleutel mag, de keuze wordt onthouden en het verzoek gaat één keer opnieuw. Mee opgelost bij het inscannen: het denkdeel van een Gemini 3-model telde als antwoord (`thought:true`), "€ 1.234,56" werd NaN en dus een leeg bedrag, het mime-type was een gok, en een hangend verzoek gijzelde de stapel
 - **2026-09-08**: Inleeslogboek bij de factuurscanner — `factuurState.scanLog` houdt per ingelezen bestand een SHA-256 van de **inhoud** bij, dus een hernoemde PDF wordt herkend vóórdat er een verzoek uitgaat. Dubbele komen wél in de stapel (je moet zien wat is overgeslagen) maar gaan niet naar Gemini; met een knop "toch inlezen". Gaat mee naar Drive, dus geldt op al je apparaten. Zichtbaar via Facturen → ⋯ → Inleeslogboek. Een logboekregel ís de bestaande `.uren-mcard`, geen nieuwe rijvorm
@@ -302,7 +303,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 |---------|------|
 | `validate.mjs` | JS syntax + tag balance + onclick-referentie checks |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 62 smoke-, sync-, model- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
+| `test.html` | 67 smoke-, sync-, model- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |
