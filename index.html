@@ -1528,6 +1528,14 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
    erbij stonden de tegels 16px naar binnen ten opzichte van de grafieken, en
    raakten ze de eerste kaart (2px). Eén ritme: 14px tussen elk blok. */
 #facBody .fac-an-kpis{padding:0;margin-bottom:14px}
+/* Op een bureaublad staan de keuzes in de balk onder de tabs; de trechter
+   in de topbalk is dan dubbelop. Op een telefoon precies andersom -- daar
+   is die ene regel te duur en staat de trechter waar hij in elke andere
+   weergave staat. */
+.fac-an-filterknop{display:none}
+.fac-an-poprij{display:flex;gap:6px;flex-wrap:wrap}
+.fac-an-poprij .uren-btn{flex:1;justify-content:center}
+.uren-scope-pop.fac-an-popscope{display:grid;grid-template-columns:1fr 1fr;gap:4px}
 .fac-an-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%}
 .fac-an-vul{flex:1}
 .fac-an-scope{
@@ -5556,13 +5564,11 @@ textarea { line-height: 1.6; resize: vertical; }
   /* Zelfde streek als bij btw: de balk met de periodekeuze past niet naast
      de tabs. Zonder eigen regel kneep hij de tabs tot nul breedte en waren
      ze op een telefoon simpelweg weg. */
-  .uren-viewbar.viewbar-analyse { flex-wrap: wrap; padding-bottom: var(--sp-2); }
-  .uren-viewbar.viewbar-analyse .uren-filters { flex: 1 0 100%; }
-  .viewbar-analyse .fac-an-bar { gap: 6px; }
-  .viewbar-analyse .cl2-seg { flex: 1 0 100%; }
-  .viewbar-analyse .cl2-seg-btn { flex: 1; }
-  .viewbar-analyse .fac-an-vul { display: none; }
-  .viewbar-analyse .fac-an-bar .uren-btn { flex: 1; }
+  /* De balk met de keuzes gaat weg: op een telefoon zitten ze achter de
+     trechterknop in de topbalk, op de plek waar die in elke andere
+     weergave ook staat. De tabsrij houdt zo zijn eigen regel. */
+  .uren-viewbar.viewbar-analyse .uren-filters { display: none; }
+  .fac-an-filterknop { display: inline-flex; }
   .uren-viewbar.viewbar-btw { flex-wrap: wrap; padding-bottom: var(--sp-2); }
   .uren-viewbar.viewbar-btw .uren-filters { flex: 1 0 100%; }
   .viewbar-btw .fac-btw-kiezer { width: 100%; flex-direction: column; gap: 6px; }
@@ -7043,7 +7049,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v1.87</span>
+        <span class="app-versie" title="Appversie">v1.88</span>
       </div>
     </div>
   </aside>
@@ -18857,6 +18863,7 @@ const FAC_CLICK_ACTIONS={
 const FAC_CHANGE_ACTIONS={
   facSetFilterStatus:(el)=>{facFilterStatus=el.value;facRenderAll();},
   facSetFilterClient:(el)=>{facFilterClient=el.value;facRenderAll();},
+  facAnZetKlantSel:(el)=>{facAnKlant=el.value;facRenderAll();},
   facEdVeld:(el,a)=>facEdVeld(el,a),
   facEdRegel:(el,a,b)=>facEdRegel(el,a,b),
   facWizardVeld:(el,a)=>{if(facWizard){facWizard[a]=el.value;
@@ -19109,7 +19116,22 @@ function facRenderFilters(){
   /* De analyse kiest zijn eigen tijdvak, dus de trechter en de jaarpijlen
      doen daar niets. Alles wat de weergave stuurt staat in één balk onder
      de tabs -- zo hoort bij een dashboard maar één periodekeuze te staan. */
-  if(facView==='analyse'){bar.innerHTML='';if(balkOnder)balkOnder.innerHTML=facAnFilterBalk();return;}
+  if(facView==='analyse'){
+    /* Twee vormen van dezelfde keuzes: op een bureaublad de brede balk onder
+       de tabs (alles tegelijk in beeld), op een telefoon de trechterknop in de
+       topbalk -- zelfde plek en zelfde vorm als in elke andere weergave. De
+       CSS kiest welke van de twee je ziet; ze staan er allebei, zodat een
+       draaiend scherm niet op een hertekening hoeft te wachten. */
+    const n=facAnFilterAantal();
+    bar.innerHTML=`<button class="uren-btn fac-an-filterknop${n?' aan':''}" id="facFilterBtn"
+      data-fac-action="facToggleFilters" aria-haspopup="dialog" aria-expanded="false"
+      aria-label="Periode en uitsplitsing">${FILTER_ICOON}<span class="uren-btn-lab">Filter</span>${
+      n?`<span class="cnt">${n}</span>`:''}</button>`;
+    if(balkOnder)balkOnder.innerHTML=facAnFilterBalk();
+    if(document.getElementById('facFilterPop'))
+      document.getElementById('facFilterBtn')?.setAttribute('aria-expanded','true');
+    return;
+  }
   const n=(facFilterStatus?1:0)+(facFilterClient?1:0);
   let html=`<button class="uren-btn${n?' aan':''}" id="facFilterBtn" data-fac-action="facToggleFilters"
     aria-haspopup="dialog" aria-expanded="false" aria-label="Filter en periode">${FILTER_ICOON}<span class="uren-btn-lab">Filter</span>${n?`<span class="cnt">${n}</span>`:''}</button>`;
@@ -21402,17 +21424,69 @@ function facRenderAnalyse(){
 }
 
 /* ── Bediening ── */
+function facAnPopInhoud(){
+  const d=facAnData();
+  const knop=(id,lab)=>`<button type="button" class="${facAnBereik===id?'active':''}"
+    aria-pressed="${facAnBereik===id}" data-fac-action="facAnZetBereik" data-fac-arg1="${id}">${lab}</button>`;
+  return `
+    <div><label>Periode</label>
+      <div class="uren-scope uren-scope-pop fac-an-popscope">
+        ${FAC_AN_BEREIKEN.map(([id,lab])=>knop(id,lab)).join('')}
+      </div></div>
+    <div><label for="facAnKlantSel">Klant</label>
+      <select id="facAnKlantSel" data-fac-change="facAnZetKlantSel">
+        <option value="">Alle klanten</option>
+        ${d.klanten.map(k=>`<option value="${escapeHtml(k.key)}"${
+          facAnKlant===k.key?' selected':''}>${escapeHtml(k.naam)}</option>`).join('')}
+      </select></div>
+    <div><label>Uitsplitsen</label>
+      <div class="fac-an-poprij">
+        <button type="button" class="uren-btn" data-fac-action="facAnWisselEind"
+          aria-pressed="${facAnEind?'true':'false'}">Eindklanten</button>
+        <button type="button" class="uren-btn" data-fac-action="openFacEindModal">Regels…</button>
+      </div></div>
+    <div><label>Weergave</label>
+      <div class="fac-an-poprij">
+        <button type="button" class="uren-btn" data-fac-action="facAnWisselTabel"
+          aria-pressed="${facAnTabel?'true':'false'}">Tabel met cijfers</button>
+      </div></div>`;
+}
+/* De popover blijft open zodat je de uitkomst meteen ziet; alleen de
+   markeringen erin moeten kloppen (zelfde afspraak als facScopeZet). */
+function facAnPopMarkeer(){
+  const pop=document.getElementById('facFilterPop');
+  if(!pop)return;
+  pop.querySelectorAll('.fac-an-popscope button').forEach(b=>{
+    const aan=b.dataset.facArg1===facAnBereik;
+    b.classList.toggle('active',aan);
+    b.setAttribute('aria-pressed',String(aan));
+  });
+  const zet=(actie,aan)=>{
+    const b=pop.querySelector('[data-fac-action="'+actie+'"]');
+    if(b)b.setAttribute('aria-pressed',String(aan));
+  };
+  zet('facAnWisselEind',facAnEind);
+  zet('facAnWisselTabel',facAnTabel);
+  const sel=pop.querySelector('#facAnKlantSel');
+  if(sel&&sel.value!==facAnKlant)sel.value=facAnKlant;
+}
+/* Hoeveel van de keuzes staan niet op hun standaard? Dat getal staat op de
+   knop, zodat je op een telefoon ziet dat er iets aanstaat zonder de popover
+   te openen. De tabelweergave telt niet mee: dat is geen filter. */
+function facAnFilterAantal(){
+  return (facAnBereik!=='jaar'?1:0)+(facAnKlant?1:0)+(facAnEind?1:0);
+}
 function facAnZetBereik(v){
   if(!FAC_AN_BEREIKEN.some(b=>b[0]===v))return;
-  facAnBereik=v;facRenderAll();
+  facAnBereik=v;facRenderAll();facAnPopMarkeer();
 }
-function facAnZetKlant(k){facAnKlant=(k===facAnKlant)?'':(k||'');facRenderAll();}
+function facAnZetKlant(k){facAnKlant=(k===facAnKlant)?'':(k||'');facRenderAll();facAnPopMarkeer();}
 function facAnWisselEind(){
   facAnEind=!facAnEind;
   facAnKlant='';   /* de sleutels veranderen van betekenis */
-  facRenderAll();
+  facRenderAll();facAnPopMarkeer();
 }
-function facAnWisselTabel(){facAnTabel=!facAnTabel;facRenderAll();}
+function facAnWisselTabel(){facAnTabel=!facAnTabel;facRenderAll();facAnPopMarkeer();}
 function facAnFilterBalk(){
   const d=facEindRegels().length;
   return `<div class="fac-an-bar">
@@ -23395,6 +23469,14 @@ function facToggleFilters(){
   if(!btn)return;
   const pop=document.createElement('div');
   pop.className='uren-filterpop';pop.id='facFilterPop';pop.setAttribute('role','dialog');
+  if(facView==='analyse'){
+    pop.innerHTML=facAnPopInhoud();
+    document.body.appendChild(pop);
+    urenPlacePopover(pop,btn);
+    btn.setAttribute('aria-expanded','true');
+    setTimeout(()=>document.addEventListener('mousedown',facFilterPopOutside),20);
+    return;
+  }
   /* De periodebreedte staat hier en niet als losse knoppenrij in de
      topbalk: daar is op een telefoon geen regel meer over, en je zet hem
      één keer en dan een tijd niet meer. Alleen in de facturenlijst --

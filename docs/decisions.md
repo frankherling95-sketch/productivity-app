@@ -10,6 +10,40 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-09 · De keuzes van de analyse zitten op een telefoon achter de trechter
+
+**Probleem.** De balk met periode, uitsplitsing en tabelknop past op een
+bureaublad prima onder de tabs, maar kostte op 375px een hele regel — boven een
+scherm waar de grafiek zelf al krap is. En hij stond op een plek die nergens
+anders in de app een filter herbergt.
+
+**Beslissing.** Twee vormen van dezelfde keuzes, en de CSS kiest welke je ziet:
+
+- **Bureaublad**: de brede balk onder de tabs. Eén rij boven alles wat hij
+  aanstuurt, zodat je in één blik ziet waar de cijfers over gaan.
+- **Telefoon**: de trechterknop in de topbalk, tegen de rechterrand — dezelfde
+  plek, dezelfde vorm en dezelfde popover-machinerie als in de facturenlijst,
+  Uren en de Checklist. Erin: periode (2×2), klant, Eindklanten + Regels, en
+  de tabelweergave. Een telletje op de knop zegt hoeveel er niet op de
+  standaard staat; de tabelweergave telt daar niet in mee, want dat is geen
+  filter.
+
+**Waarom allebei renderen en met CSS kiezen.** Ze staan er allebei in de DOM.
+Draai je je telefoon, dan hoeft er niets opnieuw getekend te worden om de juiste
+bediening te krijgen — en er is maar één plek waar de knop wordt opgebouwd.
+
+**Waarom de popover openblijft.** Na een keuze wordt alleen de markering erin
+bijgewerkt (`facAnPopMarkeer()`), zoals `facScopeZet()` dat al deed. Je ziet de
+grafiek achter de popover meebewegen; sluiten en opnieuw openen om twee dingen
+te kiezen is een tik te veel.
+
+**Bestanden**: `index.html` — `facAnPopInhoud()`, `facAnPopMarkeer()`,
+`facAnFilterAantal()`, tak in `facToggleFilters()` en `facRenderFilters()`,
+`.fac-an-filterknop`; `sw.js` → `herling-v88`
+
+**Niet doen**: de trechter ook op een bureaublad tonen. Dan staan dezelfde
+keuzes op twee plekken en raken ze uit de pas.
+
 ## 2026-09-08 · Analyse: een zesde tab in Facturen, en wie zit er achter je klant
 
 **Probleem.** De facturenlijst vertelt wat er is gefactureerd, niet of het
