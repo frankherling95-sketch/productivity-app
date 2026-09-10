@@ -10,6 +10,42 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-10 · Doorkliklijst: drie blokken in plaats van vier kolommen
+
+**Probleem.** De lijst achter een balk in de analyse stond scheef. De bedragen
+begonnen in elke rij op een andere plek, "SB-2026-0002" brak over drie regels,
+en datum en klant zwommen mee met wat er links van stond.
+
+**Oorzaak — één kolom die twee dingen droeg.** Op een telefoon deelden de
+klantnaam en het bedrag dezelfde rasterkolom (klant rechtsonder, bedrag
+rechtsboven). Die kolom werd dus zo breed als de klantnaam, en het bedrag —
+zonder eigen uitlijning — begon aan de línkerkant daarvan: bij elke rij ergens
+anders. Diezelfde brede kolom liet voor het nummer zo weinig over dat de
+browser het op de streepjes afbrak. En omdat elke rij zijn eigen raster is,
+liep niets van dit alles gelijk tussen de rijen.
+
+**Beslissing.** Drie blokken: nummer, wie-en-wanneer, bedrag. Datum en klant
+zitten nu in één `.meta`-blok, dus ze vechten niet meer met het nummer om
+ruimte; op een telefoon staat dat blok over de volle breedte onder het nummer.
+Het bedrag heeft de rechterkolom voor zichzelf en staat op `justify-self:end`
+— niet `text-align`, want de kolom is zo breed als zijn eigen inhoud en dan
+doet uitlijnen bínnen die kolom niets. Op een bureaublad krijgt de nummerkolom
+één breedte voor de hele lijst, berekend met `facNummerBreedte()` — dezelfde
+functie die de vier factuurtabellen al gebruiken — zodat datum en klant in elke
+rij op dezelfde plek beginnen.
+
+**Gemeten.** Op 375px én 1440px: alle bedragen op één rechterrand, alle nummers
+op één linkerrand, geen enkel nummer over meer dan één regel, en het bedrag van
+een factuurregel staat in dezelfde kolom als dat van de factuur erboven.
+
+**Bestanden.** `index.html` (`.fac-an-drillrij` en zijn mobiele laag,
+`facAnDrillRender`).
+
+**Niet doen.** Het bedrag met `text-align:right` proberen recht te zetten, of
+de klantnaam terugzetten in de kolom van het bedrag.
+
+---
+
 ## 2026-09-09 · Bladeren tussen facturen: de lijst als momentopname
 
 **Probleem.** Een factuur nakijken betekende telkens: openen, sluiten, de

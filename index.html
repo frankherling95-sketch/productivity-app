@@ -1696,14 +1696,26 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 }
 .fac-an-drillrij:hover{background:var(--surface2);border-color:var(--border-strong)}
 .fac-an-drillrij:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
+/* Drie blokken: nummer, wie-en-wanneer, bedrag. Het middenblok krimpt en kapt
+   af; de twee buitenste houden hun maat, zodat een factuurnummer nooit
+   afbreekt en het bedrag altijd tegen dezelfde rechterrand staat. */
 .fac-an-drillrij .kop{
-  display:grid;grid-template-columns:auto auto 1fr auto;align-items:baseline;
-  gap:10px;font-size:var(--fs-basis);
+  display:grid;grid-template-columns:var(--nrbreed,auto) minmax(0,1fr) auto;
+  align-items:baseline;gap:10px;font-size:var(--fs-basis);
 }
-.fac-an-drillrij .nr{font-variant-numeric:tabular-nums}
+.fac-an-drillrij .nr{font-variant-numeric:tabular-nums;white-space:nowrap}
+.fac-an-drillrij .meta{
+  display:flex;align-items:baseline;gap:10px;min-width:0;
+}
 .fac-an-drillrij .dt,.fac-an-drillrij .kl{color:var(--text-muted);font-size:var(--fs-klein)}
-.fac-an-drillrij .kl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.fac-an-drillrij .kop .bd{font-variant-numeric:tabular-nums;white-space:nowrap}
+.fac-an-drillrij .dt{white-space:nowrap;flex:none;font-variant-numeric:tabular-nums}
+.fac-an-drillrij .kl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+/* justify-self en niet text-align: de kolom is zo breed als zijn eigen inhoud,
+   dus alleen dit zet elk bedrag tegen dezelfde rand -- ook als het ene
+   "€ 300,00" is en het andere "€ 11.200,00". */
+.fac-an-drillrij .kop .bd{
+  font-variant-numeric:tabular-nums;white-space:nowrap;justify-self:end;
+}
 .fac-an-drillrij .btr{
   display:block;margin-top:2px;font-size:var(--fs-klein);color:var(--text-muted);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
@@ -1724,13 +1736,18 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .fac-an-drillrij .rg .bd{color:var(--text);min-width:86px;text-align:right}
 
 @media (max-width:768px){
-  /* Op een telefoon past de kop niet op één regel: nummer en bedrag boven,
-     datum en klant eronder. */
-  .fac-an-drillrij .kop{grid-template-columns:1fr auto;gap:2px 10px}
-  .fac-an-drillrij .nr{grid-column:1;grid-row:1}
+  /* Op een telefoon past de kop niet op één regel: nummer links en bedrag
+     rechts op de bovenste, wie-en-wanneer over de volle breedte eronder.
+
+     Datum en klant stonden hier als twee kolommen naast het bedrag. Die
+     kolom werd dus zo breed als de klantnaam, en het bedrag begon aan de
+     linkerkant daarvan -- bij elke rij op een andere plek. Een lang nummer
+     ("SB-2026-0002") werd door diezelfde kolom bovendien over drie regels
+     gebroken. Nu heeft het bedrag de rechterkolom voor zichzelf. */
+  .fac-an-drillrij .kop{grid-template-columns:minmax(0,1fr) auto;gap:2px 10px}
+  .fac-an-drillrij .nr{grid-column:1;grid-row:1;overflow:hidden;text-overflow:ellipsis}
   .fac-an-drillrij .kop .bd{grid-column:2;grid-row:1}
-  .fac-an-drillrij .dt{grid-column:1;grid-row:2}
-  .fac-an-drillrij .kl{grid-column:2;grid-row:2;text-align:right}
+  .fac-an-drillrij .meta{grid-column:1/-1;grid-row:2}
   .fac-an-drillrij .rg{grid-template-columns:1fr auto}
   .fac-an-drillrij .rg .an{grid-column:1;grid-row:2;font-size:var(--fs-micro)}
   .fac-an-drillrij .rg .bd{grid-column:2;grid-row:1;min-width:0}
@@ -7299,7 +7316,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v1.97</span>
+        <span class="app-versie" title="Appversie">v1.98</span>
       </div>
     </div>
   </aside>
@@ -22148,8 +22165,14 @@ function facAnDrillRender(){
   document.getElementById('facAnDrillSub').textContent=facAnDrill.sub;
   if(!facAnDrill.rijen.length){
     box.innerHTML='<div class="uren-empty">Geen facturen in deze selectie.</div>';
+    box.style.removeProperty('--nrbreed');
     return;
   }
+  /* Eén nummerkolom voor de hele lijst, zodat datum en klant in elke rij op
+     dezelfde plek beginnen. Zonder dit schuift dat blok mee met de lengte van
+     het nummer erboven en staat er een rafelrand. Dezelfde maatvoering als de
+     vier factuurtabellen, dus dezelfde functie. */
+  box.style.setProperty('--nrbreed',facNummerBreedte(facAnDrill.rijen.map(r=>r.f))+'px');
   box.innerHTML=facAnDrill.rijen.map(r=>{
     const f=r.f;
     const klant=factuurKlant(f.clientId);
@@ -22171,9 +22194,11 @@ function facAnDrillRender(){
       data-fac-arg1="${f.id}" title="Open deze factuur">
       <span class="kop">
         <b class="nr">${escapeHtml(f.nummer||'—')}</b>
-        <span class="dt">${factuurFmtDatum(String(f.datum||'').slice(0,10))}</span>
-        <span class="kl">${escapeHtml(klant?(klant.bedrijfsnaam||klant.name):'Zonder klant')}${
-          eind&&klant&&eind!==(klant.bedrijfsnaam||klant.name)?' · '+escapeHtml(eind):''}</span>
+        <span class="meta">
+          <span class="dt">${factuurFmtDatum(String(f.datum||'').slice(0,10))}</span>
+          <span class="kl">${escapeHtml(klant?(klant.bedrijfsnaam||klant.name):'Zonder klant')}${
+            eind&&klant&&eind!==(klant.bedrijfsnaam||klant.name)?' · '+escapeHtml(eind):''}</span>
+        </span>
         <b class="bd">${factuurFmtBedrag(r.excl)}</b>
       </span>
       <span class="btr">${escapeHtml(f.betreft||'')}</span>
