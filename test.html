@@ -735,6 +735,46 @@ async function runChecks() {
           w.hydrateerState();
         }
       }],
+    /* ── Escape sluit het bovenste venster ───────────────────────────────
+       De app telde 34 modalen en Esc werkte er bij vijf. Eén regel doet ze
+       nu alle, door op de eigen afsluitknop van het venster te drukken.
+       Deze drie houden dat vast. */
+    ['Esc: de regel bestaat en is generiek',
+      () => typeof w.escSluitBovenste === 'function' &&
+            typeof w.escBovensteModal === 'function'],
+    ['Esc: sluit een venster dat niet zijn eigen toets had',
+      async () => {
+        /* Eindklanten had geen Escape-afhandeling; via de generieke regel
+           hoort hij nu wél dicht te gaan. */
+        w.openFacEindModal();
+        await new Promise(r => setTimeout(r, 120));
+        const open = !!d.getElementById('facEindModal')?.classList.contains('open');
+        d.dispatchEvent(new w.KeyboardEvent('keydown',
+          {key:'Escape', bubbles:true, cancelable:true}));
+        await new Promise(r => setTimeout(r, 120));
+        const dicht = !d.getElementById('facEindModal')?.classList.contains('open');
+        /* Wat er onverhoopt open bleef staan gaat hier weg, zodat een
+           volgende test niet op een venster stuit. */
+        d.querySelectorAll('.modal-bg.open').forEach(x => x.classList.remove('open'));
+        return open && dicht;
+      }],
+    ['Esc: laat een menu vóórgaan op de modaal eronder',
+      async () => {
+        /* Staat er een uitklapmenu bovenop, dan hoort Esc eerst dat te
+           sluiten -- anders verlies je het venster waar je in bezig was. */
+        w.openFacEindModal();
+        await new Promise(r => setTimeout(r, 120));
+        w.toggleAppInstellingen();
+        await new Promise(r => setTimeout(r, 120));
+        const menuVoor = !!d.getElementById('appInstelMenu');
+        d.dispatchEvent(new w.KeyboardEvent('keydown',
+          {key:'Escape', bubbles:true, cancelable:true}));
+        await new Promise(r => setTimeout(r, 120));
+        const menuWeg = !d.getElementById('appInstelMenu');
+        const modaalNog = !!d.getElementById('facEindModal')?.classList.contains('open');
+        d.querySelectorAll('.modal-bg.open').forEach(x => x.classList.remove('open'));
+        return menuVoor && menuWeg && modaalNog;
+      }],
     ['No iframe console errors',           () => iframeErrors.length === 0]
   ];
 

@@ -10,6 +10,50 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-10 · Escape sluit elk venster, niet vijf ervan
+
+**Probleem.** De app telt 34 modalen. Escape werkte er bij vijf: de vier die op
+2026-04 hun eigen regel in een `keydown`-handler kregen, plus het tagmenu. Alles
+wat daarna is bijgekomen — de factuureditor, Eindklanten, de urensjablonen, de
+prullenbak, de scanner, het vraagvenster, de uren-import — reageerde niet. Je
+moet dan met de muis naar een kruisje dat op een bureaublad soms niet eens
+zichtbaar is.
+
+**Beslissing.** Eén regel voor allemaal, met dezelfde vorm als de oplossing voor
+het kruisje (2026-09-06): niet elke modaal zijn eigen toets geven, maar de
+bovenste open `.modal-bg` opzoeken en op zijn eigen afsluitknop drukken —
+`.modal-annuleer`, anders het kruisje, anders de achtergrond.
+
+**Waarom drukken en niet zelf sluiten.** Op de knop drukken houdt alles wat een
+venster bij het sluiten doet intact: de wachtrij van de scanner opruimen, vragen
+of je een niet-opgeslagen factuur wilt weggooien, een popover meenemen. Zelf
+`classList.remove('open')` doen zou dat allemaal overslaan. Precies de reden dat
+het kruisje het ook zo doet.
+
+**Menu's gaan vóór.** Staat er een uitklapmenu bovenop een venster, dan sluit
+Esc eerst dat menu — anders verlies je het venster waar je in bezig was. Die
+menu's hebben hun eigen handlers, dus de generieke regel stapt dan opzij.
+
+**De fout die dat bijna onzichtbaar maakte.** In de lijst van "is er een menu
+open" stond `#appDlgLijst`. Dat is een vást onderdeel van het vraagvenster en
+bestaat dus altijd, ook dicht — waardoor de test altijd waar was en Esc nooit
+iets sloot. Gemeten: acht van de tien vensters gingen niet dicht. Alleen
+selectors die verdwijnen als het ding dicht is horen in die lijst: menu's worden
+bij het openen aan de body gehangen, popovers dragen `.open`.
+
+**Gemeten** op tien vensters, allemaal dicht met Esc; een menu bovenop een
+modaal sluit alleen het menu; Esc zonder iets open doet niets.
+
+**Bestanden.** `index.html` — `ESC_MENUS`, `escMenuOpen()`, `escBovensteModal()`,
+`escSluitBovenste()`. `test.html` — drie tests.
+
+**Niet doen.** De oudere per-modaal-handlers weghalen. Ze doen geen kwaad (de
+generieke regel loopt in de capture-fase en stopt de toets), en sommige doen
+méér dan sluiten — de zoekbalk en het hernoemen van een notitie zetten ook iets
+terug.
+
+---
+
 ## 2026-09-10 · Uren uit de PDF laten lezen — de derde bron
 
 **Probleem.** De twee bestaande bronnen leiden de uren af uit wat er in de app

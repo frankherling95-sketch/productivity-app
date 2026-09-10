@@ -12,7 +12,7 @@
    Cross-origin (Google, fonts, iCal) raken we niet aan.
    Bump CACHE_NAME when shipping a new release to invalidate old caches. */
 
-const CACHE_NAME = 'herling-v213';
+const CACHE_NAME = 'herling-v214';
 
 const PRECACHE_URLS = [
   './',

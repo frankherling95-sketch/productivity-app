@@ -7464,7 +7464,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.13</span>
+        <span class="app-versie" title="Appversie">v2.14</span>
       </div>
     </div>
   </aside>
@@ -29443,6 +29443,69 @@ function zetModalSluitknoppen(root){
   });
 }
 zetModalSluitknoppen();
+
+/* ══ Escape sluit het bovenste venster ═════════════════════════════════
+   De app telt 34 modalen en Esc werkte er bij vijf. Dat is dezelfde scheefte
+   als bij het kruisje (2026-09-06), en de oplossing is dezelfde: niet elke
+   modaal zijn eigen toets geven, maar één regel die het venster zoekt dat
+   openstaat en op zijn eigen afsluitknop drukt.
+
+   Op die knop drukken en niet zelf de klasse `open` weghalen: dan blijft
+   alles wat zo'n venster doet bij het sluiten intact -- de wachtrij van de
+   scanner opruimen, vragen of je een niet-opgeslagen factuur wilt weggooien,
+   een popover meenemen. Precies waarom het kruisje dat ook zo doet.
+
+   Menu's en popovers gaan vóór: staat er een uitklapmenu open bovenop een
+   modaal, dan sluit Esc eerst dat menu. Die hebben hun eigen handlers, dus
+   hier stappen we in dat geval alleen opzij. */
+/* Alleen dingen die er níet zijn als ze dicht zijn: de menu's worden bij het
+   openen aan de body gehangen, de popovers dragen .open. #appDlgLijst stond
+   hier eerst ook -- dat is een vast onderdeel van het vraagvenster en bestaat
+   dus altijd, waardoor deze test altijd waar was en Esc nooit iets sloot. */
+const ESC_MENUS=['#urenMenu','#facMenu','#appInstelMenu','#facFilterPop',
+  '#urenFilterPop','.uren-filterpop',
+  '.notes-overflow.open','.cl-overflow.open','#dashMobileSettings.open',
+  '.settings-dropdown.open','.tag-picker-popup.open','.ctx-menu.open'];
+function escMenuOpen(){
+  return ESC_MENUS.some(sel=>{
+    try{ return !!document.querySelector(sel); }catch(e){ return false; }
+  });
+}
+/* Het bovenste open venster: de laatste in de DOM, want die ligt er ook
+   visueel bovenop -- ze delen dezelfde z-index. */
+function escBovensteModal(){
+  const open=[...document.querySelectorAll('.modal-bg.open')];
+  return open.length?open[open.length-1]:null;
+}
+function escSluitBovenste(){
+  const bg=escBovensteModal();
+  if(!bg)return false;
+  const modal=bg.querySelector(':scope > .modal')||bg;
+  /* Volgorde van voorkeur: de annuleerknop in de voet (die draagt de
+     afhandeling), dan het kruisje, dan de achtergrond zelf. */
+  const annuleer=modal.querySelector('.modal-annuleer');
+  if(annuleer){annuleer.click();return true;}
+  const kruis=modal.querySelector('.modal-sluit');
+  if(kruis){kruis.click();return true;}
+  if(bg.hasAttribute('onclick')){bg.click();return true;}
+  /* Niets om op te drukken: dan alsnog dichtdoen, want een venster dat je
+     niet kwijtraakt is erger dan een sluitroute die iets overslaat. */
+  bg.classList.remove('open');
+  return true;
+}
+/* In de capture-fase, zodat dit vóór de oudere per-modaal-handlers loopt en
+   er niet twee vensters tegelijk dichtgaan. Wordt er iets gesloten, dan
+   stopt de toets hier. */
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Escape')return;
+  if(escMenuOpen())return;              /* menu's eerst, eigen handler */
+  if(!escBovensteModal())return;        /* niets open: laat de rest gaan */
+  if(escSluitBovenste()){
+    e.preventDefault();
+    e.stopPropagation();
+  }
+},true);
+
 
 /* ── En opnieuw zodra een modaal opengaat ──
    Sommige modalen zetten hun titel bij het openen met textContent, en dat
