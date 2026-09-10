@@ -10,6 +10,43 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-10 · De import zegt nu wát hij vindt, in plaats van "niets"
+
+**Probleem.** De import zocht naar factuurregels met eenheid `uur`, `uren` of
+`u`. Staat er in jouw administratie iets anders — `stuks`, of helemaal niets —
+dan meldde het venster "Niets te importeren" en hield het verder zijn mond.
+Dat is de slechtste soort leegte: je weet niet of er niets ís, of dat er niets
+*herkend* is.
+
+**Beslissing.** Het venster toont eerst wat het in je facturen aantreft:
+elke eenheid die erop staat, met het aantal regels en het totale aantal. Die
+vink je aan. `uur`/`uren`/`u` staat standaard aan, de rest niet — een
+kilometervergoeding van 800 mag nooit per ongeluk 800 uur worden.
+
+Daaronder staat wat er buiten de telling valt en waarom: regels waar al
+registraties onder staan, en conceptfacturen.
+
+**Waarom niet gewoon soepeler matchen.** Elke lijst van "wat lijkt op uren" is
+een gok over andermans administratie, en fout raden kost hier echte
+registraties. Laten zien wat er staat en het aan de lezer overlaten is korter
+én juister dan slimmer proberen te zijn.
+
+**Waarom niet meteen de facturen laten inscannen door Gemini.** De aantallen
+staan al in de app; ze door een PDF-lezer halen voegt onzekerheid toe aan data
+die we al zeker hebben, kost verzoeken uit een laag van twintig per dag, en
+levert hetzelfde getal op. Dat pad is pas de juiste keuze als blijkt dat de
+uren écht niet in de regels staan — bijvoorbeeld bij facturen met alleen een
+bedrag.
+
+**Bestanden.** `index.html` — `urenImpEenheden()`, `urenImpStandaardEenheden()`,
+`urenImpEenhVink()`, `urenImpKandidaten(verschuif, eenheden)`, `urenImpRender()`.
+
+**Niet doen.** De eenheidkeuze bewaren in de state. Dit is een eenmalige actie;
+een onthouden vinkje dat je een half jaar later niet meer herkent is gevaarlijker
+dan een lijst die je elke keer even naloopt.
+
+---
+
 ## 2026-09-10 · Uren uit facturen halen — eenmalig, en altijd terug te draaien
 
 **Probleem.** De urenmodule is later in gebruik genomen dan de facturen, dus

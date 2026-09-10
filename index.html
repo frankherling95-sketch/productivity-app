@@ -7459,7 +7459,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.10</span>
+        <span class="app-versie" title="Appversie">v2.11</span>
       </div>
     </div>
   </aside>
@@ -16798,6 +16798,7 @@ const UREN_CLICK_ACTIONS={
   openUrenImportModal:()=>{closeUrenMenu();openUrenImportModal();},
   closeUrenImportModal:()=>closeUrenImportModal(),
   urenImpVink:(a)=>urenImpVink(a),
+  urenImpEenhVink:(a)=>urenImpEenhVink(a),
   urenImpToepassen:()=>urenImpToepassen(),
   urenImpTerugdraaien:()=>urenImpTerugdraaien(),
   urenSetRegScope:(a)=>urenSetRegScope(a),
@@ -17350,8 +17351,45 @@ function urenImpVerdeel(totaal,dagen){
   return uit;
 }
 
+/* Welke eenheden staan er werkelijk op je factuurregels, en hoeveel regels
+   dragen er een. Zonder dit raadt de import naar "uur" en zegt hij bij elke
+   andere schrijfwijze "niets gevonden" — zonder te vertellen wat hij dan wél
+   zag. Dat is precies het soort stilte waar je niets mee kunt. */
+function urenImpEenheden(){
+  const uit={};
+  let facturen=0, concept=0, alGedekt=0, zonderAantal=0;
+  (factuurState.invoices||[]).forEach(f=>{
+    if(!f||!f.datum)return;
+    if(f.status==='concept'){concept++;return;}
+    facturen++;
+    (f.regels||[]).forEach(r=>{
+      const aantal=Number(r.aantal||0);
+      if(!(aantal>0)){zonderAantal++;return;}
+      if(Array.isArray(r.urenIds)&&r.urenIds.some(id=>urenEntry(id))){alGedekt++;return;}
+      /* Een lege eenheid is een eigen categorie: hij komt vaak voor en is
+         juist de meest waarschijnlijke kandidaat na "uur". */
+      const e=String(r.eenheid||'').trim();
+      const sleutel=e||'(geen eenheid)';
+      if(!uit[sleutel])uit[sleutel]={eenheid:e,label:sleutel,regels:0,aantal:0};
+      uit[sleutel].regels++;
+      uit[sleutel].aantal=Math.round((uit[sleutel].aantal+aantal)*100)/100;
+    });
+  });
+  return {lijst:Object.values(uit).sort((a,b)=>b.aantal-a.aantal),
+    facturen,concept,alGedekt,zonderAantal};
+}
+/* Wat er standaard als uren telt. De rest zet je zelf aan. */
+function urenImpStandaardEenheden(lijst){
+  const uit={};
+  lijst.forEach(e=>{if(UREN_IMP_EENHEDEN.test(e.eenheid))uit[e.label]=true;});
+  /* Niets herkend maar wel regels gevonden? Dan is de kans groot dat je
+     eenheid anders heet. Niets aanvinken en het aan jou laten: liever een
+     lege lijst met uitleg dan honderd kilometers als uren. */
+  return uit;
+}
+
 /* Wat er te importeren valt, gegroepeerd per maand. */
-function urenImpKandidaten(verschuif){
+function urenImpKandidaten(verschuif,eenheden){
   const bestaand={};
   (urenState.entries||[]).forEach(e=>{
     const k=String(e.date||'').slice(0,7);
@@ -17361,7 +17399,10 @@ function urenImpKandidaten(verschuif){
   (factuurState.invoices||[]).forEach(f=>{
     if(!f||!f.datum||f.status==='concept')return;
     (f.regels||[]).forEach(r=>{
-      if(!UREN_IMP_EENHEDEN.test(String(r.eenheid||'').trim()))return;
+      /* Welke eenheden als uren tellen kies je in het venster: de ene
+         administratie schrijft 'uur', de andere 'uren', 'u' of niets. */
+      const eh=String(r.eenheid||'').trim()||'(geen eenheid)';
+      if(!eenheden||!eenheden[eh])return;
       const aantal=Number(r.aantal||0);
       if(!(aantal>0))return;
       /* Al gedekt door echte registraties? Dan niets doen. */
@@ -17391,9 +17432,11 @@ function urenImpBestaande(){
 /* ── Het venster ── */
 let urenImpVerschuifMnd=0;   /* factuurdatum → hoeveel maanden terug */
 let urenImpKeuze={};         /* maandkey → aan/uit */
+let urenImpEenhKeuze=null;   /* eenheid → telt als uren; null = nog niet bepaald */
 
 function openUrenImportModal(){
   urenImpKeuze={};
+  urenImpEenhKeuze=null;
   urenImpRender();
   document.getElementById('urenImpModal').classList.add('open');
 }
@@ -17405,8 +17448,16 @@ function urenImpZetVerschuif(v){
   urenImpKeuze={};
   urenImpRender();
 }
+/* Een eenheid aan- of uitzetten. De maandkeuzes gaan mee terug naar hun
+   standaard: de lijst eronder is dan een andere. */
+function urenImpEenhVink(label){
+  if(!urenImpEenhKeuze)urenImpEenhKeuze={};
+  urenImpEenhKeuze[label]=!urenImpEenhKeuze[label];
+  urenImpKeuze={};
+  urenImpRender();
+}
 function urenImpVink(key){
-  const lijst=urenImpKandidaten(urenImpVerschuifMnd);
+  const lijst=urenImpKandidaten(urenImpVerschuifMnd,urenImpEenhKeuze);
   const r=lijst.find(x=>x.key===key);
   if(!r||r.alAanwezig>0.005)return;
   urenImpKeuze[key]=!urenImpAan(r);
@@ -17425,14 +17476,17 @@ function urenImpMaandLabel(key){
 function urenImpRender(){
   const box=document.getElementById('urenImpBody');
   if(!box)return;
-  const lijst=urenImpKandidaten(urenImpVerschuifMnd);
+  const bron=urenImpEenheden();
+  if(urenImpEenhKeuze===null)urenImpEenhKeuze=urenImpStandaardEenheden(bron.lijst);
+  const lijst=urenImpKandidaten(urenImpVerschuifMnd,urenImpEenhKeuze);
   const eerder=urenImpBestaande();
   const teDoen=lijst.filter(urenImpAan);
   const som=Math.round(teDoen.reduce((s,r)=>s+r.uren,0)*100)/100;
   const uitBetreft=lijst.filter(r=>r.uitBetreft).length;
+  const gekozen=bron.lijst.filter(e=>urenImpEenhKeuze[e.label]).length;
 
   box.innerHTML=`
-    <div class="fac-uren-info"><span>Leest het aantal uren van je factuurregels en zet die als
+    <div class="fac-uren-info"><span>Leest het aantal van je factuurregels en zet dat als
       registraties in de maand waar het werk bij hoort, verdeeld over maandag t/m vrijdag.
       <b>Wat je zelf hebt ingevoerd blijft leidend</b>: een maand waarin al uren staan wordt
       overgeslagen. Aan je facturen verandert niets.</span></div>
@@ -17442,12 +17496,38 @@ function urenImpRender(){
       <button class="uren-btn" data-uren-action="urenImpTerugdraaien" style="margin-left:8px">Terugdraaien</button></span>
     </div>`:''}
 
-    ${lijst.length?`
-      ${/* De keuzelijst alleen tonen als er iets te kiezen valt. Staat bij
-           élke maand de naam in de betreft-regel, dan doet de knop niets en
-           is hij alleen maar verwarrend. */''}
+    ${/* Wat er in je facturen staat. Dit blok is er ook — en juist — als er
+         niets gevonden wordt: dan zie je wélke eenheden je wél gebruikt. */''}
+    ${bron.lijst.length?`
+      <h4 class="fac-an-sub">Welke regels tellen als uren?</h4>
+      <p class="fac-an-uitleg">Gevonden in ${bron.facturen} ${bron.facturen===1?'factuur':'facturen'}.
+        Vink aan wat uren zijn — de ene administratie schrijft <b>uur</b>, de andere <b>uren</b> of niets.</p>
+      <table class="fac-an-tabel uren-imp-tabel">
+        <thead><tr><th style="width:34px"></th><th>Eenheid</th>
+          <th class="num">Regels</th><th class="num">Totaal aantal</th></tr></thead>
+        <tbody>${bron.lijst.map(e=>`<tr>
+          <td><input type="checkbox" ${urenImpEenhKeuze[e.label]?'checked':''}
+            data-uren-action="urenImpEenhVink" data-uren-arg1="${escapeHtml(e.label)}"
+            aria-label="${escapeHtml(e.label)} telt als uren"/></td>
+          <td>${escapeHtml(e.label)}</td>
+          <td class="num">${e.regels}</td>
+          <td class="num">${urenFmt(e.aantal)}</td></tr>`).join('')}</tbody>
+      </table>
+      ${bron.alGedekt||bron.concept?`<p class="fac-an-uitleg" style="margin-top:8px">
+        Niet in deze telling: ${bron.alGedekt?bron.alGedekt+' regel'+(bron.alGedekt===1?'':'s')+
+        ' waar al registraties onder staan':''}${bron.alGedekt&&bron.concept?' · ':''}${
+        bron.concept?bron.concept+' concept'+(bron.concept===1?'factuur':'facturen'):''}.</p>`:''}
+    `:`<div class="uren-empty" style="margin-top:14px"><b>Geen factuurregels gevonden</b>
+      ${bron.concept?'Je hebt alleen concepten; die tellen nog niet mee.':
+        'Er staan geen verstuurde facturen met een aantal erop.'}</div>`}
+
+    ${!gekozen&&bron.lijst.length?`<div class="fac-btw-let" style="margin-top:12px">
+      <span class="ic">✲</span><span>Niets aangevinkt, dus er valt nog niets te importeren.
+      Vink hierboven de eenheid aan die bij jou uren betekent.</span></div>`:''}
+
+    ${gekozen&&lijst.length?`
       ${uitBetreft===lijst.length
-        ? `<p class="fac-an-uitleg" style="margin-top:14px">De maand komt uit de betreft-regel van
+        ? `<p class="fac-an-uitleg" style="margin-top:16px">De maand komt uit de betreft-regel van
            de factuur zelf — bij alle ${lijst.length} gevonden maanden stond hij erin.</p>`
         : `<div class="uren-imp-bron">
         <span>Welke maand hoort bij een factuur zonder maand in de betreft?</span>
@@ -17459,7 +17539,8 @@ function urenImpRender(){
         ${uitBetreft?`<small>Bij ${uitBetreft} van de ${lijst.length} maanden staat de maand in de
           betreft-regel zelf; daar telt deze keuze niet mee.</small>`:''}
       </div>`}
-      <table class="fac-an-tabel uren-imp-tabel" style="margin-top:12px">
+      <h4 class="fac-an-sub">Wat er wordt toegevoegd</h4>
+      <table class="fac-an-tabel uren-imp-tabel">
         <thead><tr><th style="width:34px"></th><th>Maand</th>
           <th class="num">Uit facturen</th><th class="num">Je hebt al</th><th></th></tr></thead>
         <tbody>${lijst.map(r=>{
@@ -17473,9 +17554,11 @@ function urenImpRender(){
             <td class="num">${bezet?urenFmt(r.alAanwezig)+' u':'—'}</td>
             <td class="num"><small>${bezet?'overgeslagen':(aan?r.regels.length+'× factuur':'uit')}</small></td>
           </tr>`;}).join('')}</tbody>
-      </table>`
-      :`<div class="uren-empty" style="margin-top:14px">
-        <b>Niets te importeren</b>Geen factuurregels in uren waar nog geen registraties onder staan.</div>`}
+      </table>`:''}
+
+    ${gekozen&&!lijst.length?`<div class="uren-empty" style="margin-top:14px">
+      <b>Niets te importeren</b>Van de aangevinkte eenheden kon geen maand worden bepaald,
+      of ze horen bij maanden waar je al uren hebt.</div>`:''}
   `;
   const knop=document.getElementById('urenImpOk');
   if(knop){
@@ -17487,7 +17570,7 @@ function urenImpRender(){
 }
 
 function urenImpToepassen(){
-  const lijst=urenImpKandidaten(urenImpVerschuifMnd).filter(urenImpAan);
+  const lijst=urenImpKandidaten(urenImpVerschuifMnd,urenImpEenhKeuze).filter(urenImpAan);
   if(!lijst.length)return;
   const nieuw=[];
   lijst.forEach(r=>{
