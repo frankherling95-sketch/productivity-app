@@ -10,6 +10,84 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-10 · Notities opschonen en op hun plek zetten met Gemini
+
+**Probleem.** Aantekeningen groeien scheef: dubbele regels, halve zinnen, geen
+kop, en een titel als "aantekeningen" onder geen enkele klant. Handmatig
+opruimen is precies het werk dat je nooit doet.
+
+**Beslissing.** Twee losse acties op de notitie die je openhebt, niet één knop
+die alles tegelijk doet:
+
+- **Tekst opschonen** — koppen en opsommingen erin, dubbelingen en typefouten
+  eruit. Het model krijgt de opdracht ALLE informatie te behouden: geen
+  samenvatting, niets verzinnen.
+- **Waar hoort dit?** — stelt een titel, een klant en een map voor, elk apart
+  aan of uit te vinken.
+
+Twee knoppen en niet één, omdat je de ene wilt kunnen draaien zonder de andere:
+een notitie die goed geschreven is maar op de verkeerde plek staat, en andersom.
+
+**Waarom het maskeren hier juist helpt.** Beide gaan met `maskeer:true` de deur
+uit, dus klantnamen, adressen, mailadressen en KVK-nummers worden
+`{{KLANT_1}}`-tokens. Dat lijkt in de weg te zitten bij "Waar hoort dit?", maar
+werkt juist andersom: die tokens staan óók in de notitietekst, dus het model kan
+"dit hoort bij `{{KLANT_1}}`" antwoorden zonder ooit een naam te zien, en
+`ontmaskeerDiep()` zet hem er lokaal weer in.
+
+**Terugdraaien, niet alleen een toast.** Vóór het toepassen gaat de oude staat
+in `node.aiTerug`: inhoud, titel, klant en — bij een verplaatsing — de map en
+de plek in de rij waar hij stond. Die blijft staan tot je hem gebruikt, en is
+bereikbaar via het ⋯-menu en de AI-knop. De toast met "Ongedaan maken" ligt daar
+overheen voor het snelle geval. Alleen een toast was hier te kort: dat was
+precies de reden dat Notities op 2026-09-07 een prullenbak kreeg.
+
+Eén terugdraaipunt per notitie, niet een stapel. Meer bewaren laat elke notitie
+meegroeien met zijn eigen geschiedenis, en verder terug kan al via
+Instellingen → Versiegeschiedenis.
+
+**Nooit blind toepassen.** Beide acties tonen eerst een voorstel: bij het
+opschonen twee panelen naast elkaar (op een telefoon onder elkaar), bij de plek
+een rij per voorstel met de oude waarde doorgestreept. Bevat de notitie
+afbeeldingen, dan staat dat als waarschuwing bovenaan — we sturen de tekst en
+niet de opmaak, dus die vallen weg.
+
+**Twee ingangen, want het ⋯ van Notities bestaat alleen op mobiel.** Op een
+telefoon staan de acties in dat menu; op een bureaublad achter één knop in de
+kop van de editor, die het vraagvenster van vandaag als kiezer gebruikt. Zo komt
+er geen derde menusoort bij.
+
+**Bestanden.** `index.html` — `.notes-ai-*`, `#notesAiModal`, `notesAiOpschonen()`,
+`notesAiPlek()`, `notesAiToepassen()`, `notesAiBewaar()`, `notesAiTerugdraaien()`,
+`notesAiMenu()`, plus de ingangen in `renderNotesOverflowMenu()` en de editorkop.
+
+**Niet doen.** De hele boom in één ronde laten herordenen. De gratis laag telt
+20 verzoeken per dag, en een voorstel dat twintig notities tegelijk verschuift
+kijkt niemand meer na. En: `findNode()` teruggeven aan `.parentNode` — dat veld
+heet `parent`; de verplaatsing landde daardoor eerst nergens.
+
+---
+
+## 2026-09-10 · Na v1.99 komt v2.01
+
+**Probleem.** De buildteller liep tegen de 100. `v1.100` leest niet als een
+versienummer, en `v1.99` → `v1.100` suggereert een sprong die er niet is.
+
+**Beslissing.** BUILD loopt van 01 tot en met 99; daarna gaat MAJOR omhoog en
+begint BUILD weer bij 01. De teller in `sw.js` is die twee aan elkaar geplakt:
+`n = MAJOR * 100 + BUILD`, dus `v2.01` hoort bij `herling-v201`.
+
+**Waarom niet gewoon de teller resetten.** Een cachenaam die terugspringt neemt
+een oude cache opnieuw in gebruik — `herling-v1` bestond al. Door de major erin
+te verwerken blijft het getal oplopen (99 → 201) terwijl het nummer in beeld
+netjes bij 01 begint.
+
+**Bestanden.** `index.html` (span.app-versie), `sw.js` (CACHE_NAME),
+`validate.mjs` (de controle rekent nu met major en build, en weigert een build
+van 00).
+
+---
+
 ## 2026-09-10 · Een vraagvenster in de stijl van de app
 
 **Probleem.** De modelkiezer van Gemini was een `prompt()`. Zo'n venster komt

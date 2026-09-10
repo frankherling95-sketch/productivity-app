@@ -268,10 +268,15 @@ if (teKlein.size) {
 }
 
 /* ─── Versienummer ───
-   Het nummer in de zijbalk is MAJOR.BUILD, waarbij BUILD de release-teller
-   uit sw.js is (CACHE_NAME = 'herling-v<n>'). Eén bron, twee plekken: zonder
-   deze controle blijft er vroeg of laat een oud nummer in beeld staan
-   terwijl de cache al verder is. */
+   Het nummer in de zijbalk is MAJOR.BUILD, en de teller in sw.js
+   (CACHE_NAME = 'herling-v<n>') is die twee aan elkaar geplakt:
+   n = MAJOR * 100 + BUILD. Dus v2.01 hoort bij herling-v201.
+
+   BUILD loopt van 01 tot en met 99; daarna gaat MAJOR omhoog en begint BUILD
+   weer bij 01 (v1.99 -> v2.01). De teller in sw.js blijft daarbij oplopen,
+   want een cachenaam die terugspringt zou een oude cache opnieuw in gebruik
+   nemen. Eén bron, twee plekken: zonder deze controle blijft er vroeg of laat
+   een oud nummer in beeld staan terwijl de cache al verder is. */
 {
   const inBeeld = html.match(/class="app-versie"[^>]*>v(\d+)\.(\d+)</);
   let sw = '';
@@ -279,11 +284,20 @@ if (teKlein.size) {
   const cache = sw.match(/CACHE_NAME\s*=\s*['"]herling-v(\d+)['"]/);
   if (!inBeeld) {
     errors.push('Versienummer niet gevonden in de zijbalk (span.app-versie, vorm "v1.81")');
-  } else if (cache && inBeeld[2] !== cache[1]) {
-    errors.push(
-      `Versienummer loopt uit de pas: zijbalk toont v${inBeeld[1]}.${inBeeld[2]}, ` +
-      `sw.js staat op herling-v${cache[1]}. Zet ze gelijk (build = het getal uit CACHE_NAME).`
-    );
+  } else if (cache) {
+    const n = Number(cache[1]);
+    const major = Math.floor(n / 100), build = n % 100;
+    const hoort = `v${major}.${String(build).padStart(2, '0')}`;
+    const staat = `v${inBeeld[1]}.${inBeeld[2]}`;
+    if (build === 0) {
+      errors.push(`sw.js staat op herling-v${n}; een build van 00 bestaat niet. ` +
+        `Na v${major - 1}.99 komt v${major}.01, dus herling-v${major * 100 + 1}.`);
+    } else if (staat !== hoort) {
+      errors.push(
+        `Versienummer loopt uit de pas: zijbalk toont ${staat}, sw.js staat op ` +
+        `herling-v${n}. Dat hoort ${hoort} te zijn (n = major * 100 + build).`
+      );
+    }
   }
 }
 
