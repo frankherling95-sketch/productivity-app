@@ -1679,6 +1679,9 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .fac-an-kaartknop{margin-left:auto;flex:none}
 .fac-an-kaartkop h3{font-size:var(--fs-groot);font-weight:600;margin:0}
 .fac-an-kaartkop p{font-size:var(--fs-klein);color:var(--text-muted);margin:2px 0 0}
+/* Eén regel onder een kaartkop die zegt wat je ziet. Alleen waar de grafiek
+   zichzelf niet uitlegt -- de andere drie doen dat wel. */
+.fac-an-uitleg{font-size:var(--fs-klein);color:var(--text-muted);margin:-4px 0 10px;line-height:1.45}
 /* Bij twee reeksen hoort altijd een legenda: kleur alleen mag nooit de enige
    drager van betekenis zijn. */
 .fac-an-leg{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:6px;
@@ -7445,7 +7448,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.08</span>
+        <span class="app-versie" title="Appversie">v2.09</span>
       </div>
     </div>
   </aside>
@@ -23221,6 +23224,84 @@ function facAnEindKnop(){
     title="Splits doorbelaste facturen uit naar de klant achter je klant"
     >Eindklanten${d?` <span class="cnt">${d}</span>`:''}</button>`;
 }
+/* ── Afhankelijkheid over tijd ──────────────────────────────────────────
+   De tegel zegt "Grootste klant 65%". Dat is één getal over de hele periode
+   en het zegt niet of je erop áfkoerst of juist wegloopt. Deze lijn doet dat
+   wel: per maand het aandeel van je grootste klant in díe maand.
+
+   Bewust het aandeel van de grootste klant per maand, en niet dat van één
+   vaste klant: de vraag is hoe geconcentreerd je omzet is, niet hoe het met
+   LabsData gaat. Wie het per maand is staat in de tooltip -- verandert dat,
+   dan is dat zelf het interessante nieuws.
+
+   Een maand zonder omzet levert geen aandeel op (delen door nul), dus daar
+   breekt de lijn. Bij één klant is het altijd 100% en zegt de grafiek niets;
+   dan tonen we hem niet. */
+function facAnAfhankelijkheid(d){
+  return d.vakken.map((v,i)=>{
+    const perKlant={};
+    d.rijen.filter(r=>r.vak===v.key).forEach(r=>{
+      perKlant[r.key]=(perKlant[r.key]||0)+r.excl;
+    });
+    const totaal=Object.values(perKlant).reduce((s,x)=>s+x,0);
+    if(totaal<=0)return {...v,pct:null,naam:'',klanten:0};
+    let top=null;
+    Object.keys(perKlant).forEach(k=>{
+      if(!top||perKlant[k]>perKlant[top])top=k;
+    });
+    const rij=d.rijen.find(r=>r.key===top);
+    return {...v,pct:(perKlant[top]/totaal)*100,
+      naam:rij?rij.naam:'—', klanten:Object.keys(perKlant).length};
+  });
+}
+function facAnAfhankelijkGrafiek(d,breed){
+  const smal=breed<520;
+  const H=smal?170:200, padL=smal?40:52, padR=smal?12:52, padT=16, padB=26;
+  const plotW=breed-padL-padR, plotH=H-padT-padB;
+  const punten=facAnAfhankelijkheid(d);
+  const n=punten.length||1;
+  const bandW=plotW/n;
+  const x=i=>padL+bandW*i+bandW/2;
+  const y=v=>padT+plotH-(v/100)*plotH;
+  let g='';
+  [0,25,50,75,100].forEach(v=>{
+    const yy=y(v);
+    g+=`<line x1="${padL}" y1="${yy.toFixed(1)}" x2="${breed-padR}" y2="${yy.toFixed(1)}" class="an-grid"/>`
+      +`<text x="${padL-6}" y="${(yy+3.5).toFixed(1)}" class="an-astekst" text-anchor="end">${v}%</text>`;
+  });
+  let pad='',open=false;
+  punten.forEach((p,i)=>{
+    if(p.pct==null){open=false;return;}
+    pad+=`${open?'L':'M'}${x(i).toFixed(1)} ${y(p.pct).toFixed(1)} `;
+    open=true;
+  });
+  const lijn=pad?`<path d="${pad.trim()}" class="an-lijn-nu"/>`:'';
+  const laatste=[...punten].reverse().find(p=>p.pct!=null);
+  const li=laatste?punten.indexOf(laatste):-1;
+  let eind='',labels='';
+  if(laatste){
+    eind=`<circle cx="${x(li).toFixed(1)}" cy="${y(laatste.pct).toFixed(1)}" r="4" class="an-punt-nu"/>`;
+    if(!smal)labels=`<text x="${(x(li)+8).toFixed(1)}" y="${(y(laatste.pct)+4).toFixed(1)}"
+      class="an-eindlabel">${Math.round(laatste.pct)}%</text>`;
+  }
+  let xlabels='',banden='';
+  const tips=[];
+  punten.forEach((p,i)=>{
+    if(!smal||n<=6||(n-1-i)%2===0)
+      xlabels+=`<text x="${x(i).toFixed(1)}" y="${H-8}" class="an-astekst" text-anchor="middle">${escapeHtml(p.kort)}</text>`;
+    tips.push({titel:p.label,regels:p.pct==null
+      ? [{lab:'Geen omzet',val:'—'}]
+      : [{kleur:'nu',lab:'Grootste klant',val:Math.round(p.pct)+'%'},
+         {lab:'Dat is',val:p.naam},
+         {lab:'Klanten',val:String(p.klanten)}]});
+    banden+=`<rect x="${(padL+bandW*i).toFixed(1)}" y="${padT}" width="${bandW.toFixed(1)}" height="${plotH}"
+      class="an-band" data-an-band="afh" data-an-i="${i}"
+      aria-label="${escapeHtml(p.label+': '+(p.pct==null?'geen omzet':Math.round(p.pct)+'% bij '+p.naam))}"/>`;
+  });
+  _facAnTips.afh=tips;
+  return `<svg class="an-svg" viewBox="0 0 ${breed} ${H}" width="100%" height="${H}"
+    role="img" aria-label="Aandeel van de grootste klant per maand">${g}${lijn}${eind}${labels}${xlabels}${banden}</svg>`;
+}
 function facAnKlantBalken(d){
   if(!d.klanten.length)return '<div class="uren-empty">Geen facturen in deze periode.</div>';
   const max=d.klanten[0].excl||1;
@@ -23363,6 +23444,14 @@ function facRenderAnalyse(){
       ${kop('Waar komt het vandaan',facAnEindKnop())}
       ${facAnKlantBalken(d)}
     </div>
+    ${/* Bij één klant is het aandeel altijd 100% en zegt de lijn niets. */''}
+    ${d.klanten.length>1?`<div class="fac-an-kaart">
+      ${kop('Hoe afhankelijk ben je')}
+      <p class="fac-an-uitleg">Het aandeel van je grootste klant per maand. Loopt de lijn op,
+        dan komt je omzet uit steeds minder hoeken.</p>
+      <div class="fac-an-plot" data-an-plot="afh">${facAnAfhankelijkGrafiek(d,breed)}
+        <div class="fac-an-tip" hidden></div></div>
+    </div>`:''}
     ${facAnTabel?`<div class="fac-an-kaart">${kop('De cijfers')}${facAnTabellen(d)}</div>`:''}
   `;
 }

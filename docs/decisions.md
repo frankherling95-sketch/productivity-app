@@ -10,6 +10,72 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-10 · Een analyse-tab bij Uren, en de grafieklaag wordt gedeeld
+
+**Probleem.** Facturen heeft een analyse; Uren niet. Wat je schrijft is de bron
+van wat je factureert, maar er was geen plek waar je zag hoeveel je schrijft,
+of dat voor- of achterloopt, en wat er nog niet op een factuur staat.
+
+**Beslissing.** Een vijfde tab met vier kaarten: uren per maand tegen vorig
+jaar, cumulatief, nog niet gefactureerd per klant, en werkritme per weekdag.
+De tegels zitten achter dezelfde "Cijfers"-balk als elke andere tab en tellen
+over het analysejaar in plaats van over de periode in de topbalk — dezelfde
+uitzondering als bij Facturen (2026-09-09).
+
+**"Nog niet gefactureerd" is de kaart die er echt bij komt.** De andere drie zijn
+omzet in een ander jasje; dit is geld op de plank en stond nergens. Het tarief
+komt van de urenregel zelf en anders van de klant — dezelfde volgorde als
+waarmee een factuurregel wordt gemaakt, zodat het bedrag klopt met wat er
+straks op de factuur staat.
+
+**Gemiddeld per week deelt door de weken waarin je iets schreef**, niet door alle
+weken van het jaar. Vier lege maanden drukken het gemiddelde anders omlaag
+zonder dat dat iets zegt over hoe vol een werkweek is. De weeksleutel volgt ISO
+(donderdag bepaalt het jaar), anders valt de jaarwisseling in twee halve weken
+uiteen.
+
+**De grafieklaag is nu gedeeld.** Uren tekent met dezelfde `.an-*`- en
+`.fac-an-*`-dozen en dezelfde tooltip-machinerie als Facturen. Twee keer
+dezelfde grafiek tekenen levert twee keer dezelfde bugs op. De prijs is dat die
+laag bij niemand meer hoort: hij staat nu in `ownership.json` onder *gedeeld*,
+naast de 42 `.uren-*`-regels die Facturen al leende — nu dus in beide
+richtingen.
+
+Daarvoor moest `facAnBreedte()` een element-id kunnen krijgen. Een verborgen
+module heeft `clientWidth` 0, en dan viel de viewBox terug op 280 en stond de
+grafiek gecentreerd in een veel bredere kaart.
+
+**Bestanden.** `index.html` — `urenAnData()`, `urenAnKolomGrafiek()`,
+`urenAnLijnGrafiek()`, `urenAnOpenstaand()`, `urenAnWeekritme()`,
+`urenAnKpiTegels()`, `urenRenderAnalyse()`, `facAnBreedte(id)`.
+`.claude/ownership.json` — de gedeelde grafieklaag.
+
+**Niet doen.** De uren-grafieken laten doorklikken naar de registraties zonder
+dat de filters van die tab meelopen. De doorklik in Facturen put uit dezelfde
+selectie als de grafiek; hier bestaat die selectie nog niet.
+
+---
+
+## 2026-09-10 · Hoe afhankelijk ben je — en waarom het aandeel per maand
+
+**Probleem.** De tegel zegt "Grootste klant 65%". Dat is één getal over de hele
+periode, en het zegt niet of je daarop áfkoerst of juist wegloopt.
+
+**Beslissing.** Een lijn onder de ranglijst: per maand het aandeel van je
+grootste klant in díe maand.
+
+**Waarom niet één vaste klant volgen.** De vraag is hoe geconcentreerd je omzet
+is, niet hoe het met LabsData gaat. Wie het per maand is staat in de tooltip —
+verandert dat, dan is dat zelf het nieuws. Een maand zonder omzet levert geen
+aandeel op (delen door nul) en daar breekt de lijn. Bij één klant is het altijd
+100% en zegt de grafiek niets; dan verschijnt hij niet.
+
+**Bestanden.** `index.html` — `facAnAfhankelijkheid()`,
+`facAnAfhankelijkGrafiek()`, `.fac-an-uitleg`, plus de kaart in
+`facRenderAnalyse()`.
+
+---
+
 ## 2026-09-10 · Back-up terugzetten gaat via het ene laadpad
 
 **Probleem.** `handleRestoreFile()` had zijn eigen kopie van `hydrateerState()`:
