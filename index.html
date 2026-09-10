@@ -572,14 +572,33 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .notes-ovf-item.aan{font-weight:700;color:var(--text)}
 .notes-ovf-item.aan::before{content:'✓  '}
 .notes-ovf-scheiding{height:1px;background:var(--border);margin:5px 0}
-/* Prullenbak: per rij de titel met wanneer hij weg is gegaan, en de twee
-   wegen terug -- terugzetten of alsnog echt weg. */
-.notes-bak-rij{display:flex;align-items:center;gap:10px;padding:10px 2px;border-bottom:0.5px solid var(--border)}
+/* Prullenbak: per rij de titel, hoe lang het er al staat, en de twee wegen
+   terug -- terugzetten of alsnog echt weg.
+
+   Eén indeling voor beide breedtes, zonder eigen mobiele laag. De tekstkolom
+   vraagt 220px en de knoppen samen ruim 150; op een bureaublad (rij 520px)
+   past dat naast elkaar, op 375px (rij 335px) niet. Dan zakken de knoppen
+   naar hun eigen regel in plaats van de ouderdom weg te drukken -- en juist
+   die ouderdom is hier het antwoord op "durf ik dit weg te gooien". */
+.notes-bak-rij{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;
+  padding:10px 2px;border-bottom:0.5px solid var(--border)}
 .notes-bak-rij:last-child{border-bottom:0}
-.notes-bak-tekst{flex:1;min-width:0}
+.notes-bak-tekst{flex:1 1 220px;min-width:0}
 .notes-bak-titel{font-size:var(--fs-basis);font-weight:600;color:var(--text);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .notes-bak-meta{font-size:var(--fs-micro);color:var(--text-muted);margin-top:2px}
+/* De ouderdom draagt een getal, dus tabular: "3 dagen" en "12 dagen" onder
+   elkaar mogen niet verspringen. Hij breekt nooit af -- een datum over twee
+   regels lees je niet als één ding. Staat hij niet vast (items van vóór het
+   tijdstempel), dan zegt hij dat, in een lichtere kleur: geen verzonnen dag,
+   en ook geen lege plek. */
+.notes-bak-ouderdom{white-space:nowrap;font-variant-numeric:tabular-nums}
+.notes-bak-ouderdom.onbekend{color:var(--text-hint)}
+/* Het raakvlak volgt --tap: 36px op een bureaublad, 44 op een telefoon. */
+.notes-bak-acties{display:flex;align-items:center;gap:6px;margin-left:auto;flex:none}
+.notes-bak-acties .btn{min-height:var(--tap)}
+.notes-bak-acties .cl2-iconbtn{width:var(--tap);height:var(--tap)}
+.notes-bak-acties .cl2-iconbtn svg{width:var(--icoon);height:var(--icoon)}
 .notes-bak-leeg{padding:22px 6px;text-align:center;color:var(--text-muted);
   font-size:var(--fs-klein);line-height:1.6}
 
@@ -1439,6 +1458,33 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 }
 .fac-table tbody tr{cursor:pointer}
 .fac-table tbody tr:hover td{background:var(--surface2)}
+/* ── Sorteren op een kolomkop ──
+   De kop ís de knop: hij draagt al de naam van wat eronder staat, dus er hoeft
+   niets naast. Het pijltje staat alleen bij de kolom waarop gesorteerd wordt --
+   een pijl bij elke kop leest als acht knoppen die allemaal aanstaan. De ruimte
+   ervoor blijft wél gereserveerd (een lege span van dezelfde breedte), anders
+   verspringt de koptekst bij elke klik.
+
+   Een echte <button> in de cel en geen role="button" op de <th> zelf: dan
+   blijft de th een kolomkop (aria-sort hoort daarop) en krijgt het aantikbare
+   deel gratis focus, Enter en spatie. De vulling verhuist mee naar de knop,
+   zodat het hele vak aantikbaar is en niet alleen de letters. */
+.fac-table th.fac-sortkop{padding:0}
+.fac-table th.fac-sortkop>button{
+  display:flex;align-items:center;width:100%;padding:9px 12px;
+  background:none;border:0;border-radius:0;color:inherit;cursor:pointer;
+  font:inherit;letter-spacing:inherit;text-transform:inherit;
+  user-select:none;-webkit-user-select:none;
+}
+.fac-table th.num.fac-sortkop>button{justify-content:flex-end}
+.fac-table th.fac-sortkop>button:hover{color:var(--accent)}
+.fac-table th.fac-sortkop>button:focus-visible{outline:2px solid var(--mint);outline-offset:-2px}
+/* --fs-micro is de ondergrens in beeld; de pijl staat op dezelfde trap als de
+   koptekst ernaast. De vaste breedte houdt de tekst op zijn plek. */
+.fac-sortpijl{
+  display:inline-block;width:11px;margin-left:5px;flex:none;
+  font-size:var(--fs-micro);line-height:1;color:var(--accent);
+}
 /* Een nummer als SB-2026-0002 is breder dan de kolom en liep zonder dit
    dwars over de datum ernaast heen -- nowrap zonder overflow kapt niet af,
    die laat de tekst gewoon uitsteken. */
@@ -1677,14 +1723,26 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 }
 .fac-an-drillrij:hover{background:var(--surface2);border-color:var(--border-strong)}
 .fac-an-drillrij:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
+/* Drie blokken: nummer, wie-en-wanneer, bedrag. Het middenblok krimpt en kapt
+   af; de twee buitenste houden hun maat, zodat een factuurnummer nooit
+   afbreekt en het bedrag altijd tegen dezelfde rechterrand staat. */
 .fac-an-drillrij .kop{
-  display:grid;grid-template-columns:auto auto 1fr auto;align-items:baseline;
-  gap:10px;font-size:var(--fs-basis);
+  display:grid;grid-template-columns:var(--nrbreed,auto) minmax(0,1fr) auto;
+  align-items:baseline;gap:10px;font-size:var(--fs-basis);
 }
-.fac-an-drillrij .nr{font-variant-numeric:tabular-nums}
+.fac-an-drillrij .nr{font-variant-numeric:tabular-nums;white-space:nowrap}
+.fac-an-drillrij .meta{
+  display:flex;align-items:baseline;gap:10px;min-width:0;
+}
 .fac-an-drillrij .dt,.fac-an-drillrij .kl{color:var(--text-muted);font-size:var(--fs-klein)}
-.fac-an-drillrij .kl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.fac-an-drillrij .kop .bd{font-variant-numeric:tabular-nums;white-space:nowrap}
+.fac-an-drillrij .dt{white-space:nowrap;flex:none;font-variant-numeric:tabular-nums}
+.fac-an-drillrij .kl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+/* justify-self en niet text-align: de kolom is zo breed als zijn eigen inhoud,
+   dus alleen dit zet elk bedrag tegen dezelfde rand -- ook als het ene
+   "€ 300,00" is en het andere "€ 11.200,00". */
+.fac-an-drillrij .kop .bd{
+  font-variant-numeric:tabular-nums;white-space:nowrap;justify-self:end;
+}
 .fac-an-drillrij .btr{
   display:block;margin-top:2px;font-size:var(--fs-klein);color:var(--text-muted);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
@@ -1705,13 +1763,18 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .fac-an-drillrij .rg .bd{color:var(--text);min-width:86px;text-align:right}
 
 @media (max-width:768px){
-  /* Op een telefoon past de kop niet op één regel: nummer en bedrag boven,
-     datum en klant eronder. */
-  .fac-an-drillrij .kop{grid-template-columns:1fr auto;gap:2px 10px}
-  .fac-an-drillrij .nr{grid-column:1;grid-row:1}
+  /* Op een telefoon past de kop niet op één regel: nummer links en bedrag
+     rechts op de bovenste, wie-en-wanneer over de volle breedte eronder.
+
+     Datum en klant stonden hier als twee kolommen naast het bedrag. Die
+     kolom werd dus zo breed als de klantnaam, en het bedrag begon aan de
+     linkerkant daarvan -- bij elke rij op een andere plek. Een lang nummer
+     ("SB-2026-0002") werd door diezelfde kolom bovendien over drie regels
+     gebroken. Nu heeft het bedrag de rechterkolom voor zichzelf. */
+  .fac-an-drillrij .kop{grid-template-columns:minmax(0,1fr) auto;gap:2px 10px}
+  .fac-an-drillrij .nr{grid-column:1;grid-row:1;overflow:hidden;text-overflow:ellipsis}
   .fac-an-drillrij .kop .bd{grid-column:2;grid-row:1}
-  .fac-an-drillrij .dt{grid-column:1;grid-row:2}
-  .fac-an-drillrij .kl{grid-column:2;grid-row:2;text-align:right}
+  .fac-an-drillrij .meta{grid-column:1/-1;grid-row:2}
   .fac-an-drillrij .rg{grid-template-columns:1fr auto}
   .fac-an-drillrij .rg .an{grid-column:1;grid-row:2;font-size:var(--fs-micro)}
   .fac-an-drillrij .rg .bd{grid-column:2;grid-row:1;min-width:0}
@@ -1911,6 +1974,39 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 
 /* ── Factuur-editor (modal) ── */
 .fac-editor{display:flex;flex-direction:column;gap:16px}
+/* ── Bladeren tussen facturen, in de kop van de editor ──
+   ‹ waar-ben-ik › is in deze app al de vorm voor "een stap terug, een stap
+   verder" -- de jaarkiezer in de topbalk. Die vorm wordt hier hergebruikt
+   (.uren-periode + .uren-periode-lbl) in plaats van er een tweede te maken.
+   Drie dingen wijken af en staan daarom hier:
+     1. de doos staat op de gekleurde kopbalk, dus niet --surface2 maar
+        dezelfde doorschijnende witte tint als de statuspil ernaast;
+     2. het label is hier géén knop -- geen stippellijn, geen handje -- en
+        "3 van 12" is korter dan een maandnaam, dus 180px min-width kan weg;
+     3. aan het begin en het eind gaat de betreffende pijl op disabled en niet
+        weg: een knop die soms verdwijnt laat de balk verspringen. */
+.fac-ed-blader{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.34);flex:none}
+/* .uren-periode zet display:flex en dat wint van het hidden-attribuut. */
+.fac-ed-blader[hidden]{display:none}
+/* Twee klassen, zodat deze maten in de mobiele laag niet alsnog door de
+   topbalk-varianten van .uren-periode(-lbl) worden overschreven -- die staan
+   verderop in het bestand en zouden bij gelijke specificiteit winnen. De eigen
+   klasse staat vooraan: dit blijft een regel van Facturen, niet van Uren.
+   36px is hier een vaste maat en niet var(--tap): op een bureaublad is dat
+   hetzelfde getal, maar op een telefoon hoort deze balk juist kleiner te zijn
+   dan een raakvlak -- zie de mobiele laag. */
+.fac-ed-blader.uren-periode{height:36px}
+.fac-ed-blader.uren-periode button{min-width:36px}
+.fac-ed-bladerpos.uren-periode-lbl{
+  min-width:76px;padding:0 8px;color:#fff;cursor:default;
+  text-decoration:none;font-family:var(--font-cijfer);
+}
+.fac-ed-blader button:disabled{opacity:.35;cursor:default}
+.fac-ed-blader button:disabled:hover{background:transparent !important}
+/* Op een telefoon zakt het bladeren naar een eigen regel; de kop mag daarvoor
+   wrappen. Op een bureaublad verandert dit niets -- daar past alles op één
+   regel, dus komt het wrappen nooit aan bod. */
+.fac-ed-kop{display:flex;align-items:center;gap:12px;flex-shrink:0;flex-wrap:wrap}
 /* minmax(0,1fr) en niet 1fr: een select met een lange klantnaam of een
    datumveld heeft een eigen minimumbreedte, en met 1fr duwt die de kolom
    breder dan het blad. Zo mag de kolom wel krimpen. */
@@ -3477,9 +3573,12 @@ textarea { line-height: 1.6; resize: vertical; }
   color: var(--text-muted);
 }
 .cl2-deadline.overdue { color: var(--danger); font-weight: 600; }
+/* Voortgang van de subtaken — één onderdeel: de ring (.cl2-subring, verderop)
+   en het getal horen bij elkaar, en er staat niets meer elders op de kaart. */
 .cl2-subcount {
   display: inline-flex; align-items: center; gap: 4px;
   font-family: var(--font-cijfer);
+  font-variant-numeric: tabular-nums;
   font-size: 10.5px;
   color: var(--text-muted);
 }
@@ -3511,14 +3610,21 @@ textarea { line-height: 1.6; resize: vertical; }
 .cl2-iconbtn .chev { transition: transform 0.2s; }
 .cl2-iconbtn.open .chev { transform: rotate(180deg); }
 
-.cl2-progress {
-  height: 2px;
-  background: var(--surface2);
-  margin: 0 14px;
-}
-.cl2-progress-fill {
-  height: 100%;
-  transition: width 0.4s;
+.cl2-subring {
+  /* De voortgangsring in .cl2-subcount. Staat op de plek van de oude
+     .cl2-progress: een balkje van 2px onderaan de kaart, dat hetzelfde
+     getal een tweede keer toonde — twee regels lager, in de
+     prioriteitskleur, dus "3 van de 5 af" was bij een hoge prio rood.
+     Verder precies de ring uit de hero (.cl2-hero-ring): dezelfde draai
+     van -90°, dezelfde baan (--surface2), dezelfde vulling (--mint),
+     alleen klein genoeg om naast het getal te staan. Die 11px is de maat
+     van het lijstje-icoon dat er stond, en dat is geen toeval: de
+     metaregel houdt op 375px nog 6,3px over, dus een balkje van 20px zou
+     "3/5" naar een tweede regel duwen en de kaart 23px hoger maken. */
+  width: 11px; height: 11px;
+  flex-shrink: 0;
+  display: block;
+  transform: rotate(-90deg);
 }
 
 .cl2-subs {
@@ -5897,6 +6003,47 @@ textarea { line-height: 1.6; resize: vertical; }
   #facEditorBody { overflow-x: hidden !important; }
   #facEditorBody .fac-ed-stapel { grid-template-columns: minmax(0, 1fr); }
 
+  /* ══ Bladeren tussen facturen op een telefoon ══
+     Naast de titel, de statuspil en het kruisje bleef er in de kop een strook
+     van vijftig pixel over -- te weinig voor "Concept F000012" én een pijl aan
+     weerskanten. Het bladeren krijgt daarom zijn eigen regel: order zet hem
+     achter de rest en margin-left duwt hem naar rechts, onder het kruisje.
+
+     Klein en kaal, niet de gevulde balk van een bureaublad: dit is bijzaak op
+     een scherm waar de factuur zelf de ruimte moet krijgen. Vandaar geen doos
+     (de kopband is al donker genoeg om witte pijlen op te dragen) en 30px in
+     plaats van een raakvlak van 44. Bewuste uitzondering op de ondergrens uit
+     mobile.md: de pijlen staan vrij, met alleen het kruisje op 40px afstand,
+     en een misser kost hier een tik -- geen verkeerde factuur, want je ziet
+     meteen waar je bent.
+
+     De kop is hier een raster van twee kolommen: links de titel met zijn
+     bijregel over twee rijen, rechts de statuspil met de pijlen eronder. Als
+     eigen regel eronder liet het bladeren een lege strook van 230px naast zich
+     staan en werd de kop 116px hoog; zo vult het de ruimte die naast de
+     bijregel toch al leegstond. Het kruisje staat los (absoluut, rechts) en
+     blijft dus staan waar het stond. */
+  .fac-ed-kop {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "titel status" "titel blader";
+    align-items: start; column-gap: 12px; row-gap: 4px;
+  }
+  .fac-ed-kop > div:first-child { grid-area: titel; }
+  /* Allebei gecentreerd in dezelfde kolom, dus de statuspil staat altijd
+     precies boven het midden van de pijlen -- ook als de pil de breedste
+     van de twee is ("25 dagen te laat"). */
+  #facEditorStatus { grid-area: status; justify-self: center; }
+  .fac-ed-blader { grid-area: blader; justify-self: center; }
+  /* Staan er geen pijlen, dan mag de tweede regel ook geen ruimte kosten. */
+  .fac-ed-kop:has(.fac-ed-blader[hidden]) { row-gap: 0; }
+  .fac-ed-blader.uren-periode {
+    height: 30px; background: transparent; border-color: transparent; box-shadow: none;
+  }
+  .fac-ed-blader.uren-periode button { min-width: 30px; color: rgba(255,255,255,.82); }
+  .fac-ed-blader.uren-periode button:disabled { color: rgba(255,255,255,.82); }
+  .fac-ed-bladerpos.uren-periode-lbl { flex: 0 0 auto; min-width: 0; padding: 0 2px; font-size: 12px; }
+
   /* ══ Knoppenbalk van de editor ══
      Op een bureaublad is dit één regel: links beheer, rechts wat je met de
      factuur doet, met een vuldiv ertussen. Op een telefoon paste dat niet en
@@ -7202,7 +7349,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v1.96</span>
+        <span class="app-versie" title="Appversie">v1.100</span>
       </div>
     </div>
   </aside>
@@ -7816,10 +7963,21 @@ textarea { line-height: 1.6; resize: vertical; }
        regel) en kapte de btw-kolom af tot "21% (h". Andere modalen blijven
        640/720 -- die dragen een formulier, geen tabel. -->
   <div class="modal" style="max-width:1000px;padding:0;display:flex;flex-direction:column;max-height:92vh">
-    <div class="modal-kop" style="display:flex;align-items:center;gap:12px;flex-shrink:0">
+    <div class="modal-kop fac-ed-kop">
       <div style="flex:1;min-width:0">
         <h3 style="font-size:18px;font-weight:700;margin:0" id="facEditorTitel">Factuur</h3>
         <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0" id="facEditorSub"></p>
+      </div>
+      <!-- Bladeren door de lijst waaruit je kwam. Staat er alleen als die
+           lijst er was: een vers concept uit de wizard hoort nergens tussen.
+           Dezelfde vorm als de jaarkiezer in de topbalk, want het is
+           dezelfde handeling: een stap terug, een stap verder. -->
+      <div class="uren-periode fac-ed-blader" id="facEdBlader" hidden>
+        <button type="button" id="facEdBladerVorige" data-fac-action="facBladerVorige"
+          title="Vorige factuur (pijl omhoog)" aria-label="Vorige factuur">‹</button>
+        <span class="uren-periode-lbl fac-ed-bladerpos" id="facEdBladerPos"></span>
+        <button type="button" id="facEdBladerVolgende" data-fac-action="facBladerVolgende"
+          title="Volgende factuur (pijl omlaag)" aria-label="Volgende factuur">›</button>
       </div>
       <div id="facEditorStatus"></div>
       <button data-fac-action="facEditorSluit" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--text-muted);padding:4px 8px;border-radius:var(--radius)">✕</button>
@@ -9140,6 +9298,16 @@ function stateOmvang(st){
   return n;
 }
 
+/* De melding wees naar de zijbalk, en dat klopt op een telefoon niet: daar
+   is de zijbalk een lade en staat de herstelknop juist rechtsboven in de
+   balk (.mobile-sync-btn, zichtbaar zodra het misgaat). Wie de tekst volgde
+   ging dus de verkeerde kant op. Eén zin die op beide klopt. */
+function driveHerstelHint(){
+  return window.matchMedia&&window.matchMedia('(max-width: 768px)').matches
+    ? 'Tik rechtsboven op de ronde pijl om te verbinden.'
+    : 'Klik op \u21bb in de zijbalk om te verbinden.';
+}
+
 async function loadGist(){
   setSync('saving','Verbinden...');
   try{
@@ -9250,7 +9418,7 @@ async function loadGist(){
       renderAll();
     }
     setSync('error','Niet verbonden met Drive - klik op \u21bb');
-    appToast(uitleg+' Klik op \u21bb in de zijbalk om te verbinden. '+
+    appToast(uitleg+' '+driveHerstelHint()+' '+
       (lokaal?'Zolang dat niet is gelukt werk je met je lokale kopie en '+
               'wordt er niets naar Drive geschreven.'
             :'Er is nog niets geladen.'),
@@ -11404,9 +11572,24 @@ function ingelogdeGebruiker(){
     return v;
   }catch(_){return null;}
 }
+/* De 30 dagen gingen in op het moment van inloggen en stonden daarna
+   stil: ook als je de app elke dag gebruikte stond je na een maand weer
+   voor het inlogscherm. Dat is precies de verkeerde kant op -- dagelijks
+   gebruik is juist het bewijs dat het apparaat van jou is. De termijn
+   schuift nu mee bij elke start, dus je logt alleen opnieuw in als je de
+   app dertig dagen niet hebt geopend. Eén keer per dag schrijven is
+   genoeg; vaker levert alleen schrijfacties op. */
+function loginVerleng(){
+  const v=ingelogdeGebruiker();
+  if(!v)return;
+  const nieuwTot=Date.now()+LOGIN_GELDIG_DAGEN*86400000;
+  if(nieuwTot-v.tot<86400000)return;
+  try{localStorage.setItem(LS_LOGIN,JSON.stringify({...v,tot:nieuwTot}));}catch(_){}
+}
 function logUit(){
   try{localStorage.removeItem(LS_LOGIN);}catch(_){}
   driveTokenVergeet();
+  mailTokenVergeet();
   if(window.google&&google.accounts&&google.accounts.id)google.accounts.id.disableAutoSelect();
   location.reload();
 }
@@ -11568,35 +11751,63 @@ let driveGelezen=false;        /* is Drive deze sessie minstens één keer gelez
    het ander net schreef. Juist dat verschil moeten we kunnen zien. */
 let driveGezien=null;
 
-/* Het toegangstoken overleeft een pagina-verversing in sessionStorage.
-   Zonder dat moet Google bij elke refresh een venster openen om het
-   token te vernieuwen -- en dat blokkeert de browser, omdat er geen
-   klik aan voorafging. Dat was precies de "Drive onbereikbaar" die je
-   bij verversen zag, terwijl de knop \u21bb (wél een klik) het wel deed.
+/* Het toegangstoken overleeft een pagina-verversing én het sluiten van
+   het tabblad. Zonder dat moet Google bij elke start een venster openen
+   om een nieuw token te halen -- en dat blokkeert de browser, omdat er
+   geen klik aan voorafging. Dat was precies de "Drive onbereikbaar" die
+   je bij verversen zag, terwijl de knop \u21bb (wél een klik) het wel deed.
 
-   sessionStorage en niet localStorage: het token verdwijnt zodra je het
-   tabblad sluit. Het geeft alleen toegang tot de verborgen app-map en
-   is een uur geldig. */
+   Waarom localStorage en niet sessionStorage (gewijzigd 2026-09-10):
+   sessionStorage gaat leeg zodra het tabblad dicht is, en op een telefoon
+   ís dat de normale gang -- iOS ruimt een PWA op zodra je hem wegveegt of
+   een paar apps verder bent. Elke keer dat je de app opende was het token
+   dus weg en verscheen het Google-venster, ook al was je nog gewoon
+   ingelogd en had je een minuut eerder nog gewerkt. Met localStorage
+   overleeft het token die koude start en is er binnen het uur helemaal
+   geen venster meer nodig.
+
+   De afweging: het token staat nu op schijf in plaats van in het geheugen
+   van het tabblad. Het opent alleen de verborgen app-map (drive.appdata),
+   het is maximaal een uur geldig, het hangt aan één account en dezelfde
+   localStorage bevat al de volledige back-up van je administratie. Wie
+   erbij kan heeft de data dus sowieso al; het token voegt daar binnen dat
+   uur alleen schrijfrechten op diezelfde map aan toe.
+
+   Het gmail.send-token gaat bewust NIET mee naar schijf -- zie
+   mailTokenBewaar(). Mailen namens jou is een scherper recht dan het
+   lezen van een verborgen map, en dat token heb je hooguit een paar keer
+   per maand nodig. */
 const DRIVE_TOKEN_SESSIE='herling_drive_token';
-function driveTokenUitSessie(){
-  try{
-    const v=JSON.parse(sessionStorage.getItem(DRIVE_TOKEN_SESSIE)||'null');
-    const g=ingelogdeGebruiker();
-    /* Alleen hergebruiken voor hetzelfde account, anders kijk je na een
-       accountwissel in de map van de vorige gebruiker. */
-    if(v&&v.token&&v.tot>Date.now()+60000&&(!g||v.account===g.email))return v;
-  }catch(_){}
+function tokenUitOpslag(sleutel){
+  const g=ingelogdeGebruiker();
+  for(const bron of [localStorage,sessionStorage]){
+    try{
+      const v=JSON.parse(bron.getItem(sleutel)||'null');
+      /* Alleen hergebruiken voor hetzelfde account, anders kijk je na een
+         accountwissel in de map van de vorige gebruiker. */
+      if(v&&v.token&&v.tot>Date.now()+60000&&(!g||v.account===g.email))return v;
+    }catch(_){}
+  }
   return null;
+}
+function driveTokenUitSessie(){
+  const v=tokenUitOpslag(DRIVE_TOKEN_SESSIE);
+  /* Een token dat nog uit de sessionStorage-tijd komt hoeft niet opnieuw
+     opgehaald te worden; het verhuist gewoon mee naar de nieuwe plek. */
+  if(v)driveTokenBewaar(v);
+  return v;
 }
 function driveTokenBewaar(t){
   const g=ingelogdeGebruiker();
   try{
-    sessionStorage.setItem(DRIVE_TOKEN_SESSIE,
+    localStorage.setItem(DRIVE_TOKEN_SESSIE,
       JSON.stringify({token:t.token,tot:t.tot,account:g?g.email:''}));
+    sessionStorage.removeItem(DRIVE_TOKEN_SESSIE);
   }catch(_){}
 }
 function driveTokenVergeet(){
   driveToken=null;
+  try{localStorage.removeItem(DRIVE_TOKEN_SESSIE);}catch(_){}
   try{sessionStorage.removeItem(DRIVE_TOKEN_SESSIE);}catch(_){}
 }
 let driveLaatsteFout=null;     /* voorkomt dezelfde waarschuwing bij elke opslag */
@@ -11650,7 +11861,13 @@ function driveNieuwToken(interactief){
    één blokkeerde. Dat kwam op het scherm aan als "opnieuw verbinden". */
 let driveTokenBezig=null;
 async function driveVraagToken(interactief){
-  if(!driveToken)driveToken=driveTokenUitSessie();
+  /* Ook opnieuw kijken als het token in het geheugen versleten is: een
+     ander tabblad kan intussen een vers token hebben neergezet. Stond die
+     controle alleen op "nog geen token", dan vroeg dit tabblad er een
+     nieuwe aan terwijl er een geldige klaarlag -- en dat is precies één
+     Google-venster te veel. */
+  if(!driveToken||Date.now()>=driveToken.tot-60000)
+    driveToken=driveTokenUitSessie()||driveToken;
   if(driveToken&&Date.now()<driveToken.tot-60000)return driveToken.token;
   if(driveTokenBezig)return driveTokenBezig;
   driveTokenBezig=(async()=>{
@@ -11672,14 +11889,22 @@ async function driveVraagToken(interactief){
    toetsaanslag vuurt heeft geen klik-context, en zonder klik blokkeert de
    browser het venster waarmee Google stil vernieuwt. Daarom nu ruim
    vooraf, terwijl het tabblad zichtbaar is en het huidige token nog werkt:
-   mislukt het, dan is er nog tien minuten om het opnieuw te proberen
+   mislukt het, dan is er nog een half uur om het opnieuw te proberen
    zonder dat jij er iets van merkt. */
 let driveVerversTimer=null;
+/* Ruimer dan de tien minuten van eerst (2026-09-10). Die marge ging over
+   de tijd dat de app open staat, maar het venster dat jij ziet komt juist
+   bij het ópenen: het bewaarde token was dan verlopen. Hoe verser het
+   token op het moment dat je de app wegklikt, hoe groter de kans dat het
+   bij de volgende start nog geldig is. Met 25 minuten heeft een bewaard
+   token altijd minstens een half uur te gaan in plaats van tien minuten.
+   Het vernieuwen zelf zie je niet: het gebeurt stil zolang de toestemming
+   staat en het tabblad zichtbaar is. */
+const DRIVE_TOKEN_MARGE=25*60*1000;
 function drivePlanTokenVerversing(){
   clearTimeout(driveVerversTimer);
   if(!driveToken)return;
-  const marge=10*60*1000;
-  const wacht=Math.max(60000,driveToken.tot-Date.now()-marge);
+  const wacht=Math.max(60000,driveToken.tot-Date.now()-DRIVE_TOKEN_MARGE);
   driveVerversTimer=setTimeout(driveVerversToken,wacht);
 }
 async function driveVerversToken(){
@@ -11704,7 +11929,7 @@ async function driveVerversToken(){
    inmiddels verlopen zijn. Meteen ophalen, nu er wél een gebruiker is. */
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState!=='visible'||!DRIVE_ACTIEF)return;
-  if(driveToken&&Date.now()>driveToken.tot-10*60*1000)driveVerversToken();
+  if(driveToken&&Date.now()>driveToken.tot-DRIVE_TOKEN_MARGE)driveVerversToken();
 });
 
 async function driveApi(pad,opties){
@@ -12084,7 +12309,7 @@ function versiesMagSchrijven(){
     return false;
   }
   if(!driveGelezen){
-    appToast('Er is geen verbinding met Drive. Klik eerst op ↻ in de zijbalk.',
+    appToast('Er is geen verbinding met Drive. '+driveHerstelHint(),
       {type:'error'});
     return false;
   }
@@ -12174,6 +12399,7 @@ async function driveStatus(){
 
 function startNaLogin(){
   document.getElementById('loginScreen').style.display='none';
+  loginVerleng();
   const g=ingelogdeGebruiker();
   const knop=document.getElementById('loginBtn');
   if(g&&knop){
@@ -13342,12 +13568,26 @@ function notesPrullenbakWeg(id){
   notesState.prullenbak=bak.filter(x=>x.node.id!==id);
   scheduleSave();renderNotesPrullenbak();
 }
+/* Legen is de enige handeling in deze module die in één klap onherstelbaar
+   is -- ook de ongedaan-knop in de toast helpt hier niet meer, want die hangt
+   aan de prullenbak zelf. De vraag noemt daarom allebei: hoeveel er weggaat,
+   en dat het niet terugkomt. Een groep telt als één item maar neemt zijn
+   notities mee, en dat verschil hoort erbij: anders lees je "3 items" waar er
+   twaalf notities achter zitten. */
 function notesPrullenbakLegen(){
-  const n=(notesState.prullenbak||[]).length;
+  const bak=notesState.prullenbak||[];
+  const n=bak.length;
   if(!n)return;
-  if(!confirm(`De prullenbak bevat ${n} item${n===1?'':'s'}. Alles definitief verwijderen?`))return;
+  const paginas=bak.reduce((som,x)=>
+    som+flattenNotes([x.node]).filter(y=>y.type==='page').length,0);
+  const items=n+' item'+(n===1?'':'s');
+  /* Alleen erbij als het iets toevoegt: bij louter losse notities is het
+     hetzelfde getal, en een lege groep zou "(0 notities)" opleveren. */
+  const wat=items+(paginas&&paginas!==n?' ('+paginas+' notitie'+(paginas===1?'':'s')+')':'');
+  if(!confirm(`Prullenbak legen?\n\n${wat} ${n===1?'wordt':'worden'} definitief weggegooid.\nDit kan niet ongedaan worden gemaakt.`))return;
   notesState.prullenbak=[];
   scheduleSave();renderNotesPrullenbak();
+  appToast(`Prullenbak geleegd · ${items} definitief weg`,{type:'success'});
 }
 function openNotesPrullenbak(){
   renderNotesPrullenbak();
@@ -13355,6 +13595,39 @@ function openNotesPrullenbak(){
 }
 function closeNotesPrullenbak(){
   document.getElementById('notesPrullenbakModal')?.classList.remove('open');
+}
+/* Hoe lang staat dit er al? Dat is de vraag die je stelt vóór je iets
+   definitief weggooit, en een kale datum beantwoordt hem niet: "12 aug" moet
+   je zelf omrekenen. De eerste week leest daarom als een tijdsduur, daarna
+   wordt tellen onhandig en is de datum zelf duidelijker. Datzelfde onderscheid
+   maakt de module elders ook -- de boom toont "12 sep", kort en zonder jaar.
+
+   Elke regel begint met hetzelfde woord, zodat de kolom één ding zegt en niet
+   drie. Alleen als er geen tijdstempel is valt dat woord weg: er vált dan
+   niets te melden over wanneer. Het volledige moment gaat mee als title, voor
+   wie op een bureaublad het precieze tijdstip wil zien. */
+function notesBakWanneer(ts){
+  if(!ts)return{tekst:'Datum onbekend',titel:'',onbekend:true};
+  const d=new Date(ts),nu=new Date();
+  if(isNaN(d.getTime()))return{tekst:'Datum onbekend',titel:'',onbekend:true};
+  /* Op kalenderdagen tellen, niet op etmalen: iets van gisteravond half twaalf
+     is vanochtend "gisteren", niet "vandaag". */
+  const dag=x=>new Date(x.getFullYear(),x.getMonth(),x.getDate()).getTime();
+  const dagen=Math.round((dag(nu)-dag(d))/86400000);
+  const klok=d.toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});
+  let tekst;
+  if(dagen<=0)tekst='Verwijderd vandaag om '+klok;
+  else if(dagen===1)tekst='Verwijderd gisteren om '+klok;
+  else if(dagen<7)tekst='Verwijderd '+dagen+' dagen geleden';
+  else tekst='Verwijderd op '+d.toLocaleDateString('nl-NL',
+    d.getFullYear()===nu.getFullYear()
+      ?{day:'numeric',month:'short'}
+      :{day:'numeric',month:'short',year:'numeric'}).replace('.','');
+  return{
+    tekst,
+    titel:d.toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+' om '+klok,
+    onbekend:false
+  };
 }
 function renderNotesPrullenbak(){
   const el=document.getElementById('notesPrullenbakBody');
@@ -13365,27 +13638,45 @@ function renderNotesPrullenbak(){
     ? bak.length+' item'+(bak.length===1?'':'s')+' — hier kun je ze terugzetten of definitief weggooien'
     : 'Leeg';
   const legen=document.getElementById('notesPrullenbakLegen');
-  if(legen)legen.style.display=bak.length?'':'none';
+  if(legen){
+    legen.style.display=bak.length?'':'none';
+    /* Is de bak leeg, dan valt de hele voet weg. Op een telefoon staat
+       "Sluiten" al als kruisje in de kopbalk (zie zetModalSluitknoppen), dus
+       wat er dan overblijft is een lege balk met een streep erboven. Op een
+       bureaublad blijft "Sluiten" wel staan, maar dan rechts: .modal-footer
+       verdeelt met space-between, en één zichtbaar kind schuift daarmee naar
+       links -- precies de plek waar geen knop hoort. */
+    const voet=legen.closest('.modal-footer');
+    if(voet){
+      voet.classList.toggle('voet-leeg',!bak.length);
+      voet.style.justifyContent=bak.length?'':'flex-end';
+    }
+  }
   if(!bak.length){
     el.innerHTML=`<div class="notes-bak-leeg">Niets verwijderd.<br>
       Wat je weggooit blijft hier staan tot je het definitief weghaalt.</div>`;
     return;
   }
   el.innerHTML=bak.map(x=>{
-    const d=new Date(x.verwijderdOp||0);
-    const wanneer=x.verwijderdOp?d.toLocaleDateString('nl-NL',{day:'numeric',month:'long'})+' om '+
-      d.toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'}):'';
+    /* De ouderdom staat voorop, niet achteraan achter het soort: het is de
+       reden dat je hier kijkt. Wat het is (groep, hoeveel notities) komt
+       erachter -- dat zie je al aan de titel erboven. */
+    const w=notesBakWanneer(x.verwijderdOp);
     const paginas=x.node.type==='folder'
       ? flattenNotes([x.node]).filter(n=>n.type==='page').length : 0;
+    const soort=x.node.type==='folder'
+      ? ' · Groep, '+paginas+' notitie'+(paginas===1?'':'s') : '';
     return `<div class="notes-bak-rij">
       <div class="notes-bak-tekst">
         <div class="notes-bak-titel">${escapeHtml(x.node.title||'Zonder titel')}</div>
-        <div class="notes-bak-meta">${x.node.type==='folder'?'Groep · '+paginas+' notitie'+(paginas===1?'':'s')+' · ':''}${escapeHtml(wanneer)}</div>
+        <div class="notes-bak-meta"><span class="notes-bak-ouderdom${w.onbekend?' onbekend':''}"${w.titel?` title="${escapeHtml(w.titel)}"`:''}>${escapeHtml(w.tekst)}</span>${soort}</div>
       </div>
-      <button class="btn btn-sm" data-action="notesBakTerug" data-arg1="${x.node.id}">Terugzetten</button>
-      <button class="cl2-iconbtn danger" data-action="notesBakWeg" data-arg1="${x.node.id}" title="Definitief verwijderen" aria-label="Definitief verwijderen">
-        <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 3.5h9M5 3.5V2.5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1M3.5 3.5L4 12a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1l.5-8.5"/></svg>
-      </button>
+      <div class="notes-bak-acties">
+        <button class="btn btn-sm" data-action="notesBakTerug" data-arg1="${x.node.id}">Terugzetten</button>
+        <button class="cl2-iconbtn danger" data-action="notesBakWeg" data-arg1="${x.node.id}" title="Definitief verwijderen" aria-label="Definitief verwijderen">
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 3.5h9M5 3.5V2.5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1M3.5 3.5L4 12a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1l.5-8.5"/></svg>
+        </button>
+      </div>
     </div>`;
   }).join('');
 }
@@ -14858,7 +15149,6 @@ function clItemHtml(item,isArchived=false){
   const subs=item.subtasks||[];
   const subsDone=subs.filter(s=>s.done).length;
   const subsTotal=subs.length;
-  const pct=subsTotal?Math.round((subsDone/subsTotal)*100):(item.done?100:0);
   /* Expand state: HOOG default-open, others closed (respect user override) */
   const defaultOpen=item.priority==='hoog';
   const isOpen=clItemOpen[item.id]!==undefined?clItemOpen[item.id]:defaultOpen;
@@ -14906,9 +15196,20 @@ function clItemHtml(item,isArchived=false){
       ${formatDeadline(item.deadline)}
     </span>`);
   }
+  /* Hoe ver deze taak is, zonder hem open te klappen. Het lijstje-icoon dat
+     hier stond zei alleen "er zijn subtaken" — dat stond al in het getal
+     ernaast. De ring vult zich mee: alles af = een volle mintring. Een taak
+     die je afvinkt terwijl er nog subtaken openstaan houdt gewoon 3/5; de
+     kaart is dan al gedimd en doorgestreept, en 5/5 tonen zou verzwijgen
+     dat er twee nooit zijn afgevinkt. */
   if(subsTotal>0){
-    metaBits.push(`<span class="cl2-subcount">
-      <svg width="11" height="11" viewBox="0 0 13 13" fill="none"><path d="M2 3.5h9 M2 6.5h9 M2 9.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+    const omtrek=50.27;                                  /* 2πr bij r=8 */
+    const boog=(subsDone/subsTotal)*omtrek;
+    metaBits.push(`<span class="cl2-subcount" title="${subsDone} van ${subsTotal} subtaken af">
+      <svg class="cl2-subring" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <circle cx="10" cy="10" r="8" stroke="var(--surface2)" stroke-width="4"/>
+        <circle cx="10" cy="10" r="8" stroke="var(--mint)" stroke-width="4" stroke-dasharray="${boog.toFixed(2)} ${omtrek}"/>
+      </svg>
       ${subsDone}/${subsTotal}
     </span>`);
   }
@@ -14963,7 +15264,6 @@ function clItemHtml(item,isArchived=false){
         </button>
       </div>
     </div>
-    ${subsTotal>0?`<div class="cl2-progress"><div class="cl2-progress-fill" style="width:${pct}%;background:${pct===100?'var(--mint)':cfg.tx}"></div></div>`:''}
     ${showSubs||showSubsAdd?`<div class="cl2-subs">${subsHtml}</div>`:''}
   </div>`;
 }
@@ -18981,7 +19281,19 @@ let facAnker=dateStr(new Date());   /* ISO-dag binnen de getoonde periode */
 let facBtwKwartaal=Math.floor(new Date().getMonth()/3)+1;  /* 1-4, of 0 voor heel jaar */
 let facFilterStatus='';
 let facFilterClient='';
+/* Sorteerstand van de facturenlijst. Een kijkvoorkeur van dit moment en niet
+   iets van de administratie: hij gaat net zomin naar Drive als het gekozen
+   jaar of het filter ernaast. Standaard blijft wat het altijd was -- de
+   nieuwste factuur bovenaan. */
+let facSortKol='datum';
+let facSortOp=false;      /* false = aflopend, true = oplopend */
 let facEditId=null;       /* factuur die in de editor openstaat */
+/* De reeks waarin de pijlen in de editorkop je laten bladeren: de rijen zoals
+   ze in beeld stonden op het moment dat je de editor opende. Bewust een
+   momentopname en geen herberekening per sprong -- verandert de status, de
+   datum of het bedrag van de factuur die je net bewerkt hebt, dan zou een
+   verse lijst onder je handen verspringen en sloeg je de volgende over. */
+let facBladerIds=null;
 /* Een nieuwe factuur bestaat eerst alleen hier, buiten factuurState.invoices.
    Pas bij Opslaan (of Versturen) belandt hij in de administratie. Daarvóór
    telt hij dus nergens mee: niet in de lijst, niet in de omzet, niet in het
@@ -19032,7 +19344,10 @@ const FAC_CLICK_ACTIONS={
   facWizardMaak:()=>facWizardMaak(),
   facWizardLeeg:()=>facWizardLeeg(),
   closeFacWizard:()=>closeFacWizard(),
-  facOpen:(a)=>facOpenEditor(a),
+  facOpen:(a)=>facOpenEditor(a,facZichtbareRijIds()),
+  facBladerVorige:()=>facBlader(-1),
+  facBladerVolgende:()=>facBlader(1),
+  facSorteer:(a)=>facSorteer(a),
   facRegelToevoegen:()=>facRegelToevoegen(),
   facKmToevoegen:()=>facKmToevoegen(),
   facRegelVerwijder:(a)=>facRegelVerwijder(a),
@@ -19571,9 +19886,70 @@ function facRenderBody(){
   body.innerHTML=kop+facRenderLijst();
 }
 
+/* ── Sorteren van de facturenlijst ──
+   Wat er per kolom vergeleken wordt. Tekst gaat met localeCompare (numeric,
+   zodat F9 vóór F10 komt), een bedrag als getal, een datum als ISO-tekst --
+   die sorteert vanzelf goed en kent geen tijdzone die er een dag naast zit. */
+function facSortWaarde(f,kol){
+  const klant=factuurKlant(f.clientId);
+  switch(kol){
+    case 'nummer':  return String(f.nummer||'');
+    case 'klant':   return f.klant?f.klant.naam:(klant?(klant.bedrijfsnaam||klant.name):'');
+    case 'betreft': return String(f.betreft||'');
+    case 'vervalt': return String(f.vervaldatum||'');
+    /* De statuspil zegt drie dingen door elkaar: de status zelf, "deels
+       betaald" en "X dagen te laat". Sorteren gaat op de status en binnen één
+       status op hoe laat hij is -- dat is de volgorde waarin je ernaar kijkt
+       als je de kolom aanklikt. */
+    case 'status':  return FACTUUR_STATUSSEN.findIndex(s=>s.id===f.status)*10000
+                           +Math.min(9999,factuurDagenTeLaat(f));
+    case 'excl':    return factuurTotalen(f).excl;
+    case 'incl':    return factuurTotalen(f).incl;
+    default:        return String(f.datum||'');
+  }
+}
+function facSortLijst(lijst){
+  const kol=facSortKol, richting=facSortOp?1:-1;
+  return lijst.slice().sort((a,b)=>{
+    const x=facSortWaarde(a,kol), y=facSortWaarde(b,kol);
+    const d=(typeof x==='number'&&typeof y==='number')
+      ? (x-y) : String(x).localeCompare(String(y),'nl',{numeric:true});
+    /* Gelijke waarden krijgen altijd dezelfde volgorde, anders wisselt een rij
+       van plek bij elke hertekening -- en de bladervolgorde in de editor komt
+       uit precies deze rijen. Het nummer is uniek binnen een administratie en
+       daarmee de rustigste tiebreaker; hij volgt de gekozen richting mee, zodat
+       twee facturen van dezelfde dag niet omgekeerd staan aan de kolom waarop
+       je sorteert. Aflopend op datum geeft daarmee precies de volgorde die de
+       lijst altijd al had. */
+    return (d?d:String(a.nummer||'').localeCompare(String(b.nummer||''),'nl',{numeric:true}))*richting;
+  });
+}
+/* Tweede klik op dezelfde kop draait om; een andere kop begint bij de
+   volgorde die je daar verwacht -- een datum of een bedrag bij het grootste
+   (nieuwste, duurste), tekst bij A. */
+function facSorteer(kol){
+  if(!kol)return;
+  if(facSortKol===kol)facSortOp=!facSortOp;
+  else{
+    facSortKol=kol;
+    facSortOp=['nummer','klant','betreft','status'].includes(kol);
+  }
+  facRenderBody();
+}
+function facSortKop(kol,label,klasse,breedte){
+  const aan=facSortKol===kol;
+  const richting=aan?(facSortOp?'oplopend':'aflopend'):'';
+  return `<th class="fac-sortkop${klasse?' '+klasse:''}"${breedte?` style="width:${breedte}"`:''}
+    aria-sort="${aan?(facSortOp?'ascending':'descending'):'none'}"><button type="button"
+    data-fac-action="facSorteer" data-fac-arg1="${kol}"
+    title="Sorteren op ${escapeHtml(label.toLowerCase())}${aan?' — nu '+richting:''}">${
+      escapeHtml(label)}<span class="fac-sortpijl" aria-hidden="true">${
+      aan?(facSortOp?'▲':'▼'):''}</span></button></th>`;
+}
+
 /* ── Facturenlijst ── */
 function facRenderLijst(){
-  const lijst=facZichtbaar();
+  const lijst=facSortLijst(facZichtbaar());
   const scope=facBedrijfScope();
   const toonBd=facToonBedrijfKolom();
   if(!lijst.length){
@@ -19591,12 +19967,18 @@ function facRenderLijst(){
      kolom -- ze horen bij elkaar (elke administratie heeft zijn eigen
      nummerreeks) en het scheelt een kolom op een toch al brede tabel. */
   const nrBreed=facNummerBreedte(lijst);
+  /* De koppen zijn knoppen: klikken sorteert, nog eens klikken draait om.
+     Zie facSorteer(); de stand staat in facSortKol/facSortOp en gaat niet mee
+     naar Drive. */
   let html=`<div class="uren-sheet-card"><table class="fac-table"><thead><tr>
-    <th style="width:${toonBd?nrBreed+20:nrBreed}px">Nummer</th><th style="width:88px">Datum</th>
-    <th style="width:164px">Klant</th><th>Betreft</th>
-    <th style="width:92px">Vervalt</th><th style="width:142px">Status</th>
-    <th class="num" style="width:112px">Excl. btw</th>
-    <th class="num" style="width:112px">Incl. btw</th></tr></thead><tbody>`;
+    ${facSortKop('nummer','Nummer',null,(toonBd?nrBreed+20:nrBreed)+'px')}
+    ${facSortKop('datum','Datum',null,'88px')}
+    ${facSortKop('klant','Klant',null,'164px')}
+    ${facSortKop('betreft','Betreft')}
+    ${facSortKop('vervalt','Vervalt',null,'92px')}
+    ${facSortKop('status','Status',null,'142px')}
+    ${facSortKop('excl','Excl. btw','num','112px')}
+    ${facSortKop('incl','Incl. btw','num','112px')}</tr></thead><tbody>`;
   lijst.forEach(f=>{
     const t=factuurTotalen(f);
     excl+=t.excl;incl+=t.incl;
@@ -20499,13 +20881,108 @@ function facWizardLeeg(){
 }
 
 /* ── Factuur-editor ── */
-function facOpenEditor(id){
+/* De ids van de factuurrijen zoals ze op dít moment in beeld staan, in de
+   volgorde waarin ze getekend zijn -- dus inclusief de sortering die je net
+   op een kolomkop hebt gekozen. De tabel en de mobiele kaarten staan allebei
+   in de DOM (de CSS kiest er één), dus elke id komt twee keer langs; de tweede
+   valt af. Ze dragen dezelfde volgorde, dus dat maakt niet uit.
+
+   Uit de DOM en niet uit facZichtbaar(): Debiteuren, Verzonden en het
+   btw-overzicht hebben elk hun eigen selectie en eigen volgorde, en die zou je
+   anders alle drie apart moeten naschrijven. */
+function facZichtbareRijIds(){
+  const box=document.getElementById('facBody');
+  if(!box)return null;
+  const ids=[];
+  box.querySelectorAll('[data-fac-action="facOpen"][data-fac-arg1]').forEach(el=>{
+    const id=el.getAttribute('data-fac-arg1');
+    if(id&&ids.indexOf(id)<0)ids.push(id);
+  });
+  return ids.length>1?ids:null;
+}
+function facOpenEditor(id,bron){
   const f=factuurById(id);
   if(!f)return;
+  /* De lijst waaruit je kwam, als momentopname. Zit deze factuur er niet in --
+     een vers concept uit de wizard, een kopie, een factuur uit de urenmodule --
+     dan valt er niets te bladeren en blijven de pijlen weg. */
+  facBladerIds=(Array.isArray(bron)&&bron.length>1&&bron.indexOf(id)>=0)?bron.slice():null;
   facEditId=id;
   facEditorRender();
   document.getElementById('facEditorModal').classList.add('open');
 }
+/* De pijlen in de kop. Aan het begin en het eind gaat de betreffende kant op
+   disabled en niet weg: een knop die soms verdwijnt laat de balk verspringen
+   en je duim ernaast mikken. Rondlopen naar de andere kant doet hij niet --
+   dan weet je na twee tikken niet meer waar je bent. */
+function facBladerRender(){
+  const box=document.getElementById('facEdBlader');
+  if(!box)return;
+  const i=facBladerIds?facBladerIds.indexOf(facEditId):-1;
+  box.hidden=i<0;
+  if(i<0)return;
+  const pos=document.getElementById('facEdBladerPos');
+  if(pos)pos.textContent=(i+1)+' van '+facBladerIds.length;
+  const vorige=document.getElementById('facEdBladerVorige');
+  const volgende=document.getElementById('facEdBladerVolgende');
+  /* Vóór het uitschakelen onthouden waar de focus stond: een knop die disabled
+     wordt raakt hem meteen kwijt. */
+  const had=document.activeElement;
+  if(vorige)vorige.disabled=i<=0;
+  if(volgende)volgende.disabled=i>=facBladerIds.length-1;
+  /* Stond je met de toets op de knop die net uitging, dan valt de focus naar
+     het document en moet je opnieuw tabben. Doorgeven aan de andere kant houdt
+     de bediening bij elkaar. */
+  if(had===vorige&&vorige.disabled&&volgende&&!volgende.disabled)volgende.focus();
+  else if(had===volgende&&volgende.disabled&&vorige&&!vorige.disabled)vorige.focus();
+}
+/* Eén stap in die reeks.
+
+   Apart opslaan hoeft niet: elke wijziging in de editor loopt via
+   factuurUpdate(), dus die staat al in de administratie én in de wachtrij naar
+   Drive. Alleen een veld waar de cursor nog in staat heeft zijn
+   change-gebeurtenis nog niet gehad -- die halen we hier op met blur(), langs
+   precies hetzelfde pad als wanneer je het venster sluit of naast het veld
+   klikt. Alleen invoervelden, want de knop waarop je zojuist klikte mag zijn
+   focus houden. Een onbewaard concept kan hier niet komen: dat staat niet in
+   factuurState.invoices en dus in geen enkele lijst; de guard eronder maakt
+   dat expliciet in plaats van het aan die eigenschap over te laten. */
+function facBlader(stap){
+  if(!facBladerIds||!facEditId)return;
+  if(facConcept&&facConcept.id===facEditId)return;
+  const veld=document.activeElement;
+  if(veld&&(veld.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(veld.tagName||'')))veld.blur();
+  const i=facBladerIds.indexOf(facEditId);
+  if(i<0)return;
+  /* Een factuur die ondertussen weg is -- verwijderd op een ander apparaat,
+     opgehaald door de autosync -- wordt overgeslagen in plaats van het
+     bladeren te laten doodlopen op een lege plek. */
+  for(let j=i+stap;j>=0&&j<facBladerIds.length;j+=stap){
+    if(!factuurById(facBladerIds[j]))continue;
+    facOpenEditor(facBladerIds[j],facBladerIds);
+    const body=document.getElementById('facEditorBody');
+    if(body)body.scrollTop=0;
+    return;
+  }
+}
+/* ↑ en ↓ bladeren zolang de editor bovenop ligt. Niet als de cursor in een
+   veld staat: daar zijn de pijltjes van het veld zelf -- een datumveld telt er
+   dagen mee op, een getalveld stapt het bedrag op en een keuzelijst wisselt van
+   optie. En niet met een toets erbij: ctrl/alt/cmd/shift+pijl zijn van de
+   browser en van het selecteren. */
+document.addEventListener('keydown',e=>{
+  if(e.key!=='ArrowUp'&&e.key!=='ArrowDown')return;
+  if(e.ctrlKey||e.altKey||e.metaKey||e.shiftKey)return;
+  const ed=document.getElementById('facEditorModal');
+  if(!ed||!ed.classList.contains('open'))return;
+  /* Ligt er nog een venster overheen (voorbeeld, mailen, betaling), dan zijn
+     de pijltjes van dát venster. */
+  if([...document.querySelectorAll('.modal-bg.open')].some(m=>m!==ed))return;
+  const el=e.target;
+  if(el&&(el.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName||'')))return;
+  e.preventDefault();
+  facBlader(e.key==='ArrowUp'?-1:1);
+});
 function closeFacEditor(){
   /* Een onbewaard concept verdwijnt hier zonder spoor -- er is niets
      aangemaakt. Wel eerst vragen als je er al in hebt gewerkt: een Escape
@@ -20518,6 +20995,7 @@ function closeFacEditor(){
   }
   document.getElementById('facEditorModal').classList.remove('open');
   facEditId=null;
+  facBladerIds=null;
   facRenderAll();
 }
 function facEditorRender(){
@@ -20546,6 +21024,7 @@ function facEditorRender(){
   }
   document.getElementById('facEditorSub').textContent=sub.join(' · ');
   document.getElementById('facEditorStatus').innerHTML=facStatusPil(f);
+  facBladerRender();
 
   const veld=(label,key,waarde,type)=>`
     <div class="uren-fld"><label>${label}</label>
@@ -21858,8 +22337,14 @@ function facAnDrillRender(){
   document.getElementById('facAnDrillSub').textContent=facAnDrill.sub;
   if(!facAnDrill.rijen.length){
     box.innerHTML='<div class="uren-empty">Geen facturen in deze selectie.</div>';
+    box.style.removeProperty('--nrbreed');
     return;
   }
+  /* Eén nummerkolom voor de hele lijst, zodat datum en klant in elke rij op
+     dezelfde plek beginnen. Zonder dit schuift dat blok mee met de lengte van
+     het nummer erboven en staat er een rafelrand. Dezelfde maatvoering als de
+     vier factuurtabellen, dus dezelfde functie. */
+  box.style.setProperty('--nrbreed',facNummerBreedte(facAnDrill.rijen.map(r=>r.f))+'px');
   box.innerHTML=facAnDrill.rijen.map(r=>{
     const f=r.f;
     const klant=factuurKlant(f.clientId);
@@ -21881,9 +22366,11 @@ function facAnDrillRender(){
       data-fac-arg1="${f.id}" title="Open deze factuur">
       <span class="kop">
         <b class="nr">${escapeHtml(f.nummer||'—')}</b>
-        <span class="dt">${factuurFmtDatum(String(f.datum||'').slice(0,10))}</span>
-        <span class="kl">${escapeHtml(klant?(klant.bedrijfsnaam||klant.name):'Zonder klant')}${
-          eind&&klant&&eind!==(klant.bedrijfsnaam||klant.name)?' · '+escapeHtml(eind):''}</span>
+        <span class="meta">
+          <span class="dt">${factuurFmtDatum(String(f.datum||'').slice(0,10))}</span>
+          <span class="kl">${escapeHtml(klant?(klant.bedrijfsnaam||klant.name):'Zonder klant')}${
+            eind&&klant&&eind!==(klant.bedrijfsnaam||klant.name)?' · '+escapeHtml(eind):''}</span>
+        </span>
         <b class="bd">${factuurFmtBedrag(r.excl)}</b>
       </span>
       <span class="btr">${escapeHtml(f.betreft||'')}</span>
@@ -21892,8 +22379,12 @@ function facAnDrillRender(){
   }).join('');
 }
 function facAnDrillNaarFactuur(id){
+  /* De volgorde van de lijst die je hier ziet gaat mee naar de editor, zodat
+     de pijlen daar door dezelfde selectie lopen als de balk waarop je klikte.
+     Vastleggen vóór het sluiten: daarna is facAnDrill leeg. */
+  const ids=((facAnDrill&&facAnDrill.rijen)||[]).map(r=>r.f.id);
   closeFacAnDrill();
-  facOpenEditor(id);
+  facOpenEditor(id,ids);
 }
 
 /* ── Bediening ── */
@@ -24772,7 +25263,30 @@ const GMAIL_SCOPE='https://www.googleapis.com/auth/gmail.send';
 let mailToken=null;
 let mailTokenClient=null;
 
+/* Het maildeel hield zijn token alleen in het geheugen, dus na elke
+   verversing van de pagina kwam er opnieuw een Google-venster -- ook
+   midden in een reeks facturen. Nu overleeft het token de verversing.
+
+   sessionStorage en niet localStorage, anders dan het Drive-token:
+   gmail.send mag mail versturen namens jou. Dat recht laat je niet op
+   schijf achter voor een gemak dat je een paar keer per maand nodig
+   hebt. Sluit je het tabblad, dan is het weg. */
+const MAIL_TOKEN_SESSIE='herling_mail_token';
+function mailTokenBewaar(t){
+  const g=ingelogdeGebruiker();
+  try{
+    sessionStorage.setItem(MAIL_TOKEN_SESSIE,
+      JSON.stringify({token:t.token,tot:t.tot,account:g?g.email:''}));
+  }catch(_){}
+}
+function mailTokenVergeet(){
+  mailToken=null;
+  try{sessionStorage.removeItem(MAIL_TOKEN_SESSIE);}catch(_){}
+  try{localStorage.removeItem(MAIL_TOKEN_SESSIE);}catch(_){}
+}
+
 async function mailVraagToken(interactief){
+  if(!mailToken)mailToken=tokenUitOpslag(MAIL_TOKEN_SESSIE);
   if(mailToken&&Date.now()<mailToken.tot-60000)return mailToken.token;
   if(!(await googleGereed(8000)))
     throw new Error('Google-bibliotheek kon niet geladen worden');
@@ -24787,6 +25301,7 @@ async function mailVraagToken(interactief){
         callback:(r)=>{
           if(r.error)return rej(new Error(r.error_description||r.error));
           mailToken={token:r.access_token,tot:Date.now()+(Number(r.expires_in||3600)*1000)};
+          mailTokenBewaar(mailToken);
           res(mailToken.token);
         },
         error_callback:(e)=>rej(new Error((e&&e.message)||'Toestemming geweigerd'))
@@ -24850,7 +25365,7 @@ function mailBouwBericht(o){
 function mailRaw(bericht){
   return mailB64(bericht).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 }
-async function mailApiVerstuur(bericht){
+async function mailApiVerstuur(bericht,_tweedePoging){
   const token=await mailVraagToken(false);
   const r=await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send',{
     method:'POST',
@@ -24861,6 +25376,15 @@ async function mailApiVerstuur(bericht){
     const tekst=await r.text().catch(()=>'');
     let reden=tekst.slice(0,300);
     try{const j=JSON.parse(tekst);reden=(j.error&&j.error.message)||reden;}catch(_){}
+    /* Nu het mailtoken een verversing van de pagina overleeft, kan het
+       ook ingetrokken zijn terwijl het er nog ligt (toestemming
+       weggehaald, wachtwoord gewijzigd). Zonder deze stap bleef je dan
+       tegen dezelfde 401 aanlopen tot je het tabblad sloot: weggooien en
+       één keer opnieuw, dan haalt hij een verse op. */
+    if(r.status===401&&!_tweedePoging){
+      mailTokenVergeet();
+      return mailApiVerstuur(bericht,true);
+    }
     throw new Error('Gmail '+r.status+': '+reden);
   }
   return r.json();
@@ -25312,7 +25836,7 @@ async function geminiHaalModellen(){
   const key=localStorage.getItem(LS_GEMINI_KEY);
   if(!key)throw new Error('Geen Gemini API-key ingesteld. Klik op ⚙ API-key.');
   const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models'
-    +'?pageSize=200&key='+encodeURIComponent(key));
+    +'?pageSize=200',{headers:{'x-goog-api-key':key}});
   if(!r.ok)throw new Error((await _aiParseErrorResponse(r)).msg);
   const j=await r.json();
   return (j.models||[])
@@ -25625,10 +26149,18 @@ function _geminiRemOmhoog(){
 /* De ingang wordt hier opgebouwd en niet door de aanroeper meegegeven, want
    dan kan deze functie van model wisselen zonder dat er iets van weet. */
 function _geminiUrl(model,methode,extra){
-  const key=localStorage.getItem(LS_GEMINI_KEY)||'';
   return 'https://generativelanguage.googleapis.com/v1beta/models/'
     +encodeURIComponent(model)+':'+methode
-    +'?'+(extra?extra+'&':'')+'key='+encodeURIComponent(key);
+    +(extra?'?'+extra:'');
+}
+/* De sleutel gaat in een kopregel en niet meer in de URL (2026-09-10).
+   Een URL komt terecht in de netwerkgeschiedenis van de browser, in de
+   Referer van een eventuele vervolgaanroep en in elk foutlogboek dat de
+   volledige aanroep meeneemt; een kopregel doet dat allemaal niet. Google
+   ondersteunt beide, dus dit kost niets. */
+function _geminiKoppen(extra){
+  const key=localStorage.getItem(LS_GEMINI_KEY)||'';
+  return {'Content-Type':'application/json','x-goog-api-key':key,...(extra||{})};
 }
 /* Een verzoek dat blijft hangen hield de hele stapel tegen: geen fout, geen
    antwoord, alleen een spinner. Twee minuten is ruim voor een PDF van tien
@@ -25645,7 +26177,7 @@ async function _geminiFetch(methode,body,opties){
     const wekker=setTimeout(()=>stop.abort(),GEMINI_TIJDLIMIET);
     try{
       r=await fetch(_geminiUrl(model,methode,extra),
-        {method:'POST',headers:{'Content-Type':'application/json'},
+        {method:'POST',headers:_geminiKoppen(),
          body:JSON.stringify(body),signal:stop.signal});
     }catch(e){
       const err=new Error(e&&e.name==='AbortError'

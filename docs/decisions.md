@@ -138,6 +138,247 @@ globale variábele valt nog buiten die controle.
 
 **Niet doen.** Zo'n handler stil laten falen. Een `Uncaught` in de console
 is bij dit soort werk het enige spoor dat je krijgt.
+## 2026-09-10 · Minder Google-vensters: het token overleeft nu een koude start
+
+**Probleem.** Elke keer dat de app op de telefoon opengaat verschijnt er een
+venster van Google om opnieuw toegang te verlenen — en op een bureaublad
+regelmatig ook. Je bent dan gewoon nog ingelogd; het is puur de toegang tot
+Drive die opnieuw opgehaald moet worden.
+
+**Oorzaak.** Het toegangstoken stond in `sessionStorage`. Dat gaat leeg zodra
+het tabblad dicht is, en op een telefoon ís dat de normale gang: iOS ruimt een
+PWA op zodra je hem wegveegt of een paar apps verder bent. Bij elke start was
+het token dus weg, en `boot()` vraagt er meteen een nieuwe aan — zonder klik
+eraan vooraf, en dat is precies wanneer de browser er een zichtbaar venster van
+maakt. Daar bovenop stond de vooruit-verversing op tien minuten vóór het
+verlopen, dus een bewaard token had bij het wegklikken vaak nog maar een kwartier
+te gaan.
+
+**Beslissing.** Vier dingen, alle vier op dezelfde oorzaak:
+1. Het Drive-token gaat naar `localStorage` (`herling_drive_token`), nog steeds
+   aan één account gebonden. Binnen het uur is er bij het openen dus geen venster
+   meer nodig. Een token dat nog in `sessionStorage` staat verhuist bij de eerste
+   lezing mee.
+2. De verversmarge gaat van 10 naar 25 minuten (`DRIVE_TOKEN_MARGE`), zodat een
+   bewaard token bij het wegklikken altijd minstens een half uur te gaan heeft.
+3. `driveVraagToken()` kijkt óók opnieuw in de opslag als het token in het
+   geheugen versleten is — een ander tabblad kan er intussen een verse hebben
+   neergezet.
+4. De 30 dagen van de inlog schuiven mee bij elke start (`loginVerleng()`). Ze
+   gingen in bij het inloggen en stonden daarna stil, dus je stond na een maand
+   dagelijks gebruik alsnog voor het inlogscherm. Nu tikt de klok alleen als je
+   de app níét opent.
+
+**Waarom localStorage te verantwoorden is.** Het token opent alleen de verborgen
+app-map (`drive.appdata`), het is maximaal een uur geldig en het hangt aan één
+account. Dezelfde `localStorage` bevat al de volledige back-up van de
+administratie: wie erbij kan heeft de data sowieso. Het token voegt daar binnen
+dat uur alleen schrijfrechten op diezelfde map aan toe.
+
+**Het maildeel apart.** `gmail.send` mag mail versturen namens jou; dat recht
+laat je niet op schijf achter. Dat token gaat naar `sessionStorage` — genoeg om
+een verversing van de pagina te overleven (het venster kwam anders midden in een
+reeks facturen terug), weg zodra het tabblad dicht is. Het krijgt wel dezelfde
+401-afhandeling als Drive: ingetrokken token weggooien en één keer opnieuw,
+anders bleef je erop vastlopen tot je het tabblad sloot.
+
+**Wat dit níét oplost.** Een browser-only app krijgt van Google geen refresh
+token; na een uur is een nieuw toegangstoken onvermijdelijk. Zolang de app open
+staat gaat dat stil. Nul vensters vraagt een backend die de code-uitwisseling
+doet — dat is een andere architectuur, niet een instelling.
+
+**Bestanden.** `index.html` (`tokenUitOpslag`, `driveTokenBewaar`,
+`driveTokenVergeet`, `driveVraagToken`, `DRIVE_TOKEN_MARGE`, `loginVerleng`,
+`mailTokenBewaar`, `mailTokenVergeet`, `mailApiVerstuur`), `sw.js`.
+
+**Niet doen.** Het gmail.send-token alsnog naar `localStorage` verplaatsen voor
+de symmetrie. En de inlogtermijn niet oprekken voorbij 30 dagen: hij schuift nu
+mee, dat is het gemak — de termijn zelf is het vangnet voor een apparaat dat je
+kwijtraakt.
+
+---
+
+## 2026-09-10 · Gemini-sleutel in een kopregel in plaats van in de URL
+
+**Probleem.** De API-sleutel stond als `?key=...` in elke aanroep naar Gemini.
+
+**Waarom dat slechter is dan het lijkt.** Een URL is geen geheime plek: hij komt
+in de netwerkgeschiedenis van de browser, in de `Referer` van een vervolgaanroep
+en in elk foutlogboek dat de volledige aanroep meeneemt. De body van hetzelfde
+verzoek en een kopregel doen dat geen van beide.
+
+**Beslissing.** De sleutel gaat mee als `x-goog-api-key`. Google ondersteunt
+beide vormen, dus het kost niets. `_geminiUrl()` bouwt alleen nog het pad;
+`_geminiKoppen()` is er nieuw voor. Ook de modellenlijst (`geminiHaalModellen`)
+gaat om. De test die controleerde dát de sleutel in de query stond is omgedraaid:
+hij mag er nu juist niet meer in staan, en er staat een tweede test naast op de
+kopregel.
+
+**Bestanden.** `index.html` (`_geminiUrl`, `_geminiKoppen`, `_geminiFetch`,
+`geminiHaalModellen`), `test.html`.
+
+**Niet doen.** De sleutel terugzetten in de URL omdat een voorbeeld uit de
+documentatie dat zo doet.
+
+---
+
+## 2026-09-10 · Doorkliklijst: drie blokken in plaats van vier kolommen
+
+**Probleem.** De lijst achter een balk in de analyse stond scheef. De bedragen
+begonnen in elke rij op een andere plek, "SB-2026-0002" brak over drie regels,
+en datum en klant zwommen mee met wat er links van stond.
+
+**Oorzaak — één kolom die twee dingen droeg.** Op een telefoon deelden de
+klantnaam en het bedrag dezelfde rasterkolom (klant rechtsonder, bedrag
+rechtsboven). Die kolom werd dus zo breed als de klantnaam, en het bedrag —
+zonder eigen uitlijning — begon aan de línkerkant daarvan: bij elke rij ergens
+anders. Diezelfde brede kolom liet voor het nummer zo weinig over dat de
+browser het op de streepjes afbrak. En omdat elke rij zijn eigen raster is,
+liep niets van dit alles gelijk tussen de rijen.
+
+**Beslissing.** Drie blokken: nummer, wie-en-wanneer, bedrag. Datum en klant
+zitten nu in één `.meta`-blok, dus ze vechten niet meer met het nummer om
+ruimte; op een telefoon staat dat blok over de volle breedte onder het nummer.
+Het bedrag heeft de rechterkolom voor zichzelf en staat op `justify-self:end`
+— niet `text-align`, want de kolom is zo breed als zijn eigen inhoud en dan
+doet uitlijnen bínnen die kolom niets. Op een bureaublad krijgt de nummerkolom
+één breedte voor de hele lijst, berekend met `facNummerBreedte()` — dezelfde
+functie die de vier factuurtabellen al gebruiken — zodat datum en klant in elke
+rij op dezelfde plek beginnen.
+
+**Gemeten.** Op 375px én 1440px: alle bedragen op één rechterrand, alle nummers
+op één linkerrand, geen enkel nummer over meer dan één regel, en het bedrag van
+een factuurregel staat in dezelfde kolom als dat van de factuur erboven.
+
+**Bestanden.** `index.html` (`.fac-an-drillrij` en zijn mobiele laag,
+`facAnDrillRender`).
+
+**Niet doen.** Het bedrag met `text-align:right` proberen recht te zetten, of
+de klantnaam terugzetten in de kolom van het bedrag.
+
+---
+
+## 2026-09-09 · Bladeren tussen facturen: de lijst als momentopname
+
+**Probleem.** Een factuur nakijken betekende telkens: openen, sluiten, de
+volgende zoeken, openen. Bij een reeks van tien is dat dertig handelingen.
+
+**Beslissing.** In de kop van de editor staan `‹ 3 van 8 ›`. De reeks wordt
+vastgelegd op het moment dat de editor opengaat — de ids van de rijen die je
+toen zag — en daarna nooit herrekend. Werkt vanuit elke lijst met factuurrijen
+(Facturen, Debiteuren, Verzonden, btw) en vanuit een doorklik in de analyse.
+Pijl omhoog en omlaag bladeren mee, maar alleen buiten een invoerveld, zonder
+modifier, en niet als er een ander venster over de editor ligt. Meegenomen: de
+kolomkoppen van de facturentabel sorteren, tweede klik draait om, stand niet
+naar Drive.
+
+**Waarom een momentopname.** Herreken je de volgorde tijdens het bladeren, dan
+verspringt de lijst zodra de factuur die je net bewerkt hebt van status
+verandert — en sla je de volgende over. Om dezelfde reden staan de pijlen als
+vaste markup in de kop en worden ze niet via `innerHTML` hertekend: een
+`change` die de editor opnieuw tekent zou de knop wegvagen tussen mousedown en
+click. Opslaan hoefde geen keuze te worden: de editor slaat al vanzelf op, dus
+bladeren doet hetzelfde als sluiten (blur, dan weg).
+
+**Op een telefoon bewust klein, en in het raster van de kop.** Daar is dit
+bijzaak: geen doos, 30px hoog, en niet als eigen regel maar als tweede rij van
+een raster van twee kolommen — links de titel met zijn bijregel over beide
+rijen, rechts de statuspil met de pijlen eronder. De eerste versie was de
+gevulde balk van een bureaublad (236 × 44px op een eigen regel); die kaapte het
+scherm van de factuur en liet een lege strook van 230px naast zich staan. De
+kop gaat zo van 130 naar 89px, en naar 74px als er niets te bladeren valt.
+Het kruisje staat absoluut rechts en blijft dus staan waar het stond. Dit is
+een bewuste uitzondering op de 44px-ondergrens uit `mobile.md`: de pijlen staan
+vrij, het dichtstbijzijnde andere raakvlak is het kruisje op 40px afstand, en
+een misser kost hier één tik — je ziet meteen bij welke factuur je staat.
+
+**Bestanden.** `index.html` (`facOpenEditor` krijgt een tweede, optionele
+parameter; `facBladerIds`, `facBlader`, `facZichtbareRijIds`, `facSort*`).
+
+**Niet doen.** Rondlopen aan de uiteinden, of de pijlen tonen bij een factuur
+die niet uit een lijst komt (een vers concept, een kopie, een factuur geopend
+vanuit Uren) — dan is er niets om doorheen te bladeren.
+
+---
+
+## 2026-09-09 · Prullenbak: hoe oud is dit, en durf ik het weg te gooien
+
+**Probleem.** De prullenbak van Notities kon al geleegd worden, maar de
+bevestiging zei alleen hoeveel *items* het waren — terwijl een groep er meer
+meeneemt — en je zag niet hoe oud iets was. Dan gooi je niets weg.
+
+**Beslissing.** De bevestiging noemt nu ook het aantal notities erachter en dat
+het onomkeerbaar is. Per regel staat de ouderdom vooraan: de eerste week als
+tijdsduur ("3 dagen geleden"), daarna de datum zelf. Geteld op kalenderdagen,
+niet op etmalen. Items van vóór het tijdstempel krijgen "Datum onbekend" in
+plaats van een verzonnen datum. Bij een lege bak verdwijnt de hele voet, niet
+alleen de knop.
+
+**Waarom kalenderdagen.** Iets van gisteravond half twaalf heet vanochtend
+"gisteren", niet "vandaag" — op etmalen tellen geeft precies het omgekeerde.
+
+**Bestanden.** `index.html` (`notesBakWanneer`, `notesPrullenbakLegen`,
+`renderNotesPrullenbak`, `.notes-bak-*`).
+
+**Niet doen.** Automatisch opruimen (zie 2026-09-07), en geen eigen mobiele
+laag: de rij regelt zichzelf met `flex-wrap`.
+
+---
+
+## 2026-09-09 · Voortgang van subtaken: één plek in plaats van drie
+
+**Probleem.** De taakkaart toonde "3/5" in de meta-regel én een balkje van 2px
+onderaan de kaart. Dat balkje nam de prioriteitskleur, dus "3 van de 5 af" was
+bij een hoge prio rood — de gevaarkleur — en bij een lage prio groen.
+
+**Beslissing.** Het balkje vervalt. Het lijstje-icoon vóór "3/5" is een ring
+geworden die zich meevult: dezelfde ring als in de hero, baan `--surface2`,
+vulling `--mint`, 11px. Alles af is een volle ring. Vink je de taak zelf af
+terwijl er subtaken openstaan, dan blijft de echte stand staan.
+
+**Waarom een ring en geen balk.** De meta-regel houdt op 375px in het krapste
+geval 6,3px over; een balk van 20px had "3/5" naar een tweede regel geduwd en de
+kaart 23px hoger gemaakt. De ring is precies zo groot als het icoon dat er
+stond. Kaarten mét subtaken worden nu 2px korter, geen enkele wordt hoger.
+
+**Bestanden.** `index.html` (`clItemHtml`, `.cl2-subring`; `.cl2-progress`
+verwijderd), `docs/stijlgids.md` §4.
+
+**Niet doen.** Er een tweede voortgangsvorm bij zetten. Een afgeleide waarde
+telt als hetzelfde getal (zie 2026-09-06).
+
+---
+
+## 2026-09-09 · Wat de eerste parallelle ronde opleverde, en wat niet
+
+**Wat er gebeurde.** Vijf sporen tegelijk (dashboard, notes, checklist, uren,
+facturen), elk in een eigen worktree. Technisch schoon: geen overlap, geen
+merge­conflicten, en de stijlprobe zag op vier combinaties geen enkele gedeelde
+regel van waarde veranderen. **Drie van de vijf zijn gehouden.** Het dupliceren
+van een urenregistratie en de KPI "uren deze week" op het dashboard zijn bij de
+oplevering afgewezen en niet gemerged — de branches staan er nog.
+
+**Wat dat leert over de opzet.** Parallel bouwen is goedkoop geworden, beoordelen
+niet. Vijf features tegelijk opleveren betekent vijf keer "is dit wat ik wilde",
+en twee keer was het antwoord nee. Dat is geen fout van de sporen: die bouwden
+wat er gevraagd was. Het is de prijs van fan-out op ideeën die nog niet
+uitgevraagd zijn. Bouw voortaan alleen parallel wat expliciet gevraagd is, en
+houd verkenning bij één spoor tegelijk.
+
+**Drie gaten in de eigendomskaart.** (1) `.cl2-iconbtn` staat als
+checklist-eigendom maar wordt op vijf plekken door Notes gebruikt. (2) Alles
+binnen een `@media`-blok telt als één gedeeld anker, dus geen enkel spoor kan
+mobiele CSS schrijven zonder contractverzoek — terwijl de helft van het werk in
+deze app mobiel is. (3) `renderDashKpis`, `renderDashHero`,
+`renderDashNotes` en `renderDashChecklist` hebben geen eigenaar; erger,
+`renderDashNotes` matcht op `Note` en valt formeel aan notes toe. Dezelfde
+oorzaak: de signalen matchen op een prefix, en `render…` of een selector binnen
+een `@media` valt daarbuiten.
+
+**Niet doen.** `.claude/ownership.json` bijstellen tijdens een lopende ronde —
+dat maakt de scope-controles van de sporen ongeldig. De herijking gaat via
+`/parallel-setup`, ná de merge.
+
 ---
 
 ## 2026-09-09 · De cijfers van de analyse achter dezelfde uitklapbalk
