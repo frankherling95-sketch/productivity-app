@@ -10,6 +10,61 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-10 · Uren uit de PDF laten lezen — de derde bron
+
+**Probleem.** De twee bestaande bronnen leiden de uren af uit wat er in de app
+staat: het aantal op de regel, of het bedrag gedeeld door het uurtarief. Beide
+zijn exact zolang je aannames kloppen — en dat is precies het probleem. Was je
+tarief in die periode anders, of stond er naast uren ook een vaste post op de
+factuur, dan is `bedrag ÷ tarief` niet onnauwkeurig maar gewoon fout. De PDF
+weet het wel: daar staat het aantal uren en de gewerkte periode op.
+
+**Beslissing.** Een derde bron die de factuurbestanden door Gemini laat lezen
+en er twee dingen uit haalt: het aantal uren en de **maand van het werk** —
+niet die van de factuurdatum.
+
+**Dit ging tegen mijn eigen advies in.** Ik had aangeraden het níet te doen: de
+bedragen staan al exact in de app, OCR voegt onzekerheid toe aan zekere data, en
+het kost verzoeken uit een laag van twintig per dag. Dat argument houdt geen
+stand tegen het bovenstaande — een exact getal dat op de verkeerde aanname rust
+is slechter dan een gelezen getal dat klopt. Vandaar deze entry: niet om de
+keuze te verdedigen, maar om vast te leggen dat hij bewust is gemaakt.
+
+**Wat hergebruikt wordt.** Alles loopt via `callGemini()`, dus de modelkeuze uit
+de instellingen, de terugval bij een ingetrokken model, de snelheidsrem
+(`_geminiSlot`) en het herhalen bij een 503 komen mee. De batchgrootte volgt de
+factuurscanner: `FAC_SCAN_GROEP` (vijf) en `FAC_SCAN_GROEP_MAX`.
+
+**Het maskeren staat hier uit**, anders dan bij de notitie-acties en de
+eindklant-herkenning. Het model moet de klantnaam en de periode kunnen lezen;
+een gemaskeerde PDF bestaat niet. Dat staat als eerste in het venster, want het
+is het enige plek in de app waar je gegevens onvermomd de deur uit gaan naast de
+factuurscanner zelf.
+
+**Terugkoppelen op de bestandsnaam.** Dezelfde les als bij het inscannen
+(2026-09-10): getoetst met een antwoord dat door elkaar staat en er één
+overslaat — de rest schuift niet mee, en het overgeslagen bestand krijgt zijn
+eigen regel "geen antwoord voor dit bestand".
+
+**Wat er gecontroleerd wordt op het antwoord.** Een maand moet `JJJJ-MM` zijn
+binnen een geloofwaardig jaar; `20226-13` wordt geweigerd in plaats van een
+registratie in het jaar 20226 op te leveren. Een factuur mag meer maanden
+teruggeven (`perioden`), zodat "Mei/Juni" netjes wordt gesplitst. En de prompt
+zegt expliciet: reken nooit terug uit een bedrag — staat er geen aantal uren op,
+geef dan niets. Liever een lege regel dan een verzonnen getal.
+
+**Bestanden.** `index.html` — `urenImpAiLees()`, `urenImpAiPrompt()`,
+`urenImpAiKandidaten()`, `urenImpAiMaand()`, `urenImpAiKlantId()`,
+`UREN_IMP_AI_SCHEMA`, plus het paneel in `urenImpRender()`.
+
+**Niet doen.** De uren die hieruit komen anders behandelen dan die uit de andere
+twee bronnen. Ze dragen hetzelfde `bron:'factuur'`, komen in dezelfde
+maandtabel, worden op dezelfde manier over ma t/m vrij verdeeld en zijn met
+dezelfde knop terug te draaien. Eén import, drie manieren om aan het getal te
+komen.
+
+---
+
 ## 2026-09-10 · Uren uit een ingescande factuur: bedrag ÷ uurtarief
 
 **Probleem.** De import vond niets, en de reden was niet de eenheid maar het

@@ -7464,7 +7464,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.12</span>
+        <span class="app-versie" title="Appversie">v2.13</span>
       </div>
     </div>
   </aside>
@@ -16805,6 +16805,7 @@ const UREN_CLICK_ACTIONS={
   urenImpVink:(a)=>urenImpVink(a),
   urenImpEenhVink:(a)=>urenImpEenhVink(a),
   urenImpZetModus:(a)=>urenImpZetModus(a),
+  urenImpAiKies:()=>urenImpAiKies(),
   urenImpToepassen:()=>urenImpToepassen(),
   urenImpTerugdraaien:()=>urenImpTerugdraaien(),
   urenSetRegScope:(a)=>urenSetRegScope(a),
@@ -16858,6 +16859,7 @@ const UREN_CLICK_ACTIONS={
 const UREN_CHANGE_ACTIONS={
   urenImpZetVerschuif:(a,b,e,el)=>urenImpZetVerschuif(el.value),
   urenImpZetTarief:(a,b,e,el)=>urenImpZetTarief(a,el.value),
+  urenImpAiBestanden:(a,b,e,el)=>urenImpAiBestanden(el),
   /* Popover blijft open: je zet vaak klant én status achter elkaar. */
   urenSetFilterClient:(el)=>{urenFilterClient=el.value;urenSelection.clear();urenRenderAll();},
   urenSetFilterStatus:(el)=>{urenFilterStatus=el.value;urenSelection.clear();urenRenderAll();},
@@ -17413,7 +17415,7 @@ let urenImpModus='aantal';        /* aantal | bedrag */
 let urenImpTarief={};             /* clientId → eigen tarief voor deze import */
 
 function urenImpZetModus(m){
-  urenImpModus=(m==='bedrag')?'bedrag':'aantal';
+  urenImpModus=(m==='bedrag'||m==='ai')?m:'aantal';
   /* Bij een ingescande factuur zegt de eenheid niets, dus dan alles aan
      behalve wat overduidelijk geen uren is. */
   const bron=urenImpEenheden();
@@ -17466,8 +17468,163 @@ function urenImpTarieven(eenheden){
   })).sort((a,b)=>b.bedrag-a.bedrag);
 }
 
+/* ── Derde bron: de PDF's laten lezen ───────────────────────────────────
+   De twee bronnen hierboven leiden de uren af uit wat er in de app staat.
+   Dat is exact zolang het tarief van die periode klopte en er niets anders
+   op de regel stond. Bij een ingescande factuur weet je dat niet zeker — de
+   PDF wel, want daar staat het aantal uren en de gewerkte periode gewoon op.
+
+   Wat hier anders is dan bij de andere twee: dit kost verzoeken uit de
+   gratis laag (vijf facturen per verzoek, twintig verzoeken per dag), en de
+   PDF's gaan ónvermomd naar Google. Dat laatste kan niet anders: het model
+   moet de klantnaam en de periode kunnen lézen. De maskeerder is hier dus
+   bewust uit, net als bij de factuurscanner zelf.
+
+   Terugkoppelen gaat op de bestandsnaam en niet op de volgorde — dezelfde
+   les als bij het inscannen (2026-09-10): slaat het model er één over, dan
+   landt met een op volgorde gebaseerde koppeling alles daarna verkeerd. */
+let urenImpAiRij=[];        /* {naam,maanden:[{maand,uren}],klant,clientId,fout} */
+let urenImpAiBezig=false;
+let urenImpAiVoortgang='';
+
+const UREN_IMP_AI_SCHEMA={type:'object',properties:{
+  facturen:{type:'array',items:{type:'object',properties:{
+    bestand:{type:'string'},
+    klant:{type:'string'},
+    perioden:{type:'array',items:{type:'object',properties:{
+      maand:{type:'string'}, uren:{type:'number'}
+    },required:['maand','uren']}}
+  },required:['bestand','perioden']}}
+},required:['facturen']};
+
+function urenImpAiPrompt(aantal){
+  const klanten=(kanbanState.clients||[]).map(c=>
+    '- '+(c.bedrijfsnaam||c.name)).join('\n');
+  return 'Je leest '+aantal+' factu'+(aantal===1?'ur':'ren')+' en haalt er twee dingen uit:\n'+
+    'het aantal GEWERKTE UREN en de MAAND waarin dat werk is gedaan.\n\n'+
+    (aantal>1?'Elk document heeft een regel ervóór in de vorm "--- Document n: bestandsnaam ---".\n'+
+      'Zet in elk object het veld "bestand" met exact die bestandsnaam.\n\n':'')+
+    'Regels:\n'+
+    '- De maand is die van het WERK, niet die van de factuurdatum. Staat er\n'+
+    '  "Gewerkte uren mei 2026" of een periode 01-05-2026 t/m 31-05-2026, dan is\n'+
+    '  het 2026-05 — ook als de factuur in juni is gedateerd.\n'+
+    '- Beslaat een factuur meer maanden, geef dan per maand een eigen regel in\n'+
+    '  `perioden` met de uren die bij die maand horen. Staat de verdeling er niet\n'+
+    '  bij, verdeel dan gelijk over die maanden.\n'+
+    '- `maand` is altijd in de vorm JJJJ-MM.\n'+
+    '- `uren` is een getal, met een punt als decimaalteken. Reken nooit terug uit\n'+
+    '  een bedrag: staat er geen aantal uren op de factuur, laat `perioden` dan\n'+
+    '  leeg. Liever niets dan een verzonnen getal.\n'+
+    '- Kilometers, vaste maandbedragen en onkosten zijn geen uren.\n'+
+    '- `klant` is de partij die de factuur ontvangt. Kies zo mogelijk uit:\n'+
+    (klanten||'  (geen klanten bekend)');
+}
+
+/* De maand die het model teruggeeft, gecontroleerd. Alles wat er niet uitziet
+   als JJJJ-MM binnen een geloofwaardig jaar valt af -- daar is een lege lijst
+   beter dan een registratie in het jaar 20226. */
+function urenImpAiMaand(v){
+  const m=String(v||'').trim().match(/^(\d{4})-(\d{1,2})$/);
+  if(!m)return '';
+  const j=Number(m[1]), mnd=Number(m[2]);
+  if(j<2000||j>2100||mnd<1||mnd>12)return '';
+  return j+'-'+String(mnd).padStart(2,'0');
+}
+function urenImpAiKlantId(naam){
+  const kaal=s=>String(s||'').trim().toLowerCase().replace(/\s*b\.?\s?v\.?$/i,'').trim();
+  const k=(kanbanState.clients||[]).find(c=>
+    kaal(c.bedrijfsnaam)===kaal(naam)||kaal(c.name)===kaal(naam));
+  return k?k.id:null;
+}
+
+/* Eén ronde over de gekozen bestanden. Groepjes van vijf, net als de
+   factuurscanner: de gratis laag telt verzoeken, niet tokens. */
+async function urenImpAiLees(files){
+  urenImpAiRij=[...files].map(f=>({naam:f.name,file:f,maanden:[],klant:'',clientId:null,fout:''}));
+  urenImpAiBezig=true;
+  urenImpRender();
+  try{
+    let i=0;
+    while(i<urenImpAiRij.length){
+      const groep=[];
+      let bytes=0;
+      while(i<urenImpAiRij.length&&groep.length<FAC_SCAN_GROEP){
+        const r=urenImpAiRij[i];
+        let data='';
+        try{ data=await facScanBestandNaarBase64(r.file); }
+        catch(e){ r.fout='kon het bestand niet lezen'; i++; continue; }
+        if(groep.length&&bytes+data.length>FAC_SCAN_GROEP_MAX)break;
+        bytes+=data.length;
+        groep.push({r,data});
+        i++;
+      }
+      if(!groep.length)continue;
+      urenImpAiVoortgang=Math.min(i,urenImpAiRij.length)+' van '+urenImpAiRij.length;
+      urenImpRender();
+      try{
+        const bestanden=groep.map((g,n)=>({
+          mime:facScanMime(g.r.file), data:g.data,
+          kop:'--- Document '+(n+1)+': '+g.r.naam+' ---'}));
+        const uit=await callGemini({
+          system:urenImpAiPrompt(groep.length),
+          user:'Lees deze '+groep.length+' factu'+(groep.length===1?'ur':'ren')+' uit.',
+          bestanden, schema:UREN_IMP_AI_SCHEMA, temperature:0
+        });
+        const lijst=(uit&&Array.isArray(uit.facturen))?uit.facturen:[];
+        groep.forEach(g=>{
+          const op=lijst.find(x=>x&&String(x.bestand||'').trim()===g.r.naam);
+          if(!op){g.r.fout='geen antwoord voor dit bestand';return;}
+          g.r.klant=String(op.klant||'').trim();
+          g.r.clientId=urenImpAiKlantId(g.r.klant);
+          g.r.maanden=(Array.isArray(op.perioden)?op.perioden:[])
+            .map(p=>({maand:urenImpAiMaand(p&&p.maand),uren:Number(p&&p.uren)||0}))
+            .filter(p=>p.maand&&p.uren>0);
+          if(!g.r.maanden.length)g.r.fout='geen uren of maand gevonden';
+        });
+      }catch(e){
+        groep.forEach(g=>{g.r.fout=String((e&&e.message)||e).slice(0,120);});
+      }
+      urenImpRender();
+    }
+  }finally{
+    urenImpAiBezig=false;
+    urenImpAiVoortgang='';
+    urenImpRender();
+  }
+}
+function urenImpAiKies(){
+  document.getElementById('urenImpFile')?.click();
+}
+function urenImpAiBestanden(el){
+  const files=[...(el&&el.files||[])];
+  if(!files.length)return;
+  el.value='';
+  urenImpAiLees(files);
+}
+/* De maanden uit het AI-antwoord, in dezelfde vorm als de andere twee bronnen
+   zodat de tabel eronder en het toepassen ongewijzigd blijven. */
+function urenImpAiKandidaten(){
+  const bestaand={};
+  (urenState.entries||[]).forEach(e=>{
+    const k=String(e.date||'').slice(0,7);
+    if(k)bestaand[k]=(bestaand[k]||0)+Number(e.hours||0);
+  });
+  const per={};
+  urenImpAiRij.forEach(r=>{
+    r.maanden.forEach(m=>{
+      if(!per[m.maand])per[m.maand]={key:m.maand,uren:0,regels:[],uitBetreft:true,
+        alAanwezig:Math.round((bestaand[m.maand]||0)*100)/100};
+      per[m.maand].uren=Math.round((per[m.maand].uren+m.uren)*100)/100;
+      per[m.maand].regels.push({factuurId:'',nummer:r.naam,
+        clientId:r.clientId,omschrijving:r.naam,aantal:m.uren});
+    });
+  });
+  return Object.values(per).sort((a,b)=>a.key.localeCompare(b.key));
+}
+
 /* Wat er te importeren valt, gegroepeerd per maand. */
 function urenImpKandidaten(verschuif,eenheden){
+  if(urenImpModus==='ai')return urenImpAiKandidaten();
   const bestaand={};
   (urenState.entries||[]).forEach(e=>{
     const k=String(e.date||'').slice(0,7);
@@ -17580,19 +17737,44 @@ function urenImpRender(){
       <button class="uren-btn" data-uren-action="urenImpTerugdraaien" style="margin-left:8px">Terugdraaien</button></span>
     </div>`:''}
 
-    ${/* Wat er in je facturen staat. Dit blok is er ook — en juist — als er
-         niets gevonden wordt: dan zie je wélke eenheden je wél gebruikt. */''}
-    ${bron.lijst.length?`
-      <h4 class="fac-an-sub">Waar komen de uren vandaan?</h4>
+    ${/* De keuze staat buiten de facturen-voorwaarde: uit een PDF lezen kan
+         ook als er nog geen factuur in de app staat. */''}
+    <h4 class="fac-an-sub">Waar komen de uren vandaan?</h4>
       <div class="uren-imp-modus">
         <button type="button" class="uren-btn" data-uren-action="urenImpZetModus" data-uren-arg1="aantal"
           aria-pressed="${urenImpModus==='aantal'?'true':'false'}">Het aantal op de regel</button>
         <button type="button" class="uren-btn" data-uren-action="urenImpZetModus" data-uren-arg1="bedrag"
           aria-pressed="${urenImpModus==='bedrag'?'true':'false'}">Bedrag ÷ uurtarief</button>
+        <button type="button" class="uren-btn" data-uren-action="urenImpZetModus" data-uren-arg1="ai"
+          aria-pressed="${urenImpModus==='ai'?'true':'false'}">✦ Uit de PDF laten lezen</button>
       </div>
-      <p class="fac-an-uitleg">${urenImpModus==='bedrag'
-        ? 'Voor facturen die je hebt ingescand: die krijgen één regel met aantal 1 en het hele bedrag, dus het aantal zegt niets. Het bedrag wél.'
+      <p class="fac-an-uitleg">${
+        urenImpModus==='ai' ? 'Gemini leest je factuurbestanden en haalt er het aantal uren én de gewerkte maand uit. Het meest nauwkeurig: het staat er letterlijk op, ook als je tarief in die periode anders was.'
+        : urenImpModus==='bedrag' ? 'Voor facturen die je hebt ingescand: die krijgen één regel met aantal 1 en het hele bedrag, dus het aantal zegt niets. Het bedrag wél.'
         : 'Voor facturen die je uit je eigen urenregistratie hebt opgebouwd: daar staat het aantal uren al op de regel.'}</p>
+      ${urenImpModus==='ai'?`
+        <div class="fac-btw-let" style="margin-bottom:12px">
+          <b>Je facturen gaan onvermomd naar Google</b>
+          Het model moet de klantnaam en de gewerkte periode kunnen lézen, dus het maskeren
+          staat hier uit — anders dan bij de andere AI-functies. Vijf facturen per verzoek,
+          en de gratis laag telt twintig verzoeken per dag.</div>
+        <div class="uren-imp-modus">
+          <button type="button" class="uren-btn uren-btn-primary" data-uren-action="urenImpAiKies"
+            ${urenImpAiBezig?'disabled':''}>${urenImpAiRij.length?'Andere facturen kiezen':'Facturen kiezen…'}</button>
+          <input type="file" id="urenImpFile" accept="application/pdf,image/*" multiple
+            style="display:none" data-uren-change="urenImpAiBestanden"/>
+        </div>
+        ${urenImpAiBezig?`<div class="notes-ai-bezig"><div class="spinner"></div>
+          <span>Gemini leest je facturen… ${escapeHtml(urenImpAiVoortgang)}</span></div>`:''}
+        ${urenImpAiRij.length?`<table class="fac-an-tabel uren-imp-tabel">
+          <thead><tr><th>Bestand</th><th>Klant</th><th class="num">Gevonden</th></tr></thead>
+          <tbody>${urenImpAiRij.map(r=>`<tr class="${r.fout?'uren-imp-over':''}">
+            <td>${escapeHtml(r.naam)}</td>
+            <td>${escapeHtml(r.klant||'—')}${r.klant&&!r.clientId?' <small>(onbekend)</small>':''}</td>
+            <td class="num">${r.fout?`<small>${escapeHtml(r.fout)}</small>`
+              :r.maanden.map(m=>urenImpMaandLabel(m.maand)+': '+urenFmt(m.uren)+' u').join('<br>')}</td>
+          </tr>`).join('')}</tbody></table>`:''}`
+      :''}
       ${urenImpModus==='bedrag'?(()=>{
         const tar=urenImpTarieven(urenImpEenhKeuze);
         const zonder=tar.filter(t=>!t.tarief);
@@ -17609,6 +17791,7 @@ function urenImpRender(){
             <td class="num">${t.uren==null?'—':urenFmt(t.uren)+' u'}</td></tr>`).join('')}</tbody></table>
           ${zonder.length?`<p class="fac-an-uitleg">Zonder uurtarief kan er niet worden omgerekend;
             vul er hierboven een in of vul het aan bij de klant.</p>`:''}`;})():''}
+    ${urenImpModus==='ai'?'':bron.lijst.length?`
       <h4 class="fac-an-sub">Welke regels tellen mee?</h4>
       <p class="fac-an-uitleg">Gevonden in ${bron.facturen} ${bron.facturen===1?'factuur':'facturen'}.
         Vink aan wat uren zijn — de ene administratie schrijft <b>uur</b>, de andere <b>uren</b> of niets.</p>
@@ -17631,11 +17814,11 @@ function urenImpRender(){
       ${bron.concept?'Je hebt alleen concepten; die tellen nog niet mee.':
         'Er staan geen verstuurde facturen met een aantal erop.'}</div>`}
 
-    ${!gekozen&&bron.lijst.length?`<div class="fac-btw-let" style="margin-top:12px">
+    ${urenImpModus!=='ai'&&!gekozen&&bron.lijst.length?`<div class="fac-btw-let" style="margin-top:12px">
       <span class="ic">✲</span><span>Niets aangevinkt, dus er valt nog niets te importeren.
       Vink hierboven de eenheid aan die bij jou uren betekent.</span></div>`:''}
 
-    ${gekozen&&lijst.length?`
+    ${(urenImpModus==='ai'||gekozen)&&lijst.length?`
       ${uitBetreft===lijst.length
         ? `<p class="fac-an-uitleg" style="margin-top:16px">De maand komt uit de betreft-regel van
            de factuur zelf — bij alle ${lijst.length} gevonden maanden stond hij erin.</p>`
@@ -17666,7 +17849,7 @@ function urenImpRender(){
           </tr>`;}).join('')}</tbody>
       </table>`:''}
 
-    ${gekozen&&!lijst.length?`<div class="uren-empty" style="margin-top:14px">
+    ${(urenImpModus==='ai'?urenImpAiRij.length&&!urenImpAiBezig:gekozen)&&!lijst.length?`<div class="uren-empty" style="margin-top:14px">
       <b>Niets te importeren</b>Van de aangevinkte eenheden kon geen maand worden bepaald,
       of ze horen bij maanden waar je al uren hebt.</div>`:''}
   `;
