@@ -151,9 +151,15 @@ Eén blok, twee namen: `.uren-kpi` (Uren, Facturen) en `.fac-aging-cel`
 
 Verandert een knop alleen wát er in díe kaart staat, dan hoort hij in de kop
 van die kaart en niet in een filterbalk erboven. De kop is een flexrij, de knop
-gaat rechts (`margin-left:auto`) en is de gewone balkknop `.uren-btn` — geen
-eigen maat. Staat hij aan, dan draagt `aria-pressed="true"` dat; er is geen
-tweede aan-vorm nodig.
+gaat rechts (`margin-left:auto`) en is de balkknop `.uren-btn`. Staat hij aan,
+dan draagt `aria-pressed="true"` dat; er is geen tweede aan-vorm nodig.
+
+Op een telefoon is hij één maat kleiner dan in een balk: **32px hoog, 10px
+zijvulling, `var(--fs-micro)`** — hij staat niet in een rij met andere knoppen
+maar alleen naast een titel, ruim omringd. Dat is de uitzondering die
+[`mobile.md`](mobile.md) op 32px zet. 36px naast een kop van 17px oogt als een
+tweede kop. Schrijf hem als `.uren-btn.fac-an-kaartknop`: de mobiele
+`.uren-btn`-regel staat verderop in het bestand en wint anders op volgorde.
 
 De titel zegt dan niet nog eens welke stand er aanstaat: de knop ernaast doet
 dat al, en op 375px is die ruimte er ook niet. Voorbeeld: `.fac-an-kaartknop`

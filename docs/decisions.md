@@ -28,9 +28,15 @@ regels staan, als "Eindklantregels…" — zonder de schakelaar ernaast zei
 "Regels…" niet meer waarover het ging.
 
 **Waarom.** Een bediening die één kaart verandert hoort op die kaart: daar zie
-je meteen wat hij doet. Het is dezelfde balkknop (`.uren-btn`, 32px desktop /
-36px mobiel) en niet een eigen maat — dat is precies hoe het ⋯ ooit aan drie
-maten kwam. De stand leest af aan `aria-pressed="true"`, de bestaande mint-
+je meteen wat hij doet. Het is de bestaande balkknop `.uren-btn` en geen nieuw
+soort knop — dat is precies hoe het ⋯ ooit aan drie maten kwam. Op desktop
+onveranderd (32px, 12,5px); op mobiel één maat kleiner dan in een balk (32px,
+10px zijvulling, `var(--fs-micro)`), want naast een kop van 17px oogde de
+36px-balkknop als een tweede kop, en hier staat hij ruim omringd in plaats van
+in een rij — de uitzondering die `mobile.md` op 32px zet. Geschreven als
+`.uren-btn.fac-an-kaartknop`, omdat de mobiele `.uren-btn`-regel verderop in
+het bestand staat en anders op volgorde wint. De stand leest af aan
+`aria-pressed="true"`, de bestaande mint-
 vulling; er is geen tweede aan-vorm bijgekomen. Meegenomen: `facAnFilterAantal()`
 telt de eindklant-stand niet meer mee voor het bolletje op de trechter. Een
 bolletje dat je naar een popover stuurt waar de schakelaar niet meer staat is
