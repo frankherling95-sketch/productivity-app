@@ -10,6 +10,90 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-10 · Minder Google-vensters: het token overleeft nu een koude start
+
+**Probleem.** Elke keer dat de app op de telefoon opengaat verschijnt er een
+venster van Google om opnieuw toegang te verlenen — en op een bureaublad
+regelmatig ook. Je bent dan gewoon nog ingelogd; het is puur de toegang tot
+Drive die opnieuw opgehaald moet worden.
+
+**Oorzaak.** Het toegangstoken stond in `sessionStorage`. Dat gaat leeg zodra
+het tabblad dicht is, en op een telefoon ís dat de normale gang: iOS ruimt een
+PWA op zodra je hem wegveegt of een paar apps verder bent. Bij elke start was
+het token dus weg, en `boot()` vraagt er meteen een nieuwe aan — zonder klik
+eraan vooraf, en dat is precies wanneer de browser er een zichtbaar venster van
+maakt. Daar bovenop stond de vooruit-verversing op tien minuten vóór het
+verlopen, dus een bewaard token had bij het wegklikken vaak nog maar een kwartier
+te gaan.
+
+**Beslissing.** Vier dingen, alle vier op dezelfde oorzaak:
+1. Het Drive-token gaat naar `localStorage` (`herling_drive_token`), nog steeds
+   aan één account gebonden. Binnen het uur is er bij het openen dus geen venster
+   meer nodig. Een token dat nog in `sessionStorage` staat verhuist bij de eerste
+   lezing mee.
+2. De verversmarge gaat van 10 naar 25 minuten (`DRIVE_TOKEN_MARGE`), zodat een
+   bewaard token bij het wegklikken altijd minstens een half uur te gaan heeft.
+3. `driveVraagToken()` kijkt óók opnieuw in de opslag als het token in het
+   geheugen versleten is — een ander tabblad kan er intussen een verse hebben
+   neergezet.
+4. De 30 dagen van de inlog schuiven mee bij elke start (`loginVerleng()`). Ze
+   gingen in bij het inloggen en stonden daarna stil, dus je stond na een maand
+   dagelijks gebruik alsnog voor het inlogscherm. Nu tikt de klok alleen als je
+   de app níét opent.
+
+**Waarom localStorage te verantwoorden is.** Het token opent alleen de verborgen
+app-map (`drive.appdata`), het is maximaal een uur geldig en het hangt aan één
+account. Dezelfde `localStorage` bevat al de volledige back-up van de
+administratie: wie erbij kan heeft de data sowieso. Het token voegt daar binnen
+dat uur alleen schrijfrechten op diezelfde map aan toe.
+
+**Het maildeel apart.** `gmail.send` mag mail versturen namens jou; dat recht
+laat je niet op schijf achter. Dat token gaat naar `sessionStorage` — genoeg om
+een verversing van de pagina te overleven (het venster kwam anders midden in een
+reeks facturen terug), weg zodra het tabblad dicht is. Het krijgt wel dezelfde
+401-afhandeling als Drive: ingetrokken token weggooien en één keer opnieuw,
+anders bleef je erop vastlopen tot je het tabblad sloot.
+
+**Wat dit níét oplost.** Een browser-only app krijgt van Google geen refresh
+token; na een uur is een nieuw toegangstoken onvermijdelijk. Zolang de app open
+staat gaat dat stil. Nul vensters vraagt een backend die de code-uitwisseling
+doet — dat is een andere architectuur, niet een instelling.
+
+**Bestanden.** `index.html` (`tokenUitOpslag`, `driveTokenBewaar`,
+`driveTokenVergeet`, `driveVraagToken`, `DRIVE_TOKEN_MARGE`, `loginVerleng`,
+`mailTokenBewaar`, `mailTokenVergeet`, `mailApiVerstuur`), `sw.js`.
+
+**Niet doen.** Het gmail.send-token alsnog naar `localStorage` verplaatsen voor
+de symmetrie. En de inlogtermijn niet oprekken voorbij 30 dagen: hij schuift nu
+mee, dat is het gemak — de termijn zelf is het vangnet voor een apparaat dat je
+kwijtraakt.
+
+---
+
+## 2026-09-10 · Gemini-sleutel in een kopregel in plaats van in de URL
+
+**Probleem.** De API-sleutel stond als `?key=...` in elke aanroep naar Gemini.
+
+**Waarom dat slechter is dan het lijkt.** Een URL is geen geheime plek: hij komt
+in de netwerkgeschiedenis van de browser, in de `Referer` van een vervolgaanroep
+en in elk foutlogboek dat de volledige aanroep meeneemt. De body van hetzelfde
+verzoek en een kopregel doen dat geen van beide.
+
+**Beslissing.** De sleutel gaat mee als `x-goog-api-key`. Google ondersteunt
+beide vormen, dus het kost niets. `_geminiUrl()` bouwt alleen nog het pad;
+`_geminiKoppen()` is er nieuw voor. Ook de modellenlijst (`geminiHaalModellen`)
+gaat om. De test die controleerde dát de sleutel in de query stond is omgedraaid:
+hij mag er nu juist niet meer in staan, en er staat een tweede test naast op de
+kopregel.
+
+**Bestanden.** `index.html` (`_geminiUrl`, `_geminiKoppen`, `_geminiFetch`,
+`geminiHaalModellen`), `test.html`.
+
+**Niet doen.** De sleutel terugzetten in de URL omdat een voorbeeld uit de
+documentatie dat zo doet.
+
+---
+
 ## 2026-09-10 · Doorkliklijst: drie blokken in plaats van vier kolommen
 
 **Probleem.** De lijst achter een balk in de analyse stond scheef. De bedragen

@@ -317,9 +317,22 @@ async function runChecks() {
          modelwissel uitlokken. */
       w._geminiModelWeg(429, 'You exceeded your current quota') === false &&
       w._geminiModelWeg(400, 'API key not valid. Please pass a valid API key.') === false],
-    ['Model: de sleutel staat in de query, niet in het pad', () => {
-      const u = w._geminiUrl('gemini-3.5-flash', 'generateContent', '');
-      return /\/v1beta\/models\/gemini-3\.5-flash:generateContent\?/.test(u) && /[?&]key=/.test(u);
+    ['Model: het model staat in het pad, de sleutel niet in de URL', () => {
+      /* De sleutel verhuisde op 2026-09-10 naar de kopregel x-goog-api-key;
+         een URL komt in de geschiedenis en in foutlogboeken terecht, een
+         kopregel niet. De URL mag hem dus juist NIET meer bevatten. */
+      const kaal = w._geminiUrl('gemini-3.5-flash', 'generateContent', '');
+      const sse  = w._geminiUrl('gemini-3.5-flash', 'streamGenerateContent', 'alt=sse');
+      return /\/v1beta\/models\/gemini-3\.5-flash:generateContent$/.test(kaal) &&
+             !/[?&]key=/.test(kaal) &&
+             /:streamGenerateContent\?alt=sse$/.test(sse) &&
+             !/[?&]key=/.test(sse);
+    }],
+    ['Model: de sleutel gaat mee als kopregel', () => {
+      const k = w._geminiKoppen();
+      return k['Content-Type'] === 'application/json' &&
+             'x-goog-api-key' in k &&
+             w._geminiKoppen({'X-Extra':'1'})['X-Extra'] === '1';
     }],
     ['Antwoord: het denkdeel telt niet mee', () =>
       /* Gemini 3 zet zijn samenvatting als eigen part met thought:true vóór

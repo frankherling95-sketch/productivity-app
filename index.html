@@ -7316,7 +7316,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v1.98</span>
+        <span class="app-versie" title="Appversie">v1.99</span>
       </div>
     </div>
   </aside>
@@ -9244,6 +9244,16 @@ function stateOmvang(st){
   return n;
 }
 
+/* De melding wees naar de zijbalk, en dat klopt op een telefoon niet: daar
+   is de zijbalk een lade en staat de herstelknop juist rechtsboven in de
+   balk (.mobile-sync-btn, zichtbaar zodra het misgaat). Wie de tekst volgde
+   ging dus de verkeerde kant op. Eén zin die op beide klopt. */
+function driveHerstelHint(){
+  return window.matchMedia&&window.matchMedia('(max-width: 768px)').matches
+    ? 'Tik rechtsboven op de ronde pijl om te verbinden.'
+    : 'Klik op \u21bb in de zijbalk om te verbinden.';
+}
+
 async function loadGist(){
   setSync('saving','Verbinden...');
   try{
@@ -9354,7 +9364,7 @@ async function loadGist(){
       renderAll();
     }
     setSync('error','Niet verbonden met Drive - klik op \u21bb');
-    appToast(uitleg+' Klik op \u21bb in de zijbalk om te verbinden. '+
+    appToast(uitleg+' '+driveHerstelHint()+' '+
       (lokaal?'Zolang dat niet is gelukt werk je met je lokale kopie en '+
               'wordt er niets naar Drive geschreven.'
             :'Er is nog niets geladen.'),
@@ -11479,9 +11489,24 @@ function ingelogdeGebruiker(){
     return v;
   }catch(_){return null;}
 }
+/* De 30 dagen gingen in op het moment van inloggen en stonden daarna
+   stil: ook als je de app elke dag gebruikte stond je na een maand weer
+   voor het inlogscherm. Dat is precies de verkeerde kant op -- dagelijks
+   gebruik is juist het bewijs dat het apparaat van jou is. De termijn
+   schuift nu mee bij elke start, dus je logt alleen opnieuw in als je de
+   app dertig dagen niet hebt geopend. Eén keer per dag schrijven is
+   genoeg; vaker levert alleen schrijfacties op. */
+function loginVerleng(){
+  const v=ingelogdeGebruiker();
+  if(!v)return;
+  const nieuwTot=Date.now()+LOGIN_GELDIG_DAGEN*86400000;
+  if(nieuwTot-v.tot<86400000)return;
+  try{localStorage.setItem(LS_LOGIN,JSON.stringify({...v,tot:nieuwTot}));}catch(_){}
+}
 function logUit(){
   try{localStorage.removeItem(LS_LOGIN);}catch(_){}
   driveTokenVergeet();
+  mailTokenVergeet();
   if(window.google&&google.accounts&&google.accounts.id)google.accounts.id.disableAutoSelect();
   location.reload();
 }
@@ -11643,35 +11668,63 @@ let driveGelezen=false;        /* is Drive deze sessie minstens één keer gelez
    het ander net schreef. Juist dat verschil moeten we kunnen zien. */
 let driveGezien=null;
 
-/* Het toegangstoken overleeft een pagina-verversing in sessionStorage.
-   Zonder dat moet Google bij elke refresh een venster openen om het
-   token te vernieuwen -- en dat blokkeert de browser, omdat er geen
-   klik aan voorafging. Dat was precies de "Drive onbereikbaar" die je
-   bij verversen zag, terwijl de knop \u21bb (wél een klik) het wel deed.
+/* Het toegangstoken overleeft een pagina-verversing én het sluiten van
+   het tabblad. Zonder dat moet Google bij elke start een venster openen
+   om een nieuw token te halen -- en dat blokkeert de browser, omdat er
+   geen klik aan voorafging. Dat was precies de "Drive onbereikbaar" die
+   je bij verversen zag, terwijl de knop \u21bb (wél een klik) het wel deed.
 
-   sessionStorage en niet localStorage: het token verdwijnt zodra je het
-   tabblad sluit. Het geeft alleen toegang tot de verborgen app-map en
-   is een uur geldig. */
+   Waarom localStorage en niet sessionStorage (gewijzigd 2026-09-10):
+   sessionStorage gaat leeg zodra het tabblad dicht is, en op een telefoon
+   ís dat de normale gang -- iOS ruimt een PWA op zodra je hem wegveegt of
+   een paar apps verder bent. Elke keer dat je de app opende was het token
+   dus weg en verscheen het Google-venster, ook al was je nog gewoon
+   ingelogd en had je een minuut eerder nog gewerkt. Met localStorage
+   overleeft het token die koude start en is er binnen het uur helemaal
+   geen venster meer nodig.
+
+   De afweging: het token staat nu op schijf in plaats van in het geheugen
+   van het tabblad. Het opent alleen de verborgen app-map (drive.appdata),
+   het is maximaal een uur geldig, het hangt aan één account en dezelfde
+   localStorage bevat al de volledige back-up van je administratie. Wie
+   erbij kan heeft de data dus sowieso al; het token voegt daar binnen dat
+   uur alleen schrijfrechten op diezelfde map aan toe.
+
+   Het gmail.send-token gaat bewust NIET mee naar schijf -- zie
+   mailTokenBewaar(). Mailen namens jou is een scherper recht dan het
+   lezen van een verborgen map, en dat token heb je hooguit een paar keer
+   per maand nodig. */
 const DRIVE_TOKEN_SESSIE='herling_drive_token';
-function driveTokenUitSessie(){
-  try{
-    const v=JSON.parse(sessionStorage.getItem(DRIVE_TOKEN_SESSIE)||'null');
-    const g=ingelogdeGebruiker();
-    /* Alleen hergebruiken voor hetzelfde account, anders kijk je na een
-       accountwissel in de map van de vorige gebruiker. */
-    if(v&&v.token&&v.tot>Date.now()+60000&&(!g||v.account===g.email))return v;
-  }catch(_){}
+function tokenUitOpslag(sleutel){
+  const g=ingelogdeGebruiker();
+  for(const bron of [localStorage,sessionStorage]){
+    try{
+      const v=JSON.parse(bron.getItem(sleutel)||'null');
+      /* Alleen hergebruiken voor hetzelfde account, anders kijk je na een
+         accountwissel in de map van de vorige gebruiker. */
+      if(v&&v.token&&v.tot>Date.now()+60000&&(!g||v.account===g.email))return v;
+    }catch(_){}
+  }
   return null;
+}
+function driveTokenUitSessie(){
+  const v=tokenUitOpslag(DRIVE_TOKEN_SESSIE);
+  /* Een token dat nog uit de sessionStorage-tijd komt hoeft niet opnieuw
+     opgehaald te worden; het verhuist gewoon mee naar de nieuwe plek. */
+  if(v)driveTokenBewaar(v);
+  return v;
 }
 function driveTokenBewaar(t){
   const g=ingelogdeGebruiker();
   try{
-    sessionStorage.setItem(DRIVE_TOKEN_SESSIE,
+    localStorage.setItem(DRIVE_TOKEN_SESSIE,
       JSON.stringify({token:t.token,tot:t.tot,account:g?g.email:''}));
+    sessionStorage.removeItem(DRIVE_TOKEN_SESSIE);
   }catch(_){}
 }
 function driveTokenVergeet(){
   driveToken=null;
+  try{localStorage.removeItem(DRIVE_TOKEN_SESSIE);}catch(_){}
   try{sessionStorage.removeItem(DRIVE_TOKEN_SESSIE);}catch(_){}
 }
 let driveLaatsteFout=null;     /* voorkomt dezelfde waarschuwing bij elke opslag */
@@ -11725,7 +11778,13 @@ function driveNieuwToken(interactief){
    één blokkeerde. Dat kwam op het scherm aan als "opnieuw verbinden". */
 let driveTokenBezig=null;
 async function driveVraagToken(interactief){
-  if(!driveToken)driveToken=driveTokenUitSessie();
+  /* Ook opnieuw kijken als het token in het geheugen versleten is: een
+     ander tabblad kan intussen een vers token hebben neergezet. Stond die
+     controle alleen op "nog geen token", dan vroeg dit tabblad er een
+     nieuwe aan terwijl er een geldige klaarlag -- en dat is precies één
+     Google-venster te veel. */
+  if(!driveToken||Date.now()>=driveToken.tot-60000)
+    driveToken=driveTokenUitSessie()||driveToken;
   if(driveToken&&Date.now()<driveToken.tot-60000)return driveToken.token;
   if(driveTokenBezig)return driveTokenBezig;
   driveTokenBezig=(async()=>{
@@ -11747,14 +11806,22 @@ async function driveVraagToken(interactief){
    toetsaanslag vuurt heeft geen klik-context, en zonder klik blokkeert de
    browser het venster waarmee Google stil vernieuwt. Daarom nu ruim
    vooraf, terwijl het tabblad zichtbaar is en het huidige token nog werkt:
-   mislukt het, dan is er nog tien minuten om het opnieuw te proberen
+   mislukt het, dan is er nog een half uur om het opnieuw te proberen
    zonder dat jij er iets van merkt. */
 let driveVerversTimer=null;
+/* Ruimer dan de tien minuten van eerst (2026-09-10). Die marge ging over
+   de tijd dat de app open staat, maar het venster dat jij ziet komt juist
+   bij het ópenen: het bewaarde token was dan verlopen. Hoe verser het
+   token op het moment dat je de app wegklikt, hoe groter de kans dat het
+   bij de volgende start nog geldig is. Met 25 minuten heeft een bewaard
+   token altijd minstens een half uur te gaan in plaats van tien minuten.
+   Het vernieuwen zelf zie je niet: het gebeurt stil zolang de toestemming
+   staat en het tabblad zichtbaar is. */
+const DRIVE_TOKEN_MARGE=25*60*1000;
 function drivePlanTokenVerversing(){
   clearTimeout(driveVerversTimer);
   if(!driveToken)return;
-  const marge=10*60*1000;
-  const wacht=Math.max(60000,driveToken.tot-Date.now()-marge);
+  const wacht=Math.max(60000,driveToken.tot-Date.now()-DRIVE_TOKEN_MARGE);
   driveVerversTimer=setTimeout(driveVerversToken,wacht);
 }
 async function driveVerversToken(){
@@ -11779,7 +11846,7 @@ async function driveVerversToken(){
    inmiddels verlopen zijn. Meteen ophalen, nu er wél een gebruiker is. */
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState!=='visible'||!DRIVE_ACTIEF)return;
-  if(driveToken&&Date.now()>driveToken.tot-10*60*1000)driveVerversToken();
+  if(driveToken&&Date.now()>driveToken.tot-DRIVE_TOKEN_MARGE)driveVerversToken();
 });
 
 async function driveApi(pad,opties){
@@ -12159,7 +12226,7 @@ function versiesMagSchrijven(){
     return false;
   }
   if(!driveGelezen){
-    appToast('Er is geen verbinding met Drive. Klik eerst op ↻ in de zijbalk.',
+    appToast('Er is geen verbinding met Drive. '+driveHerstelHint(),
       {type:'error'});
     return false;
   }
@@ -12249,6 +12316,7 @@ async function driveStatus(){
 
 function startNaLogin(){
   document.getElementById('loginScreen').style.display='none';
+  loginVerleng();
   const g=ingelogdeGebruiker();
   const knop=document.getElementById('loginBtn');
   if(g&&knop){
@@ -25094,7 +25162,30 @@ const GMAIL_SCOPE='https://www.googleapis.com/auth/gmail.send';
 let mailToken=null;
 let mailTokenClient=null;
 
+/* Het maildeel hield zijn token alleen in het geheugen, dus na elke
+   verversing van de pagina kwam er opnieuw een Google-venster -- ook
+   midden in een reeks facturen. Nu overleeft het token de verversing.
+
+   sessionStorage en niet localStorage, anders dan het Drive-token:
+   gmail.send mag mail versturen namens jou. Dat recht laat je niet op
+   schijf achter voor een gemak dat je een paar keer per maand nodig
+   hebt. Sluit je het tabblad, dan is het weg. */
+const MAIL_TOKEN_SESSIE='herling_mail_token';
+function mailTokenBewaar(t){
+  const g=ingelogdeGebruiker();
+  try{
+    sessionStorage.setItem(MAIL_TOKEN_SESSIE,
+      JSON.stringify({token:t.token,tot:t.tot,account:g?g.email:''}));
+  }catch(_){}
+}
+function mailTokenVergeet(){
+  mailToken=null;
+  try{sessionStorage.removeItem(MAIL_TOKEN_SESSIE);}catch(_){}
+  try{localStorage.removeItem(MAIL_TOKEN_SESSIE);}catch(_){}
+}
+
 async function mailVraagToken(interactief){
+  if(!mailToken)mailToken=tokenUitOpslag(MAIL_TOKEN_SESSIE);
   if(mailToken&&Date.now()<mailToken.tot-60000)return mailToken.token;
   if(!(await googleGereed(8000)))
     throw new Error('Google-bibliotheek kon niet geladen worden');
@@ -25109,6 +25200,7 @@ async function mailVraagToken(interactief){
         callback:(r)=>{
           if(r.error)return rej(new Error(r.error_description||r.error));
           mailToken={token:r.access_token,tot:Date.now()+(Number(r.expires_in||3600)*1000)};
+          mailTokenBewaar(mailToken);
           res(mailToken.token);
         },
         error_callback:(e)=>rej(new Error((e&&e.message)||'Toestemming geweigerd'))
@@ -25172,7 +25264,7 @@ function mailBouwBericht(o){
 function mailRaw(bericht){
   return mailB64(bericht).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 }
-async function mailApiVerstuur(bericht){
+async function mailApiVerstuur(bericht,_tweedePoging){
   const token=await mailVraagToken(false);
   const r=await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send',{
     method:'POST',
@@ -25183,6 +25275,15 @@ async function mailApiVerstuur(bericht){
     const tekst=await r.text().catch(()=>'');
     let reden=tekst.slice(0,300);
     try{const j=JSON.parse(tekst);reden=(j.error&&j.error.message)||reden;}catch(_){}
+    /* Nu het mailtoken een verversing van de pagina overleeft, kan het
+       ook ingetrokken zijn terwijl het er nog ligt (toestemming
+       weggehaald, wachtwoord gewijzigd). Zonder deze stap bleef je dan
+       tegen dezelfde 401 aanlopen tot je het tabblad sloot: weggooien en
+       één keer opnieuw, dan haalt hij een verse op. */
+    if(r.status===401&&!_tweedePoging){
+      mailTokenVergeet();
+      return mailApiVerstuur(bericht,true);
+    }
     throw new Error('Gmail '+r.status+': '+reden);
   }
   return r.json();
@@ -25634,7 +25735,7 @@ async function geminiHaalModellen(){
   const key=localStorage.getItem(LS_GEMINI_KEY);
   if(!key)throw new Error('Geen Gemini API-key ingesteld. Klik op ⚙ API-key.');
   const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models'
-    +'?pageSize=200&key='+encodeURIComponent(key));
+    +'?pageSize=200',{headers:{'x-goog-api-key':key}});
   if(!r.ok)throw new Error((await _aiParseErrorResponse(r)).msg);
   const j=await r.json();
   return (j.models||[])
@@ -25940,10 +26041,18 @@ function _geminiRemOmhoog(){
 /* De ingang wordt hier opgebouwd en niet door de aanroeper meegegeven, want
    dan kan deze functie van model wisselen zonder dat er iets van weet. */
 function _geminiUrl(model,methode,extra){
-  const key=localStorage.getItem(LS_GEMINI_KEY)||'';
   return 'https://generativelanguage.googleapis.com/v1beta/models/'
     +encodeURIComponent(model)+':'+methode
-    +'?'+(extra?extra+'&':'')+'key='+encodeURIComponent(key);
+    +(extra?'?'+extra:'');
+}
+/* De sleutel gaat in een kopregel en niet meer in de URL (2026-09-10).
+   Een URL komt terecht in de netwerkgeschiedenis van de browser, in de
+   Referer van een eventuele vervolgaanroep en in elk foutlogboek dat de
+   volledige aanroep meeneemt; een kopregel doet dat allemaal niet. Google
+   ondersteunt beide, dus dit kost niets. */
+function _geminiKoppen(extra){
+  const key=localStorage.getItem(LS_GEMINI_KEY)||'';
+  return {'Content-Type':'application/json','x-goog-api-key':key,...(extra||{})};
 }
 /* Een verzoek dat blijft hangen hield de hele stapel tegen: geen fout, geen
    antwoord, alleen een spinner. Twee minuten is ruim voor een PDF van tien
@@ -25960,7 +26069,7 @@ async function _geminiFetch(methode,body,opties){
     const wekker=setTimeout(()=>stop.abort(),GEMINI_TIJDLIMIET);
     try{
       r=await fetch(_geminiUrl(model,methode,extra),
-        {method:'POST',headers:{'Content-Type':'application/json'},
+        {method:'POST',headers:_geminiKoppen(),
          body:JSON.stringify(body),signal:stop.signal});
     }catch(e){
       const err=new Error(e&&e.name==='AbortError'
