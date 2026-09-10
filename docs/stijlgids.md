@@ -147,6 +147,18 @@ Eén blok, twee namen: `.uren-kpi` (Uren, Facturen) en `.fac-aging-cel`
 | streepje links | 3px in de kleur van de rubriek |
 | maat op 375px | 169 × 65px, twee per regel |
 
+### Bediening in een kaartkop
+
+Verandert een knop alleen wát er in díe kaart staat, dan hoort hij in de kop
+van die kaart en niet in een filterbalk erboven. De kop is een flexrij, de knop
+gaat rechts (`margin-left:auto`) en is de gewone balkknop `.uren-btn` — geen
+eigen maat. Staat hij aan, dan draagt `aria-pressed="true"` dat; er is geen
+tweede aan-vorm nodig.
+
+De titel zegt dan niet nog eens welke stand er aanstaat: de knop ernaast doet
+dat al, en op 375px is die ruimte er ook niet. Voorbeeld: `.fac-an-kaartknop`
+in "Waar komt het vandaan" (184px titel + 118px knop + 10px gat in 320px).
+
 ### Taakkaart (Checklist)
 
 | | |

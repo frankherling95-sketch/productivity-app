@@ -10,6 +10,67 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-10 · De schakelaar hoort bij de kaart die hij verandert
+
+**Probleem.** "Eindklanten" stond in de filterbalk onder de tabs, en op een
+telefoon zelfs achter de trechterknop: openklappen, aanvinken, popover sluiten,
+kijken. Drie handelingen voor één schakelaar die maar één ding aanstuurt — de
+ranglijst in "Waar komt het vandaan". De kaart die verandert stond intussen
+zonder bediening in beeld.
+
+**Beslissing.** De schakelaar staat rechts in de kop van díe kaart
+(`facAnEindKnop()`, `.fac-an-kaartknop`). De kaartkop is daarvoor een flexrij
+geworden; `kop()` in `facRenderAnalyse()` neemt een tweede argument voor wat er
+rechts hangt. De titel laat "— eindklanten" vallen: de knop ernaast draagt die
+stand al, en zonder dat achtervoegsel past de kop op 375px op één regel (184 +
+118 + 10 in 320). In de balk en de popover blijft alleen het instellen van de
+regels staan, als "Eindklantregels…" — zonder de schakelaar ernaast zei
+"Regels…" niet meer waarover het ging.
+
+**Waarom.** Een bediening die één kaart verandert hoort op die kaart: daar zie
+je meteen wat hij doet. Het is dezelfde balkknop (`.uren-btn`, 32px desktop /
+36px mobiel) en niet een eigen maat — dat is precies hoe het ⋯ ooit aan drie
+maten kwam. De stand leest af aan `aria-pressed="true"`, de bestaande mint-
+vulling; er is geen tweede aan-vorm bijgekomen. Meegenomen: `facAnFilterAantal()`
+telt de eindklant-stand niet meer mee voor het bolletje op de trechter. Een
+bolletje dat je naar een popover stuurt waar de schakelaar niet meer staat is
+erger dan geen bolletje — zelfde redenering als bij het bereik, dat al voluit
+in de jaarknop staat.
+
+**Bestanden.** `index.html` — `.fac-an-kaartkop` / `.fac-an-kaartknop`,
+`facAnEindKnop()`, `facRenderAnalyse()`, `facAnFilterBalk()`, `facAnPopInhoud()`,
+`facAnPopMarkeer()`, `facAnFilterAantal()`.
+
+**Niet doen.** De schakelaar op twee plekken laten staan. Twee bedieningen voor
+één stand is precies de dubbeling die deze app elders uit beeld haalt. En de
+titel het achtervoegsel teruggeven: dan botst de kop op 375px met de knop.
+
+---
+
+## 2026-09-10 · Een kale naam die niet bestaat gooit, hij is niet undefined
+
+**Probleem.** De analysegrafieken hertekenden nooit bij een ander
+vensterformaat. De resize-handler testte op `currentModule`; die variabele
+heet `activeModule`.
+
+**Beslissing.** Typefout hersteld.
+
+**Waarom.** Het staat hier omdat de oorzaak conceptueel is, niet typografisch.
+`obj.bestaatNiet` is `undefined` en loopt door; een kále naam die nergens
+gedeclareerd is gooit een `ReferenceError`. De handler brak daardoor af vóór
+zijn `clearTimeout`/`setTimeout`, dus de grafiek bleef op de breedte staan
+waarop hij was aangemaakt — zichtbaar als "er gebeurt niets", niet als een
+fout, want de melding stond alleen in de console. Dat is dezelfde soort
+stilte als de `factuurRenderAll`-fout van 2026-08-11, die `validate.mjs`
+aanleiding gaf om álle JS-aanroepen te controleren. Een verwijzing naar een
+globale variábele valt nog buiten die controle.
+
+**Bestanden.** `index.html` — de resize-handler onder de analyse.
+
+**Niet doen.** Zo'n handler stil laten falen. Een `Uncaught` in de console
+is bij dit soort werk het enige spoor dat je krijgt.
+---
+
 ## 2026-09-09 · De cijfers van de analyse achter dezelfde uitklapbalk
 
 **Probleem.** De analyse was het laatste tabblad met een vaste tegelstrip. Op
