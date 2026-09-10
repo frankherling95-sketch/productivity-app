@@ -563,6 +563,83 @@ async function runChecks() {
        van of je gemaild had), en alle knoppen passen op één regel. Dat
        laatste toetsen we tegen de breedte van de editor zelf en niet tegen
        het testvenster — anders zakt de test met het venster mee. */
+    /* ── Het rekenwerk van een factuur ──────────────────────────────────
+       Dit is een administratie: een afrondingsfout hier is geld, en je merkt
+       het pas als je klant belt. Alles eromheen was getest -- sync, maskeren,
+       modelkeuze, inscannen -- en de kern niet.
+
+       factuurTotalen() is een zuivere functie op een object, dus die kunnen
+       we hier gewoon voeren zonder iets in de administratie te zetten. */
+    ['Bedrag: aantal × stuksprijs, op de cent',
+      () => w.factuurRegelBedrag({aantal:3, stuksprijs:33.335}) === 100.01],
+    ['Bedrag: lege regel is 0, geen NaN',
+      () => w.factuurRegelBedrag({}) === 0],
+    ['Totalen: één tarief geeft excl, btw en incl',
+      () => {
+        const t = w.factuurTotalen({regels:[
+          {aantal:10, stuksprijs:150, btwTarief:21},
+          {aantal:2,  stuksprijs:75,  btwTarief:21}
+        ]});
+        return t.excl === 1650 && t.btw === 346.5 && t.incl === 1996.5;
+      }],
+    ['Totalen: btw per tarief apart, niet over het geheel',
+      () => {
+        const t = w.factuurTotalen({regels:[
+          {aantal:1, stuksprijs:100, btwTarief:21},
+          {aantal:1, stuksprijs:100, btwTarief:9}
+        ]});
+        /* 21 + 9 = 30, en de staffel noemt beide grondslagen apart. */
+        return t.btw === 30 && t.staffel.length === 2 &&
+          t.staffel.every(s => s.grondslag === 100);
+      }],
+    ['Totalen: 0% telt mee in de grondslag maar niet in de btw',
+      () => {
+        const t = w.factuurTotalen({regels:[
+          {aantal:1, stuksprijs:200, btwTarief:0},
+          {aantal:1, stuksprijs:100, btwTarief:21}
+        ]});
+        return t.excl === 300 && t.btw === 21;
+      }],
+    ['Totalen: btw verlegd zet alles op nul, ook bij een tarief op de regel',
+      () => {
+        const t = w.factuurTotalen({btwVerlegd:true, regels:[
+          {aantal:4, stuksprijs:125, btwTarief:21}
+        ]});
+        return t.excl === 500 && t.btw === 0 && t.incl === 500;
+      }],
+    ['Totalen: een regel zonder tarief valt terug op 21%',
+      () => w.factuurTotalen({regels:[{aantal:1, stuksprijs:100}]}).btw === 21],
+    ['Totalen: betaald en openstaand tellen op uit de betalingen',
+      () => {
+        const t = w.factuurTotalen({
+          regels:[{aantal:1, stuksprijs:1000, btwTarief:21}],
+          betalingen:[{bedrag:500}, {bedrag:210}]
+        });
+        return t.incl === 1210 && t.betaald === 710 && t.openstaand === 500;
+      }],
+    ['Totalen: te veel betaald geeft een negatief openstaand, geen 0',
+      () => {
+        /* Klinkt gek, maar het is het eerlijke antwoord: je ziet dán dat er
+           iets terug moet in plaats van dat het bedrag stilletjes klopt. */
+        const t = w.factuurTotalen({
+          regels:[{aantal:1, stuksprijs:100, btwTarief:0}],
+          betalingen:[{bedrag:150}]
+        });
+        return t.openstaand === -50;
+      }],
+    ['Totalen: een factuur zonder regels is overal nul',
+      () => {
+        const t = w.factuurTotalen({});
+        return t.excl === 0 && t.btw === 0 && t.incl === 0 && t.openstaand === 0;
+      }],
+    ['Totalen: centen stapelen niet op bij veel regels',
+      () => {
+        /* 3 × 0,105 is 0,315. Per regel afronden geeft 3 × 0,11 = 0,33;
+           dat verschil is precies waar een factuur op gaat rammelen. */
+        const regels = [];
+        for (let i = 0; i < 3; i++) regels.push({aantal:1, stuksprijs:0.105, btwTarief:0});
+        return w.factuurTotalen({regels}).excl === 0.33;
+      }],
     ['Voet: één mintknop, en dat is Betaling registreren', () => {
       const f = w.factuurNieuw(null, null, null);
       w.facConceptVastleggen();                 /* pas dan telt hij niet meer als concept */
@@ -587,6 +664,77 @@ async function runChecks() {
       }
     }],
 
+    /* ── Back-up terugzetten ─────────────────────────────────────────────
+       Dit pad was een eigen kopie van hydrateerState() en liep daarop achter:
+       de prullenbak van Notities, de sorteerkeuze, het inleeslogboek en de
+       eindklantregels werden niet aangelegd. Deze drie houden vast dat het
+       via het ene laadpad blijft lopen.
+
+       Ze staan bewust achteraan: ze zetten de hele administratie om en
+       herstellen hem daarna weer. */
+    ['Terugzetten: loopt via hetzelfde laadpad als het opstarten',
+      () => /hydrateerState\s*\(/.test(String(w.handleRestoreFile))],
+    ['Terugzetten: een oude back-up krijgt de nieuwere velden erbij',
+      async () => {
+        const bewaar = JSON.parse(JSON.stringify(w.huidigeStateSnapshot()));
+        const oudConfirm = w.confirm;
+        w.confirm = () => true;
+        try {
+          /* Zoals een export van vóór september eruitzag: geen prullenbak,
+             geen sorteerkeuze, geen inleeslogboek, geen eindklantregels. */
+          const oud = {
+            tasks:{clients:[{id:'k9', name:'Oud B.V.', colorIdx:0}]},
+            notes:{tree:[{id:'n9', type:'page', title:'Oud', content:'x', children:[]}]},
+            checklist:{},
+            uren:{entries:[]},
+            facturen:{invoices:[{id:'fx', nummer:'X', datum:'2026-01-01', regels:[]}]}
+          };
+          const bestand = new w.File([JSON.stringify({state:oud})], 'b.json',
+            {type:'application/json'});
+          await w.handleRestoreFile(bestand);
+          const st = w.huidigeStateSnapshot();
+          return Array.isArray(st.notes.prullenbak) &&
+                 Array.isArray(st.notes.verborgenKlanten) &&
+                 !!st.notes.sortBy &&
+                 Array.isArray(st.checklist.items) &&
+                 Array.isArray(st.facturen.scanLog) &&
+                 Array.isArray(st.facturen.eindklantRegels) &&
+                 st.facturen.invoices.length === 1;
+        } finally {
+          w.confirm = oudConfirm;
+          Object.assign(w.huidigeStateSnapshot(), bewaar);
+          w.hydrateerState();
+        }
+      }],
+    ['Terugzetten: wat niet in het bestand staat blijft staan',
+      async () => {
+        const bewaar = JSON.parse(JSON.stringify(w.huidigeStateSnapshot()));
+        const oudConfirm = w.confirm;
+        w.confirm = () => true;
+        try {
+          /* Eerst iets neerzetten wat we terug moeten zien. */
+          Object.assign(w.huidigeStateSnapshot(), {
+            notes:{tree:[{id:'blijf', type:'page', title:'Blijf staan',
+              content:'x', children:[]}], activeId:null, collapsed:{}}
+          });
+          w.hydrateerState();
+          /* Een bestand zónder notities. De melding zegt "de huidige data
+             wordt overschreven", maar dat gaat over wat erin zit -- een
+             onderdeel dat ontbreekt hoort niet stilzwijgend gewist te
+             worden. */
+          const zonderNotities = {tasks:{clients:[]}, uren:{entries:[]},
+            facturen:{invoices:[]}};
+          const bestand = new w.File([JSON.stringify({state:zonderNotities})],
+            'b.json', {type:'application/json'});
+          await w.handleRestoreFile(bestand);
+          const boom = w.huidigeStateSnapshot().notes.tree;
+          return boom.length === 1 && boom[0].id === 'blijf';
+        } finally {
+          w.confirm = oudConfirm;
+          Object.assign(w.huidigeStateSnapshot(), bewaar);
+          w.hydrateerState();
+        }
+      }],
     ['No iframe console errors',           () => iframeErrors.length === 0]
   ];
 

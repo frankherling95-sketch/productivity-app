@@ -7442,7 +7442,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.05</span>
+        <span class="app-versie" title="Appversie">v2.06</span>
       </div>
     </div>
   </aside>
@@ -10192,17 +10192,22 @@ async function handleRestoreFile(file){
     const ts=payload._exportedAt?new Date(payload._exportedAt).toLocaleString('nl-NL'):'onbekend';
     if(!confirm(`Backup terugzetten?\n\nGeëxporteerd: ${ts}\nInhoud: ${summary}\n\nDe huidige data wordt OVERSCHREVEN. Doorgaan?`))return;
     /* Apply the state */
-    rawState=incoming;
-    kanbanState=incoming.tasks||kanbanState;
-    notesState=incoming.notes||notesState;
-    checklistState=incoming.checklist||checklistState;
-    urenState=incoming.uren||urenState;
-    if(!urenState.entries)urenState.entries=[];
-    if(!urenState.templates)urenState.templates=[];
-    urenMigrateEntries();
-    factuurState=incoming.facturen||factuurState;
-    if(!factuurState.invoices)factuurState.invoices=[];
-    factuurSettings();
+    /* Eén laadpad. Hier stond een eigen kopie van hydrateerState(), en die
+       was daarop achtergeraakt: de prullenbak van Notities, de sorteerkeuze,
+       de verborgen klanten, de volgorde-migratie van de Checklist, het
+       inleeslogboek, de eindklantregels en het maildossier werden hier niet
+       aangelegd. Het gevaarlijkste ontbrak ook: een oude back-up mét een
+       versleuteld `geheim`-blok werd niet uitgepakt. `incoming.facturen`
+       bestaat dan niet, dus factuurState hield je huidige facturen terwijl
+       rawState de oude staat was -- en die mengeling ging vervolgens naar
+       Drive.
+
+       Object.assign en niet rawState=incoming: ontbreekt een onderdeel in
+       het bestand, dan blijft staan wat je nu hebt. Dat was hier al zo
+       (`incoming.notes||notesState`) en blijft zo; hydrateerState() alleen
+       zou het op leeg zetten. */
+    Object.assign(huidigeStateSnapshot(),incoming);
+    hydrateerState();
     /* Meteen wegschrijven, zodat de teruggezette back-up ook in Drive staat */
     scheduleSave();
     renderAll();

@@ -10,6 +10,80 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-10 · Back-up terugzetten gaat via het ene laadpad
+
+**Probleem.** `handleRestoreFile()` had zijn eigen kopie van `hydrateerState()`:
+elf regels die de modules uit het bestand haalden. Die kopie was achtergeraakt.
+Wat er in de echte hydratie wél gebeurt en hier niet:
+
+- `notesState.prullenbak`, `.sortBy`, `.verborgenKlanten` aanleggen
+- `checklistState.items` en `migreerChecklistVolgorde()`
+- de guards op `kanbanState` (clients, projects, categoryGrouping)
+- `factuurState.scanLog` en `.eindklantRegels`
+- `factuurMailsAanvullen()`
+- `rawState.settings`, en het opruimen van de vlag `versleuteld`
+
+Het gevaarlijkste ontbrak ook: **de afhandeling van `rawState.geheim`**. Zet je
+een back-up terug van vóór 2026-08-16, dan zit de administratie in dat
+versleutelde blok en bestaat `incoming.facturen` niet. De oude regel luidde
+`factuurState=incoming.facturen||factuurState` — dus factuurState hield je
+hùidige facturen terwijl `rawState` de oude staat werd. Die mengeling ging
+vervolgens via `scheduleSave()` naar Drive.
+
+**Beslissing.** Eén laadpad:
+
+```js
+Object.assign(huidigeStateSnapshot(),incoming);
+hydrateerState();
+```
+
+`Object.assign` en niet `rawState=incoming`: ontbreekt een onderdeel in het
+bestand, dan blijft staan wat je nu hebt. Dat was al zo
+(`incoming.notes||notesState`) en blijft zo; `hydrateerState()` alleen zou het
+op leeg zetten.
+
+**Bestanden.** `index.html` — `handleRestoreFile()`. `test.html` — drie tests.
+
+**Niet doen.** Hier opnieuw met de hand modules toewijzen. Elke keer dat er een
+state-veld bijkomt, loopt zo'n kopie stil achter. De test *"loopt via hetzelfde
+laadpad als het opstarten"* houdt dat vast.
+
+---
+
+## 2026-09-10 · Tests op het rekenwerk van een factuur
+
+**Probleem.** De suite telde 73 tests: sync, samenvoegen, maskeren, modelkeuze,
+de analyse, het inscannen, het vastpinnen. Op het rekenwerk zelf stond er
+**nul**: `factuurTotalen()`, `factuurRegelBedrag()`, de btw-staffel, betaald en
+openstaand. Dit is een administratie — een afrondingsfout daar is geld, en je
+merkt het pas als je klant belt.
+
+**Beslissing.** Elf tests op de zuivere rekenfuncties, plus drie op het
+terugzetten. Ze voeren een object en kijken naar het antwoord; er komt niets in
+de administratie te staan.
+
+Wat ze vasthouden:
+
+- aantal × stuksprijs op de cent, en een lege regel is 0 en geen `NaN`
+- btw **per tarief** en niet over het geheel — 21% en 9% naast elkaar geven twee
+  grondslagen
+- 0% telt mee in de grondslag, niet in de btw
+- btw verlegd zet alles op nul, ook als er een tarief op de regel staat
+- een regel zonder tarief valt terug op 21%
+- betaald en openstaand tellen op uit de betalingen
+- te veel betaald geeft een negatief openstaand — dát is het eerlijke antwoord,
+  want dan zie je dat er iets terug moet
+- centen stapelen niet op: drie regels van € 0,105 worden € 0,33 en niet € 0,32
+
+**Uitkomst.** Alle elf groen bij de eerste run. Het rekenwerk was dus in orde —
+maar nu ligt het vast.
+
+**Niet doen.** Deze tests via de UI laten lopen. Ze zijn juist waardevol omdat
+ze zuiver zijn: geen factuur aanmaken, geen editor openen, geen opruimen
+achteraf.
+
+---
+
 ## 2026-09-10 · De uitleg van Eindklanten achter een ⓘ
 
 **Probleem.** De uitleg bovenaan het venster is zes regels en kostte op 375px
