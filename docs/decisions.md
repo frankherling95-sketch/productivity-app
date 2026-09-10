@@ -10,6 +10,88 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-10 · Eindklanten laten herkennen door Gemini
+
+**Probleem.** `facEindRaad()` haalt met een reguliere expressie de opdrachtgever
+uit een betreft-regel. Dat is patroonherkenning op een taalprobleem, en dat is
+te zien. Gemeten op vier echte vormen:
+
+| betreft | wat de regex ervan maakt |
+|---|---|
+| `LabsData - Buren Gewerkte uren Mei 2026` | `Buren` ✓ |
+| `Consultancy Bibliotheek Rotterdam juni` | `Bibliotheek Rotterdam juni` — de maand plakt eraan |
+| `Beheer omgeving Waterschap Rivierenland Q2` | `Beheer omgeving Waterschap` — volledig mis |
+| `Gewerkte uren Augustus 2026` | leeg ✓ |
+
+De maand valt alleen weg als het hele deel een maand ís, en "beheer" staat niet
+in de lijst van elf vaste werkwoorden die de functie meedraagt — een lijst die
+je met de hand moet blijven aanvullen.
+
+**Beslissing.** Een knop "Laat AI meekijken" in de Eindklanten-modaal. Eén
+verzoek voor alle betreft-regels samen, dus één van de twintig per dag en niet
+twintig. De uitkomst vult dezelfde lijst "Gevonden in je facturen" die er al
+stond, met een merkje *door AI*, en "Terug naar de eigen herkenning" zet de
+regex-lijst terug.
+
+**Waarom alleen de bron vervangen.** De knoppen eronder en `facEindNeemVoorstel()`
+blijven ongewijzigd. Daarmee is de weg terug er gratis bij: een voorstel wordt
+een gewone regel in de tabel erboven, en die had al een knop **Weg**. Geen
+tweede soort ongedaan-maken voor iets wat er al was.
+
+**Terugkoppelen op een sleutel, niet op de volgorde.** Elke betreft krijgt een
+`r1`, `r2`, … mee en het antwoord komt op datzelfde id terug. Dezelfde les als
+bij het inscannen van facturen (2026-09-10): slaat het model er één over, dan
+landt met een op volgorde gebaseerde koppeling alles daarna bij de verkeerde
+factuur. Getoetst met een antwoord dat bewust door elkaar staat en er twee
+overslaat — de rest schuift niet mee.
+
+Unieke betreft-regels worden eerst gegroepeerd: twaalf maandfacturen met
+dezelfde betreft zijn één vraag en één antwoord.
+
+**Bestanden.** `index.html` — `facEindAiBron()`, `facEindAiVragen()`,
+`facEindAiWis()`, `facEindVoorstellenNu()`, `.fac-eind-bron`, plus het
+voorstellenblok in `facEindRender()`.
+
+**Niet doen.** `facEindRaad()` weggooien. Zonder API-key, zonder internet en met
+maskeren uit is dat nog steeds de lijst die je krijgt.
+
+---
+
+## 2026-09-10 · De maskeerder liet de kale bedrijfsnaam staan
+
+**Probleem.** `_aiMaskeerTermen()` neemt elke waarde uit de klantenkaart
+letterlijk over en matcht die in zijn geheel. De kaart zegt `LabsData B.V.`,
+maar je eigen tekst zegt zelden de rechtsvorm: een betreft-regel luidt
+`LabsData - Buren Gewerkte uren Mei`. Die kale naam matchte dus nergens op en
+ging onvermomd naar Google — terwijl de schakelaar "Namen maskeren" aan stond.
+
+Gemeten vóór de reparatie:
+`r1 | klant: {{KLANT_1}} | betreft: LabsData - Buren Gewerkte uren Mei 2026`
+
+**Beslissing.** Voor de naamvelden (`KLANT`, `PERSOON`) gaat ook de vorm zonder
+rechtsvorm mee als term. De sortering op lengte was er al, dus de volledige naam
+wordt nog steeds als eerste geprobeerd en houdt zijn eigen token.
+
+Na de reparatie:
+`r1 | klant: {{KLANT_1}} | betreft: {{KLANT_2}} - Buren Gewerkte uren Mei 2026`
+
+**Waarom dit hier boven kwam.** De eindklant-herkenning is de eerste functie die
+betreft-regels verstuurt; de andere drie sturen taaknamen, notities en PDF's.
+Het gat bestond al voor die andere drie — dit is geen nieuwe fout, alleen een
+die nu zichtbaar werd.
+
+**Waarom het niet in de weg zit.** De opdrachtgever die je zoekt staat juist
+níet in je klantenlijst en blijft dus leesbaar. Het model ziet het verschil
+tussen een token en een naam, en heeft aan dat verschil genoeg.
+
+**Bestanden.** `index.html` — `AI_RECHTSVORM`, `_aiMaskeerTermen()`.
+
+**Niet doen.** De korte vorm ook voor adres, postcode, KVK of IBAN maken. Die
+hebben geen rechtsvorm om af te knippen, en een half IBAN maskeren is erger dan
+niets.
+
+---
+
 ## 2026-09-10 · Notities opschonen en op hun plek zetten met Gemini
 
 **Probleem.** Aantekeningen groeien scheef: dubbele regels, halve zinnen, geen

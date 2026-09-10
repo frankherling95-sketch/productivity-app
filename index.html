@@ -1844,6 +1844,9 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .fac-an-sub{font-size:var(--fs-basis);font-weight:600;margin:18px 0 8px}
 .fac-an-voorstellen{display:flex;flex-wrap:wrap;gap:6px}
 .fac-an-voorstellen small{color:var(--text-muted);margin-left:4px}
+.fac-eind-bron{margin-left:8px;padding:1px 7px;border-radius:999px;
+  background:var(--mint-soft);color:var(--text);border:1px solid var(--mint);
+  font-size:var(--fs-micro);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
 .fac-an-nieuw{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:center}
 
 /* Een knop die aan of uit staat leest dat aan zijn vulling af, niet alleen
@@ -7403,7 +7406,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.01</span>
+        <span class="app-versie" title="Appversie">v2.02</span>
       </div>
     </div>
   </aside>
@@ -19696,6 +19699,8 @@ const FAC_CLICK_ACTIONS={
   facEindRegelToevoegen:()=>facEindRegelToevoegen(),
   facEindNeemVoorstel:(a,b)=>facEindNeemVoorstel(a,b),
   facEindRegelWeg:(a)=>facEindRegelWeg(a),
+  facEindAiVragen:()=>facEindAiVragen(),
+  facEindAiWis:()=>facEindAiWis(),
   facNavPrev:()=>facNav(-1),
   facNavNext:()=>facNav(1),
   facNavHuidig:()=>{
@@ -22948,6 +22953,121 @@ window.addEventListener('resize',()=>{
 });
 
 /* ── Regels voor eindklanten ── */
+/* ══ Eindklanten laten herkennen door Gemini ═══════════════════════════════
+   facEindRaad() hierboven doet hetzelfde met een reguliere expressie, en dat
+   is te zien: hij draagt een lijst van elf vaste werkwoorden mee die je met de
+   hand moet uitbreiden, en zonder woordgrenzen vond "uren" zichzelf terug in
+   "Buren" -- waarna er van die klant een losse B overbleef.
+
+   Deze versie stuurt de betreft-regels in één keer naar Gemini. Eén verzoek
+   voor je hele administratie, dus één van de twintig per dag, niet twintig.
+
+   Het maskeren werkt hier vanzelf de goede kant op: jouw eigen klanten worden
+   {{KLANT_1}}-tokens, maar de eindklant die je zoekt staat juist níet in je
+   klantenlijst en blijft dus leesbaar. Het model ziet "{{KLANT_1}} - Buren
+   Gewerkte uren Mei" en heeft aan dat verschil genoeg.
+
+   Terugkoppelen gaat op een meegestuurde sleutel en niet op de volgorde --
+   dezelfde les als bij het inscannen van facturen (2026-09-10): slaat het
+   model er één over, dan landt de rest anders bij de verkeerde factuur. */
+let _facEindAi=null;      /* voorstellen van Gemini, of null voor de regex */
+let _facEindAiBezig=false;
+
+/* De unieke betreft-regels van facturen die nog geen eindklant hebben.
+   Uniek maken scheelt tokens: twaalf maandfacturen met dezelfde betreft zijn
+   één vraag, en het antwoord geldt voor alle twaalf. */
+function facEindAiBron(){
+  const groepen={};
+  facAnBron().forEach(f=>{
+    if(facEindklantVan(f))return;              /* al geregeld */
+    const betreft=String(f.betreft||'').trim();
+    if(!betreft)return;
+    const klant=factuurKlant(f.clientId);
+    const naam=klant?(klant.bedrijfsnaam||klant.name):'';
+    const sleutel=(f.clientId||'')+'|'+betreft.toLowerCase();
+    if(!groepen[sleutel])groepen[sleutel]={
+      id:'r'+(Object.keys(groepen).length+1),
+      klantId:f.clientId||'', klantNaam:naam, betreft, aantal:0, omzet:0
+    };
+    groepen[sleutel].aantal++;
+    groepen[sleutel].omzet+=factuurTotalen(f).excl;
+  });
+  return Object.values(groepen);
+}
+
+const FAC_EIND_AI_SCHEMA={type:'object',properties:{
+  regels:{type:'array',items:{type:'object',properties:{
+    id:{type:'string'}, eindklant:{type:'string'}
+  },required:['id','eindklant']}}
+},required:['regels']};
+
+async function facEindAiVragen(){
+  if(_facEindAiBezig)return;
+  const bron=facEindAiBron();
+  if(!bron.length){
+    appToast('Elke factuur heeft al een eindklant',{type:'success'});
+    return;
+  }
+  _facEindAiBezig=true;
+  facEindRender();
+  try{
+    const uit=await callGemini({
+      system:'Je krijgt de onderwerpregels van facturen. Op sommige staat, naast de\n'+
+        'klant die de rekening krijgt, de opdrachtgever voor wie het werk was.\n'+
+        'Haal die opdrachtgever eruit.\n'+
+        'Regels:\n'+
+        '- Geef per regel het meegestuurde id terug, en de naam in `eindklant`.\n'+
+        '- Staat er geen opdrachtgever in, laat `eindklant` dan leeg. Verzin nooit een naam.\n'+
+        '- De klant die de rekening krijgt is NOOIT de eindklant.\n'+
+        '- Woorden die het werk beschrijven zijn geen naam: uren, gewerkte uren,\n'+
+        '  werkzaamheden, rapportage, consultancy, detachering, advies, support,\n'+
+        '  onderhoud, project, Power BI. Ook een maandnaam of een jaartal niet.\n'+
+        '- Tekst tussen dubbele accolades neem je teken voor teken over.\n'+
+        '- Schrijf de naam zoals hij in de regel staat, zonder rechtsvorm erbij te verzinnen.',
+      user:bron.map(r=>r.id+' | klant: '+(r.klantNaam||'onbekend')+' | betreft: '+r.betreft).join('\n'),
+      schema:FAC_EIND_AI_SCHEMA,
+      temperature:0.1,
+      maskeer:true
+    });
+    const perId={};
+    (uit&&Array.isArray(uit.regels)?uit.regels:[]).forEach(r=>{
+      if(r&&r.id)perId[String(r.id)]=String(r.eindklant||'').trim();
+    });
+    /* Terug naar dezelfde vorm als facEindVoorstellen(), zodat de knoppen
+       eronder en facEindNeemVoorstel() ongewijzigd blijven werken. */
+    const gevonden={};
+    bron.forEach(r=>{
+      const naam=perId[r.id];
+      if(!naam||naam.length<2||naam.length>40)return;
+      /* Een naam die gelijk is aan de klant zelf zegt niets. */
+      if(naam.toLowerCase()===String(r.klantNaam||'').toLowerCase())return;
+      const s=r.klantId+'|'+naam.toLowerCase();
+      if(!gevonden[s])gevonden[s]={klantId:r.klantId,naam,aantal:0,omzet:0};
+      gevonden[s].aantal+=r.aantal;
+      gevonden[s].omzet+=r.omzet;
+    });
+    _facEindAi=Object.values(gevonden).sort((a,b)=>b.omzet-a.omzet);
+    if(!_facEindAi.length)appToast('Gemini vond geen opdrachtgevers in je betreft-regels',{type:'info'});
+  }catch(e){
+    appToast(String((e&&e.message)||e),{type:'error',duration:12000});
+  }finally{
+    _facEindAiBezig=false;
+    facEindRender();
+  }
+}
+/* Terug naar de regex-lijst. Geen state weggooien die je niet terug kunt
+   krijgen: opnieuw vragen kost één verzoek. */
+function facEindAiWis(){_facEindAi=null;facEindRender();}
+
+/* Wat er onder "Gevonden in je facturen" staat: het antwoord van Gemini als je
+   dat hebt gevraagd, anders de regex. Regels die je al hebt vallen weg -- die
+   staan al in de tabel erboven. */
+function facEindVoorstellenNu(){
+  const bestaand=facEindRegels().map(r=>(r.klantId||'')+'|'+String(r.naam||'').toLowerCase());
+  const lijst=_facEindAi||facEindVoorstellen();
+  return lijst.filter(v=>!bestaand.includes((v.klantId||'')+'|'+String(v.naam||'').toLowerCase()));
+}
+
 function openFacEindModal(){
   closeFacMenu();
   facEindRender();
@@ -22960,7 +23080,7 @@ function facEindRender(){
   const box=document.getElementById('facEindBody');
   if(!box)return;
   const regels=facEindRegels();
-  const voorstellen=facEindVoorstellen();
+  const voorstellen=facEindVoorstellenNu();
   const klanten=kanbanState.clients||[];
   const klantOpt=(sel)=>`<option value=""${sel?'':' selected'}>Alle klanten</option>`+
     klanten.map(c=>`<option value="${c.id}"${sel===c.id?' selected':''}>${escapeHtml(c.bedrijfsnaam||c.name)}</option>`).join('');
@@ -22978,11 +23098,24 @@ function facEindRender(){
         <td class="num"><button class="uren-btn" data-fac-action="facEindRegelWeg"
           data-fac-arg1="${r.id}">Weg</button></td></tr>`).join('')}</tbody></table>`
       :'<div class="uren-empty" style="margin-top:14px">Nog geen regels.</div>'}
-    ${voorstellen.length?`<h4 class="fac-an-sub">Gevonden in je facturen</h4>
-      <div class="fac-an-voorstellen">${voorstellen.slice(0,12).map(v=>`
-        <button class="uren-btn" data-fac-action="facEindNeemVoorstel"
-          data-fac-arg1="${escapeHtml(v.klantId)}" data-fac-arg2="${escapeHtml(v.naam)}">
-          + ${escapeHtml(v.naam)} <small>${v.aantal}×</small></button>`).join('')}</div>`:''}
+    <h4 class="fac-an-sub">Gevonden in je facturen
+      ${_facEindAi?'<span class="fac-eind-bron">door AI</span>':''}</h4>
+    ${_facEindAiBezig
+      ? '<div class="notes-ai-bezig"><div class="spinner"></div><span>Gemini leest je betreft-regels…</span></div>'
+      : voorstellen.length
+        ? `<div class="fac-an-voorstellen">${voorstellen.slice(0,16).map(v=>`
+            <button class="uren-btn" data-fac-action="facEindNeemVoorstel"
+              data-fac-arg1="${escapeHtml(v.klantId)}" data-fac-arg2="${escapeHtml(v.naam)}">
+              + ${escapeHtml(v.naam)} <small>${v.aantal}×</small></button>`).join('')}</div>`
+        : '<div class="uren-empty">Niets gevonden in de betreft-regels.</div>'}
+    ${/* Eén verzoek voor je hele administratie, dus dit kost er één van de
+         twintig per dag. De regex-lijst blijft eronder bereikbaar. */''}
+    <div class="fac-an-voorstellen" style="margin-top:8px">
+      <button class="uren-btn" data-fac-action="facEindAiVragen"
+        title="Stuurt alleen de betreft-regels; je eigen klantnamen gaan als code de deur uit"
+        ${_facEindAiBezig?'disabled':''}>${_facEindAi?'Opnieuw met AI':'Laat AI meekijken'}</button>
+      ${_facEindAi?`<button class="uren-btn" data-fac-action="facEindAiWis">Terug naar de eigen herkenning</button>`:''}
+    </div>
     <h4 class="fac-an-sub">Zelf een regel toevoegen</h4>
     <div class="fac-an-nieuw">
       <select id="facEindKlant" class="fac-ed-inp" aria-label="Voor klant">${klantOpt('')}</select>
@@ -26657,18 +26790,29 @@ function _aiReQuote(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
 /* Alle te maskeren termen uit de klantenlijst, langste eerst -- anders
    vervangt "Staedion" de eerste helft van "Staedion B.V." en blijft er
    een halve naam staan. */
+/* Een bedrijfsnaam komt in je eigen tekst zelden voluit voor: de klantenkaart
+   zegt "LabsData B.V.", de betreft-regel zegt "LabsData - Buren Gewerkte uren".
+   De term matchte alleen voluit, dus die kale naam ging onvermomd de deur uit.
+   Voor de naamvelden gaat daarom ook de vorm zonder rechtsvorm mee; door de
+   sortering op lengte pakt de volledige naam nog steeds als eerste. */
+const AI_RECHTSVORM=/[\s,]+(B\.?\s?V\.?|N\.?\s?V\.?|V\.?O\.?F\.?|C\.?V\.?|Holding)$/i;
 function _aiMaskeerTermen(){
   const gezien=new Set(),uit=[];
   const lijst=(typeof kanbanState!=='undefined'&&kanbanState&&kanbanState.clients)||[];
+  const zet=(w,label)=>{
+    if(!w||w.length<3)return;
+    const sl=label+' '+w.toLowerCase();
+    if(gezien.has(sl))return;
+    gezien.add(sl);
+    uit.push({woord:w,label});
+  };
   lijst.forEach(c=>{
     if(!c)return;
     AI_MASKEER_VELDEN.forEach(([veld,label])=>{
       const w=(c[veld]==null?'':String(c[veld])).trim();
-      if(w.length<3)return;
-      const sl=label+' '+w.toLowerCase();
-      if(gezien.has(sl))return;
-      gezien.add(sl);
-      uit.push({woord:w,label});
+      zet(w,label);
+      /* Alleen bij namen: een adres of een KVK-nummer heeft geen korte vorm. */
+      if(label==='KLANT'||label==='PERSOON')zet(w.replace(AI_RECHTSVORM,'').trim(),label);
     });
   });
   uit.sort((a,b)=>b.woord.length-a.woord.length);
