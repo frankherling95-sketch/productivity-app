@@ -1551,8 +1551,8 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .fac-deb-acties{text-align:right;white-space:nowrap}
 /* Kaarten die je niet aanklikt: de debiteurenkaart en een regel uit het
    inleeslogboek. Verder precies de gewone lijstkaart. */
-.fac-mcard-deb,.fac-log-regel{cursor:default}
-.fac-log-regel:active{background:var(--surface)}
+.fac-mcard-deb,.fac-log-regel,.fac-eind-regel{cursor:default}
+.fac-log-regel:active,.fac-eind-regel:active{background:var(--surface)}
 .fac-log-lijst{display:flex;flex-direction:column;gap:8px}
 .fac-mdeb-acties{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px}
 .fac-mdeb-acties .uren-btn{flex:1;min-width:88px;height:34px;font-size:12px}
@@ -1844,6 +1844,9 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .fac-an-sub{font-size:var(--fs-basis);font-weight:600;margin:18px 0 8px}
 .fac-an-voorstellen{display:flex;flex-wrap:wrap;gap:6px}
 .fac-an-voorstellen small{color:var(--text-muted);margin-left:4px}
+/* De regels van Eindklanten: een tabel op een bureaublad, lijstkaarten op een
+   telefoon. Vier kolommen passen daar niet en vielen uit elkaar. */
+.fac-eind-kaarten{display:none}
 .fac-spec-ai-tab{width:100%;font-size:var(--fs-klein)}
 .fac-spec-ai-tab th{font-size:var(--fs-micro);text-transform:uppercase;letter-spacing:.06em}
 .fac-spec-ai-tab td{padding:5px 4px;vertical-align:top}
@@ -1858,6 +1861,16 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 
 @media (max-width:768px){
   .fac-an-kaart{padding:12px;margin-bottom:10px}
+  /* Eindklanten: de tabel eruit, de lijstkaarten erin. Vier kolommen op
+     375px lieten het knopje "Weg" per rij op een andere plek belanden, en
+     "bevat" en "telt als" stonden er twee keer omdat ze bijna altijd gelijk
+     zijn -- die tweede regel valt nu weg als hij niets toevoegt. */
+  .fac-eind-tabel{display:none}
+  .fac-eind-kaarten{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+  /* De knop hoort rechts op tikformaat; in een lijstkaart is hij smaller dan
+     in een balk, want hij staat naast tekst en niet in een rij knoppen. */
+  .fac-eind-regel .rechts .uren-btn{height:var(--tap);padding:0 14px}
+  .fac-eind-regel .ds b{font-weight:600;color:var(--text)}
   /* De schakelaar in een kaartkop mag kleiner dan de balkknop die hij verder
      is: hij staat niet in een rij met andere knoppen maar alleen naast een
      titel, ruim omringd -- de uitzondering die mobile.md op 32px zet. Naast
@@ -7409,7 +7422,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.03</span>
+        <span class="app-versie" title="Appversie">v2.04</span>
       </div>
     </div>
   </aside>
@@ -23292,6 +23305,10 @@ function facEindVoorstellenNu(){
 
 function openFacEindModal(){
   closeFacMenu();
+  /* Op een telefoon kom je hier uit de trechter-popover. Die bleef openstaan
+     vóór de modaal, dus moest je eerst ernaast tikken om te zien wat je net
+     had geopend. */
+  if(document.getElementById('facFilterPop'))closeFacFilterPop();
   facEindRender();
   document.getElementById('facEindModal').classList.add('open');
 }
@@ -23312,13 +23329,31 @@ function facEindRender(){
       <b>Bevat</b> is een stuk tekst dat in de betreft moet staan; <b>telt als</b>
       is de naam die je in de analyse ziet. Eén afwijkende factuur zet je recht
       met het veld <b>Eindklant</b> in de factuur zelf; dat gaat vóór de regels.</span></div>
-    ${regels.length?`<table class="fac-an-tabel" style="margin-top:14px">
+    ${regels.length?`
+      <table class="fac-an-tabel fac-eind-tabel" style="margin-top:14px">
       <thead><tr><th>Voor klant</th><th>Als betreft bevat</th><th>Telt als</th><th></th></tr></thead>
       <tbody>${regels.map(r=>`<tr>
         <td>${escapeHtml(r.klantId?(factuurKlant(r.klantId)||{}).name||'—':'Alle klanten')}</td>
         <td>${escapeHtml(r.bevat)}</td><td>${escapeHtml(r.naam)}</td>
         <td class="num"><button class="uren-btn" data-fac-action="facEindRegelWeg"
-          data-fac-arg1="${r.id}">Weg</button></td></tr>`).join('')}</tbody></table>`
+          data-fac-arg1="${r.id}">Weg</button></td></tr>`).join('')}</tbody></table>
+      ${/* Zelfde vorm als elke andere lijstkaart (.uren-mcard), niet klikbaar.
+           Beide staan in de DOM en de CSS kiest -- zo hoeft een draaiend
+           scherm niet op een hertekening te wachten. */''}
+      <div class="fac-eind-kaarten">${regels.map(r=>{
+        const k=r.klantId?factuurKlant(r.klantId):null;
+        const kleur=k?CLIENT_COLORS[k.colorIdx%CLIENT_COLORS.length]:null;
+        const voor=k?(k.bedrijfsnaam||k.name):'Alle klanten';
+        const zelfde=String(r.bevat||'').trim().toLowerCase()===String(r.naam||'').trim().toLowerCase();
+        return `<div class="uren-mcard fac-eind-regel" style="--c:${kleur?kleur.bg:'var(--border-strong)'}">
+          <div class="links">
+            <div class="kl" title="${escapeHtml(r.naam)}">${escapeHtml(r.naam)}</div>
+            <div class="ds">voor ${escapeHtml(voor)}</div>
+            ${zelfde?'':`<div class="ds">als betreft <b>${escapeHtml(r.bevat)}</b> bevat</div>`}
+          </div>
+          <div class="rechts">
+            <button class="uren-btn" data-fac-action="facEindRegelWeg" data-fac-arg1="${r.id}">Weg</button>
+          </div></div>`;}).join('')}</div>`
       :'<div class="uren-empty" style="margin-top:14px">Nog geen regels.</div>'}
     <h4 class="fac-an-sub">Gevonden in je facturen
       ${_facEindAi?'<span class="fac-eind-bron">door AI</span>':''}</h4>

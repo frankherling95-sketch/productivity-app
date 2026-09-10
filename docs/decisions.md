@@ -10,6 +10,54 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-10 · Eindklanten op een telefoon: lijstkaarten, en de popover gaat dicht
+
+**Probleem.** Twee dingen aan hetzelfde venster.
+
+De regels stonden in een tabel met vier kolommen (*voor klant · als betreft
+bevat · telt als · Weg*). Op 375px valt die uit elkaar: de kop verdwijnt, de
+kolommen wrappen op eigen houtje en het knopje **Weg** belandt per rij op een
+andere plek — bij de ene rij links, bij de volgende ergens in het midden. En
+omdat `facEindNeemVoorstel()` `bevat` en `naam` gelijk zet, stond dezelfde tekst
+er twee keer naast elkaar.
+
+Daarnaast: kom je hier via de trechter-popover, dan bleef die openstaan vóór het
+venster dat je net had geopend. Je moest eerst ernaast tikken.
+
+**Beslissing.** Op een telefoon zijn de regels lijstkaarten (`.uren-mcard`), de
+vorm die Uren, Facturen, Debiteuren en het inleeslogboek al gebruiken: links
+waar het over gaat, rechts de actie, streepje in de klantkleur. Boven: de naam
+waar het als telt. Daaronder: *voor \<klant\>*. De regel "als betreft … bevat"
+valt weg als hij hetzelfde zegt als de naam — wat bijna altijd zo is.
+
+De kaart is er een die je niet aanklikt; die soort bestond al
+(`.fac-mcard-deb`, `.fac-log-regel`) en `.fac-eind-regel` is aan diezelfde
+regels toegevoegd in plaats van een eigen blok.
+
+Beide vormen staan in de DOM en de CSS kiest — zo hoeft een draaiend scherm niet
+op een hertekening te wachten. Op een bureaublad blijft de tabel precies zoals
+hij was.
+
+**En `openFacEindModal()` sluit de popover.**
+
+**Gemeten op 375px.** Tabel `display:none`, kaarten `display:flex`, alle
+Weg-knoppen op dezelfde x (13px van de rand, gelijk aan de kaartvulling),
+knop 44px hoog — de tikondergrens uit `mobile.md`. Geen zijwaartse scroll.
+
+Let op bij het nameten: `getBoundingClientRect()` gaf 42,68px omdat de modaal
+een openingsanimatie heeft die in headless op `scale(.97)` blijft staan.
+`offsetHeight` negeert transforms en gaf 44. Bij dit soort metingen is die de
+betrouwbare.
+
+**Bestanden.** `index.html` — `facEindRender()`, `openFacEindModal()`,
+`.fac-eind-kaarten`, `.fac-eind-tabel`, `.fac-eind-regel`.
+
+**Niet doen.** De tabel op mobiel zijwaarts laten schuiven. Dat is de
+uitzondering voor een raster dat je niet mag breken (zie 2026-09-06); drie
+losse velden en een knop vormen geen raster.
+
+---
+
 ## 2026-09-10 · Factuurregels groeperen op onderwerp
 
 **Probleem.** Een maand werk staat als één regel op de factuur: de betreft-tekst
