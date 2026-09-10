@@ -599,6 +599,29 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .klantkies-leeg{font-size:var(--fs-klein);color:var(--text-hint);padding:11px 0}
 .modal-footer-left{display:flex;gap:6px}
 .modal-footer-right{display:flex;gap:6px}
+
+/* ── Vraagvenster ──
+   Eén venster dat prompt(), confirm() en alert() vervangt. Het leunt volledig
+   op .modal: de gekleurde kopband, het kruisje, de voetknoppen op mobiel en
+   beide thema's komen daarvandaan. Wat hier staat is alleen de inhoud. */
+.app-dlg-tekst{font-size:var(--fs-klein);color:var(--text);margin:0 0 12px;line-height:1.5}
+.app-dlg-lijst{display:flex;flex-direction:column;gap:6px;margin:0 0 12px;
+  max-height:44vh;overflow-y:auto}
+.app-dlg-optie{display:flex;flex-direction:column;align-items:flex-start;gap:2px;
+  width:100%;padding:9px 12px;text-align:left;cursor:pointer;
+  background:var(--surface);border:1px solid var(--border-strong);
+  border-radius:var(--radius);color:var(--text);font-family:var(--font-body);
+  transition:background .12s,border-color .12s}
+.app-dlg-optie:hover{background:var(--surface2);border-color:var(--text-hint)}
+.app-dlg-optie:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
+.app-dlg-optie[aria-checked="true"]{background:var(--mint-soft);border-color:var(--mint)}
+.app-dlg-optie .nm{font-size:var(--fs-basis);font-weight:600;font-family:var(--font-body)}
+.app-dlg-optie .uit{font-size:var(--fs-klein);color:var(--text-muted);line-height:1.4}
+.app-dlg-veldwrap{display:block;margin:0 0 4px}
+.app-dlg-veldwrap span{display:block;font-size:var(--fs-micro);font-weight:600;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);margin-bottom:5px}
+.app-dlg-veldwrap .inp{width:100%}
+.app-dlg-voet{font-size:var(--fs-micro);color:var(--text-muted);margin:8px 0 0;line-height:1.45}
 .tag-chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px;min-height:20px}
 .tag-chip-opt{font-size:11px;padding:3px 9px;border-radius:10px;background:var(--surface2);color:var(--text-muted);cursor:pointer;border:1px solid transparent;transition:all .12s;user-select:none}
 .tag-chip-opt:hover{border-color:var(--border-strong);color:var(--text)}
@@ -8555,6 +8578,27 @@ textarea { line-height: 1.6; resize: vertical; }
   </div>
 </div>
 
+<!-- ── Vraagvenster: vervangt prompt/confirm/alert in de stijl van de app ── -->
+<div class="modal-bg" id="appDlgModal" onclick="if(event.target===this)appDlgAnnuleer()">
+  <div class="modal app-dlg" style="max-width:480px">
+    <h3 id="appDlgTitel">Vraag</h3>
+    <p class="app-dlg-tekst" id="appDlgTekst"></p>
+    <div class="app-dlg-lijst" id="appDlgLijst" role="radiogroup" hidden></div>
+    <label class="app-dlg-veldwrap" id="appDlgVeldWrap" hidden>
+      <span id="appDlgVeldLabel"></span>
+      <input type="text" class="inp" id="appDlgVeld" autocomplete="off" spellcheck="false">
+    </label>
+    <p class="app-dlg-voet" id="appDlgVoet" hidden></p>
+    <div class="modal-footer">
+      <div class="modal-footer-left"></div>
+      <div class="modal-footer-right">
+        <button class="btn btn-sm" type="button" id="appDlgNee" onclick="appDlgAnnuleer()">Annuleren</button>
+        <button class="btn btn-sm btn-primary" type="button" id="appDlgJa" onclick="appDlgBevestig()">OK</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ── Tag picker ── -->
 <div class="tag-picker-popup" id="tagPickerPopup">
   <div style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em">Tags selecteren</div>
@@ -12327,8 +12371,10 @@ function updateStats(){
 }
 
 /* ─ Columns ─ */
-function addColumn(){
-  const name=prompt('Naam van nieuwe kolom:','Nieuwe fase');if(!name?.trim())return;
+async function addColumn(){
+  const name=await appVraag('Nieuwe kolom','Hoe heet de fase die je toevoegt?','Nieuwe fase',
+    {label:'Naam',ja:'Toevoegen'});
+  if(!name?.trim())return;
   currentProject().columns.push({id:uid(),title:name.trim(),isCompleted:false,items:[]});
   scheduleSave();renderBoard();
 }
@@ -12792,17 +12838,21 @@ function renderImportTable(){
       <td><button class="btn btn-xs btn-danger" onclick="importRows.splice(${idx},1);renderImportTable();document.getElementById('importCount').textContent='('+importRows.length+' items)'">✕</button></td>
     </tr>`).join('');
 }
-function handleImportClientChange(idx,sel){
+async function handleImportClientChange(idx,sel){
   if(sel.value==='__new__'){
-    const name=prompt('Naam van nieuwe klant:');if(!name?.trim()){sel.value=importRows[idx].clientId||'';return;}
+    const name=await appVraag('Nieuwe klant','','',
+      {label:'Naam van de klant',ja:'Toevoegen'});
+    if(!name?.trim()){sel.value=importRows[idx].clientId||'';return;}
     const nc={id:uid(),name:name.trim(),colorIdx:kanbanState.clients.length%CLIENT_COLORS.length};
     kanbanState.clients.push(nc);scheduleSave();importRows[idx].clientId=nc.id;
     populateBulkSelects();renderImportTable();renderSidebarClients();
   } else importRows[idx].clientId=sel.value;
 }
-function handleImportCatChange(idx,sel){
+async function handleImportCatChange(idx,sel){
   if(sel.value==='__new__'){
-    const name=prompt('Naam van nieuwe categorie:');if(!name?.trim()){sel.value=importRows[idx].category||'';return;}
+    const name=await appVraag('Nieuwe categorie','','',
+      {label:'Naam van de categorie',ja:'Toevoegen'});
+    if(!name?.trim()){sel.value=importRows[idx].category||'';return;}
     const p=currentProject();if(!p.categories.includes(name.trim()))p.categories.push(name.trim());
     scheduleSave();importRows[idx].category=name.trim();populateBulkSelects();renderImportTable();renderCategoryFilter();
   } else importRows[idx].category=sel.value;
@@ -25290,25 +25340,32 @@ async function _geminiVolgendModel(kapot){
 }
 async function openGeminiModelPrompt(){
   const nu=geminiModel();
-  let regels=GEMINI_MODELLEN.map(([m,uitleg])=>`  ${m}\n     ${uitleg}`);
-  let kop='Welk Gemini-model gebruikt de app?';
+  let opties=GEMINI_MODELLEN.map(([m,uitleg])=>({waarde:m,naam:m,uitleg}));
+  let tekst='Hoe nieuwer het model, hoe krapper de gratis laag.';
   try{
     const flash=geminiFlashModellen(await geminiHaalModellen());
     if(flash.length){
-      regels=flash.map(m=>{
-        const uitleg=(GEMINI_MODELLEN.find(x=>x[0]===m)||[])[1];
-        return '  '+m+(uitleg?'\n     '+uitleg:'');
-      });
-      kop='Deze Flash-modellen mag jouw sleutel gebruiken (oudste eerst):';
+      opties=flash.map(m=>({waarde:m,naam:m,
+        uitleg:(GEMINI_MODELLEN.find(x=>x[0]===m)||[])[1]||''}));
+      tekst='Deze Flash-modellen mag jouw sleutel gebruiken, oudste eerst. '+
+        'Hoe nieuwer het model, hoe krapper de gratis laag.';
     }
   }catch(e){
-    kop='Welk Gemini-model gebruikt de app?\n(de lijst ophalen bij Google lukte niet: '+e.message+')';
+    tekst='De lijst ophalen bij Google lukte niet ('+e.message+'), dus dit is de '+
+      'vaste lijst. Hoe nieuwer het model, hoe krapper de gratis laag.';
   }
-  const v=prompt(kop+'\n\n'+regels.join('\n')+'\n\n'+
-    'Hoe nieuwer het model, hoe krapper de gratis laag.\n'+
-    'Leeg = terug naar '+GEMINI_MODEL_STANDAARD+'.',
-    nu
-  );
+  /* Lijst én veld: klikken vult het veld, maar een naam die er niet tussen
+     staat blijft in te typen -- Google brengt sneller een nieuw model uit dan
+     wij deze lijst bijwerken. Leeg laten doet wat het bij de prompt() ook deed. */
+  const v=await appKies({
+    titel:'Gemini-model',
+    tekst,
+    opties,
+    waarde:nu,
+    veld:{label:'Model',waarde:nu,placeholder:GEMINI_MODEL_STANDAARD},
+    voetnoot:'Leeg laten = terug naar '+GEMINI_MODEL_STANDAARD+'.',
+    ja:'Gebruiken'
+  });
   if(v===null)return;
   geminiZetModel((v||'').trim());
   const m=geminiModel();
@@ -25909,16 +25966,133 @@ async function* _streamGemini({system,user,temperature=0.5,maskeer=false}){
   if(terug){const rest=terug.slot();if(rest)yield rest;}
 }
 
+/* ══ Vraagvenster ══════════════════════════════════════════════════════════
+   prompt(), confirm() en alert() zijn vensters van de browser: ze dragen het
+   adres van de site als kop, negeren het thema, kunnen geen uitleg onder een
+   keuze zetten en zijn op een telefoon niet te bedienen zonder in te zoomen.
+
+   Deze drie doen hetzelfde in de stijl van de app en geven een Promise terug:
+
+     await appBevestig(titel, tekst)            -> true / false
+     await appVraag(titel, tekst, standaard)    -> tekst / null bij annuleren
+     await appKies({titel,tekst,opties,waarde}) -> tekst / null bij annuleren
+     await appMelding(titel, tekst)             -> undefined
+
+   Een lijst en een invoerveld kunnen samen: de lijst zijn de snelkoppelingen,
+   het veld is wat er werkelijk wordt teruggegeven. Zo blijft een eigen waarde
+   intypen mogelijk, precies zoals bij de prompt() die eronder vandaan komt. */
+let _appDlgKlaar=null;      /* de resolve van het venster dat nu openstaat */
+
+function _appDlgEl(id){return document.getElementById(id);}
+/* Eén uitgang, zodat annuleren via de knop, het kruisje, Escape en een tik
+   naast het venster allemaal hetzelfde doen. */
+function _appDlgSluit(waarde){
+  const bg=_appDlgEl('appDlgModal');
+  if(bg)bg.classList.remove('open');
+  const klaar=_appDlgKlaar; _appDlgKlaar=null;
+  if(klaar)klaar(waarde);
+}
+function appDlgAnnuleer(){_appDlgSluit(null);}
+function appDlgBevestig(){
+  const wrap=_appDlgEl('appDlgVeldWrap');
+  /* Zonder veld is dit een ja/nee-vraag; dan telt alleen dát er OK is gezegd. */
+  _appDlgSluit(wrap&&!wrap.hidden?(_appDlgEl('appDlgVeld').value||''):'');
+}
+
+/* De kern. Alles eronder is een korte schrijfwijze hiervan. */
+function appDialoog(opt){
+  const o=opt||{};
+  /* Stond er al een venster open, dan telt dat als geannuleerd -- anders
+     blijft die belofte voor altijd hangen. */
+  if(_appDlgKlaar)_appDlgSluit(null);
+  const bg=_appDlgEl('appDlgModal');
+  if(!bg)return Promise.resolve(o.opties||o.veld?null:false);
+
+  _appDlgEl('appDlgTitel').textContent=o.titel||'Vraag';
+  const tekst=_appDlgEl('appDlgTekst');
+  tekst.textContent=o.tekst||'';
+  tekst.hidden=!o.tekst;
+  const voet=_appDlgEl('appDlgVoet');
+  voet.textContent=o.voetnoot||'';
+  voet.hidden=!o.voetnoot;
+
+  const veldWrap=_appDlgEl('appDlgVeldWrap'), veld=_appDlgEl('appDlgVeld');
+  veldWrap.hidden=!o.veld;
+  if(o.veld){
+    _appDlgEl('appDlgVeldLabel').textContent=o.veld.label||'';
+    veld.value=o.veld.waarde==null?'':String(o.veld.waarde);
+    veld.placeholder=o.veld.placeholder||'';
+  }
+
+  const lijst=_appDlgEl('appDlgLijst');
+  lijst.innerHTML='';
+  lijst.hidden=!(o.opties&&o.opties.length);
+  (o.opties||[]).forEach(op=>{
+    const b=document.createElement('button');
+    b.type='button'; b.className='app-dlg-optie'; b.setAttribute('role','radio');
+    b.setAttribute('aria-checked',String(op.waarde===o.waarde));
+    const nm=document.createElement('span'); nm.className='nm'; nm.textContent=op.naam||op.waarde;
+    b.appendChild(nm);
+    if(op.uitleg){
+      const u=document.createElement('span'); u.className='uit'; u.textContent=op.uitleg;
+      b.appendChild(u);
+    }
+    b.addEventListener('click',()=>{
+      [...lijst.children].forEach(k=>k.setAttribute('aria-checked','false'));
+      b.setAttribute('aria-checked','true');
+      /* Het veld is de waarheid; de lijst vult hem alleen. Staat er geen veld,
+         dan is klikken meteen kiezen -- dat scheelt een tik. */
+      if(veldWrap.hidden)_appDlgSluit(op.waarde);
+      else veld.value=op.waarde;
+    });
+    lijst.appendChild(b);
+  });
+
+  const ja=_appDlgEl('appDlgJa'), nee=_appDlgEl('appDlgNee');
+  ja.textContent=o.ja||'OK';
+  ja.classList.toggle('btn-danger',!!o.gevaar);
+  ja.classList.toggle('btn-primary',!o.gevaar);
+  nee.textContent=o.nee||'Annuleren';
+  nee.hidden=!!o.enkel;   /* een melding heeft niets te annuleren */
+
+  bg.classList.add('open');
+  setTimeout(()=>{
+    if(o.veld)veld.select();
+    else (lijst.querySelector('[aria-checked="true"]')||ja).focus();
+  },40);
+
+  return new Promise(res=>{_appDlgKlaar=res;});
+}
+
+function appBevestig(titel,tekst,opt){
+  return appDialoog({titel,tekst,ja:'OK',...(opt||{})}).then(v=>v!==null);
+}
+function appVraag(titel,tekst,standaard,opt){
+  const o=opt||{};
+  return appDialoog({titel,tekst,veld:{label:o.label||'',waarde:standaard,placeholder:o.placeholder||''},
+    voetnoot:o.voetnoot,ja:o.ja||'Opslaan'});
+}
+function appKies(opt){return appDialoog(opt||{});}
+function appMelding(titel,tekst){
+  return appDialoog({titel,tekst,enkel:true,ja:'Sluiten'}).then(()=>undefined);
+}
+/* Escape sluit hem, Enter in het veld bevestigt. Beide alleen als hij openstaat. */
+document.addEventListener('keydown',e=>{
+  if(!_appDlgKlaar)return;
+  if(e.key==='Escape'){e.preventDefault();e.stopPropagation();appDlgAnnuleer();}
+  else if(e.key==='Enter'&&e.target&&e.target.id==='appDlgVeld'){e.preventDefault();appDlgBevestig();}
+},true);
+
 /* ─ API-key beheer ─ */
-function openGeminiKeyPrompt(){
+async function openGeminiKeyPrompt(){
   const cur=localStorage.getItem(LS_GEMINI_KEY)||'';
-  const v=prompt(
-    'Gemini API-key (gratis op aistudio.google.com → "Get API Key"):\n\n'+
-    'Wordt lokaal opgeslagen in je browser, per apparaat.\n'+
-    'Laat leeg om te verwijderen.',
-    cur
-  );
-  if(v===null)return; /* cancel */
+  const v=await appVraag('Gemini API-key',
+    'Gratis aan te maken op aistudio.google.com onder "Get API Key".',
+    cur,
+    {label:'API-key',placeholder:'AIza…',ja:'Opslaan',
+     voetnoot:'Wordt lokaal in deze browser bewaard, per apparaat — hij gaat niet mee '+
+       'naar Drive. Leeg laten verwijdert hem.'});
+  if(v===null)return; /* geannuleerd */
   const trimmed=(v||'').trim();
   if(!trimmed){
     localStorage.removeItem(LS_GEMINI_KEY);
