@@ -10,6 +10,64 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-10 · Uren uit facturen halen — eenmalig, en altijd terug te draaien
+
+**Probleem.** De urenmodule is later in gebruik genomen dan de facturen, dus
+over de eerste maanden staan er facturen zonder registraties eronder. Daardoor
+zitten er gaten in Uren en klopt de nieuwe analyse niet over die periode.
+
+**Beslissing.** Een actie in het ⋯-menu die het aantal uren van een
+factuurregel leest en dat als registraties in de bijbehorende maand zet,
+verdeeld over maandag t/m vrijdag.
+
+**Drie regels waar dit op staat of valt.**
+
+1. **Wat je zelf hebt ingevoerd is de waarheid.** Staat er in een maand al één
+   registratie, dan blijft die maand met rust — niets aanvullen, niets
+   overschrijven, niets optellen. Zo'n maand blijft wél zichtbaar in de lijst,
+   met het aantal dat je al hebt: je moet kunnen zien wáárom er niets gebeurt.
+2. **Een regel die al aan registraties hangt (`urenIds`) wordt overgeslagen.**
+   Die uren bestaan al; ze nog eens aanmaken verdubbelt je totalen.
+3. **Aan je facturen verandert niets.** De import gaat één kant op.
+
+**De maand komt uit de betreft-regel.** Je onderwerpen heten "… Gewerkte uren
+Mei 2026", en dat is betrouwbaarder dan de factuurdatum: een factuur van
+30 september gaat vaak over september, soms over augustus. Staat er geen maand
+in, dan is de factuurdatum de terugval en kun je die in het venster een of twee
+maanden opschuiven. Staat bij álle gevonden maanden de naam in de betreft, dan
+verdwijnt die keuzelijst — een knop die niets doet is erger dan geen knop.
+
+**Alleen regels in uren.** `eenheid` moet uur/uren/u zijn; kilometers en
+maandbedragen vallen af.
+
+**Verdelen in kwartieren, met de rest op de laatste dag**, zodat het totaal op
+de honderdste klopt met de factuur. Anders staat er straks een ander getal in
+je analyse dan op de rekening.
+
+**Status `invoiced`.** Ze komen van een factuur, dus dat zíjn ze. Op 'open'
+zetten zou ze in "Nog niet gefactureerd" laten opduiken — precies de kaart die
+er net bij kwam.
+
+**Terugdraaien.** Alles wat de import maakt draagt `bron:'factuur'` en het
+factuurid. Daardoor haalt "Terugdraaien" precies díe regels weg en niets
+anders; wat jij zelf invoerde draagt geen `bron` en blijft per definitie staan.
+Direct na de import kan het ook via de toast.
+
+**Gemeten** op zes facturen: drie maanden geïmporteerd (120/136/128 uur, exact),
+een maand met eigen uren overgeslagen, een km-regel en een al-gedekte regel
+buiten de lijst, 64 registraties aangemaakt, **nul in het weekend**, en na
+terugdraaien 67 → 3 met de eigen drie intact.
+
+**Bestanden.** `index.html` — `urenImpKandidaten()`, `urenImpMaandVan()`,
+`urenImpWerkdagen()`, `urenImpVerdeel()`, `urenImpToepassen()`,
+`urenImpTerugdraaien()`, `#urenImpModal`, `.uren-imp-*`.
+
+**Niet doen.** De aangemaakte registraties aan de factuurregel koppelen
+(`urenIds`). Dan verandert de import je facturen, en verschijnen er ineens
+regels op de urenspecificatie die je nooit zo hebt geschreven.
+
+---
+
 ## 2026-09-10 · Een analyse-tab bij Uren, en de grafieklaag wordt gedeeld
 
 **Probleem.** Facturen heeft een analyse; Uren niet. Wat je schrijft is de bron

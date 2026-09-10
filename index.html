@@ -1872,6 +1872,17 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .fac-eind-infobtn:active{background:rgba(255,255,255,.18)}
 .fac-eind-infobtn:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
 .fac-eind-infobtn[aria-expanded="true"]{background:rgba(255,255,255,.18)}
+/* De maandkeuze boven de tabel in "Uren uit facturen". */
+.uren-imp-bron{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px;
+  font-size:var(--fs-klein);color:var(--text)}
+.uren-imp-bron select{max-width:260px}
+.uren-imp-bron small{flex-basis:100%;color:var(--text-muted);font-size:var(--fs-micro);line-height:1.45}
+.uren-imp-tabel input[type=checkbox]{accent-color:var(--mint);width:16px;height:16px}
+/* Een maand die wordt overgeslagen omdat je er zelf al uren hebt staan:
+   zichtbaar houden en niet verbergen -- je moet kunnen zien wáárom er niets
+   gebeurt, anders lijkt de import iets te missen. */
+.uren-imp-over{opacity:.55}
+.uren-imp-over td{color:var(--text-muted)}
 .fac-eind-kaarten{display:none}
 .fac-spec-ai-tab{width:100%;font-size:var(--fs-klein)}
 .fac-spec-ai-tab th{font-size:var(--fs-micro);text-transform:uppercase;letter-spacing:.06em}
@@ -7448,7 +7459,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.09</span>
+        <span class="app-versie" title="Appversie">v2.10</span>
       </div>
     </div>
   </aside>
@@ -8840,6 +8851,25 @@ textarea { line-height: 1.6; resize: vertical; }
         <button class="btn btn-sm modal-annuleer" type="button" onclick="closeQuickAddAI()">Annuleren</button>
         <button class="btn btn-sm btn-primary" id="quickAddAIParseBtn" type="button" onclick="parseQuickAddAI()">✨ Parseer</button>
         <button class="btn btn-sm btn-primary" id="quickAddAIApplyBtn" type="button" onclick="applyQuickAddAI()" style="display:none">✓ Toevoegen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Uren uit facturen halen ── -->
+<div class="modal-bg" id="urenImpModal" onclick="if(event.target===this)closeUrenImportModal()">
+  <div class="modal" style="max-width:660px;padding:0;display:flex;flex-direction:column;max-height:92vh">
+    <div class="modal-kop" style="flex-shrink:0">
+      <h3 style="font-size:18px;font-weight:700;margin:0">Uren uit facturen</h3>
+      <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0">Ontbrekende maanden aanvullen</p>
+    </div>
+    <div style="padding:20px 22px;overflow-y:auto;overflow-x:hidden;flex:1;min-height:0" id="urenImpBody"></div>
+    <div class="modal-footer" style="padding:14px 22px;border-top:0.5px solid var(--border);flex-shrink:0">
+      <div class="modal-footer-left"></div>
+      <div class="modal-footer-right">
+        <button class="btn btn-sm" type="button" data-uren-action="closeUrenImportModal">Annuleren</button>
+        <button class="btn btn-sm btn-primary" type="button" id="urenImpOk"
+          data-uren-action="urenImpToepassen">Toevoegen</button>
       </div>
     </div>
   </div>
@@ -16765,6 +16795,11 @@ function urenSetStatus(ids,status){
    data-uren-change (change). Handlers krijgen (arg1, arg2, event, el). */
 const UREN_CLICK_ACTIONS={
   urenSetView:(a)=>urenSetView(a),
+  openUrenImportModal:()=>{closeUrenMenu();openUrenImportModal();},
+  closeUrenImportModal:()=>closeUrenImportModal(),
+  urenImpVink:(a)=>urenImpVink(a),
+  urenImpToepassen:()=>urenImpToepassen(),
+  urenImpTerugdraaien:()=>urenImpTerugdraaien(),
   urenSetRegScope:(a)=>urenSetRegScope(a),
   urenNavPrev:()=>urenNav(-1),
   urenNavNext:()=>urenNav(1),
@@ -16814,6 +16849,7 @@ const UREN_CLICK_ACTIONS={
 };
 
 const UREN_CHANGE_ACTIONS={
+  urenImpZetVerschuif:(a,b,e,el)=>urenImpZetVerschuif(el.value),
   /* Popover blijft open: je zet vaak klant én status achter elkaar. */
   urenSetFilterClient:(el)=>{urenFilterClient=el.value;urenSelection.clear();urenRenderAll();},
   urenSetFilterStatus:(el)=>{urenFilterStatus=el.value;urenSelection.clear();urenRenderAll();},
@@ -17103,6 +17139,9 @@ function urenToggleMenu(){
     <button class="uren-menu-item" role="menuitem" data-uren-action="openUrenTemplatesModal">
       <span class="ic" aria-hidden="true">⟳</span>
       <span>Templates &amp; herhaling<small>Vaste weekpatronen per klant</small></span></button>
+    <button class="uren-menu-item" role="menuitem" data-uren-action="openUrenImportModal">
+      <span class="ic" aria-hidden="true">↤</span>
+      <span>Uren uit facturen<small>Ontbrekende maanden aanvullen</small></span></button>
     <div class="uren-menu-sep"></div>
     <div class="uren-menu-lab">Exporteren naar Excel</div>
     <button class="uren-menu-item" role="menuitem" data-uren-action="urenExport" data-uren-arg1="xlsx" data-uren-arg2="view">
@@ -17231,6 +17270,275 @@ function urenRenderBody(){
   else if(urenView==='week') body.innerHTML=kop+urenRenderWeekView();
   else if(urenView==='analyse')body.innerHTML=kop+urenRenderAnalyse();
   else                       body.innerHTML=kop+urenRenderMaandView();
+}
+
+/* ══ Uren uit facturen halen ═══════════════════════════════════════════
+   De urenmodule is later in gebruik genomen dan de facturen, dus over de
+   eerste maanden staan er facturen zonder registraties eronder. Deze
+   eenmalige actie leest het aantal uren van een factuurregel en zet dat als
+   registraties in de maand waar het werk bij hoort, verdeeld over maandag
+   t/m vrijdag.
+
+   Drie regels waar dit op staat of valt:
+
+   1. Wat jij zelf hebt ingevoerd is de waarheid. Staat er in een maand al
+      één registratie, dan blijft die maand met rust -- er wordt niets
+      aangevuld, niets overschreven en niets bij elkaar opgeteld.
+   2. Een factuurregel die al aan registraties hangt (urenIds) wordt
+      overgeslagen. Die uren bestaan al; ze nog een keer aanmaken zou je
+      totalen verdubbelen.
+   3. Er wordt niets aan je facturen gewijzigd. De import gaat één kant op.
+
+   Alles wat hier wordt aangemaakt draagt `bron:'factuur'` en het factuurid,
+   zodat "terugdraaien" precies díe regels weghaalt en niets anders. */
+const UREN_IMP_EENHEDEN=/^(uur|uren|u|hour|hours)$/i;
+
+/* De maand waar een factuur over gaat. Je betreft-regels dragen hem meestal
+   zelf ("… Gewerkte uren Mei 2026"), en dat is betrouwbaarder dan de
+   factuurdatum: een factuur van 30 september gaat vaak over september, maar
+   soms over augustus. Staat er geen maand in, dan is de factuurdatum de
+   terugval en kun je hem in het venster een maand opschuiven. */
+function urenImpMaandVan(f,verschuif){
+  const betreft=String(f.betreft||'');
+  for(let m=0;m<12;m++){
+    const naam=MONTH_LABELS_NL[m];
+    const re=new RegExp('\\b'+naam+'\\b(?:\\s*(\\d{4}))?','i');
+    const t=betreft.match(re);
+    if(t){
+      const jaar=t[1]?Number(t[1]):Number(String(f.datum).slice(0,4));
+      return {key:jaar+'-'+String(m+1).padStart(2,'0'),uitBetreft:true};
+    }
+  }
+  const d=new Date(String(f.datum)+'T00:00:00');
+  if(isNaN(d))return null;
+  d.setMonth(d.getMonth()-(Number(verschuif)||0));
+  return {key:d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'),uitBetreft:false};
+}
+
+/* Alle werkdagen van een maand, als ISO-datums. */
+function urenImpWerkdagen(maandKey){
+  const jaar=Number(maandKey.slice(0,4)), maand=Number(maandKey.slice(5,7))-1;
+  const uit=[];
+  const d=new Date(jaar,maand,1);
+  while(d.getMonth()===maand){
+    const wd=d.getDay();
+    if(wd>=1&&wd<=5)uit.push(jaar+'-'+String(maand+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'));
+    d.setDate(d.getDate()+1);
+  }
+  return uit;
+}
+
+/* Uren verdelen over de werkdagen, in stappen van een kwartier. Wat door het
+   afronden overblijft gaat naar de laatste dag, zodat het totaal op de
+   honderdste klopt met de factuur -- anders staat er straks een ander getal
+   in je analyse dan op de rekening. */
+function urenImpVerdeel(totaal,dagen){
+  const n=dagen.length;
+  if(!n||totaal<=0)return [];
+  const perDag=Math.max(0.25,Math.round((totaal/n)*4)/4);
+  const uit=[];
+  let rest=Math.round(totaal*100)/100;
+  dagen.forEach((dag,i)=>{
+    if(rest<=0.0001)return;
+    const laatste=i===n-1;
+    const u=laatste?Math.round(rest*100)/100:Math.min(perDag,rest);
+    if(u>0.0001){uit.push({datum:dag,uren:Math.round(u*100)/100});rest=Math.round((rest-u)*100)/100;}
+  });
+  /* Bleef er iets over doordat de dagen op waren (een korte maand met een
+     grote factuur), dan gaat dat op de laatste dag erbij. */
+  if(rest>0.0001&&uit.length)uit[uit.length-1].uren=Math.round((uit[uit.length-1].uren+rest)*100)/100;
+  return uit;
+}
+
+/* Wat er te importeren valt, gegroepeerd per maand. */
+function urenImpKandidaten(verschuif){
+  const bestaand={};
+  (urenState.entries||[]).forEach(e=>{
+    const k=String(e.date||'').slice(0,7);
+    if(k)bestaand[k]=(bestaand[k]||0)+Number(e.hours||0);
+  });
+  const perMaand={};
+  (factuurState.invoices||[]).forEach(f=>{
+    if(!f||!f.datum||f.status==='concept')return;
+    (f.regels||[]).forEach(r=>{
+      if(!UREN_IMP_EENHEDEN.test(String(r.eenheid||'').trim()))return;
+      const aantal=Number(r.aantal||0);
+      if(!(aantal>0))return;
+      /* Al gedekt door echte registraties? Dan niets doen. */
+      if(Array.isArray(r.urenIds)&&r.urenIds.some(id=>urenEntry(id)))return;
+      const m=urenImpMaandVan(f,verschuif);
+      if(!m)return;
+      if(!perMaand[m.key])perMaand[m.key]={
+        key:m.key, uren:0, regels:[], uitBetreft:m.uitBetreft,
+        alAanwezig:Math.round((bestaand[m.key]||0)*100)/100
+      };
+      perMaand[m.key].uren=Math.round((perMaand[m.key].uren+aantal)*100)/100;
+      perMaand[m.key].regels.push({
+        factuurId:f.id, nummer:f.nummer||'', clientId:r.klantId||f.clientId||null,
+        omschrijving:r.omschrijving||'', aantal
+      });
+      if(!m.uitBetreft)perMaand[m.key].uitBetreft=false;
+    });
+  });
+  return Object.values(perMaand).sort((a,b)=>a.key.localeCompare(b.key));
+}
+
+/* Wat er al eerder is geïmporteerd. */
+function urenImpBestaande(){
+  return (urenState.entries||[]).filter(e=>e&&e.bron==='factuur');
+}
+
+/* ── Het venster ── */
+let urenImpVerschuifMnd=0;   /* factuurdatum → hoeveel maanden terug */
+let urenImpKeuze={};         /* maandkey → aan/uit */
+
+function openUrenImportModal(){
+  urenImpKeuze={};
+  urenImpRender();
+  document.getElementById('urenImpModal').classList.add('open');
+}
+function closeUrenImportModal(){
+  document.getElementById('urenImpModal')?.classList.remove('open');
+}
+function urenImpZetVerschuif(v){
+  urenImpVerschuifMnd=Number(v)||0;
+  urenImpKeuze={};
+  urenImpRender();
+}
+function urenImpVink(key){
+  const lijst=urenImpKandidaten(urenImpVerschuifMnd);
+  const r=lijst.find(x=>x.key===key);
+  if(!r||r.alAanwezig>0.005)return;
+  urenImpKeuze[key]=!urenImpAan(r);
+  urenImpRender();
+}
+/* Standaard aan, behalve maanden waar je zelf al uren hebt staan. */
+function urenImpAan(r){
+  if(r.alAanwezig>0.005)return false;
+  return urenImpKeuze[r.key]!==false;
+}
+function urenImpMaandLabel(key){
+  const m=Number(key.slice(5,7))-1;
+  return (MONTH_LABELS_NL[m]||key)+' '+key.slice(0,4);
+}
+
+function urenImpRender(){
+  const box=document.getElementById('urenImpBody');
+  if(!box)return;
+  const lijst=urenImpKandidaten(urenImpVerschuifMnd);
+  const eerder=urenImpBestaande();
+  const teDoen=lijst.filter(urenImpAan);
+  const som=Math.round(teDoen.reduce((s,r)=>s+r.uren,0)*100)/100;
+  const uitBetreft=lijst.filter(r=>r.uitBetreft).length;
+
+  box.innerHTML=`
+    <div class="fac-uren-info"><span>Leest het aantal uren van je factuurregels en zet die als
+      registraties in de maand waar het werk bij hoort, verdeeld over maandag t/m vrijdag.
+      <b>Wat je zelf hebt ingevoerd blijft leidend</b>: een maand waarin al uren staan wordt
+      overgeslagen. Aan je facturen verandert niets.</span></div>
+
+    ${eerder.length?`<div class="fac-btw-let let-gelukt" style="margin-top:12px">
+      <span class="ic">✓</span><span>Er staan al ${eerder.length} geïmporteerde registraties.
+      <button class="uren-btn" data-uren-action="urenImpTerugdraaien" style="margin-left:8px">Terugdraaien</button></span>
+    </div>`:''}
+
+    ${lijst.length?`
+      ${/* De keuzelijst alleen tonen als er iets te kiezen valt. Staat bij
+           élke maand de naam in de betreft-regel, dan doet de knop niets en
+           is hij alleen maar verwarrend. */''}
+      ${uitBetreft===lijst.length
+        ? `<p class="fac-an-uitleg" style="margin-top:14px">De maand komt uit de betreft-regel van
+           de factuur zelf — bij alle ${lijst.length} gevonden maanden stond hij erin.</p>`
+        : `<div class="uren-imp-bron">
+        <span>Welke maand hoort bij een factuur zonder maand in de betreft?</span>
+        <select class="fac-ed-inp" data-uren-change="urenImpZetVerschuif">
+          <option value="0"${urenImpVerschuifMnd===0?' selected':''}>De maand van de factuurdatum</option>
+          <option value="1"${urenImpVerschuifMnd===1?' selected':''}>De maand ervóór</option>
+          <option value="2"${urenImpVerschuifMnd===2?' selected':''}>Twee maanden ervóór</option>
+        </select>
+        ${uitBetreft?`<small>Bij ${uitBetreft} van de ${lijst.length} maanden staat de maand in de
+          betreft-regel zelf; daar telt deze keuze niet mee.</small>`:''}
+      </div>`}
+      <table class="fac-an-tabel uren-imp-tabel" style="margin-top:12px">
+        <thead><tr><th style="width:34px"></th><th>Maand</th>
+          <th class="num">Uit facturen</th><th class="num">Je hebt al</th><th></th></tr></thead>
+        <tbody>${lijst.map(r=>{
+          const aan=urenImpAan(r), bezet=r.alAanwezig>0.005;
+          return `<tr class="${bezet?'uren-imp-over':''}">
+            <td><input type="checkbox" ${aan?'checked':''} ${bezet?'disabled':''}
+              data-uren-action="urenImpVink" data-uren-arg1="${r.key}"
+              aria-label="${escapeHtml(urenImpMaandLabel(r.key))}"/></td>
+            <td>${escapeHtml(urenImpMaandLabel(r.key))}${r.uitBetreft?'':' <small>(uit de datum)</small>'}</td>
+            <td class="num">${urenFmt(r.uren)} u</td>
+            <td class="num">${bezet?urenFmt(r.alAanwezig)+' u':'—'}</td>
+            <td class="num"><small>${bezet?'overgeslagen':(aan?r.regels.length+'× factuur':'uit')}</small></td>
+          </tr>`;}).join('')}</tbody>
+      </table>`
+      :`<div class="uren-empty" style="margin-top:14px">
+        <b>Niets te importeren</b>Geen factuurregels in uren waar nog geen registraties onder staan.</div>`}
+  `;
+  const knop=document.getElementById('urenImpOk');
+  if(knop){
+    knop.disabled=!teDoen.length;
+    knop.textContent=teDoen.length
+      ? urenFmt(som)+' uur toevoegen over '+teDoen.length+' maand'+(teDoen.length===1?'':'en')
+      : 'Niets te doen';
+  }
+}
+
+function urenImpToepassen(){
+  const lijst=urenImpKandidaten(urenImpVerschuifMnd).filter(urenImpAan);
+  if(!lijst.length)return;
+  const nieuw=[];
+  lijst.forEach(r=>{
+    const dagen=urenImpWerkdagen(r.key);
+    /* Per factuurregel apart verdelen: zo houdt elke registratie zijn eigen
+       klant en is te zien waar hij vandaan komt. */
+    r.regels.forEach(reg=>{
+      urenImpVerdeel(reg.aantal,dagen).forEach(d=>{
+        nieuw.push({
+          id:urenUid(), date:d.datum, clientId:reg.clientId,
+          hours:urenClampHours(d.uren),
+          description:'Uit factuur '+(reg.nummer||'zonder nummer'),
+          /* Ze zijn gefactureerd -- dat is juist waar ze vandaan komen. Op
+             'open' zetten zou ze in "nog niet gefactureerd" laten opduiken. */
+          status:'invoiced',
+          bron:'factuur', factuurId:reg.factuurId,
+          createdAt:Date.now(), updatedAt:Date.now()
+        });
+      });
+    });
+  });
+  if(!nieuw.length)return;
+  urenState.entries.push(...nieuw);
+  scheduleSave();
+  closeUrenImportModal();
+  urenRenderAll();
+  appToast(nieuw.length+' registraties toegevoegd uit je facturen',{
+    undo:()=>{
+      const ids=new Set(nieuw.map(e=>e.id));
+      urenState.entries=urenState.entries.filter(e=>!ids.has(e.id));
+      scheduleSave(); urenRenderAll();
+      appToast('Import ongedaan gemaakt',{type:'success'});
+    }
+  });
+}
+
+/* Alles wat ooit is geïmporteerd weer weg. Wat jij zelf hebt ingevoerd draagt
+   geen `bron`, dus dat blijft per definitie staan. */
+async function urenImpTerugdraaien(){
+  const eerder=urenImpBestaande();
+  if(!eerder.length)return;
+  const ja=await appBevestig('Import terugdraaien',
+    eerder.length+' geïmporteerde registraties worden verwijderd. '+
+    'Wat je zelf hebt ingevoerd blijft staan.',{ja:'Verwijderen',gevaar:true});
+  if(!ja)return;
+  const ids=new Set(eerder.map(e=>e.id));
+  urenState.entries=urenState.entries.filter(e=>!ids.has(e.id));
+  scheduleSave();
+  urenImpRender();
+  urenRenderAll();
+  appToast(eerder.length+' geïmporteerde registraties verwijderd',{type:'success'});
 }
 
 /* ══ Weergave: analyse ══════════════════════════════════════════════════
