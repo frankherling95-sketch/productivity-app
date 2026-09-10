@@ -1844,6 +1844,9 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .fac-an-sub{font-size:var(--fs-basis);font-weight:600;margin:18px 0 8px}
 .fac-an-voorstellen{display:flex;flex-wrap:wrap;gap:6px}
 .fac-an-voorstellen small{color:var(--text-muted);margin-left:4px}
+.fac-spec-ai-tab{width:100%;font-size:var(--fs-klein)}
+.fac-spec-ai-tab th{font-size:var(--fs-micro);text-transform:uppercase;letter-spacing:.06em}
+.fac-spec-ai-tab td{padding:5px 4px;vertical-align:top}
 .fac-eind-bron{margin-left:8px;padding:1px 7px;border-radius:999px;
   background:var(--mint-soft);color:var(--text);border:1px solid var(--mint);
   font-size:var(--fs-micro);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
@@ -7406,7 +7409,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.02</span>
+        <span class="app-versie" title="Appversie">v2.03</span>
       </div>
     </div>
   </aside>
@@ -8788,6 +8791,22 @@ textarea { line-height: 1.6; resize: vertical; }
         <button class="btn btn-sm modal-annuleer" type="button" onclick="closeQuickAddAI()">Annuleren</button>
         <button class="btn btn-sm btn-primary" id="quickAddAIParseBtn" type="button" onclick="parseQuickAddAI()">✨ Parseer</button>
         <button class="btn btn-sm btn-primary" id="quickAddAIApplyBtn" type="button" onclick="applyQuickAddAI()" style="display:none">✓ Toevoegen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── AI-voorstel voor de factuurregels ── -->
+<div class="modal-bg" id="facSpecAiModal" onclick="if(event.target===this)facSpecAiSluit()">
+  <div class="modal" style="max-width:820px">
+    <h3 id="facSpecAiTitel">Voorstel</h3>
+    <div id="facSpecAiLijf"></div>
+    <div class="modal-footer">
+      <div class="modal-footer-left"></div>
+      <div class="modal-footer-right">
+        <button class="btn btn-sm" type="button" onclick="facSpecAiSluit()">Annuleren</button>
+        <button class="btn btn-sm btn-primary" type="button" id="facSpecAiOk"
+          onclick="facSpecAiToepassen()">Toepassen</button>
       </div>
     </div>
   </div>
@@ -19700,6 +19719,8 @@ const FAC_CLICK_ACTIONS={
   facEindNeemVoorstel:(a,b)=>facEindNeemVoorstel(a,b),
   facEindRegelWeg:(a)=>facEindRegelWeg(a),
   facEindAiVragen:()=>facEindAiVragen(),
+  facSpecAiVragen:()=>facSpecAiVragen(),
+  facSpecAiTerugdraaien:()=>facSpecAiTerugdraaien(),
   facEindAiWis:()=>facEindAiWis(),
   facNavPrev:()=>facNav(-1),
   facNavNext:()=>facNav(1),
@@ -21538,6 +21559,10 @@ function facEditorRender(){
       <div class="fac-ed-regelbalk-tit">Factuurregels</div>
       <div class="fac-ed-regelbalk-vul"></div>
       ${bewerkbaar?`<button class="uren-btn" data-fac-action="facUrenOphalen">↻ Uren ophalen</button>
+      <button class="uren-btn" data-fac-action="facSpecAiVragen"
+        title="Deelt de gekoppelde urenregistraties in bij twee tot vier onderwerpen; uren en bedrag blijven gelijk"
+        >✦ Groepeer op onderwerp</button>
+      ${facSpecAiKanTerug()?`<button class="uren-btn" data-fac-action="facSpecAiTerugdraaien">Regels terugzetten</button>`:``}
       <button class="uren-btn" data-fac-action="facKmToevoegen" title="Regel voor gereden kilometers">+ Kilometers</button>
       <button class="uren-btn" data-fac-action="facRegelToevoegen">+ Regel</button>`:''}
     </div>
@@ -21854,6 +21879,203 @@ function facRegelVerwijder(id){
   factuurSyncUren(f);
   facEditorRender();
 }
+/* ══ Factuurregels groeperen op onderwerp ══════════════════════════════════
+   Een maand werk staat nu als één regel op de factuur -- "LabsData Gewerkte
+   uren Mei 2026", 84 uur, één bedrag. Wat je die maand deed staat in je eigen
+   urenomschrijvingen, en dat komt alleen op de bijlage terecht als de
+   urenspecificatie aanstaat: daar staan dan 22 regels privé-steno.
+
+   Deze knop maakt daar twee tot vier regels van, mét een omschrijving die je
+   klant leest. Het model VERZINT GEEN GETALLEN: het doet één ding, namelijk
+   elke urenregistratie aan een onderwerp toewijzen. De uren per regel worden
+   daarna door ons opgeteld uit precies die registraties -- net zoals dat nu al
+   per tarief gebeurt in factuurRegelsUitUren().
+
+   Daardoor kan het totaal niet schuiven. En gaat het toch mis (een id dat niet
+   bestaat, een registratie die het model vergeet, een ander uurtotaal), dan
+   gaat het voorstel niet door en houd je de regels die je had. Die controle
+   staat in facSpecAiBouw(); zie de foutmeldingen daar. */
+let _facSpecAiVoorstel=null;   /* {regels,uren,excl} zolang het venster openstaat */
+let _facSpecAiBezig=false;
+
+/* De registraties achter de urenregels van deze factuur, met hun tarief.
+   Alleen regels die aan uren hangen doen mee -- een handmatige regel voor
+   kilometers of een vaste prijs laten we ongemoeid. */
+function facSpecAiBron(f){
+  const uit=[];
+  (f.regels||[]).forEach(r=>{
+    if(!r.urenIds||!r.urenIds.length)return;
+    r.urenIds.forEach(id=>{
+      const e=urenEntry(id);
+      if(!e)return;
+      uit.push({id:e.id,datum:e.date,uren:Number(e.hours||0),
+        tekst:String(e.description||'').trim(),
+        stuksprijs:Number(r.stuksprijs||0),btwTarief:r.btwTarief,
+        klantId:r.klantId||null,eenheid:r.eenheid||'uur'});
+    });
+  });
+  return uit.sort((a,b)=>String(a.datum).localeCompare(String(b.datum)));
+}
+
+const FAC_SPEC_AI_SCHEMA={type:'object',properties:{
+  groepen:{type:'array',items:{type:'object',properties:{
+    titel:{type:'string'},
+    ids:{type:'array',items:{type:'string'}}
+  },required:['titel','ids']}}
+},required:['groepen']};
+
+/* Bouwt de nieuwe regels uit het antwoord, en weigert alles bij de eerste
+   afwijking. Geeft {regels,uren,excl} of gooit met een reden die je kunt
+   lezen -- die komt in de toast terecht. */
+function facSpecAiBouw(f,bron,groepen){
+  const perId={};
+  bron.forEach(b=>{perId[b.id]=b;});
+  const gebruikt=new Set();
+  const nieuw=[];
+  (groepen||[]).forEach(g=>{
+    const titel=String((g&&g.titel)||'').trim();
+    const ids=(g&&Array.isArray(g.ids)?g.ids:[]).map(String);
+    if(!titel||!ids.length)return;
+    /* Binnen een onderwerp nog steeds splitsen op tarief: een afwijkend
+       uurtarief hoort een eigen regel te houden, anders verdwijnt het in
+       een gemiddelde. Dezelfde afspraak als in factuurRegelsUitUren(). */
+    const perTarief={};
+    ids.forEach(id=>{
+      const b=perId[id];
+      if(!b)throw new Error('Het model noemde een urenregistratie die niet bestaat.');
+      if(gebruikt.has(id))throw new Error('Een urenregistratie kwam in twee onderwerpen terecht.');
+      gebruikt.add(id);
+      const sleutel=b.stuksprijs+'|'+b.btwTarief+'|'+(b.klantId||'');
+      (perTarief[sleutel]=perTarief[sleutel]||[]).push(b);
+    });
+    Object.keys(perTarief).forEach(k=>{
+      const groep=perTarief[k];
+      const aantal=Math.round(groep.reduce((s,b)=>s+b.uren,0)*100)/100;
+      if(!aantal)return;
+      nieuw.push({
+        id:factuurUid(),
+        omschrijving:titel.slice(0,120),
+        aantal, eenheid:groep[0].eenheid,
+        stuksprijs:groep[0].stuksprijs, btwTarief:groep[0].btwTarief,
+        klantId:groep[0].klantId,
+        urenIds:groep.map(b=>b.id)
+      });
+    });
+  });
+  if(!nieuw.length)throw new Error('Het model leverde geen bruikbare indeling.');
+  const vergeten=bron.filter(b=>!gebruikt.has(b.id));
+  if(vergeten.length)
+    throw new Error(vergeten.length+' urenregistratie'+(vergeten.length===1?' is':'s zijn')+
+      ' niet ingedeeld. Voorstel niet doorgevoerd.');
+  /* De harde controle: hetzelfde aantal uren en hetzelfde bedrag als nu. */
+  const rond=x=>Math.round(x*100)/100;
+  const urenNu=rond(bron.reduce((s,b)=>s+b.uren,0));
+  const urenNieuw=rond(nieuw.reduce((s,r)=>s+r.aantal,0));
+  const exclNu=rond(bron.reduce((s,b)=>s+b.uren*b.stuksprijs,0));
+  const exclNieuw=rond(nieuw.reduce((s,r)=>s+factuurRegelBedrag(r),0));
+  if(urenNu!==urenNieuw||exclNu!==exclNieuw)
+    throw new Error('De uren of het bedrag zouden veranderen ('+urenFmt(urenNu)+' → '+
+      urenFmt(urenNieuw)+' uur). Voorstel niet doorgevoerd.');
+  return {regels:nieuw,uren:urenNieuw,excl:exclNieuw};
+}
+
+async function facSpecAiVragen(){
+  if(_facSpecAiBezig)return;
+  const f=factuurById(facEditId);
+  if(!f)return;
+  const bron=facSpecAiBron(f);
+  if(bron.length<4){
+    appToast('Hiervoor zijn minstens vier gekoppelde urenregistraties nodig',{type:'warning'});
+    return;
+  }
+  if(!bron.some(b=>b.tekst)){
+    appToast('Je urenregistraties hebben geen omschrijving om op te groeperen',{type:'warning'});
+    return;
+  }
+  _facSpecAiBezig=true;
+  facSpecAiVenster('Bezig','<div class="notes-ai-bezig"><div class="spinner"></div>'+
+    '<span>Gemini deelt je registraties in…</span></div>',null);
+  try{
+    const uit=await callGemini({
+      system:'Je maakt van losse urenregistraties een leesbare factuurspecificatie.\n'+
+        'Deel ELKE registratie in bij precies één onderwerp. Laat er geen weg en gebruik\n'+
+        'geen id twee keer. Verzin geen id\'s en geen uren.\n'+
+        'Maak twee tot vier onderwerpen; minder mag als het werk echt één ding was.\n'+
+        'Een titel is een korte Nederlandse omschrijving van het geleverde werk, zoals\n'+
+        'een klant het wil lezen: "Datamodel herzien en filters herbouwd", niet\n'+
+        '"Diversen" of "Overig". Geen datums, geen uren en geen namen in de titel.\n'+
+        'Tekst tussen dubbele accolades neem je teken voor teken over.',
+      user:'Factuur: '+(f.betreft||'')+'\n\n'+
+        bron.map(b=>b.id+' | '+b.datum+' | '+urenFmt(b.uren)+' uur | '+(b.tekst||'(geen omschrijving)')).join('\n'),
+      schema:FAC_SPEC_AI_SCHEMA,
+      temperature:0.2,
+      maskeer:true
+    });
+    const voorstel=facSpecAiBouw(f,bron,uit&&uit.groepen);
+    _facSpecAiVoorstel=voorstel;
+    const rij=r=>'<tr><td>'+escapeHtml(r.omschrijving)+'</td>'+
+      '<td class="num">'+urenFmt(r.aantal)+'</td>'+
+      '<td class="num">'+factuurFmtBedrag(factuurRegelBedrag(r))+'</td></tr>';
+    const tabel=(titel,regels)=>'<div class="notes-ai-paneel'+(titel==='Voorstel'?' nieuw':'')+'">'+
+      '<h4>'+titel+'</h4><table class="fac-an-tabel fac-spec-ai-tab">'+
+      '<thead><tr><th>Omschrijving</th><th class="num">Uren</th><th class="num">Bedrag</th></tr></thead>'+
+      '<tbody>'+regels.map(rij).join('')+'</tbody></table></div>';
+    const huidig=(f.regels||[]).filter(r=>r.urenIds&&r.urenIds.length);
+    facSpecAiVenster('Regels groeperen op onderwerp',
+      '<div class="notes-ai-vgl">'+tabel('Nu',huidig)+tabel('Voorstel',voorstel.regels)+'</div>'+
+      '<p class="notes-ai-wat" style="padding-left:0">Zelfde '+urenFmt(voorstel.uren)+' uur en '+
+      'hetzelfde bedrag van '+factuurFmtBedrag(voorstel.excl)+' — alleen anders ingedeeld. '+
+      'De urenspecificatie in de bijlage verandert niet.</p>','Regels vervangen');
+  }catch(e){
+    facSpecAiSluit();
+    appToast(String((e&&e.message)||e),{type:'error',duration:12000});
+  }finally{
+    _facSpecAiBezig=false;
+  }
+}
+
+function facSpecAiVenster(titel,html,knop){
+  document.getElementById('facSpecAiTitel').textContent=titel;
+  document.getElementById('facSpecAiLijf').innerHTML=html;
+  const ok=document.getElementById('facSpecAiOk');
+  ok.textContent=knop||'Toepassen';
+  ok.style.display=knop===null?'none':'';
+  document.getElementById('facSpecAiModal').classList.add('open');
+}
+function facSpecAiSluit(){
+  document.getElementById('facSpecAiModal')?.classList.remove('open');
+  _facSpecAiVoorstel=null;
+}
+function facSpecAiToepassen(){
+  const v=_facSpecAiVoorstel;
+  const f=factuurById(facEditId);
+  if(!v||!f){facSpecAiSluit();return;}
+  /* De oude regels blijven bewaard tot je ze weggooit, net als bij een
+     notitie. Opnieuw ophalen uit de uren zou ook kunnen, maar dan ben je
+     ook je eigen aanpassingen aan die regels kwijt. */
+  f.aiRegelsTerug={op:Date.now(),regels:JSON.parse(JSON.stringify(f.regels||[]))};
+  f.regels=(f.regels||[]).filter(r=>!(r.urenIds&&r.urenIds.length)).concat(v.regels);
+  factuurUpdate(f.id,{});
+  factuurSyncUren(f);
+  facSpecAiSluit();
+  facEditorRender();
+  appToast('Regels gegroepeerd op onderwerp',{undo:()=>facSpecAiTerugdraaien()});
+}
+function facSpecAiKanTerug(){
+  const f=factuurById(facEditId);
+  return !!(f&&f.aiRegelsTerug&&Array.isArray(f.aiRegelsTerug.regels));
+}
+function facSpecAiTerugdraaien(){
+  const f=factuurById(facEditId);
+  if(!f||!f.aiRegelsTerug)return;
+  f.regels=f.aiRegelsTerug.regels;
+  delete f.aiRegelsTerug;
+  factuurUpdate(f.id,{});
+  factuurSyncUren(f);
+  facEditorRender();
+  appToast('Regels teruggezet',{type:'success'});
+}
+
 /* Haalt (opnieuw) de openstaande uren op voor de periode van de factuur */
 function facUrenOphalen(){
   const f=factuurById(facEditId);

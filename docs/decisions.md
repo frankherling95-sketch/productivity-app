@@ -10,6 +10,59 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-10 · Factuurregels groeperen op onderwerp
+
+**Probleem.** Een maand werk staat als één regel op de factuur: de betreft-tekst
+(`LabsData Gewerkte uren Mei 2026`), 25 uur, één bedrag. Wat je die maand deed
+staat in je urenomschrijvingen, en die komen alleen op pagina 2 terecht als de
+urenspecificatie aanstaat — als 22 regels privé-steno, gesorteerd op datum. Dat
+is onderbouwing, geen antwoord op "waar heb ik voor betaald".
+
+**Beslissing.** Een knop **✦ Groepeer op onderwerp** in de regelbalk van de
+editor. Hij deelt de gekoppelde urenregistraties in bij twee tot vier
+onderwerpen en maakt daar factuurregels van. De urenspecificatie in de bijlage
+verandert niet: dat blijft de ruwe onderbouwing.
+
+**Het model verzint geen getallen.** Het doet één ding: elke registratie aan een
+onderwerp toewijzen. De uren per regel worden daarna door ons opgeteld uit
+precies die registraties — dezelfde constructie als de bestaande groepering op
+tarief in `factuurRegelsUitUren()`. Binnen een onderwerp wordt nog steeds op
+tarief gesplitst, anders verdwijnt een afwijkend uurtarief in een gemiddelde.
+
+**Het vangnet, en waarom het er is.** `facSpecAiBouw()` weigert het hele
+voorstel bij de eerste afwijking, en dat is getoetst op vier manieren waarop een
+model dit kan verprutsen:
+
+| wat het model doet | wat er gebeurt |
+|---|---|
+| noemt een id dat niet bestaat | geweigerd, regels ongewijzigd |
+| vergeet een registratie | geweigerd, met het aantal in de melding |
+| gebruikt een id in twee onderwerpen | geweigerd |
+| levert niets bruikbaars | geweigerd |
+| deelt netjes in | 3 regels, 25,25 uur en € 3.787,50 — gelijk aan ervoor |
+
+De laatste controle is de harde: hetzelfde aantal uren én hetzelfde bedrag als
+zonder groepering. Klopt dat niet op de cent, dan gaat het niet door.
+
+**Terugdraaien.** De oude regels gaan naar `f.aiRegelsTerug` en blijven daar tot
+je ze weggooit; de knop "Regels terugzetten" staat naast de knop die ze maakte,
+en de toast heeft ook een undo. Opnieuw ophalen uit de uren zou ook kunnen, maar
+dan ben je je eigen aanpassingen aan die regels kwijt.
+
+**Bestanden.** `index.html` — `facSpecAiBron()`, `facSpecAiBouw()`,
+`facSpecAiVragen()`, `facSpecAiToepassen()`, `facSpecAiTerugdraaien()`,
+`#facSpecAiModal`, `.fac-spec-ai-tab`, plus de knop in de regelbalk.
+
+**Niet doen.** Dit automatisch laten draaien bij het aanmaken van een factuur.
+Je urenomschrijvingen zijn voor jezelf geschreven — "mail + call Buren" bevat
+een eindklantnaam die je klant straks leest. Het maskeren beschermt richting
+Google, niet richting je klant. Daarom blijft het een voorstel dat jij leest.
+
+Ook niet: de knop aanbieden bij minder dan vier registraties. Dan valt er niets
+te groeperen en kost het alleen een verzoek.
+
+---
+
 ## 2026-09-10 · Eindklanten laten herkennen door Gemini
 
 **Probleem.** `facEindRaad()` haalt met een reguliere expressie de opdrachtgever
