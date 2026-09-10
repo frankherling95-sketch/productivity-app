@@ -7442,7 +7442,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.06</span>
+        <span class="app-versie" title="Appversie">v2.07</span>
       </div>
     </div>
   </aside>
@@ -19760,6 +19760,7 @@ const FAC_CLICK_ACTIONS={
   closeFacAnDrill:()=>closeFacAnDrill(),
   facAnWisselEind:()=>facAnWisselEind(),
   facAnWisselTabel:()=>facAnWisselTabel(),
+  facAnCumModusZet:(a)=>facAnCumModusZet(a),
   openFacEindModal:()=>openFacEindModal(),
   closeFacEindModal:()=>closeFacEindModal(),
   facEindRegelToevoegen:()=>facEindRegelToevoegen(),
@@ -22718,6 +22719,117 @@ function facAnKolomGrafiek(d,breed){
 }
 
 /* ── Lijn: cumulatief, want daar zie je voorsprong of achterstand ── */
+/* ── De cumulatieve grafiek in twee standen ────────────────────────────
+   Bedragen: twee lijnen, dit jaar tegen vorig jaar.
+   Groei:    één lijn, hoeveel procent je op elk moment vóór of achter ligt
+             op vorig jaar.
+
+   Waarom groei een eigen stand is en geen tweede as: twee grootheden op één
+   plaatje vragen om twee y-assen, en dat is de enige harde "nooit" uit de
+   grafiekrichtlijn. Twee standen van dezelfde tijdlijn kan wel. */
+let facAnCumModus='bedrag';
+function facAnCumModusZet(m){
+  facAnCumModus=(m==='groei')?'groei':'bedrag';
+  facRenderAll();
+}
+/* De schakelaar hoort op de kaart die hij verandert -- zelfde plek en vorm als
+   "Eindklanten" op de kaart eronder. Zonder vergelijkingsjaar valt er niets te
+   groeien, dan is er ook geen keuze te maken. */
+function facAnCumKnop(d){
+  if(!d.heeftVorige)return '';
+  const groei=facAnCumModus==='groei';
+  return `<button type="button" class="uren-btn fac-an-kaartknop"
+    data-fac-action="facAnCumModusZet" data-fac-arg1="${groei?'bedrag':'groei'}"
+    aria-pressed="${groei?'true':'false'}"
+    title="Wissel tussen bedragen en de groei ten opzichte van ${escapeHtml(d.range.vorigeLabel)}"
+    >${groei?'Bedragen':'Groei %'}</button>`;
+}
+
+/* De groei per maand: hoeveel procent ligt de cumulatieve omzet voor op
+   dezelfde maand vorig jaar. Een maand waarin vorig jaar nog niets stond
+   levert geen percentage op -- delen door bijna nul geeft een uitschieter van
+   duizenden procenten die de hele schaal opeet. Zulke maanden krijgen null en
+   de lijn begint gewoon later. */
+function facAnCumGroei(d){
+  return d.cum.map(p=>({
+    ...p,
+    pct:(p.vorige>0)?((p.nu-p.vorige)/p.vorige)*100:null
+  }));
+}
+/* Een schaal die door nul heen kan. Boven en onder dezelfde stap, zodat de
+   nullijn op een rond getal ligt en niet ergens tussenin. */
+function facAnGroeiSchaal(waarden){
+  const echte=waarden.filter(v=>v!=null);
+  if(!echte.length)return {max:10,min:-10,stap:5};
+  const top=Math.max(...echte,0), bodem=Math.min(...echte,0);
+  const s=facAnSchaal(Math.max(Math.abs(top),Math.abs(bodem),1)).stap;
+  return {max:Math.ceil(top/s)*s||s, min:Math.floor(bodem/s)*s, stap:s};
+}
+/* De groeistand: één lijn door nul heen. Eén reeks, dus geen legenda -- de
+   kop van de kaart zegt al wat je ziet. */
+function facAnGroeiGrafiek(d,breed){
+  const smal=breed<520;
+  const H=smal?188:224, padL=smal?44:56, padR=smal?12:56, padT=14, padB=26;
+  const plotW=breed-padL-padR, plotH=H-padT-padB;
+  const punten=facAnCumGroei(d);
+  const n=punten.length||1;
+  const sch=facAnGroeiSchaal(punten.map(p=>p.pct));
+  const bandW=plotW/n;
+  const x=i=>padL+bandW*i+bandW/2;
+  const y=v=>padT+plotH-((v-sch.min)/(sch.max-sch.min||1))*plotH;
+  let g='';
+  for(let v=sch.min;v<=sch.max+0.0001;v+=sch.stap){
+    const yy=y(v), nul=Math.abs(v)<0.0001;
+    g+=`<line x1="${padL}" y1="${yy.toFixed(1)}" x2="${breed-padR}" y2="${yy.toFixed(1)}"
+      class="${nul?'an-as':'an-grid'}"/>`
+      +`<text x="${padL-6}" y="${(yy+3.5).toFixed(1)}" class="an-astekst" text-anchor="end">${
+        (v>0?'+':'')+Math.round(v)}%</text>`;
+  }
+  /* De lijn breekt waar geen percentage te maken is (vorig jaar nog leeg). */
+  let dPad='',open=false;
+  punten.forEach((p,i)=>{
+    if(p.pct==null){open=false;return;}
+    dPad+=`${open?'L':'M'}${x(i).toFixed(1)} ${y(p.pct).toFixed(1)} `;
+    open=true;
+  });
+  let lijnen=dPad?`<path d="${dPad.trim()}" class="an-lijn-nu"/>`:'';
+  /* Labels op elk punt: dit is één reeks, dus dat mag -- zie stijlgids §11.
+     Op een smal scherm alleen het laatste, daar botsen negen cijfers. */
+  let labels='',punt='';
+  punten.forEach((p,i)=>{
+    if(p.pct==null)return;
+    const laatste=i===n-1;
+    if(laatste)punt+=`<circle cx="${x(i).toFixed(1)}" cy="${y(p.pct).toFixed(1)}" r="4" class="an-punt-nu"/>`;
+    if(smal&&!laatste)return;
+    /* Altijd bóven het punt, behalve als het daar tegen de rand loopt. Eerst
+       stond hier "boven als de lijn stijgt, eronder als hij daalt", maar bij
+       een vlakke lijn sloeg die regel om op honderdsten en zigzagden de
+       cijfers zichtbaar. Een vaste plek leest rustiger dan een slimme. */
+    const boven=y(p.pct)-9>padT+4;
+    labels+=`<text x="${x(i).toFixed(1)}" y="${(y(p.pct)+(boven?-9:16)).toFixed(1)}"
+      class="an-eindlabel" text-anchor="${laatste&&!smal?'end':'middle'}">${
+      escapeHtml(facAnPct(p.pct))}</text>`;
+  });
+  let banden='',xlabels='';
+  const tips=[];
+  punten.forEach((p,i)=>{
+    const bx=padL+bandW*i;
+    if(!smal||n<=6||(n-1-i)%2===0)
+      xlabels+=`<text x="${x(i).toFixed(1)}" y="${H-8}" class="an-astekst" text-anchor="middle">${escapeHtml(p.kort)}</text>`;
+    tips.push({titel:'t/m '+p.label,regels:[
+      {kleur:'nu',lab:d.range.label,val:factuurFmtBedrag(p.nu)},
+      {kleur:'vorig',lab:d.range.vorigeLabel,val:factuurFmtBedrag(p.vorige)},
+      {lab:'Verschil',val:p.pct==null?'—':facAnPct(p.pct)}]});
+    banden+=`<rect x="${bx.toFixed(1)}" y="${padT}" width="${bandW.toFixed(1)}" height="${plotH}"
+      class="an-band" tabindex="0" role="button" data-an-band="lijn" data-an-i="${i}"
+      data-fac-action="facAnDrillCum" data-fac-arg1="${escapeHtml(d.vakken[i]?d.vakken[i].key:'')}"
+      aria-label="${escapeHtml('t/m '+p.label+': '+(p.pct==null?'geen vergelijking':facAnPct(p.pct))+' — open de facturen')}"/>`;
+  });
+  _facAnTips.lijn=tips;
+  return `<svg class="an-svg" viewBox="0 0 ${breed} ${H}" width="100%" height="${H}"
+    role="img" aria-label="Groei ten opzichte van ${escapeHtml(d.range.vorigeLabel)}">
+    ${g}${lijnen}${punt}${labels}${xlabels}${banden}</svg>`;
+}
 function facAnLijnGrafiek(d,breed){
   const smal=breed<520;
   const H=smal?188:224, padL=smal?44:56, padR=smal?12:56, padT=14, padB=26;
@@ -22741,10 +22853,19 @@ function facAnLijnGrafiek(d,breed){
   if(d.heeftVorige)lijnen+=`<path d="${pad(p=>p.vorige)}" class="an-lijn-vorig"/>`;
   lijnen+=`<path d="${pad(p=>p.nu)}" class="an-lijn-nu"/>`;
   const laatst=d.cum[n-1]||{nu:0,vorige:0};
-  /* Alleen het eindpunt een cijfer: een getal bij elk punt leest niemand. */
   let eind=`<circle cx="${x(n-1).toFixed(1)}" cy="${y(laatst.nu).toFixed(1)}" r="4" class="an-punt-nu"/>`;
   let labels='';
   if(!smal){
+    /* Een cijfer bij élk punt van élke reeks leest niemand; één reeks labelen
+       mag wel -- zie stijlgids §11. Dat is de lijn van dit jaar; vorig jaar
+       houdt alleen zijn eindpunt, zodat de twee niet door elkaar lopen.
+       Op een smal scherm vervalt het hele label: negen bedragen naast elkaar
+       passen daar niet. */
+    d.cum.forEach((pt,i)=>{
+      if(i===n-1)return;   /* het laatste krijgt hieronder zijn eigen plek */
+      labels+=`<text x="${x(i).toFixed(1)}" y="${(y(pt.nu)-9).toFixed(1)}"
+        class="an-eindlabel zacht" text-anchor="middle">${escapeHtml(facAnLabel(pt.nu))}</text>`;
+    });
     labels+=`<text x="${(x(n-1)+8).toFixed(1)}" y="${(y(laatst.nu)+4).toFixed(1)}" class="an-eindlabel">${escapeHtml(facAnKort(laatst.nu))}</text>`;
     if(d.heeftVorige)labels+=`<text x="${(x(n-1)+8).toFixed(1)}" y="${(y(laatst.vorige)+4).toFixed(1)}" class="an-eindlabel zacht">${escapeHtml(facAnKort(laatst.vorige))}</text>`;
   }
@@ -22914,10 +23035,17 @@ function facRenderAnalyse(){
       <div class="fac-an-plot" data-an-plot="kolom">${facAnKolomGrafiek(d,breed)}
         <div class="fac-an-tip" hidden></div></div>
     </div>
+    ${/* Twee standen van dezelfde tijdlijn. In de groeistand is er één reeks,
+         dus dan vervalt de legenda -- de kop zegt al wat je ziet. */''}
     <div class="fac-an-kaart">
-      ${kop('Cumulatief')}
-      ${facAnLegenda(d)}
-      <div class="fac-an-plot" data-an-plot="lijn">${facAnLijnGrafiek(d,breed)}
+      ${kop(facAnCumModus==='groei'&&d.heeftVorige
+        ? 'Cumulatief — groei t.o.v. '+d.range.vorigeLabel
+        : 'Cumulatief', facAnCumKnop(d))}
+      ${facAnCumModus==='groei'&&d.heeftVorige?'':facAnLegenda(d)}
+      <div class="fac-an-plot" data-an-plot="lijn">${
+        facAnCumModus==='groei'&&d.heeftVorige
+          ? facAnGroeiGrafiek(d,breed)
+          : facAnLijnGrafiek(d,breed)}
         <div class="fac-an-tip" hidden></div></div>
     </div>
     <div class="fac-an-kaart">
