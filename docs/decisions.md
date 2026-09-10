@@ -10,6 +10,46 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-10 · Uren uit een ingescande factuur: bedrag ÷ uurtarief
+
+**Probleem.** De import vond niets, en de reden was niet de eenheid maar het
+aantal. Facturen die via de scanner zijn ingelezen krijgen **één regel met
+aantal 1** en het hele bedrag als stuksprijs — dat is precies wat je nodig hebt
+om je boekhouding te laten aansluiten, en precies wat je niets zegt over uren.
+Vier facturen telden op tot een "totaal aantal" van 4.
+
+**Beslissing.** Twee bronnen, zichtbaar te kiezen:
+
+- **Het aantal op de regel** — klopt bij facturen die je uit je eigen
+  urenregistratie hebt opgebouwd: daar staat 120 × € 150.
+- **Bedrag ÷ uurtarief** — voor ingescande facturen. Het bedrag is exact; het
+  tarief komt van de klant en is per klant te overschrijven, met de uitkomst
+  ernaast (€ 78.600 ÷ € 150 = 524 uur).
+
+**Waarom dit geen schatting is.** Beide getallen staan al vast in de app. De
+deling is exact; wat je moet nakijken is of het tarief van díe periode klopt en
+of er geen andere kosten op die regel staan. Daarom staat het tarief in beeld
+en niet in de code, en zie je per maand het resultaat vóór je toepast.
+
+**Waarom niet de PDF's opnieuw laten inscannen door Gemini.** Dat was de
+voorgestelde weg, en het is de duurdere en onnauwkeurigere. De bedragen staan al
+in de app en zijn exact; een taalmodel dat een PDF leest voegt onzekerheid toe
+aan data die we al zeker hebben, kost verzoeken uit een laag van twintig per
+dag, en komt op hetzelfde getal uit — als het goed gaat. Inscannen wordt pas de
+juiste keuze als het aantal uren écht alleen in de tekst van de PDF staat en
+nergens in een bedrag.
+
+**Bestanden.** `index.html` — `urenImpModus`, `urenImpZetModus()`,
+`urenImpTariefVan()`, `urenImpZetTarief()`, `urenImpTarieven()`,
+`urenImpKandidaten()`, `urenImpRender()`, `.uren-imp-modus`.
+
+**Niet doen.** In de bedrag-modus stilzwijgend alle regels meenemen. Een
+kilometervergoeding gedeeld door een uurtarief is een fantasiegetal; die staat
+daarom standaard uit, en de eenhedenlijst blijft zichtbaar zodat je ziet wat er
+meetelt.
+
+---
+
 ## 2026-09-10 · De import zegt nu wát hij vindt, in plaats van "niets"
 
 **Probleem.** De import zocht naar factuurregels met eenheid `uur`, `uren` of

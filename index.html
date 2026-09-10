@@ -1873,6 +1873,11 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .fac-eind-infobtn:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
 .fac-eind-infobtn[aria-expanded="true"]{background:rgba(255,255,255,.18)}
 /* De maandkeuze boven de tabel in "Uren uit facturen". */
+/* Twee knoppen naast elkaar; de actieve kleurt via aria-pressed, dezelfde
+   afspraak als elders in Uren en Facturen. */
+.uren-imp-modus{display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 8px}
+.uren-imp-modus .uren-btn{flex:1;min-width:150px;justify-content:center}
+.uren-imp-tabel input[type=number]{width:100%;max-width:104px}
 .uren-imp-bron{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px;
   font-size:var(--fs-klein);color:var(--text)}
 .uren-imp-bron select{max-width:260px}
@@ -7459,7 +7464,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.11</span>
+        <span class="app-versie" title="Appversie">v2.12</span>
       </div>
     </div>
   </aside>
@@ -16799,6 +16804,7 @@ const UREN_CLICK_ACTIONS={
   closeUrenImportModal:()=>closeUrenImportModal(),
   urenImpVink:(a)=>urenImpVink(a),
   urenImpEenhVink:(a)=>urenImpEenhVink(a),
+  urenImpZetModus:(a)=>urenImpZetModus(a),
   urenImpToepassen:()=>urenImpToepassen(),
   urenImpTerugdraaien:()=>urenImpTerugdraaien(),
   urenSetRegScope:(a)=>urenSetRegScope(a),
@@ -16851,6 +16857,7 @@ const UREN_CLICK_ACTIONS={
 
 const UREN_CHANGE_ACTIONS={
   urenImpZetVerschuif:(a,b,e,el)=>urenImpZetVerschuif(el.value),
+  urenImpZetTarief:(a,b,e,el)=>urenImpZetTarief(a,el.value),
   /* Popover blijft open: je zet vaak klant én status achter elkaar. */
   urenSetFilterClient:(el)=>{urenFilterClient=el.value;urenSelection.clear();urenRenderAll();},
   urenSetFilterStatus:(el)=>{urenFilterStatus=el.value;urenSelection.clear();urenRenderAll();},
@@ -17388,6 +17395,77 @@ function urenImpStandaardEenheden(lijst){
   return uit;
 }
 
+/* ── Hoe komen we aan het aantal uren? ──────────────────────────────────
+   Twee bronnen, en welke klopt hangt af van waar de factuur vandaan komt.
+
+   'aantal'  — het aantal op de factuurregel. Klopt bij facturen die je uit je
+               eigen urenregistratie hebt opgebouwd: daar staat 120 × € 150.
+   'bedrag'  — het bedrag gedeeld door het uurtarief. Nodig bij ingescande
+               facturen: de scanner zet er één regel op met aantal 1 en het
+               hele bedrag als stuksprijs. Het aantal is daar dus 1 en zegt
+               niets; het bedrag is exact.
+
+   Het bedrag delen door het tarief is geen schatting: beide getallen staan
+   vast in de app. Wat je wél moet nakijken is of het tarief van die periode
+   klopt, en of er geen andere kosten op die regel staan. Daarom toont het
+   venster het tarief per klant, aanpasbaar, met de uitkomst ernaast. */
+let urenImpModus='aantal';        /* aantal | bedrag */
+let urenImpTarief={};             /* clientId → eigen tarief voor deze import */
+
+function urenImpZetModus(m){
+  urenImpModus=(m==='bedrag')?'bedrag':'aantal';
+  /* Bij een ingescande factuur zegt de eenheid niets, dus dan alles aan
+     behalve wat overduidelijk geen uren is. */
+  const bron=urenImpEenheden();
+  urenImpEenhKeuze={};
+  bron.lijst.forEach(e=>{
+    urenImpEenhKeuze[e.label]=(urenImpModus==='bedrag')
+      ? !/km|kilometer/i.test(e.label)
+      : UREN_IMP_EENHEDEN.test(e.eenheid);
+  });
+  urenImpKeuze={};
+  urenImpRender();
+}
+/* Het tarief waarmee we delen: eerst wat je hier zelf invult, dan dat van de
+   klant. Geen tarief betekent: die klant kan niet worden omgerekend. */
+function urenImpTariefVan(clientId){
+  const eigen=Number(urenImpTarief[clientId||'geen']);
+  if(eigen>0)return eigen;
+  const k=factuurKlant(clientId);
+  const t=Number((k&&k.tarief)||0);
+  return t>0?t:0;
+}
+function urenImpZetTarief(clientId,waarde){
+  const v=Number(String(waarde).replace(',','.'));
+  if(v>0)urenImpTarief[clientId||'geen']=v;
+  else delete urenImpTarief[clientId||'geen'];
+  urenImpKeuze={};
+  urenImpRender();
+}
+/* De klanten waarvoor omgerekend moet worden, met hun tarief en wat dat
+   oplevert. Ook de klanten zonder tarief: die moet je juist zien. */
+function urenImpTarieven(eenheden){
+  const uit={};
+  (factuurState.invoices||[]).forEach(f=>{
+    if(!f||!f.datum||f.status==='concept')return;
+    (f.regels||[]).forEach(r=>{
+      if(Array.isArray(r.urenIds)&&r.urenIds.some(id=>urenEntry(id)))return;
+      const eh=String(r.eenheid||'').trim()||'(geen eenheid)';
+      if(!eenheden||!eenheden[eh])return;
+      const bedrag=factuurRegelBedrag(r);
+      if(!(bedrag>0))return;
+      const id=r.klantId||f.clientId||'geen';
+      const k=factuurKlant(id);
+      if(!uit[id])uit[id]={clientId:id,naam:k?(k.bedrijfsnaam||k.name):'Zonder klant',
+        bedrag:0,tarief:urenImpTariefVan(id),eigen:!!urenImpTarief[id||'geen']};
+      uit[id].bedrag=Math.round((uit[id].bedrag+bedrag)*100)/100;
+    });
+  });
+  return Object.values(uit).map(x=>({...x,
+    uren:x.tarief>0?Math.round((x.bedrag/x.tarief)*100)/100:null
+  })).sort((a,b)=>b.bedrag-a.bedrag);
+}
+
 /* Wat er te importeren valt, gegroepeerd per maand. */
 function urenImpKandidaten(verschuif,eenheden){
   const bestaand={};
@@ -17403,7 +17481,12 @@ function urenImpKandidaten(verschuif,eenheden){
          administratie schrijft 'uur', de andere 'uren', 'u' of niets. */
       const eh=String(r.eenheid||'').trim()||'(geen eenheid)';
       if(!eenheden||!eenheden[eh])return;
-      const aantal=Number(r.aantal||0);
+      /* In de bedrag-modus is het aantal op de regel betekenisloos (een
+         ingescande factuur zet er 1 neer); dan rekenen we met het bedrag. */
+      const aantal=(urenImpModus==='bedrag')
+        ? (()=>{const t=urenImpTariefVan(r.klantId||f.clientId);
+                return t>0?Math.round((factuurRegelBedrag(r)/t)*100)/100:0;})()
+        : Number(r.aantal||0);
       if(!(aantal>0))return;
       /* Al gedekt door echte registraties? Dan niets doen. */
       if(Array.isArray(r.urenIds)&&r.urenIds.some(id=>urenEntry(id)))return;
@@ -17437,6 +17520,7 @@ let urenImpEenhKeuze=null;   /* eenheid → telt als uren; null = nog niet bepaa
 function openUrenImportModal(){
   urenImpKeuze={};
   urenImpEenhKeuze=null;
+  urenImpTarief={};
   urenImpRender();
   document.getElementById('urenImpModal').classList.add('open');
 }
@@ -17499,7 +17583,33 @@ function urenImpRender(){
     ${/* Wat er in je facturen staat. Dit blok is er ook — en juist — als er
          niets gevonden wordt: dan zie je wélke eenheden je wél gebruikt. */''}
     ${bron.lijst.length?`
-      <h4 class="fac-an-sub">Welke regels tellen als uren?</h4>
+      <h4 class="fac-an-sub">Waar komen de uren vandaan?</h4>
+      <div class="uren-imp-modus">
+        <button type="button" class="uren-btn" data-uren-action="urenImpZetModus" data-uren-arg1="aantal"
+          aria-pressed="${urenImpModus==='aantal'?'true':'false'}">Het aantal op de regel</button>
+        <button type="button" class="uren-btn" data-uren-action="urenImpZetModus" data-uren-arg1="bedrag"
+          aria-pressed="${urenImpModus==='bedrag'?'true':'false'}">Bedrag ÷ uurtarief</button>
+      </div>
+      <p class="fac-an-uitleg">${urenImpModus==='bedrag'
+        ? 'Voor facturen die je hebt ingescand: die krijgen één regel met aantal 1 en het hele bedrag, dus het aantal zegt niets. Het bedrag wél.'
+        : 'Voor facturen die je uit je eigen urenregistratie hebt opgebouwd: daar staat het aantal uren al op de regel.'}</p>
+      ${urenImpModus==='bedrag'?(()=>{
+        const tar=urenImpTarieven(urenImpEenhKeuze);
+        const zonder=tar.filter(t=>!t.tarief);
+        return `<table class="fac-an-tabel uren-imp-tabel" style="margin-bottom:6px">
+          <thead><tr><th>Klant</th><th class="num">Bedrag</th>
+            <th class="num" style="width:110px">Uurtarief</th><th class="num">Wordt</th></tr></thead>
+          <tbody>${tar.map(t=>`<tr class="${t.tarief?'':'uren-imp-over'}">
+            <td>${escapeHtml(t.naam)}</td>
+            <td class="num">${factuurFmtBedrag(t.bedrag)}</td>
+            <td class="num"><input type="number" step="0.01" min="0" class="fac-ed-inp num"
+              value="${t.tarief||''}" placeholder="—"
+              data-uren-change="urenImpZetTarief" data-uren-arg1="${escapeHtml(t.clientId)}"
+              aria-label="Uurtarief van ${escapeHtml(t.naam)}"/></td>
+            <td class="num">${t.uren==null?'—':urenFmt(t.uren)+' u'}</td></tr>`).join('')}</tbody></table>
+          ${zonder.length?`<p class="fac-an-uitleg">Zonder uurtarief kan er niet worden omgerekend;
+            vul er hierboven een in of vul het aan bij de klant.</p>`:''}`;})():''}
+      <h4 class="fac-an-sub">Welke regels tellen mee?</h4>
       <p class="fac-an-uitleg">Gevonden in ${bron.facturen} ${bron.facturen===1?'factuur':'facturen'}.
         Vink aan wat uren zijn — de ene administratie schrijft <b>uur</b>, de andere <b>uren</b> of niets.</p>
       <table class="fac-an-tabel uren-imp-tabel">
