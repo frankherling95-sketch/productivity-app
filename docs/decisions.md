@@ -10,6 +10,45 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-10 · De uitleg van Eindklanten achter een ⓘ
+
+**Probleem.** De uitleg bovenaan het venster is zes regels en kostte op 375px
+bijna 300px — een derde van het scherm, boven de regels waarvoor je het venster
+opent. Het is tekst die je één keer leest.
+
+**Beslissing.** Een ⓘ-knop in de kopbalk, naast het kruisje. Standaard dicht.
+
+**Waarom een knop en niet de uitklapbalk die er al is.** De app heeft één
+uitklapvorm: de balk "Cijfers" (`cijferBalk()`). Die is hier niet passend om
+twee redenen. Hij kost zelf ~44px in de dichte stand, en dat is precies wat we
+wilden terugwinnen. En hij vouwt *gegevens* op die je regelmatig wilt zien; dit
+is hulptekst die je één keer leest. Twee rollen, twee affordances — dat is geen
+inconsistentie maar het verschil tussen "inklappen" en "help".
+
+**Waarom geen bewaarde voorkeur.** Bij hulptekst is dicht altijd de goede
+beginstand. Een onthouden "open" zou de ruimte weer opeten bij iemand die de
+tekst allang kent.
+
+**De plaatsing.** De kop is een flexrij geworden (titel links, ⓘ rechts). Op een
+telefoon reserveert `.modal-kop.heeft-sluit` rechts al ruimte voor het kruisje,
+dus de ⓘ komt daar vanzelf links van; op een bureaublad is er geen kruisje —
+daar sluit je met de knop in de voet — en staat hij tegen de rand. Eén regel,
+twee uitkomsten, geen breedte-specifieke plaatsing nodig.
+
+**Gemeten.** 375px: ⓘ 44×44 naast een kruisje van 44×44, geen overlap. Desktop:
+ⓘ 36×36, kruisje `display:none`. Beide: dicht bij openen, open bij een klik,
+`aria-expanded` volgt.
+
+Let op bij het nameten: de "overlap met het kruisje" die de meting op desktop
+meldde was een element van nul breedte op positie 0 — een verborgen knop heeft
+een rect, en die ligt in de oorsprong. Vergelijk eerst `display`, dan pas de
+coördinaten.
+
+**Bestanden.** `index.html` — `.fac-eind-kop`, `.fac-eind-infobtn`,
+`facEindInfoToggle()`, `_facEindInfo`, de kop van `#facEindModal`.
+
+---
+
 ## 2026-09-10 · Eindklanten op een telefoon: lijstkaarten, en de popover gaat dicht
 
 **Probleem.** Twee dingen aan hetzelfde venster.

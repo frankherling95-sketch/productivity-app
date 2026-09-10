@@ -1846,6 +1846,26 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .fac-an-voorstellen small{color:var(--text-muted);margin-left:4px}
 /* De regels van Eindklanten: een tabel op een bureaublad, lijstkaarten op een
    telefoon. Vier kolommen passen daar niet en vielen uit elkaar. */
+/* De kop van Eindklanten is een rij: titel links, de ⓘ rechts. Op een
+   telefoon reserveert .modal-kop.heeft-sluit rechts al ruimte voor het
+   kruisje, dus de ⓘ komt daar vanzelf links van te staan. Op een
+   bureaublad is er geen kruisje (daar sluit je met de knop in de voet) en
+   staat hij tegen de rand. */
+.fac-eind-kop{display:flex;align-items:center;gap:10px}
+.fac-eind-kop .tit{min-width:0;flex:1}
+/* Zelfde vorm als het kruisje ernaast: randloos, op tikformaat, wit op de
+   band. Aanzetten kleurt hem in plaats van hem te verplaatsen. */
+.fac-eind-infobtn{
+  flex:none;display:inline-flex;align-items:center;justify-content:center;
+  width:var(--tap);height:var(--tap);padding:0;
+  background:transparent;border:0;border-radius:var(--radius);
+  color:rgba(255,255,255,.9);cursor:pointer;
+  -webkit-tap-highlight-color:transparent;transition:background .12s;
+}
+.fac-eind-infobtn:hover{background:rgba(255,255,255,.12)}
+.fac-eind-infobtn:active{background:rgba(255,255,255,.18)}
+.fac-eind-infobtn:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
+.fac-eind-infobtn[aria-expanded="true"]{background:rgba(255,255,255,.18)}
 .fac-eind-kaarten{display:none}
 .fac-spec-ai-tab{width:100%;font-size:var(--fs-klein)}
 .fac-spec-ai-tab th{font-size:var(--fs-micro);text-transform:uppercase;letter-spacing:.06em}
@@ -7422,7 +7442,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.04</span>
+        <span class="app-versie" title="Appversie">v2.05</span>
       </div>
     </div>
   </aside>
@@ -8181,9 +8201,18 @@ textarea { line-height: 1.6; resize: vertical; }
 <!-- ── Eindklanten: regels die een doorbelaste factuur toewijzen ── -->
 <div class="modal-bg" id="facEindModal">
   <div class="modal" style="max-width:640px;padding:0;display:flex;flex-direction:column;max-height:92vh">
-    <div class="modal-kop" style="flex-shrink:0">
-      <h3 style="font-size:18px;font-weight:700;margin:0">Eindklanten</h3>
-      <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0">Wie zit er achter je factuurklant?</p>
+    <div class="modal-kop fac-eind-kop" style="flex-shrink:0">
+      <div class="tit">
+        <h3 style="font-size:18px;font-weight:700;margin:0">Eindklanten</h3>
+        <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0">Wie zit er achter je factuurklant?</p>
+      </div>
+      <button type="button" class="fac-eind-infobtn" id="facEindInfoBtn"
+        data-fac-action="facEindInfoToggle" aria-expanded="false"
+        aria-label="Uitleg tonen" title="Hoe werkt dit?">
+        <svg class="icoon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"
+          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="8" cy="8" r="6.2"/><path d="M8 7.4v3.4"/><path d="M8 5.2v.1"/></svg>
+      </button>
     </div>
     <div style="padding:20px 22px;overflow-y:auto;overflow-x:hidden;flex:1;min-height:0" id="facEindBody"></div>
     <div class="modal-footer" style="padding:14px 22px;border-top:0.5px solid var(--border);flex-shrink:0">
@@ -19731,6 +19760,7 @@ const FAC_CLICK_ACTIONS={
   facEindRegelToevoegen:()=>facEindRegelToevoegen(),
   facEindNeemVoorstel:(a,b)=>facEindNeemVoorstel(a,b),
   facEindRegelWeg:(a)=>facEindRegelWeg(a),
+  facEindInfoToggle:()=>facEindInfoToggle(),
   facEindAiVragen:()=>facEindAiVragen(),
   facSpecAiVragen:()=>facSpecAiVragen(),
   facSpecAiTerugdraaien:()=>facSpecAiTerugdraaien(),
@@ -23315,6 +23345,15 @@ function openFacEindModal(){
 function closeFacEindModal(){
   document.getElementById('facEindModal').classList.remove('open');
 }
+/* De uitleg staat standaard dicht. Het is tekst die je één keer leest en die
+   een derde van het venster kostte; de ⓘ in de kop haalt hem terug. Geen
+   voorkeur die bewaard blijft: bij hulptekst is dicht altijd de goede
+   beginstand. */
+let _facEindInfo=false;
+function facEindInfoToggle(){
+  _facEindInfo=!_facEindInfo;
+  facEindRender();
+}
 function facEindRender(){
   const box=document.getElementById('facEindBody');
   if(!box)return;
@@ -23323,12 +23362,17 @@ function facEindRender(){
   const klanten=kanbanState.clients||[];
   const klantOpt=(sel)=>`<option value=""${sel?'':' selected'}>Alle klanten</option>`+
     klanten.map(c=>`<option value="${c.id}"${sel===c.id?' selected':''}>${escapeHtml(c.bedrijfsnaam||c.name)}</option>`).join('');
+  const ibtn=document.getElementById('facEindInfoBtn');
+  if(ibtn){
+    ibtn.setAttribute('aria-expanded',_facEindInfo?'true':'false');
+    ibtn.setAttribute('aria-label',_facEindInfo?'Uitleg verbergen':'Uitleg tonen');
+  }
   box.innerHTML=`
-    <div class="fac-uren-info"><span>Factureer je één partij voor werk van meerdere
+    ${_facEindInfo?`<div class="fac-uren-info"><span>Factureer je één partij voor werk van meerdere
       opdrachtgevers, dan haalt een regel de opdrachtgever uit de betreft-regel.
       <b>Bevat</b> is een stuk tekst dat in de betreft moet staan; <b>telt als</b>
       is de naam die je in de analyse ziet. Eén afwijkende factuur zet je recht
-      met het veld <b>Eindklant</b> in de factuur zelf; dat gaat vóór de regels.</span></div>
+      met het veld <b>Eindklant</b> in de factuur zelf; dat gaat vóór de regels.</span></div>`:''}
     ${regels.length?`
       <table class="fac-an-tabel fac-eind-tabel" style="margin-top:14px">
       <thead><tr><th>Voor klant</th><th>Als betreft bevat</th><th>Telt als</th><th></th></tr></thead>
