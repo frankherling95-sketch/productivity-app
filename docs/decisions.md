@@ -10,6 +10,69 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-10 · Een vraagvenster in de stijl van de app
+
+**Probleem.** De modelkiezer van Gemini was een `prompt()`. Zo'n venster komt
+van de browser: het draagt "app.herling-analytics.nl says" als kop, negeert het
+thema, kan geen uitleg ónder een keuze zetten (de vier modellen stonden als
+ingesprongen tekstregels in één tekstvak) en is op een telefoon niet te bedienen
+zonder in te zoomen. De app telde er 36: 7 × `prompt()`, 18 × `confirm()`,
+11 × `alert()`.
+
+**Beslissing.** Eén venster (`#appDlgModal`) met drie ingangen die een Promise
+teruggeven: `appBevestig`, `appVraag` en `appKies`. Het leunt volledig op
+`.modal` — de gekleurde kopband, het kruisje, de voetknoppen op mobiel en beide
+thema's komen daarvandaan; nieuw is alleen de inhoud (`.app-dlg-*`). Een lijst
+en een invoerveld kunnen sámen: bij de modelkiezer zijn de modellen aanklikbaar
+met hun uitleg eronder, en het veld eronder blijft de waarheid.
+
+**Waarom die combinatie.** Een keuzelijst alleen zou iets weghalen wat de
+`prompt()` wél kon: een naam intypen die er niet tussen staat. Google brengt
+sneller een nieuw model uit dan wij die lijst bijwerken — zie de entry van
+2026-09-08 over ingetrokken modellen. Klikken vult het veld, leeg laten doet nog
+steeds wat het deed (terug naar de standaard).
+
+**Omgezet.** Gemini-model, Gemini API-key, nieuwe kolom, nieuwe klant en nieuwe
+categorie bij importeren. **Blijft staan:** de `prompt()` in `noteInsertLink()`.
+Die leunt op de live selectie in de editor (`window.getSelection()` +
+`execCommand`), en een modaal neemt de focus over — dan wordt de link op niets
+toegepast. Dat vraagt om het bewaren en terugzetten van de range, en dat is
+eigen werk met eigen tests.
+
+**Bestanden.** `index.html` — `.app-dlg-*`, `#appDlgModal`, `appDialoog()` en de
+drie ingangen, `openGeminiModelPrompt()`, `openGeminiKeyPrompt()`,
+`addColumn()`, `handleImportClientChange()`, `handleImportCatChange()`.
+
+**Niet doen.** De 18 `confirm()`s er blind achteraan omzetten. Elke daarvan
+maakt zijn functie `async`, en dat verandert de volgorde waarin dingen gebeuren
+op 18 plekken tegelijk — dat hoort per module bekeken en getest te worden.
+
+---
+
+## 2026-09-10 · Instellingen op het Dashboard opent het menu, niet alleen de la
+
+**Probleem.** Het ⋯-menu op het Dashboard had "⚙ Instellingen…", en dat riep
+`toggleSidebarMobile()` aan: de la schoof open en daar bleef het bij. Het menu
+dat je zoekt zit dáárin, onderaan, achter een tweede tik op ⚙ Instellingen. De
+eerste tik zag eruit alsof er niets gebeurde.
+
+**Beslissing.** Eén tik doet allebei: `openInstellingenVanafDashboard()` opent de
+la en daarna `toggleAppInstellingen()`.
+
+**Waarom het wachten erin zit.** `toggleAppInstellingen()` hangt zijn menu aan
+`document.body` en plaatst het vanuit de plek van de knop
+(`btn.top - hoogte - 6`). Die knop zit in de la en schuift 0,25s lang mee. Direct
+openen zet het menu dus op de plek waar de la vandaan kwam: buiten beeld. Er
+wordt gewacht op de `transitionend` van de la, met een klok van 320ms als
+vangnet — staat de la al open, dan komt die gebeurtenis nooit.
+
+**Bestanden.** `index.html` — `openInstellingenVanafDashboard()` en de knop in
+`#dashMobileSettingsMenu`.
+
+**Niet doen.** Het menu in dezelfde klik openen. De document-klik die dropdowns
+sluit komt dan ná ons en doet hem meteen weer dicht.
+---
+
 ## 2026-09-10 · De schakelaar hoort bij de kaart die hij verandert
 
 **Probleem.** "Eindklanten" stond in de filterbalk onder de tabs, en op een
