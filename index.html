@@ -1737,7 +1737,10 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
   padding:7px 8px;cursor:pointer;text-align:left;font-family:inherit;
   color:var(--text);font-size:var(--fs-basis);
 }
-.fac-an-krij:hover{background:var(--surface2)}
+/* De ranglijst in Uren is niet aanklikbaar (nog geen doorklik naar de
+   registraties), dus daar geen hand en geen hoverstand. */
+.fac-an-krij-stil{cursor:default}
+.fac-an-krij:not(.fac-an-krij-stil):hover{background:var(--surface2)}
 .fac-an-krij.aan{background:var(--mint-soft)}
 .fac-an-krij:focus-visible{outline:2px solid var(--mint);outline-offset:-2px}
 .fac-an-krij .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
@@ -7442,7 +7445,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.07</span>
+        <span class="app-versie" title="Appversie">v2.08</span>
       </div>
     </div>
   </aside>
@@ -7844,6 +7847,7 @@ textarea { line-height: 1.6; resize: vertical; }
           <button class="uren-tab" role="tab" data-uren-action="urenSetView" data-uren-arg1="klant">Per klant</button>
           <button class="uren-tab" role="tab" data-uren-action="urenSetView" data-uren-arg1="week">Per week</button>
           <button class="uren-tab" role="tab" data-uren-action="urenSetView" data-uren-arg1="maand">Per maand</button>
+          <button class="uren-tab" role="tab" data-uren-action="urenSetView" data-uren-arg1="analyse">Analyse</button>
         </div>
         <div class="uren-filters" id="urenFilterBar"></div>
       </div>
@@ -16597,7 +16601,7 @@ function urenClampHours(n){
    verschuiven die breedte. urenOffset houdt per scope de stand bij. */
 function urenScope(){
   if(urenView==='reg')return urenRegScope;      /* week of month */
-  if(urenView==='maand')return 'year';
+  if(urenView==='maand'||urenView==='analyse')return 'year';
   return 'month';                                /* klant + week */
 }
 function urenPeriod(){
@@ -16938,7 +16942,7 @@ function urenAnchorDate(){
   return urenIso(new Date((urenDate(p.from).getTime()+urenDate(p.to).getTime())/2));
 }
 function urenSetView(view){
-  if(!['reg','klant','week','maand'].includes(view))return;
+  if(!['reg','klant','week','maand','analyse'].includes(view))return;
   urenDraftFlush();
   const anchor=urenAnchorDate();
   urenView=view;
@@ -17159,6 +17163,9 @@ function urenRenderKpis(){
   if(oud)oud.innerHTML='';
 }
 function urenKpiTegels(){
+  /* De analyse telt over zijn eigen jaar, niet over de periode in de
+     topbalk -- zelfde uitzondering als bij Facturen (2026-09-09). */
+  if(urenView==='analyse')return urenAnKpiTegels(urenAnData());
   const box={innerHTML:''};
   const list=urenVisibleEntries();
   const total=urenSum(list);
@@ -17186,6 +17193,15 @@ function urenKpiTegels(){
   return `<div class="uren-kpis">${box.innerHTML}</div>`;
 }
 function urenCijferBalk(){
+  if(urenView==='analyse'){
+    const d=urenAnData();
+    const sam=d.totaal
+      ? urenFmt(d.totaal)+' uur · '+d.klanten.length+' '+(d.klanten.length===1?'klant':'klanten')+
+        (d.open>0.005?' · '+urenFmt(d.open)+' te factureren':'')
+      : 'nog geen uren in '+d.jaar;
+    return cijferBalk(urenCijfersOpen(),sam,false,
+      'data-uren-action="urenToggleCijfers"',urenAnKpiTegels(d));
+  }
   const list=urenVisibleEntries();
   const klanten=new Set(list.map(e=>e.clientId).filter(Boolean)).size;
   const teDoen=list.filter(e=>urenStatusOf(e)==='open').length;
@@ -17210,7 +17226,298 @@ function urenRenderBody(){
   if(urenView==='reg')      body.innerHTML=kop+urenRenderRegView();
   else if(urenView==='klant')body.innerHTML=kop+urenRenderKlantView();
   else if(urenView==='week') body.innerHTML=kop+urenRenderWeekView();
+  else if(urenView==='analyse')body.innerHTML=kop+urenRenderAnalyse();
   else                       body.innerHTML=kop+urenRenderMaandView();
+}
+
+/* ══ Weergave: analyse ══════════════════════════════════════════════════
+   Wat Facturen laat zien is geld; hier gaat het over tijd. Drie vragen die
+   je aan je urenregistratie kunt stellen en nergens anders in de app ziet:
+
+     1. Hoeveel schrijf ik, en loopt dat voor of achter op vorig jaar?
+     2. Wat staat er nog niet op een factuur? Dat is geld op de plank.
+     3. Hoe ligt mijn week? Uren per weekdag zegt of hij scheef loopt.
+
+   De grafieklaag komt van de analyse in Facturen: dezelfde `.fac-an-*`
+   dozen, dezelfde `.an-*` svg-klassen en dezelfde tooltip-machinerie
+   (`_facAnTips`, gebonden aan `.fac-an-plot`). Dat is bewust hergebruik en
+   geen slordigheid -- twee keer dezelfde grafiek tekenen levert twee keer
+   dezelfde bugs op. Het maakt die laag wel gedeeld tussen Uren en Facturen;
+   zie de notitie in ownership.json. */
+let urenAnJaar=null;    /* null = het jaar uit de topbalk */
+
+/* De jaren waarin je uren hebt geschreven, nieuwste eerst. */
+function urenAnJaren(){
+  const jaren=new Set([new Date().getFullYear()]);
+  (urenState.entries||[]).forEach(e=>{
+    const j=Number(String(e.date).slice(0,4));
+    if(j>1990&&j<3000)jaren.add(j);
+  });
+  return [...jaren].sort((a,b)=>b-a);
+}
+function urenAnHuidigJaar(){
+  const j=urenAnJaar!=null?urenAnJaar:new Date(urenAnchorDate()).getFullYear();
+  return Number(j)||new Date().getFullYear();
+}
+
+/* Alles wat de analyse nodig heeft, in één keer geteld. */
+function urenAnData(){
+  const jaar=urenAnHuidigJaar();
+  const vorigJaar=jaar-1;
+  const vandaag=urenToday();
+  /* Loopt het gekozen jaar nog, dan is de vergelijking eerlijk tot en met
+     déze maand -- anders zet je twaalf maanden vorig jaar naast acht van dit
+     jaar en lijkt het alsof je inzakt. */
+  const tot=(jaar===Number(vandaag.slice(0,4)))?Number(vandaag.slice(5,7)):12;
+  const maanden=[];
+  for(let m=0;m<tot;m++)maanden.push({
+    key:jaar+'-'+String(m+1).padStart(2,'0'),
+    kort:MONTH_LABELS_NL[m].slice(0,3), label:MONTH_LABELS_NL[m]+' '+jaar, maand:m
+  });
+  const idx={}; maanden.forEach((v,i)=>{idx[v.key]=i;});
+  const nu=maanden.map(v=>({...v,uren:0}));
+  const vorige=maanden.map(()=>0);
+  const klanten={};
+  const weekdag=[0,0,0,0,0,0,0];   /* ma..zo */
+  let totaal=0, open=0, openEuro=0, dagen=new Set();
+
+  (urenState.entries||[]).forEach(e=>{
+    const iso=String(e.date||''); if(iso.length<7)return;
+    const j=Number(iso.slice(0,4));
+    const mk=iso.slice(0,7);
+    const u=Number(e.hours||0);
+    if(j===vorigJaar){
+      const zelfde=jaar+iso.slice(4,7);
+      if(idx[zelfde]!=null)vorige[idx[zelfde]]+=u;
+      return;
+    }
+    if(idx[mk]==null)return;
+    nu[idx[mk]].uren+=u;
+    totaal+=u;
+    dagen.add(iso);
+    /* getDay() geeft zondag=0; wij tellen de week vanaf maandag. */
+    const wd=(new Date(iso+'T00:00:00').getDay()+6)%7;
+    weekdag[wd]+=u;
+    const k=factuurKlant(e.clientId);
+    const key=e.clientId||'geen';
+    const naam=k?(k.bedrijfsnaam||k.name):'Zonder klant';
+    if(!klanten[key])klanten[key]={key,naam,colorIdx:k?k.colorIdx:0,uren:0,open:0,openEuro:0};
+    klanten[key].uren+=u;
+    /* Nog niet gefactureerd: alles wat niet op 'invoiced' staat. Het bedrag
+       gaat via het tarief van de regel zelf, en anders dat van de klant --
+       dezelfde volgorde als waarmee een factuurregel wordt gemaakt. */
+    if(urenStatusOf(e)!=='invoiced'){
+      const tarief=(e.tarief!=null&&e.tarief!=='')?Number(e.tarief):Number((k&&k.tarief)||0);
+      const geld=u*(isFinite(tarief)?tarief:0);
+      klanten[key].open+=u; klanten[key].openEuro+=geld;
+      open+=u; openEuro+=geld;
+    }
+  });
+
+  let c1=0,c2=0;
+  const cum=maanden.map((v,i)=>{
+    c1+=nu[i].uren; c2+=vorige[i];
+    return {...v,nu:Math.round(c1*100)/100,vorige:Math.round(c2*100)/100};
+  });
+  const totaalVorig=vorige.reduce((s,v)=>s+v,0);
+  const heeftVorige=totaalVorig>0;
+  const lijst=Object.values(klanten).sort((a,b)=>b.uren-a.uren);
+  /* Een gemiddelde week: de gewerkte dagen gedeeld door vijf zegt niets als
+     je vier maanden niets schreef. Delen door het aantal weken waarin je
+     wél iets deed is eerlijker. */
+  /* Weeknummer volgens ISO: donderdag bepaalt bij welk jaar een week hoort.
+     Zonder die regel valt de jaarwisseling in twee halve weken uiteen. */
+  const weekVan=iso=>{
+    const d=new Date(iso+'T00:00:00');
+    d.setDate(d.getDate()+3-((d.getDay()+6)%7));
+    const eerste=new Date(d.getFullYear(),0,4);
+    eerste.setDate(eerste.getDate()+3-((eerste.getDay()+6)%7));
+    return d.getFullYear()+'-w'+Math.round((d-eerste)/604800000);
+  };
+  const weken=new Set([...dagen].map(weekVan));
+  return {jaar,vorigJaar,maanden,nu,vorige,cum,heeftVorige,totaal,totaalVorig,
+    klanten:lijst,weekdag,open,openEuro,
+    perWeek:weken.size?Math.round((totaal/weken.size)*10)/10:0,
+    dagen:dagen.size};
+}
+
+/* ── De grafieken ──
+   Kolommen en lijn zijn dezelfde vorm als in Facturen, maar op uren in
+   plaats van euro's. De asschaal komt van facAnSchaal(); die rondt af op
+   1/1,5/2/2,5/… en werkt net zo goed op uren. */
+function urenAnAsLabel(v){
+  return (Math.round(v*10)/10).toString().replace('.',',');
+}
+function urenAnKolomGrafiek(d,breed){
+  const smal=breed<520;
+  const H=smal?188:224, padL=smal?40:52, padR=12, padT=18, padB=26;
+  const plotW=breed-padL-padR, plotH=H-padT-padB;
+  const n=d.nu.length||1;
+  const max=facAnSchaal(Math.max(...d.nu.map((v,i)=>Math.max(v.uren,d.vorige[i])),1)).max;
+  const bandW=plotW/n;
+  const y=v=>padT+plotH-(v/max)*plotH;
+  let g='';
+  for(let i=0;i<=4;i++){
+    const v=max*i/4, yy=y(v);
+    g+=`<line x1="${padL}" y1="${yy.toFixed(1)}" x2="${breed-padR}" y2="${yy.toFixed(1)}" class="an-grid"/>`
+      +`<text x="${padL-6}" y="${(yy+3.5).toFixed(1)}" class="an-astekst" text-anchor="end">${urenAnAsLabel(v)}</text>`;
+  }
+  /* Twee staven per maand als er een vorig jaar is, anders één brede. */
+  const paar=d.heeftVorige;
+  const bw=Math.min(paar?bandW*0.3:bandW*0.5,paar?22:24);
+  let staven='',xlabels='',banden='';
+  const tips=[];
+  d.nu.forEach((v,i)=>{
+    const mid=padL+bandW*i+bandW/2;
+    if(paar){
+      const xv=mid-bw-2, hv=plotH-(y(d.vorige[i])-padT);
+      staven+=facAnBalkPad(xv,y(d.vorige[i]),bw,hv)
+        ?`<path d="${facAnBalkPad(xv,y(d.vorige[i]),bw,hv)}" class="an-vorig"/>`:'';
+    }
+    const xn=paar?mid+2:mid-bw/2, hn=plotH-(y(v.uren)-padT);
+    staven+=facAnBalkPad(xn,y(v.uren),bw,hn)
+      ?`<path d="${facAnBalkPad(xn,y(v.uren),bw,hn)}" class="an-nu"/>`:'';
+    if(v.uren>0)staven+=`<text x="${(xn+bw/2).toFixed(1)}" y="${(y(v.uren)-5).toFixed(1)}"
+      class="an-waarde" text-anchor="middle">${urenAnAsLabel(v.uren)}</text>`;
+    if(!smal||n<=6||(n-1-i)%2===0)
+      xlabels+=`<text x="${mid.toFixed(1)}" y="${H-8}" class="an-astekst" text-anchor="middle">${escapeHtml(v.kort)}</text>`;
+    tips.push({titel:v.label,regels:[
+      {kleur:'nu',lab:String(d.jaar),val:urenFmt(v.uren)+' uur'},
+      ...(paar?[{kleur:'vorig',lab:String(d.vorigJaar),val:urenFmt(d.vorige[i])+' uur'}]:[]),
+      ...(paar&&d.vorige[i]>0?[{lab:'Verschil',val:facAnPct(((v.uren-d.vorige[i])/d.vorige[i])*100)}]:[])]});
+    banden+=`<rect x="${(padL+bandW*i).toFixed(1)}" y="${padT}" width="${bandW.toFixed(1)}" height="${plotH}"
+      class="an-band" data-an-band="urenkolom" data-an-i="${i}"
+      aria-label="${escapeHtml(v.label+': '+urenFmt(v.uren)+' uur')}"/>`;
+  });
+  _facAnTips.urenkolom=tips;
+  return `<svg class="an-svg" viewBox="0 0 ${breed} ${H}" width="100%" height="${H}"
+    role="img" aria-label="Uren per maand"> ${g}${staven}${xlabels}${banden}</svg>`;
+}
+
+function urenAnLijnGrafiek(d,breed){
+  const smal=breed<520;
+  const H=smal?188:224, padL=smal?40:52, padR=smal?12:56, padT=14, padB=26;
+  const plotW=breed-padL-padR, plotH=H-padT-padB;
+  const n=d.cum.length||1;
+  const max=facAnSchaal(Math.max(...d.cum.map(p=>Math.max(p.nu,p.vorige)),1)).max;
+  const bandW=plotW/n;
+  const x=i=>padL+bandW*i+bandW/2;
+  const y=v=>padT+plotH-(v/max)*plotH;
+  let g='';
+  for(let i=0;i<=4;i++){
+    const v=max*i/4, yy=y(v);
+    g+=`<line x1="${padL}" y1="${yy.toFixed(1)}" x2="${breed-padR}" y2="${yy.toFixed(1)}" class="an-grid"/>`
+      +`<text x="${padL-6}" y="${(yy+3.5).toFixed(1)}" class="an-astekst" text-anchor="end">${urenAnAsLabel(v)}</text>`;
+  }
+  const pad=(sel)=>d.cum.map((p,i)=>`${i?'L':'M'}${x(i).toFixed(1)} ${y(sel(p)).toFixed(1)}`).join(' ');
+  let lijnen='';
+  if(d.heeftVorige)lijnen+=`<path d="${pad(p=>p.vorige)}" class="an-lijn-vorig"/>`;
+  lijnen+=`<path d="${pad(p=>p.nu)}" class="an-lijn-nu"/>`;
+  const laatst=d.cum[n-1]||{nu:0,vorige:0};
+  let eind=`<circle cx="${x(n-1).toFixed(1)}" cy="${y(laatst.nu).toFixed(1)}" r="4" class="an-punt-nu"/>`;
+  if(d.heeftVorige)eind+=`<circle cx="${x(n-1).toFixed(1)}" cy="${y(laatst.vorige).toFixed(1)}" r="4" class="an-punt-vorig"/>`;
+  let labels='';
+  if(!smal){
+    /* Eén reeks gelabeld, net als bij Facturen -- zie stijlgids §11. */
+    d.cum.forEach((pt,i)=>{
+      if(i===n-1)return;
+      labels+=`<text x="${x(i).toFixed(1)}" y="${(y(pt.nu)-9).toFixed(1)}"
+        class="an-eindlabel zacht" text-anchor="middle">${urenAnAsLabel(pt.nu)}</text>`;
+    });
+    labels+=`<text x="${(x(n-1)+8).toFixed(1)}" y="${(y(laatst.nu)+4).toFixed(1)}"
+      class="an-eindlabel">${urenAnAsLabel(laatst.nu)} u</text>`;
+    if(d.heeftVorige)labels+=`<text x="${(x(n-1)+8).toFixed(1)}" y="${(y(laatst.vorige)+4).toFixed(1)}"
+      class="an-eindlabel zacht">${urenAnAsLabel(laatst.vorige)} u</text>`;
+  }
+  let xlabels='',banden='';
+  const tips=[];
+  d.cum.forEach((p,i)=>{
+    if(!smal||n<=6||(n-1-i)%2===0)
+      xlabels+=`<text x="${x(i).toFixed(1)}" y="${H-8}" class="an-astekst" text-anchor="middle">${escapeHtml(p.kort)}</text>`;
+    tips.push({titel:'t/m '+p.label,regels:[
+      {kleur:'nu',lab:String(d.jaar),val:urenFmt(p.nu)+' uur'},
+      ...(d.heeftVorige?[{kleur:'vorig',lab:String(d.vorigJaar),val:urenFmt(p.vorige)+' uur'}]:[]),
+      ...(d.heeftVorige&&p.vorige>0?[{lab:'Verschil',val:facAnPct(((p.nu-p.vorige)/p.vorige)*100)}]:[])]});
+    banden+=`<rect x="${(padL+bandW*i).toFixed(1)}" y="${padT}" width="${bandW.toFixed(1)}" height="${plotH}"
+      class="an-band" data-an-band="urenlijn" data-an-i="${i}"
+      aria-label="${escapeHtml('t/m '+p.label+': '+urenFmt(p.nu)+' uur')}"/>`;
+  });
+  _facAnTips.urenlijn=tips;
+  return `<svg class="an-svg" viewBox="0 0 ${breed} ${H}" width="100%" height="${H}"
+    role="img" aria-label="Cumulatieve uren">${g}${lijnen}${eind}${labels}${xlabels}${banden}</svg>`;
+}
+
+/* Uren per weekdag. Een ranglijst krijgt één kleur -- de lengte van de balk
+   zegt het al, en kleur per dag kost het enige vrije kanaal dat er is. */
+function urenAnWeekritme(d){
+  const namen=['Maandag','Dinsdag','Woensdag','Donderdag','Vrijdag','Zaterdag','Zondag'];
+  const max=Math.max(...d.weekdag,1);
+  const totaal=d.weekdag.reduce((s,v)=>s+v,0)||1;
+  return `<div class="fac-an-klanten">${d.weekdag.map((u,i)=>`
+    <div class="fac-an-krij fac-an-krij-stil">
+      <span class="nm">${namen[i]}</span>
+      <span class="bl"><span class="vul" style="width:${Math.max(u>0?1:0,(u/max)*100).toFixed(1)}%"></span></span>
+      <span class="wa">${urenFmt(u)} u<small>${Math.round((u/totaal)*100)}%</small></span>
+    </div>`).join('')}</div>`;
+}
+
+/* Wat er nog niet op een factuur staat, per klant. */
+function urenAnOpenstaand(d){
+  const metOpen=d.klanten.filter(k=>k.open>0.005);
+  if(!metOpen.length)
+    return '<div class="uren-empty">Alles is gefactureerd — er staan geen uren meer open.</div>';
+  const max=Math.max(...metOpen.map(k=>k.openEuro),1);
+  return `<div class="fac-an-klanten">${metOpen.map(k=>`
+    <div class="fac-an-krij fac-an-krij-stil">
+      <span class="nm">${escapeHtml(k.naam)}</span>
+      <span class="bl"><span class="vul" style="width:${Math.max(1,(k.openEuro/max)*100).toFixed(1)}%"></span></span>
+      <span class="wa">${factuurFmtBedrag(k.openEuro)}<small>${urenFmt(k.open)} u</small></span>
+    </div>`).join('')}</div>`;
+}
+
+function urenAnKpiTegels(d){
+  const groei=d.heeftVorige&&d.totaalVorig>0
+    ? facAnPct(((d.totaal-d.totaalVorig)/d.totaalVorig)*100)+' t.o.v. '+d.vorigJaar : String(d.jaar);
+  const grootste=d.klanten[0];
+  return facKpiRaster(`
+    ${facKpi('Geschreven',urenFmt(d.totaal),' u',groei,'var(--mint)')}
+    ${facKpi('Gemiddeld per week',urenFmt(d.perWeek),' u',d.dagen+' dag'+(d.dagen===1?'':'en')+' geschreven','var(--info)')}
+    ${facKpi('Nog niet gefactureerd',factuurFmtBedrag(d.openEuro),'',
+      d.open>0.005?urenFmt(d.open)+' uur op de plank':'alles gefactureerd','var(--warning)')}
+    ${facKpi('Grootste klant',grootste&&d.totaal
+      ?Math.round((grootste.uren/d.totaal)*100)+'%':'—','',
+      grootste?grootste.naam+' · '+urenFmt(grootste.uren)+' u':'','var(--success)')}`);
+}
+
+function urenRenderAnalyse(){
+  _facAnTips={};
+  const d=urenAnData();
+  const breed=facAnBreedte('urenBody');
+  if(!d.totaal&&!d.totaalVorig)
+    return '<div class="uren-empty"><b>Nog geen uren in '+d.jaar+'</b>Schrijf eerst wat uren; dan valt er iets te zien.</div>';
+  const kop=(t,rechts)=>`<div class="fac-an-kaartkop"><h3>${escapeHtml(t)}</h3>${rechts||''}</div>`;
+  const leg=d.heeftVorige?`<div class="fac-an-leg">
+    <span><i class="nu"></i>${d.jaar}</span><span><i class="vorig"></i>${d.vorigJaar}</span></div>`
+    :`<div class="fac-an-leg"><span><i class="nu"></i>${d.jaar}</span></div>`;
+  return `
+    <div class="fac-an-kaart">
+      ${kop('Uren per maand')}${leg}
+      <div class="fac-an-plot" data-an-plot="urenkolom">${urenAnKolomGrafiek(d,breed)}
+        <div class="fac-an-tip" hidden></div></div>
+    </div>
+    <div class="fac-an-kaart">
+      ${kop('Cumulatief')}${leg}
+      <div class="fac-an-plot" data-an-plot="urenlijn">${urenAnLijnGrafiek(d,breed)}
+        <div class="fac-an-tip" hidden></div></div>
+    </div>
+    <div class="fac-an-kaart">
+      ${kop('Nog niet gefactureerd')}
+      ${urenAnOpenstaand(d)}
+    </div>
+    <div class="fac-an-kaart">
+      ${kop('Werkritme')}
+      ${urenAnWeekritme(d)}
+    </div>`;
 }
 
 /* ══ Weergave: registraties ══ */
@@ -22624,9 +22931,13 @@ function facAnBalkPad(x,y,w,h){
 
    Aftrekken wat er tussen #facBody en de svg zit: de zijkanten van .uren-content
    (2×16) plus die van .fac-an-kaart (2×18, op een telefoon 2×12). */
-function facAnBreedte(){
-  const el=document.getElementById('facBody');
-  const w=el?el.clientWidth:900;
+/* Hoe breed mag de tekening zijn. De analyse van Uren gebruikt dezelfde
+   grafieken en moet dus zijn eigen doos kunnen opgeven: een verborgen
+   module heeft clientWidth 0, en dan valt de viewBox terug op 280 en staat
+   de grafiek gecentreerd in een veel bredere kaart. */
+function facAnBreedte(id){
+  const el=document.getElementById(id||'facBody');
+  const w=(el&&el.clientWidth)||900;
   return Math.max(280,w-32-(w<=768?24:36));
 }
 
