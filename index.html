@@ -1552,7 +1552,11 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
   background:var(--surface);border:0.5px solid var(--border);
   border-radius:var(--radius-md);padding:16px 18px;margin-bottom:14px;
 }
-.fac-an-kaartkop{margin-bottom:10px}
+/* Titel links, de schakelaar die déze kaart verandert rechts. De knop wrapt
+   naar een eigen regel als de titel te breed wordt: op 375px houdt
+   "Waar komt het vandaan" naast de knop 8px over, te weinig om op te rekenen. */
+.fac-an-kaartkop{margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.fac-an-kaartknop{margin-left:auto;flex:none}
 .fac-an-kaartkop h3{font-size:var(--fs-groot);font-weight:600;margin:0}
 .fac-an-kaartkop p{font-size:var(--fs-klein);color:var(--text-muted);margin:2px 0 0}
 /* Bij twee reeksen hoort altijd een legenda: kleur alleen mag nooit de enige
@@ -21561,6 +21565,18 @@ function facAnLijnGrafiek(d,breed){
 /* ── Klanten: een ranglijst in gewone HTML ──
    Geen svg: een naam die niet past moet met een ellips kunnen afkappen en
    voorleesbaar blijven, en dat kan tekst in HTML wel en tekst in een svg niet. */
+/* De schakelaar hoort bij de kaart die hij verandert: hier zie je het verschil,
+   dus hier staat de knop. Hij stond in de filterbalk -- op een telefoon zelfs
+   achter de trechter, twee tikken van de uitkomst vandaan.
+   Het aantal is het aantal regels dat de uitsplitsing stuurt; zonder regels
+   geen badge, want dan valt er niets te tellen. */
+function facAnEindKnop(){
+  const d=facEindRegels().length;
+  return `<button type="button" class="uren-btn fac-an-kaartknop"
+    data-fac-action="facAnWisselEind" aria-pressed="${facAnEind?'true':'false'}"
+    title="Splits doorbelaste facturen uit naar de klant achter je klant"
+    >Eindklanten${d?` <span class="cnt">${d}</span>`:''}</button>`;
+}
 function facAnKlantBalken(d){
   if(!d.klanten.length)return '<div class="uren-empty">Geen facturen in deze periode.</div>';
   const max=d.klanten[0].excl||1;
@@ -21675,7 +21691,7 @@ function facRenderAnalyse(){
   const d=facAnData();
   const breed=facAnBreedte();
   const klantNaam=facAnKlant?(d.klanten.find(k=>k.key===facAnKlant)||{}).naam:'';
-  const kop=(t)=>`<div class="fac-an-kaartkop"><h3>${escapeHtml(t)}</h3></div>`;
+  const kop=(t,rechts)=>`<div class="fac-an-kaartkop"><h3>${escapeHtml(t)}</h3>${rechts||''}</div>`;
   return `
     ${klantNaam?`<div class="fac-an-scope">Tegels en tijdlijnen tonen alleen
       <b>${escapeHtml(klantNaam)}</b>.
@@ -21693,7 +21709,7 @@ function facRenderAnalyse(){
         <div class="fac-an-tip" hidden></div></div>
     </div>
     <div class="fac-an-kaart">
-      ${kop(facAnEind?'Waar komt het vandaan — eindklanten':'Waar komt het vandaan')}
+      ${kop('Waar komt het vandaan',facAnEindKnop())}
       ${facAnKlantBalken(d)}
     </div>
     ${facAnTabel?`<div class="fac-an-kaart">${kop('De cijfers')}${facAnTabellen(d)}</div>`:''}
@@ -21811,10 +21827,10 @@ function facAnPopInhoud(){
         ${d.klanten.map(k=>`<option value="${escapeHtml(k.key)}"${
           facAnKlant===k.key?' selected':''}>${escapeHtml(k.naam)}</option>`).join('')}
       </select></div>
-    <div><label>Uitsplitsen</label>
+    ${/* De schakelaar zelf staat op de kaart "Waar komt het vandaan" -- daar zie
+         je wat hij doet. Hier blijft alleen het instellen van de regels. */''}
+    <div><label>Eindklanten</label>
       <div class="fac-an-poprij">
-        <button type="button" class="uren-btn" data-fac-action="facAnWisselEind"
-          aria-pressed="${facAnEind?'true':'false'}">Eindklanten</button>
         <button type="button" class="uren-btn" data-fac-action="openFacEindModal">Regels…</button>
       </div></div>
     <div><label>Weergave</label>
@@ -21835,18 +21851,19 @@ function facAnPopMarkeer(){
     const b=pop.querySelector('[data-fac-action="'+actie+'"]');
     if(b)b.setAttribute('aria-pressed',String(aan));
   };
-  zet('facAnWisselEind',facAnEind);
   zet('facAnWisselTabel',facAnTabel);
   const sel=pop.querySelector('#facAnKlantSel');
   if(sel&&sel.value!==facAnKlant)sel.value=facAnKlant;
 }
 /* Hoeveel van de keuzes staan niet op hun standaard? Dat getal staat op de
    knop, zodat je op een telefoon ziet dat er iets aanstaat zonder de popover
-   te openen. Twee dingen tellen niet mee: de tabelweergave is geen filter, en
-   het bereik staat voluit in de jaarknop ernaast -- dat hoeft er niet nog een
-   keer als bolletje bij. */
+   te openen. Drie dingen tellen niet mee: de tabelweergave is geen filter, en
+   het bereik en de eindklanten staan allebei al voluit in beeld -- het bereik
+   in de jaarknop ernaast, de eindklanten als knop op hun eigen kaart. Een
+   bolletje sturen naar een popover waar de schakelaar niet meer staat is
+   erger dan geen bolletje. */
 function facAnFilterAantal(){
-  return (facAnKlant?1:0)+(facAnEind?1:0);
+  return facAnKlant?1:0;
 }
 function facAnBereikKiezer(){
   const nu=new Date().getFullYear();
@@ -21896,7 +21913,6 @@ function facAnWisselEind(){
 }
 function facAnWisselTabel(){facAnTabel=!facAnTabel;facRenderAll();facAnPopMarkeer();}
 function facAnFilterBalk(){
-  const d=facEindRegels().length;
   return `<div class="fac-an-bar">
     ${facAnBereikKiezer()}
     <select class="fac-an-klantsel" data-fac-change="facAnZetKlantSel" aria-label="Klant">
@@ -21904,10 +21920,7 @@ function facAnFilterBalk(){
       ${facAnData().klanten.map(k=>`<option value="${escapeHtml(k.key)}"${
         facAnKlant===k.key?' selected':''}>${escapeHtml(k.naam)}</option>`).join('')}
     </select>
-    <button class="uren-btn${facAnEind?' aan':''}" data-fac-action="facAnWisselEind"
-      aria-pressed="${facAnEind?'true':'false'}"
-      title="Splits doorbelaste facturen uit naar de klant achter je klant">Eindklanten${d?` <span class="cnt">${d}</span>`:''}</button>
-    <button class="uren-btn" data-fac-action="openFacEindModal">Regels…</button>
+    <button class="uren-btn" data-fac-action="openFacEindModal">Eindklantregels…</button>
     <div class="fac-an-vul"></div>
     <button class="uren-btn${facAnTabel?' aan':''}" data-fac-action="facAnWisselTabel"
       aria-pressed="${facAnTabel?'true':'false'}">Tabel</button>
