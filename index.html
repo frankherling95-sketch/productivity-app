@@ -7290,7 +7290,7 @@ textarea { line-height: 1.6; resize: vertical; }
                    Ze stonden hier wél en daar niet, en omdat dit menu alleen
                    op een telefoon bestaat waren ze op een bureaublad nergens
                    te vinden -- de API-key voorop. -->
-              <button type="button" onclick="closeDashMobileSettings();toggleSidebarMobile();">⚙ Instellingen…</button>
+              <button type="button" onclick="openInstellingenVanafDashboard()">⚙ Instellingen…</button>
             </div>
             <input type="file" id="restoreFileInput" accept=".json,application/json" style="display:none" onchange="handleRestoreFile(this.files[0])"/>
           </div>
@@ -10196,6 +10196,35 @@ function toggleDashMobileSettings(e){
   const menu=root.querySelector('.dash-mobile-settings-menu');
   if(willOpen&&menu)requestAnimationFrame(()=>clampDropdownToViewport(menu));
   else if(menu){menu.style.left='';menu.style.right='';}
+}
+/* "Instellingen…" in het ⋯-menu van het Dashboard deed alleen de la open. Het
+   menu dat je zoekt zit daarin, onderaan, achter een tweede tik op
+   ⚙ Instellingen -- en die eerste tik zag eruit alsof er niets gebeurde.
+   Nu doet één tik allebei.
+
+   toggleAppInstellingen() tekent zijn menu vanuit de plek van die knop
+   (btn.top - hoogte - 6), en die knop schuift 0,25s lang mee met de la. Te
+   vroeg openen zet het menu dus op de plek waar de la vandaan kwam: buiten
+   beeld. Vandaar wachten op het einde van die beweging, met een klok als
+   vangnet -- staat de la al open, dan komt er geen transitionend. */
+function openInstellingenVanafDashboard(){
+  closeDashMobileSettings();
+  const sb=document.getElementById('sidebar');
+  const alOpen=!!(sb&&sb.classList.contains('mobile-open'));
+  toggleSidebarMobile(true);
+  /* toggleAppInstellingen() is een schakelaar; staat het menu er al, dan zou
+     hij het juist dichtdoen. */
+  const start=()=>{if(!document.getElementById('appInstelMenu'))toggleAppInstellingen();};
+  if(alOpen||!sb){setTimeout(start,0);return;}
+  let gedaan=false;
+  const klaar=()=>{
+    if(gedaan)return; gedaan=true;
+    sb.removeEventListener('transitionend',opTransitie);
+    start();
+  };
+  const opTransitie=e=>{if(e.target===sb&&e.propertyName==='transform')klaar();};
+  sb.addEventListener('transitionend',opTransitie);
+  setTimeout(klaar,320);   /* 0,25s overgang + marge */
 }
 function closeDashMobileSettings(){
   const root=document.getElementById('dashMobileSettings');
