@@ -259,6 +259,24 @@ scope geschreven".
 
 **Nieuwe modaal**: `<div class="modal-bg" id="<naam>Modal"><div class="modal">...</div></div>` + `openXModal()`/`closeXModal()` JS functies. CSS classes bestaan al.
 
+**Actie aansluiten op een dispatcher**: ⚠️ de argumentvolgorde verschilt per
+tabel. Zoek de echte aanroepregel op vóór je registreert — de vorm van een
+naburige registratie overnemen is hoe op 2026-09-10 drie change-handlers stil
+faalden.
+
+| Tabel | Attribuut | Aanroep |
+|---|---|---|
+| `APP_ACTIONS` (klik) | `data-action` | `fn(el, e, arg1, arg2, arg3)` |
+| `APP_CHANGE_ACTIONS` | `data-change` | `fn(el, e, arg1, arg2, arg3)` |
+| `UREN_CLICK_ACTIONS` | `data-uren-action` | `fn(arg1, arg2, e, el)` |
+| `UREN_CHANGE_ACTIONS` | `data-uren-change` | `fn(el, arg1, arg2)` |
+| `FAC_CLICK_ACTIONS` | `data-fac-action` | `fn(arg1, arg2)` |
+| `FAC_CHANGE_ACTIONS` | `data-fac-change` | `fn(el, arg1, arg2)` |
+
+Test daarna via de **échte gebeurtenis** (een `change` op het element), niet
+door de functie rechtstreeks aan te roepen — dat slaat juist de bedrading over
+waar de fout zit.
+
 **Nieuw state-veld**: voeg toe aan initiële state, dan hydratie-stap in `hydrateerState()`. `saveGist()` neemt rawState in zijn geheel mee.
 
 **Nieuwe checklist filter**: voeg sleutel toe aan `clFilters`, render-knop in `renderClFilterBar()`, filter-logica in `renderChecklistModule()`.
@@ -279,6 +297,7 @@ scope geschreven".
 
 Top-3 meest recent. Volledige log + *waarom* per beslissing: [`docs/decisions.md`](docs/decisions.md).
 
+- **2026-09-10**: Zes dispatchers, vijf verschillende argumentvolgordes — `urenDispatchChange` geeft het element als eerste door en `urenDispatchClick` als laatste; drie change-handlers van de uren-import faalden daardoor stil. De tabel staat nu onder *Actie aansluiten op een dispatcher*, en `validate.mjs` toetst elke actienaam in de opmaak tegen zijn tabel. Die controle vond meteen `noteClearContent`: de knop "Inhoud legen" in de notitie-editor was nooit geregistreerd
 - **2026-09-10**: Vijf facturen per verzoek bij het inscannen — de gratis laag telt verzoeken (5/min, 20/dag) en nauwelijks tokens (4.310 van 250.000 gebruikt). Zeven bestanden gaan nu in twee verzoeken. Terugkoppelen op de bestandsnaam en niet op de volgorde, want een overgeslagen document zou alles daarna bij de verkeerde factuur laten landen; wie niet terugkomt gaat één keer alleen. Ook: een 429 heet alleen nog een dagquotum als Google alléén dat noemt of langer dan een kwartier geduld vraagt — hij noemt in `details` vaak beide quota's, waardoor een minuutlimiet als "dagquotum op" verscheen
 - **2026-09-09**: Eén meldingsblok met drie toestanden (`.fac-btw-let` + `.let-gelukt` / `.let-fout`) — een geslaagde scan stond in dezelfde amberkleur als de btw-waarschuwing eronder. Nu groen met een vinkje, mislukt rood met een uitroepteken, en de rode varianten niet meer als `border-left-color` in een style-attribuut. Het icoon staat in `1em` omdat het in een tekstregel staat; `--icoon` is de maat voor een raakvlak. Zie stijlgids §12
 - **2026-09-09**: Analyse op een breed scherm — de grafiek vult zijn kaart (het plafond van 1100px op de tekenbreedte liet hem gecentreerd staan met lege randen), de tooltip staat naast de baan in plaats van erboven (hij dekte de kolom af waar je naar wees), de legenda staat er ook bij één reeks (anders zegt niets meer welke periode je ziet) en de maandlabels op mobiel worden vanaf achteren geteld zodat de laatste twee niet botsen. Tabvolgorde in Facturen volgt de gang van een factuur: Facturen · Debiteuren · Verzonden · Analyse · Klanten · Btw

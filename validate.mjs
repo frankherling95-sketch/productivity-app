@@ -267,6 +267,62 @@ if (teKlein.size) {
   );
 }
 
+/* ─── Actienamen in data-*-attributen ───
+   De modules hangen hun knoppen aan één van zes tabellen via een
+   data-attribuut. Staat er een naam in die niet in de bijbehorende tabel
+   voorkomt, dan gebeurt er bij het klikken niets -- geen fout, geen melding,
+   alleen een knop die niet werkt. Dat is dezelfde stilte als de
+   onclick-controle hierboven vangt, maar dan via de andere weg.
+
+   Dit vangt een typefout of een vergeten registratie. Een verkeerde
+   ARGUMENTVOLGORDE vangt het niet; die verschilt per tabel en staat in
+   CLAUDE.md onder "Actie aansluiten op een dispatcher". */
+{
+  const tabellen = [
+    ['data-action',      'APP_ACTIONS'],
+    ['data-change',      'APP_CHANGE_ACTIONS'],
+    ['data-uren-action', 'UREN_CLICK_ACTIONS'],
+    ['data-uren-change', 'UREN_CHANGE_ACTIONS'],
+    ['data-fac-action',  'FAC_CLICK_ACTIONS'],
+    ['data-fac-change',  'FAC_CHANGE_ACTIONS'],
+  ];
+  for (const [attr, tabel] of tabellen) {
+    /* De sleutels van de tabel: zowel `const X={...}` als `Object.assign(X,{...})`,
+       want APP_ACTIONS wordt in stukken gevuld. */
+    const namen = new Set();
+    const blokRe = new RegExp(
+      '(?:const\\s+' + tabel + '\\s*=|Object\\.assign\\(\\s*' + tabel + '\\s*,)\\s*\\{', 'g');
+    let b;
+    while ((b = blokRe.exec(js)) !== null) {
+      /* Van de openende accolade tot de bijbehorende sluitende. */
+      let diepte = 0, i = b.index + b[0].length - 1;
+      const start = i;
+      for (; i < js.length; i++) {
+        if (js[i] === '{') diepte++;
+        else if (js[i] === '}') { diepte--; if (diepte === 0) break; }
+      }
+      const blok = js.slice(start, i);
+      let m;
+      const sleutelRe = /(?:^|[{,\s])([a-zA-Z_$][\w$]*)\s*:/g;
+      while ((m = sleutelRe.exec(blok)) !== null) namen.add(m[1]);
+    }
+    if (!namen.size) continue;   /* tabel niet gevonden: niets te toetsen */
+
+    const gebruikRe = new RegExp(attr + '\\s*=\\s*["\']([a-zA-Z_$][\\w$]*)["\']', 'g');
+    const ontbreekt = new Set();
+    let g;
+    while ((g = gebruikRe.exec(html)) !== null) {
+      if (!namen.has(g[1])) ontbreekt.add(g[1]);
+    }
+    if (ontbreekt.size) {
+      errors.push(
+        `${attr} verwijst naar ${ontbreekt.size} naam/namen die niet in ${tabel} staan: ` +
+        [...ontbreekt].join(', ')
+      );
+    }
+  }
+}
+
 /* ─── Versienummer ───
    Het nummer in de zijbalk is MAJOR.BUILD, en de teller in sw.js
    (CACHE_NAME = 'herling-v<n>') is die twee aan elkaar geplakt:

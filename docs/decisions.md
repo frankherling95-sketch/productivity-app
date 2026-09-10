@@ -10,6 +10,46 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-10 · Een actienaam die nergens staat, en de zes argumentvolgordes
+
+**Probleem.** Bestanden kiezen in "Uren uit facturen" deed niets. Frank:
+*"Als ik de facturen kies in de import module en daarna inlaad gebeurt er
+niks."* De oorzaak was een letterlijk overgenomen vorm: `urenDispatchClick`
+roept `fn(arg1, arg2, e, el)` aan, `urenDispatchChange` roept `fn(el, arg1,
+arg2)` aan — het element eerst. Ik had de klikvolgorde in drie
+change-registraties gezet. Bij het bestandsveld kwam `el` als `undefined`
+binnen, waar een guard het stil opat; de maand- en tariefvelden gooiden een
+TypeError die niemand ziet.
+
+**Beslissing.** De drie registraties rechtgezet, en daarna de zes dispatchers
+naast elkaar gelegd. Ze hebben **vijf verschillende argumentvolgordes**. Die
+staan nu in `CLAUDE.md` onder *Actie aansluiten op een dispatcher* — dat is de
+plek waar je kijkt vóór je registreert, en niet de registratie van de buurman.
+
+**En een controle erbij.** `validate.mjs` toetst nu elke `data-action` /
+`data-change` / `data-uren-*` / `data-fac-*` in de opmaak tegen de sleutels van
+de bijbehorende tabel. Een naam die nergens staat is precies dezelfde stilte
+als een `onclick` naar een functie die niet bestaat, en die controle stond er
+al sinds 2026-08-11. Op de eerste run vond hij er meteen één:
+`noteClearContent` — de knop "Inhoud legen" in de kop van de notitie-editor
+stond er sinds jaar en dag, maar was nooit geregistreerd. Nagemeten via een
+echte klik: vóór de fix bleef de inhoud staan, erna wordt hij gewist én zet
+"Ongedaan maken" hem terug.
+
+**Waarom de controle de volgorde niet vangt.** Hij toetst namen, geen
+signaturen — een verkeerde volgorde is syntactisch prima. Daarom staat de
+tabel in `CLAUDE.md` en niet alleen de check in het script.
+
+**Niet doen.** Een handler testen door de functie rechtstreeks aan te roepen.
+Dat slaat juist de bedrading over waar de fout zat. Test via de échte
+gebeurtenis op het element.
+
+**Bestanden.** `index.html` — `UREN_CHANGE_ACTIONS` (drie regels),
+`APP_ACTIONS` (`noteClearContent`). `validate.mjs` — nieuwe actienaam-controle.
+`CLAUDE.md` — de tabel met de zes dispatchers.
+
+---
+
 ## 2026-09-10 · Escape sluit elk venster, niet vijf ervan
 
 **Probleem.** De app telt 34 modalen. Escape werkte er bij vijf: de vier die op
