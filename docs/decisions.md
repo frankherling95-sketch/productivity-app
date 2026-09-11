@@ -10,6 +10,60 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-11 · Maandoverzicht: per dag zien wat er staat en waarvandaan
+
+**Probleem.** De uren komen op twee manieren binnen — zelf geschreven in Uren,
+of overgenomen uit een (ingescande) factuur — en om gaten te vullen moet je per
+maand kunnen zien wat er op welke dag staat. Frank: *"… voor mij is het nu
+belangrijk om te kunnen bepalen wat nou precies wanneer is gebeurd zodat ik het
+ook beter kan aanvullen wanneer er data mist."* Tot nu toe opende alleen een
+maand met facturen erachter iets, en dan alleen de lijst met facturen: een zelf
+geschreven of gemengde maand liet je eigen uren niet zien.
+
+**Beslissing.** Eén maandoverzicht voor elke maand — vanuit de rij in
+*Herkomst per maand* en vanuit de baan in *Uren per maand*, ook een lege maand:
+- bovenaan de kalender van *Per maand*, met onderaan elke dag de bron: egaal is
+  zelf geschreven, gearceerd uit een factuur, gestreept omlijnd een werkdag
+  zonder uren;
+- daaronder *Zelf geschreven*, per dag, met bij elke registratie op welke
+  factuur hij staat (via `urenIds` op de factuurregel);
+- dan *Uit facturen*: per factuur de uren en over welke dagen ze verdeeld zijn;
+  een klik opent de factuur;
+- in de kop het totaal, de verdeling en het aantal werkdagen zonder uren.
+
+Aanvullen gebeurt in Registraties, want daar staat de invoerregel: een dag in de
+kalender springt naar zijn week, de knop onderaan naar de hele maand.
+
+**Vervangt** het deel over de doorklik uit de vorige entry (*Herkomst per
+maand*): een maand opent niet meer de facturenlijst van de Facturen-analyse. Die
+toonde alleen de facturen; het maandoverzicht toont die ook, plus je eigen
+uren. `facAnDrillRender()` is weer zoals hij was en de doorklik staat niet meer
+op de gedeelde lijst in `ownership.json`.
+
+**Waarom de kalender hergebruiken.** Een tweede kalender loopt vroeg of laat
+uit de pas met de eerste. `urenRenderMaandKalender()` kreeg `opts` (`kop`,
+`dagActie`, `bron`); zonder opts tekent hij precies wat *Per maand* altijd liet
+zien. Nagemeten: de pijlen staan er, er is geen bronstrook en een dag gaat nog
+naar `urenKalenderDag`.
+
+**Waarom 800 breed.** De kalender vraagt 720 (`min-width` van `.uren-kal-tab`),
+plus de vulling van het venster. Smaller en hij schuift zijwaarts in zijn kaart.
+
+**Niet doen.** Feestdagen uitsluiten van "werkdag zonder uren". Die ken je zelf;
+een lijst in de app loopt achter, en een gat dat je herkent streep je sneller
+weg dan dat je er een mist.
+
+**Bestanden.** `index.html` — `urenAnMaandData()`, `urenAnMaandOpen()`,
+`urenAnMaandRender()`, `urenAnMaandDag()`, `urenAnMaandNaarReg()`,
+`urenAnMaandFactuur()`, `urenKalBronBalk()`, `urenRenderMaandKalender(…, opts)`,
+`#urenAnMaandModal`; `facAnToonTip()` leest de hinttekst uit `data-an-klik`; CSS
+`.uren-kal-bron`, `.uren-an-lijst`, `.uren-an-regel`, `.uren-kal.zonder-kop`,
+`.fac-an-leg i.gat`. `.claude/ownership.json` — doorklik niet meer gedeeld,
+`.fac-an-sub` en `.fac-an-tabel` wel. `test.html` — één test erbij, twee
+bijgewerkt. `docs/stijlgids.md` §7 en §11.
+
+---
+
 ## 2026-09-11 · Herkomst per maand: welke factuur zit er achter geïmporteerde uren
 
 **Probleem.** Na de import van uren uit facturen (2026-09-10) was in de analyse

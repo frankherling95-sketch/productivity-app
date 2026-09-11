@@ -702,7 +702,31 @@ async function runChecks() {
           const jan = d.nu[0];
           return jan.eigen === 3 && jan.uitFactuur === 7 && d.uitFactuur === 7 &&
                  jan.bronLijst.length === 1 && jan.bronLijst[0].factuurId === 'hkB' &&
-                 jan.bronLijst[0].uren === 7 && jan.metFactuur === true;
+                 jan.bronLijst[0].uren === 7;
+        } finally { fs.invoices = inv; us.entries = ent; }
+      }],
+    ['Maandoverzicht: eigen uren met hun factuur, bronnen apart, werkdagen zonder uren',
+      () => {
+        const st = w.huidigeStateSnapshot();
+        const fs = st.facturen, us = st.uren;
+        const inv = fs.invoices, ent = us.entries;
+        try {
+          /* Maart 2027 begint op een maandag en heeft 23 werkdagen. */
+          fs.invoices = [...(inv||[]),
+            {id:'hkD', nummer:'H-004', datum:'2027-04-01', regels:[{urenIds:['m1']}]},
+            {id:'hkE', nummer:'H-005', datum:'2027-04-02', regels:[]}];
+          us.entries = [
+            {id:'m1', date:'2027-03-01', hours:4, clientId:null, status:'invoiced'},
+            {id:'m2', date:'2027-03-02', hours:3, clientId:null, status:'open'},
+            {id:'m3', date:'2027-03-03', hours:8, clientId:null, status:'invoiced', bron:'factuur', factuurId:'hkE'},
+            {id:'m4', date:'2027-03-06', hours:2, clientId:null, status:'open'}
+          ];
+          const m = w.urenAnMaandData('2027-03');
+          return m.eigen.length === 3 && m.eigenUren === 9 &&
+                 !!m.opFactuur.m1 && m.opFactuur.m1.id === 'hkD' && !m.opFactuur.m2 &&
+                 m.bronnen.length === 1 && m.bronnen[0].factuurId === 'hkE' && m.uitFactuur === 8 &&
+                 m.gaten.length === 20 && m.gaten.indexOf('2027-03-01') < 0 &&
+                 m.gaten.indexOf('2027-03-08') >= 0 && m.gaten.indexOf('2027-03-06') < 0;
         } finally { fs.invoices = inv; us.entries = ent; }
       }],
     /* urenImpAiRij is een top-level `let`: niet via window te zetten, wel via
@@ -732,10 +756,12 @@ async function runChecks() {
           w.eval("_facAnTips.hktest=[{titel:'Maand',regels:[{lab:'x',val:'1'}]}]");
           w.facAnToonTip(plot, 0);
           const zonder = !plot.querySelector('.fac-an-tip .klik');
-          plot.querySelector('rect').setAttribute('data-uren-action', 'urenAnHerkomst');
+          const rect = plot.querySelector('rect');
+          rect.setAttribute('data-uren-action', 'urenAnMaand');
+          rect.setAttribute('data-an-klik', 'Klik voor de maand');
           w.facAnToonTip(plot, 0);
-          const met = !!plot.querySelector('.fac-an-tip .klik');
-          return zonder && met;
+          const hint = plot.querySelector('.fac-an-tip .klik');
+          return zonder && !!hint && hint.textContent === 'Klik voor de maand';
         } finally { plot.remove(); w.eval('delete _facAnTips.hktest'); }
       }],
     /* ── Back-up terugzetten ─────────────────────────────────────────────

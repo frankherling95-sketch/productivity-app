@@ -248,7 +248,7 @@ verschilt — in Safari ruimer dan in Chrome. Altijd begrenzen met
 | sluitkruis | icoonknop, ín de kopbalk, 9px van de rechterrand — alleen mobiel |
 | voet | knoppen groeien mee; past het niet, dan zakt de hoofdknop naar een eigen volle regel |
 | voetknop | ≥ `var(--tap)` hoog |
-| breedte | 640 (formulier) · 720 (lijst) · **1000** (factuureditor) |
+| breedte | 640 (formulier) · 720 (lijst) · 800 (maandoverzicht: de kalender vraagt 720) · **1000** (factuureditor) |
 
 > **Breedte is geen smaak.** De factuureditor staat op 1000px omdat er een
 > regeltabel van zes kolommen in zit én een voet met acht knoppen; op 900
@@ -343,6 +343,11 @@ De regels die daarbij horen:
   in de tooltip en `cursor:pointer` staan alleen op een baan met
   `data-fac-action` of `data-uren-action`. Een hand die niets opent is een
   belofte die de grafiek niet nakomt.
+- **Een werkdag zonder uren is een gestreepte omlijning.** Geen vulling en geen
+  kleur: er hoort iets te staan en er staat niets (`.uren-kal-bron.gat`,
+  `.fac-an-leg i.gat`). Zo leest het maandoverzicht in drie tekens: egaal,
+  gearceerd, gestreept. De tekst van de klikhint staat op de baan zelf
+  (`data-an-klik`); zonder staat er "Klik voor de facturen".
 
 Een nieuwe kleurencombinatie eerst door de validator halen (zie de
 dataviz-richtlijn): ΔE ≥ 15 bij normaal zicht, ≥ 8 bij kleurenblindheid.

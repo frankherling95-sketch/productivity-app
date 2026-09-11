@@ -1207,6 +1207,8 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
    niet .uren-sheet-card, want die is desktop-only en een kalender wil je
    op een telefoon juist wél zien -- daar valt hij terug op stippen. */
 .uren-kal{margin-top:20px}
+/* In het maandoverzicht staat de kalender bovenaan een venster met een eigen kop. */
+.uren-kal.zonder-kop{margin-top:0}
 .uren-kal-card{
   background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-md);
   overflow-x:auto;box-shadow:var(--shadow-card);
@@ -1277,6 +1279,14 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .uren-kal-dots{display:none;gap:3px;flex-wrap:wrap}
 .uren-kal-dots i{width:6px;height:6px;border-radius:2px;background:var(--c)}
 .uren-kal-meer{font-size:10.5px;color:var(--text-muted);padding-left:2px}
+/* Onderaan de dag de bron (alleen in het maandoverzicht van de analyse):
+   egaal is zelf geschreven, gearceerd uit een factuur, gestreept omlijnd een
+   werkdag zonder uren. Dezelfde taal als "Herkomst per maand". Staat onderaan
+   (margin-top:auto), zodat hij op een telefoon -- waar de chips wegvallen --
+   gewoon blijft staan. */
+.uren-kal-bron{display:flex;gap:2px;width:100%;height:7px;margin-top:auto;
+  border-radius:3px;overflow:hidden;flex-shrink:0}
+.uren-kal-bron i{display:block;height:100%;background:var(--gr-nu);border-radius:3px}
 /* De maandrij in de tabel erboven kiest wat de kalender laat zien. */
 .uren-kal-kies{
   border:none;background:transparent;padding:0;cursor:pointer;font-family:var(--font-body);
@@ -1367,6 +1377,8 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
    .uren-mlist is de mobiele tegenhanger van .uren-sheet-card; precies één
    van beide is zichtbaar (omgeschakeld in de 768px-breakpoint). */
 .uren-mlist{display:none;flex-direction:column;gap:11px}
+/* Dezelfde lijst in het maandoverzicht, maar dan ook op een bureaublad. */
+.uren-an-lijst{display:flex;flex-direction:column;gap:11px}
 .uren-mday{display:flex;align-items:center;gap:9px;padding:2px 2px 0}
 .uren-mday em{
   font-style:normal;font-family:var(--font-cijfer);font-size:11.5px;font-weight:600;
@@ -1404,6 +1416,10 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
   font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;flex-shrink:0;
 }
 .uren-mcard .hrs small{font-size:11px;font-weight:400;color:var(--text-muted)}
+/* Een lijstkaart die alleen informeert (maandoverzicht): geen hand en geen
+   indrukstand -- dezelfde afspraak als .fac-log-regel in Facturen. */
+.uren-an-regel{cursor:default}
+.uren-an-regel:active{background:var(--surface)}
 .uren-mpiv{
   background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-md);
   overflow:hidden;box-shadow:var(--shadow-card);
@@ -1765,10 +1781,13 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 /* Gearceerd = afgeleid: uren die uit een factuur zijn overgenomen en over de
    werkdagen verdeeld, dus op dagniveau geschat. Zelfde tint als de rest van
    de periode -- het is geen andere reeks, het is een andere bron. */
-.fac-an-leg i.afgeleid,.fac-an-krij .vul.afgeleid{
+.fac-an-leg i.afgeleid,.fac-an-krij .vul.afgeleid,.uren-kal-bron i.afgeleid{
   background:repeating-linear-gradient(135deg,var(--gr-nu) 0 2px,transparent 2px 5px);
   box-shadow:inset 0 0 0 1px var(--gr-nu);
 }
+/* Een werkdag zonder uren: een gestreepte omlijning, geen vulling. Er hoort
+   iets te staan en er staat niets -- dat is wat je zoekt als je aanvult. */
+.fac-an-leg i.gat,.uren-kal-bron.gat{background:none;border:1px dashed var(--border-strong)}
 .fac-an-krest{font-size:var(--fs-klein);color:var(--text-muted);padding:8px}
 
 /* Klantkeuze in de balk. Sinds je op een balk doorklikt naar de facturen
@@ -7482,7 +7501,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.16</span>
+        <span class="app-versie" title="Appversie">v2.17</span>
       </div>
     </div>
   </aside>
@@ -8879,6 +8898,24 @@ textarea { line-height: 1.6; resize: vertical; }
   </div>
 </div>
 
+<!-- ── Maandoverzicht uit de Uren-analyse: wat staat er op welke dag, en waarvandaan ──
+     800 breed: de kalender vraagt 720, plus de vulling van het venster. -->
+<div class="modal-bg" id="urenAnMaandModal" onclick="if(event.target===this)closeUrenAnMaand()">
+  <div class="modal" style="max-width:800px;padding:0;display:flex;flex-direction:column;max-height:92vh">
+    <div class="modal-kop" style="flex-shrink:0">
+      <h3 style="font-size:18px;font-weight:700;margin:0" id="urenAnMaandTitel">Maand</h3>
+      <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0" id="urenAnMaandSub"></p>
+    </div>
+    <div style="padding:16px 20px;overflow-y:auto;overflow-x:hidden;flex:1;min-height:0" id="urenAnMaandBody"></div>
+    <div class="modal-footer" style="padding:14px 22px;border-top:0.5px solid var(--border);flex-shrink:0">
+      <div class="modal-footer-left"></div>
+      <div class="modal-footer-right">
+        <button class="btn btn-sm" type="button" data-uren-action="closeUrenAnMaand">Sluiten</button>
+        <button class="btn btn-sm btn-primary" type="button" data-uren-action="urenAnMaandNaarReg">Aanvullen in Registraties</button>
+      </div>
+    </div>
+  </div>
+</div>
 <!-- ── Uren uit facturen halen ── -->
 <div class="modal-bg" id="urenImpModal" onclick="if(event.target===this)closeUrenImportModal()">
   <div class="modal" style="max-width:660px;padding:0;display:flex;flex-direction:column;max-height:92vh">
@@ -16830,7 +16867,11 @@ const UREN_CLICK_ACTIONS={
   urenImpAiKies:()=>urenImpAiKies(),
   urenImpToepassen:()=>urenImpToepassen(),
   urenImpTerugdraaien:()=>urenImpTerugdraaien(),
-  urenAnHerkomst:(maand)=>urenAnHerkomstOpen(maand),
+  urenAnMaand:(maand)=>urenAnMaandOpen(maand),
+  closeUrenAnMaand:()=>closeUrenAnMaand(),
+  urenAnMaandDag:(iso)=>urenAnMaandDag(iso),
+  urenAnMaandNaarReg:()=>urenAnMaandNaarReg(),
+  urenAnMaandFactuur:(id)=>urenAnMaandFactuur(id),
   urenSetRegScope:(a)=>urenSetRegScope(a),
   urenNavPrev:()=>urenNav(-1),
   urenNavNext:()=>urenNav(1),
@@ -18093,10 +18134,7 @@ function urenAnData(){
     return d.getFullYear()+'-w'+Math.round((d-eerste)/604800000);
   };
   const weken=new Set([...dagen].map(weekVan));
-  nu.forEach(v=>{
-    v.bronLijst=Object.values(v.bronnen).sort((a,b)=>b.uren-a.uren);
-    v.metFactuur=v.bronLijst.some(b=>b.factuurId);
-  });
+  nu.forEach(v=>{v.bronLijst=Object.values(v.bronnen).sort((a,b)=>b.uren-a.uren);});
   return {jaar,vorigJaar,maanden,nu,vorige,cum,heeftVorige,totaal,totaalVorig,
     klanten:lijst,weekdag,open,openEuro,uitFactuur,
     perWeek:weken.size?Math.round((totaal/weken.size)*10)/10:0,
@@ -18148,13 +18186,13 @@ function urenAnKolomGrafiek(d,breed){
       ...(v.uitFactuur>0.005?[{lab:'uit facturen',val:urenFmt(v.uitFactuur)+' uur'}]:[]),
       ...(paar?[{kleur:'vorig',lab:String(d.vorigJaar),val:urenFmt(d.vorige[i])+' uur'}]:[]),
       ...(paar&&d.vorige[i]>0?[{lab:'Verschil',val:facAnPct(((v.uren-d.vorige[i])/d.vorige[i])*100)}]:[])]});
-    /* Een maand met facturen erachter is aan te klikken: dezelfde lijst als de
-       rij in "Herkomst per maand". Zonder facturen valt er niets te openen,
-       dus dan ook geen actie -- en geen hint in de tooltip. */
+    /* Elke maand is aan te klikken, ook een lege: het maandoverzicht laat zien
+       op welke dagen er iets staat en waarvandaan, en een lege maand is juist
+       de maand die je wilt aanvullen. */
     banden+=`<rect x="${(padL+bandW*i).toFixed(1)}" y="${padT}" width="${bandW.toFixed(1)}" height="${plotH}"
-      class="an-band" data-an-band="urenkolom" data-an-i="${i}"${v.metFactuur
-        ?` data-uren-action="urenAnHerkomst" data-uren-arg1="${v.key}"`:''}
-      aria-label="${escapeHtml(v.label+': '+urenFmt(v.uren)+' uur'+(v.metFactuur?' — open de facturen':''))}"/>`;
+      class="an-band" data-an-band="urenkolom" data-an-i="${i}"
+      data-uren-action="urenAnMaand" data-uren-arg1="${v.key}" data-an-klik="Klik voor de maand"
+      aria-label="${escapeHtml(v.label+': '+urenFmt(v.uren)+' uur — open de maand')}"/>`;
   });
   _facAnTips.urenkolom=tips;
   return `<svg class="an-svg" viewBox="0 0 ${breed} ${H}" width="100%" height="${H}"
@@ -18270,33 +18308,160 @@ function urenAnHerkomst(d){
     const inhoud=`<span class="nm">${escapeHtml(MONTH_LABELS_NL[v.maand])}<small>${escapeHtml(wat)}</small></span>
       <span class="bl dubbel">${balk}</span>
       <span class="wa">${v.uren>0.005?urenFmt(v.uren)+' u':'—'}</span>`;
-    return v.metFactuur
-      ?`<button type="button" class="fac-an-krij herkomst" data-uren-action="urenAnHerkomst"
-          data-uren-arg1="${v.key}" title="Open de facturen">${inhoud}</button>`
-      :`<div class="fac-an-krij fac-an-krij-stil herkomst">${inhoud}</div>`;
+    /* Elke maand opent het maandoverzicht -- ook een zelf geschreven of lege
+       maand, want juist daar wil je zien wat er op welke dag staat. */
+    return `<button type="button" class="fac-an-krij herkomst" data-uren-action="urenAnMaand"
+        data-uren-arg1="${v.key}" title="Bekijk ${escapeHtml(v.label)}">${inhoud}</button>`;
   }).join('')}</div>`;
 }
-/* De facturen achter een maand, in de doorklik van de Facturen-analyse.
-   Zelfde venster en dezelfde rijen, zodat een klik op een factuur ook hier de
-   editor opent met pijlen door deze selectie. Rechts staan de uren die uit
-   die factuur in deze maand landden, niet het bedrag: daar ging het hier om. */
-function urenAnHerkomstOpen(key){
-  const d=urenAnData();
-  const v=d.nu.find(x=>x.key===key);
-  if(!v)return;
-  const rijen=v.bronLijst.filter(b=>b.factuurId).map(b=>{
-    const f=factuurById(b.factuurId);
-    return f?{f,excl:factuurTotalen(f).excl,uren:b.uren}:null;
-  }).filter(Boolean).sort((a,b)=>String(a.f.datum).localeCompare(String(b.f.datum)));
-  if(!rijen.length)return;
-  const los=v.bronLijst.filter(b=>!b.factuurId).length;
-  const delen=[rijen.length+' '+(rijen.length===1?'factuur':'facturen'),
-    urenFmt(v.uitFactuur)+' uur uit facturen'];
-  if(v.eigen>0.005)delen.push(urenFmt(v.eigen)+' uur zelf geschreven');
-  if(los)delen.push(los+' '+(los===1?'bestand':'bestanden')+' niet in Facturen');
-  facAnDrill={titel:v.label,rijen,sub:delen.join(' · ')};
-  facAnDrillRender();
-  document.getElementById('facAnDrillModal').classList.add('open');
+/* ══ Maandoverzicht ═══════════════════════════════════════════════════════
+   Wat staat er in deze maand, op welke dag, en waarvandaan? Uren komen op twee
+   manieren binnen -- zelf geschreven in deze module, of overgenomen uit een
+   factuur -- en bij het aanvullen wil je die naast elkaar zien. De kalender is
+   die van "Per maand", met onderaan elke dag de bron; eronder de registraties
+   zelf, per bron. Aanvullen doe je in Registraties, want daar staat de
+   invoerregel: daar gaan de dagen en de knop onderaan naartoe. */
+let urenAnMaandKey=null;   /* 'YYYY-MM' zolang het venster openstaat */
+
+function urenAnMaandData(key){
+  const jaar=Number(key.slice(0,4)), maand=Number(key.slice(5,7))-1;
+  const dagen=new Date(jaar,maand+1,0).getDate();
+  const eerste=key+'-01', laatste=key+'-'+String(dagen).padStart(2,'0');
+  const inMaand=(urenState.entries||[]).filter(e=>e.date>=eerste&&e.date<=laatste);
+  const perNaam=urenAnBronNamen();
+  /* Op welke factuur een eigen registratie staat: de regels van een factuur
+     dragen de ids van de uren die erop zijn gezet. */
+  const opFactuur={};
+  (factuurState.invoices||[]).forEach(f=>factuurUrenIds(f).forEach(id=>{opFactuur[id]=f;}));
+  const eigen=[], bronnen={};
+  inMaand.forEach(e=>{
+    if(e.bron!=='factuur'){eigen.push(e);return;}
+    const b=urenAnBron(e,perNaam);
+    if(!bronnen[b.key])bronnen[b.key]={...b,uren:0,dagen:[]};
+    bronnen[b.key].uren+=Number(e.hours||0);
+    bronnen[b.key].dagen.push(e.date);
+  });
+  eigen.sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+  const bezet=new Set(inMaand.filter(e=>Number(e.hours||0)>0).map(e=>e.date));
+  /* Werkdagen zonder uren. Feestdagen tellen gewoon mee: die ken je zelf, en
+     een gat dat je herkent streep je sneller weg dan dat je er een mist. */
+  const gaten=[];
+  for(let d=1;d<=dagen;d++){
+    const iso=key+'-'+String(d).padStart(2,'0');
+    if((new Date(jaar,maand,d).getDay()+6)%7<5&&!bezet.has(iso))gaten.push(iso);
+  }
+  return {key,jaar,maand,label:MONTH_LABELS_NL[maand]+' '+jaar,
+    eigen,eigenUren:urenSum(eigen),opFactuur,
+    bronnen:Object.values(bronnen).sort((a,b)=>b.uren-a.uren),
+    uitFactuur:urenSum(inMaand.filter(e=>e.bron==='factuur')),
+    gaten};
+}
+function urenAnMaandOpen(key){
+  if(!/^\d{4}-\d{2}$/.test(String(key||'')))return;
+  urenAnMaandKey=key;
+  urenAnMaandRender();
+  document.getElementById('urenAnMaandModal').classList.add('open');
+}
+function closeUrenAnMaand(){
+  document.getElementById('urenAnMaandModal')?.classList.remove('open');
+  urenAnMaandKey=null;
+}
+function urenAnMaandRender(){
+  const box=document.getElementById('urenAnMaandBody');
+  if(!box||!urenAnMaandKey)return;
+  const m=urenAnMaandData(urenAnMaandKey);
+  const nFac=m.bronnen.filter(b=>b.factuurId).length;
+  const sub=[];
+  if(m.eigenUren+m.uitFactuur>0.005){
+    sub.push(urenFmt(m.eigenUren+m.uitFactuur)+' uur');
+    if(m.eigenUren>0.005)sub.push(urenFmt(m.eigenUren)+' zelf geschreven');
+    if(m.uitFactuur>0.005)sub.push(urenFmt(m.uitFactuur)+' uit '+
+      (nFac===1?'1 factuur':nFac>1?nFac+' facturen':'een bestand'));
+  }else sub.push('Geen uren');
+  sub.push(m.gaten.length
+    ?m.gaten.length+' werkdag'+(m.gaten.length===1?'':'en')+' zonder uren'
+    :'elke werkdag heeft uren');
+  document.getElementById('urenAnMaandTitel').textContent=m.label;
+  document.getElementById('urenAnMaandSub').textContent=sub.join(' · ');
+
+  /* De kalender krijgt de hele weken rond de maand mee, zodat de randdagen van
+     de maand ervoor en erna gewoon hun uren tonen. */
+  const weken=urenWekenVanMaand(m.jaar,m.maand);
+  const van=weken[0][0], tot=weken[weken.length-1][6];
+  const rond=(urenState.entries||[]).filter(e=>e.date>=van&&e.date<=tot);
+  const kort=iso=>urenDate(iso).toLocaleDateString('nl-NL',{day:'numeric',month:'short'}).replace('.','');
+  let html=urenRenderMaandKalender(rond,m.jaar,m.key,{kop:false,dagActie:'urenAnMaandDag',bron:true});
+
+  if(m.eigen.length){
+    html+=`<h4 class="fac-an-sub">Zelf geschreven · ${urenFmt(m.eigenUren)} u</h4><div class="uren-an-lijst">`;
+    const perDag=new Map();
+    m.eigen.forEach(e=>{if(!perDag.has(e.date))perDag.set(e.date,[]);perDag.get(e.date).push(e);});
+    perDag.forEach((rows,dag)=>{
+      html+=`<div class="uren-mday"><em>${urenFormatDayLabel(dag)}</em>
+        <span class="rule"></span><b>${urenFmt(urenSum(rows))} u</b></div>`;
+      rows.forEach(e=>{
+        const col=urenClientColor(e.clientId);
+        const st=urenStatusMeta(urenStatusOf(e));
+        const f=m.opFactuur[e.id];
+        html+=`<div class="uren-mcard uren-an-regel" style="--c:${col.bg}">
+          <span class="links">
+            <span class="kl"><span class="sw" style="background:${col.bg}"></span>${escapeHtml(urenClientName(e.clientId))}</span>
+            ${e.description?`<span class="ds">${escapeHtml(e.description)}</span>`:''}
+            ${f?`<span class="ds">op factuur ${escapeHtml(f.nummer||'zonder nummer')}${f.status==='concept'?' (concept)':''}</span>`:''}
+          </span>
+          <span class="rechts">
+            <span class="hrs">${urenFmt(e.hours)}<small>u</small></span>
+            <span class="uren-pill ${st.cls}" style="cursor:default">${st.icon}${st.label}</span>
+          </span>
+        </div>`;
+      });
+    });
+    html+='</div>';
+  }
+  if(m.bronnen.length){
+    html+=`<h4 class="fac-an-sub">Uit facturen · ${urenFmt(m.uitFactuur)} u</h4><div class="uren-an-lijst">`;
+    m.bronnen.forEach(b=>{
+      const f=b.factuurId?factuurById(b.factuurId):null;
+      const col=urenClientColor(b.clientId);
+      const dg=[...new Set(b.dagen)].sort();
+      const reeks=dg.length>1?kort(dg[0])+' – '+kort(dg[dg.length-1]):dg.length?kort(dg[0]):'';
+      const wat=(f?'Factuur '+(f.nummer||'zonder nummer'):b.bestand+' · niet in Facturen')+
+        (dg.length?' · verdeeld over '+dg.length+' dag'+(dg.length===1?'':'en')+', '+reeks:'');
+      const inhoud=`<span class="links">
+          <span class="kl"><span class="sw" style="background:${col.bg}"></span>${escapeHtml(urenClientName(b.clientId))}</span>
+          <span class="ds">${escapeHtml(wat)}</span>
+          ${f&&f.betreft?`<span class="ds">${escapeHtml(f.betreft)}</span>`:''}
+        </span>
+        <span class="rechts"><span class="hrs">${urenFmt(b.uren)}<small>u</small></span></span>`;
+      html+=f
+        ?`<button type="button" class="uren-mcard" style="--c:${col.bg}" data-uren-action="urenAnMaandFactuur"
+            data-uren-arg1="${f.id}" title="Open factuur ${escapeHtml(f.nummer||'')}">${inhoud}</button>`
+        :`<div class="uren-mcard uren-an-regel" style="--c:${col.bg}">${inhoud}</div>`;
+    });
+    html+='</div>';
+  }
+  box.innerHTML=html;
+}
+/* Naar Registraties: een dag springt naar zijn week, de knop onderaan naar de
+   hele maand. Het venster gaat eerst dicht, anders ligt het eroverheen. */
+function urenAnMaandDag(iso){
+  closeUrenAnMaand();
+  urenKalenderDag(iso);
+}
+function urenAnMaandNaarReg(){
+  const key=urenAnMaandKey;
+  closeUrenAnMaand();
+  if(!key)return;
+  urenDraftFlush();
+  urenView='reg';
+  urenRegScope='month';
+  urenSelection.clear();
+  urenEnsurePeriodContains(key+'-01');
+  urenRenderAll();
+}
+function urenAnMaandFactuur(id){
+  closeUrenAnMaand();
+  facOpenEditor(id);
 }
 
 function urenAnKpiTegels(d){
@@ -18799,7 +18964,25 @@ function urenKalenderDag(iso){
   urenEnsurePeriodContains(iso);
   urenRenderAll();
 }
-function urenRenderMaandKalender(list,jaar,ym){
+/* Onderaan een dag: welk deel zelf geschreven is (egaal) en welk deel uit een
+   factuur (gearceerd). Een werkdag zonder uren krijgt een lege, gestreepte
+   strook; een weekend zonder uren niets. */
+function urenKalBronBalk(mijn,wd,buiten){
+  if(buiten)return '';
+  const fac=urenSum(mijn.filter(e=>e.bron==='factuur'));
+  const eigen=urenSum(mijn)-fac;
+  if(eigen+fac<0.005)
+    return wd<5?'<span class="uren-kal-bron gat" title="Werkdag zonder uren"></span>':'';
+  return `<span class="uren-kal-bron">${eigen>0.005?`<i style="flex:${eigen.toFixed(2)}"></i>`:''}${
+    fac>0.005?`<i class="afgeleid" style="flex:${fac.toFixed(2)}"></i>`:''}</span>`;
+}
+/* opts is er voor het maandoverzicht in de analyse; zonder opts tekent hij
+   precies wat "Per maand" altijd liet zien. kop:false laat titel en pijlen weg
+   (het venster heeft een eigen kop en bladert niet), dagActie is wat een klik
+   op een dag doet, en bron:true zet onderaan elke dag waar de uren vandaan
+   komen, met een legenda erboven. */
+function urenRenderMaandKalender(list,jaar,ym,opts){
+  opts=opts||{};
   const maand=parseInt(ym.slice(5,7),10)-1;
   const weken=urenWekenVanMaand(jaar,maand);
   const vandaag=urenToday();
@@ -18816,14 +18999,16 @@ function urenRenderMaandKalender(list,jaar,ym){
     ? `<button data-uren-action="urenKalenderMaandZet" data-uren-arg1="${doel}" aria-label="${lab}" title="${lab}">${teken}</button>`
     : `<button disabled aria-label="${lab}">${teken}</button>`;
 
-  let html=`<div class="uren-kal">
-    <div class="uren-kal-kop">
+  let html=`<div class="uren-kal${opts.kop===false?' zonder-kop':''}">
+    ${opts.kop===false?'':`<div class="uren-kal-kop">
       <span class="titel">${MONTH_LABELS_NL[maand]} ${jaar}</span>
       <span class="uren-kal-nav">
         ${navKnop(vorige,'‹','Vorige maand')}${navKnop(volgende,'›','Volgende maand')}
       </span>
       <span class="sub">${urenFmt(urenSum(maandUren))} u op ${dagenMetUren} dag${dagenMetUren===1?'':'en'}</span>
-    </div>
+    </div>`}
+    ${opts.bron?`<div class="fac-an-leg"><span><i class="nu"></i>Zelf geschreven</span>
+      <span><i class="afgeleid"></i>Uit een factuur</span><span><i class="gat"></i>Werkdag zonder uren</span></div>`:''}
     <div class="uren-kal-card"><table class="uren-kal-tab"><thead><tr>
       ${['Maandag','Dinsdag','Woensdag','Donderdag','Vrijdag','Zaterdag','Zondag']
         /* Beide schrijfwijzen in de kop; de CSS kiest. Op 375px is een
@@ -18858,7 +19043,7 @@ function urenRenderMaandKalender(list,jaar,ym){
          geen Nederlandse afkorting. */
       const mnd=d.toLocaleDateString('nl-NL',{month:'short'}).replace('.','');
       html+=`<td class="${klassen.join(' ')}">
-        <button class="uren-kal-dag" data-uren-action="urenKalenderDag" data-uren-arg1="${iso}"
+        <button class="uren-kal-dag" data-uren-action="${opts.dagActie||'urenKalenderDag'}" data-uren-arg1="${iso}"
           title="${urenFormatDayLabel(iso)}${dagTotaal>0
             ?' · '+urenFmt(dagTotaal)+' uur'+(afgerond?' · gefactureerd':''):' · niets geschreven'}">
           <span class="nr">
@@ -18874,6 +19059,7 @@ function urenRenderMaandKalender(list,jaar,ym){
           ${rest>0?`<span class="uren-kal-meer">+${rest} meer</span>`:''}
           ${klanten.length?`<span class="uren-kal-dots">${klanten.map(cid=>
             `<i style="--c:${urenClientColor(cid).bg}"></i>`).join('')}</span>`:''}
+          ${opts.bron?urenKalBronBalk(mijn,i,buiten):''}
         </button></td>`;
     });
     const wkTotaal=urenSum(list.filter(e=>wk.includes(e.date)));
@@ -24375,7 +24561,7 @@ function facAnDrillRender(){
           <span class="kl">${escapeHtml(klant?(klant.bedrijfsnaam||klant.name):'Zonder klant')}${
             eind&&klant&&eind!==(klant.bedrijfsnaam||klant.name)?' · '+escapeHtml(eind):''}</span>
         </span>
-        <b class="bd">${r.uren!=null?urenFmt(r.uren)+' u':factuurFmtBedrag(r.excl)}</b>
+        <b class="bd">${factuurFmtBedrag(r.excl)}</b>
       </span>
       <span class="btr">${escapeHtml(f.betreft||'')}</span>
       ${regels?`<span class="rgs">${regels}</span>`:''}
@@ -24522,7 +24708,7 @@ function facAnToonTip(plot,i){
   tip.innerHTML=`<div class="t">${escapeHtml(data.titel)}</div>`+
     data.regels.map(r=>`<div class="r">${r.kleur?`<i class="${r.kleur}"></i>`:'<i class="leeg"></i>'}
       <b>${escapeHtml(r.val)}</b><span>${escapeHtml(r.lab)}</span></div>`).join('')+
-    (klikbaar?'<div class="klik">Klik voor de facturen</div>':'');
+    (klikbaar?'<div class="klik">'+escapeHtml(band.dataset.anKlik||'Klik voor de facturen')+'</div>':'');
   tip.hidden=false;
   const svg=plot.querySelector('svg');
   if(svg&&band){
