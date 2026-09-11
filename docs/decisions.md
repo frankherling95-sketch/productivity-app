@@ -10,6 +10,57 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-11 · Herkomst per maand: welke factuur zit er achter geïmporteerde uren
+
+**Probleem.** Na de import van uren uit facturen (2026-09-10) was in de analyse
+niet te zien welke uren je zelf schreef en welke uit een factuur kwamen, laat
+staan uit welke. Frank: *"… welke factuur dat dan is? Dan kan ik ook kijken
+naar de volledigheid."* Bij de AI-import was het ook niet vastgelegd: die
+bewaarde alleen de bestandsnaam in de omschrijving, geen `factuurId`.
+
+**Beslissing.**
+- Een kaart *Herkomst per maand* in de Uren-analyse, direct onder "Uren per
+  maand" en alleen als er in dat jaar geïmporteerde uren zijn. Eén rij per
+  maand (de bestaande `.fac-an-krij`) met als bronregel het factuurnummer en de
+  klant, "zelf geschreven" of "geen uren". De balk heeft twee delen: egaal is
+  zelf geschreven, gearceerd is uit een factuur.
+- Een maand met facturen erachter is aan te klikken — de rij én de baan in
+  "Uren per maand" — en opent de doorklik van de Facturen-analyse: hetzelfde
+  venster en dezelfde rijen, met rechts de uren uit die factuur in die maand
+  in plaats van het bedrag (`r.uren` in `facAnDrillRender()`).
+- De AI-import koppelt voortaan via het inleeslogboek: SHA-256 van de PDF →
+  `factuurId`, dus ook bij een hernoemd bestand. Klant en nummer komen dan van
+  de factuur in de app, niet van wat het model las. Het bestand gaat mee als
+  `bronBestand` op de registratie.
+- Een AI-import van vóór vandaag (zonder `factuurId`) wordt bij het tekenen
+  gekoppeld via de bestandsnaam in het inleeslogboek. Er wordt niets achteraf
+  in je registraties herschreven.
+
+**Waarom gearceerd.** Geïmporteerde uren zijn over de werkdagen uitgesmeerd,
+dus op dagniveau een schatting. Arcering is de gangbare vorm voor "afgeleid",
+en het blijft dezelfde tint: het is geen andere reeks maar een andere bron.
+Kleur alleen draagt het niet — de bronregel zegt het ook, en er staat een
+legenda bij.
+
+**Meegenomen.** De tooltip zei onder élke grafiek "Klik voor de facturen", ook
+in de Uren-grafieken en in de afhankelijkheidslijn van Facturen, waar een klik
+niets deed. De hint en de hand als cursor staan nu alleen op een baan die echt
+een doorklik heeft (`data-fac-action` of `data-uren-action`).
+
+**Niet doen.** Een PDF die niet in Facturen staat alsnog aan een factuur
+hangen op klant of maand. Dan staat er "niet in Facturen" — liever eerlijk los
+dan verkeerd gekoppeld.
+
+**Bestanden.** `index.html` — `urenAnBron()`, `urenAnBronNamen()`,
+`urenAnHerkomst()`, `urenAnHerkomstOpen()`, `urenAnData()` (per maand
+`eigen` / `uitFactuur` / `bronLijst`), `facAnToonTip()`, `facAnDrillRender()`,
+`urenImpAiLees()`, `urenImpAiKandidaten()`, `urenImpToepassen()`; CSS
+`.fac-an-krij.herkomst`, `.bl.dubbel`, `.vul.afgeleid`, `.fac-an-leg i.afgeleid`,
+`.an-band:not(…)`. `.claude/ownership.json` — de doorklik is nu gedeeld.
+`test.html` — vier tests. `docs/stijlgids.md` §11.
+
+---
+
 ## 2026-09-10 · Een actienaam die nergens staat, en de zes argumentvolgordes
 
 **Probleem.** Bestanden kiezen in "Uren uit facturen" deed niets. Frank:

@@ -1712,6 +1712,9 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 /* Het raakvlak is de hele kolom en niet de balk: op negen pixels mikken lukt
    met een duim niet. */
 .an-band{fill:transparent;cursor:pointer}
+/* Een baan zonder doorklik krijgt geen hand. De Uren-grafieken en de
+   afhankelijkheidslijn hadden er wel een, en een hand belooft een klik. */
+.an-band:not([data-fac-action]):not([data-uren-action]){cursor:default}
 .an-band:hover{fill:var(--gr-nu);fill-opacity:.07}
 .an-band:focus-visible{fill:var(--gr-nu);fill-opacity:.12;outline:2px solid var(--mint);outline-offset:-2px}
 .fac-an-tip{
@@ -1752,6 +1755,20 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .fac-an-krij .vul{display:block;height:100%;background:var(--gr-nu);border-radius:4px}
 .fac-an-krij .wa{font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap;text-align:right}
 .fac-an-krij .wa small{display:block;font-weight:500;color:var(--text-muted)}
+/* Herkomst per maand (Uren): twee delen in één balk met een naad ertussen, en
+   een bredere naamkolom -- de bronregel noemt een factuurnummer én een klant,
+   en die mag afbreken in plaats van weg te vallen: bij het nalopen van een
+   import is de hele regel het punt. */
+.fac-an-krij .bl.dubbel{display:flex;gap:2px}
+.fac-an-krij.herkomst{grid-template-columns:minmax(160px,340px) 1fr auto}
+.fac-an-krij.herkomst .nm small{white-space:normal}
+/* Gearceerd = afgeleid: uren die uit een factuur zijn overgenomen en over de
+   werkdagen verdeeld, dus op dagniveau geschat. Zelfde tint als de rest van
+   de periode -- het is geen andere reeks, het is een andere bron. */
+.fac-an-leg i.afgeleid,.fac-an-krij .vul.afgeleid{
+  background:repeating-linear-gradient(135deg,var(--gr-nu) 0 2px,transparent 2px 5px);
+  box-shadow:inset 0 0 0 1px var(--gr-nu);
+}
 .fac-an-krest{font-size:var(--fs-klein);color:var(--text-muted);padding:8px}
 
 /* Klantkeuze in de balk. Sinds je op een balk doorklikt naar de facturen
@@ -1926,6 +1943,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
   .fac-an-krij .wa{grid-column:2;grid-row:1;text-align:right}
   .fac-an-krij .wa small{display:inline;margin-left:6px}
   .fac-an-krij .bl{grid-column:1/-1;grid-row:2;height:10px}
+  .fac-an-krij.herkomst{grid-template-columns:1fr auto}
   .fac-an-nieuw{grid-template-columns:1fr}
   .fac-an-tip{min-width:120px}
   /* De cijfertabel wordt hier een lijst. Zes kolommen passen niet op 375px, en
@@ -7464,7 +7482,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.15</span>
+        <span class="app-versie" title="Appversie">v2.16</span>
       </div>
     </div>
   </aside>
@@ -16812,6 +16830,7 @@ const UREN_CLICK_ACTIONS={
   urenImpAiKies:()=>urenImpAiKies(),
   urenImpToepassen:()=>urenImpToepassen(),
   urenImpTerugdraaien:()=>urenImpTerugdraaien(),
+  urenAnHerkomst:(maand)=>urenAnHerkomstOpen(maand),
   urenSetRegScope:(a)=>urenSetRegScope(a),
   urenNavPrev:()=>urenNav(-1),
   urenNavNext:()=>urenNav(1),
@@ -17544,10 +17563,22 @@ function urenImpAiKlantId(naam){
 /* Eén ronde over de gekozen bestanden. Groepjes van vijf, net als de
    factuurscanner: de gratis laag telt verzoeken, niet tokens. */
 async function urenImpAiLees(files){
-  urenImpAiRij=[...files].map(f=>({naam:f.name,file:f,maanden:[],klant:'',clientId:null,fout:''}));
+  urenImpAiRij=[...files].map(f=>({naam:f.name,file:f,maanden:[],klant:'',clientId:null,fout:'',
+    factuurId:'',nummer:''}));
   urenImpAiBezig=true;
   urenImpRender();
   try{
+    /* Welke factuur in de app is dit bestand? Het inleeslogboek weet dat per
+       inhoud (SHA-256), dus ook bij een hernoemde PDF. Zo draagt een
+       registratie straks het factuurid, en niet alleen een bestandsnaam. */
+    for(const r of urenImpAiRij){
+      try{
+        const log=facLogZoek((await facScanVingerafdruk(r.file)).hash);
+        const f=log&&log.factuurId?factuurById(log.factuurId):null;
+        if(f){r.factuurId=f.id;r.nummer=f.nummer||'';}
+      }catch(e){/* geen koppeling: dan blijft het de bestandsnaam */}
+    }
+    urenImpRender();
     let i=0;
     while(i<urenImpAiRij.length){
       const groep=[];
@@ -17619,8 +17650,11 @@ function urenImpAiKandidaten(){
       if(!per[m.maand])per[m.maand]={key:m.maand,uren:0,regels:[],uitBetreft:true,
         alAanwezig:Math.round((bestaand[m.maand]||0)*100)/100};
       per[m.maand].uren=Math.round((per[m.maand].uren+m.uren)*100)/100;
-      per[m.maand].regels.push({factuurId:'',nummer:r.naam,
-        clientId:r.clientId,omschrijving:r.naam,aantal:m.uren});
+      /* Gekoppeld aan een factuur in de app? Dan zijn klant en nummer die van
+         de factuur -- die zijn zekerder dan wat het model van de PDF las. */
+      const f=r.factuurId?factuurById(r.factuurId):null;
+      per[m.maand].regels.push({factuurId:f?f.id:'',nummer:f?(f.nummer||r.naam):r.naam,
+        bestand:r.naam,clientId:(f&&f.clientId)||r.clientId,omschrijving:r.naam,aantal:m.uren});
     });
   });
   return Object.values(per).sort((a,b)=>a.key.localeCompare(b.key));
@@ -17773,8 +17807,8 @@ function urenImpRender(){
         ${urenImpAiRij.length?`<table class="fac-an-tabel uren-imp-tabel">
           <thead><tr><th>Bestand</th><th>Klant</th><th class="num">Gevonden</th></tr></thead>
           <tbody>${urenImpAiRij.map(r=>`<tr class="${r.fout?'uren-imp-over':''}">
-            <td>${escapeHtml(r.naam)}</td>
-            <td>${escapeHtml(r.klant||'—')}${r.klant&&!r.clientId?' <small>(onbekend)</small>':''}</td>
+            <td>${escapeHtml(r.naam)}${r.factuurId?`<br><small>factuur ${escapeHtml(r.nummer||'zonder nummer')}</small>`:''}</td>
+            <td>${escapeHtml(r.klant||'—')}${r.klant&&!r.clientId&&!r.factuurId?' <small>(onbekend)</small>':''}</td>
             <td class="num">${r.fout?`<small>${escapeHtml(r.fout)}</small>`
               :r.maanden.map(m=>urenImpMaandLabel(m.maand)+': '+urenFmt(m.uren)+' u').join('<br>')}</td>
           </tr>`).join('')}</tbody></table>`:''}`
@@ -17884,6 +17918,9 @@ function urenImpToepassen(){
              'open' zetten zou ze in "nog niet gefactureerd" laten opduiken. */
           status:'invoiced',
           bron:'factuur', factuurId:reg.factuurId,
+          /* De PDF waaruit gelezen is, voor als er geen factuur in de app bij
+             hoort: de analyse toont dan deze naam. */
+          ...(reg.bestand?{bronBestand:reg.bestand}:{}),
           createdAt:Date.now(), updatedAt:Date.now()
         });
       });
@@ -17951,6 +17988,27 @@ function urenAnHuidigJaar(){
   return Number(j)||new Date().getFullYear();
 }
 
+/* Waar een geïmporteerde registratie vandaan komt. Eerst het factuurid. Een
+   AI-import van vóór 2026-09-11 heeft dat niet, alleen de bestandsnaam in de
+   omschrijving -- en het inleeslogboek weet per ingescand bestand welke
+   factuur het werd. Lukt geen van beide, dan blijft de naam staan als "niet
+   in Facturen": liever eerlijk los dan verkeerd gekoppeld. */
+function urenAnBronNamen(){
+  const m={};
+  /* Van oud naar nieuw, zodat de laatste keer inlezen wint. */
+  (factuurState.scanLog||[]).forEach(l=>{if(l&&l.naam&&l.factuurId)m[l.naam]=l.factuurId;});
+  return m;
+}
+function urenAnBron(e,perNaam){
+  const bestand=String(e.bronBestand||
+    String(e.description||'').replace(/^Uit factuur\s+/,'')).trim();
+  let f=e.factuurId?factuurById(e.factuurId):null;
+  if(!f&&bestand&&perNaam&&perNaam[bestand])f=factuurById(perNaam[bestand]);
+  if(f)return {key:'f:'+f.id,factuurId:f.id,nummer:f.nummer||'',clientId:f.clientId||e.clientId||null};
+  return {key:'b:'+(bestand||'?'),factuurId:'',nummer:'',bestand:bestand||'onbekend',
+    clientId:e.clientId||null};
+}
+
 /* Alles wat de analyse nodig heeft, in één keer geteld. */
 function urenAnData(){
   const jaar=urenAnHuidigJaar();
@@ -17966,7 +18024,9 @@ function urenAnData(){
     kort:MONTH_LABELS_NL[m].slice(0,3), label:MONTH_LABELS_NL[m]+' '+jaar, maand:m
   });
   const idx={}; maanden.forEach((v,i)=>{idx[v.key]=i;});
-  const nu=maanden.map(v=>({...v,uren:0}));
+  const nu=maanden.map(v=>({...v,uren:0,eigen:0,uitFactuur:0,bronnen:{}}));
+  const perNaam=urenAnBronNamen();
+  let uitFactuur=0;
   const vorige=maanden.map(()=>0);
   const klanten={};
   const weekdag=[0,0,0,0,0,0,0];   /* ma..zo */
@@ -17985,6 +18045,13 @@ function urenAnData(){
     if(idx[mk]==null)return;
     nu[idx[mk]].uren+=u;
     totaal+=u;
+    /* Zelf geschreven of uit een factuur -- en dan uit welke. */
+    if(e.bron==='factuur'){
+      const v=nu[idx[mk]], b=urenAnBron(e,perNaam);
+      v.uitFactuur+=u; uitFactuur+=u;
+      if(!v.bronnen[b.key])v.bronnen[b.key]={...b,uren:0};
+      v.bronnen[b.key].uren+=u;
+    }else nu[idx[mk]].eigen+=u;
     dagen.add(iso);
     /* getDay() geeft zondag=0; wij tellen de week vanaf maandag. */
     const wd=(new Date(iso+'T00:00:00').getDay()+6)%7;
@@ -18026,8 +18093,12 @@ function urenAnData(){
     return d.getFullYear()+'-w'+Math.round((d-eerste)/604800000);
   };
   const weken=new Set([...dagen].map(weekVan));
+  nu.forEach(v=>{
+    v.bronLijst=Object.values(v.bronnen).sort((a,b)=>b.uren-a.uren);
+    v.metFactuur=v.bronLijst.some(b=>b.factuurId);
+  });
   return {jaar,vorigJaar,maanden,nu,vorige,cum,heeftVorige,totaal,totaalVorig,
-    klanten:lijst,weekdag,open,openEuro,
+    klanten:lijst,weekdag,open,openEuro,uitFactuur,
     perWeek:weken.size?Math.round((totaal/weken.size)*10)/10:0,
     dagen:dagen.size};
 }
@@ -18074,11 +18145,16 @@ function urenAnKolomGrafiek(d,breed){
       xlabels+=`<text x="${mid.toFixed(1)}" y="${H-8}" class="an-astekst" text-anchor="middle">${escapeHtml(v.kort)}</text>`;
     tips.push({titel:v.label,regels:[
       {kleur:'nu',lab:String(d.jaar),val:urenFmt(v.uren)+' uur'},
+      ...(v.uitFactuur>0.005?[{lab:'uit facturen',val:urenFmt(v.uitFactuur)+' uur'}]:[]),
       ...(paar?[{kleur:'vorig',lab:String(d.vorigJaar),val:urenFmt(d.vorige[i])+' uur'}]:[]),
       ...(paar&&d.vorige[i]>0?[{lab:'Verschil',val:facAnPct(((v.uren-d.vorige[i])/d.vorige[i])*100)}]:[])]});
+    /* Een maand met facturen erachter is aan te klikken: dezelfde lijst als de
+       rij in "Herkomst per maand". Zonder facturen valt er niets te openen,
+       dus dan ook geen actie -- en geen hint in de tooltip. */
     banden+=`<rect x="${(padL+bandW*i).toFixed(1)}" y="${padT}" width="${bandW.toFixed(1)}" height="${plotH}"
-      class="an-band" data-an-band="urenkolom" data-an-i="${i}"
-      aria-label="${escapeHtml(v.label+': '+urenFmt(v.uren)+' uur')}"/>`;
+      class="an-band" data-an-band="urenkolom" data-an-i="${i}"${v.metFactuur
+        ?` data-uren-action="urenAnHerkomst" data-uren-arg1="${v.key}"`:''}
+      aria-label="${escapeHtml(v.label+': '+urenFmt(v.uren)+' uur'+(v.metFactuur?' — open de facturen':''))}"/>`;
   });
   _facAnTips.urenkolom=tips;
   return `<svg class="an-svg" viewBox="0 0 ${breed} ${H}" width="100%" height="${H}"
@@ -18166,6 +18242,63 @@ function urenAnOpenstaand(d){
     </div>`).join('')}</div>`;
 }
 
+/* Herkomst per maand: hoeveel je zelf schreef en hoeveel er uit een factuur
+   kwam, met het nummer erbij. Bedoeld om de import na te lopen -- zie je een
+   maand zonder uren, dan ontbreekt daar iets. Eén rij per maand, dezelfde
+   rij als de ranglijsten eronder; alleen heeft de balk twee delen. */
+function urenAnHerkomst(d){
+  const max=Math.max(...d.nu.map(v=>v.uren),1);
+  return `<div class="fac-an-klanten">${d.nu.map(v=>{
+    const fac=v.bronLijst.filter(b=>b.factuurId);
+    const los=v.bronLijst.filter(b=>!b.factuurId);
+    let wat;
+    if(v.uren<0.005)wat='Geen uren';
+    else if(!v.bronLijst.length)wat='Zelf geschreven';
+    else{
+      const delen=[];
+      if(fac.length===1){
+        const k=factuurKlant(fac[0].clientId);
+        delen.push('Factuur '+(fac[0].nummer||'zonder nummer')+(k?' · '+(k.bedrijfsnaam||k.name):''));
+      }else if(fac.length)delen.push('Facturen '+fac.map(b=>b.nummer||'zonder nummer').join(', '));
+      los.forEach(b=>delen.push(b.bestand+' (niet in Facturen)'));
+      if(v.eigen>0.005)delen.push('zelf\u00a0'+urenFmt(v.eigen)+'\u00a0u');
+      wat=delen.join(' · ');
+    }
+    const eigen=(v.eigen/max)*100, uit=(v.uitFactuur/max)*100;
+    const balk=(eigen>0.05?`<span class="vul" style="width:${eigen.toFixed(1)}%"></span>`:'')+
+      (uit>0.05?`<span class="vul afgeleid" style="width:${uit.toFixed(1)}%"></span>`:'');
+    const inhoud=`<span class="nm">${escapeHtml(MONTH_LABELS_NL[v.maand])}<small>${escapeHtml(wat)}</small></span>
+      <span class="bl dubbel">${balk}</span>
+      <span class="wa">${v.uren>0.005?urenFmt(v.uren)+' u':'—'}</span>`;
+    return v.metFactuur
+      ?`<button type="button" class="fac-an-krij herkomst" data-uren-action="urenAnHerkomst"
+          data-uren-arg1="${v.key}" title="Open de facturen">${inhoud}</button>`
+      :`<div class="fac-an-krij fac-an-krij-stil herkomst">${inhoud}</div>`;
+  }).join('')}</div>`;
+}
+/* De facturen achter een maand, in de doorklik van de Facturen-analyse.
+   Zelfde venster en dezelfde rijen, zodat een klik op een factuur ook hier de
+   editor opent met pijlen door deze selectie. Rechts staan de uren die uit
+   die factuur in deze maand landden, niet het bedrag: daar ging het hier om. */
+function urenAnHerkomstOpen(key){
+  const d=urenAnData();
+  const v=d.nu.find(x=>x.key===key);
+  if(!v)return;
+  const rijen=v.bronLijst.filter(b=>b.factuurId).map(b=>{
+    const f=factuurById(b.factuurId);
+    return f?{f,excl:factuurTotalen(f).excl,uren:b.uren}:null;
+  }).filter(Boolean).sort((a,b)=>String(a.f.datum).localeCompare(String(b.f.datum)));
+  if(!rijen.length)return;
+  const los=v.bronLijst.filter(b=>!b.factuurId).length;
+  const delen=[rijen.length+' '+(rijen.length===1?'factuur':'facturen'),
+    urenFmt(v.uitFactuur)+' uur uit facturen'];
+  if(v.eigen>0.005)delen.push(urenFmt(v.eigen)+' uur zelf geschreven');
+  if(los)delen.push(los+' '+(los===1?'bestand':'bestanden')+' niet in Facturen');
+  facAnDrill={titel:v.label,rijen,sub:delen.join(' · ')};
+  facAnDrillRender();
+  document.getElementById('facAnDrillModal').classList.add('open');
+}
+
 function urenAnKpiTegels(d){
   const groei=d.heeftVorige&&d.totaalVorig>0
     ? facAnPct(((d.totaal-d.totaalVorig)/d.totaalVorig)*100)+' t.o.v. '+d.vorigJaar : String(d.jaar);
@@ -18196,6 +18329,13 @@ function urenRenderAnalyse(){
       <div class="fac-an-plot" data-an-plot="urenkolom">${urenAnKolomGrafiek(d,breed)}
         <div class="fac-an-tip" hidden></div></div>
     </div>
+    ${d.uitFactuur>0.005?`<div class="fac-an-kaart">
+      ${kop('Herkomst per maand')}
+      <p class="fac-an-uitleg">Uren uit een factuur zijn over de werkdagen van die maand verdeeld.
+        Een maand zonder uren is een gat: daar ontbreekt een factuur of een registratie.</p>
+      <div class="fac-an-leg"><span><i class="nu"></i>Zelf geschreven</span><span><i class="afgeleid"></i>Uit een factuur</span></div>
+      ${urenAnHerkomst(d)}
+    </div>`:''}
     <div class="fac-an-kaart">
       ${kop('Cumulatief')}${leg}
       <div class="fac-an-plot" data-an-plot="urenlijn">${urenAnLijnGrafiek(d,breed)}
@@ -24235,7 +24375,7 @@ function facAnDrillRender(){
           <span class="kl">${escapeHtml(klant?(klant.bedrijfsnaam||klant.name):'Zonder klant')}${
             eind&&klant&&eind!==(klant.bedrijfsnaam||klant.name)?' · '+escapeHtml(eind):''}</span>
         </span>
-        <b class="bd">${factuurFmtBedrag(r.excl)}</b>
+        <b class="bd">${r.uren!=null?urenFmt(r.uren)+' u':factuurFmtBedrag(r.excl)}</b>
       </span>
       <span class="btr">${escapeHtml(f.betreft||'')}</span>
       ${regels?`<span class="rgs">${regels}</span>`:''}
@@ -24374,13 +24514,17 @@ function facAnToonTip(plot,i){
   const tip=plot.querySelector('.fac-an-tip');
   const data=(_facAnTips[soort]||[])[i];
   if(!tip||!data)return;
+  const band=plot.querySelector(`[data-an-i="${i}"]`);
+  /* De hint alleen waar er echt iets achter zit. Hij stond onder elke
+     tooltip, ook in de Uren-grafieken en de afhankelijkheidslijn, waar een
+     klik niets deed. */
+  const klikbaar=!!(band&&(band.dataset.facAction||band.dataset.urenAction));
   tip.innerHTML=`<div class="t">${escapeHtml(data.titel)}</div>`+
     data.regels.map(r=>`<div class="r">${r.kleur?`<i class="${r.kleur}"></i>`:'<i class="leeg"></i>'}
       <b>${escapeHtml(r.val)}</b><span>${escapeHtml(r.lab)}</span></div>`).join('')+
-    '<div class="klik">Klik voor de facturen</div>';
+    (klikbaar?'<div class="klik">Klik voor de facturen</div>':'');
   tip.hidden=false;
   const svg=plot.querySelector('svg');
-  const band=plot.querySelector(`[data-an-i="${i}"]`);
   if(svg&&band){
     const s=svg.getBoundingClientRect(), b=band.getBoundingClientRect();
     /* Naast de baan, niet erboven. Gecentreerd dekte de tooltip precies de

@@ -664,6 +664,80 @@ async function runChecks() {
       }
     }],
 
+    /* Herkomst van geïmporteerde uren (2026-09-11). huidigeStateSnapshot()
+       geeft de module-states zelf terug, dus wat hier wordt neergezet is wat
+       urenAnData() leest. Elke test zet het daarna terug. */
+    ['Uren-herkomst: factuurid wint, anders de naam via het inleeslogboek',
+      () => {
+        const fs = w.huidigeStateSnapshot().facturen;
+        const inv = fs.invoices, log = fs.scanLog;
+        try {
+          fs.invoices = [...(inv||[]), {id:'hkA', nummer:'H-001', datum:'2026-02-01', regels:[]}];
+          fs.scanLog = [{naam:'feb.pdf', factuurId:'hkA', hash:'x', status:'opgeslagen'}];
+          const namen = w.urenAnBronNamen();
+          const a = w.urenAnBron({factuurId:'hkA', description:'Uit factuur H-001'}, namen);
+          const b = w.urenAnBron({factuurId:'', description:'Uit factuur feb.pdf'}, namen);
+          const c = w.urenAnBron({factuurId:'', description:'Uit factuur los.pdf'}, namen);
+          const e = w.urenAnBron({factuurId:'', bronBestand:'feb.pdf', description:'aangepast'}, namen);
+          return a.factuurId === 'hkA' && a.nummer === 'H-001' &&
+                 b.factuurId === 'hkA' &&
+                 c.factuurId === '' && c.bestand === 'los.pdf' &&
+                 e.factuurId === 'hkA';
+        } finally { fs.invoices = inv; fs.scanLog = log; }
+      }],
+    ['Uren-herkomst: per maand zelf geschreven en uit factuur apart geteld',
+      () => {
+        const st = w.huidigeStateSnapshot();
+        const fs = st.facturen, us = st.uren;
+        const inv = fs.invoices, ent = us.entries;
+        const j = w.urenAnHuidigJaar();
+        try {
+          fs.invoices = [...(inv||[]), {id:'hkB', nummer:'H-002', datum:j+'-02-01', regels:[]}];
+          us.entries = [
+            {id:'hk1', date:j+'-01-05', hours:3, clientId:null, status:'invoiced'},
+            {id:'hk2', date:j+'-01-06', hours:5, clientId:null, status:'invoiced', bron:'factuur', factuurId:'hkB'},
+            {id:'hk3', date:j+'-01-07', hours:2, clientId:null, status:'invoiced', bron:'factuur', factuurId:'hkB'}
+          ];
+          const d = w.urenAnData();
+          const jan = d.nu[0];
+          return jan.eigen === 3 && jan.uitFactuur === 7 && d.uitFactuur === 7 &&
+                 jan.bronLijst.length === 1 && jan.bronLijst[0].factuurId === 'hkB' &&
+                 jan.bronLijst[0].uren === 7 && jan.metFactuur === true;
+        } finally { fs.invoices = inv; us.entries = ent; }
+      }],
+    /* urenImpAiRij is een top-level `let`: niet via window te zetten, wel via
+       eval in het venster zelf. */
+    ['Uren-import: een gekoppelde PDF geeft factuurid, nummer en bestandsnaam door',
+      () => {
+        const fs = w.huidigeStateSnapshot().facturen;
+        const inv = fs.invoices;
+        try {
+          fs.invoices = [...(inv||[]), {id:'hkC', nummer:'H-003', datum:'2026-03-01', clientId:'kX', regels:[]}];
+          w.eval("urenImpAiRij=[{naam:'mrt.pdf',factuurId:'hkC',nummer:'H-003',clientId:null," +
+                 "maanden:[{maand:'2026-03',uren:12}],klant:'',fout:''}]");
+          const r = w.urenImpAiKandidaten()[0].regels[0];
+          return r.factuurId === 'hkC' && r.nummer === 'H-003' &&
+                 r.bestand === 'mrt.pdf' && r.clientId === 'kX';
+        } finally { fs.invoices = inv; w.eval('urenImpAiRij=[]'); }
+      }],
+    ['Grafiek: de tooltip belooft alleen een klik waar er een is',
+      () => {
+        const plot = d.createElement('div');
+        plot.className = 'fac-an-plot';
+        plot.dataset.anPlot = 'hktest';
+        plot.innerHTML = '<svg viewBox="0 0 100 20"><rect data-an-band="hktest" data-an-i="0" ' +
+          'width="10" height="10"/></svg><div class="fac-an-tip" hidden></div>';
+        d.body.appendChild(plot);
+        try {
+          w.eval("_facAnTips.hktest=[{titel:'Maand',regels:[{lab:'x',val:'1'}]}]");
+          w.facAnToonTip(plot, 0);
+          const zonder = !plot.querySelector('.fac-an-tip .klik');
+          plot.querySelector('rect').setAttribute('data-uren-action', 'urenAnHerkomst');
+          w.facAnToonTip(plot, 0);
+          const met = !!plot.querySelector('.fac-an-tip .klik');
+          return zonder && met;
+        } finally { plot.remove(); w.eval('delete _facAnTips.hktest'); }
+      }],
     /* ── Back-up terugzetten ─────────────────────────────────────────────
        Dit pad was een eigen kopie van hydrateerState() en liep daarop achter:
        de prullenbak van Notities, de sorteerkeuze, het inleeslogboek en de

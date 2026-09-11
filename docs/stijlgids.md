@@ -334,6 +334,15 @@ De regels die daarbij horen:
   met een duim niet; de baan is ook wat de toets bereikt (`tabindex`).
 - **Elke grafiek heeft een tabelweergave.** Kleur mag nooit de enige drager
   van een waarde zijn.
+- **Gearceerd is afgeleid.** Een deel dat niet gemeten maar afgeleid is — uren
+  uit een factuur, over de werkdagen verdeeld — krijgt dezelfde tint
+  gearceerd (135°, lijn van 2px op 5px) met een rand van 1px:
+  `.vul.afgeleid` en `.fac-an-leg i.afgeleid`. Geen tweede kleur: het is geen
+  andere reeks, het is een andere bron. Altijd met een legenda.
+- **Een hint of een hand alleen bij een doorklik.** "Klik voor de facturen"
+  in de tooltip en `cursor:pointer` staan alleen op een baan met
+  `data-fac-action` of `data-uren-action`. Een hand die niets opent is een
+  belofte die de grafiek niet nakomt.
 
 Een nieuwe kleurencombinatie eerst door de validator halen (zie de
 dataviz-richtlijn): ΔE ≥ 15 bij normaal zicht, ≥ 8 bij kleurenblindheid.

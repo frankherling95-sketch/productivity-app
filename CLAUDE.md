@@ -297,6 +297,7 @@ waar de fout zit.
 
 Top-3 meest recent. Volledige log + *waarom* per beslissing: [`docs/decisions.md`](docs/decisions.md).
 
+- **2026-09-11**: Herkomst per maand in de Uren-analyse — per maand zelf geschreven (egaal) of uit een factuur (gearceerd), met het factuurnummer erbij; een maand met facturen erachter opent de doorklik van Facturen. De AI-import koppelt voortaan via het inleeslogboek (SHA-256 → `factuurId`), een oudere via de bestandsnaam. De tooltip-hint "Klik voor de facturen" staat alleen nog waar een klik iets doet
 - **2026-09-10**: Zes dispatchers, vijf verschillende argumentvolgordes — `urenDispatchChange` geeft het element als eerste door en `urenDispatchClick` als laatste; drie change-handlers van de uren-import faalden daardoor stil. De tabel staat nu onder *Actie aansluiten op een dispatcher*, en `validate.mjs` toetst elke actienaam in de opmaak tegen zijn tabel. Die controle vond meteen `noteClearContent`: de knop "Inhoud legen" in de notitie-editor was nooit geregistreerd
 - **2026-09-10**: Vijf facturen per verzoek bij het inscannen — de gratis laag telt verzoeken (5/min, 20/dag) en nauwelijks tokens (4.310 van 250.000 gebruikt). Zeven bestanden gaan nu in twee verzoeken. Terugkoppelen op de bestandsnaam en niet op de volgorde, want een overgeslagen document zou alles daarna bij de verkeerde factuur laten landen; wie niet terugkomt gaat één keer alleen. Ook: een 429 heet alleen nog een dagquotum als Google alléén dat noemt of langer dan een kwartier geduld vraagt — hij noemt in `details` vaak beide quota's, waardoor een minuutlimiet als "dagquotum op" verscheen
 - **2026-09-09**: Eén meldingsblok met drie toestanden (`.fac-btw-let` + `.let-gelukt` / `.let-fout`) — een geslaagde scan stond in dezelfde amberkleur als de btw-waarschuwing eronder. Nu groen met een vinkje, mislukt rood met een uitroepteken, en de rode varianten niet meer als `border-left-color` in een style-attribuut. Het icoon staat in `1em` omdat het in een tekstregel staat; `--icoon` is de maat voor een raakvlak. Zie stijlgids §12
@@ -403,7 +404,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 72 smoke-, sync-, model- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
+| `test.html` | 94 smoke-, sync-, model-, reken- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |
