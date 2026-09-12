@@ -705,6 +705,74 @@ async function runChecks() {
                  jan.bronLijst[0].uren === 7;
         } finally { fs.invoices = inv; us.entries = ent; }
       }],
+    ['Import: een factuur die al is overgenomen komt niet nog een keer mee',
+      () => {
+        const st = w.huidigeStateSnapshot();
+        const fs = st.facturen, us = st.uren;
+        const inv = fs.invoices, ent = us.entries;
+        try {
+          fs.invoices = [{id:'dfA', nummer:'D-001', datum:'2027-06-10', clientId:'kA',
+            status:'verstuurd', betreft:'Gewerkte uren juni 2027',
+            regels:[{omschrijving:'Uren', aantal:100, eenheid:'uur', stuksprijs:100, urenIds:[]}]}];
+          us.entries = [];
+          w.eval("urenImpModus='aantal'; urenImpKeuze={}; urenImpVerschuifMnd=0;");
+          const voor = w.urenImpKandidaten(0, {'uur':true});
+          /* Nu alsof hij is geïmporteerd: registraties met bron en factuurid. */
+          us.entries = [{id:'i1', date:'2027-06-01', hours:100, clientId:'kA',
+            status:'invoiced', bron:'factuur', factuurId:'dfA'}];
+          const na = w.urenImpKandidaten(0, {'uur':true});
+          return voor.length === 1 && voor[0].regels.length === 1 && w.urenImpAan(voor[0]) === true &&
+                 na.length === 1 && na[0].regels.length === 0 && na[0].over.al === 1 &&
+                 w.urenImpAan(na[0]) === false;
+        } finally { fs.invoices = inv; us.entries = ent; w.eval("urenImpKeuze={}"); }
+      }],
+    ['Import: eigen uren van de ene klant blokkeren de factuur van de andere niet',
+      () => {
+        const st = w.huidigeStateSnapshot();
+        const fs = st.facturen, us = st.uren;
+        const inv = fs.invoices, ent = us.entries;
+        try {
+          const regel = n => [{omschrijving:'Uren', aantal:n, eenheid:'uur', stuksprijs:100, urenIds:[]}];
+          fs.invoices = [
+            {id:'dfA', nummer:'D-001', datum:'2027-07-10', clientId:'kA', status:'verstuurd',
+             betreft:'Gewerkte uren juli 2027', regels:regel(100)},
+            {id:'dfB', nummer:'D-002', datum:'2027-07-11', clientId:'kB', status:'verstuurd',
+             betreft:'Gewerkte uren juli 2027', regels:regel(40)}];
+          /* Zelf geschreven uren, maar alleen voor klant A. */
+          us.entries = [{id:'e1', date:'2027-07-03', hours:8, clientId:'kA', status:'open'}];
+          w.eval("urenImpModus='aantal'; urenImpKeuze={}; urenImpVerschuifMnd=0;");
+          const lijst = w.urenImpKandidaten(0, {'uur':true});
+          const juli = lijst.find(r => r.key === '2027-07');
+          return !!juli && juli.regels.length === 1 && juli.regels[0].factuurId === 'dfB' &&
+                 juli.uren === 40 && juli.over.eigen === 1 && juli.alAanwezig === 8 &&
+                 w.urenImpAan(juli) === true;
+        } finally { fs.invoices = inv; us.entries = ent; w.eval("urenImpKeuze={}"); }
+      }],
+    ['Import: te groot, verkeerde soort en dezelfde PDF twee keer gaan niet naar Gemini',
+      async () => {
+        const sleutel = w.eval('LS_GEMINI_KEY');
+        const bewaard = localStorage.getItem(sleutel);
+        try {
+          /* Zonder sleutel komt het verzoek niet verder dan de eigen controle;
+             wat wij hier toetsen gebeurt daarvóór. */
+          localStorage.removeItem(sleutel);
+          const pdf = () => new w.File([new Uint8Array([37,80,68,70])], 'factuur.pdf', {type:'application/pdf'});
+          const kopie = new w.File([new Uint8Array([37,80,68,70])], 'factuur (1).pdf', {type:'application/pdf'});
+          await w.urenImpAiLees([
+            pdf(), kopie,
+            {name:'groot.pdf', size:13 * 1048576, type:'application/pdf'},
+            {name:'lijst.txt', size:12, type:'text/plain'}
+          ]);
+          const rij = w.eval('urenImpAiRij');
+          return /zelfde bestand als factuur\.pdf/.test(rij[1].fout) &&
+                 /13,0 MB|13.0 MB/.test(rij[2].fout) &&
+                 /dit soort bestand/.test(rij[3].fout) &&
+                 !/overgeslagen|MB|dit soort/.test(rij[0].fout || '');
+        } finally {
+          if (bewaard !== null) localStorage.setItem(sleutel, bewaard);
+          w.eval('urenImpAiRij=[]');
+        }
+      }],
     ['Maandoverzicht: eigen uren met hun factuur, bronnen apart, werkdagen zonder uren',
       () => {
         const st = w.huidigeStateSnapshot();

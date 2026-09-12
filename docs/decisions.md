@@ -10,6 +10,63 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-12 · Uren uit facturen: ontdubbelen per factuur, niet per maand
+
+**Probleem.** De import hield dubbelingen tegen door een hele maand over te
+slaan zodra daar uren stonden. Dat was te grof én te grof gemazed tegelijk.
+Te grof: één eigen uur in maart blokkeerde de factuur van een ándere klant, en
+een nagekomen factuur voor een maand die al binnen was kwam er nooit meer in —
+precies de uren die dan ontbreken. En te ruim: koos je in de AI-import
+dezelfde factuur twee keer (`factuur.pdf` en `factuur (1).pdf`, of een scan
+naast het origineel), dan telden de uren gewoon dubbel.
+
+**Beslissing.** De vraag is nu per factuurregel, niet per maand:
+- **Al eens overgenomen?** Op het factuurid, en anders op de bestandsnaam. De
+  sleutel komt uit `urenAnBron()` — dezelfde functie waarmee de analyse laat
+  zien waar een registratie vandaan komt, dus één definitie van "herkomst", en
+  een import van vóór de koppeling (die alleen een bestandsnaam draagt) wordt
+  ook herkend.
+- **Schreef je in die maand zelf al uren voor die klant?** Dan blijft jouw
+  registratie leidend en valt die ene regel af. Zonder bekende klant telt de
+  hele maand: dan valt niet te zien of het om hetzelfde werk gaat.
+- **Binnen één keuze** vangt de vingerafdruk (SHA-256, al berekend voor de
+  koppeling) de kopie, en het factuurid twee bestanden van dezelfde factuur.
+  Die gaan niet mee — dat scheelt ook een verzoek uit het dagquotum.
+
+De maandtabel zegt nu per maand wat er is overgeslagen en waarom, met een
+regel eronder die het optelt.
+
+**Vóór het versturen kijken.** De AI-import controleerde grootte noch soort,
+terwijl de factuurscanner dat al deed. Een scan van 15 MB ging ongezien de
+deur uit en kwam terug met Google's eigen `Request contains an invalid
+argument` — een melding die niet zegt wát eraan scheelt. Nu dezelfde grens
+(12 MB) en dezelfde woorden als de scanner.
+
+**Eén rot bestand sleept de rest niet meer mee.** Vijf facturen gaan in één
+verzoek; mislukte dat, dan kregen alle vijf dezelfde rode melding. Bij een
+400 — die gaat over het verzoek zelf en kan aan één bestand liggen — gaan ze
+nu nog één keer los. Bij een 503 (drukte) of een 429 (quotum) juist niet:
+losse pogingen zijn dan alleen maar meer verzoeken tegen dezelfde muur.
+`_geminiFetch()` zet `err.status`, dus dat verschil is af te lezen.
+
+**Nagemeten** met de echte importfuncties, oude versie naast nieuwe: maart
+(factuur van klant B, 8 eigen uren van klant A) werd 120 u in plaats van
+niets; een nagekomen januarifactuur komt er nu bij (10 u) terwijl de twee al
+overgenomen facturen worden overgeslagen; alles een tweede keer importeren
+voegt nog steeds niets toe.
+
+**Niet doen.** Het verschil tussen factuur en eigen uren opheffen door bij een
+deels gevulde maand "het verschil" bij te boeken. Dat veronderstelt dat de
+factuur precies die maand dekt, en dat weet de app niet.
+
+**Bestanden.** `index.html` — `urenImpAlBinnen()`, `urenImpAlBinnenVan()`,
+`urenImpEigenUren()`, `urenImpAiVerzoek()`, `urenImpAiOver()`, en de
+aanpassingen in `urenImpKandidaten()`, `urenImpAiKandidaten()`,
+`urenImpAiLees()`, `urenImpAan()`, `urenImpVink()` en `urenImpRender()`.
+`test.html` — drie tests erbij.
+
+---
+
 ## 2026-09-11 · Maandoverzicht: per dag zien wat er staat en waarvandaan
 
 **Probleem.** De uren komen op twee manieren binnen — zelf geschreven in Uren,

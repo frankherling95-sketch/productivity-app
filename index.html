@@ -7501,7 +7501,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.17</span>
+        <span class="app-versie" title="Appversie">v2.18</span>
       </div>
     </div>
   </aside>
@@ -17601,23 +17601,79 @@ function urenImpAiKlantId(naam){
   return k?k.id:null;
 }
 
+/* Eén verzoek voor een groepje bestanden, met het antwoord op de rijen gezet.
+   Apart gezet zodat dezelfde route ook voor één los bestand te gebruiken is,
+   als de groep het niet haalde. Wat misgaat gooit hij door: de aanroeper
+   beslist of het zin heeft om het los te proberen. */
+async function urenImpAiVerzoek(groep){
+  const bestanden=groep.map((g,n)=>({
+    mime:g.r.mime||facScanMime(g.r.file), data:g.data,
+    kop:'--- Document '+(n+1)+': '+g.r.naam+' ---'}));
+  const uit=await callGemini({
+    system:urenImpAiPrompt(groep.length),
+    user:'Lees deze '+groep.length+' factu'+(groep.length===1?'ur':'ren')+' uit.',
+    bestanden, schema:UREN_IMP_AI_SCHEMA, temperature:0
+  });
+  const lijst=(uit&&Array.isArray(uit.facturen))?uit.facturen:[];
+  groep.forEach(g=>{
+    /* Terugkoppelen op de bestandsnaam (zie 2026-09-10). Gaat er één bestand
+       in, dan is het enige antwoord ook het antwoord voor dát bestand -- de
+       naam hoeft het model dan niet goed te hebben overgenomen. */
+    const op=lijst.find(x=>x&&String(x.bestand||'').trim()===g.r.naam)
+      ||(groep.length===1?lijst[0]:null);
+    if(!op){g.r.fout='geen antwoord voor dit bestand';return;}
+    g.r.fout='';
+    g.r.klant=String(op.klant||'').trim();
+    g.r.clientId=urenImpAiKlantId(g.r.klant);
+    g.r.maanden=(Array.isArray(op.perioden)?op.perioden:[])
+      .map(p=>({maand:urenImpAiMaand(p&&p.maand),uren:Number(p&&p.uren)||0}))
+      .filter(p=>p.maand&&p.uren>0);
+    if(!g.r.maanden.length)g.r.fout='geen uren of maand gevonden';
+  });
+}
 /* Eén ronde over de gekozen bestanden. Groepjes van vijf, net als de
    factuurscanner: de gratis laag telt verzoeken, niet tokens. */
 async function urenImpAiLees(files){
-  urenImpAiRij=[...files].map(f=>({naam:f.name,file:f,maanden:[],klant:'',clientId:null,fout:'',
-    factuurId:'',nummer:''}));
+  /* Kijken vóór het versturen, met dezelfde grens en dezelfde woorden als de
+     factuurscanner. Een te groot of onleesbaar bestand kostte anders een
+     verzoek uit je dagquotum en kwam terug met Google's eigen "Request
+     contains an invalid argument" -- een melding die niet zegt wát eraan
+     scheelt. */
+  urenImpAiRij=[...files].map(f=>{
+    const mime=facScanMime(f);
+    return {naam:f.name,file:f,mime,maanden:[],klant:'',clientId:null,
+      factuurId:'',nummer:'',
+      fout:f.size>FAC_SCAN_MAX?((f.size/1048576).toFixed(1)+' MB — maximaal 12 MB')
+        :!mime?'dit soort bestand kan niet gelezen worden — maak er een PDF of foto van':''};
+  });
   urenImpAiBezig=true;
   urenImpRender();
   try{
     /* Welke factuur in de app is dit bestand? Het inleeslogboek weet dat per
        inhoud (SHA-256), dus ook bij een hernoemde PDF. Zo draagt een
-       registratie straks het factuurid, en niet alleen een bestandsnaam. */
+       registratie straks het factuurid, en niet alleen een bestandsnaam.
+
+       Diezelfde vingerafdruk vangt de kopie: kies je "factuur.pdf" en
+       "factuur (1).pdf" samen, dan gaat de tweede niet mee -- anders staan
+       die uren straks dubbel in dezelfde maand. Twee verschillende bestanden
+       die bij dezelfde factuur horen (een scan én het origineel) evenmin. */
+    const gezien={}, perFactuur={};
     for(const r of urenImpAiRij){
-      try{
-        const log=facLogZoek((await facScanVingerafdruk(r.file)).hash);
-        const f=log&&log.factuurId?factuurById(log.factuurId):null;
-        if(f){r.factuurId=f.id;r.nummer=f.nummer||'';}
-      }catch(e){/* geen koppeling: dan blijft het de bestandsnaam */}
+      if(r.fout)continue;
+      let hash='';
+      try{ hash=(await facScanVingerafdruk(r.file)).hash; }catch(e){}
+      if(hash&&gezien[hash]){
+        r.fout='zelfde bestand als '+gezien[hash]+' — overgeslagen'; continue;
+      }
+      if(hash)gezien[hash]=r.naam;
+      const log=hash?facLogZoek(hash):null;
+      const f=log&&log.factuurId?factuurById(log.factuurId):null;
+      if(!f)continue;
+      if(perFactuur[f.id]){
+        r.fout='zelfde factuur als '+perFactuur[f.id]+' — overgeslagen'; continue;
+      }
+      perFactuur[f.id]=r.naam;
+      r.factuurId=f.id; r.nummer=f.nummer||'';
     }
     urenImpRender();
     let i=0;
@@ -17626,6 +17682,8 @@ async function urenImpAiLees(files){
       let bytes=0;
       while(i<urenImpAiRij.length&&groep.length<FAC_SCAN_GROEP){
         const r=urenImpAiRij[i];
+        /* Al afgevallen (te groot, verkeerde soort, dubbel): niet versturen. */
+        if(r.fout){ i++; continue; }
         let data='';
         try{ data=await facScanBestandNaarBase64(r.file); }
         catch(e){ r.fout='kon het bestand niet lezen'; i++; continue; }
@@ -17638,27 +17696,22 @@ async function urenImpAiLees(files){
       urenImpAiVoortgang=Math.min(i,urenImpAiRij.length)+' van '+urenImpAiRij.length;
       urenImpRender();
       try{
-        const bestanden=groep.map((g,n)=>({
-          mime:facScanMime(g.r.file), data:g.data,
-          kop:'--- Document '+(n+1)+': '+g.r.naam+' ---'}));
-        const uit=await callGemini({
-          system:urenImpAiPrompt(groep.length),
-          user:'Lees deze '+groep.length+' factu'+(groep.length===1?'ur':'ren')+' uit.',
-          bestanden, schema:UREN_IMP_AI_SCHEMA, temperature:0
-        });
-        const lijst=(uit&&Array.isArray(uit.facturen))?uit.facturen:[];
-        groep.forEach(g=>{
-          const op=lijst.find(x=>x&&String(x.bestand||'').trim()===g.r.naam);
-          if(!op){g.r.fout='geen antwoord voor dit bestand';return;}
-          g.r.klant=String(op.klant||'').trim();
-          g.r.clientId=urenImpAiKlantId(g.r.klant);
-          g.r.maanden=(Array.isArray(op.perioden)?op.perioden:[])
-            .map(p=>({maand:urenImpAiMaand(p&&p.maand),uren:Number(p&&p.uren)||0}))
-            .filter(p=>p.maand&&p.uren>0);
-          if(!g.r.maanden.length)g.r.fout='geen uren of maand gevonden';
-        });
+        await urenImpAiVerzoek(groep);
       }catch(e){
-        groep.forEach(g=>{g.r.fout=String((e&&e.message)||e).slice(0,120);});
+        /* Een 400 gaat over het verzoek zelf en kan aan één bestand liggen: te
+           groot, beveiligd of stuk. Dan mogen ze nog één keer los -- anders
+           sleept dat ene bestand vier goede mee in dezelfde rode melding.
+           Bij drukte (503) of een leeg dagquotum (429) juist niet: losse
+           pogingen zijn dan alleen maar meer verzoeken tegen dezelfde muur. */
+        if(groep.length>1&&e&&e.status===400){
+          for(const g of groep){
+            try{ await urenImpAiVerzoek([g]); }
+            catch(e2){ g.r.fout=String((e2&&e2.message)||e2).slice(0,120); }
+            urenImpRender();
+          }
+        }else{
+          groep.forEach(g=>{g.r.fout=String((e&&e.message)||e).slice(0,120);});
+        }
       }
       urenImpRender();
     }
@@ -17680,36 +17733,53 @@ function urenImpAiBestanden(el){
 /* De maanden uit het AI-antwoord, in dezelfde vorm als de andere twee bronnen
    zodat de tabel eronder en het toepassen ongewijzigd blijven. */
 function urenImpAiKandidaten(){
-  const bestaand={};
-  (urenState.entries||[]).forEach(e=>{
-    const k=String(e.date||'').slice(0,7);
-    if(k)bestaand[k]=(bestaand[k]||0)+Number(e.hours||0);
-  });
+  const al=urenImpAlBinnen();
   const per={};
   urenImpAiRij.forEach(r=>{
+    if(r.fout)return;
+    /* Gekoppeld aan een factuur in de app? Dan zijn klant en nummer die van
+       de factuur -- die zijn zekerder dan wat het model van de PDF las. */
+    const f=r.factuurId?factuurById(r.factuurId):null;
+    const clientId=(f&&f.clientId)||r.clientId||null;
+    const alBinnen=urenImpAlBinnenVan(al,f?f.id:'',r.naam)>0.005;
     r.maanden.forEach(m=>{
       if(!per[m.maand])per[m.maand]={key:m.maand,uren:0,regels:[],uitBetreft:true,
-        alAanwezig:Math.round((bestaand[m.maand]||0)*100)/100};
-      per[m.maand].uren=Math.round((per[m.maand].uren+m.uren)*100)/100;
-      /* Gekoppeld aan een factuur in de app? Dan zijn klant en nummer die van
-         de factuur -- die zijn zekerder dan wat het model van de PDF las. */
-      const f=r.factuurId?factuurById(r.factuurId):null;
-      per[m.maand].regels.push({factuurId:f?f.id:'',nummer:f?(f.nummer||r.naam):r.naam,
-        bestand:r.naam,clientId:(f&&f.clientId)||r.clientId,omschrijving:r.naam,aantal:m.uren});
+        alAanwezig:Math.round((al.eigenMaand[m.maand]||0)*100)/100,
+        over:{al:0,eigen:0}};
+      const v=per[m.maand];
+      if(alBinnen){v.over.al++;return;}
+      if(urenImpEigenUren(al,m.maand,clientId)>0.005){v.over.eigen++;return;}
+      v.uren=Math.round((v.uren+m.uren)*100)/100;
+      v.regels.push({factuurId:f?f.id:'',nummer:f?(f.nummer||r.naam):r.naam,
+        bestand:r.naam,clientId,omschrijving:r.naam,aantal:m.uren});
     });
   });
   return Object.values(per).sort((a,b)=>a.key.localeCompare(b.key));
+}
+/* Waarom een gelezen bestand niets (meer) toevoegt -- voor de tabel in het
+   venster. De maandlijst eronder rekent met dezelfde twee regels. */
+function urenImpAiOver(r,al){
+  if(r.fout||!r.maanden.length)return '';
+  const f=r.factuurId?factuurById(r.factuurId):null;
+  if(urenImpAlBinnenVan(al,f?f.id:'',r.naam)>0.005)return 'staat hier al';
+  const clientId=(f&&f.clientId)||r.clientId||null;
+  return r.maanden.every(m=>urenImpEigenUren(al,m.maand,clientId)>0.005)
+    ? 'je schreef deze uren zelf al' : '';
 }
 
 /* Wat er te importeren valt, gegroepeerd per maand. */
 function urenImpKandidaten(verschuif,eenheden){
   if(urenImpModus==='ai')return urenImpAiKandidaten();
-  const bestaand={};
-  (urenState.entries||[]).forEach(e=>{
-    const k=String(e.date||'').slice(0,7);
-    if(k)bestaand[k]=(bestaand[k]||0)+Number(e.hours||0);
-  });
+  const al=urenImpAlBinnen();
   const perMaand={};
+  const vak=(key,uitBetreft)=>{
+    if(!perMaand[key])perMaand[key]={
+      key, uren:0, regels:[], uitBetreft,
+      alAanwezig:Math.round((al.eigenMaand[key]||0)*100)/100,
+      over:{al:0,eigen:0}
+    };
+    return perMaand[key];
+  };
   (factuurState.invoices||[]).forEach(f=>{
     if(!f||!f.datum||f.status==='concept')return;
     (f.regels||[]).forEach(r=>{
@@ -17728,16 +17798,19 @@ function urenImpKandidaten(verschuif,eenheden){
       if(Array.isArray(r.urenIds)&&r.urenIds.some(id=>urenEntry(id)))return;
       const m=urenImpMaandVan(f,verschuif);
       if(!m)return;
-      if(!perMaand[m.key])perMaand[m.key]={
-        key:m.key, uren:0, regels:[], uitBetreft:m.uitBetreft,
-        alAanwezig:Math.round((bestaand[m.key]||0)*100)/100
-      };
-      perMaand[m.key].uren=Math.round((perMaand[m.key].uren+aantal)*100)/100;
-      perMaand[m.key].regels.push({
-        factuurId:f.id, nummer:f.nummer||'', clientId:r.klantId||f.clientId||null,
+      const v=vak(m.key,m.uitBetreft);
+      if(!m.uitBetreft)v.uitBetreft=false;
+      const clientId=r.klantId||f.clientId||null;
+      /* Deze factuur al eens overgenomen, of schreef je in die maand zelf al
+         uren voor deze klant? Dan valt alleen déze regel af -- de rest van de
+         maand kan gewoon mee. */
+      if(urenImpAlBinnenVan(al,f.id,'')>0.005){v.over.al++;return;}
+      if(urenImpEigenUren(al,m.key,clientId)>0.005){v.over.eigen++;return;}
+      v.uren=Math.round((v.uren+aantal)*100)/100;
+      v.regels.push({
+        factuurId:f.id, nummer:f.nummer||'', clientId,
         omschrijving:r.omschrijving||'', aantal
       });
-      if(!m.uitBetreft)perMaand[m.key].uitBetreft=false;
     });
   });
   return Object.values(perMaand).sort((a,b)=>a.key.localeCompare(b.key));
@@ -17746,6 +17819,48 @@ function urenImpKandidaten(verschuif,eenheden){
 /* Wat er al eerder is geïmporteerd. */
 function urenImpBestaande(){
   return (urenState.entries||[]).filter(e=>e&&e.bron==='factuur');
+}
+
+/* ── Wat er al binnen is ──
+   Twee vragen bij elke factuurregel: is deze factuur (of dit bestand) hier al
+   eens overgenomen, en schreef jij in die maand zelf al uren voor die klant?
+   De grens lag eerst op de hele maand. Dat hield dubbelingen tegen, maar ook
+   te veel: één uur in maart blokkeerde de factuur van een ándere klant, en
+   een nagekomen factuur voor een maand die al binnen was kwam er nooit meer
+   in -- terwijl juist die uren dan ontbreken.
+
+   De sleutel per bron ('f:<factuurid>' of 'b:<bestandsnaam>') komt uit
+   urenAnBron(), dezelfde functie die de analyse gebruikt. Zo staat op één
+   plek wat "waar komt deze registratie vandaan" betekent, en herkent hij ook
+   een import van vóór de koppeling, die alleen een bestandsnaam draagt. */
+function urenImpAlBinnen(){
+  const perNaam=urenAnBronNamen();
+  const perBron={}, eigen={}, eigenMaand={};
+  (urenState.entries||[]).forEach(e=>{
+    const mk=String(e.date||'').slice(0,7);
+    if(!mk)return;
+    const u=Number(e.hours||0);
+    if(e.bron==='factuur'){
+      const b=urenAnBron(e,perNaam);
+      perBron[b.key]=Math.round(((perBron[b.key]||0)+u)*100)/100;
+      return;
+    }
+    const k=mk+'|'+(e.clientId||'');
+    eigen[k]=Math.round(((eigen[k]||0)+u)*100)/100;
+    eigenMaand[mk]=Math.round(((eigenMaand[mk]||0)+u)*100)/100;
+  });
+  return {perBron,eigen,eigenMaand};
+}
+/* Al eens overgenomen? Op het factuurid, en anders op de bestandsnaam. */
+function urenImpAlBinnenVan(al,factuurId,bestand){
+  const k=factuurId?'f:'+factuurId:'b:'+(String(bestand||'').trim()||'?');
+  return al.perBron[k]||0;
+}
+/* Je eigen uren in die maand voor die klant. Zonder klant telt de hele maand:
+   dan valt niet te zien of het om hetzelfde werk gaat, en is voorzichtig zijn
+   beter dan dubbel boeken. */
+function urenImpEigenUren(al,maand,clientId){
+  return clientId?(al.eigen[maand+'|'+clientId]||0):(al.eigenMaand[maand]||0);
 }
 
 /* ── Het venster ── */
@@ -17779,13 +17894,15 @@ function urenImpEenhVink(label){
 function urenImpVink(key){
   const lijst=urenImpKandidaten(urenImpVerschuifMnd,urenImpEenhKeuze);
   const r=lijst.find(x=>x.key===key);
-  if(!r||r.alAanwezig>0.005)return;
+  if(!r||!r.regels.length)return;
   urenImpKeuze[key]=!urenImpAan(r);
   urenImpRender();
 }
-/* Standaard aan, behalve maanden waar je zelf al uren hebt staan. */
+/* Blijft er na het overslaan niets over, dan valt er niets aan te zetten. Dát
+   je in die maand zelf uren hebt staan is op zichzelf geen reden meer: dat
+   wordt per klant en per factuur bekeken. */
 function urenImpAan(r){
-  if(r.alAanwezig>0.005)return false;
+  if(!r.regels.length)return false;
   return urenImpKeuze[r.key]!==false;
 }
 function urenImpMaandLabel(key){
@@ -17799,6 +17916,7 @@ function urenImpRender(){
   const bron=urenImpEenheden();
   if(urenImpEenhKeuze===null)urenImpEenhKeuze=urenImpStandaardEenheden(bron.lijst);
   const lijst=urenImpKandidaten(urenImpVerschuifMnd,urenImpEenhKeuze);
+  const alBinnen=urenImpAlBinnen();
   const eerder=urenImpBestaande();
   const teDoen=lijst.filter(urenImpAan);
   const som=Math.round(teDoen.reduce((s,r)=>s+r.uren,0)*100)/100;
@@ -17808,8 +17926,9 @@ function urenImpRender(){
   box.innerHTML=`
     <div class="fac-uren-info"><span>Leest het aantal van je factuurregels en zet dat als
       registraties in de maand waar het werk bij hoort, verdeeld over maandag t/m vrijdag.
-      <b>Wat je zelf hebt ingevoerd blijft leidend</b>: een maand waarin al uren staan wordt
-      overgeslagen. Aan je facturen verandert niets.</span></div>
+      <b>Wat je zelf hebt ingevoerd blijft leidend</b>: een factuur die hier al is overgenomen
+      slaat hij over, en een klant waarvoor je in die maand zelf uren schreef ook. Aan je
+      facturen verandert niets.</span></div>
 
     ${eerder.length?`<div class="fac-btw-let let-gelukt" style="margin-top:12px">
       <span class="ic">✓</span><span>Er staan al ${eerder.length} geïmporteerde registraties.
@@ -17847,12 +17966,15 @@ function urenImpRender(){
           <span>Gemini leest je facturen… ${escapeHtml(urenImpAiVoortgang)}</span></div>`:''}
         ${urenImpAiRij.length?`<table class="fac-an-tabel uren-imp-tabel">
           <thead><tr><th>Bestand</th><th>Klant</th><th class="num">Gevonden</th></tr></thead>
-          <tbody>${urenImpAiRij.map(r=>`<tr class="${r.fout?'uren-imp-over':''}">
+          <tbody>${urenImpAiRij.map(r=>{
+            const over=urenImpAiOver(r,alBinnen);
+            return `<tr class="${r.fout||over?'uren-imp-over':''}">
             <td>${escapeHtml(r.naam)}${r.factuurId?`<br><small>factuur ${escapeHtml(r.nummer||'zonder nummer')}</small>`:''}</td>
             <td>${escapeHtml(r.klant||'—')}${r.klant&&!r.clientId&&!r.factuurId?' <small>(onbekend)</small>':''}</td>
             <td class="num">${r.fout?`<small>${escapeHtml(r.fout)}</small>`
-              :r.maanden.map(m=>urenImpMaandLabel(m.maand)+': '+urenFmt(m.uren)+' u').join('<br>')}</td>
-          </tr>`).join('')}</tbody></table>`:''}`
+              :r.maanden.map(m=>urenImpMaandLabel(m.maand)+': '+urenFmt(m.uren)+' u').join('<br>')
+                +(over?`<br><small>${escapeHtml(over)}</small>`:'')}</td>
+          </tr>`;}).join('')}</tbody></table>`:''}`
       :''}
       ${urenImpModus==='bedrag'?(()=>{
         const tar=urenImpTarieven(urenImpEenhKeuze);
@@ -17916,21 +18038,37 @@ function urenImpRender(){
         <thead><tr><th style="width:34px"></th><th>Maand</th>
           <th class="num">Uit facturen</th><th class="num">Je hebt al</th><th></th></tr></thead>
         <tbody>${lijst.map(r=>{
-          const aan=urenImpAan(r), bezet=r.alAanwezig>0.005;
-          return `<tr class="${bezet?'uren-imp-over':''}">
-            <td><input type="checkbox" ${aan?'checked':''} ${bezet?'disabled':''}
+          const aan=urenImpAan(r), leeg=!r.regels.length;
+          const over=(r.over?r.over.al:0)+(r.over?r.over.eigen:0);
+          const reden=leeg
+            ? (r.over&&r.over.al&&!r.over.eigen ? 'al overgenomen'
+              : r.over&&r.over.eigen&&!r.over.al ? 'zelf geschreven'
+              : 'staat hier al')
+            : (aan?r.regels.length+'× factuur'+(over?' · '+over+' over':''):'uit');
+          return `<tr class="${leeg?'uren-imp-over':''}">
+            <td><input type="checkbox" ${aan?'checked':''} ${leeg?'disabled':''}
               data-uren-action="urenImpVink" data-uren-arg1="${r.key}"
               aria-label="${escapeHtml(urenImpMaandLabel(r.key))}"/></td>
             <td>${escapeHtml(urenImpMaandLabel(r.key))}${r.uitBetreft?'':' <small>(uit de datum)</small>'}</td>
-            <td class="num">${urenFmt(r.uren)} u</td>
-            <td class="num">${bezet?urenFmt(r.alAanwezig)+' u':'—'}</td>
-            <td class="num"><small>${bezet?'overgeslagen':(aan?r.regels.length+'× factuur':'uit')}</small></td>
+            <td class="num">${leeg?'—':urenFmt(r.uren)+' u'}</td>
+            <td class="num">${r.alAanwezig>0.005?urenFmt(r.alAanwezig)+' u':'—'}</td>
+            <td class="num"><small>${reden}</small></td>
           </tr>`;}).join('')}</tbody>
-      </table>`:''}
+      </table>
+      ${(()=>{
+        const alOver=lijst.reduce((s,r)=>s+(r.over?r.over.al:0),0);
+        const eigOver=lijst.reduce((s,r)=>s+(r.over?r.over.eigen:0),0);
+        if(!alOver&&!eigOver)return '';
+        const delen=[];
+        if(alOver)delen.push(alOver+' regel'+(alOver===1?'':'s')+' van een factuur die hier al is overgenomen');
+        if(eigOver)delen.push(eigOver+' regel'+(eigOver===1?'':'s')+' waar je die maand zelf al uren voor die klant schreef');
+        return `<p class="fac-an-uitleg" style="margin-top:8px">Overgeslagen: ${delen.join(' · ')}.</p>`;
+      })()}`:''}
 
     ${(urenImpModus==='ai'?urenImpAiRij.length&&!urenImpAiBezig:gekozen)&&!lijst.length?`<div class="uren-empty" style="margin-top:14px">
       <b>Niets te importeren</b>Van de aangevinkte eenheden kon geen maand worden bepaald,
-      of ze horen bij maanden waar je al uren hebt.</div>`:''}
+      of alles wat erin zat staat hier al — de factuur is overgenomen, of je schreef die
+      uren zelf.</div>`:''}
   `;
   const knop=document.getElementById('urenImpOk');
   if(knop){

@@ -297,6 +297,7 @@ waar de fout zit.
 
 Top-3 meest recent. Volledige log + *waarom* per beslissing: [`docs/decisions.md`](docs/decisions.md).
 
+- **2026-09-12**: Uren uit facturen ontdubbelt per factuurregel in plaats van per maand — al overgenomen (op factuurid, anders op bestandsnaam via `urenAnBron()`) of zelf geschreven voor diezelfde klant in diezelfde maand valt af, de rest van de maand komt gewoon mee. Binnen één AI-keuze vangt de SHA-256 de kopie. De AI-import controleert nu vooraf op grootte en soort (12 MB, zelfde woorden als de scanner), en bij een 400 gaan de vijf bestanden van een mislukte groep nog één keer los — bij 429/503 juist niet
 - **2026-09-11**: Maandoverzicht in de Uren-analyse — elke maand (rij of balk, ook een lege) opent de kalender van *Per maand* met onderaan per dag de bron (egaal zelf, gearceerd uit een factuur, gestreept omlijnd een werkdag zonder uren), daaronder je eigen registraties met hun factuur en de facturen met hun uren. Aanvullen via Registraties (dag → week, knop → maand). Vervangt de doorklik naar alleen de facturen
 - **2026-09-11**: Herkomst per maand in de Uren-analyse — per maand zelf geschreven (egaal) of uit een factuur (gearceerd), met het factuurnummer erbij; een maand met facturen erachter opent de doorklik van Facturen. De AI-import koppelt voortaan via het inleeslogboek (SHA-256 → `factuurId`), een oudere via de bestandsnaam. De tooltip-hint "Klik voor de facturen" staat alleen nog waar een klik iets doet
 - **2026-09-10**: Zes dispatchers, vijf verschillende argumentvolgordes — `urenDispatchChange` geeft het element als eerste door en `urenDispatchClick` als laatste; drie change-handlers van de uren-import faalden daardoor stil. De tabel staat nu onder *Actie aansluiten op een dispatcher*, en `validate.mjs` toetst elke actienaam in de opmaak tegen zijn tabel. Die controle vond meteen `noteClearContent`: de knop "Inhoud legen" in de notitie-editor was nooit geregistreerd
@@ -405,7 +406,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 95 smoke-, sync-, model-, reken- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
+| `test.html` | 98 smoke-, sync-, model-, reken- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |
