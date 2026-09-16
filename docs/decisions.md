@@ -10,6 +10,70 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-16 · Zijbalk opnieuw: klantwisselaar, groep Administratie, gebruiker onderin
+
+**Probleem.** Frank leverde screenshots aan van een andere app als voorbeeld
+voor de zijbalk: groepen die in de lijst uitklappen, grotere en vettere regels,
+een wisselaar bovenin, naam en e-mail onderin en een ronde inklapknop op de
+rand. De zijbalk zelf had regels van 13px/500, een thema-knop die bij elke klik
+één stand opschoof (om bij Rooster te komen klikte je door Licht en Donker
+heen), een tekstknop "Inklappen" en een uitlogknop die het deel vóór de @ als
+label droeg.
+
+**Beslissing.**
+- **Rijen**: 44px hoog, 14px/600 (op een telefoon 15px), icoon 20px. Kleur
+  volgt interactie: hover 7% wit, actief 11% wit met een wit label en een
+  **mint icoon**. De mint vlakvulling en de mint streep links zijn weg — het
+  icoon draagt het accent.
+- **Administratie** is een groep met Uren en Facturen die in de lijst
+  uitklapt. Open heeft hij een eigen vlak; staat de module waar je bent erin,
+  dan kleuren icoon en pijl van de kop mint. Dicht wijst de pijl omlaag, open
+  naar rechts, zoals in het voorbeeld. Ga je naar Uren terwijl de groep dicht
+  staat, dan gaat hij open. Stand per apparaat in `herling_zijbalk`.
+- **Klantwisselaar** bovenin (ook met Ctrl+J): zet hetzelfde
+  `activeClientFilter` als de klantenbalk in de topbalk — Dashboard, Notities
+  en Checklist. Uren en Facturen luisteren niet; kies je een klant terwijl je
+  daar staat, dan zegt een toast waar het filter wél geldt. Bij "Alle klanten"
+  staat het Herling-logo met de naam, bij een klant initialen in de klantkleur.
+  Met zoekveld, pijltjes/Enter, en onderin Klantoverzicht (de ⓘ die in de
+  topbalk stond) en Klanten beheren.
+- **Klantenbalk in de topbalk**: weg op een bureaublad, blijft op een
+  telefoon (daar zit de zijbalk achter een tik). Frank koos dit zelf.
+- **Instellingen** is een gewone regel onder een streep; het menu opent náást
+  de zijbalk en heeft bovenaan Weergave → **Thema**, een venster met vier
+  keuzes en een staaltje per keuze. Hetzelfde venster zit in het menu onder je
+  naam, naast Uitloggen.
+- **Onderin**: de opslagstatus als regel (kleur alleen op de stip, rood bij een
+  fout) met de versie ernaast, een streep met de ronde inklapknop half over de
+  rand, en de gebruiker met initialen, naam en e-mail.
+- **Breedte** 236 → 272px, ingeklapt 56 → 72px. Op 272 past
+  `frank@herling-analytics.nl` precies (gemeten: 156 van 156px).
+
+**Waarom Administratie nu wél een woord is.** Op 2026-09-07 gingen de kopjes
+eruit omdat Externe tools onder "Administratie" stond en dat geen administratie
+is. Nu staan alleen Uren en Facturen in de groep en is Externe tools een eigen
+regel — het bezwaar van toen geldt hier niet.
+
+**Gevonden en bewust niet aangezet.** De tellers naast Checklist, Uren en
+Facturen (`.nav-badge`) zijn nooit zichtbaar geweest: de CSS zet `display:none`
+en `updateNavBadges()` zet alleen `style.display=""`. Aanzetten zou op het
+dashboard hetzelfde getal twee keer tonen (de Checklist-teller is het aantal
+vervallende taken uit de hero) — zie 2026-09-06. Eerst beslissen, dan pas aan.
+
+**Bestanden.** `index.html` — de `<aside>`, `#klantWissel`, `#themaModal`; CSS
+in het zijbalkblok (zoek "Sidebar ──"), bij Externe tools, de mobiele lade en
+`.client-filter`; het oude woordmerk-blok, `.sidebar-theme-btn`,
+`.sidebar-btn-rij` en `.sidebar-collapse-btn` zijn weg. JS:
+`zijbalkStandToepassen`, `toggleNavGroep`, `zijbalkPlaats`,
+`sluitZijbalkVensters`, `zetGebruikerBlok`, `toggleGebruikerMenu`,
+`renderKlantWissel(Lijst)`, `toggleKlantWissel`, `kiesKlant`, `openThemaModal`,
+`kiesThema`. `toggleColorScheme` is weg. `docs/stijlgids.md` §13.
+
+**Niet doen.** De wisselaar ook Uren en Facturen laten filteren zonder die
+modules hun eigen filter te laten loslaten — dan staan er twee klantkeuzes die
+elkaar tegenspreken. En `.sidebar` niet terug op `overflow:hidden`: dan knipt
+hij de inklapknop op de rand af.
+
 ## 2026-09-12 · Uren uit facturen: ontdubbelen per factuur, niet per maand
 
 **Probleem.** De import hield dubbelingen tegen door een hele maand over te

@@ -74,7 +74,6 @@
    LAAG 3 — componenten en herzieningen bovenop laag 1+2
      "CLIENT FILTER"          klantendropdown in elke topbalk
      "CHECKLIST v3"           hero, inline-nieuw, prioriteitsgroepen
-     "SIDEBAR LOGO WORDMARK"
      "NOTE EDITOR"            rich-text-werkbalk + body
      "NOTES MODULE"           uitgelijnd op de Checklist v3-vormtaal
      "DASHBOARD v2"           hero + KPI-strip + 2×2 raster
@@ -101,7 +100,6 @@
   --danger:#8b1a1a;--danger-bg:#fbeaea;
   --info:#1a4a8b;--info-bg:#e6f0fb;
   --accent:#3b5bdb;--accent-hover:#304ac8;
-  --sidebar-w:240px;
   --radius:6px;--radius-md:8px;--radius-lg:12px;
 
   /* ── Typografische schaal ──
@@ -156,41 +154,20 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
   display:flex;flex-direction:column;
   transition:width 220ms ease;overflow:hidden;
 }
-.sidebar.collapsed{width:56px}
-.sidebar-logo{
-  display:flex;align-items:center;gap:12px;
-  padding:18px 14px 16px;white-space:nowrap;
-}
-.sidebar-logo-icon{
-  width:44px;height:44px;border-radius:11px;
-  overflow:hidden;flex-shrink:0;
-  display:flex;align-items:center;justify-content:center;
-}
-.sidebar-logo-icon img{width:44px;height:44px;border-radius:11px;display:block}
-.sidebar-logo-text{font-size:17px;font-weight:700;color:var(--text);letter-spacing:-.02em;transition:opacity 150ms;line-height:1.1}
-.sidebar-logo-sub{font-size:11px;font-weight:400;color:var(--text-muted);letter-spacing:.01em}
-.sidebar.collapsed .sidebar-logo-text{opacity:0;pointer-events:none}
+.sidebar.collapsed{width:var(--sidebar-w-dicht)}
 
-.sidebar-scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:0 8px 8px}
-/* Een streep in plaats van een kopje. "Navigatie" boven een navigatiemenu zegt
-   niets, en "Administratie" klopte niet voor de externe tools die eronder
-   stonden. De groepering zelf is wel zinnig -- werken, administreren, en een
-   link naar buiten -- dus die blijft, zonder er een woord bij te beweren. */
-.sidebar-sec-lijn{height:1px;background:rgba(255,255,255,.09);margin:10px 8px}
+.sidebar-scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:4px 12px 12px}
+/* Een streep tussen de modules en Instellingen. Geen kopje: "Navigatie"
+   boven een navigatiemenu zegt niets. Administratie is wél een woord
+   geworden, maar als groep die je uitklapt -- zie .nav-groep. */
+.sidebar-sec-lijn{height:1px;background:rgba(255,255,255,.09);margin:10px 4px}
 
-/* Nav items */
+/* Nav items -- de vorm staat in het thema-blok (zoek "Sidebar ──") */
 .nav-item{
-  display:flex;align-items:center;gap:10px;
-  padding:7px 10px;border-radius:var(--radius);cursor:pointer;
-  color:var(--text-muted);font-size:14px;
-  transition:background .15s,color .15s;
-  white-space:nowrap;overflow:hidden;user-select:none;
+  display:flex;align-items:center;
+  cursor:pointer;white-space:nowrap;overflow:hidden;user-select:none;
 }
-.nav-item:hover{background:var(--surface2);color:var(--text)}
-.nav-item.active{background:var(--surface2);color:var(--text);font-weight:500}
-.nav-icon{width:18px;text-align:center;flex-shrink:0;font-size:14px;line-height:1}
-.nav-label{transition:opacity 150ms}
-.sidebar.collapsed .nav-label{opacity:0;pointer-events:none}
+.nav-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
 
 /* NOTE: rules for the OLD sidebar Klanten section
    (.sidebar-client, .client-acts, .sidebar-add-btn,
@@ -202,55 +179,38 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
 .color-swatch{width:16px;height:16px;border-radius:4px;cursor:pointer;border:1.5px solid transparent}
 .color-swatch.active{border-color:var(--text)}
 
-/* Sidebar footer */
+/* Sidebar footer -- opslagstatus, streep met inklapknop, gebruiker.
+   Geen overflow:hidden hier: de inklapknop steekt over de rand. */
 .sidebar-footer{
-  padding:8px;border-top:0.5px solid var(--border);
-  display:flex;flex-direction:column;gap:4px;flex-shrink:0;
+  display:flex;flex-direction:column;flex-shrink:0;
+  padding:0 12px 12px;position:relative;z-index:2;
 }
+/* De opslagstatus is een regel, geen gekleurd blok: de kleur zit in de stip
+   en de tekst. Een groen vlak onderin trok meer aandacht dan "Opgeslagen"
+   verdient -- alleen een fout hoort op te vallen. */
 .sidebar-sync{
-  display:flex;align-items:center;gap:6px;
-  padding:4px 8px;border-radius:var(--radius);font-size:11px;
-  background:var(--surface2);color:var(--text-muted);
-  overflow:hidden;white-space:nowrap;
+  display:flex;align-items:center;gap:8px;min-height:32px;
+  padding:0 4px 0 12px;font-size:var(--fs-klein);
+  color:rgba(255,255,255,.6);overflow:hidden;white-space:nowrap;
 }
-.sync-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0}
 .sync-dot.pulse{animation:pulse 1s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-.sync-msg{transition:opacity 150ms;overflow:hidden;text-overflow:ellipsis}
-.sidebar.collapsed .sync-msg{opacity:0}
-.sidebar-sync.saving{background:var(--info-bg);color:var(--info)}
-.sidebar-sync.saved{background:var(--success-bg);color:var(--success)}
-.sidebar-sync.error{background:var(--danger-bg);color:var(--danger)}
+.sync-msg{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.sidebar-sync.saving{color:#8FB8FF}
+.sidebar-sync.saved{color:var(--mint)}
+.sidebar-sync.saved .sync-msg,.sidebar-sync.idle .sync-msg{color:rgba(255,255,255,.6)}
+.sidebar-sync.error{color:#FF8A8A;font-weight:600}
 .sidebar-refresh-btn{
-  margin-left:auto;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;
-  background:transparent;border:0;border-radius:5px;color:inherit;cursor:pointer;opacity:0.7;
-  transition:all 0.15s;flex-shrink:0;
+  margin-left:auto;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;
+  background:transparent;border:0;border-radius:var(--radius);color:rgba(255,255,255,.6);cursor:pointer;
+  transition:background .15s,color .15s,transform .3s;flex-shrink:0;
 }
-.sidebar-refresh-btn:hover{opacity:1;background:rgba(255,255,255,0.08);transform:rotate(180deg);}
-.sidebar.collapsed .sidebar-refresh-btn{display:none}
-.sidebar-collapse-btn{
-  display:flex;align-items:center;gap:8px;
-  padding:7px 10px;border-radius:var(--radius);cursor:pointer;
-  color:var(--text-hint);font-size:12px;
-  background:transparent;border:none;font-family:inherit;
-  transition:background .15s,color .15s;width:100%;text-align:left;
-  white-space:nowrap;overflow:hidden;
-}
-.sidebar-collapse-btn:hover{background:var(--surface2);color:var(--text)}
-.collapse-icon{font-size:12px;width:18px;text-align:center;flex-shrink:0;transition:transform 220ms}
-.sidebar.collapsed .collapse-icon{transform:rotate(180deg)}
-.collapse-lbl{transition:opacity 150ms}
-.sidebar.collapsed .collapse-lbl{opacity:0}
-/* Versie naast Inklappen. De knop houdt zijn volle breedte (hij was 100%),
-   het nummer staat er rechts naast tegen de rand. Op mobiel valt de knop
-   weg; `margin-left:auto` houdt het nummer dan alsnog rechts. */
-.sidebar-onderrij{display:flex;align-items:center;gap:4px}
-.sidebar-onderrij .sidebar-collapse-btn{flex:1;min-width:0}
+.sidebar-refresh-btn:hover{color:#fff;background:rgba(255,255,255,0.08);transform:rotate(180deg);}
 .app-versie{
-  margin-left:auto;flex-shrink:0;padding-right:8px;white-space:nowrap;
-  font-size:var(--fs-micro);color:var(--text-hint);
+  flex-shrink:0;white-space:nowrap;
+  font-size:var(--fs-micro);color:rgba(255,255,255,.4);font-variant-numeric:tabular-nums;
 }
-.sidebar.collapsed .app-versie{display:none}
 
 /* ── Main area ── */
 .main-area{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden}
@@ -835,13 +795,6 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 }
 
 /* ── Overloopmenu (templates + export) ── */
-/* Twee knoppen naast elkaar onderin de zijbalk; bij een ingeklapte
-   zijbalk vallen ze onder elkaar zodat de iconen zichtbaar blijven. */
-.sidebar-btn-rij{display:flex;gap:6px}
-.sidebar-btn-rij .sidebar-theme-btn{flex:1;min-width:0}
-.sidebar-btn-rij .theme-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.sidebar.collapsed .sidebar-btn-rij{flex-direction:column}
-
 .uren-menu{
   position:fixed;z-index:9999;min-width:248px;padding:5px;
   background:var(--surface);border:0.5px solid var(--border-strong);
@@ -2499,7 +2452,12 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
   --radius:          8px;
   --radius-md:       10px;
   --radius-lg:       14px;
-  --sidebar-w:       236px;
+  /* Zijbalk: 272 open, 72 ingeklapt (icoon van 20 in een rij van 48). Was 236:
+     de klantwisselaar en het gebruikersblok hebben een naam én een tweede
+     regel, en daar viel een adres als frank@herling-analytics.nl halverwege
+     weg. Op 272 past het precies. */
+  --sidebar-w:       272px;
+  --sidebar-w-dicht: 72px;
 
   --navy:                 #0F1B3D;
   --navy-dark:            #0A1330;
@@ -2610,13 +2568,31 @@ h1, h2, h3, h4, h5 {
 ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-hint); }
 
-/* ─── Sidebar ─────────────────────────────────────────────────────────────── */
+/* ─── Sidebar ───────────────────────────────────────────────────────────────
+   Opgezet naar het voorbeeld dat Frank aanleverde (2026-09-16): grotere,
+   vettere regels, groepen die in de lijst uitklappen, een klantwisselaar
+   bovenin, de gebruiker onderin en een ronde inklapknop op de rand. De kleuren
+   zijn de onze: de zijbalk blijft het navy-teal verloop in beide thema's, en
+   mint is de enige accentkleur.
+
+   Kleur volgt interactie, niet andersom:
+   - rust      tekst 82% wit, icoon 55%
+   - hover     vlak 7% wit, tekst en icoon helder
+   - actief    vlak 11% wit, tekst wit, icoon mint
+   - groep     open = een eigen vlak om kop en kinderen; bevat hij de module
+               waar je bent, dan kleuren icoon en pijl van de kop mint
+   Geen mint vlak en geen streep links meer: het icoon draagt het accent, zodat
+   de actieve regel niet harder schreeuwt dan de tekst ernaast.
+   Maten staan in docs/stijlgids.md §13. */
 .sidebar {
   background: var(--sidebar-gradient) !important;
   color: rgba(255, 255, 255, 0.72);
   border-right: 0 !important;
   position: relative;
-  overflow: hidden;
+  /* Niet hidden: de inklapknop steekt half over de rand. De kop, de lijst en
+     het gebruikersblok knippen zelf af tijdens de breedte-animatie. */
+  overflow: visible;
+  z-index: 30;
 }
 .sidebar::after {
   content: "";
@@ -2629,71 +2605,166 @@ h1, h2, h3, h4, h5 {
     url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 160' preserveAspectRatio='xMidYMax slice'><polygon points='0,160 0,120 48,100 96,108 144,70 192,55 240,32 240,160' fill='%2300e5b0' opacity='0.3'/><polyline points='0,120 48,100 96,108 144,70 192,55 240,32' fill='none' stroke='%2300e5b0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>")
     no-repeat right bottom / 100% auto;
 }
-.sidebar-logo {
-  color: #fff !important;
-  padding: 18px 18px !important;
-  font-family: var(--font-display) !important;
-  font-weight: 700 !important;
-  font-size: 14.5px !important;
-  letter-spacing: -0.015em !important;
-  display: flex !important;
-  align-items: center !important;
-  gap: 12px !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+
+/* Gedeelde pijl: dicht wijst hij omlaag, open naar rechts -- zoals in het
+   voorbeeld. Geldt voor de wisselaar, een groep en het gebruikersblok. */
+.sb-chevron {
+  width: 16px; height: 16px; flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.5);
+  transition: transform .2s var(--ease), color .15s;
+}
+[aria-expanded="true"] > .sb-chevron:not(.ext-arrow) { transform: rotate(-90deg); }
+
+/* ── Kop: klantwisselaar ── */
+.sb-kop {
+  padding: 14px 12px 10px;
+  overflow: hidden;
+  flex-shrink: 0;
   position: relative; z-index: 1;
 }
-/* Note: theme's ::before logo removed — existing .sidebar-logo-icon <img>
-   already renders the brand mark. Keeping ::before caused duplicate logos. */
-/* Sidebar text colour over navy gradient (original sets --text on light bg) */
-.sidebar .sidebar-logo-text span,
-.sidebar .sidebar-logo-sub { color: #fff !important; }
-.sidebar .sidebar-logo-sub { color: rgba(255,255,255,0.6) !important; font-weight: 400; }
+.sb-wissel {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; min-height: 60px; padding: 8px;
+  background: transparent; border: 0; border-radius: 12px;
+  font-family: var(--font-body); text-align: left; color: #fff; cursor: pointer;
+  transition: background .15s;
+}
+.sb-wissel:hover, .sb-wissel[aria-expanded="true"] { background: rgba(255, 255, 255, 0.07); }
+.sb-wissel:focus-visible { outline: 2px solid var(--mint); outline-offset: -2px; }
+.sb-wissel-logo {
+  width: 44px; height: 44px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 11px; overflow: hidden;
+}
+.sb-wissel-logo img { width: 44px; height: 44px; display: block; border-radius: 11px; }
+.sb-wissel-tekst { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.sb-wissel-naam {
+  max-width: 100%;
+  font-family: var(--font-display); font-size: 15px; font-weight: 700; letter-spacing: -0.015em;
+  line-height: 1.2; color: #fff;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* Het pilletje onder de naam: welk bereik er aanstaat. */
+.sb-pil {
+  display: inline-flex; align-items: center; height: 18px; padding: 0 7px;
+  border-radius: 999px; background: rgba(0, 229, 176, 0.16); color: var(--mint);
+  font-size: var(--fs-micro); font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Initialen in een blok: een klant in de wisselaar, en de gebruiker onderin.
+   De kleur komt uit CLIENT_COLORS, als style-attribuut. */
+.sb-initialen {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-size: 15px; font-weight: 700; letter-spacing: -0.01em;
+}
+
+/* ── Rijen ── */
 .nav-item {
-  display: flex !important;
-  align-items: center !important;
-  gap: 11px !important;
-  padding: 9px 11px !important;
-  margin: 2px 10px !important;
-  border-radius: 9px !important;
-  font-size: 13px !important;
-  font-weight: 500 !important;
-  letter-spacing: -0.005em !important;
-  color: rgba(255, 255, 255, 0.72) !important;
-  background: transparent !important;
-  border-left: 2px solid transparent !important;
-  transition: var(--transition-fast) !important;
-  cursor: pointer;
+  gap: 12px;
+  min-height: 44px;
+  padding: 0 12px;
+  margin: 0 0 2px;
+  border-radius: 10px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: rgba(255, 255, 255, 0.82);
+  background: transparent;
+  transition: background .15s, color .15s;
   position: relative; z-index: 1;
 }
-.nav-item:hover {
-  background: rgba(255, 255, 255, 0.05) !important;
-  color: #fff !important;
-}
+.nav-item .nav-icon { color: rgba(255, 255, 255, 0.55); transition: color .15s; }
+.nav-item:hover { background: rgba(255, 255, 255, 0.07); color: #fff; }
+.nav-item:hover .nav-icon { color: rgba(255, 255, 255, 0.85); }
+.nav-item:focus-visible { outline: 2px solid var(--mint); outline-offset: -2px; }
 .nav-item.active,
-.nav-item[aria-current="page"],
-.nav-item.is-active {
-  background: var(--mint-soft) !important;
-  color: var(--mint) !important;
-  font-weight: 600 !important;
-  border-left-color: var(--mint) !important;
+.nav-item.is-open { background: rgba(255, 255, 255, 0.11); color: #fff; }
+.nav-item.active .nav-icon { color: var(--mint); }
+
+/* ── Groep ── */
+.nav-groep { border-radius: 12px; margin: 0 0 2px; }
+.nav-groep.open { background: rgba(255, 255, 255, 0.045); padding-bottom: 2px; }
+.nav-groep.open > .nav-groep-kop { background: rgba(255, 255, 255, 0.07); color: #fff; margin-bottom: 2px; }
+.nav-groep.open > .nav-groep-kop:hover { background: rgba(255, 255, 255, 0.10); }
+.nav-groep.bevat-actief > .nav-groep-kop .nav-icon,
+.nav-groep.bevat-actief > .nav-groep-kop .sb-chevron { color: var(--mint); }
+.nav-groep-inhoud { display: none; }
+.nav-groep.open > .nav-groep-inhoud { display: block; }
+/* Kinderen 12px dieper. In een ingeklapte zijbalk niet: daar staan alleen
+   iconen onder elkaar, en het groepsvlak zegt al dat ze bij elkaar horen. */
+.nav-sub { padding-left: 24px; }
+
+.nav-item-ext-trigger .ext-arrow { opacity: .8; }
+.nav-item-ext-trigger:hover .ext-arrow,
+.nav-item-ext-trigger.is-open .ext-arrow { color: var(--mint); opacity: 1; }
+
+/* ── Onderin: streep met inklapknop, gebruiker ── */
+.sb-scheiding {
+  position: relative;
+  height: 1px; margin: 8px -12px 10px;
+  background: rgba(255, 255, 255, 0.09);
 }
-/* Collapsed sidebar (56px wide) — center the icon, kill margin/padding
-   that was clipping the 18px icon at the right edge */
-.sidebar.collapsed .nav-item {
-  margin: 2px 6px !important;
-  padding: 9px 0 !important;
-  justify-content: center !important;
-  border-left: 0 !important;        /* mint accent rule doesn't fit at this width */
+.sb-inklap {
+  position: absolute; right: -14px; top: -14px;
+  width: 28px; height: 28px; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: var(--navy-dark); border: 1px solid rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.8); cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: color .15s, border-color .15s, background .15s;
 }
-.sidebar.collapsed .nav-label { display: none; }
-.sidebar.collapsed .nav-item.active {
-  background: var(--mint-soft) !important;
-  /* keep the active fill but use a small inset ring instead of the side bar */
-  box-shadow: inset 0 0 0 1px var(--mint);
+.sb-inklap svg { width: 14px; height: 14px; transition: transform .22s var(--ease); }
+.sb-inklap:hover { color: var(--mint); border-color: var(--mint); }
+.sb-inklap:focus-visible { outline: 2px solid var(--mint); outline-offset: 2px; }
+.sidebar.collapsed .sb-inklap svg { transform: rotate(180deg); }
+
+.sb-gebruiker {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; min-height: 56px; padding: 8px;
+  background: transparent; border: 0; border-radius: 12px;
+  font-family: var(--font-body); text-align: left; cursor: pointer;
+  overflow: hidden; position: relative; z-index: 1;
+  transition: background .15s;
 }
-/* (theme overlay rules for .sidebar-client removed —
-    the sidebar Klanten section no longer exists; client-management
-    moved to the per-module .client-filter dropdown) */
+.sb-gebruiker:hover, .sb-gebruiker[aria-expanded="true"] { background: rgba(255, 255, 255, 0.07); }
+.sb-gebruiker:focus-visible { outline: 2px solid var(--mint); outline-offset: -2px; }
+.sb-avatar {
+  width: 40px; height: 40px; flex-shrink: 0; border-radius: 50%; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 229, 176, 0.14); border: 1px solid rgba(0, 229, 176, 0.35);
+  color: var(--mint); font-family: var(--font-display); font-size: 14px; font-weight: 700;
+}
+.sb-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sb-gebruiker-tekst { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.sb-gebruiker-naam {
+  font-size: 14px; font-weight: 600; color: #fff; line-height: 1.25;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sb-gebruiker-mail {
+  font-size: var(--fs-klein); color: rgba(255, 255, 255, 0.6); line-height: 1.25;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ── Ingeklapt (72px) ──
+   Alleen iconen, gecentreerd in een vak van 48px. Wat tekst is gaat uit, niet
+   op opacity: een onzichtbaar label houdt anders zijn ruimte. */
+.sidebar.collapsed .sb-kop { padding: 14px 12px 10px; }
+.sidebar.collapsed .sb-wissel { justify-content: center; padding: 8px 0; }
+.sidebar.collapsed .sb-wissel-tekst,
+.sidebar.collapsed .sb-chevron,
+.sidebar.collapsed .nav-label,
+.sidebar.collapsed .sb-gebruiker-tekst,
+.sidebar.collapsed .sync-msg,
+.sidebar.collapsed .sidebar-refresh-btn,
+.sidebar.collapsed .app-versie { display: none; }
+.sidebar.collapsed .nav-item { justify-content: center; padding: 0; }
+.sidebar.collapsed .nav-sub { padding-left: 0; }
+.sidebar.collapsed .sidebar-sync { justify-content: center; padding: 0; }
+.sidebar.collapsed .sb-gebruiker { justify-content: center; padding: 8px 0; }
 .main-content { background: var(--bg) !important; }
 
 /* ─── Buttons ─────────────────────────────────────────────────────────────── */
@@ -3087,26 +3158,23 @@ textarea { line-height: 1.6; resize: vertical; }
    ICON STYLE — consistent line-art across the app
    ════════════════════════════════════════════════════════════════════════════ */
 
-/* Sidebar nav icons — SVG inherits currentColor from .nav-item */
+/* Sidebar nav icons — SVG erft currentColor; de kleur per stand staat bij
+   .nav-item in het zijbalkblok. 20px op beide breedtes: een navigatie-icoon
+   staat naast een label van 14–15px en is geen icoonknop (--icoon). */
 .nav-icon {
-  width: 20px !important;
+  width: 20px;
   height: 20px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  font-size: 0 !important;   /* neutralize old emoji size */
-  opacity: 0.9;
 }
 .nav-icon svg {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   display: block;
   stroke: currentColor;
 }
-.nav-item.active .nav-icon,
-.nav-item[aria-current="page"] .nav-icon,
-.nav-item.is-active .nav-icon { opacity: 1; }
 
 /* Dash-topbar square icon button (e.g. gear) */
 .dash-iconbtn {
@@ -3134,6 +3202,12 @@ textarea { line-height: 1.6; resize: vertical; }
    CLIENT FILTER — unified dropdown component (every module topbar)
    ════════════════════════════════════════════════════════════════════════════ */
 .client-filter { position: relative; display: inline-flex; align-items: center; gap: 2px; }
+/* Op een bureaublad kies je de klant in de zijbalk (de klantwisselaar, sinds
+   2026-09-16); daar hoort de keuze niet ook nog in de topbalk. Op een telefoon
+   zit de zijbalk achter een tik, dus daar blijft hij staan. De container
+   blijft in de DOM: renderClientFilters() vult hem en de mobiele laag toont
+   hem. */
+@media (min-width: 769px) { .client-filter { display: none; } }
 /* Icoonknop naast de klantenbalk — zelfde vorm als de trechter en het ⋯
    (zie docs/stijlgids.md §2): raakvlak var(--tap), randloos, icoon op
    var(--icoon). Uitgegrijsd zolang er niet op één klant gefilterd is. */
@@ -3848,57 +3922,6 @@ textarea { line-height: 1.6; resize: vertical; }
 .cl2-empty-sub { font-size: 12.5px; color: var(--text-muted); }
 
 /* ═════════════════════════════════════════════════════════════════════════════
-   SIDEBAR LOGO WORDMARK — Archivo display type
-   Two stacked lines, tight vertical rhythm.
-   Overrides the earlier theme block's font/padding/gap defaults on .sidebar-logo.
-   ════════════════════════════════════════════════════════════════════════════ */
-.sidebar-logo {
-  display: flex !important;
-  align-items: center !important;
-  gap: 13px !important;
-  padding: 22px 18px 20px !important;
-  position: relative;
-  /* reset font props the earlier block set — wordmark lines carry their own */
-  font-family: inherit !important;
-  font-weight: inherit !important;
-  font-size: inherit !important;
-  letter-spacing: normal !important;
-  line-height: 1 !important;
-}
-.sidebar.collapsed .sidebar-logo {
-  padding: 18px 14px !important;
-}
-.sidebar.collapsed .sidebar-logo .sidebar-logo-text {
-  display: none !important;
-}
-
-.sidebar .sidebar-logo .sidebar-logo-text {
-  display: flex;
-  flex-direction: column;
-  line-height: 1;
-  gap: 0;
-}
-.sidebar .sidebar-logo .sidebar-logo-text .sidebar-logo-line1 {
-  font-family: 'Archivo', sans-serif !important;
-  font-size: 24px !important;
-  font-weight: 800 !important;
-  color: #FFFFFF !important;
-  letter-spacing: -0.04em !important;
-  text-transform: uppercase;
-  line-height: 1;
-}
-.sidebar .sidebar-logo .sidebar-logo-text .sidebar-logo-line2 {
-  font-family: 'Archivo', sans-serif !important;
-  font-size: 11px !important;
-  font-weight: 600 !important;
-  color: #00E5B0 !important;
-  letter-spacing: 0.28em !important;
-  text-transform: uppercase;
-  line-height: 1;
-  margin-top: 5px;
-}
-
-/* ═════════════════════════════════════════════════════════════════════════════
    NOTE EDITOR — rich text toolbar + contenteditable body
    ════════════════════════════════════════════════════════════════════════════ */
 .note-toolbar {
@@ -4364,55 +4387,29 @@ textarea { line-height: 1.6; resize: vertical; }
 .app-toast.app-toast-info    { border-left-color: var(--mint)    !important; }
 .app-toast.app-toast-info    .toast-icon { color: var(--mint); }
 
-/* Nav-item count badges (top-right) */
-.nav-item { position: relative; }
+/* Tellers naast een module. Let op: .nav-badge staat op display:none en
+   updateNavBadges() zet alleen style.display="" -- ze zijn dus nooit
+   zichtbaar geweest. Bewust zo gelaten bij de herziening van 2026-09-16;
+   zie de entry van die datum voordat je ze aanzet. */
 .nav-badge {
   display: none;
   margin-left: auto;
+  min-width: 24px;
+  height: 20px;
+  padding: 0 7px;
+  align-items: center;
+  justify-content: center;
   font-family: var(--font-cijfer);
-  font-size: 10px;
-  font-weight: 700;
-  padding: 1px 7px;
-  border-radius: 10px;
-  background: rgba(255,255,255,0.14);
-  color: #fff;
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.12);
+  color: rgba(255,255,255,0.9);
   font-variant-numeric: tabular-nums;
   flex-shrink: 0;
 }
-.nav-badge-danger {
-  background: var(--danger) !important;
-  color: #fff !important;
-}
+.nav-badge-danger { background: var(--danger); color: #fff; }
 .sidebar.collapsed .nav-badge { display: none !important; }
-.nav-item.active .nav-badge { background: var(--mint); color: var(--navy); }
-.nav-item.active .nav-badge.nav-badge-danger { background: var(--danger); color: #fff; }
-
-/* Sidebar theme toggle button */
-.sidebar-theme-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: calc(100% - 20px);
-  margin: 4px 10px;
-  padding: 7px 10px;
-  background: transparent;
-  border: 1px solid rgba(255,255,255,0.10);
-  border-radius: 7px;
-  color: rgba(255,255,255,0.72);
-  cursor: pointer;
-  font-family: var(--font-body);
-  font-size: 12px;
-  transition: all 0.12s;
-  position: relative; z-index: 1;
-}
-.sidebar-theme-btn:hover { background: rgba(255,255,255,0.05); color: #fff; border-color: rgba(255,255,255,0.18); }
-.sidebar-theme-btn .theme-icon-light,
-.sidebar-theme-btn .theme-icon-dark { display: none; }
-.sidebar-theme-btn[data-scheme="auto"]  .theme-icon-light { display: inline-flex; opacity: 0.6; }
-.sidebar-theme-btn[data-scheme="light"] .theme-icon-light { display: inline-flex; }
-.sidebar-theme-btn[data-scheme="dark"]  .theme-icon-dark  { display: inline-flex; }
-.sidebar.collapsed .sidebar-theme-btn { justify-content: center; }
-.sidebar.collapsed .sidebar-theme-btn .theme-label { display: none; }
 
 /* Manual theme override — light forced */
 :root[data-theme="light"] {
@@ -4943,15 +4940,15 @@ textarea { line-height: 1.6; resize: vertical; }
     box-shadow: 4px 0 20px rgba(0,0,0,0.3);
   }
   .sidebar.mobile-open { transform: translateX(0); }
-  /* Inside the drawer, show full nav (not collapsed) */
-  .sidebar.collapsed { width: 84% !important; max-width: 320px !important; }
-  .sidebar.collapsed .nav-label,
-  .sidebar.collapsed .sidebar-logo-text,
-  .sidebar.collapsed .nav-badge,
-  .sidebar.collapsed .theme-label { display: inline !important; opacity: 1 !important; }
-  .sidebar.collapsed .nav-item { padding: 9px 11px !important; margin: 2px 10px !important; justify-content: flex-start !important; }
-  /* The desktop "Inklappen" button is useless on mobile — hide */
-  .sidebar-collapse-btn { display: none !important; }
+  /* In de lade bestaat inklappen niet: de knop op de rand gaat weg, en
+     toggleSidebar() zet .collapsed alleen op een bureaublad (zie
+     zijbalkStandToepassen). De rijen krijgen het raakvlak en de basismaat
+     van de telefoon. */
+  .sb-inklap { display: none; }
+  .nav-item { min-height: var(--tap); font-size: var(--fs-basis); }
+  .sidebar-refresh-btn { width: var(--tap); height: var(--tap); }
+  .sb-wissel-naam { font-size: var(--fs-groot); }
+  .sb-gebruiker-naam { font-size: var(--fs-basis); }
 
   /* Reserve space at bottom for the tab bar — actual class is
      .main-area (not main-content, which is a dead CSS rule below). */
@@ -6890,20 +6887,149 @@ textarea { line-height: 1.6; resize: vertical; }
 #mod-checklist { --module-accent: #F43F5E; }           /* rose */
 #mod-uren      { --module-accent: #A78BFA; }           /* violet */
 
+/* ── Klantwisselaar ─────────────────────────────────────────────────────────
+   Een kaart naast de zijbalk, in de kleuren van het thema (de zijbalk zelf is
+   altijd donker, dit venster volgt licht/donker). Opgebouwd als het voorbeeld:
+   wie je nu bekijkt, zoeken, de lijst met een vinkje, en de sneltoets. */
+.klant-wissel {
+  position: fixed;
+  z-index: 710;
+  width: 360px;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 24px);
+  display: none;
+  flex-direction: column;
+  padding: 20px 16px 12px;
+  background: var(--surface);
+  border: 0.5px solid var(--border-strong);
+  border-radius: 16px;
+  box-shadow: var(--shadow-modal);
+  animation: ext-tools-fade 0.16s var(--ease) forwards;
+}
+.klant-wissel.open { display: flex; }
+.klant-wissel-kop { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; margin-bottom: 14px; }
+.klant-wissel-logo {
+  width: 64px; height: 64px; margin-bottom: 6px;
+  border-radius: 16px; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+.klant-wissel-logo img { width: 64px; height: 64px; display: block; }
+.klant-wissel-logo .sb-initialen { font-size: 22px; }
+.klant-wissel-naam {
+  max-width: 100%;
+  font-family: var(--font-display); font-size: var(--fs-groot); font-weight: 700; letter-spacing: -0.015em;
+  color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.klant-wissel-sub { font-size: var(--fs-klein); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+/* Zoekveld: de invoerregel uit de stijlgids (rand, mint bij focus). */
+.klant-wissel-zoek {
+  display: flex; align-items: center; gap: 8px;
+  height: 40px; padding: 0 12px; margin-bottom: 8px; flex-shrink: 0;
+  background: var(--surface); border: 1px solid var(--border-strong); border-radius: 10px;
+  color: var(--text-hint); cursor: text;
+  transition: border-color .15s, box-shadow .15s;
+}
+.klant-wissel-zoek:focus-within { border-color: var(--mint); box-shadow: 0 0 0 3px var(--mint-soft); }
+.klant-wissel-zoek svg { width: 16px; height: 16px; flex-shrink: 0; }
+.klant-wissel .klant-wissel-zoek input {
+  flex: 1; min-width: 0; height: 100%;
+  border: 0; outline: 0; background: transparent; padding: 0; box-shadow: none;
+  font-family: var(--font-body); font-size: var(--fs-basis); color: var(--text);
+}
+
+.klant-wissel-lijst { flex: 1 1 auto; min-height: 0; overflow-y: auto; margin: 0 -4px; padding: 0 4px; }
+.klant-wissel-optie {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; min-height: 52px; padding: 8px 10px; margin-bottom: 2px;
+  background: transparent; border: 0; border-radius: 10px;
+  font-family: var(--font-body); text-align: left; color: var(--text); cursor: pointer;
+}
+.klant-wissel-optie:hover,
+.klant-wissel-optie.cursor,
+.klant-wissel-optie.gekozen { background: var(--surface2); }
+.klant-wissel-optie:focus-visible { outline: 2px solid var(--mint); outline-offset: -2px; }
+.klant-wissel-optie-logo {
+  width: 36px; height: 36px; flex-shrink: 0; border-radius: 10px; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+.klant-wissel-optie-logo img { width: 36px; height: 36px; display: block; }
+.klant-wissel-optie-logo .sb-initialen { font-size: 13px; }
+.klant-wissel-optie-tekst { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.klant-wissel-optie-naam {
+  font-size: 14px; font-weight: 600; line-height: 1.3;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.klant-wissel-optie-sub { font-size: var(--fs-klein); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+/* Mint haalt op wit geen contrast; daar is het vinkje de donkere groen. */
+.klant-wissel-vink { width: 16px; height: 16px; flex-shrink: 0; color: var(--success); visibility: hidden; }
+:root[data-theme="dark"] .klant-wissel-vink { color: var(--mint); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .klant-wissel-vink { color: var(--mint); } }
+.klant-wissel-optie.gekozen .klant-wissel-vink { visibility: visible; }
+.klant-wissel-leeg { padding: 14px 10px; font-size: var(--fs-klein); color: var(--text-muted); text-align: center; }
+
+/* Wat bij de gekozen klant hoort: het overzicht, en de klantenlijst beheren.
+   Gewone menuregels -- zie .uren-menu-item. */
+.klant-wissel-acties { border-top: 0.5px solid var(--border); margin-top: 8px; padding-top: 6px; flex-shrink: 0; }
+.klant-wissel-acties:empty { display: none; }
+
+.klant-wissel-tip {
+  display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap; flex-shrink: 0;
+  border-top: 0.5px solid var(--border); margin-top: 8px; padding-top: 12px;
+  font-size: var(--fs-klein); color: var(--text-muted);
+}
+.klant-wissel-tip svg { width: 16px; height: 16px; flex-shrink: 0; }
+/* Een sneltoets zegt niets op een telefoon. */
+@media (max-width: 768px) { .klant-wissel-tip { display: none; } }
+.klant-wissel-tip kbd {
+  display: inline-block; padding: 1px 6px; margin: 0 1px;
+  font-family: var(--font-mono); font-size: var(--fs-micro); font-weight: 600; color: var(--text);
+  background: var(--surface2); border: 0.5px solid var(--border-strong); border-bottom-width: 1.5px; border-radius: 5px;
+}
+
+/* ── Thema ── */
+.thema-uitleg { font-size: var(--fs-klein); color: var(--text-muted); margin: 0 0 14px; line-height: 1.5; }
+.thema-keuzes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.thema-keuze {
+  display: flex; flex-direction: column; align-items: stretch; gap: 10px;
+  padding: 10px; text-align: left; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--border-strong); border-radius: 12px;
+  font-family: var(--font-body); color: var(--text);
+  transition: border-color .15s, box-shadow .15s;
+}
+.thema-keuze:hover { border-color: var(--text-hint); }
+.thema-keuze:focus-visible { outline: 2px solid var(--mint); outline-offset: 2px; }
+.thema-keuze[aria-checked="true"] { border-color: var(--mint); box-shadow: 0 0 0 3px var(--mint-soft); }
+.thema-keuze-tekst { display: flex; flex-direction: column; gap: 2px; }
+.thema-keuze-tekst b { font-size: var(--fs-basis); font-weight: 600; }
+.thema-keuze-tekst small { font-size: var(--fs-klein); color: var(--text-muted); }
+/* Een staaltje: een strook zijbalk en een kaart op de achtergrond van dat thema. */
+.thema-staal {
+  height: 56px; border-radius: 8px; position: relative; overflow: hidden;
+  border: 0.5px solid var(--border-strong);
+}
+.thema-staal::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 22%;
+  background: linear-gradient(180deg, #0F1B3D 0%, #0D3D3A 100%);
+}
+.thema-staal::after {
+  content: ""; position: absolute; left: 32%; right: 10%; top: 26%; height: 44%;
+  border-radius: 4px;
+}
+.thema-staal-licht { background: #DDE4EB; }
+.thema-staal-licht::after { background: #FFFFFF; }
+.thema-staal-donker { background: #0A1330; }
+.thema-staal-donker::after { background: #16234A; }
+/* Automatisch: links licht, rechts donker -- de knip valt op 61%, het
+   midden van de kaart (32%..90%), zodat vlak en kaart op één lijn breken.
+   Rooster: boven dag, onder nacht; de knip op 50% valt in de kaart
+   (26%..70%) op 54,5%. */
+.thema-staal-auto { background: linear-gradient(90deg, #DDE4EB 0 61%, #0A1330 61% 100%); }
+.thema-staal-auto::after { background: linear-gradient(90deg, #FFFFFF 0 50%, #16234A 50% 100%); }
+.thema-staal-rooster { background: linear-gradient(180deg, #DDE4EB 0 50%, #0A1330 50% 100%); }
+.thema-staal-rooster::after { background: linear-gradient(180deg, #FFFFFF 0 54.5%, #16234A 54.5% 100%); }
+
 /* ── Externe tools — sidebar trigger + popover ──────────────────────────── */
-.nav-item-ext-trigger .nav-label { flex: 1; }
-.nav-item-ext-trigger .ext-arrow {
-  font-family: var(--font-cijfer);
-  font-size: 11px;
-  opacity: 0.5;
-  transition: var(--transition-fast);
-}
-.nav-item-ext-trigger:hover .ext-arrow { opacity: 1; transform: translate(1px, -1px); }
-.nav-item-ext-trigger.is-open {
-  background: rgba(167, 139, 250, 0.10) !important;     /* subtiel violet */
-  color: #C4B5FD !important;
-}
-.nav-item-ext-trigger.is-open .ext-arrow { opacity: 1; color: #C4B5FD; }
 
 .ext-tools-popover {
   position: fixed;
@@ -7023,10 +7149,6 @@ textarea { line-height: 1.6; resize: vertical; }
   transform: translate(2px, -2px);
   color: var(--mint);
 }
-
-/* Collapsed sidebar: hide label, just show icon */
-.sidebar.collapsed .nav-item-ext-trigger .nav-label,
-.sidebar.collapsed .nav-item-ext-trigger .ext-arrow { display: none; }
 
 /* ═════════════════════════════════════════════════════════════════════════════
    "NIEUW ITEM" DROPDOWN (scoped with ha-newitem- prefix)
@@ -7432,43 +7554,62 @@ textarea { line-height: 1.6; resize: vertical; }
   <!-- Mobile sidebar backdrop (hidden on desktop) -->
   <div class="mobile-backdrop" id="mobileBackdrop" onclick="toggleSidebarMobile(false)"></div>
 
-  <!-- Sidebar -->
+  <!-- Sidebar
+       Van boven naar onder: de klantwisselaar, de modules (Uren en Facturen
+       in de groep Administratie), Externe tools, Instellingen, en onderin de
+       opslagstatus en wie er is ingelogd. De ronde knop op de rand klapt in.
+       Zie docs/stijlgids.md §13 voor de maten. -->
   <aside class="sidebar" id="sidebar">
-    <div class="sidebar-logo">
-      <div class="sidebar-logo-icon">
-        <img src="herling-icon.svg" alt="Herling Analytics"/>
-      </div>
-      <div class="sidebar-logo-text">
-        <span class="sidebar-logo-line1">HERLING</span>
-        <span class="sidebar-logo-line2">ANALYTICS</span>
-      </div>
+    <div class="sb-kop">
+      <button type="button" class="sb-wissel" id="klantWisselBtn" onclick="toggleKlantWissel(event)"
+        aria-haspopup="dialog" aria-expanded="false" aria-controls="klantWissel" title="Klant kiezen (Ctrl+J)">
+        <span class="sb-wissel-logo" id="klantWisselLogo"><img src="herling-icon.svg" alt=""/></span>
+        <span class="sb-wissel-tekst">
+          <span class="sb-wissel-naam" id="klantWisselNaam">Herling Analytics</span>
+          <span class="sb-pil" id="klantWisselPil">Alle klanten</span>
+        </span>
+        <svg class="sb-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
+      </button>
     </div>
 
-    <div class="sidebar-scroll">
-      <!-- Navigation -->
-      <div class="nav-item active" data-mod="dashboard" onclick="switchModule('dashboard')">
+    <nav class="sidebar-scroll" aria-label="Modules">
+      <div class="nav-item active" data-mod="dashboard" onclick="switchModule('dashboard')" data-titel="Dashboard">
         <span class="nav-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="5.5" height="5.5" rx="1.2"/><rect x="8.5" y="2" width="5.5" height="5.5" rx="1.2"/><rect x="2" y="8.5" width="5.5" height="5.5" rx="1.2"/><rect x="8.5" y="8.5" width="5.5" height="5.5" rx="1.2"/></svg></span><span class="nav-label">Dashboard</span>
       </div>
-      <div class="nav-item" data-mod="notes" onclick="switchModule('notes')">
+      <div class="nav-item" data-mod="notes" onclick="switchModule('notes')" data-titel="Notities">
         <span class="nav-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2h5.5l3.5 3.5V13a1 1 0 0 1-1 1H3.5a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z"/><path d="M9 2v4h3.5"/><line x1="5" y1="9" x2="10" y2="9"/><line x1="5" y1="11.5" x2="8.5" y2="11.5"/></svg></span><span class="nav-label">Notities</span>
       </div>
-      <div class="nav-item" data-mod="checklist" onclick="switchModule('checklist')">
+      <div class="nav-item" data-mod="checklist" onclick="switchModule('checklist')" data-titel="Checklist">
         <span class="nav-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2.5" width="3.5" height="3.5" rx="0.6"/><path d="M2.7 4.2 L3.5 5 L4.8 3.4" stroke-width="1.2"/><rect x="2" y="9.5" width="3.5" height="3.5" rx="0.6"/><line x1="7" y1="4.2" x2="14" y2="4.2"/><line x1="7" y1="11.2" x2="14" y2="11.2"/></svg></span><span class="nav-label">Checklist</span><span class="nav-badge nav-badge-danger" id="navBadgeChecklist"></span>
       </div>
 
-      <div class="sidebar-sec-lijn"></div>
-      <div class="nav-item" data-mod="uren" onclick="switchModule('uren')">
-        <span class="nav-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M8 4.5V8l2.5 1.5"/></svg></span><span class="nav-label">Uren</span><span class="nav-badge" id="navBadgeUren"></span>
-      </div>
-      <div class="nav-item" data-mod="facturen" onclick="switchModule('facturen')">
-        <span class="nav-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 1.8h9v12.4l-2.25-1.4-2.25 1.4-2.25-1.4-2.25 1.4z"/><line x1="6" y1="5.6" x2="10" y2="5.6"/><line x1="6" y1="8.4" x2="10" y2="8.4"/></svg></span><span class="nav-label">Facturen</span><span class="nav-badge" id="navBadgeFacturen"></span>
-      </div>
-      <div class="sidebar-sec-lijn"></div>
-      <div class="nav-item nav-item-ext-trigger" id="extToolsTrigger" onclick="toggleExtTools(event)" role="button" aria-haspopup="menu" aria-expanded="false" aria-controls="extToolsPopover" tabindex="0" title="Externe tools">
-        <span class="nav-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 5.5h11v7a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1v-7z"/><path d="M5.5 5.5V4a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v1.5"/><line x1="2.5" y1="9" x2="13.5" y2="9"/></svg></span><span class="nav-label">Externe tools</span><span class="ext-arrow">↗</span>
+      <!-- Een groep klapt uit in de lijst zelf; de stand onthoudt dit apparaat. -->
+      <div class="nav-groep open" data-groep="administratie">
+        <div class="nav-item nav-groep-kop" role="button" tabindex="0" aria-expanded="true"
+          onclick="toggleNavGroep('administratie')" data-titel="Administratie">
+          <span class="nav-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4.2a1 1 0 0 1 1-1h3.1l1.4 1.6H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z"/><line x1="2" y1="7" x2="14" y2="7"/></svg></span><span class="nav-label">Administratie</span>
+          <svg class="sb-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
+        </div>
+        <div class="nav-groep-inhoud">
+          <div class="nav-item nav-sub" data-mod="uren" onclick="switchModule('uren')" data-titel="Uren">
+            <span class="nav-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M8 4.5V8l2.5 1.5"/></svg></span><span class="nav-label">Uren</span><span class="nav-badge" id="navBadgeUren"></span>
+          </div>
+          <div class="nav-item nav-sub" data-mod="facturen" onclick="switchModule('facturen')" data-titel="Facturen">
+            <span class="nav-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 1.8h9v12.4l-2.25-1.4-2.25 1.4-2.25-1.4-2.25 1.4z"/><line x1="6" y1="5.6" x2="10" y2="5.6"/><line x1="6" y1="8.4" x2="10" y2="8.4"/></svg></span><span class="nav-label">Facturen</span><span class="nav-badge" id="navBadgeFacturen"></span>
+          </div>
+        </div>
       </div>
 
-    </div>
+      <div class="nav-item nav-item-ext-trigger" id="extToolsTrigger" onclick="toggleExtTools(event)" role="button" aria-haspopup="menu" aria-expanded="false" aria-controls="extToolsPopover" tabindex="0" data-titel="Externe tools">
+        <span class="nav-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 5.5h11v7a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1v-7z"/><path d="M5.5 5.5V4a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v1.5"/><line x1="2.5" y1="9" x2="13.5" y2="9"/></svg></span><span class="nav-label">Externe tools</span>
+        <svg class="sb-chevron ext-arrow" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 10.5l5-5"/><path d="M6.5 5.5h4v4"/></svg>
+      </div>
+
+      <div class="sidebar-sec-lijn"></div>
+      <div class="nav-item" id="instellingenBtn" onclick="toggleAppInstellingen(event)" role="button" aria-haspopup="menu" aria-expanded="false" tabindex="0" data-titel="Instellingen">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span><span class="nav-label">Instellingen</span>
+      </div>
+    </nav>
 
     <div class="sidebar-footer">
       <div class="sidebar-sync idle" id="syncBar">
@@ -7477,32 +7618,28 @@ textarea { line-height: 1.6; resize: vertical; }
         <button class="sidebar-refresh-btn" onclick="refreshGist()" title="Gegevens opnieuw ophalen" aria-label="Ververs">
           <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><path d="M12 4.5a5 5 0 1 0 1 3"/><polyline points="13 2 13 5 10 5"/></svg>
         </button>
-      </div>
-      <button class="sidebar-theme-btn" id="themeToggleBtn" onclick="toggleColorScheme()" title="Schakel donker / licht">
-        <span class="theme-icon-light"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="8" cy="8" r="3.2"/><line x1="8" y1="1.5" x2="8" y2="3"/><line x1="8" y1="13" x2="8" y2="14.5"/><line x1="1.5" y1="8" x2="3" y2="8"/><line x1="13" y1="8" x2="14.5" y2="8"/><line x1="3.5" y1="3.5" x2="4.5" y2="4.5"/><line x1="11.5" y1="11.5" x2="12.5" y2="12.5"/><line x1="3.5" y1="12.5" x2="4.5" y2="11.5"/><line x1="11.5" y1="4.5" x2="12.5" y2="3.5"/></svg></span>
-        <span class="theme-icon-dark"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M13.5 9.2A6 6 0 0 1 6.8 2.5a6 6 0 1 0 6.7 6.7z"/></svg></span>
-        <span class="theme-label" id="themeLabel">Licht</span>
-      </button>
-      <div class="sidebar-btn-rij">
-        <button class="sidebar-theme-btn" id="instellingenBtn" onclick="toggleAppInstellingen(event)" title="Instellingen">
-          <span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="8" cy="8" r="2.4"/><path d="M13 9.6a1.2 1.2 0 0 0 .24 1.32l.04.05a1.45 1.45 0 1 1-2.06 2.06l-.05-.05a1.2 1.2 0 0 0-1.32-.24 1.2 1.2 0 0 0-.73 1.1v.13a1.45 1.45 0 1 1-2.9 0v-.07a1.2 1.2 0 0 0-.79-1.1 1.2 1.2 0 0 0-1.32.24l-.05.05a1.45 1.45 0 1 1-2.06-2.06l.05-.05a1.2 1.2 0 0 0 .24-1.32 1.2 1.2 0 0 0-1.1-.73H1.1a1.45 1.45 0 1 1 0-2.9h.07a1.2 1.2 0 0 0 1.1-.79 1.2 1.2 0 0 0-.24-1.32l-.05-.05A1.45 1.45 0 1 1 4.04 1.7l.05.05a1.2 1.2 0 0 0 1.32.24h.06a1.2 1.2 0 0 0 .73-1.1V.8a1.45 1.45 0 1 1 2.9 0v.07a1.2 1.2 0 0 0 .73 1.1 1.2 1.2 0 0 0 1.32-.24l.05-.05a1.45 1.45 0 1 1 2.06 2.06l-.05.05a1.2 1.2 0 0 0-.24 1.32v.06a1.2 1.2 0 0 0 1.1.73h.13a1.45 1.45 0 1 1 0 2.9h-.07a1.2 1.2 0 0 0-1.1.73z"/></svg></span>
-          <span class="theme-label">Instellingen</span>
-        </button>
-        <button class="sidebar-theme-btn" id="loginBtn" onclick="logUit()" title="Uitloggen" style="display:none">
-          <span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M6 14H3.5a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1H6"/><polyline points="10.5 11 13.5 8 10.5 5"/><line x1="13.5" y1="8" x2="6" y2="8"/></svg></span>
-          <span class="theme-label" id="loginLabel">Uitloggen</span>
-        </button>
-      </div>
-      <div class="sidebar-onderrij">
-        <button class="sidebar-collapse-btn" onclick="toggleSidebar()">
-          <span class="collapse-icon">◀</span>
-          <span class="collapse-lbl">Inklappen</span>
-        </button>
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.18</span>
+        <span class="app-versie" title="Appversie">v2.19</span>
       </div>
+      <!-- De streep draagt de inklapknop: die staat half over de rand van de
+           zijbalk, zoals in het voorbeeld. -->
+      <div class="sb-scheiding">
+        <button type="button" class="sb-inklap" id="sidebarInklapBtn" onclick="toggleSidebar()"
+          aria-label="Zijbalk inklappen" title="Zijbalk inklappen">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="3.5" x2="3" y2="12.5"/><path d="M13 8H6.5"/><path d="M9.5 5 6.5 8l3 3"/></svg>
+        </button>
+      </div>
+      <button type="button" class="sb-gebruiker" id="gebruikerBtn" onclick="toggleGebruikerMenu(event)"
+        aria-haspopup="menu" aria-expanded="false" style="display:none">
+        <span class="sb-avatar" id="gebruikerAvatar"></span>
+        <span class="sb-gebruiker-tekst">
+          <span class="sb-gebruiker-naam" id="gebruikerNaam"></span>
+          <span class="sb-gebruiker-mail" id="gebruikerMail"></span>
+        </span>
+        <svg class="sb-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
+      </button>
     </div>
   </aside>
 
@@ -8330,6 +8467,40 @@ textarea { line-height: 1.6; resize: vertical; }
 </div>
 
 <!-- ── Versiegeschiedenis: oudere versies uit Drive terughalen ── -->
+<!-- ── Thema ──
+     Vanuit Instellingen en het gebruikersmenu. De keuze geldt per apparaat
+     (localStorage, LS_THEME) en gaat meteen in, dus er is geen opslaan-knop. -->
+<div class="modal-bg" id="themaModal" onclick="if(event.target===this)closeThemaModal()">
+  <div class="modal" style="max-width:460px">
+    <h3 style="font-size:18px">Thema</h3>
+    <p class="thema-uitleg">Hoe de app eruitziet op dit apparaat. De zijbalk blijft donker.</p>
+    <div class="thema-keuzes" role="radiogroup" aria-label="Thema">
+      <button type="button" class="thema-keuze" role="radio" data-thema="auto" onclick="kiesThema('auto')">
+        <span class="thema-staal thema-staal-auto" aria-hidden="true"></span>
+        <span class="thema-keuze-tekst"><b>Automatisch</b><small>Volgt je systeem</small></span>
+      </button>
+      <button type="button" class="thema-keuze" role="radio" data-thema="light" onclick="kiesThema('light')">
+        <span class="thema-staal thema-staal-licht" aria-hidden="true"></span>
+        <span class="thema-keuze-tekst"><b>Licht</b><small>Altijd licht</small></span>
+      </button>
+      <button type="button" class="thema-keuze" role="radio" data-thema="dark" onclick="kiesThema('dark')">
+        <span class="thema-staal thema-staal-donker" aria-hidden="true"></span>
+        <span class="thema-keuze-tekst"><b>Donker</b><small>Altijd donker</small></span>
+      </button>
+      <button type="button" class="thema-keuze" role="radio" data-thema="schedule" onclick="kiesThema('schedule')">
+        <span class="thema-staal thema-staal-rooster" aria-hidden="true"></span>
+        <span class="thema-keuze-tekst"><b>Rooster</b><small>Licht van 7 tot 19 uur</small></span>
+      </button>
+    </div>
+    <div class="modal-footer">
+      <div class="modal-footer-left"></div>
+      <div class="modal-footer-right">
+        <button class="btn btn-sm btn-primary modal-annuleer" type="button" onclick="closeThemaModal()">Klaar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="versiesModal" onclick="if(event.target===this)closeVersiesModal()">
   <div class="modal" style="max-width:760px;padding:0;display:flex;flex-direction:column;max-height:92vh">
     <div class="modal-kop" style="display:flex;align-items:center;gap:12px;flex-shrink:0">
@@ -9012,6 +9183,29 @@ textarea { line-height: 1.6; resize: vertical; }
 
 <!-- ── Note context menu ── -->
 <div class="ctx-menu" id="noteCtxMenu"></div>
+
+<!-- ── Klantwisselaar ──
+     Opent vanaf de kop van de zijbalk of met Ctrl+J. Zet hetzelfde klantfilter
+     dat Dashboard, Notities en Checklist delen (activeClientFilter). De lijst
+     wordt bij het openen getekend door renderKlantWissel(). -->
+<div class="klant-wissel" id="klantWissel" role="dialog" aria-label="Klant kiezen">
+  <div class="klant-wissel-kop">
+    <span class="klant-wissel-logo" id="klantWisselPopLogo"></span>
+    <div class="klant-wissel-naam" id="klantWisselPopNaam"></div>
+    <div class="klant-wissel-sub" id="klantWisselPopSub"></div>
+  </div>
+  <label class="klant-wissel-zoek">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7" cy="7" r="4.6"/><path d="M10.4 10.4 14 14"/></svg>
+    <input type="text" id="klantWisselZoek" placeholder="Zoeken..." autocomplete="off" spellcheck="false"
+      aria-label="Zoek een klant" aria-controls="klantWisselLijst"/>
+  </label>
+  <div class="klant-wissel-lijst" id="klantWisselLijst" role="listbox" aria-label="Klanten"></div>
+  <div class="klant-wissel-acties" id="klantWisselActies"></div>
+  <div class="klant-wissel-tip">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.8 10.6A4.4 4.4 0 1 1 10.2 10.6c-.5.4-.7.9-.7 1.4v.4h-3V12c0-.5-.2-1-.7-1.4z"/><line x1="6.6" y1="14.2" x2="9.4" y2="14.2"/></svg>
+    <span>Tip: open de klantwisselaar sneller met <kbd>Ctrl</kbd> + <kbd>J</kbd></span>
+  </div>
+</div>
 
 <!-- ── Externe tools popover ── -->
 <div class="ext-tools-popover" id="extToolsPopover" role="menu" aria-labelledby="extToolsTrigger">
@@ -10455,6 +10649,13 @@ function switchModule(mod){
   /* Update nav items */
   document.querySelectorAll('.nav-item').forEach(el=>
     el.classList.toggle('active',el.dataset.mod===mod));
+  /* Een groep met de module erin: de kop kleurt mee, en staat hij dicht dan
+     gaat hij open -- anders zie je in de zijbalk niet waar je bent. */
+  document.querySelectorAll('.nav-groep').forEach(g=>{
+    const bevat=!!g.querySelector('.nav-item[data-mod="'+mod+'"]');
+    g.classList.toggle('bevat-actief',bevat);
+    if(bevat&&!g.classList.contains('open'))toggleNavGroep(g.dataset.groep);
+  });
   /* Show/hide modules */
   document.querySelectorAll('.module').forEach(el=>
     el.classList.toggle('active',el.id==='mod-'+mod));
@@ -10512,14 +10713,173 @@ function updateNavBadges(){
   updateMobileNavBadges();
 }
 
+/* ─ Zijbalk: ingeklapt en groepen ──────────────────────────────────────────
+   Per apparaat onthouden in localStorage, niet in rawState: op een laptop wil
+   je hem misschien smal en op een groot scherm niet. `dicht` is een lijst met
+   groepen die dicht staan -- zo staat een nieuwe groep vanzelf open. */
+const LS_ZIJBALK='herling_zijbalk';
+const MQ_BUREAUBLAD=window.matchMedia('(min-width: 769px)');
+function zijbalkStand(){
+  try{
+    const v=JSON.parse(localStorage.getItem(LS_ZIJBALK)||'null')||{};
+    return {ingeklapt:!!v.ingeklapt,dicht:Array.isArray(v.dicht)?v.dicht:[]};
+  }catch(_){return {ingeklapt:false,dicht:[]};}
+}
+function zijbalkStandBewaar(stand){
+  try{localStorage.setItem(LS_ZIJBALK,JSON.stringify(stand));}catch(_){}
+}
+/* Ingeklapt bestaat alleen op een bureaublad; in de lade van een telefoon
+   staat altijd alles uit. Daarom leest dit de media query en niet alleen de
+   opgeslagen stand -- en loopt het opnieuw als het venster van breedte wisselt. */
+function zijbalkStandToepassen(){
+  const sb=document.getElementById('sidebar');
+  if(!sb)return;
+  const stand=zijbalkStand();
+  sidebarCollapsed=stand.ingeklapt;
+  const smal=MQ_BUREAUBLAD.matches&&stand.ingeklapt;
+  sb.classList.toggle('collapsed',smal);
+  const knop=document.getElementById('sidebarInklapBtn');
+  if(knop){
+    const t=smal?'Zijbalk uitklappen':'Zijbalk inklappen';
+    knop.title=t;knop.setAttribute('aria-label',t);
+  }
+  /* Ingeklapt staat er geen tekst, dan komt de naam als tooltip. */
+  sb.querySelectorAll('.nav-item[data-titel]').forEach(el=>{
+    if(smal)el.title=el.dataset.titel;else el.removeAttribute('title');
+  });
+  sb.querySelectorAll('.nav-groep').forEach(g=>{
+    const open=!stand.dicht.includes(g.dataset.groep);
+    g.classList.toggle('open',open);
+    const kop=g.querySelector('.nav-groep-kop');
+    if(kop)kop.setAttribute('aria-expanded',open?'true':'false');
+  });
+}
 function toggleSidebar(){
-  sidebarCollapsed=!sidebarCollapsed;
-  document.getElementById('sidebar').classList.toggle('collapsed',sidebarCollapsed);
+  const stand=zijbalkStand();
+  stand.ingeklapt=!stand.ingeklapt;
+  zijbalkStandBewaar(stand);
+  sluitZijbalkVensters();
+  zijbalkStandToepassen();
+}
+function toggleNavGroep(naam){
+  const stand=zijbalkStand();
+  const i=stand.dicht.indexOf(naam);
+  if(i>=0)stand.dicht.splice(i,1);else stand.dicht.push(naam);
+  zijbalkStandBewaar(stand);
+  zijbalkStandToepassen();
+}
+MQ_BUREAUBLAD.addEventListener('change',()=>{sluitZijbalkVensters();zijbalkStandToepassen();});
+zijbalkStandToepassen();
+/* Groepskop en Instellingen zijn een div met role="button"; Enter en spatie
+   doen daar wat een klik doet. Externe tools heeft zijn eigen handler. */
+document.getElementById('sidebar')?.addEventListener('keydown',e=>{
+  if(e.key!=='Enter'&&e.key!==' ')return;
+  const el=e.target.closest('.nav-item[role="button"]');
+  if(!el||el.id==='extToolsTrigger')return;
+  e.preventDefault();
+  el.click();
+});
+
+/* Een venster uit de zijbalk. Op een bureaublad rechts náást de zijbalk, op
+   de hoogte van de knop (`onder`: met de onderkant gelijk, voor wat onderin
+   staat) -- zo dekt het nooit de lijst af waar je in zit. In de lade van een
+   telefoon is naast geen plek; daar onder de knop, of erboven als dat niet
+   past. `scroll:false` voor een venster dat zelf een schuivende lijst heeft. */
+function zijbalkPlaats(pop,anker,opties){
+  const o=opties||{};
+  const vw=window.innerWidth,vh=window.innerHeight;
+  pop.style.maxHeight=(vh-16)+'px';
+  if(o.scroll!==false)pop.style.overflowY='auto';
+  const r=anker.getBoundingClientRect();
+  const w=pop.offsetWidth,h=pop.offsetHeight;
+  let left,top;
+  if(MQ_BUREAUBLAD.matches){
+    left=document.getElementById('sidebar').getBoundingClientRect().right+10;
+    top=o.onder?r.bottom-h:r.top;
+  }else{
+    left=Math.min(r.left,vw-w-12);
+    top=r.bottom+6;
+    if(top+h>vh-8)top=r.top-h-6;
+  }
+  pop.style.left=Math.max(12,left)+'px';
+  pop.style.top=Math.max(8,Math.min(top,vh-h-8))+'px';
+}
+/* Er staat hooguit één zijbalkvenster open. */
+function sluitZijbalkVensters(){
+  sluitKlantWissel();
+  sluitGebruikerMenu();
+  closeAppInstellingen();
+  closeExtTools();
 }
 
+/* ─ Gebruiker onderin ──────────────────────────────────────────────────────
+   Naam en e-mail komen uit de Google-login (LS_LOGIN). Geen profielfoto: die
+   staat op een Google-server en initialen zeggen hier hetzelfde. */
+function gebruikerNaam(g){
+  const naam=String(g&&g.naam||'').trim();
+  if(naam)return naam;
+  const voor=String(g&&g.email||'').split('@')[0];
+  return voor.split(/[._-]+/).filter(Boolean)
+    .map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' ')||'Gebruiker';
+}
+function zetGebruikerBlok(){
+  const knop=document.getElementById('gebruikerBtn');
+  if(!knop)return;
+  const g=ingelogdeGebruiker();
+  if(!g){knop.style.display='none';return;}
+  const naam=gebruikerNaam(g);
+  const w=naam.split(/\s+/).filter(Boolean);
+  const init=((w[0]||'?').charAt(0)+(w.length>1?w[w.length-1].charAt(0):'')).toUpperCase();
+  document.getElementById('gebruikerAvatar').textContent=init;
+  document.getElementById('gebruikerNaam').textContent=naam;
+  document.getElementById('gebruikerMail').textContent=g.email||'';
+  knop.title='Ingelogd als '+(g.email||naam);
+  knop.style.display='';
+}
+function toggleGebruikerMenu(e){
+  if(e)e.stopPropagation();
+  if(document.getElementById('gebruikerMenu')){sluitGebruikerMenu();return;}
+  sluitZijbalkVensters();
+  const btn=document.getElementById('gebruikerBtn');
+  if(!btn)return;
+  const m=document.createElement('div');
+  m.className='uren-menu';m.id='gebruikerMenu';m.setAttribute('role','menu');
+  m.innerHTML=`
+    <button class="uren-menu-item" role="menuitem" data-gebruiker="thema">
+      <span class="ic" aria-hidden="true">&#9680;</span>
+      <span>Thema<small>${escapeHtml(THEMA_LABELS[huidigThema()]||'Automatisch')}</small></span></button>
+    <div class="uren-menu-sep"></div>
+    <button class="uren-menu-item" role="menuitem" data-gebruiker="uitloggen">
+      <span class="ic" aria-hidden="true">&#8617;</span>
+      <span>Uitloggen<small>Terug naar het inlogscherm</small></span></button>`;
+  document.body.appendChild(m);
+  m.style.minWidth=Math.max(248,btn.offsetWidth)+'px';
+  zijbalkPlaats(m,btn,{onder:true});
+  btn.setAttribute('aria-expanded','true');
+  setTimeout(()=>document.addEventListener('mousedown',gebruikerMenuBuiten),20);
+}
+function gebruikerMenuBuiten(e){
+  const m=document.getElementById('gebruikerMenu');
+  if(m&&!m.contains(e.target)&&!e.target.closest('#gebruikerBtn'))sluitGebruikerMenu();
+}
+function sluitGebruikerMenu(){
+  document.getElementById('gebruikerMenu')?.remove();
+  document.getElementById('gebruikerBtn')?.setAttribute('aria-expanded','false');
+  document.removeEventListener('mousedown',gebruikerMenuBuiten);
+}
+document.addEventListener('click',e=>{
+  const el=e.target.closest('[data-gebruiker]');
+  if(!el)return;
+  const wat=el.dataset.gebruiker;
+  sluitGebruikerMenu();
+  if(wat==='thema')openThemaModal();
+  if(wat==='uitloggen')logUit();
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')sluitGebruikerMenu();});
+
 /* ─ Externe tools popover ──────────────────────────────────────────────────
-   Trigger zit in de sidebar, popover wordt rechts naast de trigger
-   gepositioneerd. Sluit op: outside click, Esc, of klik op een link. */
+   Trigger zit in de sidebar, popover staat rechts naast de zijbalk (of in de
+   lade onder de trigger). Sluit op: outside click, Esc, of klik op een link. */
 function toggleExtTools(e){
   if(e)e.stopPropagation();
   const trigger=document.getElementById('extToolsTrigger');
@@ -10527,22 +10887,11 @@ function toggleExtTools(e){
   if(!trigger||!pop)return;
   const isOpen=pop.classList.contains('is-open');
   if(isOpen){closeExtTools();return;}
-  /* Position to the right of the trigger, vertically aligned to its top */
-  const r=trigger.getBoundingClientRect();
-  pop.style.left=(r.right+8)+'px';
-  pop.style.top=Math.max(8,r.top)+'px';
-  /* If popover would go below viewport, anchor to bottom */
+  sluitZijbalkVensters();
   pop.classList.add('is-open');
   trigger.classList.add('is-open');
   trigger.setAttribute('aria-expanded','true');
-  /* After it's visible, check actual height and reposition if needed */
-  requestAnimationFrame(()=>{
-    const ph=pop.offsetHeight;
-    const vh=window.innerHeight;
-    if(r.top+ph>vh-8){
-      pop.style.top=Math.max(8,vh-ph-8)+'px';
-    }
-  });
+  zijbalkPlaats(pop,trigger);
   /* Focus first link for keyboard nav */
   const first=pop.querySelector('.ext-tools-link');
   if(first)setTimeout(()=>first.focus(),50);
@@ -10607,7 +10956,7 @@ function toggleDashMobileSettings(e){
    Nu doet één tik allebei.
 
    toggleAppInstellingen() tekent zijn menu vanuit de plek van die knop
-   (btn.top - hoogte - 6), en die knop schuift 0,25s lang mee met de la. Te
+   (zie zijbalkPlaats), en die knop schuift 0,25s lang mee met de la. Te
    vroeg openen zet het menu dus op de plek waar de la vandaan kwam: buiten
    beeld. Vandaar wachten op het einde van die beweging, met een klok als
    vangnet -- staat de la al open, dan komt er geen transitionend. */
@@ -10859,13 +11208,6 @@ function applyColorScheme(scheme){
   }
   if(resolved==='light')root.setAttribute('data-theme','light');
   else if(resolved==='dark')root.setAttribute('data-theme','dark');
-  /* update label */
-  const lbl=document.getElementById('themeLabel');
-  const labels={auto:'Auto',light:'Licht',dark:'Donker',schedule:'Rooster'};
-  if(lbl)lbl.textContent=labels[scheme]||'Auto';
-  /* update which icon is shown */
-  const btn=document.getElementById('themeToggleBtn');
-  if(btn)btn.dataset.scheme=scheme;
   /* If on schedule mode, set up periodic re-check at the top of next hour */
   clearTimeout(_scheduleCheckTimer);
   if(scheme==='schedule'){
@@ -10874,12 +11216,31 @@ function applyColorScheme(scheme){
     _scheduleCheckTimer=setTimeout(()=>applyColorScheme('schedule'),msToNextHour);
   }
 }
-function toggleColorScheme(){
-  const cur=localStorage.getItem(LS_THEME)||'auto';
-  const order=['auto','light','dark','schedule'];
-  const next=order[(order.indexOf(cur)+1)%order.length];
-  localStorage.setItem(LS_THEME,next);
-  applyColorScheme(next);
+/* Het thema kies je in een venster (Instellingen → Thema, of het menu onder
+   je naam). Dat was een knop in de zijbalk die bij elke klik één stand
+   verder sprong: om bij Rooster te komen klikte je door Licht en Donker heen,
+   en wat "Auto" deed stond nergens. */
+const THEMA_LABELS={auto:'Automatisch',light:'Licht',dark:'Donker',schedule:'Rooster'};
+function huidigThema(){
+  try{return localStorage.getItem(LS_THEME)||'auto';}catch(_){return 'auto';}
+}
+function themaKeuzesBijwerken(){
+  const cur=huidigThema();
+  document.querySelectorAll('#themaModal .thema-keuze').forEach(b=>
+    b.setAttribute('aria-checked',b.dataset.thema===cur?'true':'false'));
+}
+function openThemaModal(){
+  themaKeuzesBijwerken();
+  document.getElementById('themaModal').classList.add('open');
+  setTimeout(()=>document.querySelector('#themaModal .thema-keuze[aria-checked="true"]')?.focus(),60);
+}
+function closeThemaModal(){
+  document.getElementById('themaModal').classList.remove('open');
+}
+function kiesThema(scheme){
+  try{localStorage.setItem(LS_THEME,scheme);}catch(_){}
+  applyColorScheme(scheme);
+  themaKeuzesBijwerken();
 }
 /* Apply persisted scheme on load */
 applyColorScheme(localStorage.getItem(LS_THEME)||'auto');
@@ -11002,10 +11363,181 @@ function setClientFilter(id){
   else if(activeModule==='dashboard')renderDashboard();
 }
 
-/* Render/refresh every .client-filter container in the DOM */
+/* Render/refresh every .client-filter container in the DOM -- en de
+   klantwisselaar in de zijbalk, zodat elke weg naar een ander filter
+   (topbalk, zoeken, klantoverzicht, een verwijderde klant) hem bijwerkt. */
 function renderClientFilters(){
   document.querySelectorAll('.client-filter').forEach(el=>renderOneClientFilter(el));
+  renderKlantWissel();
 }
+
+/* ─ Klantwisselaar (kop van de zijbalk) ────────────────────────────────────
+   Zet hetzelfde filter als de klantenbalk in de topbalk: Dashboard, Notities
+   en Checklist. Uren en Facturen hebben hun eigen filters en luisteren hier
+   niet naar -- dat staat er in het venster ook bij. */
+function klantInitialen(naam){
+  const woorden=String(naam||'')
+    .replace(/\s+(B\.?V\.?|N\.?V\.?|Zn\.?)\s*$/i,'')
+    .split(/[\s&]+/).filter(Boolean);
+  if(!woorden.length)return '?';
+  /* De eerste letter, plus die van het eerstvolgende woord met een
+     hoofdletter: "Van der Meer" wordt VM, niet VD. */
+  const tweede=woorden.slice(1).find(w=>/^\p{Lu}/u.test(w));
+  return (woorden[0].charAt(0)+(tweede?tweede.charAt(0):woorden[0].charAt(1))).toUpperCase();
+}
+function klantLogoHtml(c){
+  if(!c)return '<img src="herling-icon.svg" alt=""/>';
+  const col=CLIENT_COLORS[c.colorIdx%CLIENT_COLORS.length];
+  return `<span class="sb-initialen" style="background:${col.bg};color:${col.tx}">${escapeHtml(klantInitialen(c.name))}</span>`;
+}
+function renderKlantWissel(){
+  const clients=kanbanState?.clients||[];
+  const actief=clients.find(c=>c.id===activeClientFilter)||null;
+  const logo=document.getElementById('klantWisselLogo');
+  if(logo)logo.innerHTML=klantLogoHtml(actief);
+  const naam=document.getElementById('klantWisselNaam');
+  if(naam)naam.textContent=actief?actief.name:'Herling Analytics';
+  const pil=document.getElementById('klantWisselPil');
+  if(pil)pil.textContent=actief?'Klantfilter':'Alle klanten';
+  const btn=document.getElementById('klantWisselBtn');
+  if(btn)btn.title=(actief?actief.name:'Alle klanten')+' — klant kiezen (Ctrl+J)';
+  if(document.getElementById('klantWissel')?.classList.contains('open'))renderKlantWisselLijst();
+}
+let _kwCursor=-1;
+function klantWisselRijen(){
+  const clients=(kanbanState?.clients||[]).slice()
+    .sort((a,b)=>a.name.localeCompare(b.name,'nl'));
+  const items=checklistState?.items||[];
+  const open=id=>{
+    const n=items.filter(i=>!i.done&&!i.archived&&i.clientId===id).length;
+    return n?n+' open '+(n===1?'taak':'taken'):'Geen open taken';
+  };
+  const q=(document.getElementById('klantWisselZoek')?.value||'').trim().toLowerCase();
+  return [
+    {id:'',naam:'Alle klanten',sub:clients.length+' '+(clients.length===1?'klant':'klanten'),c:null},
+    ...clients.map(c=>({id:c.id,naam:c.name,sub:open(c.id),c}))
+  ].filter(r=>!q||r.naam.toLowerCase().includes(q));
+}
+function renderKlantWisselLijst(){
+  const clients=kanbanState?.clients||[];
+  const actief=clients.find(c=>c.id===activeClientFilter)||null;
+  document.getElementById('klantWisselPopLogo').innerHTML=klantLogoHtml(actief);
+  document.getElementById('klantWisselPopNaam').textContent=actief?actief.name:'Herling Analytics';
+  document.getElementById('klantWisselPopSub').textContent=actief
+    ?'Filter op Dashboard, Notities en Checklist'
+    :'Geen klantfilter — je ziet alles';
+  const rijen=klantWisselRijen();
+  if(_kwCursor>=rijen.length)_kwCursor=rijen.length-1;
+  const vink='<svg class="klant-wissel-vink" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7"/></svg>';
+  const lijst=document.getElementById('klantWisselLijst');
+  lijst.innerHTML=rijen.length?rijen.map((r,i)=>{
+    const gekozen=r.id===(actief?actief.id:'');
+    return `<button type="button" class="klant-wissel-optie${gekozen?' gekozen':''}${i===_kwCursor?' cursor':''}"
+      role="option" aria-selected="${gekozen}" data-kw-cid="${escapeHtml(r.id)}">
+      <span class="klant-wissel-optie-logo">${klantLogoHtml(r.c)}</span>
+      <span class="klant-wissel-optie-tekst">
+        <span class="klant-wissel-optie-naam">${escapeHtml(r.naam)}</span>
+        <span class="klant-wissel-optie-sub">${escapeHtml(r.sub)}</span>
+      </span>${vink}</button>`;
+  }).join(''):'<div class="klant-wissel-leeg">Geen klant gevonden</div>';
+  /* Het overzicht hoort bij één klant; beheren kan altijd. Dit stond eerst
+     als ⓘ naast de klantenbalk in de topbalk, die op een bureaublad weg is. */
+  document.getElementById('klantWisselActies').innerHTML=
+    (actief?`<button class="uren-menu-item" type="button" data-kw-actie="overzicht">
+      <span class="ic" aria-hidden="true">&#9432;</span>
+      <span>Klantoverzicht<small>Notities, taken en uren van deze klant</small></span></button>`:'')+
+    `<button class="uren-menu-item" type="button" data-kw-actie="beheren">
+      <span class="ic" aria-hidden="true">&#9998;</span>
+      <span>Klanten beheren<small>Namen, kleuren en gegevens</small></span></button>`;
+  const cur=lijst.querySelector('.cursor')||lijst.querySelector('.gekozen');
+  if(cur)cur.scrollIntoView({block:'nearest'});
+}
+function toggleKlantWissel(e){
+  if(e)e.stopPropagation();
+  const pop=document.getElementById('klantWissel');
+  if(!pop)return;
+  if(pop.classList.contains('open')){sluitKlantWissel();return;}
+  sluitZijbalkVensters();
+  const zoek=document.getElementById('klantWisselZoek');
+  zoek.value='';
+  _kwCursor=-1;
+  pop.classList.add('open');
+  renderKlantWisselLijst();
+  const btn=document.getElementById('klantWisselBtn');
+  btn.setAttribute('aria-expanded','true');
+  zijbalkPlaats(pop,btn,{scroll:false});
+  /* Op een telefoon niet meteen in het zoekveld: dan schuift het toetsenbord
+     over de lijst terwijl je waarschijnlijk alleen wilde tikken. */
+  if(MQ_BUREAUBLAD.matches)setTimeout(()=>zoek.focus(),30);
+  setTimeout(()=>document.addEventListener('mousedown',klantWisselBuiten),20);
+}
+function klantWisselBuiten(e){
+  const pop=document.getElementById('klantWissel');
+  if(pop&&!pop.contains(e.target)&&!e.target.closest('#klantWisselBtn'))sluitKlantWissel();
+}
+function sluitKlantWissel(){
+  const pop=document.getElementById('klantWissel');
+  if(!pop||!pop.classList.contains('open'))return;
+  pop.classList.remove('open');
+  document.getElementById('klantWisselBtn')?.setAttribute('aria-expanded','false');
+  document.removeEventListener('mousedown',klantWisselBuiten);
+}
+function kiesKlant(cid){
+  activeClientFilter=cid||'';
+  sluitKlantWissel();
+  renderClientFilters();
+  rerenderActiveModule();
+  /* Sta je in Uren of Facturen, dan verandert er in beeld niets; zeg dan
+     waar het filter wél geldt, anders lijkt de keuze niet te werken. */
+  if(activeModule==='uren'||activeModule==='facturen'){
+    const c=clientById(activeClientFilter);
+    appToast((c?'Filter op '+c.name:'Filter uit')+' — geldt voor Dashboard, Notities en Checklist',
+      {type:'info',duration:3500});
+  }
+}
+document.getElementById('klantWisselLijst')?.addEventListener('click',e=>{
+  const rij=e.target.closest('[data-kw-cid]');
+  if(rij)kiesKlant(rij.dataset.kwCid);
+});
+document.getElementById('klantWisselActies')?.addEventListener('click',e=>{
+  const knop=e.target.closest('[data-kw-actie]');
+  if(!knop)return;
+  const id=activeClientFilter;
+  sluitKlantWissel();
+  toggleSidebarMobile(false);
+  if(knop.dataset.kwActie==='overzicht'&&id)openClientDash(id);
+  if(knop.dataset.kwActie==='beheren')openKlantenBeheer();
+});
+document.getElementById('klantWisselZoek')?.addEventListener('input',()=>{
+  _kwCursor=0;
+  renderKlantWisselLijst();
+});
+document.getElementById('klantWissel')?.addEventListener('keydown',e=>{
+  const rijen=klantWisselRijen();
+  if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+    e.preventDefault();
+    if(!rijen.length)return;
+    if(_kwCursor<0)_kwCursor=Math.max(0,rijen.findIndex(r=>r.id===activeClientFilter));
+    else _kwCursor=(_kwCursor+(e.key==='ArrowDown'?1:-1)+rijen.length)%rijen.length;
+    renderKlantWisselLijst();
+  }else if(e.key==='Enter'){
+    e.preventDefault();
+    const r=rijen[_kwCursor<0?0:_kwCursor];
+    if(r)kiesKlant(r.id);
+  }else if(e.key==='Escape'){
+    e.preventDefault();
+    sluitKlantWissel();
+    document.getElementById('klantWisselBtn')?.focus();
+  }
+});
+/* Ctrl+J (Cmd+J op een Mac), zoals in het voorbeeld. Niet boven een open
+   venster: de wisselaar hoort bij de zijbalk, niet bij wat je aan het doen bent. */
+document.addEventListener('keydown',e=>{
+  if(!(e.ctrlKey||e.metaKey)||e.shiftKey||e.altKey||e.key.toLowerCase()!=='j')return;
+  if(document.querySelector('.modal-bg.open'))return;
+  e.preventDefault();
+  toggleKlantWissel();
+});
 function renderOneClientFilter(host){
   const clients=kanbanState?.clients||[];
   const active=clients.find(c=>c.id===activeClientFilter);
@@ -11893,7 +12425,13 @@ function toggleAppInstellingen(e){
      daar wel en hier niet. Op een bureaublad waren die dus onbereikbaar. */
   const key=(()=>{try{return localStorage.getItem(LS_GEMINI_KEY)||'';}catch(e){return '';}})();
   const maskAan=aiMaskerenAan();
+  sluitZijbalkVensters();
   m.innerHTML=`
+    <div class="uren-menu-lab">Weergave</div>
+    <button class="uren-menu-item" role="menuitem" data-app-instel="thema">
+      <span class="ic" aria-hidden="true">&#9680;</span>
+      <span>Thema<small>${escapeHtml(THEMA_LABELS[huidigThema()]||'Automatisch')}</small></span></button>
+    <div class="uren-menu-sep"></div>
     <div class="uren-menu-lab">Gegevens</div>
     <button class="uren-menu-item" role="menuitem" data-app-instel="verversen">
       <span class="ic" aria-hidden="true">&#8635;</span>
@@ -11930,10 +12468,10 @@ function toggleAppInstellingen(e){
       <span>Notificaties inschakelen<small>Melding bij een deadline</small></span></button>
 `;
   document.body.appendChild(m);
-  /* Boven de knop uitlijnen; de zijbalk staat onderaan het scherm. */
-  const r=btn.getBoundingClientRect();
-  m.style.left=Math.max(8,r.left)+'px';
-  m.style.top=Math.max(8,r.top-m.offsetHeight-6)+'px';
+  /* Naast de zijbalk op de hoogte van de knop; in de lade eronder of erboven. */
+  zijbalkPlaats(m,btn);
+  btn.classList.add('is-open');
+  btn.setAttribute('aria-expanded','true');
   setTimeout(()=>document.addEventListener('mousedown',appInstelBuiten),20);
 }
 function appInstelBuiten(e){
@@ -11942,6 +12480,8 @@ function appInstelBuiten(e){
 }
 function closeAppInstellingen(){
   document.getElementById('appInstelMenu')?.remove();
+  const btn=document.getElementById('instellingenBtn');
+  if(btn){btn.classList.remove('is-open');btn.setAttribute('aria-expanded','false');}
   document.removeEventListener('mousedown',appInstelBuiten);
 }
 document.addEventListener('click',e=>{
@@ -11949,6 +12489,7 @@ document.addEventListener('click',e=>{
   if(!el)return;
   const wat=el.dataset.appInstel;
   closeAppInstellingen();
+  if(wat==='thema')openThemaModal();
   if(wat==='backup')downloadBackup();
   if(wat==='versies')openVersiesModal();
   if(wat==='verversen')refreshGist();
@@ -12636,14 +13177,7 @@ async function driveStatus(){
 function startNaLogin(){
   document.getElementById('loginScreen').style.display='none';
   loginVerleng();
-  const g=ingelogdeGebruiker();
-  const knop=document.getElementById('loginBtn');
-  if(g&&knop){
-    knop.style.display='';
-    knop.title='Ingelogd als '+g.email+' — klik om uit te loggen';
-    const lbl=document.getElementById('loginLabel');
-    if(lbl)lbl.textContent=(g.email||'').split('@')[0]||'Uitloggen';
-  }
+  zetGebruikerBlok();
   /* De Google-login is de toegangspoort. */
   document.getElementById('appScreen').style.display='flex';
   boot();
@@ -29934,7 +30468,7 @@ zetModalSluitknoppen();
    openen aan de body gehangen, de popovers dragen .open. #appDlgLijst stond
    hier eerst ook -- dat is een vast onderdeel van het vraagvenster en bestaat
    dus altijd, waardoor deze test altijd waar was en Esc nooit iets sloot. */
-const ESC_MENUS=['#urenMenu','#facMenu','#appInstelMenu','#facFilterPop',
+const ESC_MENUS=['#urenMenu','#facMenu','#appInstelMenu','#gebruikerMenu','.klant-wissel.open','#facFilterPop',
   '#urenFilterPop','.uren-filterpop',
   '.notes-overflow.open','.cl-overflow.open','#dashMobileSettings.open',
   '.settings-dropdown.open','.tag-picker-popup.open','.ctx-menu.open'];

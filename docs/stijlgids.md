@@ -382,3 +382,40 @@ er iets onleesbaar wordt.
 > btw-waarschuwing eronder, en stonden de rode varianten als
 > `border-left-color` in een style-attribuut. Nieuwe melding? Kies een
 > toestand, schrijf geen kleur in de markup.
+
+---
+
+## 13. Zijbalk
+
+Naar het voorbeeld van 2026-09-16 (zie `decisions.md`). De zijbalk is in
+beide thema's donker; de vensters die eruit opengaan volgen het thema.
+
+| | Bureaublad | Telefoon (lade) |
+|---|---|---|
+| breedte | 272px, ingeklapt 72px | 84%, max. 320px — nooit ingeklapt |
+| rij (`.nav-item`) | 44px hoog, 14px / 600 | `var(--tap)`, `var(--fs-basis)` |
+| icoon in een rij | 20px — geen `--icoon`: het staat naast een label, niet alleen in een knop | 20px |
+| rij in een groep (`.nav-sub`) | 12px dieper (vulling links 24px) | idem |
+| wisselaar bovenin | 60px, logo 44px, naam 15px / 700 display | naam `var(--fs-groot)` |
+| gebruiker onderin | 56px, avatar 40px, naam 14px / 600, e-mail `var(--fs-klein)` | naam `var(--fs-basis)` |
+| inklapknop | 28px rond, half over de rand, op de streep boven de gebruiker | weg |
+| pil onder de naam (`.sb-pil`) | `var(--fs-micro)` / 700, kapitalen, mint op 16% mint | idem |
+
+**Kleur volgt interactie.** Rust: label 82% wit, icoon 55%. Hover: vlak 7%
+wit. Actief: vlak 11% wit, label wit, icoon mint. Een open groep heeft een
+eigen vlak (4,5% wit) met de kop op 7%; bevat hij de actieve module, dan
+kleuren icoon en pijl van de kop mint. Geen mint vlak, geen streep links.
+
+**De pijl** (`.sb-chevron`) wijst dicht omlaag en open naar rechts
+(`aria-expanded="true"` draait hem −90°). Geldt voor de wisselaar, een groep
+en het gebruikersblok; het ↗ van Externe tools draait niet mee.
+
+**Waar een venster uit de zijbalk opengaat.** Op een bureaublad rechts náást
+de zijbalk, op de hoogte van de knop (`zijbalkPlaats`); in de lade onder de
+knop, of erboven als dat niet past. Er staat er hooguit één open
+(`sluitZijbalkVensters`). Menu's zijn gewone `.uren-menu`s; de klantwisselaar
+is een eigen kaart van 360px.
+
+**Nieuwe module erbij?** Een regel met `data-mod` en `data-titel` (de tooltip
+als hij ingeklapt is). Hoort hij bij een andere, zet hem dan in een
+`.nav-groep` — geen kopje en geen losse streep.

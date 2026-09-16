@@ -80,6 +80,7 @@ rawState = {
 | `LS_LOGIN` = `herling_login` | Ingelogde gebruiker (e-mail + geldigheid) |
 | `LS_BACKUP_KEY` = `herling_analytics_local_backup` | Volledige rawState backup |
 | `LS_SYNC_KEY` = `herling_analytics_sync` | `gewijzigdOp`/`naarDriveOp` (lokale klok) + `driveTijd` (server-klok) |
+| `LS_ZIJBALK` = `herling_zijbalk` | Zijbalk ingeklapt + welke groepen dicht staan (per apparaat, niet in Drive) |
 | `LS_HERSTEL_KEY` = `herling_analytics_herstel` | Niet-gekozen versie na een conflict; zichtbaar in Instellingen → Versiegeschiedenis, of `herstelDownload()` |
 
 ### Save flow
@@ -297,6 +298,7 @@ waar de fout zit.
 
 Top-3 meest recent. Volledige log + *waarom* per beslissing: [`docs/decisions.md`](docs/decisions.md).
 
+- **2026-09-16**: Zijbalk opnieuw naar Franks voorbeeld — rijen 44px en 14px/600 met een mint icoon als accent (geen mint vlak/streep meer), Uren en Facturen in een uitklapbare groep **Administratie**, een klantwisselaar bovenin (ook Ctrl+J) die hetzelfde `activeClientFilter` zet als de topbalk, Instellingen als regel met bovenaan Thema (een venster met vier keuzes in plaats van een doorklikknop), de gebruiker met naam en e-mail onderin en een ronde inklapknop op de rand. Breedte 272/72px. De klantenbalk in de topbalk is op een bureaublad weg en blijft op mobiel. De nav-tellers zijn nooit zichtbaar geweest en bewust niet aangezet. Maten in stijlgids §13
 - **2026-09-12**: Uren uit facturen ontdubbelt per factuurregel in plaats van per maand — al overgenomen (op factuurid, anders op bestandsnaam via `urenAnBron()`) of zelf geschreven voor diezelfde klant in diezelfde maand valt af, de rest van de maand komt gewoon mee. Binnen één AI-keuze vangt de SHA-256 de kopie. De AI-import controleert nu vooraf op grootte en soort (12 MB, zelfde woorden als de scanner), en bij een 400 gaan de vijf bestanden van een mislukte groep nog één keer los — bij 429/503 juist niet
 - **2026-09-11**: Maandoverzicht in de Uren-analyse — elke maand (rij of balk, ook een lege) opent de kalender van *Per maand* met onderaan per dag de bron (egaal zelf, gearceerd uit een factuur, gestreept omlijnd een werkdag zonder uren), daaronder je eigen registraties met hun factuur en de facturen met hun uren. Aanvullen via Registraties (dag → week, knop → maand). Vervangt de doorklik naar alleen de facturen
 - **2026-09-11**: Herkomst per maand in de Uren-analyse — per maand zelf geschreven (egaal) of uit een factuur (gearceerd), met het factuurnummer erbij; een maand met facturen erachter opent de doorklik van Facturen. De AI-import koppelt voortaan via het inleeslogboek (SHA-256 → `factuurId`), een oudere via de bestandsnaam. De tooltip-hint "Klik voor de facturen" staat alleen nog waar een klik iets doet
