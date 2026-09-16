@@ -640,6 +640,78 @@ async function runChecks() {
         for (let i = 0; i < 3; i++) regels.push({aantal:1, stuksprijs:0.105, btwTarief:0});
         return w.factuurTotalen({regels}).excl === 0.33;
       }],
+    /* ── Opdrachten: het rekenwerk achter het vooruitzicht ────────────────
+       Zuivere functies op een datum en een object; "vandaag" gaat erin mee,
+       zodat de uitkomst niet verschuift met de dag waarop je de test draait.
+       14 september 2026 is een maandag. */
+    ['Opdrachten: werkdagen tellen ma–vr, begin en eind inbegrepen',
+      () => w.opdWerkdagen('2026-09-14','2026-09-20') === 5 &&
+            w.opdWerkdagen('2026-09-19','2026-09-20') === 0 &&
+            w.opdWerkdagen('2026-09-14','2026-10-11') === 20 &&
+            w.opdWerkdagen('2026-10-01','2026-10-31') === 22],
+    ['Opdrachten: opzegtermijn van een maand vanaf de 31e landt op de laatste dag',
+      () => w.opdOpzegDatum({eind:'2026-03-31', opzeg:'1m'}) === '2026-02-28' &&
+            w.opdOpzegDatum({eind:'2026-10-26', opzeg:'2w'}) === '2026-10-12' &&
+            w.opdOpzegDatum({eind:'2026-10-26', opzeg:''}) === null],
+    ['Opdrachten: gepland, lopend en afgelopen hangen aan vandaag',
+      () => w.opdStatus({start:'2026-10-01'}, '2026-09-16') === 'gepland' &&
+            w.opdStatus({start:'2026-01-01', eind:'2026-09-16'}, '2026-09-16') === 'lopend' &&
+            w.opdStatus({start:'2026-01-01'}, '2026-09-16') === 'lopend' &&
+            w.opdStatus({start:'2026-01-01', eind:'2026-09-15'}, '2026-09-16') === 'afgelopen'],
+    ['Opdrachten: planning begint morgen en telt per maand in werkdagen',
+      () => {
+        /* 17 t/m 30 september: 10 werkdagen × 4 uur. Oktober: 22 × 4. */
+        const p = w.opdPlanning({start:'2026-01-01', eind:'2026-10-31', urenPerWeek:20}, 0, '2026-09-16', null);
+        return p.maanden['2026-09'] === 40 && p.maanden['2026-10'] === 88 && p.uren === 128;
+      }],
+    ['Opdrachten: een urenbudget is een plafond, met de dag waarop het op is',
+      () => {
+        const p = w.opdPlanning({start:'2026-01-01', eind:'2026-10-31', urenPerWeek:20, urenBudget:100}, 60, '2026-09-16', null);
+        return p.uren === 40 && p.maanden['2026-09'] === 40 && !p.maanden['2026-10'] &&
+               p.budgetOp === '2026-09-30';
+      }],
+    ['Opdrachten: budget zonder uren per week wordt over de resterende werkdagen verdeeld',
+      () => {
+        const p = w.opdPlanning({start:'2026-09-01', eind:'2026-10-31', urenBudget:128}, 0, '2026-09-16', null);
+        return p.maanden['2026-09'] === 40 && p.maanden['2026-10'] === 88 && p.budgetOp === null;
+      }],
+    ['Opdrachten: een urenregel hoort bij de opdracht die het laatst begon',
+      () => {
+        const k = w.opdKoppelUren(
+          [{id:'a', clientId:'k', start:'2026-01-01', eind:null},
+           {id:'b', clientId:'k', start:'2026-06-01', eind:'2026-12-31'}],
+          [{clientId:'k', date:'2026-07-01', hours:2},
+           {clientId:'k', date:'2026-03-01', hours:1},
+           {clientId:'x', date:'2026-07-01', hours:5}]);
+        return k.perOpdracht.a.length === 1 && k.perOpdracht.a[0].hours === 1 &&
+               k.perOpdracht.b.length === 1 && k.perOpdracht.b[0].hours === 2;
+      }],
+    ['Opdrachten: melding bij een naderend einde en een beslismoment, niet zonder einddatum',
+      () => {
+        const info = {budget:0, gebruikt:{uren:0}, laatsteRegel:'2026-09-15'};
+        const met = w.opdSignalen({start:'2026-01-01', eind:'2026-10-26', opzeg:'1m'}, info, '2026-09-16').map(s => s.soort);
+        const zonder = w.opdSignalen({start:'2026-01-01'}, info, '2026-09-16');
+        return met.includes('opzeg') && met.includes('eind') && zonder.length === 0;
+      }],
+    ['Laden: opslaan tijdens het laden overschrijft geen module die nog moet laden',
+      () => {
+        /* Een urenregel zonder aanmaakdatum laat urenMigrateEntries() opslaan
+           terwijl Facturen en Opdrachten nog niet geladen zijn. Vóór de fix
+           kwam hun oude inhoud uit het geheugen over de ingelezen heen. */
+        const bewaard = JSON.parse(JSON.stringify(w.huidigeStateSnapshot()));
+        try {
+          const proef = JSON.parse(JSON.stringify(bewaard));
+          proef.uren = {entries:[{id:'t1', date:'2026-09-01', clientId:null, hours:1, description:'', status:'open'}], templates:[]};
+          proef.facturen = {invoices:[{id:'proef-f', regels:[]}], settings:{}};
+          proef.opdrachten = {opdrachten:[{id:'proef-o', clientId:'k', start:'2026-01-01'}]};
+          w.eval('rawState=' + JSON.stringify(proef) + ';hydrateerState();');
+          const na = w.huidigeStateSnapshot();
+          return na.opdrachten.opdrachten.some(o => o.id === 'proef-o') &&
+                 na.facturen.invoices.some(f => f.id === 'proef-f');
+        } finally {
+          w.eval('rawState=' + JSON.stringify(bewaard) + ';hydrateerState();');
+        }
+      }],
     ['Voet: één mintknop, en dat is Betaling registreren', () => {
       const f = w.factuurNieuw(null, null, null);
       w.facConceptVastleggen();                 /* pas dan telt hij niet meer als concept */

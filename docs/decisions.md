@@ -10,6 +10,92 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-16 · Module Opdrachten: contracten per klant en een vooruitzicht in de werkmaand
+
+**Probleem.** Tot wanneer een opdracht loopt, hoeveel uur per week, tegen welk
+tarief en wanneer je moet beslissen over verlengen stond nergens in de app. En
+dus ook niet wat er de komende maanden binnenkomt.
+
+**Beslissing.** Een module **Opdrachten** in de groep Administratie, onder
+Facturen (`#opdrachten`, `rawState.opdrachten`). Frank koos zelf:
+- **Twee soorten afspraken:** uurtarief met uren per week, en uurtarief met
+  een urenbudget. Geen vast bedrag per maand en geen vaste projectprijs.
+- **Het vooruitzicht telt in de werkmaand.** Tot en met vandaag de uren die je
+  schreef (alle klanten, tegen het tarief van de regel, anders van de
+  opdracht, anders van de klant), vanaf morgen de uren uit je opdrachten.
+  Geschreven is egaal, gepland gearceerd (stijlgids §11). In de huidige maand
+  staan ze op elkaar.
+- **Beginnen met een voorstel uit je uren:** elke klant met uren in de laatste
+  acht weken en zonder lopende opdracht krijgt een voorstel. De start is het
+  begin van de huidige reeks, de uren per week het gemiddelde sindsdien, het
+  tarief het meest gebruikte afwijkende tarief of dat van de klant.
+
+**Hoe uren bij een opdracht horen.** Via klant en looptijd, niet via een veld
+op de urenregel. Een keuze bij elke urenregel is precies het handwerk dat deze
+module niet mocht toevoegen. Overlappen twee opdrachten van dezelfde klant, dan
+gaat een regel naar de opdracht die het laatst begon.
+
+**Wat de lijst meldt.** Een einde binnen acht weken, een beslismoment voor
+verlengen of opzeggen binnen drie weken (einddatum min opzegtermijn), een
+budget vanaf 75% (via de kleur van de balk, niet als pil die hetzelfde
+percentage herhaalt), en een lopende opdracht zonder uren in drie weken. Een
+opdracht zonder einddatum krijgt géén melding: dat is geen probleem. De
+meldingen staan in de kolom waar ze over gaan. Een aparte kolom "Let op" kostte
+220px, waardoor op een laptop van 1280px de klantnaam afbrak tot "Van der ...".
+
+**Rekenwerk.** Werkdagen maandag tot en met vrijdag, zonder feestdagen of
+vakantie: het is een schatting, geen rooster. Een budget is een plafond: is het
+op, dan stopt de planning, ook vóór de einddatum. "Op rond" staat er alleen bij
+een vast aantal uren per week; bij een budget dat over de looptijd wordt
+verdeeld is het budget per definitie op de einddatum op. Een maand opzegtermijn
+vanaf de 31e landt op de laatste dag van de vorige maand.
+
+**Mobiel.** Nog niet vormgegeven, op verzoek. Geen knop in de tabbalk, wel
+bereikbaar via de lade. De tabel schuift daar voorlopig zijwaarts binnen zijn
+kaart: de mobiele laag verbergt `.uren-sheet-card`, en zonder uitzondering was
+de lijst op een telefoon leeg.
+
+**Bestanden.** `index.html`: `#mod-opdrachten`, `#opdModal`,
+`#opdVoorstelModal`, een regel in de zijbalk, het CSS-blok "Opdrachten" (na het
+meldingsblok) en de sectie MODULE: OPDRACHTEN. `opdrachtState` staat in
+`hydrateerState()`, `verzamelModuleState()`, `stateOmvang()` en
+`voegStateSamen()`. `test.html` heeft 8 tests op het rekenwerk.
+
+**Niet doen.** Een opdrachtveld op de urenregel "voor de nauwkeurigheid". En
+feestdagen er half in: dan lijkt het een rooster, en dat is het niet.
+
+## 2026-09-16 · Opslaan tijdens het laden wacht tot alles geladen is
+
+**Probleem.** `hydrateerState()` laadt de modules na elkaar. Halverwege draait
+`urenMigrateEntries()`, en die roept `scheduleSave()` aan zodra hij iets
+aanpast. Die schrijft direct een lokale kopie, en `verzamelModuleState()` zet
+daarvoor álle modules terug in `rawState`: ook de modules die nog niet geladen
+waren. Hun oude inhoud uit het geheugen kwam zo over wat er net was ingelezen
+heen, en daarna laadde de module die oude inhoud. Gevonden doordat Opdrachten
+leeg bleef bij testgegevens waarin urenregels geen aanmaakdatum hadden.
+
+**Wat het in de praktijk kon doen.** Normaal niets: jouw urenregels hebben die
+datum al, dus de migratie past niets aan. Maar bij het terugzetten van een
+oudere back-up met zulke regels konden de facturen van vóór het terugzetten
+over de teruggezette heen komen.
+
+**Beslissing.** `scheduleSave()` wacht tijdens het laden. Het verzoek wordt
+onthouden (`hydratieWilOpslaan`) en na afloop één keer uitgevoerd, met alle
+modules geladen. `hydrateerState()` is daarvoor een omhulsel om
+`hydrateerStateIntern()` geworden, met een `finally` zodat een fout
+halverwege de opslag niet voor altijd blokkeert.
+
+**Waarom niet alleen de volgorde omgooien.** Dan hangt de veiligheid ervan af
+dat niemand ooit nog iets met een opslag vóór een andere module zet. Dat is
+precies hoe dit ontstond.
+
+**Bewijs.** Een test in `test.html` zet een state met een urenregel zonder
+aanmaakdatum, een factuur en een opdracht, laadt hem en controleert dat beide
+blijven. Zonder de fix faalt die test (106/107), met de fix slagen ze alle 107.
+
+**Niet doen.** `scheduleSave()` aanroepen vanuit laadcode en ervan uitgaan dat
+hij direct schrijft: tijdens het laden doet hij dat bewust niet.
+
 ## 2026-09-16 · Klantwisselaar: zelfde maat als Externe tools, drukste klant bovenaan
 
 **Probleem.** Frank vond de klantwisselaar net te groot naast het venster van

@@ -338,7 +338,9 @@ De regels die daarbij horen:
   uit een factuur, over de werkdagen verdeeld — krijgt dezelfde tint
   gearceerd (135°, lijn van 2px op 5px) met een rand van 1px:
   `.vul.afgeleid` en `.fac-an-leg i.afgeleid`. Geen tweede kleur: het is geen
-  andere reeks, het is een andere bron. Altijd met een legenda.
+  andere reeks, het is een andere bron. Altijd met een legenda. In een svg is
+  dat een `<pattern>` op 45° met een rand van 1px, zoals `.opd-gepland` in het
+  vooruitzicht van Opdrachten: gepland is afgeleid, geschreven gemeten.
 - **Een hint of een hand alleen bij een doorklik.** "Klik voor de facturen"
   in de tooltip en `cursor:pointer` staan alleen op een baan met
   `data-fac-action` of `data-uren-action`. Een hand die niets opent is een
