@@ -10,6 +10,32 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-16 · Klantwisselaar: zelfde maat als Externe tools, drukste klant bovenaan
+
+**Probleem.** Frank vond de klantwisselaar net te groot naast het venster van
+Externe tools: 360px breed, een gecentreerde kop van 112px met een logo van
+64px, en regels van 52px met blokjes van 36px en een naam van 14px. En de
+klanten stonden op alfabet, terwijl je meestal naar de klant met het meeste
+werk wilt.
+
+**Beslissing.** Dezelfde maten als `.ext-tools-link`, gemeten: 320px breed,
+6px binnenrand, regels van 48px, blokje 22px met initialen van 11px, naam
+13px/600, bijregel 10,5px. De kop is één regel (blokje van 32px met naam en
+uitleg ernaast) en het zoekveld 34px. Van 797 naar 637px hoog bij acht
+klanten. Volgorde: meeste open taken eerst, bij gelijk aantal op naam, "Alle
+klanten" altijd bovenaan.
+
+**Meegenomen.** Op een telefoon gaf de algemene invoerregel het zoekveld een
+zijvulling naast het vergrootglas; die gaat eraf met een even zware selector
+(`input.klant-wissel-invoer`), zoals bij het zoekveld van Notities. De eigen
+16px-regel is weg: `.ios-tab` regelt dat al voor iOS.
+
+**Bestanden.** `index.html` — het blok "Klantwisselaar" in de CSS,
+`klantWisselRijen()`. `docs/stijlgids.md` §13.
+
+**Niet doen.** De wisselaar een eigen maat geven die afwijkt van Externe tools
+— het zijn twee vensters uit dezelfde zijbalk, ze horen even groot te voelen.
+
 ## 2026-09-16 · Zijbalk opnieuw: klantwisselaar, groep Administratie, gebruiker onderin
 
 **Probleem.** Frank leverde screenshots aan van een andere app als voorbeeld

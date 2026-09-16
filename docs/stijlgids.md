@@ -413,8 +413,10 @@ en het gebruikersblok; het ↗ van Externe tools draait niet mee.
 **Waar een venster uit de zijbalk opengaat.** Op een bureaublad rechts náást
 de zijbalk, op de hoogte van de knop (`zijbalkPlaats`); in de lade onder de
 knop, of erboven als dat niet past. Er staat er hooguit één open
-(`sluitZijbalkVensters`). Menu's zijn gewone `.uren-menu`s; de klantwisselaar
-is een eigen kaart van 360px.
+(`sluitZijbalkVensters`). Menu's zijn gewone `.uren-menu`s. De klantwisselaar
+is een eigen kaart, maar met de maten van het venster van Externe tools: 320px
+breed, 6px binnenrand, regels van 48px met een blokje van 22px, naam 13px/600,
+bijregel `var(--fs-micro)`. Klanten staan op aantal open taken, meeste eerst.
 
 **Nieuwe module erbij?** Een regel met `data-mod` en `data-titel` (de tooltip
 als hij ingeklapt is). Hoort hij bij een andere, zet hem dan in een
