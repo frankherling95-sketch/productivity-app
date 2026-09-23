@@ -50,7 +50,7 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 | `#checklist` | Checklist | Taken met subtaken, filters (prio/klant/periode), vastpinnen, drag-drop, archief |
 | `#uren` | Uren | Urenregistratie per regel, week/maand, Excel export |
 | `#facturen` | Facturen | Facturen uit geschreven uren, sjabloonbouwer, debiteuren, btw-overzicht, mailen via Gmail, analyse |
-| `#opdrachten` | Opdrachten | Contracten per klant (looptijd, uren per week of urenbudget, tarief, opzegtermijn) en een vooruitzicht per werkmaand |
+| `#opdrachten` | Opdrachten | Opdrachten per klant (looptijd, uren per week of urenbudget, tarief, opzegtermijn, PDF van de overeenkomst) en een vooruitzicht per werkmaand |
 | `#contracten` | Contracten | Zakelijke én privécontracten (twee tabs), elk met looptijd, opzegtermijn, stilzwijgende verlenging en de PDF erbij |
 
 Entry render functions: `renderDashboard()`, `renderTodoModule()`, `renderNotesModule()`, `renderChecklistModule()`, `renderUrenModule()`, `renderFacturenModule()`, `renderOpdrachtenModule()`, `renderContractenModule()`. `renderAll()` wordt aangeroepen na elke `loadGist()`.
@@ -76,7 +76,7 @@ rawState = {
 - Notes node (recursief): `{id, type:'page'|'folder', title, content, clientId, tags, children[]}`
 - Klant: `{id, name, colorIdx}`
 - Contract: `{id, domein ('zakelijk'|'prive'; ontbreekt = zakelijk), soort, titel, clientId|null, wederpartij, opdrachtId|null, getekend, start, eind|null, opzeg, verlenging ('' of '1m'/'3m'/'6m'/'12m'), notitie, bijlagen[]}` — een bijlage is `{id, naam, grootte, hash, driveId|null}`. De PDF staat als **eigen bestand** in de Drive-`appDataFolder` (`contract-<id>.pdf`) plus een kopie in IndexedDB (`herling_bijlagen`), niet in `rawState`. Hangt een contract aan een opdracht, dan komt de looptijd uit de opdracht (`ctrLooptijd()`)
-- Opdracht: `{id, clientId, naam, start, eind|null, opzeg ('', '2w', '1m', …), tarief|null, urenPerWeek|null, urenBudget|null, notitie}` — uren horen erbij via klant + looptijd, niet via een veld op de urenregel
+- Opdracht: `{id, clientId, naam, start, eind|null, opzeg ('', '2w', '1m', …), tarief|null, urenPerWeek|null, urenBudget|null, notitie, bijlagen[]}` — bijlagen zoals bij een contract, zelfde opslag en opruimlijst (`ctrAlleBijlagen()`) — uren horen erbij via klant + looptijd, niet via een veld op de urenregel
 
 ### Storage keys
 
@@ -306,6 +306,7 @@ waar de fout zit.
 
 Top-3 meest recent. Volledige log + *waarom* per beslissing: [`docs/decisions.md`](docs/decisions.md).
 
+- **2026-09-23**: **Opdrachten** kan een PDF bij een opdracht bewaren — hetzelfde blok, dezelfde opslag en weergave als bij Contracten (`BIJLAGE_VENSTERS`, `ctrAlleBijlagen()`; opruimlijst blijft `contractState.opruimen`). Knop in de lijst op de tweede regel, zodat de klantnaam op een laptop niet korter wordt. De bestandsnaam in het venster opent de PDF; "Bekijken" alleen nog op een bureaublad. En **"Voorstel uit je uren" is weg**: losse klanten horen geen opdracht te krijgen, en een echte opdracht leg je vast vanuit de overeenkomst
 - **2026-09-23**: Contracten heeft twee lijsten, **Zakelijk** en **Privé** (tabs; `contract.domein`, ontbreekt = zakelijk). Privé kent geen klant of bemiddelaar als soort. Het tellertje op de tab die je níet bekijkt zegt hoeveel daar om aandacht vraagt. De gekozen tab staat per apparaat in localStorage, niet in de state: een weergavekeuze via `scheduleSave()` kon vóór het laden een lege lokale kopie over de goede heen zetten. Meegenomen: keuzechips (`.uren-kchip`) zijn op mobiel `var(--tap)` hoog, ook de statuschips in het urenvenster (waren 35px)
 - **2026-09-23**: Module **Contracten** onder Administratie: elk contract (klant, bemiddelaar, leverancier, verzekering, abonnement, overig) met looptijd, opzegtermijn, stilzwijgende verlenging en PDF's. Een verlengend contract schuift zelf door naar de lopende periode, en is de opzegtermijn verstreken dan telt die van de volgende. Groepen: *Vraagt aandacht* (opzeggen/beslissen binnen zes weken, einde binnen acht) · Lopend · Gepland · Afgelopen. Een PDF gaat **niet** in het databestand (dat gaat bij elke save in zijn geheel naar Drive en localStorage) maar als los bestand in de `appDataFolder`, met een kopie in IndexedDB; weggehaalde PDF's blijven dertig dagen staan (`contractState.opruimen`). Een klantcontract kan zijn looptijd uit een opdracht halen. Het Drive-deel is lokaal niet te testen (geen Google-login op localhost)
 - **2026-09-16**: Module **Opdrachten** onder Administratie: per klant looptijd, uren per week of urenbudget, tarief en opzegtermijn; meldingen bij een naderend einde, een beslismoment en een budget vanaf 75%. Het vooruitzicht telt in de werkmaand: geschreven tot vandaag (egaal), gepland vanaf morgen (gearceerd). Beginnen kan met een voorstel uit je uren. Uren horen bij een opdracht via klant + looptijd, niet via een veld op de urenregel. Mobiel nog niet vormgegeven
@@ -421,7 +422,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 117 smoke-, sync-, model-, reken- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
+| `test.html` | 119 smoke-, sync-, model-, reken- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |

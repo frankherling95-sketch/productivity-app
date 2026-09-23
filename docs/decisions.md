@@ -10,6 +10,62 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-23 · Opdrachten: PDF's bij een opdracht, één PDF-blok voor twee modules
+
+**Probleem.** Voor een opdracht sluit Frank ook een overeenkomst af, maar de PDF
+kon alleen bij een contract.
+
+**Beslissing.** Een opdracht krijgt `bijlagen[]`, met hetzelfde blok als in het
+contractvenster en dezelfde weergave. Er is één PDF-laag: `BIJLAGE_VENSTERS`
+zegt per venster welk formulier en welke plek in de DOM erbij hoort, en de
+opslag, het versturen naar Drive en het opruimen gaan over
+`ctrAlleBijlagen()` -- contracten én opdrachten. De opruimlijst blijft
+`contractState.opruimen`, ook voor een PDF van een opdracht: één lijst is één
+plek om te zoeken. Verwijder je een opdracht, dan gaan zijn PDF's daarin, en
+"ongedaan maken" haalt ze er weer uit.
+
+**Waar de knop in de lijst staat.** Niet in een eigen kolom en niet naast de
+klantnaam: allebei kosten ze de naam op een laptop zijn ruimte (zie de kolom
+"Let op" van 2026-09-16). Naast de naam hield "Van der Meer Logistiek &
+Transport Nederland B.V." op 1280px 149 van de 312px over; op de tweede regel,
+achter de omschrijving, blijft het 219px -- evenveel als zonder knop.
+
+**Meegenomen: de bestandsnaam opent de PDF.** Op een telefoon liet de knop
+"Bekijken" van de bestandsnaam alleen "Overeenkomst …" over (bij Contracten
+net zo). De naam met de regel eronder is nu zelf de knop; op een telefoon
+valt "Bekijken" weg, op een bureaublad blijft hij staan. Naam 225 van 248px
+op 375px.
+
+**Bestanden.** `index.html`: `#opdBijlagen`/`#opdBestand` in `#opdModal`,
+`opdPdfKnop()`, `.opd-regel2`, en in MODULE: CONTRACTEN het blok "PDF's in een
+venster" (`BIJLAGE_VENSTERS`, `ctrVenster`, `ctrAlleBijlagen`,
+`ctrMenuUploadItem`). "PDF's naar Drive sturen" staat nu ook in het ⋯ van
+Opdrachten. `test.html`: 119/119.
+
+**Niet doen.** Een tweede kopie van het PDF-blok voor Opdrachten schrijven;
+dan lopen de regels (dubbel, 25 MB, dertig dagen) vroeg of laat uit elkaar.
+
+## 2026-09-23 · Opdrachten: "Voorstel uit je uren" weggehaald
+
+**Probleem.** Het voorstel ging ervan uit dat elke klant met uren een opdracht
+hoort te hebben. Zo werkt Frank niet: hij heeft opdrachten van een aantal
+maanden met een vast aantal uur per week, en daarnaast losse klanten waarvoor
+hij af en toe iets doet. Die losse klanten verschenen telkens als melding
+"klanten met recente uren zonder opdracht". En voor een echte opdracht staan
+looptijd en uren al in de overeenkomst; een schatting uit je uren voegt daar
+niets aan toe.
+
+**Beslissing.** Weg: de melding boven de lijst en het vooruitzicht, het
+menu-item, het voorstelvenster, de knop in de lege lijst en `opdVoorstellen()`.
+Een opdracht leg je zelf vast. Het vooruitzicht telt de geschreven uren van
+losse klanten nog steeds mee (egaal), alleen zonder planning vooruit.
+
+**Vervangt** het punt "Beginnen met een voorstel uit je uren" uit de entry
+van 2026-09-16.
+
+**Niet doen.** Het voorstel terughalen met een vinkje "losse klant" per klant:
+Frank koos daar bewust niet voor.
+
 ## 2026-09-23 · Contracten: zakelijk en privé als twee lijsten
 
 **Probleem.** Frank wil ook zijn privécontracten (energie, verzekeringen,

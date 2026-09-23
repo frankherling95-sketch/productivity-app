@@ -768,6 +768,24 @@ async function runChecks() {
     ['Contracten: privé kent geen klant of bemiddelaar als soort',
       /* Een top-level const staat niet op window, vandaar de eval. */
       () => w.eval('CTR_SOORTEN_PRIVE').every(s => s !== 'klant' && s !== 'bemiddelaar')],
+    ['Bijlagen: een PDF bij een opdracht telt mee bij versturen en opruimen',
+      () => {
+        const opd = w.eval('opdrachtState');
+        const o = {id:'proef-pdf', clientId:'k', start:'2026-01-01',
+                   bijlagen:[{id:'proef-b', naam:'x.pdf', grootte:1, hash:'h', driveId:null}]};
+        const voor = w.ctrWachtend();
+        opd.opdrachten.push(o);
+        try {
+          return w.ctrWachtend() === voor + 1 &&
+                 w.ctrZoekBijlage('proef-b') === o.bijlagen[0] &&
+                 w.ctrAlleBijlagen().some(b => b.id === 'proef-b');
+        } finally {
+          opd.opdrachten.splice(opd.opdrachten.indexOf(o), 1);
+        }
+      }],
+    ['Opdrachten: het voorstel uit je uren is weg',
+      () => !d.getElementById('opdVoorstelModal') && typeof w.opdVoorstellen === 'undefined' &&
+            !!d.getElementById('opdBijlagen') && !!d.getElementById('opdBestand')],
     ['Contracten: blijven bij het laden staan en worden aangevuld bij samenvoegen',
       () => {
         const bewaard = JSON.parse(JSON.stringify(w.huidigeStateSnapshot()));
