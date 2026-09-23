@@ -228,6 +228,10 @@ plus een `<select>`, in dezelfde doos als het invoerveld ernaast (`--surface2`,
 het in het urenvenster; de facturen-editor doet hetzelfde met een kale
 `<select class="fac-ed-inp">`.
 
+**Een keuzechip** (`.uren-kchip`, voor een vaste set als de drie statussen of
+Zakelijk/Privé) is op mobiel minstens `var(--tap)` hoog, net als de duurchips
+in het urenvenster. Op desktop 30px.
+
 **Geen rij chips.** Wat uit een lijst komt die met de administratie meegroeit —
 klanten, bedrijven, sjablonen — hoort in een uitklaplijst. Chips blijven waar
 het aantal vaststaat: de drie statussen, de vier snelknoppen bij Uren.

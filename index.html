@@ -2108,6 +2108,11 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .ctr-pdfknop svg{width:13px;height:13px;flex-shrink:0}
 .ctr-pdfknop span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ctr-geenpdf{font-size:var(--fs-klein);color:var(--text-hint)}
+/* Tellertje op de tab van het andere domein: hoeveel daar om aandacht
+   vraagt. De tint draagt het signaal, de tekst blijft --text (stijlgids §12). */
+.ctr-tabteller{display:inline-block;min-width:17px;margin-left:6px;padding:0 5px;border-radius:999px;
+  background:var(--warning-bg);box-shadow:inset 0 0 0 1px rgba(217,119,6,.55);color:var(--text);
+  font-size:var(--fs-micro);font-weight:700;line-height:17px;text-align:center;font-variant-numeric:tabular-nums}
 
 /* Telefoon: de lijstkaart. De tijdregel is de vierde plek links (stijlgids
    §4) en draagt de opzegdatum; rechts het einde met de looptijd eronder. */
@@ -6280,7 +6285,10 @@ textarea { line-height: 1.6; resize: vertical; }
   /* Vijf naast elkaar op 375px: de zijvulling zit al in de flexverdeling,
      de hoogte hoort een raakvlak te zijn. */
   .uren-dur-chips .uren-chip { min-height: var(--tap); padding: 0 4px; }
-  .uren-kchip { padding: 9px 15px; font-size: 13px; }
+  /* Een keuzechip staat op zichzelf, dus minstens var(--tap) hoog -- net als
+     de duurchips erboven in het urenvenster. Stond op 35px. Ook voor
+     Zakelijk/Privé in het contractvenster. */
+  .uren-kchip { padding: 9px 15px; font-size: 13px; min-height: var(--tap); }
 
   /* ── Factuurregels: van tabel naar blokjes ──
      Zes kolommen naast elkaar zijn samen ruim 450px; op een telefoon
@@ -8342,6 +8350,15 @@ textarea { line-height: 1.6; resize: vertical; }
           aria-haspopup="menu" aria-expanded="false" aria-label="Meer acties" title="Meer acties"><svg class="icoon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="13" cy="8" r="1.5"/></svg></button>
         <button class="uren-btn uren-btn-primary" data-action="ctrNieuw">+ Nieuw contract</button>
       </div>
+      <!-- Zakelijk en privé zijn twee lijsten, niet één lijst met een filter:
+           je kijkt in de ene of de andere. ctrRenderAll() zet de actieve tab
+           en het tellertje op de andere. -->
+      <div class="uren-viewbar">
+        <div class="uren-tabs" role="tablist">
+          <button class="uren-tab active" role="tab" data-action="ctrSetWeergave" data-arg1="zakelijk">Zakelijk</button>
+          <button class="uren-tab" role="tab" data-action="ctrSetWeergave" data-arg1="prive">Privé</button>
+        </div>
+      </div>
       <div class="uren-content" id="ctrBody"></div>
       <button class="uren-fab" data-action="ctrNieuw" aria-label="Nieuw contract">+</button>
     </div>
@@ -8537,17 +8554,15 @@ textarea { line-height: 1.6; resize: vertical; }
   <div class="modal" style="max-width:640px;padding:20px 22px">
     <h3 id="ctrModalTitel" style="font-size:18px;font-weight:700;margin:0 0 16px">Nieuw contract</h3>
     <div class="uren-form">
+      <div class="uren-fld">
+        <label>Zakelijk of privé</label>
+        <div class="uren-statuspick" id="ctrDomein" role="group" aria-label="Zakelijk of privé"></div>
+      </div>
       <div class="opd-velden2">
         <div class="uren-fld">
           <label for="ctrSoort">Soort</label>
-          <select class="inp" id="ctrSoort" data-change="ctrKiesSoort">
-            <option value="klant">Klant</option>
-            <option value="bemiddelaar">Bemiddelaar</option>
-            <option value="leverancier">Leverancier</option>
-            <option value="verzekering">Verzekering</option>
-            <option value="abonnement">Abonnement</option>
-            <option value="overig">Overig</option>
-          </select>
+          <!-- De keuzes vult ctrRenderSoortKeuze(): privé kent geen klant of bemiddelaar. -->
+          <select class="inp" id="ctrSoort" data-change="ctrKiesSoort"></select>
         </div>
         <div class="uren-fld" id="ctrPartijVeld">
           <label for="ctrPartij" id="ctrPartijLabel">Wederpartij</label>
@@ -30119,7 +30134,8 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')opdSluitMenu();});
    ───────────────────────────────────────────────────
      ═══ STATE ═══  contractState.contracten[] (rawState.contracten),
                     contractState.opruimen[] (weggehaalde PDF's, 30 dagen),
-                    ctrToonAfgelopen, ctrForm (alleen in het venster).
+                    ctrToonAfgelopen, ctrForm (alleen in het venster),
+                    de gekozen tab per apparaat (LS_CTR_WEERGAVE).
      ═══ LOGIC ═══  ctrPlusMaanden, ctrLooptijd, ctrStatus, ctrSignalen --
                     zuivere functies, getest in test.html.
      ═══ OPSLAG ═══ ctrLokaal* (dit apparaat: IndexedDB), ctrDrive* (Drive:
@@ -30128,7 +30144,8 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')opdSluitMenu();});
      ═══ VIEW  ═══  renderContractenModule → ctrRenderLijst; ctrOpen /
                     ctrOpslaan (venster), ctrPdfOpen (de PDF bekijken).
 
-   Een contract: {id, soort, titel, clientId|null, wederpartij,
+   Een contract: {id, domein ('zakelijk'|'prive'; ontbreekt = zakelijk),
+   soort, titel, clientId|null, wederpartij,
    opdrachtId|null, getekend, start, eind|null, opzeg ('', '1m', …),
    verlenging ('' of '1m'/'3m'/'6m'/'12m'), notitie, bijlagen[], createdAt,
    updatedAt}. Een bijlage: {id, naam, grootte, hash, driveId|null,
@@ -30151,6 +30168,10 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')opdSluitMenu();});
    ═══════════════════════════════════════════════════ */
 const CTR_SOORTEN={klant:'Klant',bemiddelaar:'Bemiddelaar',leverancier:'Leverancier',
   verzekering:'Verzekering',abonnement:'Abonnement',overig:'Overig'};
+/* Zakelijk en privé zijn twee lijsten. Privé kent geen klant en geen
+   bemiddelaar: dat zijn contracten van de zaak. */
+const CTR_DOMEINEN={zakelijk:'Zakelijk',prive:'Privé'};
+const CTR_SOORTEN_PRIVE=['leverancier','verzekering','abonnement','overig'];
 const CTR_TERMIJN={'1w':'1 week','2w':'2 weken','1m':'1 maand','2m':'2 maanden','3m':'3 maanden','6m':'6 maanden'};
 const CTR_VERLENG={'1m':'een maand','3m':'drie maanden','6m':'een half jaar','12m':'een jaar'};
 /* Op de lijstkaart van een telefoon: rechts is maar een smalle kolom, en een
@@ -30165,6 +30186,12 @@ const CTR_VOORBEELD={
   verzekering:{partij:'Centraal Beheer',titel:'Beroepsaansprakelijkheid'},
   abonnement:{partij:'Microsoft',titel:'Microsoft 365 Business'},
   overig:{partij:'',titel:'Huurovereenkomst werkplek'}
+};
+const CTR_VOORBEELD_PRIVE={
+  leverancier:{partij:'Vattenfall',titel:'Energiecontract'},
+  verzekering:{partij:'Zilveren Kruis',titel:'Zorgverzekering'},
+  abonnement:{partij:'Ziggo',titel:'Internet en tv'},
+  overig:{partij:'',titel:'Huurovereenkomst woning'}
 };
 const CTR_MAX_BYTES=25*1024*1024;
 const CTR_BEWAAR_DAGEN=30;
@@ -30268,6 +30295,18 @@ function ctrSignalen(c,lt,vandaag){
 
 /* ── Namen en teksten ── */
 function ctrSoortLabel(s){return CTR_SOORTEN[s]||'Overig';}
+function ctrDomein(c){return c&&c.domein==='prive'?'prive':'zakelijk';}
+/* Welke tab je bekijkt, per apparaat en niet in de state -- net als de stand
+   van de zijbalk. Een weergavekeuze hoort niet via scheduleSave(): die
+   schrijft direct een lokale kopie, en een tik vóórdat de gegevens geladen
+   zijn zou dan een lege kopie over de goede heen zetten. */
+const LS_CTR_WEERGAVE='herling_contracten_weergave';
+let ctrWeergaveNu=(()=>{try{return localStorage.getItem(LS_CTR_WEERGAVE)==='prive'?'prive':'zakelijk';}catch(_){return 'zakelijk';}})();
+function ctrWeergave(){return ctrWeergaveNu;}
+function ctrWeergaveZet(v){
+  ctrWeergaveNu=v==='prive'?'prive':'zakelijk';
+  try{localStorage.setItem(LS_CTR_WEERGAVE,ctrWeergaveNu);}catch(_){}
+}
 function ctrKlantKant(soort){return soort==='klant'||soort==='bemiddelaar';}
 function ctrTermijn(opzeg){return CTR_TERMIJN[opzeg]||'';}
 /* Met wie: bij een klantcontract de klant, anders de naam die je typte. Een
@@ -30304,14 +30343,20 @@ function ctrLooptijdTekst(c,i,vandaag){
 }
 
 /* ── Wat de lijst nodig heeft, één keer uitgerekend ── */
-function ctrData(vandaag){
-  const lijst=contractState.contracten||[];
+/* De lijst is die van één domein; wat om aandacht vraagt wordt voor allebei
+   geteld, zodat de tab van het andere domein het kan laten zien. */
+function ctrData(vandaag,domein){
+  domein=domein||ctrWeergave();
+  const alle=contractState.contracten||[];
   const info={};
-  lijst.forEach(c=>{
+  const aandacht={zakelijk:0,prive:0};
+  alle.forEach(c=>{
     const lt=ctrLooptijd(c,vandaag);
-    info[c.id]={lt,status:ctrStatus(c,vandaag,lt),signalen:ctrSignalen(c,lt,vandaag)};
+    const i={lt,status:ctrStatus(c,vandaag,lt),signalen:ctrSignalen(c,lt,vandaag)};
+    info[c.id]=i;
+    if(i.signalen.length)aandacht[ctrDomein(c)]++;
   });
-  return {vandaag,lijst,info};
+  return {vandaag,domein,lijst:alle.filter(c=>ctrDomein(c)===domein),info,aandacht};
 }
 /* Elk contract staat in precies één groep. Wat om een handeling vraagt
    staat bovenaan, in de volgorde waarin het moet. */
@@ -30342,19 +30387,37 @@ function renderContractenModule(){
   ctrUploadWachtrij();
   ctrRuimOp();
 }
+/* Het tellertje staat alleen op de tab die je níet bekijkt: bij de tab die
+   openstaat noemt de groep "Vraagt aandacht" hetzelfde getal al. */
 function ctrRenderAll(){
   const body=document.getElementById('ctrBody');
   if(!body)return;
-  body.innerHTML=ctrRenderLijst(ctrData(opdVandaag()));
+  const d=ctrData(opdVandaag());
+  document.querySelectorAll('#mod-contracten .uren-tab').forEach(t=>{
+    const dom=t.dataset.arg1==='prive'?'prive':'zakelijk';
+    const actief=dom===d.domein;
+    const n=actief?0:d.aandacht[dom];
+    t.classList.toggle('active',actief);
+    t.setAttribute('aria-selected',actief?'true':'false');
+    t.setAttribute('aria-label',CTR_DOMEINEN[dom]+(n?', '+n+' '+(n===1?'vraagt':'vragen')+' aandacht':''));
+    t.innerHTML=CTR_DOMEINEN[dom]+(n?`<span class="ctr-tabteller" aria-hidden="true">${n}</span>`:'');
+  });
+  body.innerHTML=ctrRenderLijst(d);
+}
+function ctrSetWeergave(v){
+  ctrWeergaveZet(v);
+  ctrRenderAll();
 }
 /* Op een bureaublad een tabel, op een telefoon kaarten. Beide staan in de
    DOM en de CSS kiest (.uren-sheet-card / .uren-mlist), net als bij Uren
    en Facturen. */
 function ctrRenderLijst(d){
   if(!d.lijst.length){
+    const prive=d.domein==='prive';
     return `<div class="uren-sheet-card ctr-altijd"><div class="uren-empty opd-leeg">
-      <b>Nog geen contracten</b>
-      Leg vast wat je afsloot, met wie en tot wanneer het loopt, en zet de PDF erbij. Een contract dat stilzwijgend verlengt, schuift hier vanzelf door.
+      <b>${prive?'Nog geen privécontracten':'Nog geen zakelijke contracten'}</b>
+      ${prive?'Energie, verzekeringen, abonnementen, huur: leg vast wat je afsloot en tot wanneer het loopt, en zet de PDF erbij.'
+        :'Leg vast wat je afsloot, met wie en tot wanneer het loopt, en zet de PDF erbij.'} Een contract dat stilzwijgend verlengt, schuift hier vanzelf door.
       <div class="opd-leeg-acties"><button type="button" class="uren-btn uren-btn-primary" data-action="ctrNieuw">Nieuw contract</button></div>
     </div></div>`;
   }
@@ -30462,7 +30525,8 @@ function ctrToggleMenu(){
   if(!btn)return;
   const d=ctrData(opdVandaag());
   const nAf=d.lijst.filter(c=>d.info[c.id].status==='afgelopen').length;
-  const totaal=d.lijst.reduce((s,c)=>s+(c.bijlagen||[]).length,0);
+  /* Het versturen gaat over alle PDF's, niet alleen die van deze tab. */
+  const totaal=(contractState.contracten||[]).reduce((s,c)=>s+(c.bijlagen||[]).length,0);
   const wacht=ctrWachtend();
   const klaar=ctrDriveKlaar();
   const uitleg=!totaal?"Nog geen PDF's"
@@ -30717,11 +30781,13 @@ function ctrOpen(id){
   ctrSluitMenu();
   const c=id?(contractState.contracten||[]).find(x=>x.id===id):null;
   if(id&&!c)return;
-  ctrForm={id:c?c.id:null,soort:c?(c.soort||'overig'):'klant',clientId:c?(c.clientId||''):'',
+  const domein=c?ctrDomein(c):ctrWeergave();
+  ctrForm={id:c?c.id:null,domein,soort:c?(c.soort||'overig'):(domein==='prive'?'leverancier':'klant'),
+    clientId:c?(c.clientId||''):'',
     opdrachtId:c?(c.opdrachtId||''):'',bijlagen:c?(c.bijlagen||[]).map(b=>({...b})):[],
     nieuw:[],weg:[]};
   const zet=(el,val)=>{const x=document.getElementById(el);if(x)x.value=(val==null?'':val);};
-  zet('ctrSoort',ctrForm.soort);
+  ctrRenderDomein();
   zet('ctrPartij',c?c.wederpartij:'');
   zet('ctrTitel',c?c.titel:'');
   zet('ctrGetekend',c?c.getekend:'');
@@ -30750,7 +30816,7 @@ function ctrSluit(){
 function ctrZetSoort(){
   if(!ctrForm)return;
   const s=ctrForm.soort;
-  const vb=CTR_VOORBEELD[s]||CTR_VOORBEELD.overig;
+  const vb=(ctrForm.domein==='prive'&&CTR_VOORBEELD_PRIVE[s])||CTR_VOORBEELD[s]||CTR_VOORBEELD.overig;
   document.getElementById('ctrKlantVeldA').hidden=s!=='klant';
   document.getElementById('ctrPartijVeld').hidden=s==='klant';
   document.getElementById('ctrKlantVeldB').hidden=s!=='bemiddelaar';
@@ -30763,6 +30829,29 @@ function ctrZetSoort(){
   ctrRenderKlantKeuze();
   ctrRenderOpdrachtKeuze();
   ctrPartijSuggesties();
+}
+function ctrRenderDomein(){
+  const box=document.getElementById('ctrDomein');
+  if(box)box.innerHTML=Object.entries(CTR_DOMEINEN).map(([id,label])=>
+    `<button type="button" class="uren-kchip${ctrForm.domein===id?' active':''}" data-action="ctrKiesDomein"
+      data-arg1="${id}" aria-pressed="${ctrForm.domein===id}">${label}</button>`).join('');
+  ctrRenderSoortKeuze();
+}
+function ctrRenderSoortKeuze(){
+  const sel=document.getElementById('ctrSoort');
+  if(!sel)return;
+  const ids=ctrForm.domein==='prive'?CTR_SOORTEN_PRIVE:Object.keys(CTR_SOORTEN);
+  if(!ids.includes(ctrForm.soort))ctrForm.soort=ids[0];
+  sel.innerHTML=ids.map(id=>`<option value="${id}"${id===ctrForm.soort?' selected':''}>${CTR_SOORTEN[id]}</option>`).join('');
+}
+/* Van zakelijk naar privé met een klantcontract erin: de soort wordt
+   Leverancier, want een klant of bemiddelaar bestaat privé niet. */
+function ctrKiesDomein(v){
+  if(!ctrForm)return;
+  ctrForm.domein=v==='prive'?'prive':'zakelijk';
+  ctrRenderDomein();
+  ctrZetSoort();
+  ctrRekenVoorbeeld();
 }
 function ctrRenderKlantKeuze(){
   const s=ctrForm.soort;
@@ -30813,7 +30902,7 @@ function ctrPartijSuggesties(){
   const dl=document.getElementById('ctrPartijLijst');
   if(!dl||!ctrForm)return;
   const namen=[...new Set((contractState.contracten||[])
-    .filter(c=>c.soort===ctrForm.soort&&c.wederpartij).map(c=>String(c.wederpartij).trim()))]
+    .filter(c=>c.soort===ctrForm.soort&&ctrDomein(c)===ctrForm.domein&&c.wederpartij).map(c=>String(c.wederpartij).trim()))]
     .sort((a,b)=>a.localeCompare(b,'nl'));
   dl.innerHTML=namen.map(n=>`<option value="${escapeHtml(n)}"></option>`).join('');
 }
@@ -30841,7 +30930,7 @@ function ctrLeesVenster(){
   const w=id=>String(document.getElementById(id)?.value||'').trim();
   const s=ctrForm.soort;
   const klantKant=ctrKlantKant(s);
-  return {soort:s,titel:w('ctrTitel'),
+  return {domein:ctrForm.domein==='prive'?'prive':'zakelijk',soort:s,titel:w('ctrTitel'),
     clientId:klantKant&&ctrForm.clientId?ctrForm.clientId:null,
     wederpartij:s==='klant'?'':w('ctrPartij'),
     opdrachtId:klantKant&&ctrForm.clientId&&ctrForm.opdrachtId?ctrForm.opdrachtId:null,
@@ -30905,6 +30994,9 @@ function ctrOpslaan(){
   }
   ctrForm.weg.forEach(b=>ctrBegraaf(b));
   ctrForm.nieuw=[];
+  /* Sla je een privécontract op terwijl je naar Zakelijk kijkt, dan ga je
+     mee naar Privé: anders verdwijnt wat je net opsloeg uit beeld. */
+  ctrWeergaveZet(c.domein);
   scheduleSave();
   ctrSluit();
   ctrRenderAll();
@@ -31086,6 +31178,8 @@ function ctrPdfKies(id){
 
 Object.assign(APP_ACTIONS,{
   ctrToggleMenu:()=>ctrToggleMenu(),
+  ctrSetWeergave:(el,e,v)=>ctrSetWeergave(v),
+  ctrKiesDomein:(el,e,v)=>ctrKiesDomein(v),
   ctrToggleAfgelopen:()=>{ctrSluitMenu();ctrToggleAfgelopen();},
   ctrMenuUpload:()=>ctrMenuUpload(),
   ctrNieuw:()=>ctrNieuw(),

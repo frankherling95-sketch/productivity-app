@@ -746,6 +746,28 @@ async function runChecks() {
           opd.opdrachten.splice(opd.opdrachten.indexOf(o), 1);
         }
       }],
+    ['Contracten: zakelijk en privé zijn twee lijsten; zonder domein is zakelijk',
+      () => {
+        const st = w.eval('contractState');
+        const bewaard = st.contracten;
+        st.contracten = [
+          {id:'z1', soort:'klant', start:'2026-01-01'},
+          {id:'p1', domein:'prive', soort:'leverancier', start:'2025-11-01', eind:'2026-10-31', opzeg:'1m'},
+          {id:'p2', domein:'prive', soort:'abonnement', start:'2024-05-01'}];
+        try {
+          const z = w.ctrData('2026-09-23', 'zakelijk');
+          const p = w.ctrData('2026-09-23', 'prive');
+          return z.lijst.map(c => c.id).join() === 'z1' &&
+                 p.lijst.map(c => c.id).join() === 'p1,p2' &&
+                 z.aandacht.prive === 1 && z.aandacht.zakelijk === 0 &&
+                 w.ctrDomein({}) === 'zakelijk' && w.ctrDomein({domein:'prive'}) === 'prive';
+        } finally {
+          st.contracten = bewaard;
+        }
+      }],
+    ['Contracten: privé kent geen klant of bemiddelaar als soort',
+      /* Een top-level const staat niet op window, vandaar de eval. */
+      () => w.eval('CTR_SOORTEN_PRIVE').every(s => s !== 'klant' && s !== 'bemiddelaar')],
     ['Contracten: blijven bij het laden staan en worden aangevuld bij samenvoegen',
       () => {
         const bewaard = JSON.parse(JSON.stringify(w.huidigeStateSnapshot()));

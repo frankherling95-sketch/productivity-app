@@ -10,6 +10,50 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-23 · Contracten: zakelijk en privé als twee lijsten
+
+**Probleem.** Frank wil ook zijn privécontracten (energie, verzekeringen,
+abonnementen, huur) in de app, maar niet door elkaar met die van de zaak.
+
+**Beslissing.** Twee tabs bovenin Contracten, *Zakelijk* en *Privé*, en per
+contract een veld `domein` ('zakelijk' of 'prive'). Een contract zonder dat
+veld is zakelijk: zo stonden ze er vóór deze wijziging. In het venster kies je
+met twee chips; bij Privé vallen Klant en Bemiddelaar weg als soort (van een
+klantcontract naar privé wordt de soort Leverancier), en de voorbeelden in de
+lege velden passen zich aan. Sla je een privécontract op terwijl je naar
+Zakelijk kijkt, dan ga je mee naar Privé -- anders verdwijnt wat je net
+opsloeg uit beeld.
+
+**Het tellertje.** Op de tab die je níet bekijkt staat hoeveel daar om aandacht
+vraagt, zodat een opzegdatum in Privé je niet ontgaat terwijl je in Zakelijk
+werkt. Op de open tab staat het niet: daar noemt de groep "Vraagt aandacht"
+hetzelfde getal al.
+
+**Waarom de gekozen tab niet in de state staat.** Eerst stond hij in
+`contractState.weergave`, net als de sorteerkeuze van de Checklist. Bij het
+maken van de screenshots bleek dat een tik op de tab vóórdat de gegevens
+geladen zijn via `scheduleSave()` direct een lokale kopie schrijft -- van de
+lege state in het geheugen, over de goede back-up heen. Drive is daartegen
+beschermd, de lokale kopie niet. Een weergavekeuze hoort die route dus niet te
+nemen: hij staat nu per apparaat in localStorage (`LS_CTR_WEERGAVE`), zoals de
+stand van de zijbalk. Dat het bij andere modules ook kan (een sorteerknop vóór
+het laden) is niet onderzocht en niet aangepast.
+
+**Meegenomen: keuzechips op mobiel 44px.** `.uren-kchip` was op een telefoon
+35px hoog, onder de ondergrens van `var(--tap)`. Alleen de nieuwe chips hoger
+maken gaf hetzelfde onderdeel twee maten; daarom geldt het voor de hele
+familie, dus ook voor de statuschips in het urenvenster. Die staan nu even hoog
+als de duurchips erboven. Desktop ongewijzigd (30px).
+
+**Bestanden.** `index.html`: de tabs in `#mod-contracten`, `#ctrDomein` in
+`#ctrModal`, `.ctr-tabteller`, de mobiele `.uren-kchip`-regel, en in MODULE:
+CONTRACTEN `ctrDomein`, `ctrWeergave`/`ctrWeergaveZet`, `ctrData` per domein,
+`ctrRenderDomein`, `ctrRenderSoortKeuze`, `ctrKiesDomein`. `test.html`: twee
+tests (117/117). `docs/stijlgids.md` §6.
+
+**Niet doen.** Een derde tab "Alles": dan staan zaak en privé toch weer door
+elkaar, en het tellertje dekt het enige wat je daar zou zoeken.
+
 ## 2026-09-23 · Module Contracten: elk contract met looptijd, opzegtermijn en PDF
 
 **Probleem.** Welke contracten er lopen, tot wanneer, en vóór wanneer je moet
