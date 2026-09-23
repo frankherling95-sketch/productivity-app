@@ -10,6 +10,76 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-23 · Module Contracten: elk contract met looptijd, opzegtermijn en PDF
+
+**Probleem.** Welke contracten er lopen, tot wanneer, en vóór wanneer je moet
+opzeggen stond nergens -- en de getekende PDF zat ergens in een mailbox.
+Opdrachten dekt alleen klantwerk (uren, tarief), niet de verzekering, het
+internetabonnement of de raamovereenkomst met een bemiddelaar.
+
+**Beslissing.** Een module **Contracten** in de groep Administratie, onder
+Opdrachten (`#contracten`, `rawState.contracten`). Frank koos voor één module
+voor alle soorten, niet voor PDF's bij Opdrachten:
+- **Soorten:** klant, bemiddelaar, leverancier, verzekering, abonnement,
+  overig. Een klantcontract kiest uit de klantenlijst; een bemiddelaar krijgt
+  een naam plus (optioneel) de eindklant; de rest alleen een naam.
+- **Looptijd uit een opdracht.** Heeft de klant opdrachten, dan kan een
+  contract er één volgen: ingang, einde en opzegtermijn komen dan uit de
+  opdracht (`ctrLooptijd()`), zodat dezelfde datums niet op twee plekken
+  staan. Bij opslaan gaat een kopie mee, voor als de opdracht ooit weg is.
+- **Stilzwijgende verlenging** (maand, kwartaal, half jaar, jaar). Het einde
+  schuift zelf door naar de lopende periode, altijd gerekend vanaf de
+  oorspronkelijke einddatum (anders kruipt 31 januari via februari naar de
+  28e), en een laatste dag van de maand blijft de laatste dag. Is de
+  opzegtermijn voor deze periode verstreken, dan telt die van de volgende --
+  met "dan stopt hij op …" erbij, want dat einde staat nergens anders.
+- **Groepen in plaats van pillen:** *Vraagt aandacht* (opzeggen of beslissen
+  binnen zes weken, einde binnen acht) · Lopend · Gepland · Afgelopen. De
+  reden kleurt in de kolom waar hij over gaat, net als het budget bij
+  Opdrachten: geen pil die dezelfde datum nog eens noemt. Zes weken en niet
+  drie zoals bij Opdrachten: een contract kijk je minder vaak in, en een
+  opzegging moet meestal schriftelijk en op tijd binnen zijn.
+
+**Waar de PDF staat.** Niet in het databestand: dat gaat na elke wijziging in
+zijn geheel naar Drive en als back-up naar localStorage (± 5 MB). Eén gescand
+contract van 2 MB zou elke save twee megabyte zwaarder maken en na een paar
+contracten de back-up laten mislukken. Elke PDF wordt een eigen bestand in de
+`appDataFolder` (`contract-<id>.pdf`, multipart tot 5 MB, daarboven de
+hervatbare upload; max. 25 MB); het contract onthoudt alleen het nummer. Op
+het apparaat staat een kopie in IndexedDB (`herling_bijlagen`), zodat je hem
+meteen ziet, ook vóór hij in Drive staat en offline. Uploaden gebeurt alleen
+als Drive deze sessie al gelezen is (`driveGelezen`), anders zou er zonder
+klik een Google-venster opengaan. Wat nog niet in Drive staat, staat in het
+venster als "alleen op dit apparaat" en is via ⋯ opnieuw te versturen.
+
+**Weghalen is niet meteen weg.** Een verwijderde PDF (los, of met zijn
+contract) gaat naar `contractState.opruimen` en wordt pas na dertig dagen uit
+Drive en IndexedDB gehaald. Zo werken "ongedaan maken" en het terugzetten van
+een oudere versie via Versiegeschiedenis nog. Verwijst een contract er
+intussen weer naar, dan vervalt alleen de opruimregel. Nooit afgeleid uit
+"niet meer in gebruik": een tweede apparaat met een oudere state zou dan de
+PDF van een nieuw contract weggooien.
+
+**Mobiel.** Wel vormgegeven, anders dan Opdrachten: ⋯ en de ronde + op hun
+vaste plek, de lijstkaart (`.uren-mcard`) in plaats van de tabel, het venster
+over de volle breedte met ✕ in de kopbalk.
+
+**Niet getest.** Het Drive-deel (uploaden, ophalen op een ander apparaat,
+opruimen) is lokaal niet uit te voeren: op localhost werkt de Google-login
+niet. IndexedDB, het venster, bekijken, weghalen, verwijderen en ongedaan
+maken zijn in de preview getest via echte gebeurtenissen; het rekenwerk en
+het laden in `test.html` (8 tests, 115/115).
+
+**Bestanden.** `index.html`: `#mod-contracten`, `#ctrModal`, `#ctrPdfModal`,
+een regel in de zijbalk, het CSS-blok "Contracten" (na Opdrachten), de sectie
+MODULE: CONTRACTEN, en `#ctrMenuBtn` in de twee gedeelde mobiele regels voor
+het ⋯. `contractState` staat in `hydrateerStateIntern()`,
+`verzamelModuleState()`, `stateOmvang()` en `voegStateSamen()`.
+
+**Niet doen.** Een PDF als base64 in `rawState` zetten "omdat dat simpeler
+is". En de looptijd van een klantcontract óók in het contract bijhouden als
+hij al aan een opdracht hangt.
+
 ## 2026-09-16 · Module Opdrachten: contracten per klant en een vooruitzicht in de werkmaand
 
 **Probleem.** Tot wanneer een opdracht loopt, hoeveel uur per week, tegen welk
