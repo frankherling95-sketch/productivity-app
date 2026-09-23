@@ -2013,6 +2013,11 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .opd-tabel td{vertical-align:top}
 .opd-tabel .opd-oms{margin-top:3px;margin-left:17px;font-size:var(--fs-klein);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Tweede regel van de eerste cel: de omschrijving, met de PDF-knop erachter
+   (opdPdfKnop). De omschrijving kapt af, de naam erboven niet. */
+.opd-tabel .opd-regel2{display:flex;align-items:center;gap:8px;min-width:0;margin:3px 0 0 17px}
+.opd-tabel .opd-regel2 .opd-oms{margin:0;min-width:0;flex:0 1 auto}
+.opd-tabel .opd-regel2 .ctr-pdfknop{flex-shrink:0}
 .opd-tabel tr.opd-af td{color:var(--text-muted)}
 .opd-tabel tr.opd-af .fac-bedrag{color:var(--text-muted);font-weight:500}
 .opd-tabel tr[data-action]:focus-visible td{background:var(--surface2)}
@@ -2043,7 +2048,6 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .opd-pill-fout{background:rgba(220,38,38,.14);border-color:rgba(220,38,38,.55)}
 .opd-pill-info{background:var(--surface2);border-color:var(--border-strong);color:var(--text-muted)}
 
-.opd-let{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
 .opd-leeg-acties{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:14px}
 
 /* Vooruitzicht: gepland is afgeleid en dus gearceerd, in dezelfde tint als
@@ -2071,15 +2075,6 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .opd-reken li+li{margin-top:2px}
 .opd-reken b{color:var(--text);font-weight:600}
 .opd-reken-fout{margin:0;padding:10px 12px;border-radius:var(--radius-md);background:var(--danger-bg);color:var(--text)}
-.opd-lead{font-size:12.5px;color:var(--text-muted);margin:0 0 14px;line-height:1.5}
-.opd-vs-rij{display:grid;grid-template-columns:auto auto minmax(0,1fr);gap:10px;align-items:start;
-  padding:11px 12px;border:0.5px solid var(--border);border-radius:var(--radius-md);margin-bottom:8px;cursor:pointer}
-.opd-vs-rij:hover{background:var(--surface2)}
-.opd-vs-rij input{margin-top:3px;accent-color:var(--mint);width:15px;height:15px}
-.opd-vs-rij .sw{width:9px;height:9px;border-radius:2px;margin-top:6px}
-.opd-vs-tekst{display:flex;flex-direction:column;gap:2px;font-size:13px}
-.opd-vs-tekst span{color:var(--text)}
-.opd-vs-tekst small{font-size:var(--fs-klein);color:var(--text-muted)}
 @media (max-width:768px){
   .opd-velden2{grid-template-columns:1fr}
   /* Tot de mobiele kaarten er zijn: de mobiele laag verbergt .uren-sheet-card
@@ -2131,7 +2126,12 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .ctr-bijlage{display:flex;align-items:center;gap:10px;padding:7px 6px 7px 12px;min-width:0;
   background:var(--surface2);border:0.5px solid var(--border);border-radius:var(--radius-md)}
 .ctr-bijlage .ic{width:var(--icoon);height:var(--icoon);color:var(--text-muted);flex-shrink:0}
-.ctr-bijlage .tekst{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+/* De naam zelf opent de PDF; op een telefoon is dat de enige weg, want
+   "Bekijken" liet daar van de bestandsnaam alleen "Overeenkomst …" over. */
+.ctr-bijlage .tekst{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;
+  background:none;border:0;padding:0;margin:0;text-align:left;font:inherit;color:inherit;cursor:pointer}
+.ctr-bijlage .tekst:hover .nm{text-decoration:underline}
+.ctr-bijlage .tekst:focus-visible{outline:2px solid var(--mint);outline-offset:2px;border-radius:4px}
 .ctr-bijlage .nm{font-size:var(--fs-basis);font-weight:600;color:var(--text);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ctr-bijlage .st{font-size:var(--fs-micro);color:var(--text-muted);font-variant-numeric:tabular-nums}
@@ -2177,6 +2177,8 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
   .ctr-pdf-voet .ctr-vul{display:none}
   .ctr-pdf-keuze{max-width:none;flex:1 1 100%;height:var(--tap)}
   .ctr-bijlage .weg{width:var(--tap);height:var(--tap)}
+  .ctr-bijlage .ctr-bekijk{display:none}
+  .ctr-bijlage .tekst{min-height:var(--tap);justify-content:center}
   .ctr-drop-of{display:none}   /* slepen doe je niet op een telefoon */
 }
 
@@ -7836,7 +7838,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.22</span>
+        <span class="app-versie" title="Appversie">v2.23</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -8513,6 +8515,12 @@ textarea { line-height: 1.6; resize: vertical; }
         </div>
       </div>
       <div class="uren-fld">
+        <label>PDF</label>
+        <!-- Zelfde blok als bij Contracten: ctrRenderBijlagen('opdracht'). -->
+        <div class="ctr-bijlagen" id="opdBijlagen"></div>
+        <input type="file" id="opdBestand" accept="application/pdf,.pdf" multiple hidden data-change="ctrBestandGekozen" data-arg1="opdracht"/>
+      </div>
+      <div class="uren-fld">
         <label for="opdNotitie">Notitie</label>
         <textarea class="inp" id="opdNotitie" rows="2" placeholder="Bijvoorbeeld: verlenging besproken, besluit eind oktober"></textarea>
       </div>
@@ -8525,22 +8533,6 @@ textarea { line-height: 1.6; resize: vertical; }
       <div class="modal-footer-right">
         <button class="btn btn-sm modal-annuleer" data-action="opdSluit">Annuleren</button>
         <button class="btn btn-sm btn-primary" data-action="opdOpslaan">Opslaan</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ── Opdrachten: voorstel uit je geschreven uren ── -->
-<div class="modal-bg" id="opdVoorstelModal" onclick="if(event.target===this)opdVoorstelSluit()">
-  <div class="modal" style="max-width:640px;padding:20px 22px">
-    <h3 style="font-size:18px;font-weight:700;margin:0 0 14px">Opdrachten uit je uren</h3>
-    <p class="opd-lead">Klanten waarvoor je de laatste acht weken uren schreef en die nog geen opdracht hebben. De uren per week zijn het gemiddelde van die periode. Einddatum en opzegtermijn vul je daarna zelf aan.</p>
-    <div id="opdVoorstelLijst"></div>
-    <div class="modal-footer" style="margin-top:18px">
-      <div class="modal-footer-left"></div>
-      <div class="modal-footer-right">
-        <button class="btn btn-sm modal-annuleer" data-action="opdVoorstelSluit">Annuleren</button>
-        <button class="btn btn-sm btn-primary" id="opdVoorstelKnop" data-action="opdVoorstelToevoegen">Toevoegen</button>
       </div>
     </div>
   </div>
@@ -8629,7 +8621,7 @@ textarea { line-height: 1.6; resize: vertical; }
       <div class="uren-fld">
         <label>PDF</label>
         <div class="ctr-bijlagen" id="ctrBijlagen"></div>
-        <input type="file" id="ctrBestand" accept="application/pdf,.pdf" multiple hidden data-change="ctrBestandGekozen"/>
+        <input type="file" id="ctrBestand" accept="application/pdf,.pdf" multiple hidden data-change="ctrBestandGekozen" data-arg1="contract"/>
       </div>
       <div class="uren-fld">
         <label for="ctrNotitie">Notitie</label>
@@ -29293,11 +29285,10 @@ function facExportBoekhouding(){
      ═══ STATE ═══  opdrachtState.opdrachten[] (rawState.opdrachten),
                     opdView, opdToonAfgelopen, opdForm (alleen in het venster).
      ═══ LOGIC ═══  opdWerkdagen, opdOpzegDatum, opdStatus, opdKoppelUren,
-                    opdPlanning, opdVooruitzicht, opdSignalen,
-                    opdVoorstellen -- zuivere functies, getest in test.html.
+                    opdPlanning, opdVooruitzicht, opdSignalen -- zuivere
+                    functies, getest in test.html.
      ═══ VIEW  ═══  renderOpdrachtenModule → opdRenderLijst of
-                    opdRenderVooruitzicht; opdOpen/opdOpslaan (venster),
-                    opdVoorstelOpen (voorstel uit je uren).
+                    opdRenderVooruitzicht; opdOpen/opdOpslaan (venster).
 
    Een opdracht: {id, clientId, naam, start, eind|null, opzeg ('', '2w',
    '1m', …), tarief|null, urenPerWeek|null, urenBudget|null, notitie,
@@ -29562,49 +29553,6 @@ function opdSignalen(o,info,vandaag){
   }
   return s;
 }
-/* Klanten waarvoor je de laatste acht weken uren schreef en die geen lopende
-   of geplande opdracht hebben. Het begin is de eerste dag van de huidige
-   reeks (terug zolang er geen gat van meer dan vier weken zit); de uren per
-   week zijn het gemiddelde sinds dat begin, hooguit acht weken terug. */
-function opdVoorstellen(opdrachten,entries,vandaag){
-  const grens=opdPlusDagen(vandaag,-56);
-  const perKlant={};
-  (entries||[]).forEach(e=>{
-    if(!e.clientId||!e.date||e.date>vandaag)return;
-    (perKlant[e.clientId]=perKlant[e.clientId]||[]).push(e);
-  });
-  const uit=[];
-  Object.entries(perKlant).forEach(([cid,lijst])=>{
-    const klant=factuurKlant(cid);
-    if(!klant)return;
-    const recent=lijst.filter(e=>e.date>=grens);
-    if(!recent.length)return;
-    if((opdrachten||[]).some(o=>o.clientId===cid&&opdStatus(o,vandaag)!=='afgelopen'))return;
-    const datums=[...new Set(lijst.map(e=>e.date))].sort();
-    let start=datums[datums.length-1];
-    for(let i=datums.length-2;i>=0;i--){
-      if(opdDagenTussen(datums[i],start)>28)break;
-      start=datums[i];
-    }
-    const vanaf=start>grens?start:grens;
-    const weken=Math.max(1,opdDagenTussen(vanaf,vandaag)/7);
-    const uren=recent.reduce((s,e)=>s+(Number(e.hours)||0),0);
-    const upw=Math.round((uren/weken)*2)/2;
-    const perTarief={};
-    recent.forEach(e=>{
-      if(e.tarief==null||e.tarief===''||!(Number(e.tarief)>0))return;
-      const t=Number(e.tarief);
-      perTarief[t]=(perTarief[t]||0)+(Number(e.hours)||0);
-    });
-    const meest=Object.entries(perTarief).sort((a,b)=>b[1]-a[1])[0];
-    const eigen=meest?Number(meest[0]):null;
-    uit.push({clientId:cid,start,urenPerWeek:upw>0?upw:null,
-      tarief:(eigen&&eigen!==Number(klant.tarief))?eigen:null,
-      urenRecent:Math.round(uren*100)/100});
-  });
-  return uit.sort((a,b)=>b.urenRecent-a.urenRecent);
-}
-
 /* Alles wat de twee weergaven nodig hebben, één keer uitgerekend. */
 function opdData(vandaag){
   const lijst=opdrachtState.opdrachten||[];
@@ -29625,13 +29573,15 @@ function opdData(vandaag){
     i.signalen=opdSignalen(o,i,vandaag);
     info[o.id]=i;
   });
-  return {vandaag,lijst,vz,komend,info,voorstellen:opdVoorstellen(lijst,entries,vandaag)};
+  return {vandaag,lijst,vz,komend,info};
 }
 
 /* ── Weergave ── */
 function renderOpdrachtenModule(){
   if(!pinControleerToegang())return;
   opdRenderAll();
+  ctrUploadWachtrij();
+  ctrRuimOp();
 }
 function opdRenderAll(){
   const body=document.getElementById('opdBody');
@@ -29693,28 +29643,16 @@ function opdCijfers(d){
   return cijferBalk(cijfersOpen('opdrachten'),opdSamenvatting(d),false,
     'data-action="opdToggleCijfers"',opdKpiTegels(d));
 }
-function opdVoorstelMelding(d){
-  if(!d.voorstellen.length)return '';
-  const namen=d.voorstellen.map(v=>opdKlantNaam(v.clientId));
-  const lijst=namen.length>1?namen.slice(0,-1).join(', ')+' en '+namen[namen.length-1]:namen[0];
-  return `<div class="fac-btw-let opd-let">
-    <div><b>${namen.length===1?'Eén klant':namen.length+' klanten'} met recente uren zonder opdracht</b>${escapeHtml(lijst)}</div>
-    <button type="button" class="uren-btn" data-action="opdVoorstelOpen">Bekijk voorstel</button>
-  </div>`;
-}
 function opdRenderLijst(d){
   let html=opdCijfers(d);
   if(!d.lijst.length){
-    const n=d.voorstellen.length;
     return html+`<div class="uren-sheet-card"><div class="uren-empty opd-leeg">
       <b>Nog geen opdrachten</b>
       Leg per klant vast tot wanneer je werkt, hoeveel uur en tegen welk tarief. Daar rekent het vooruitzicht mee.
       <div class="opd-leeg-acties">
-        ${n?`<button type="button" class="uren-btn uren-btn-primary" data-action="opdVoorstelOpen">Voorstel uit je uren (${n})</button>`:''}
-        <button type="button" class="uren-btn${n?'':' uren-btn-primary'}" data-action="opdNieuw">Nieuwe opdracht</button>
+        <button type="button" class="uren-btn uren-btn-primary" data-action="opdNieuw">Nieuwe opdracht</button>
       </div></div></div>`;
   }
-  html+=opdVoorstelMelding(d);
   const groep=s=>d.lijst.filter(o=>d.info[o.id].status===s);
   const lopend=groep('lopend').sort((a,b)=>String(a.eind||'9999').localeCompare(String(b.eind||'9999')));
   const gepland=groep('gepland').sort((a,b)=>String(a.start).localeCompare(String(b.start)));
@@ -29774,7 +29712,7 @@ function opdRij(o,d){
   return `<tr data-action="opdOpen" data-arg1="${o.id}" tabindex="0"${i.status==='afgelopen'?' class="opd-af"':''}>
     <td><div class="fac-klant"><span class="sw" style="background:${kleur.bg}"></span>
       <span class="nm">${escapeHtml(opdKlantNaam(o.clientId))}</span></div>
-      ${o.naam?`<span class="fac-tijd opd-oms">${escapeHtml(o.naam)}</span>`:''}</td>
+      ${o.naam||(o.bijlagen||[]).length?`<div class="opd-regel2">${o.naam?`<span class="fac-tijd opd-oms">${escapeHtml(o.naam)}</span>`:''}${opdPdfKnop(o)}</div>`:''}</td>
     <td><span class="fac-datum">${periode}</span><span class="fac-tijd">${escapeHtml(opdLooptijdTekst(o,i,d.vandaag))}</span>${opdSigHtml(i,['eind','opzeg'])}</td>
     <td class="num"><span class="fac-bedrag">${i.tarief?'€ '+urenFmtShort(i.tarief):'—'}</span>
       ${o.urenPerWeek?`<span class="fac-tijd">${urenFmtShort(o.urenPerWeek)} u per week</span>`:''}</td>
@@ -29782,6 +29720,17 @@ function opdRij(o,d){
     <td class="num">${i.komendBedrag>0.5
       ?`<span class="fac-bedrag">${opdFmtEuro(i.komendBedrag)}</span><span class="fac-tijd">${urenFmtShort(Math.round(i.komendUren))} uur</span>`
       :`<span class="fac-datum">—</span>`}</td></tr>`;
+}
+/* De PDF bij een opdracht. Geen eigen kolom en niet naast de naam: allebei
+   kosten ze de klantnaam op een laptop zijn ruimte (zie de kolom "Let op"
+   op 2026-09-16; naast de naam hield een lange naam op 1280px 149 van de
+   312px over). Daarom op de tweede regel, achter de omschrijving, als
+   dezelfde knop als bij Contracten. */
+function opdPdfKnop(o){
+  const b=o.bijlagen||[];
+  if(!b.length)return '';
+  return `<button type="button" class="btn btn-xs ctr-pdfknop" data-action="ctrPdfOpen" data-arg1="opdracht" data-arg2="${o.id}" data-arg3="${b[0].id}"
+    title="${escapeHtml(b.map(x=>x.naam).join(' · '))}">${CTR_IC_CLIP}<span>${b.length>1?b.length+" PDF's":'PDF'}</span></button>`;
 }
 function opdToggleAfgelopen(){
   opdToonAfgelopen=!opdToonAfgelopen;
@@ -29798,7 +29747,6 @@ function opdRenderVooruitzicht(d){
       Het vooruitzicht rekent met je geschreven uren en met de uren per week of het budget van je opdrachten.</div></div>`;
   }
   const breed=facAnBreedte('opdBody');
-  html+=opdVoorstelMelding(d);
   html+=`<div class="fac-an-kaart">
     <div class="fac-an-kaartkop"><div><h3>Omzet per werkmaand</h3>
       <p>Tot en met vandaag wat je schreef, vanaf morgen wat je opdrachten laten verwachten</p></div></div>
@@ -29890,16 +29838,13 @@ function opdToggleMenu(){
   if(document.getElementById('opdMenu')){opdSluitMenu();return;}
   const btn=document.getElementById('opdMenuBtn');
   if(!btn)return;
-  const n=opdVoorstellen(opdrachtState.opdrachten||[],urenState.entries||[],opdVandaag()).length;
   const m=document.createElement('div');
   m.className='uren-menu';m.id='opdMenu';m.setAttribute('role','menu');
   m.innerHTML=`
-    <button class="uren-menu-item" role="menuitem" data-action="opdVoorstelOpen"${n?'':' disabled'}>
-      <span class="ic" aria-hidden="true">&#10022;</span>
-      <span>Voorstel uit je uren<small>${n?n+' '+(n===1?'klant':'klanten')+' met recente uren zonder opdracht':'Elke klant met recente uren heeft een opdracht'}</small></span></button>
     <button class="uren-menu-item" role="menuitem" data-action="opdToggleAfgelopen">
       <span class="ic" aria-hidden="true">&#9776;</span>
-      <span>${opdToonAfgelopen?'Afgelopen opdrachten verbergen':'Afgelopen opdrachten tonen'}</span></button>`;
+      <span>${opdToonAfgelopen?'Afgelopen opdrachten verbergen':'Afgelopen opdrachten tonen'}</span></button>
+    ${ctrMenuUploadItem('opdMenuUpload')}`;
   document.body.appendChild(m);
   urenPlacePopover(m,btn);
   btn.setAttribute('aria-expanded','true');
@@ -29917,14 +29862,14 @@ function opdSluitMenu(){
 
 /* ── Venster: nieuwe of bestaande opdracht ── */
 function opdNieuw(){opdOpen(null);}
-function opdOpen(id,voorstel){
+function opdOpen(id){
   opdSluitMenu();
   const o=id?(opdrachtState.opdrachten||[]).find(x=>x.id===id):null;
-  const v=voorstel||{};
-  opdForm={id:o?o.id:null,clientId:o?o.clientId:(v.clientId||'')};
+  opdForm={id:o?o.id:null,clientId:o?o.clientId:'',
+    bijlagen:o?(o.bijlagen||[]).map(b=>({...b})):[],nieuw:[],weg:[]};
   const zet=(el,val)=>{const x=document.getElementById(el);if(x)x.value=(val==null?'':val);};
   zet('opdNaam',o?o.naam:'');
-  zet('opdStart',o?o.start:(v.start||opdVandaag()));
+  zet('opdStart',o?o.start:opdVandaag());
   zet('opdEind',o?o.eind:'');
   zet('opdOpzeg',o?(o.opzeg||''):'');
   zet('opdTarief',o?o.tarief:'');
@@ -29934,12 +29879,15 @@ function opdOpen(id,voorstel){
   document.getElementById('opdModalTitel').textContent=o?'Opdracht bewerken':'Nieuwe opdracht';
   document.getElementById('opdVerwijderBtn').style.display=o?'':'none';
   opdRenderKlantKeuze();
+  ctrRenderBijlagen('opdracht');
   opdRekenVoorbeeld();
   document.getElementById('opdModal').classList.add('open');
   setTimeout(()=>document.querySelector(opdForm.clientId?'#opdNaam':'#opdKlant select')?.focus(),60);
 }
 function opdSluit(){
+  ctrPdfSluit();
   document.getElementById('opdModal').classList.remove('open');
+  ctrVensterOpruimen(opdForm);
   opdForm=null;
 }
 function opdRenderKlantKeuze(){
@@ -30018,15 +29966,19 @@ function opdOpslaan(){
   if(o.eind&&o.eind<o.start){appToast('De einddatum ligt vóór de start',{type:'error'});return;}
   if(!Array.isArray(opdrachtState.opdrachten))opdrachtState.opdrachten=[];
   const nu=Date.now();
+  const bijlagen=opdForm.bijlagen.map(b=>({...b}));
   if(opdForm.id){
     const i=opdrachtState.opdrachten.findIndex(x=>x.id===opdForm.id);
-    if(i>=0)opdrachtState.opdrachten[i]={...opdrachtState.opdrachten[i],...o,updatedAt:nu};
+    if(i>=0)opdrachtState.opdrachten[i]={...opdrachtState.opdrachten[i],...o,bijlagen,updatedAt:nu};
   }else{
-    opdrachtState.opdrachten.push({id:uid(),...o,createdAt:nu,updatedAt:nu});
+    opdrachtState.opdrachten.push({id:uid(),...o,bijlagen,createdAt:nu,updatedAt:nu});
   }
+  opdForm.weg.forEach(b=>ctrBegraaf(b));
+  opdForm.nieuw=[];
   scheduleSave();
   opdSluit();
   opdRenderAll();
+  ctrUploadWachtrij();
 }
 function opdVerwijder(){
   if(!opdForm||!opdForm.id)return;
@@ -30034,67 +29986,17 @@ function opdVerwijder(){
   if(i<0)return;
   const weg=opdrachtState.opdrachten[i];
   opdrachtState.opdrachten.splice(i,1);
+  (weg.bijlagen||[]).forEach(b=>ctrBegraaf(b));
   scheduleSave();
   opdSluit();
   opdRenderAll();
   appToast('Opdracht van '+opdKlantNaam(weg.clientId)+' verwijderd',{type:'success',undo:()=>{
     opdrachtState.opdrachten.splice(Math.min(i,opdrachtState.opdrachten.length),0,weg);
+    const ids=new Set((weg.bijlagen||[]).map(b=>b.id));
+    contractState.opruimen=(contractState.opruimen||[]).filter(t=>!ids.has(t.id));
     scheduleSave();
     opdRenderAll();
   }});
-}
-
-/* ── Voorstel uit je uren ── */
-let opdVoorstelLijst=[];
-function opdVoorstelOpen(){
-  opdSluitMenu();
-  opdVoorstelLijst=opdVoorstellen(opdrachtState.opdrachten||[],urenState.entries||[],opdVandaag());
-  const box=document.getElementById('opdVoorstelLijst');
-  if(!box)return;
-  if(!opdVoorstelLijst.length){
-    box.innerHTML=`<div class="uren-empty"><b>Geen voorstel</b>Elke klant met uren in de laatste acht weken heeft al een opdracht.</div>`;
-  }else{
-    box.innerHTML=opdVoorstelLijst.map((v,i)=>{
-      const kleur=opdKleur(v.clientId);
-      const t=v.tarief||Number((factuurKlant(v.clientId)||{}).tarief)||0;
-      const delen=[v.urenPerWeek?urenFmtShort(v.urenPerWeek)+' u per week':null,
-        t?'€ '+urenFmtShort(t)+(v.tarief?'':' (tarief van de klant)'):'nog geen tarief',
-        'sinds '+opdFmtDatum(v.start)].filter(Boolean);
-      return `<label class="opd-vs-rij" for="opdVs${i}">
-        <input type="checkbox" id="opdVs${i}" data-opd-vs="${i}" checked>
-        <span class="sw" style="background:${kleur.bg}"></span>
-        <span class="opd-vs-tekst"><b>${escapeHtml(opdKlantNaam(v.clientId))}</b>
-          <span>${escapeHtml(delen.join(' · '))}</span>
-          <small>${urenFmtShort(Math.round(v.urenRecent))} uur in de laatste acht weken</small></span>
-      </label>`;
-    }).join('');
-  }
-  opdVoorstelTel();
-  document.getElementById('opdVoorstelModal').classList.add('open');
-}
-function opdVoorstelTel(){
-  const n=document.querySelectorAll('#opdVoorstelLijst [data-opd-vs]:checked').length;
-  const knop=document.getElementById('opdVoorstelKnop');
-  if(knop){knop.textContent=n?'Toevoegen ('+n+')':'Toevoegen';knop.disabled=!n;}
-}
-function opdVoorstelSluit(){
-  document.getElementById('opdVoorstelModal').classList.remove('open');
-}
-function opdVoorstelToevoegen(){
-  const gekozen=[...document.querySelectorAll('#opdVoorstelLijst [data-opd-vs]:checked')]
-    .map(el=>opdVoorstelLijst[Number(el.dataset.opdVs)]).filter(Boolean);
-  if(!gekozen.length)return;
-  if(!Array.isArray(opdrachtState.opdrachten))opdrachtState.opdrachten=[];
-  const nu=Date.now();
-  gekozen.forEach(v=>opdrachtState.opdrachten.push({id:uid(),clientId:v.clientId,naam:'',
-    start:v.start,eind:null,opzeg:'',tarief:v.tarief||null,urenPerWeek:v.urenPerWeek||null,
-    urenBudget:null,notitie:'',createdAt:nu,updatedAt:nu}));
-  scheduleSave();
-  opdVoorstelSluit();
-  opdView='lijst';
-  opdRenderAll();
-  appToast(gekozen.length===1?'Opdracht toegevoegd. Vul de einddatum aan.'
-    :gekozen.length+' opdrachten toegevoegd. Vul per opdracht de einddatum aan.',{type:'success'});
 }
 
 Object.assign(APP_ACTIONS,{
@@ -30107,19 +30009,14 @@ Object.assign(APP_ACTIONS,{
   opdSluit:()=>opdSluit(),
   opdOpslaan:()=>opdOpslaan(),
   opdVerwijder:()=>opdVerwijder(),
-  opdVoorstelOpen:()=>opdVoorstelOpen(),
-  opdVoorstelSluit:()=>opdVoorstelSluit(),
-  opdVoorstelToevoegen:()=>opdVoorstelToevoegen()
+  opdMenuUpload:()=>{opdSluitMenu();ctrMenuUpload();}
 });
 Object.assign(APP_CHANGE_ACTIONS,{
   opdKiesKlant:(el)=>opdKiesKlant(el.value)
 });
-/* Het venster rekent mee terwijl je typt; de voorstellijst telt de vinkjes.
-   Enter of spatie op een rij in de tabel doet wat een klik doet. */
+/* Het venster rekent mee terwijl je typt. Enter of spatie op een rij in de
+   tabel doet wat een klik doet. */
 document.getElementById('opdModal')?.addEventListener('input',()=>opdRekenVoorbeeld());
-document.getElementById('opdVoorstelModal')?.addEventListener('change',e=>{
-  if(e.target.matches('[data-opd-vs]'))opdVoorstelTel();
-});
 document.getElementById('mod-opdrachten')?.addEventListener('keydown',e=>{
   if(e.key!=='Enter'&&e.key!==' ')return;
   const rij=e.target.closest('tr[data-action]');
@@ -30481,7 +30378,7 @@ function ctrOpzegCel(c,i){
 function ctrPdfCel(c){
   const b=c.bijlagen||[];
   if(!b.length)return `<span class="ctr-geenpdf">geen PDF</span>`;
-  return `<button type="button" class="btn btn-xs ctr-pdfknop" data-action="ctrPdfOpen" data-arg1="${c.id}" data-arg2="${b[0].id}"
+  return `<button type="button" class="btn btn-xs ctr-pdfknop" data-action="ctrPdfOpen" data-arg1="contract" data-arg2="${c.id}" data-arg3="${b[0].id}"
     title="${escapeHtml(b.map(x=>x.naam).join('\n'))}">${CTR_IC_CLIP}<span>${b.length>1?b.length+" PDF's":'Bekijken'}</span></button>`;
 }
 /* Lijstkaart op een telefoon (stijlgids §4): links met wie, wat, de soort
@@ -30525,26 +30422,31 @@ function ctrToggleMenu(){
   if(!btn)return;
   const d=ctrData(opdVandaag());
   const nAf=d.lijst.filter(c=>d.info[c.id].status==='afgelopen').length;
-  /* Het versturen gaat over alle PDF's, niet alleen die van deze tab. */
-  const totaal=(contractState.contracten||[]).reduce((s,c)=>s+(c.bijlagen||[]).length,0);
-  const wacht=ctrWachtend();
-  const klaar=ctrDriveKlaar();
-  const uitleg=!totaal?"Nog geen PDF's"
-    :!wacht?(totaal===1?'De PDF staat in Drive':"Alle "+totaal+" PDF's staan in Drive")
-    :wacht+' nog niet in Drive'+(klaar?'':' · geen verbinding met Drive');
   const m=document.createElement('div');
   m.className='uren-menu';m.id='ctrMenu';m.setAttribute('role','menu');
   m.innerHTML=`
     <button class="uren-menu-item" role="menuitem" data-action="ctrToggleAfgelopen"${nAf?'':' disabled'}>
       <span class="ic" aria-hidden="true">&#9776;</span>
       <span>${ctrToonAfgelopen?'Afgelopen contracten verbergen':'Afgelopen contracten tonen'}${nAf?'':'<small>Er is nog niets afgelopen</small>'}</span></button>
-    <button class="uren-menu-item" role="menuitem" data-action="ctrMenuUpload"${wacht&&klaar?'':' disabled'}>
-      <span class="ic" aria-hidden="true">&#8679;</span>
-      <span>PDF's naar Drive sturen<small>${escapeHtml(uitleg)}</small></span></button>`;
+    ${ctrMenuUploadItem('ctrMenuUpload')}`;
   document.body.appendChild(m);
   urenPlacePopover(m,btn);
   btn.setAttribute('aria-expanded','true');
   setTimeout(()=>document.addEventListener('mousedown',ctrMenuBuiten),20);
+}
+/* Het menu-item "PDF's naar Drive sturen", in het ⋯ van Contracten én van
+   Opdrachten. Het gaat over alle PDF's, niet alleen die van de module waar
+   je bent. */
+function ctrMenuUploadItem(actie){
+  const totaal=ctrAlleBijlagen().length;
+  const wacht=ctrWachtend();
+  const klaar=ctrDriveKlaar();
+  const uitleg=!totaal?"Nog geen PDF's"
+    :!wacht?(totaal===1?'De PDF staat in Drive':"Alle "+totaal+" PDF's staan in Drive")
+    :wacht+' nog niet in Drive'+(klaar?'':' · geen verbinding met Drive');
+  return `<button class="uren-menu-item" role="menuitem" data-action="${actie}"${wacht&&klaar?'':' disabled'}>
+      <span class="ic" aria-hidden="true">&#8679;</span>
+      <span>PDF's naar Drive sturen<small>${escapeHtml(uitleg)}</small></span></button>`;
 }
 function ctrMenuBuiten(e){
   const m=document.getElementById('ctrMenu');
@@ -30668,39 +30570,40 @@ async function ctrDriveWeg(driveId){
 const ctrUploadNu=new Set();
 const ctrUploadFout=new Map();
 let ctrUploadBezig=null;
-function ctrWachtend(){
-  let n=0;
-  (contractState.contracten||[]).forEach(c=>(c.bijlagen||[]).forEach(b=>{if(!b.driveId)n++;}));
-  return n;
+/* Alle PDF's in de administratie: die van contracten én van opdrachten.
+   Opslag, versturen en opruimen gaan over allebei; de opruimlijst staat in
+   contractState.opruimen, ook voor een PDF van een opdracht. */
+function ctrAlleBijlagen(){
+  const uit=[];
+  (contractState.contracten||[]).forEach(c=>(c.bijlagen||[]).forEach(b=>uit.push(b)));
+  (opdrachtState.opdrachten||[]).forEach(o=>(o.bijlagen||[]).forEach(b=>uit.push(b)));
+  return uit;
 }
-function ctrZoekBijlage(id){
-  for(const c of (contractState.contracten||[])){
-    const b=(c.bijlagen||[]).find(x=>x.id===id);
-    if(b)return b;
-  }
-  return null;
-}
+function ctrWachtend(){return ctrAlleBijlagen().filter(b=>!b.driveId).length;}
+function ctrZoekBijlage(id){return ctrAlleBijlagen().find(b=>b.id===id)||null;}
 /* Het Drive-nummer landt overal waar deze bijlage staat: in de state, in
    een wachtende opruimregel en in het open venster. Het venster werkt met
    kopieën; zonder dit ging een PDF die je tijdens de upload weghaalde
    zonder nummer de opruimlijst in, en bleef hij voor altijd in Drive. */
 function ctrZetDriveId(id,driveId){
   let bekend=false;
-  (contractState.contracten||[]).forEach(c=>(c.bijlagen||[]).forEach(b=>{if(b.id===id){b.driveId=driveId;bekend=true;}}));
+  ctrAlleBijlagen().forEach(b=>{if(b.id===id){b.driveId=driveId;bekend=true;}});
   (contractState.opruimen||[]).forEach(t=>{if(t.id===id){t.driveId=driveId;bekend=true;}});
-  if(ctrForm)ctrForm.bijlagen.concat(ctrForm.weg).forEach(b=>{if(b.id===id){b.driveId=driveId;bekend=true;}});
+  Object.keys(BIJLAGE_VENSTERS).forEach(soort=>{
+    const form=ctrVenster(soort).form();
+    if(form)form.bijlagen.concat(form.weg).forEach(b=>{if(b.id===id){b.driveId=driveId;bekend=true;}});
+  });
   return bekend;
 }
 /* Alles wat nog niet in Drive staat, alsnog versturen. Draait na het
-   opslaan van een contract en bij het openen van de module, hooguit één
+   opslaan van een contract of opdracht en bij het openen van die modules, hooguit één
    tegelijk. Wat hier niet lokaal staat, is op een ander apparaat
    toegevoegd; dat apparaat stuurt het zelf. */
 function ctrUploadWachtrij(){
   if(ctrUploadBezig)return ctrUploadBezig;
   ctrUploadBezig=(async()=>{
     if(!ctrDriveKlaar())return 0;
-    const todo=[];
-    (contractState.contracten||[]).forEach(c=>(c.bijlagen||[]).forEach(b=>{if(!b.driveId)todo.push(b.id);}));
+    const todo=ctrAlleBijlagen().filter(b=>!b.driveId).map(b=>b.id);
     let n=0;
     for(const id of todo){
       const blob=await ctrLokaalHaal(id);
@@ -30721,7 +30624,11 @@ function ctrUploadWachtrij(){
         ctrBijlageStatusVoor(id);
       }
     }
-    if(n){scheduleSave();if(activeModule==='contracten')ctrRenderAll();}
+    if(n){
+      scheduleSave();
+      if(activeModule==='contracten')ctrRenderAll();
+      else if(activeModule==='opdrachten')opdRenderAll();
+    }
     return n;
   })().finally(()=>{ctrUploadBezig=null;});
   return ctrUploadBezig;
@@ -30735,8 +30642,7 @@ async function ctrRuimOp(){
   if(ctrRuimBezig||!ctrDriveKlaar()||!(contractState.opruimen||[]).length)return;
   ctrRuimBezig=true;
   const grens=Date.now()-CTR_BEWAAR_DAGEN*86400000;
-  const inGebruik=new Set();
-  (contractState.contracten||[]).forEach(c=>(c.bijlagen||[]).forEach(b=>inGebruik.add(b.id)));
+  const inGebruik=new Set(ctrAlleBijlagen().map(b=>b.id));
   const klaar=new Set();
   try{
     for(const t of contractState.opruimen.slice()){
@@ -30799,7 +30705,7 @@ function ctrOpen(id){
   document.getElementById('ctrModalTitel').textContent=c?'Contract bewerken':'Nieuw contract';
   document.getElementById('ctrVerwijderBtn').style.display=c?'':'none';
   ctrZetSoort();
-  ctrRenderBijlagen();
+  ctrRenderBijlagen('contract');
   ctrRekenVoorbeeld();
   document.getElementById('ctrModal').classList.add('open');
   setTimeout(()=>document.getElementById(c?'ctrTitel':'ctrSoort')?.focus(),60);
@@ -30807,8 +30713,7 @@ function ctrOpen(id){
 function ctrSluit(){
   ctrPdfSluit();
   document.getElementById('ctrModal').classList.remove('open');
-  /* Wat je in dit venster toevoegde en niet opsloeg, hoort nergens bij. */
-  if(ctrForm)ctrForm.nieuw.forEach(id=>ctrLokaalWeg(id));
+  ctrVensterOpruimen(ctrForm);
   ctrForm=null;
 }
 /* De soort bepaalt de velden voor "met wie": een klant uit de lijst, een
@@ -31021,26 +30926,38 @@ function ctrVerwijder(){
   }});
 }
 
-/* ── Venster: de PDF's bij dit contract ── */
-function ctrRenderBijlagen(){
-  const box=document.getElementById('ctrBijlagen');
-  if(!box||!ctrForm)return;
-  box.innerHTML=ctrForm.bijlagen.map(b=>`<div class="ctr-bijlage">
+/* ── PDF's in een venster: Contracten én Opdrachten ──
+   Beide vensters hebben hetzelfde blok met PDF's: dezelfde opslag, dezelfde
+   regels, dezelfde weergave. Alleen het formulier en de plek in de DOM
+   verschillen, en die staan hier. Een formulier heeft altijd `bijlagen`
+   (kopieën), `nieuw` (in dit venster toegevoegd, nog niet opgeslagen) en
+   `weg` (weggehaald, gaat bij Opslaan naar de opruimlijst). */
+const BIJLAGE_VENSTERS={
+  contract:{form:()=>ctrForm,box:'ctrBijlagen',input:'ctrBestand',modal:'ctrModal'},
+  opdracht:{form:()=>opdForm,box:'opdBijlagen',input:'opdBestand',modal:'opdModal'}
+};
+function ctrVenster(soort){return BIJLAGE_VENSTERS[soort]||BIJLAGE_VENSTERS.contract;}
+function ctrRenderBijlagen(soort){
+  const v=ctrVenster(soort), form=v.form();
+  const box=document.getElementById(v.box);
+  if(!box||!form)return;
+  box.innerHTML=form.bijlagen.map(b=>`<div class="ctr-bijlage">
       ${CTR_IC_PDF}
-      <div class="tekst"><span class="nm" title="${escapeHtml(b.naam)}">${escapeHtml(b.naam)}</span>
-        <span class="st" data-ctr-st="${b.id}">${ctrGrootte(b.grootte)}</span></div>
-      <button type="button" class="btn btn-xs" data-action="ctrPdfOpen" data-arg1="${ctrForm.id||''}" data-arg2="${b.id}">Bekijken</button>
-      <button type="button" class="weg" data-action="ctrBijlageWeg" data-arg1="${b.id}"
+      <button type="button" class="tekst" data-action="ctrPdfOpen" data-arg1="${soort}" data-arg2="${form.id||''}" data-arg3="${b.id}"
+        aria-label="${escapeHtml(b.naam)} bekijken"><span class="nm" title="${escapeHtml(b.naam)}">${escapeHtml(b.naam)}</span>
+        <span class="st" data-ctr-st="${b.id}">${ctrGrootte(b.grootte)}</span></button>
+      <button type="button" class="btn btn-xs ctr-bekijk" data-action="ctrPdfOpen" data-arg1="${soort}" data-arg2="${form.id||''}" data-arg3="${b.id}">Bekijken</button>
+      <button type="button" class="weg" data-action="ctrBijlageWeg" data-arg1="${soort}" data-arg2="${b.id}"
         aria-label="${escapeHtml(b.naam)} weghalen" title="Weghalen">${CTR_IC_WEG}</button>
     </div>`).join('')+
-    `<label class="ctr-drop" for="ctrBestand" tabindex="0"><span><b>${
-      ctrForm.bijlagen.length?'Nog een PDF toevoegen':'PDF toevoegen'}</b> <span class="ctr-drop-of">of sleep hem hierheen</span></span></label>`;
-  ctrForm.bijlagen.forEach(b=>ctrBijlageStatus(b));
+    `<label class="ctr-drop" for="${v.input}" tabindex="0"><span><b>${
+      form.bijlagen.length?'Nog een PDF toevoegen':'PDF toevoegen'}</b> <span class="ctr-drop-of">of sleep hem hierheen</span></span></label>`;
+  form.bijlagen.forEach(b=>ctrBijlageStatus(soort,b));
 }
 /* Waar de PDF staat, in de regel eronder. Pas na een blik in IndexedDB te
    zeggen, dus deze regel komt een tel later dan de rest. */
-async function ctrBijlageStatus(b){
-  const form=ctrForm;
+async function ctrBijlageStatus(soort,b){
+  const v=ctrVenster(soort), form=v.form();
   let tekst,let_=false;
   if(form&&form.nieuw.includes(b.id))tekst='gaat bij opslaan naar Drive';
   else if(b.driveId)tekst='in Drive';
@@ -31049,23 +30966,25 @@ async function ctrBijlageStatus(b){
     tekst='alleen op dit apparaat'+(ctrUploadFout.has(b.id)?' · Drive gaf een fout':'');
     let_=true;
   }else{tekst='staat op een ander apparaat';let_=true;}
-  const el=document.querySelector(`[data-ctr-st="${b.id}"]`);
-  if(!el||ctrForm!==form)return;
+  const el=document.querySelector(`#${v.box} [data-ctr-st="${b.id}"]`);
+  if(!el||v.form()!==form)return;
   el.textContent=ctrGrootte(b.grootte)+' · '+tekst;
   el.classList.toggle('let',let_);
 }
 function ctrBijlageStatusVoor(id){
-  if(!ctrForm)return;
-  const b=ctrForm.bijlagen.find(x=>x.id===id);
-  if(b)ctrBijlageStatus(b);
+  Object.keys(BIJLAGE_VENSTERS).forEach(soort=>{
+    const form=ctrVenster(soort).form();
+    const b=form&&form.bijlagen.find(x=>x.id===id);
+    if(b)ctrBijlageStatus(soort,b);
+  });
 }
-function ctrBestandGekozen(el){
+function ctrBestandGekozen(soort,el){
   const files=[...(el.files||[])];
   el.value='';   /* zelfde bestand nog eens kiezen moet weer een wijziging zijn */
-  ctrBestandenToevoegen(files);
+  ctrBestandenToevoegen(soort,files);
 }
-async function ctrBestandenToevoegen(files){
-  const form=ctrForm;
+async function ctrBestandenToevoegen(soort,files){
+  const v=ctrVenster(soort), form=v.form();
   if(!form||!files.length)return;
   let erbij=0;
   for(const f of files){
@@ -31073,49 +30992,65 @@ async function ctrBestandenToevoegen(files){
     if(!isPdf){appToast((f.name||'Dit bestand')+' is geen PDF',{type:'error'});continue;}
     if(f.size>CTR_MAX_BYTES){appToast(f.name+' is groter dan 25 MB',{type:'error'});continue;}
     const {hash}=await facScanVingerafdruk(f);
-    if(ctrForm!==form)return;
-    if(form.bijlagen.some(b=>b.hash===hash)){appToast(f.name+' zit al bij dit contract',{type:'info'});continue;}
-    const b={id:uid(),naam:f.name||'contract.pdf',grootte:f.size,hash,driveId:null,toegevoegdOp:Date.now()};
+    if(v.form()!==form)return;
+    if(form.bijlagen.some(b=>b.hash===hash)){appToast(f.name+' zit hier al bij',{type:'info'});continue;}
+    const b={id:uid(),naam:f.name||'overeenkomst.pdf',grootte:f.size,hash,driveId:null,toegevoegdOp:Date.now()};
     const blob=f.type==='application/pdf'?f:new Blob([f],{type:'application/pdf'});
     await ctrLokaalZet(b.id,blob);
-    if(ctrForm!==form){ctrLokaalWeg(b.id);return;}
+    if(v.form()!==form){ctrLokaalWeg(b.id);return;}
     form.bijlagen.push(b);
     form.nieuw.push(b.id);
     erbij++;
   }
-  if(erbij)ctrRenderBijlagen();
+  if(erbij)ctrRenderBijlagen(soort);
 }
 /* Weghalen in het venster is pas echt bij Opslaan; Annuleren zet hem terug. */
-function ctrBijlageWeg(id){
-  if(!ctrForm)return;
-  const i=ctrForm.bijlagen.findIndex(b=>b.id===id);
+function ctrBijlageWeg(soort,id){
+  const form=ctrVenster(soort).form();
+  if(!form)return;
+  const i=form.bijlagen.findIndex(b=>b.id===id);
   if(i<0)return;
-  const [b]=ctrForm.bijlagen.splice(i,1);
-  const n=ctrForm.nieuw.indexOf(id);
-  if(n>=0){ctrForm.nieuw.splice(n,1);ctrLokaalWeg(id);}
-  else ctrForm.weg.push(b);
-  ctrRenderBijlagen();
+  const [b]=form.bijlagen.splice(i,1);
+  const n=form.nieuw.indexOf(id);
+  if(n>=0){form.nieuw.splice(n,1);ctrLokaalWeg(id);}
+  else form.weg.push(b);
+  ctrRenderBijlagen(soort);
+}
+/* Wat in het venster is toegevoegd en niet opgeslagen, hoort nergens bij. */
+function ctrVensterOpruimen(form){
+  if(form)form.nieuw.forEach(id=>ctrLokaalWeg(id));
 }
 
 /* ── De PDF bekijken ──
-   Vanuit het venster (ook een PDF die nog niet is opgeslagen) of vanuit de
-   lijst. Een tweede klik terwijl de eerste nog laadt wint: ctrPdfBeurt. */
+   Vanuit een venster (ook een PDF die nog niet is opgeslagen) of vanuit een
+   lijst, van een contract of van een opdracht. Een tweede klik terwijl de
+   eerste nog laadt wint: ctrPdfBeurt. */
 let ctrPdfUrl=null,ctrPdfLos=false,ctrPdfBeurt=0,ctrPdfNu=null;
-function ctrPdfLijst(contractId){
-  if(ctrForm&&(ctrForm.id||'')===(contractId||''))return ctrForm.bijlagen;
-  const c=(contractState.contracten||[]).find(x=>x.id===contractId);
-  return c?(c.bijlagen||[]):[];
+function ctrPdfLijst(bron,eigenaarId){
+  const form=ctrVenster(bron).form();
+  if(form&&(form.id||'')===(eigenaarId||''))return form.bijlagen;
+  const lijst=bron==='opdracht'?(opdrachtState.opdrachten||[]):(contractState.contracten||[]);
+  const x=lijst.find(y=>y.id===eigenaarId);
+  return x?(x.bijlagen||[]):[];
 }
-async function ctrPdfOpen(contractId,bijlageId){
+function ctrPdfTitel(bron,eigenaarId){
+  if(bron==='opdracht'){
+    const o=(opdrachtState.opdrachten||[]).find(x=>x.id===eigenaarId);
+    if(o)return opdKlantNaam(o.clientId)+(o.naam?' · '+o.naam:'');
+    return document.getElementById('opdNaam')?.value.trim()||'Nieuwe opdracht';
+  }
+  const c=(contractState.contracten||[]).find(x=>x.id===eigenaarId);
+  if(c)return ctrPartijNaam(c)+(c.titel?' · '+c.titel:'');
+  return document.getElementById('ctrTitel')?.value.trim()||'Nieuw contract';
+}
+async function ctrPdfOpen(bron,eigenaarId,bijlageId){
+  bron=bron==='opdracht'?'opdracht':'contract';
   ctrSluitMenu();
-  const lijst=ctrPdfLijst(contractId);
+  const lijst=ctrPdfLijst(bron,eigenaarId);
   const b=lijst.find(x=>x.id===bijlageId)||lijst[0];
   if(!b)return;
-  ctrPdfNu={contractId:contractId||'',bijlageId:b.id,naam:b.naam};
-  const c=(contractState.contracten||[]).find(x=>x.id===contractId);
-  const titel=c?ctrPartijNaam(c)+(c.titel?' · '+c.titel:'')
-    :(document.getElementById('ctrTitel')?.value.trim()||'Nieuw contract');
-  document.getElementById('ctrPdfTitel').textContent=titel;
+  ctrPdfNu={bron,eigenaarId:eigenaarId||'',bijlageId:b.id,naam:b.naam};
+  document.getElementById('ctrPdfTitel').textContent=ctrPdfTitel(bron,eigenaarId);
   document.getElementById('ctrPdfSub').textContent=b.naam+' · '+ctrGrootte(b.grootte);
   const keuze=document.getElementById('ctrPdfKeuze');
   if(keuze){
@@ -31167,15 +31102,14 @@ function ctrPdfOpslaan(){
   if(!ctrPdfUrl||!ctrPdfNu)return;
   const a=document.createElement('a');
   a.href=ctrPdfUrl;
-  a.download=ctrPdfNu.naam||'contract.pdf';
+  a.download=ctrPdfNu.naam||'overeenkomst.pdf';
   document.body.appendChild(a);
   a.click();
   a.remove();
 }
 function ctrPdfKies(id){
-  if(ctrPdfNu)ctrPdfOpen(ctrPdfNu.contractId,id);
+  if(ctrPdfNu)ctrPdfOpen(ctrPdfNu.bron,ctrPdfNu.eigenaarId,id);
 }
-
 Object.assign(APP_ACTIONS,{
   ctrToggleMenu:()=>ctrToggleMenu(),
   ctrSetWeergave:(el,e,v)=>ctrSetWeergave(v),
@@ -31187,8 +31121,8 @@ Object.assign(APP_ACTIONS,{
   ctrSluit:()=>ctrSluit(),
   ctrOpslaan:()=>ctrOpslaan(),
   ctrVerwijder:()=>ctrVerwijder(),
-  ctrBijlageWeg:(el,e,id)=>ctrBijlageWeg(id),
-  ctrPdfOpen:(el,e,contractId,bijlageId)=>ctrPdfOpen(contractId,bijlageId),
+  ctrBijlageWeg:(el,e,soort,id)=>ctrBijlageWeg(soort,id),
+  ctrPdfOpen:(el,e,bron,eigenaarId,bijlageId)=>ctrPdfOpen(bron,eigenaarId,bijlageId),
   ctrPdfSluit:()=>ctrPdfSluit(),
   ctrPdfNieuwTab:()=>ctrPdfNieuwTab(),
   ctrPdfOpslaan:()=>ctrPdfOpslaan()
@@ -31197,20 +31131,21 @@ Object.assign(APP_CHANGE_ACTIONS,{
   ctrKiesSoort:(el)=>ctrKiesSoort(el.value),
   ctrKiesKlant:(el)=>ctrKiesKlant(el.value),
   ctrKiesOpdracht:(el)=>ctrKiesOpdracht(el.value),
-  ctrBestandGekozen:(el)=>ctrBestandGekozen(el),
+  ctrBestandGekozen:(el,e,soort)=>ctrBestandGekozen(soort,el),
   ctrPdfKies:(el)=>ctrPdfKies(el.value)
 });
-/* Het venster rekent mee terwijl je typt. Een PDF mag je overal in het
-   venster laten vallen, niet alleen op het vlak: dat is groot genoeg om te
-   raken, en anders opent de browser hem zelf. */
-(function(){
-  const m=document.getElementById('ctrModal');
+/* Het contractvenster rekent mee terwijl je typt. */
+document.getElementById('ctrModal')?.addEventListener('input',()=>ctrRekenVoorbeeld());
+/* Een PDF mag je overal in het venster laten vallen, niet alleen op het
+   vlak: dat is groot genoeg om te raken, en anders opent de browser hem
+   zelf. Voor het contract- en het opdrachtvenster. */
+Object.entries(BIJLAGE_VENSTERS).forEach(([soort,v])=>{
+  const m=document.getElementById(v.modal);
   if(!m)return;
-  m.addEventListener('input',()=>ctrRekenVoorbeeld());
   const vlak=()=>m.querySelector('.ctr-drop');
   const metBestand=e=>!!(e.dataTransfer&&[...(e.dataTransfer.types||[])].includes('Files'));
   m.addEventListener('dragover',e=>{
-    if(!ctrForm||!metBestand(e))return;
+    if(!v.form()||!metBestand(e))return;
     e.preventDefault();
     e.dataTransfer.dropEffect='copy';
     vlak()?.classList.add('sleep');
@@ -31219,20 +31154,20 @@ Object.assign(APP_CHANGE_ACTIONS,{
     if(!e.relatedTarget||!m.contains(e.relatedTarget))vlak()?.classList.remove('sleep');
   });
   m.addEventListener('drop',e=>{
-    if(!ctrForm||!metBestand(e))return;
+    if(!v.form()||!metBestand(e))return;
     e.preventDefault();
     vlak()?.classList.remove('sleep');
-    ctrBestandenToevoegen([...e.dataTransfer.files]);
+    ctrBestandenToevoegen(soort,[...e.dataTransfer.files]);
   });
   /* Het vlak is een label; met het toetsenbord opent Enter of spatie de
      bestandskeuze, net als een klik. */
   m.addEventListener('keydown',e=>{
     if((e.key==='Enter'||e.key===' ')&&e.target.classList&&e.target.classList.contains('ctr-drop')){
       e.preventDefault();
-      document.getElementById('ctrBestand')?.click();
+      document.getElementById(v.input)?.click();
     }
   });
-})();
+});
 document.getElementById('mod-contracten')?.addEventListener('keydown',e=>{
   if(e.key!=='Enter'&&e.key!==' ')return;
   const rij=e.target.closest('tr[data-action]');
