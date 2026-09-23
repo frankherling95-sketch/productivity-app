@@ -10,6 +10,206 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-23 · Contracten: zakelijk en privé als twee lijsten
+
+**Probleem.** Frank wil ook zijn privécontracten (energie, verzekeringen,
+abonnementen, huur) in de app, maar niet door elkaar met die van de zaak.
+
+**Beslissing.** Twee tabs bovenin Contracten, *Zakelijk* en *Privé*, en per
+contract een veld `domein` ('zakelijk' of 'prive'). Een contract zonder dat
+veld is zakelijk: zo stonden ze er vóór deze wijziging. In het venster kies je
+met twee chips; bij Privé vallen Klant en Bemiddelaar weg als soort (van een
+klantcontract naar privé wordt de soort Leverancier), en de voorbeelden in de
+lege velden passen zich aan. Sla je een privécontract op terwijl je naar
+Zakelijk kijkt, dan ga je mee naar Privé -- anders verdwijnt wat je net
+opsloeg uit beeld.
+
+**Het tellertje.** Op de tab die je níet bekijkt staat hoeveel daar om aandacht
+vraagt, zodat een opzegdatum in Privé je niet ontgaat terwijl je in Zakelijk
+werkt. Op de open tab staat het niet: daar noemt de groep "Vraagt aandacht"
+hetzelfde getal al.
+
+**Waarom de gekozen tab niet in de state staat.** Eerst stond hij in
+`contractState.weergave`, net als de sorteerkeuze van de Checklist. Bij het
+maken van de screenshots bleek dat een tik op de tab vóórdat de gegevens
+geladen zijn via `scheduleSave()` direct een lokale kopie schrijft -- van de
+lege state in het geheugen, over de goede back-up heen. Drive is daartegen
+beschermd, de lokale kopie niet. Een weergavekeuze hoort die route dus niet te
+nemen: hij staat nu per apparaat in localStorage (`LS_CTR_WEERGAVE`), zoals de
+stand van de zijbalk. Dat het bij andere modules ook kan (een sorteerknop vóór
+het laden) is niet onderzocht en niet aangepast.
+
+**Meegenomen: keuzechips op mobiel 44px.** `.uren-kchip` was op een telefoon
+35px hoog, onder de ondergrens van `var(--tap)`. Alleen de nieuwe chips hoger
+maken gaf hetzelfde onderdeel twee maten; daarom geldt het voor de hele
+familie, dus ook voor de statuschips in het urenvenster. Die staan nu even hoog
+als de duurchips erboven. Desktop ongewijzigd (30px).
+
+**Bestanden.** `index.html`: de tabs in `#mod-contracten`, `#ctrDomein` in
+`#ctrModal`, `.ctr-tabteller`, de mobiele `.uren-kchip`-regel, en in MODULE:
+CONTRACTEN `ctrDomein`, `ctrWeergave`/`ctrWeergaveZet`, `ctrData` per domein,
+`ctrRenderDomein`, `ctrRenderSoortKeuze`, `ctrKiesDomein`. `test.html`: twee
+tests (117/117). `docs/stijlgids.md` §6.
+
+**Niet doen.** Een derde tab "Alles": dan staan zaak en privé toch weer door
+elkaar, en het tellertje dekt het enige wat je daar zou zoeken.
+
+## 2026-09-23 · Module Contracten: elk contract met looptijd, opzegtermijn en PDF
+
+**Probleem.** Welke contracten er lopen, tot wanneer, en vóór wanneer je moet
+opzeggen stond nergens -- en de getekende PDF zat ergens in een mailbox.
+Opdrachten dekt alleen klantwerk (uren, tarief), niet de verzekering, het
+internetabonnement of de raamovereenkomst met een bemiddelaar.
+
+**Beslissing.** Een module **Contracten** in de groep Administratie, onder
+Opdrachten (`#contracten`, `rawState.contracten`). Frank koos voor één module
+voor alle soorten, niet voor PDF's bij Opdrachten:
+- **Soorten:** klant, bemiddelaar, leverancier, verzekering, abonnement,
+  overig. Een klantcontract kiest uit de klantenlijst; een bemiddelaar krijgt
+  een naam plus (optioneel) de eindklant; de rest alleen een naam.
+- **Looptijd uit een opdracht.** Heeft de klant opdrachten, dan kan een
+  contract er één volgen: ingang, einde en opzegtermijn komen dan uit de
+  opdracht (`ctrLooptijd()`), zodat dezelfde datums niet op twee plekken
+  staan. Bij opslaan gaat een kopie mee, voor als de opdracht ooit weg is.
+- **Stilzwijgende verlenging** (maand, kwartaal, half jaar, jaar). Het einde
+  schuift zelf door naar de lopende periode, altijd gerekend vanaf de
+  oorspronkelijke einddatum (anders kruipt 31 januari via februari naar de
+  28e), en een laatste dag van de maand blijft de laatste dag. Is de
+  opzegtermijn voor deze periode verstreken, dan telt die van de volgende --
+  met "dan stopt hij op …" erbij, want dat einde staat nergens anders.
+- **Groepen in plaats van pillen:** *Vraagt aandacht* (opzeggen of beslissen
+  binnen zes weken, einde binnen acht) · Lopend · Gepland · Afgelopen. De
+  reden kleurt in de kolom waar hij over gaat, net als het budget bij
+  Opdrachten: geen pil die dezelfde datum nog eens noemt. Zes weken en niet
+  drie zoals bij Opdrachten: een contract kijk je minder vaak in, en een
+  opzegging moet meestal schriftelijk en op tijd binnen zijn.
+
+**Waar de PDF staat.** Niet in het databestand: dat gaat na elke wijziging in
+zijn geheel naar Drive en als back-up naar localStorage (± 5 MB). Eén gescand
+contract van 2 MB zou elke save twee megabyte zwaarder maken en na een paar
+contracten de back-up laten mislukken. Elke PDF wordt een eigen bestand in de
+`appDataFolder` (`contract-<id>.pdf`, multipart tot 5 MB, daarboven de
+hervatbare upload; max. 25 MB); het contract onthoudt alleen het nummer. Op
+het apparaat staat een kopie in IndexedDB (`herling_bijlagen`), zodat je hem
+meteen ziet, ook vóór hij in Drive staat en offline. Uploaden gebeurt alleen
+als Drive deze sessie al gelezen is (`driveGelezen`), anders zou er zonder
+klik een Google-venster opengaan. Wat nog niet in Drive staat, staat in het
+venster als "alleen op dit apparaat" en is via ⋯ opnieuw te versturen.
+
+**Weghalen is niet meteen weg.** Een verwijderde PDF (los, of met zijn
+contract) gaat naar `contractState.opruimen` en wordt pas na dertig dagen uit
+Drive en IndexedDB gehaald. Zo werken "ongedaan maken" en het terugzetten van
+een oudere versie via Versiegeschiedenis nog. Verwijst een contract er
+intussen weer naar, dan vervalt alleen de opruimregel. Nooit afgeleid uit
+"niet meer in gebruik": een tweede apparaat met een oudere state zou dan de
+PDF van een nieuw contract weggooien.
+
+**Mobiel.** Wel vormgegeven, anders dan Opdrachten: ⋯ en de ronde + op hun
+vaste plek, de lijstkaart (`.uren-mcard`) in plaats van de tabel, het venster
+over de volle breedte met ✕ in de kopbalk.
+
+**Niet getest.** Het Drive-deel (uploaden, ophalen op een ander apparaat,
+opruimen) is lokaal niet uit te voeren: op localhost werkt de Google-login
+niet. IndexedDB, het venster, bekijken, weghalen, verwijderen en ongedaan
+maken zijn in de preview getest via echte gebeurtenissen; het rekenwerk en
+het laden in `test.html` (8 tests, 115/115).
+
+**Bestanden.** `index.html`: `#mod-contracten`, `#ctrModal`, `#ctrPdfModal`,
+een regel in de zijbalk, het CSS-blok "Contracten" (na Opdrachten), de sectie
+MODULE: CONTRACTEN, en `#ctrMenuBtn` in de twee gedeelde mobiele regels voor
+het ⋯. `contractState` staat in `hydrateerStateIntern()`,
+`verzamelModuleState()`, `stateOmvang()` en `voegStateSamen()`.
+
+**Niet doen.** Een PDF als base64 in `rawState` zetten "omdat dat simpeler
+is". En de looptijd van een klantcontract óók in het contract bijhouden als
+hij al aan een opdracht hangt.
+
+## 2026-09-16 · Module Opdrachten: contracten per klant en een vooruitzicht in de werkmaand
+
+**Probleem.** Tot wanneer een opdracht loopt, hoeveel uur per week, tegen welk
+tarief en wanneer je moet beslissen over verlengen stond nergens in de app. En
+dus ook niet wat er de komende maanden binnenkomt.
+
+**Beslissing.** Een module **Opdrachten** in de groep Administratie, onder
+Facturen (`#opdrachten`, `rawState.opdrachten`). Frank koos zelf:
+- **Twee soorten afspraken:** uurtarief met uren per week, en uurtarief met
+  een urenbudget. Geen vast bedrag per maand en geen vaste projectprijs.
+- **Het vooruitzicht telt in de werkmaand.** Tot en met vandaag de uren die je
+  schreef (alle klanten, tegen het tarief van de regel, anders van de
+  opdracht, anders van de klant), vanaf morgen de uren uit je opdrachten.
+  Geschreven is egaal, gepland gearceerd (stijlgids §11). In de huidige maand
+  staan ze op elkaar.
+- **Beginnen met een voorstel uit je uren:** elke klant met uren in de laatste
+  acht weken en zonder lopende opdracht krijgt een voorstel. De start is het
+  begin van de huidige reeks, de uren per week het gemiddelde sindsdien, het
+  tarief het meest gebruikte afwijkende tarief of dat van de klant.
+
+**Hoe uren bij een opdracht horen.** Via klant en looptijd, niet via een veld
+op de urenregel. Een keuze bij elke urenregel is precies het handwerk dat deze
+module niet mocht toevoegen. Overlappen twee opdrachten van dezelfde klant, dan
+gaat een regel naar de opdracht die het laatst begon.
+
+**Wat de lijst meldt.** Een einde binnen acht weken, een beslismoment voor
+verlengen of opzeggen binnen drie weken (einddatum min opzegtermijn), een
+budget vanaf 75% (via de kleur van de balk, niet als pil die hetzelfde
+percentage herhaalt), en een lopende opdracht zonder uren in drie weken. Een
+opdracht zonder einddatum krijgt géén melding: dat is geen probleem. De
+meldingen staan in de kolom waar ze over gaan. Een aparte kolom "Let op" kostte
+220px, waardoor op een laptop van 1280px de klantnaam afbrak tot "Van der ...".
+
+**Rekenwerk.** Werkdagen maandag tot en met vrijdag, zonder feestdagen of
+vakantie: het is een schatting, geen rooster. Een budget is een plafond: is het
+op, dan stopt de planning, ook vóór de einddatum. "Op rond" staat er alleen bij
+een vast aantal uren per week; bij een budget dat over de looptijd wordt
+verdeeld is het budget per definitie op de einddatum op. Een maand opzegtermijn
+vanaf de 31e landt op de laatste dag van de vorige maand.
+
+**Mobiel.** Nog niet vormgegeven, op verzoek. Geen knop in de tabbalk, wel
+bereikbaar via de lade. De tabel schuift daar voorlopig zijwaarts binnen zijn
+kaart: de mobiele laag verbergt `.uren-sheet-card`, en zonder uitzondering was
+de lijst op een telefoon leeg.
+
+**Bestanden.** `index.html`: `#mod-opdrachten`, `#opdModal`,
+`#opdVoorstelModal`, een regel in de zijbalk, het CSS-blok "Opdrachten" (na het
+meldingsblok) en de sectie MODULE: OPDRACHTEN. `opdrachtState` staat in
+`hydrateerState()`, `verzamelModuleState()`, `stateOmvang()` en
+`voegStateSamen()`. `test.html` heeft 8 tests op het rekenwerk.
+
+**Niet doen.** Een opdrachtveld op de urenregel "voor de nauwkeurigheid". En
+feestdagen er half in: dan lijkt het een rooster, en dat is het niet.
+
+## 2026-09-16 · Opslaan tijdens het laden wacht tot alles geladen is
+
+**Probleem.** `hydrateerState()` laadt de modules na elkaar. Halverwege draait
+`urenMigrateEntries()`, en die roept `scheduleSave()` aan zodra hij iets
+aanpast. Die schrijft direct een lokale kopie, en `verzamelModuleState()` zet
+daarvoor álle modules terug in `rawState`: ook de modules die nog niet geladen
+waren. Hun oude inhoud uit het geheugen kwam zo over wat er net was ingelezen
+heen, en daarna laadde de module die oude inhoud. Gevonden doordat Opdrachten
+leeg bleef bij testgegevens waarin urenregels geen aanmaakdatum hadden.
+
+**Wat het in de praktijk kon doen.** Normaal niets: jouw urenregels hebben die
+datum al, dus de migratie past niets aan. Maar bij het terugzetten van een
+oudere back-up met zulke regels konden de facturen van vóór het terugzetten
+over de teruggezette heen komen.
+
+**Beslissing.** `scheduleSave()` wacht tijdens het laden. Het verzoek wordt
+onthouden (`hydratieWilOpslaan`) en na afloop één keer uitgevoerd, met alle
+modules geladen. `hydrateerState()` is daarvoor een omhulsel om
+`hydrateerStateIntern()` geworden, met een `finally` zodat een fout
+halverwege de opslag niet voor altijd blokkeert.
+
+**Waarom niet alleen de volgorde omgooien.** Dan hangt de veiligheid ervan af
+dat niemand ooit nog iets met een opslag vóór een andere module zet. Dat is
+precies hoe dit ontstond.
+
+**Bewijs.** Een test in `test.html` zet een state met een urenregel zonder
+aanmaakdatum, een factuur en een opdracht, laadt hem en controleert dat beide
+blijven. Zonder de fix faalt die test (106/107), met de fix slagen ze alle 107.
+
+**Niet doen.** `scheduleSave()` aanroepen vanuit laadcode en ervan uitgaan dat
+hij direct schrijft: tijdens het laden doet hij dat bewust niet.
+
 ## 2026-09-16 · Klantwisselaar: zelfde maat als Externe tools, drukste klant bovenaan
 
 **Probleem.** Frank vond de klantwisselaar net te groot naast het venster van

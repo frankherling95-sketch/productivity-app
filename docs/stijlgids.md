@@ -228,6 +228,10 @@ plus een `<select>`, in dezelfde doos als het invoerveld ernaast (`--surface2`,
 het in het urenvenster; de facturen-editor doet hetzelfde met een kale
 `<select class="fac-ed-inp">`.
 
+**Een keuzechip** (`.uren-kchip`, voor een vaste set als de drie statussen of
+Zakelijk/Privé) is op mobiel minstens `var(--tap)` hoog, net als de duurchips
+in het urenvenster. Op desktop 30px.
+
 **Geen rij chips.** Wat uit een lijst komt die met de administratie meegroeit —
 klanten, bedrijven, sjablonen — hoort in een uitklaplijst. Chips blijven waar
 het aantal vaststaat: de drie statussen, de vier snelknoppen bij Uren.
@@ -338,7 +342,9 @@ De regels die daarbij horen:
   uit een factuur, over de werkdagen verdeeld — krijgt dezelfde tint
   gearceerd (135°, lijn van 2px op 5px) met een rand van 1px:
   `.vul.afgeleid` en `.fac-an-leg i.afgeleid`. Geen tweede kleur: het is geen
-  andere reeks, het is een andere bron. Altijd met een legenda.
+  andere reeks, het is een andere bron. Altijd met een legenda. In een svg is
+  dat een `<pattern>` op 45° met een rand van 1px, zoals `.opd-gepland` in het
+  vooruitzicht van Opdrachten: gepland is afgeleid, geschreven gemeten.
 - **Een hint of een hand alleen bij een doorklik.** "Klik voor de facturen"
   in de tooltip en `cursor:pointer` staan alleen op een baan met
   `data-fac-action` of `data-uren-action`. Een hand die niets opent is een

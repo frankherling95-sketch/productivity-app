@@ -50,8 +50,10 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 | `#checklist` | Checklist | Taken met subtaken, filters (prio/klant/periode), vastpinnen, drag-drop, archief |
 | `#uren` | Uren | Urenregistratie per regel, week/maand, Excel export |
 | `#facturen` | Facturen | Facturen uit geschreven uren, sjabloonbouwer, debiteuren, btw-overzicht, mailen via Gmail, analyse |
+| `#opdrachten` | Opdrachten | Contracten per klant (looptijd, uren per week of urenbudget, tarief, opzegtermijn) en een vooruitzicht per werkmaand |
+| `#contracten` | Contracten | Zakelijke én privécontracten (twee tabs), elk met looptijd, opzegtermijn, stilzwijgende verlenging en de PDF erbij |
 
-Entry render functions: `renderDashboard()`, `renderTodoModule()`, `renderNotesModule()`, `renderChecklistModule()`, `renderUrenModule()`, `renderFacturenModule()`. `renderAll()` wordt aangeroepen na elke `loadGist()`.
+Entry render functions: `renderDashboard()`, `renderTodoModule()`, `renderNotesModule()`, `renderChecklistModule()`, `renderUrenModule()`, `renderFacturenModule()`, `renderOpdrachtenModule()`, `renderContractenModule()`. `renderAll()` wordt aangeroepen na elke `loadGist()`.
 
 ## State & persistence
 
@@ -61,6 +63,8 @@ rawState = {
   notes:    notesState,      // {tree, activeId, collapsed, clientGroupCollapsed, recentIds, sortBy, prullenbak, verborgenKlanten}
   checklist: checklistState, // {items, showArchived, sortBy, groupByPriority}
   uren:     urenState,       // {entries, templates}
+  opdrachten: opdrachtState, // {opdrachten}
+  contracten: contractState, // {contracten, opruimen} — de PDF's zelf staan NIET hierin, zie Contracten hieronder
   // agenda: verwijderd 2026-09-06; oude events blijven ongemoeid in Drive staan
   settings: { calSources, theme, ... }
 }
@@ -71,6 +75,8 @@ rawState = {
 - Checklist item: `{id, text, done, priority, deadline, clientId, subtasks[], archived, sortOrder, pinned}`
 - Notes node (recursief): `{id, type:'page'|'folder', title, content, clientId, tags, children[]}`
 - Klant: `{id, name, colorIdx}`
+- Contract: `{id, domein ('zakelijk'|'prive'; ontbreekt = zakelijk), soort, titel, clientId|null, wederpartij, opdrachtId|null, getekend, start, eind|null, opzeg, verlenging ('' of '1m'/'3m'/'6m'/'12m'), notitie, bijlagen[]}` — een bijlage is `{id, naam, grootte, hash, driveId|null}`. De PDF staat als **eigen bestand** in de Drive-`appDataFolder` (`contract-<id>.pdf`) plus een kopie in IndexedDB (`herling_bijlagen`), niet in `rawState`. Hangt een contract aan een opdracht, dan komt de looptijd uit de opdracht (`ctrLooptijd()`)
+- Opdracht: `{id, clientId, naam, start, eind|null, opzeg ('', '2w', '1m', …), tarief|null, urenPerWeek|null, urenBudget|null, notitie}` — uren horen erbij via klant + looptijd, niet via een veld op de urenregel
 
 ### Storage keys
 
@@ -81,6 +87,8 @@ rawState = {
 | `LS_BACKUP_KEY` = `herling_analytics_local_backup` | Volledige rawState backup |
 | `LS_SYNC_KEY` = `herling_analytics_sync` | `gewijzigdOp`/`naarDriveOp` (lokale klok) + `driveTijd` (server-klok) |
 | `LS_ZIJBALK` = `herling_zijbalk` | Zijbalk ingeklapt + welke groepen dicht staan (per apparaat, niet in Drive) |
+| `LS_CTR_WEERGAVE` = `herling_contracten_weergave` | Welke tab van Contracten je bekijkt (zakelijk/privé), per apparaat en bewust niet in `rawState` |
+| IndexedDB `herling_bijlagen` | PDF's van Contracten op dit apparaat (kopie; het origineel staat als los bestand in de Drive-`appDataFolder`) |
 | `LS_HERSTEL_KEY` = `herling_analytics_herstel` | Niet-gekozen versie na een conflict; zichtbaar in Instellingen → Versiegeschiedenis, of `herstelDownload()` |
 
 ### Save flow
@@ -100,13 +108,13 @@ De functienamen zijn historisch (`loadGist`/`saveGist`/`refreshGist`); ze praten
 
 ### Migratie functies
 
-Bij toevoegen van een nieuw state-veld: voeg een hydratie-stap toe in `hydrateerState()` (zoek `if(!checklistState.items)` als voorbeeld) — dat is het enige laadpad.
+Bij toevoegen van een nieuw state-veld: voeg een hydratie-stap toe in `hydrateerStateIntern()` (zoek `if(!checklistState.items)` als voorbeeld) — dat is het enige laadpad; `hydrateerState()` is het omhulsel dat `scheduleSave()` laat wachten tot alles geladen is.
 
 > Er staan er nu geen meer. `migrateOldKanban(loaded)` werd nergens aangeroepen en is verwijderd (2026-08-21); `migrateCalSettings()` verdween met de agenda-module (2026-09-06).
 
 ### State in `rawState` zetten
 
-`verzamelModuleState()` kopieert de losse module-states terug in `rawState`; `huidigeStateSnapshot()` doet dat en geeft `rawState` terug. **Nieuwe module erbij? Zet hem in `verzamelModuleState()`** — wat daar niet in staat gaat niet naar Drive en niet in de back-up.
+`verzamelModuleState()` kopieert de losse module-states terug in `rawState`; `huidigeStateSnapshot()` doet dat en geeft `rawState` terug. **Nieuwe module erbij? Zet hem in `verzamelModuleState()`** — wat daar niet in staat gaat niet naar Drive en niet in de back-up. Zet hem ook in `voegStateSamen()` (samenvoegen bij een schrijfbotsing) en `stateOmvang()` (is een lokale kopie compleet).
 
 ## UX-systemen
 
@@ -205,7 +213,7 @@ tabel is de leesbare versie. Wijzig ze samen.
 | `facturen` | `fac*`, `_fac*`, `factuur*` | `.fac-` | `#mod-facturen` |
 
 `#mod-todo` (Kanban) heeft te weinig eigen code voor een eigen spoor en valt onder
-de coördinator.
+de coördinator. Dat geldt voorlopig ook voor `#mod-opdrachten` (`opd*`, `.opd-`) en `#mod-contracten` (`ctr*`, `.ctr-`).
 
 ### Regels
 
@@ -298,6 +306,10 @@ waar de fout zit.
 
 Top-3 meest recent. Volledige log + *waarom* per beslissing: [`docs/decisions.md`](docs/decisions.md).
 
+- **2026-09-23**: Contracten heeft twee lijsten, **Zakelijk** en **Privé** (tabs; `contract.domein`, ontbreekt = zakelijk). Privé kent geen klant of bemiddelaar als soort. Het tellertje op de tab die je níet bekijkt zegt hoeveel daar om aandacht vraagt. De gekozen tab staat per apparaat in localStorage, niet in de state: een weergavekeuze via `scheduleSave()` kon vóór het laden een lege lokale kopie over de goede heen zetten. Meegenomen: keuzechips (`.uren-kchip`) zijn op mobiel `var(--tap)` hoog, ook de statuschips in het urenvenster (waren 35px)
+- **2026-09-23**: Module **Contracten** onder Administratie: elk contract (klant, bemiddelaar, leverancier, verzekering, abonnement, overig) met looptijd, opzegtermijn, stilzwijgende verlenging en PDF's. Een verlengend contract schuift zelf door naar de lopende periode, en is de opzegtermijn verstreken dan telt die van de volgende. Groepen: *Vraagt aandacht* (opzeggen/beslissen binnen zes weken, einde binnen acht) · Lopend · Gepland · Afgelopen. Een PDF gaat **niet** in het databestand (dat gaat bij elke save in zijn geheel naar Drive en localStorage) maar als los bestand in de `appDataFolder`, met een kopie in IndexedDB; weggehaalde PDF's blijven dertig dagen staan (`contractState.opruimen`). Een klantcontract kan zijn looptijd uit een opdracht halen. Het Drive-deel is lokaal niet te testen (geen Google-login op localhost)
+- **2026-09-16**: Module **Opdrachten** onder Administratie: per klant looptijd, uren per week of urenbudget, tarief en opzegtermijn; meldingen bij een naderend einde, een beslismoment en een budget vanaf 75%. Het vooruitzicht telt in de werkmaand: geschreven tot vandaag (egaal), gepland vanaf morgen (gearceerd). Beginnen kan met een voorstel uit je uren. Uren horen bij een opdracht via klant + looptijd, niet via een veld op de urenregel. Mobiel nog niet vormgegeven
+- **2026-09-16**: `scheduleSave()` wacht tijdens `hydrateerState()` — een migratie halverwege het laden schreef de nog niet geladen modules (Facturen, Opdrachten) met hun oude inhoud terug in `rawState`
 - **2026-09-16**: Klantwisselaar op de maat van het venster van Externe tools (320px, regels 48px, blokje 22px, 13px/600) en klanten op aantal open taken, meeste eerst
 - **2026-09-16**: Zijbalk opnieuw naar Franks voorbeeld — rijen 44px en 14px/600 met een mint icoon als accent (geen mint vlak/streep meer), Uren en Facturen in een uitklapbare groep **Administratie**, een klantwisselaar bovenin (ook Ctrl+J) die hetzelfde `activeClientFilter` zet als de topbalk, Instellingen als regel met bovenaan Thema (een venster met vier keuzes in plaats van een doorklikknop), de gebruiker met naam en e-mail onderin en een ronde inklapknop op de rand. Breedte 272/72px. De klantenbalk in de topbalk is op een bureaublad weg en blijft op mobiel. De nav-tellers zijn nooit zichtbaar geweest en bewust niet aangezet. Maten in stijlgids §13
 - **2026-09-12**: Uren uit facturen ontdubbelt per factuurregel in plaats van per maand — al overgenomen (op factuurid, anders op bestandsnaam via `urenAnBron()`) of zelf geschreven voor diezelfde klant in diezelfde maand valt af, de rest van de maand komt gewoon mee. Binnen één AI-keuze vangt de SHA-256 de kopie. De AI-import controleert nu vooraf op grootte en soort (12 MB, zelfde woorden als de scanner), en bij een 400 gaan de vijf bestanden van een mislukte groep nog één keer los — bij 429/503 juist niet
@@ -409,7 +421,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 98 smoke-, sync-, model-, reken- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
+| `test.html` | 117 smoke-, sync-, model-, reken- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |
