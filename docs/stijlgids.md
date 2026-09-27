@@ -165,6 +165,26 @@ De titel zegt dan niet nog eens welke stand er aanstaat: de knop ernaast doet
 dat al, en op 375px is die ruimte er ook niet. Voorbeeld: `.fac-an-kaartknop`
 in "Waar komt het vandaan" (184px titel + 118px knop + 10px gat in 320px).
 
+### Een getal in een tabel dat doorklikt
+
+Opent een getal in een draaitabel de regels erachter (Uren → Per klant), dan
+is het een `<button class="uren-piv-klik">` ín een `td.klik`. De knop neemt
+de vulling van de cel over (`9px 11px`) en vult hem helemaal (`td{height:1px}`
++ knop `height:100%`), zodat de kolom niet verspringt en je niet op het getal
+hoeft te mikken. Lettertype, gewicht en kleur erft hij van de cel (`font:
+inherit; color: inherit`) — een klikbaar getal ziet er in rust uit als elk
+ander getal.
+
+| | |
+|---|---|
+| hover | cel `var(--mint-soft)` — de rij zelf kleurt al `--surface2` |
+| focus | `2px solid var(--mint)`, `outline-offset:-2px` |
+| zonder waarde | geen knop: een `—` opent niets |
+| wat het opent | een lijstvenster van 720px met `.uren-mcard`-regels per dag |
+
+Op een telefoon staat de tabel er niet; daar is de klantregel
+(`button.uren-mpiv-row`) de knop, minstens `var(--tap)` hoog.
+
 ### Taakkaart (Checklist)
 
 | | |
