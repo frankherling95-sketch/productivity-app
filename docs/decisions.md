@@ -10,6 +10,50 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-27 · Uren Per klant: elk getal opent de regels erachter
+
+**Probleem.** Per klant zegt hoeveel uur er in een week zat, maar niet wélke
+regels. Om dat te zien moest je naar Registraties, naar die week bladeren en
+tussen de andere klanten zoeken. Frank: *"Dan kan ik de week selecteren en dan
+ga ik gelijk naar die registraties. Het zou mooi zijn als je dan gewoon een pop
+up venster ervan maakt, zodat je enkel alleen die regels laat zien."*
+
+**Beslissing.** Elk getal in de tabel is een knop (`.uren-piv-klik`) die een
+venster opent met precies de regels erachter: klant × week, de maand van een
+klant (Totaal), zijn openstaande uren (Open), en in de voet dezelfde drie voor
+alle klanten. Titel = van wie, ondertitel = wanneer en wat erin zit. De regels
+zijn de bestaande lijstkaart (`urenRegelKaart()`, nu gedeeld met Registraties
+op mobiel), per dag; een tik opent het gewone bewerkvenster, dat eroverheen
+ligt. Onderaan *Naar Registraties* voor wie wil selecteren of in bulk wijzigen.
+Op een telefoon (geen weken in beeld) opent een klantregel zijn hele maand.
+
+**Waarom zo.**
+- *Dezelfde selectie als het getal.* De lijst komt uit hetzelfde bereik en
+  dezelfde filterchips (`urenFilterToepassen()`, nu ook de basis van
+  `urenVisibleEntries()`). Wk 36 in september is 1–6 sep, niet 31 aug–6 sep —
+  anders klopt de som in het venster niet met de cel. Zelfde afspraak als de
+  doorklik in de analyse van Facturen (2026-09-09).
+- *Het venster staat in de DOM vóór `#urenEntryModal`.* Bij gelijke z-index
+  ligt de laatste bovenop, en `escBovensteModal()` sluit ook de laatste eerst.
+  Zo komt het bewerkvenster over de lijst en sluit Escape eerst dát.
+- *Het venster loopt mee.* `urenRenderAll()` hertekent het als het open staat,
+  dus opslaan, verwijderen en ongedaan maken kloppen meteen ook daar.
+- *De knop vult de hele cel* (`td{height:1px}` + `height:100%`), want de cel
+  licht mint op bij hover; een rand van 3px die wel oplicht maar niet klikt is
+  een kleine leugen. Rijhoogte ongewijzigd (39,2px).
+- *Dagtotaal alleen bij meer dan één regel* — anders staat hetzelfde getal twee
+  keer onder elkaar (2026-09-06).
+- *Een klantregel op mobiel is nu aantikbaar* en dus `var(--tap)` hoog (was
+  40,8px, alleen informatief).
+
+**Niet doen.** Bij *Naar Registraties* het klantfilter zetten: dat blijft
+aanstaan en maakt Per klant daarna stil tot één klant. Wie alleen die regels
+wil zien heeft het venster.
+
+**Bestanden.** `index.html` — `#urenCelModal`, `urenCelOpen/Render/NaarReg`,
+`urenRegelKaart`, `urenFilterToepassen`, `urenRenderKlantView`; CSS
+`.uren-piv-klik`, `button.uren-mpiv-row`, `.uren-an-lijst button.uren-mcard:hover`.
+
 ## 2026-09-23 · Opdrachten: PDF's bij een opdracht, één PDF-blok voor twee modules
 
 **Probleem.** Voor een opdracht sluit Frank ook een overeenkomst af, maar de PDF
