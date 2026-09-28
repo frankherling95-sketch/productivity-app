@@ -10,6 +10,40 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-28 · Een te hoog venster scrollt op een bureaublad, in plaats van af te kappen
+
+**Probleem.** Frank kon een nieuwe opdracht niet opslaan: onderaan het venster
+stonden Annuleren en Opslaan half in beeld, en scrollen ging niet. Een opdracht
+met een PDF en het rekenblok eronder is op een laptopscherm hoger dan 90vh.
+
+**Oorzaak.** `.modal` staat twee keer in de CSS. De basisregel (bovenin) zegt
+`max-height:90vh; overflow-y:auto`; de themaregel verderop zegt
+`overflow:hidden` — zelfde gewicht, later in het bestand, dus die won. Elk
+venster dat hoger werd dan 90vh werd onderaan afgekapt, knoppen en al. Op
+mobiel viel het niet op: de 768px-laag zet `overflow-y:auto` er wéér overheen.
+Gemeten op 1400×812: 39 van de 40 vensters stonden op `hidden`; het
+opdrachtvenster kwam 189px tekort, het contractvenster 121px (leeg al 213px).
+
+**Beslissing.** In de themaregel `overflow-x:hidden; overflow-y:auto`. Zijwaarts
+blijft dicht (daar was hij voor: de gekleurde kop met negatieve marges), omlaag
+scrolt nu — zoals op een telefoon al gebeurde. De voet scrolt mee; er is
+nergens in de app een vaste voet, ook niet op mobiel.
+
+**Bewezen.** Alle 40 vensters vóór en na gemeten, op 1400px en 375px: op een
+bureaublad is het enige verschil `hidden → auto`, geen enkele maat veranderde,
+geen spookscrollbalk (1–3px) — ook niet bij de vensters met een eigen
+scrollende middenlaag (factuureditor, maandoverzicht, doorklik), die precies
+passen. Mobiel: 0 verschillen. Met een echt muiswiel: vóór bleef het
+opdrachtvenster op scroll 0 met Opslaan op 940px onder een venster dat op
+771px ophield; na scrolt het 189px en staat Opslaan helemaal in beeld.
+Contractvenster idem.
+
+**Niet doen.** `overflow:hidden` terugzetten op `.modal` om iets af te knippen:
+knip zijwaarts (`overflow-x`), nooit omlaag.
+
+**Bestanden.** `index.html` — de `.modal, .modal-content`-regel onder
+"─── Modal ───".
+
 ## 2026-09-27 · Uren Per klant: elk getal opent de regels erachter
 
 **Probleem.** Per klant zegt hoeveel uur er in een week zat, maar niet wélke
