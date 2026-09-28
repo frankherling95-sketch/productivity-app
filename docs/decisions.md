@@ -75,6 +75,45 @@ knip zijwaarts (`overflow-x`), nooit omlaag.
 **Bestanden.** `index.html` — de `.modal, .modal-content`-regel onder
 "─── Modal ───".
 
+## 2026-09-28 · Uren Per week en Per maand: ook daar opent elk getal de regels
+
+**Probleem.** Na Per klant (2026-09-27) waren de andere twee draaitabellen van
+Uren nog alleen cijfers. Frank: *"maak Per week en Per maand ook klikbaar."*
+
+**Beslissing.** Dezelfde doorklik, hetzelfde venster:
+- *Per week*: elke dag, elk weektotaal, en in de voet elke weekdag over de hele
+  maand ("Alle maandagen · September 2026") plus het maandtotaal. Altijd alle
+  klanten, want die tabel splitst niet naar klant. Op mobiel opent een weekregel
+  die week.
+- *Per maand*: klant × maand, het maandtotaal en Gefactureerd; in de voet elke
+  klant over het jaar en de jaartotalen (ook Gefactureerd en Openstaand). De
+  maandnaam blijft wat hij was: hij kiest de maand van de kalender. Op mobiel
+  opent een maandregel die maand.
+
+**Hoe.** Het bereik kreeg opties: `van/tot/status=<id>/dag=<0-6>` (was
+`van/tot/<status>`; alleen in de opmaak, dus niets te migreren). Een heel jaar
+heeft geen *Naar Registraties* — dat kent alleen week en maand — en op een
+telefoon valt de lege voet dan weg (`voet-leeg`, zoals bij de prullenbak). De
+celhelper staat nu één keer (`urenCelTd`, `urenCelWeekBereik`).
+
+**Twee keer hetzelfde, opnieuw.** In een venster van één dag (een dagcel in Per
+week) stonden datum en uren in de ondertitel én in de dagkop. Dagkop weg bij één
+dag; het dagtotaal alleen nog bij meer dan één regel én meer dan één dag.
+
+**Hover in de gekozen maandrij.** Die rij is al `--mint-soft`, dus daar
+`--mint-glow` — anders verandert er niets onder de muis.
+
+**Niet veranderd: de kalender onder Per maand.** Een dag springt nog naar
+Registraties (2026-08-16). Daar vul je ook een lége dag aan, en in een venster
+valt voor een lege dag niets te zien.
+
+**Getest.** Alle 82 klikbare cellen in de drie weergaven met een echte klik:
+de som in het venster is telkens gelijk aan de cel.
+
+**Bestanden.** `index.html` — `urenRenderWeekView`, `urenRenderMaandView`,
+`urenCelTd`, `urenCelWeekBereik`, `urenCelOpen/Regels/Render/NaarReg`,
+`urenCelHeelJaar`, `UREN_DAG_MV`; CSS `.uren-pivot tr.gekozen td.klik:hover`.
+
 ## 2026-09-27 · Uren Per klant: elk getal opent de regels erachter
 
 **Probleem.** Per klant zegt hoeveel uur er in een week zat, maar niet wélke

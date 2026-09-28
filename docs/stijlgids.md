@@ -167,8 +167,9 @@ in "Waar komt het vandaan" (184px titel + 118px knop + 10px gat in 320px).
 
 ### Een getal in een tabel dat doorklikt
 
-Opent een getal in een draaitabel de regels erachter (Uren → Per klant), dan
-is het een `<button class="uren-piv-klik">` ín een `td.klik`. De knop neemt
+Opent een getal in een draaitabel de regels erachter (Uren → Per klant, Per
+week, Per maand), dan is het een `<button class="uren-piv-klik">` ín een
+`td.klik` — maak hem met `urenCelTd()`, niet met de hand. De knop neemt
 de vulling van de cel over (`9px 11px`) en vult hem helemaal (`td{height:1px}`
 + knop `height:100%`), zodat de kolom niet verspringt en je niet op het getal
 hoeft te mikken. Lettertype, gewicht en kleur erft hij van de cel (`font:
@@ -177,13 +178,14 @@ ander getal.
 
 | | |
 |---|---|
-| hover | cel `var(--mint-soft)` — de rij zelf kleurt al `--surface2` |
+| hover | cel `var(--mint-soft)` — de rij zelf kleurt al `--surface2`; in een rij die al mint is (de gekozen maand) `var(--mint-glow)` |
 | focus | `2px solid var(--mint)`, `outline-offset:-2px` |
 | zonder waarde | geen knop: een `—` opent niets |
 | wat het opent | een lijstvenster van 720px met `.uren-mcard`-regels per dag |
 
-Op een telefoon staat de tabel er niet; daar is de klantregel
-(`button.uren-mpiv-row`) de knop, minstens `var(--tap)` hoog.
+Op een telefoon staat de tabel er niet; daar is de regel van de lijst
+(`button.uren-mpiv-row`: klant, week of maand) de knop, minstens `var(--tap)`
+hoog. Een regel zonder uren blijft een gewone `div`.
 
 ### Taakkaart (Checklist)
 

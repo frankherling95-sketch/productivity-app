@@ -1157,6 +1157,8 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
   font:inherit;color:inherit;text-align:right;cursor:pointer;
 }
 .uren-pivot td.klik:hover{background:var(--mint-soft)}
+/* De gekozen maand in Per maand is als rij al mint-soft: daar een tint sterker. */
+.uren-pivot tr.gekozen td.klik:hover{background:var(--mint-glow)}
 .uren-piv-klik:focus-visible{outline:2px solid var(--mint);outline-offset:-2px}
 .uren-meter{display:flex;align-items:center;gap:9px;justify-content:flex-end}
 .uren-meter .track{width:96px;height:6px;border-radius:3px;background:var(--surface3);overflow:hidden;flex-shrink:0}
@@ -20003,17 +20005,11 @@ function urenRenderKlantView(){
 
   if(!clientIds.length)return urenEmptyPeriod();
 
-  /* Elk getal opent de regels erachter (urenCelOpen). Het bereik is dat van
-     het getal zelf: een week over de maandgrens telt hier alleen zijn dagen
-     in deze maand, dus de doorklik ook. */
+  /* Elk getal opent de regels erachter (urenCelOpen). */
   const maandBereik=p.from+'/'+p.to;
-  const wkBereik=wk=>(wk[0]<p.from?p.from:wk[0])+'/'+(wk[6]>p.to?p.to:wk[6]);
+  const wkBereik=wk=>urenCelWeekBereik(wk,p);
   const wkNr=wk=>getISOWeek(urenDate(wk[0]));
-  /* Zonder uren valt er niets te openen: dan de cel zoals hij altijd was. */
-  const cel=(v,cls,klant,bereik,titel,leeg='—')=>v>0
-    ? `<td class="${cls?cls+' ':''}klik"><button type="button" class="uren-piv-klik" data-uren-action="urenCelOpen"
-        data-uren-arg1="${klant}" data-uren-arg2="${bereik}" title="${escapeHtml(titel)}">${urenFmt(v)}</button></td>`
-    : `<td${cls?` class="${cls}"`:''}>${leeg}</td>`;
+  const cel=urenCelTd;
 
   let html=`<div class="uren-sheet-card"><table class="uren-pivot"><thead><tr>
     <th>Klant</th>
@@ -20035,7 +20031,7 @@ function urenRenderKlantView(){
         return cel(v,v>0?'hot':'muted',cid||'',wkBereik(wk),`De registraties van ${naam} in week ${wkNr(wk)}`);
       }).join('')}
       ${cel(rowTotal,'hot',cid||'',maandBereik,`Alle registraties van ${naam} in ${p.label}`,urenFmt(rowTotal))}
-      ${cel(open,open>0?'hot':'muted',cid||'',maandBereik+'/open',`De openstaande uren van ${naam} in ${p.label}`)}
+      ${cel(open,open>0?'hot':'muted',cid||'',maandBereik+'/status=open',`De openstaande uren van ${naam} in ${p.label}`)}
       <td><div class="uren-meter">
         ${open>0
           ? `<button class="uren-inv-btn" data-uren-action="urenInvoiceClient" data-uren-arg1="${cid}"
@@ -20055,7 +20051,7 @@ function urenRenderKlantView(){
       return cel(v,'','*',wkBereik(wk),`Alle registraties in week ${wkNr(wk)}`);
     }).join('')}
     ${cel(total,'','*',maandBereik,`Alle registraties in ${p.label}`,urenFmt(total))}
-    ${cel(openTotal,'','*',maandBereik+'/open',`Alle openstaande uren in ${p.label}`,urenFmt(openTotal))}
+    ${cel(openTotal,'','*',maandBereik+'/status=open',`Alle openstaande uren in ${p.label}`,urenFmt(openTotal))}
     <td style="text-align:right">100%</td>
   </tr></tfoot></table></div>`;
 
@@ -20077,7 +20073,7 @@ function urenRenderKlantView(){
   html+=`<div class="uren-mpiv-foot">Totaal ${escapeHtml(p.label)}<b>${urenFmt(total)}</b></div></div>`;
   if(openTotal>0){
     html+=`<div class="uren-mpiv"><button type="button" class="uren-mpiv-row" data-uren-action="urenCelOpen"
-      data-uren-arg1="*" data-uren-arg2="${maandBereik}/open">
+      data-uren-arg1="*" data-uren-arg2="${maandBereik}/status=open">
       <span class="nm" style="color:var(--text-muted)">Nog te factureren</span>
       <span class="v" style="color:var(--warning)">${urenFmt(openTotal)}</span>
     </button></div>`;
@@ -20086,12 +20082,12 @@ function urenRenderKlantView(){
   return html;
 }
 
-/* ══ Doorklik: de regels achter een getal in Per klant ══
-   Elk getal in die tabel is een optelsom van registraties. Een klik laat
-   precies die regels zien, in een venster, zodat je Per klant niet uit
-   hoeft om te zien wat er in een week zat. Een regel opent het gewone
-   bewerkvenster, dat eroverheen komt te liggen; na opslaan loopt deze
-   lijst mee (urenRenderAll).
+/* ══ Doorklik: de regels achter een getal in Per klant, Per week en Per maand ══
+   Elk getal in die tabellen is een optelsom van registraties. Een klik laat
+   precies die regels zien, in een venster, zodat je de weergave niet uit
+   hoeft om te zien wat erin zat. Een regel opent het gewone bewerkvenster,
+   dat eroverheen komt te liggen; na opslaan loopt deze lijst mee
+   (urenRenderAll).
 
    De selectie is die van het getal: hetzelfde bereik en dezelfde
    filterchips (urenFilterToepassen). Anders kan de lijst uit de pas lopen
@@ -20099,13 +20095,35 @@ function urenRenderKlantView(){
    analyse van Facturen.
 
    klant: een klant-id, '' voor regels zonder klant, '*' voor alle klanten.
-   bereik: 'van/tot' of 'van/tot/<status>'. De toestand staat in urenCel,
-   bovenin bij de rest van Uren. */
+   bereik: 'van/tot', eventueel gevolgd door '/status=<id>' (de kolommen
+   Open en Gefactureerd) en/of '/dag=<0-6>' (ma-zo: de voet van Per week,
+   "alle maandagen in september"). De toestand staat in urenCel, bovenin bij
+   de rest van Uren. */
+const UREN_DAG_MV=['maandagen','dinsdagen','woensdagen','donderdagen','vrijdagen','zaterdagen','zondagen'];
+
+/* Een getal als cel die doorklikt. Zonder uren valt er niets te openen: dan
+   de cel zoals hij altijd was, met `leeg` als inhoud. */
+function urenCelTd(v,cls,klant,bereik,titel,leeg='—'){
+  return v>0
+    ? `<td class="${cls?cls+' ':''}klik"><button type="button" class="uren-piv-klik" data-uren-action="urenCelOpen"
+        data-uren-arg1="${klant}" data-uren-arg2="${bereik}" title="${escapeHtml(titel)}">${urenFmt(v)}</button></td>`
+    : `<td${cls?` class="${cls}"`:''}>${leeg}</td>`;
+}
+/* Een week binnen de periode p: alleen de dagen die erin vallen. Een week
+   over de maandgrens telt in de tabel ook alleen die dagen, dus de doorklik
+   ook -- wk 36 in september is 1-6 sep, niet 31 aug-6 sep. */
+function urenCelWeekBereik(wk,p){
+  return (wk[0]<p.from?p.from:wk[0])+'/'+(wk[6]>p.to?p.to:wk[6]);
+}
+
 function urenCelOpen(klant,bereik){
-  const [van,tot,status]=String(bereik||'').split('/');
+  const [van,tot,...opties]=String(bereik||'').split('/');
   const iso=/^\d{4}-\d{2}-\d{2}$/;
   if(!iso.test(van||'')||!iso.test(tot||''))return;
-  urenCel={klant:klant==null?'':String(klant),van,tot,status:status||''};
+  const o={};
+  opties.forEach(s=>{const i=s.indexOf('=');if(i>0)o[s.slice(0,i)]=s.slice(i+1);});
+  urenCel={klant:klant==null?'':String(klant),van,tot,
+    status:o.status||'',dag:/^[0-6]$/.test(o.dag||'')?Number(o.dag):null};
   urenCelRender();
   document.getElementById('urenCelModal').classList.add('open');
 }
@@ -20117,6 +20135,7 @@ function urenCelRegels(c){
   let list=urenFilterToepassen(urenEntriesBetween(c.van,c.tot));
   if(c.klant!=='*')list=list.filter(e=>(e.clientId||'')===c.klant);
   if(c.status)list=list.filter(e=>urenStatusOf(e)===c.status);
+  if(c.dag!==null)list=list.filter(e=>(urenDate(e.date).getDay()+6)%7===c.dag);
   return list;
 }
 /* Een hele kalendermaand, of een stuk daarvan (een week binnen de maand)? */
@@ -20124,26 +20143,31 @@ function urenCelHeleMaand(c){
   const f=urenDate(c.van);
   return c.van.slice(8)==='01'&&c.tot===urenIso(new Date(f.getFullYear(),f.getMonth()+1,0));
 }
+function urenCelHeelJaar(c){
+  return c.van.slice(5)==='01-01'&&c.tot===c.van.slice(0,4)+'-12-31';
+}
 function urenCelRender(){
   const box=document.getElementById('urenCelBody');
   if(!box||!urenCel)return;
   const c=urenCel;
   const list=urenCelRegels(c);
-  const heleMaand=urenCelHeleMaand(c);
+  const heleMaand=urenCelHeleMaand(c),heelJaar=urenCelHeelJaar(c);
   const f=urenDate(c.van),l=urenDate(c.tot);
 
   /* Titel: van wie. Ondertitel: wanneer, en wat erin zit. */
   const wie=c.klant==='*'?'Alle klanten':c.klant?urenClientName(c.klant):'Zonder klant';
   let wanneer;
-  if(heleMaand)wanneer=MONTH_LABELS_NL[f.getMonth()]+' '+f.getFullYear();
+  if(heelJaar)wanneer=String(f.getFullYear());
+  else if(heleMaand)wanneer=MONTH_LABELS_NL[f.getMonth()]+' '+f.getFullYear();
+  else if(c.van===c.tot)wanneer=urenFormatDayLabel(c.van)+' · week '+getISOWeek(f);
   else{
     const dag=d=>d.toLocaleDateString('nl-NL',{day:'numeric',month:'short'}).replace('.','');
-    const reeks=c.van===c.tot?dag(f)
-      :f.getMonth()===l.getMonth()?f.getDate()+'–'+dag(l):dag(f)+' – '+dag(l);
+    const reeks=f.getMonth()===l.getMonth()?f.getDate()+'–'+dag(l):dag(f)+' – '+dag(l);
     wanneer='Week '+getISOWeek(f)+' · '+reeks;
   }
   const sub=[];
-  if(c.status==='open')sub.push('Nog te factureren');
+  if(c.status)sub.push(c.status==='open'?'Nog te factureren':urenStatusMeta(c.status).label);
+  if(c.dag!==null)sub.push('Alle '+UREN_DAG_MV[c.dag]);
   sub.push(wanneer);
   if(list.length){
     sub.push(urenFmt(urenSum(list))+' uur');
@@ -20153,34 +20177,47 @@ function urenCelRender(){
   }
   document.getElementById('urenCelTitel').textContent=wie;
   document.getElementById('urenCelSub').textContent=sub.join(' · ');
+  /* Registraties kent een week en een maand, geen jaar: bij een jaar valt de
+     knop weg. Op een telefoon staat Sluiten dan al als kruisje in de kop,
+     dus gaat de lege voet mee (zelfde afspraak als de prullenbak). */
+  const naar=document.querySelector('#urenCelModal [data-uren-action="urenCelNaarReg"]');
+  if(naar){
+    naar.style.display=heelJaar?'none':'';
+    naar.closest('.modal-footer')?.classList.toggle('voet-leeg',heelJaar);
+  }
 
   if(!list.length){
     box.innerHTML=`<div class="uren-empty"><b>Hier staat niets meer</b>
       De regels zijn verplaatst of verwijderd.</div>`;
     return;
   }
-  /* Per dag, maandag bovenaan -- dezelfde volgorde als Registraties. Het
-     dagtotaal alleen bij meer dan één regel: anders staat hetzelfde getal
-     twee keer onder elkaar (zie "nooit twee keer hetzelfde getal"). */
+  /* Per dag, maandag bovenaan -- dezelfde volgorde als Registraties.
+     Nooit twee keer hetzelfde getal (of dezelfde datum) in beeld:
+     - het dagtotaal alleen bij meer dan één regel én meer dan één dag --
+       met één regel is het de kaart, met één dag de ondertitel;
+     - bij het venster van één dag (Per week) geen dagkop: de datum staat
+       al in de ondertitel. */
   const perDag=new Map();
   list.forEach(e=>{if(!perDag.has(e.date))perDag.set(e.date,[]);perDag.get(e.date).push(e);});
   const vandaag=urenToday();
+  const eenDag=c.van===c.tot;
   let html='<div class="uren-an-lijst">';
   [...perDag.keys()].sort().forEach(dag=>{
     const rows=perDag.get(dag);
-    html+=`<div class="uren-mday"><em>${urenFormatDayLabel(dag)}</em>
+    if(!eenDag)html+=`<div class="uren-mday"><em>${urenFormatDayLabel(dag)}</em>
       ${dag===vandaag?'<span class="today">Vandaag</span>':''}
-      <span class="rule"></span>${rows.length>1?`<b>${urenFmt(urenSum(rows))} u</b>`:''}</div>`;
+      <span class="rule"></span>${rows.length>1&&perDag.size>1?`<b>${urenFmt(urenSum(rows))} u</b>`:''}</div>`;
     rows.forEach(e=>{html+=urenRegelKaart(e);});
   });
   box.innerHTML=html+'</div>';
 }
-/* Naar Registraties: een week naar die week, een maand naar die maand. Het
-   venster gaat eerst dicht, anders ligt het eroverheen. */
+/* Naar Registraties: een week of dag naar die week, een maand (ook "alle
+   maandagen" erin) naar die maand. Het venster gaat eerst dicht, anders
+   ligt het eroverheen. Een jaar heeft geen knop (zie urenCelRender). */
 function urenCelNaarReg(){
   const c=urenCel;
   closeUrenCel();
-  if(!c)return;
+  if(!c||urenCelHeelJaar(c))return;
   urenDraftFlush();
   urenView='reg';
   urenRegScope=urenCelHeleMaand(c)?'month':'week';
@@ -20201,21 +20238,27 @@ function urenRenderWeekView(){
     <th>Week</th>${DAY_LABELS_NL.map(d=>`<th>${d}</th>`).join('')}<th>Totaal</th><th style="width:170px">Aandeel</th>
   </tr></thead><tbody>`;
 
+  /* Elk getal opent de regels erachter (urenCelOpen): een dag, een week, of
+     in de voet één weekdag over de hele maand. Altijd alle klanten -- deze
+     tabel splitst niet naar klant. */
+  const maandBereik=p.from+'/'+p.to;
   const max=Math.max(...weeks.map(wk=>urenSum(list.filter(e=>wk.includes(e.date)))),1);
   weeks.forEach(wk=>{
     const mine=list.filter(e=>wk.includes(e.date));
     const wkTotal=urenSum(mine);
     const f=urenDate(wk[0]),l=urenDate(wk[6]);
-    const label='Week '+getISOWeek(f)+' · '+
+    const nr=getISOWeek(f);
+    const label='Week '+nr+' · '+
       f.toLocaleDateString('nl-NL',{day:'numeric',month:'short'}).replace('.','')+'–'+
       l.toLocaleDateString('nl-NL',{day:'numeric',month:'short'}).replace('.','');
     html+=`<tr>
       <td>${label}</td>
       ${wk.map(d=>{
         const v=urenSum(list.filter(e=>e.date===d));
-        return `<td class="${v>0?'hot':'muted'}">${v>0?urenFmt(v):'—'}</td>`;
+        const dl=urenFormatDayLabel(d);
+        return urenCelTd(v,v>0?'hot':'muted','*',d+'/'+d,`Alle registraties op ${dl.charAt(0).toLowerCase()+dl.slice(1)}`);
       }).join('')}
-      <td class="hot">${urenFmt(wkTotal)}</td>
+      ${urenCelTd(wkTotal,'hot','*',urenCelWeekBereik(wk,p),`Alle registraties in week ${nr}`,urenFmt(wkTotal))}
       <td><div class="uren-meter">
         <div class="track"><i style="width:${Math.round(wkTotal/max*100)}%;background:var(--mint)"></i></div>
       </div></td>
@@ -20226,21 +20269,25 @@ function urenRenderWeekView(){
     <td>Totaal ${escapeHtml(p.label)}</td>
     ${DAY_LABELS_NL.map((_,i)=>{
       const v=urenSum(list.filter(e=>(urenDate(e.date).getDay()+6)%7===i));
-      return `<td>${v>0?urenFmt(v):'—'}</td>`;
+      return urenCelTd(v,'','*',maandBereik+'/dag='+i,`Alle ${UREN_DAG_MV[i]} in ${p.label}`);
     }).join('')}
-    <td>${urenFmt(total)}</td><td></td>
+    ${urenCelTd(total,'','*',maandBereik,`Alle registraties in ${p.label}`,urenFmt(total))}<td></td>
   </tr></tfoot></table></div>`;
 
-  /* Mobiel */
+  /* Mobiel: een weekregel opent die week. Een week zonder uren blijft een
+     gewone regel -- er valt niets te openen. */
   html+=`<div class="uren-mlist"><div class="uren-mpiv">`;
   weeks.forEach(wk=>{
     const wkTotal=urenSum(list.filter(e=>wk.includes(e.date)));
     const f=urenDate(wk[0]);
-    html+=`<div class="uren-mpiv-row">
+    const inhoud=`
       <span class="nm" style="font-family:var(--font-cijfer);font-size:12.5px">Week ${getISOWeek(f)} · ${f.toLocaleDateString('nl-NL',{day:'numeric',month:'short'}).replace('.','')}</span>
       <span class="track"><i style="width:${Math.round(wkTotal/max*100)}%;background:var(--mint)"></i></span>
-      <span class="v">${urenFmt(wkTotal)}</span>
-    </div>`;
+      <span class="v">${urenFmt(wkTotal)}</span>`;
+    html+=wkTotal>0
+      ? `<button type="button" class="uren-mpiv-row" data-uren-action="urenCelOpen"
+          data-uren-arg1="*" data-uren-arg2="${urenCelWeekBereik(wk,p)}">${inhoud}</button>`
+      : `<div class="uren-mpiv-row">${inhoud}</div>`;
   });
   html+=`<div class="uren-mpiv-foot">Totaal ${escapeHtml(p.label)}<b>${urenFmt(total)}</b></div></div></div>`;
   return html;
@@ -20268,6 +20315,12 @@ function urenRenderMaandView(){
     <th>Totaal</th><th>Gefactureerd</th><th style="width:190px">Openstaand</th>
   </tr></thead><tbody>`;
 
+  /* Elk getal opent de regels erachter (urenCelOpen): een klant in een
+     maand, een maand, en in de voet een klant of alles over het hele jaar.
+     De maandnaam blijft wat hij was: hij kiest de maand van de kalender. */
+  const maandBereik=m=>`${year}-${String(m+1).padStart(2,'0')}-01/${urenIso(new Date(year,m+1,0))}`;
+  const jaarBereik=`${year}-01-01/${year}-12-31`;
+
   /* Welke maand de kalender eronder laat zien. Zonder keuze: de laatste
      maand waarin uren staan -- daar ben je mee bezig. */
   const gekozen=urenKalenderMaandVan(year,months);
@@ -20276,16 +20329,17 @@ function urenRenderMaandView(){
     const inv=urenSum(mine.filter(e=>urenStatusOf(e)==='invoiced'));
     const open=urenSum(mine.filter(e=>urenStatusOf(e)==='open'));
     const ym=`${year}-${String(m+1).padStart(2,'0')}`;
+    const mnd=MONTH_LABELS_NL[m]+' '+year;
     html+=`<tr class="${ym===gekozen?'gekozen':''}">
       <td><button class="uren-kal-kies" data-uren-action="urenKalenderMaandZet" data-uren-arg1="${ym}"
         aria-pressed="${ym===gekozen}"
         title="Toon ${MONTH_LABELS_NL[m]} ${year} in de kalender">${MONTH_LABELS_NL[m]} ${year}</button></td>
       ${clientIds.map(cid=>{
         const v=urenSum(mine.filter(e=>e.clientId===cid));
-        return `<td class="${v>0?'hot':'muted'}">${v>0?urenFmt(v):'—'}</td>`;
+        return urenCelTd(v,v>0?'hot':'muted',cid||'',maandBereik(m),`De registraties van ${urenClientName(cid)} in ${mnd}`);
       }).join('')}
-      <td class="hot">${urenFmt(tot)}</td>
-      <td>${inv>0?urenFmt(inv):'—'}</td>
+      ${urenCelTd(tot,'hot','*',maandBereik(m),`Alle registraties in ${mnd}`,urenFmt(tot))}
+      ${urenCelTd(inv,'','*',maandBereik(m)+'/status=invoiced',`De gefactureerde uren in ${mnd}`)}
       <td><div class="uren-meter">
         ${open>0
           ? `<button class="uren-inv-btn" data-uren-action="urenInvoiceClient" data-uren-arg1="" data-uren-arg2="${year}-${String(m+1).padStart(2,'0')}"
@@ -20300,20 +20354,28 @@ function urenRenderMaandView(){
   const open=urenSum(list.filter(e=>urenStatusOf(e)==='open'));
   html+=`</tbody><tfoot><tr>
     <td>Totaal ${year}</td>
-    ${clientIds.map(cid=>`<td>${urenFmt(urenSum(list.filter(e=>e.clientId===cid)))}</td>`).join('')}
-    <td>${urenFmt(tot)}</td><td>${urenFmt(inv)}</td><td style="text-align:right">${urenFmt(open)}</td>
+    ${clientIds.map(cid=>{
+      const v=urenSum(list.filter(e=>e.clientId===cid));
+      return urenCelTd(v,'',cid||'',jaarBereik,`Alle registraties van ${urenClientName(cid)} in ${year}`,urenFmt(v));
+    }).join('')}
+    ${urenCelTd(tot,'','*',jaarBereik,`Alle registraties in ${year}`,urenFmt(tot))}
+    ${urenCelTd(inv,'','*',jaarBereik+'/status=invoiced',`De gefactureerde uren in ${year}`,urenFmt(inv))}
+    ${urenCelTd(open,'','*',jaarBereik+'/status=open',`De openstaande uren in ${year}`,urenFmt(open))}
   </tr></tfoot></table></div>`;
 
-  /* Mobiel */
+  /* Mobiel: een maandregel opent die maand. */
   html+=`<div class="uren-mlist"><div class="uren-mpiv">`;
   const maxM=Math.max(...months.map(x=>urenSum(x.mine)),1);
   months.forEach(({m,mine})=>{
     const v=urenSum(mine);
-    html+=`<div class="uren-mpiv-row">
+    const inhoud=`
       <span class="nm">${MONTH_LABELS_NL[m]}</span>
       <span class="track"><i style="width:${Math.round(v/maxM*100)}%;background:var(--mint)"></i></span>
-      <span class="v">${urenFmt(v)}</span>
-    </div>`;
+      <span class="v">${urenFmt(v)}</span>`;
+    html+=v>0
+      ? `<button type="button" class="uren-mpiv-row" data-uren-action="urenCelOpen"
+          data-uren-arg1="*" data-uren-arg2="${maandBereik(m)}">${inhoud}</button>`
+      : `<div class="uren-mpiv-row">${inhoud}</div>`;
   });
   html+=`<div class="uren-mpiv-foot">Totaal ${year}<b>${urenFmt(tot)}</b></div></div></div>`;
   return html+urenRenderMaandKalender(list,year,gekozen);
