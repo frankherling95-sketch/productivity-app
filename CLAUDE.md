@@ -297,7 +297,7 @@ waar de fout zit.
 | Probleem | Oplossing |
 |----------|-----------|
 | Subtaak verschijnt dubbel | Guard met `if(clAddingSubtaskFor!==itemId)return;` aan top van `commitSubtaskInput` |
-| "Ik zie de oude versie" | Sinds v9 is het document netwerk-eerst, dus dit hoort niet meer voor te komen. Eén keer herladen na een `sw.js`-wijziging; blijft het hangen: DevTools → Application → Service Workers → Unregister + Clear site data |
+| "Ik zie de oude versie" | Sinds v9 is het document netwerk-eerst, en sinds v2.24 ook echt: de worker haalt het met `cache:'no-cache'`, want GitHub Pages stuurt `max-age=600` en een kale `fetch(req)` gaf tot tien minuten na een uitrol de vorige versie. Eén keer herladen na een `sw.js`-wijziging; blijft het hangen: DevTools → Application → Service Workers → Unregister + Clear site data |
 | Force-push verwijdert remote commits | **Eerst altijd `git fetch && git log HEAD..origin/main`** |
 | `.claude/worktrees/...` heeft een kopie | Negeren — staat in `.gitignore`, agent-isolatie |
 | Maandweergave krap bij drukke dag | Klik op datum → daganzicht |
@@ -306,6 +306,7 @@ waar de fout zit.
 
 Top-3 meest recent. Volledige log + *waarom* per beslissing: [`docs/decisions.md`](docs/decisions.md).
 
+- **2026-09-28**: **De service worker vraagt het document altijd na** (`cache:'no-cache'`, v2.24) — GitHub Pages stuurt `max-age=600`, en de kale `fetch(req)` gaf bij een nieuw tabblad of het app-icoon tot tien minuten na een uitrol nog de vorige versie. Bewezen met een testserver die Pages nadoet; offline blijft de cache de terugval
 - **2026-09-28**: **Een te hoog venster scrollt nu ook op een bureaublad** — de themaregel van `.modal` zette `overflow:hidden` en won (later in het bestand) van de basisregel met `overflow-y:auto`; een opdracht of contract met PDF viel op een laptop onderaan weg, knoppen en al. Nu `overflow-x:hidden; overflow-y:auto`. Alle 40 vensters gemeten: alleen `hidden → auto`, geen maatverschil, mobiel ongewijzigd
 - **2026-09-27**: **Uren → Per klant: elk getal opent de regels erachter** — klant × week, Totaal en Open per klant, en dezelfde in de voet voor alle klanten. Het venster (`#urenCelModal`, 720px) toont de bestaande lijstkaart per dag (`urenRegelKaart()`, gedeeld met Registraties op mobiel); een tik opent het bewerkvenster eroverheen, en de lijst loopt mee na opslaan/verwijderen. Selectie = die van het getal (`urenFilterToepassen()`), dus wk 36 in september is 1–6 sep. Het venster staat in de DOM vóór `#urenEntryModal`, anders ligt het bewerkvenster eronder. Op mobiel opent een klantregel zijn maand (nu 44px hoog). Vorm vastgelegd in stijlgids §4
 - **2026-09-23**: **Opdrachten** kan een PDF bij een opdracht bewaren — hetzelfde blok, dezelfde opslag en weergave als bij Contracten (`BIJLAGE_VENSTERS`, `ctrAlleBijlagen()`; opruimlijst blijft `contractState.opruimen`). Knop in de lijst op de tweede regel, zodat de klantnaam op een laptop niet korter wordt. De bestandsnaam in het venster opent de PDF; "Bekijken" alleen nog op een bureaublad. En **"Voorstel uit je uren" is weg**: losse klanten horen geen opdracht te krijgen, en een echte opdracht leg je vast vanuit de overeenkomst

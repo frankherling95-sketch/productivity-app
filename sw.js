@@ -12,7 +12,7 @@
    Cross-origin (Google, fonts, iCal) raken we niet aan.
    Bump CACHE_NAME when shipping a new release to invalidate old caches. */
 
-const CACHE_NAME = 'herling-v223';
+const CACHE_NAME = 'herling-v224';
 
 const PRECACHE_URLS = [
   './',
@@ -53,12 +53,21 @@ self.addEventListener('fetch', e => {
 
   /* Het document: netwerk eerst. Lukt dat niet (offline), dan alsnog de
      cache -- daarmee blijft de app offline bruikbaar zonder dat je na een
-     deploy in een oude versie belandt. */
+     deploy in een oude versie belandt.
+
+     Met cache:'no-cache', niet met een kale fetch(req). GitHub Pages stuurt
+     `Cache-Control: max-age=600`, en een gewone fetch mag dan tien minuten
+     de HTTP-cache van de browser gebruiken zonder het netwerk te vragen: bij
+     een nieuw tabblad of het app-icoon kreeg je tot tien minuten na een
+     uitrol nog de vorige versie ("netwerk eerst" was dan niet waar). Met
+     no-cache vraagt de browser het altijd na; is er niets veranderd, dan is
+     dat een 304 zonder inhoud. Een navigatieverzoek laat zich niet met
+     opties kopiëren, vandaar een nieuw verzoek op dezelfde URL. */
   const isDocument = req.mode === 'navigate' ||
     url.pathname === '/' || url.pathname.endsWith('/index.html');
   if (isDocument) {
     e.respondWith(
-      fetch(req).then(resp => {
+      fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' }).then(resp => {
         if (resp && resp.ok && resp.type === 'basic') {
           const clone = resp.clone();
           caches.open(CACHE_NAME).then(c => c.put(req, clone));

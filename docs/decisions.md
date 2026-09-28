@@ -10,6 +10,37 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-28 · Netwerk eerst betekent nu ook: niet uit de HTTP-cache
+
+**Probleem.** Vlak na de vensterfix (hieronder) meldde Frank dat het
+contractvenster nog steeds afkapte. De code was goed — via de echte knop, met
+muiswiel, scrolde het door tot Opslaan — maar zijn browser draaide de vorige
+versie. De uitrol stond om 19:36 live; hij testte binnen tien minuten.
+
+**Oorzaak.** De service worker haalde het document met een kale `fetch(req)`.
+GitHub Pages stuurt `Cache-Control: max-age=600`, en een gewone navigatie (nieuw
+tabblad, app-icoon) mag de HTTP-cache van de browser dan tien minuten gebruiken
+zonder het netwerk te vragen. "Netwerk eerst" (v9) was dus tot tien minuten na
+elke uitrol niet waar; alleen Ctrl+Shift+R omzeilde het.
+
+**Beslissing.** `fetch(req.url, {cache:'no-cache', credentials:'same-origin'})`:
+de browser vraagt het document altijd na, en is er niets veranderd dan is dat
+een 304 zonder inhoud. Een navigatieverzoek laat zich niet met opties kopiëren
+(`new Request(req, {...})` gooit bij `mode:'navigate'`), vandaar een nieuw
+verzoek op dezelfde URL. Offline blijft de cache de terugval. v2.24 /
+`herling-v224`.
+
+**Bewezen** met een testserver die GitHub Pages nadoet (`max-age=600` + ETag):
+app openen, "uitrol" van versie A naar B, app opnieuw openen (geen harde
+herlaadactie). Oude worker: A in beeld, `index.html` niet eens opgevraagd.
+Nieuwe worker: voorwaardelijk verzoek, B in beeld. Server uit: B uit de cache.
+
+**Let op.** De nieuwe worker zelf komt pas na één keer herladen in gebruik
+(zoals altijd bij een gewijzigde `sw.js`); daarna geldt dit voor elke uitrol.
+
+**Bestanden.** `sw.js` (document-tak van de fetch-handler, `CACHE_NAME`),
+`index.html` (`.app-versie`).
+
 ## 2026-09-28 · Een te hoog venster scrollt op een bureaublad, in plaats van af te kappen
 
 **Probleem.** Frank kon een nieuwe opdracht niet opslaan: onderaan het venster
