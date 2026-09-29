@@ -10,6 +10,49 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-29 · De PDF van een contract of opdracht laten uitlezen
+
+**Probleem.** Een contract of opdracht vastleggen was alles overtypen uit de
+PDF: partij, datums, opzegtermijn, verlenging, tarief. Het ging ook mis: bij
+Youfone stond het einde op 1-1-2028 terwijl het contract in december 2026
+afliep — en sinds vandaag zitten de meldingen in Google Agenda dan net zo ver
+naast.
+
+**Beslissing.** Gemini leest de PDF, zoals de factuurscanner een factuur
+leest (`callGemini` met het bestand erbij, namen onbewerkt: een PDF valt niet
+te maskeren). Nakijken blijft bij jou:
+- een leeg veld wordt ingevuld, wat er staat blijft staan;
+- noemt de PDF iets anders, dan staat dat in de melding ("einde 31 mrt 2027
+  (nu 28 feb 2027)"), met één knop "Die ook overnemen";
+- "Terugdraaien" zet alles terug zoals het was; opslaan doe je zelf.
+Vanzelf bij een nieuw venster waarin de datums nog leeg zijn en je een PDF
+toevoegt; anders met "✦ Gegevens uit de PDF halen" onder de PDF. Zonder
+Gemini-sleutel opent de knop het sleutelvenster.
+
+**Waarom woorden en geen enums.** Termijnen vraagt het model in woorden ("1
+maand", "30 dagen", "daarna maandelijks"); `ctrAiTermijn()` kiest de keuze
+uit het venster die er het dichtst bij ligt. Een enum met een lege waarde in
+het schema is een bekende bron van een 400, en "30 dagen" hoort gewoon 1 maand
+te worden in plaats van een weigering.
+
+**Klant herkennen.** Eerst precies (zoals de urenimport), dan ruimer: bevat de
+ene naam de andere en past er precies één klant, dan die
+("Nordwind Energy B.V." → Nordwind Energy BV).
+
+**Getest** met een nagebootste Gemini: nieuw privécontract vult 9 velden en
+draait volledig terug; een bestaande opdracht met datums meldt alleen de
+afwijkingen en neemt ze pas over na de klik; een fout geeft "Opnieuw proberen";
+zonder sleutel gaat er niets weg. Het echte antwoord van Gemini op een echte
+PDF is pas live te zien. Twee vaste tests in `test.html` (124/124).
+
+**Niet doen.** Velden stil overschrijven die je al had ingevuld. Opslaan na
+het uitlezen zonder dat jij het doet.
+
+**Bestanden.** `index.html` — `CTR_AI_SCHEMA`, `ctrAiPrompt`, `ctrAiTermijn`,
+`ctrAiKlantId`, `ctrAiVelden`, `ctrAiVul`, `ctrAiLees`/`Verschillen`/`Terug`/
+`Weg`, `ctrAiBlok` (in `ctrRenderBijlagen`), de automatische start in
+`ctrBestandenToevoegen`, `.ctr-ai*`.
+
 ## 2026-09-29 · Een venster uit de zijbalk blijft uit de statusbalk en scrollt zelf
 
 **Probleem.** Op de iPhone scrolde het Instellingen-menu niet: vegen schoof de

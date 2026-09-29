@@ -2256,6 +2256,11 @@ button.uren-mpiv-row:active{background:var(--surface2)}
 .ctr-drop:hover,.ctr-drop.sleep{border-color:var(--mint);background:var(--mint-soft);color:var(--text)}
 .ctr-drop b{color:var(--text);font-weight:600}
 .ctr-drop:focus-within{outline:2px solid var(--mint);outline-offset:2px}
+/* Onder de PDF's: gegevens uit de PDF halen, en wat dat opleverde (het
+   meldingsblok van stijlgids §12). De knoppen staan op een eigen regel. */
+.ctr-ai{display:flex}
+.ctr-bijlagen .ctr-ai-let{margin-top:0}
+.ctr-ai-knoppen{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 #ctrModal .uren-fld .inp:disabled{opacity:.6;cursor:not-allowed}
 
 /* De PDF zelf: zelfde maat en voet als het voorbeeld van een factuur. */
@@ -2290,6 +2295,7 @@ button.uren-mpiv-row:active{background:var(--surface2)}
   .ctr-bijlage .ctr-bekijk{display:none}
   .ctr-bijlage .tekst{min-height:var(--tap);justify-content:center}
   .ctr-drop-of{display:none}   /* slepen doe je niet op een telefoon */
+  .ctr-ai-knop{min-height:var(--tap)}
 }
 
 /* Mailvenster.
@@ -31457,7 +31463,8 @@ function ctrRenderBijlagen(soort){
         aria-label="${escapeHtml(b.naam)} weghalen" title="Weghalen">${CTR_IC_WEG}</button>
     </div>`).join('')+
     `<label class="ctr-drop" for="${v.input}" tabindex="0"><span><b>${
-      form.bijlagen.length?'Nog een PDF toevoegen':'PDF toevoegen'}</b> <span class="ctr-drop-of">of sleep hem hierheen</span></span></label>`;
+      form.bijlagen.length?'Nog een PDF toevoegen':'PDF toevoegen'}</b> <span class="ctr-drop-of">of sleep hem hierheen</span></span></label>`+
+    ctrAiBlok(soort,form);
   form.bijlagen.forEach(b=>ctrBijlageStatus(soort,b));
 }
 /* Waar de PDF staat, in de regel eronder. Pas na een blik in IndexedDB te
@@ -31509,6 +31516,8 @@ async function ctrBestandenToevoegen(soort,files){
     erbij++;
   }
   if(erbij)ctrRenderBijlagen(soort);
+  /* Nieuw venster, datums nog leeg: dan wil je de PDF uitgelezen hebben. */
+  if(erbij&&ctrAiAutomatisch(soort))ctrAiLees(soort);
 }
 /* Weghalen in het venster is pas echt bij Opslaan; Annuleren zet hem terug. */
 function ctrBijlageWeg(soort,id){
@@ -31526,6 +31535,270 @@ function ctrBijlageWeg(soort,id){
 function ctrVensterOpruimen(form){
   if(form)form.nieuw.forEach(id=>ctrLokaalWeg(id));
 }
+
+/* ── Een PDF laten uitlezen ─────────────────────────────────────────────
+   (2026-09-29) Bij een contract of opdracht leest Gemini de looptijd en de
+   rest uit de PDF, zoals de factuurscanner dat bij een factuur doet. Het
+   scheelt overtypen, en het voorkomt een tikfout in een datum waar de
+   meldingen in Google Agenda dan weken naast zitten.
+
+   Nakijken blijft bij jou, net als bij de scanner:
+   - Een leeg veld wordt ingevuld; wat er al staat blijft staan. Noemt de
+     PDF iets anders, dan staat dat in de melding, met één knop om die
+     verschillen ook over te nemen.
+   - "Terugdraaien" zet alles terug zoals het was vóór het uitlezen.
+   - Er wordt niets opgeslagen: dat doe je zelf, na het nakijken.
+
+   Vanzelf bij een nieuw venster waarin de datums nog leeg zijn en je een
+   PDF toevoegt (dan wil je dit precies); anders met de knop onder de PDF.
+   Termijnen vraagt het model in woorden ("1 maand", "30 dagen"); de app zet
+   ze zelf om naar de keuzes in het venster. Een enum met een lege waarde is
+   een bekende bron van een 400, en een woord omzetten is robuuster.
+
+   Namen gaan onbewerkt mee, net als bij de factuurscanner: een PDF valt niet
+   te maskeren, en de klant moet juist herkend worden. */
+const CTR_AI_SCHEMA={
+  contract:{type:'object',properties:{
+    soort:{type:'string'},wederpartij:{type:'string'},klant:{type:'string'},omschrijving:{type:'string'},
+    getekend:{type:'string'},ingang:{type:'string'},einde:{type:'string'},
+    opzegtermijn:{type:'string'},verlenging:{type:'string'},bijzonderheden:{type:'string'}
+  },required:['soort','wederpartij','klant','omschrijving','getekend','ingang','einde','opzegtermijn','verlenging','bijzonderheden']},
+  opdracht:{type:'object',properties:{
+    klant:{type:'string'},omschrijving:{type:'string'},ingang:{type:'string'},einde:{type:'string'},
+    opzegtermijn:{type:'string'},uurtarief:{type:'number'},urenPerWeek:{type:'number'},urenBudget:{type:'number'},
+    bijzonderheden:{type:'string'}
+  },required:['klant','omschrijving','ingang','einde','opzegtermijn','uurtarief','urenPerWeek','urenBudget','bijzonderheden']}
+};
+function ctrAiPrompt(soort){
+  const klanten=(kanbanState.clients||[]).map(c=>'- '+c.name+(c.bedrijfsnaam&&c.bedrijfsnaam!==c.name?' ('+c.bedrijfsnaam+')':'')).join('\n');
+  const samen=`Je leest dit voor Frank Herling (Herling Analytics), een zelfstandig BI-consultant. "Wij" in de tekst is hij.
+Regels:
+- Vul alleen in wat er echt in het document staat. Staat iets er niet in, geef dan een lege string (bij getallen 0).
+- Datums als JJJJ-MM-DD.
+- ingang: de datum waarop het ingaat. einde: de datum waarop de (eerste) looptijd eindigt. Noemt het document alleen een duur ("looptijd 12 maanden"), reken het einde dan uit: ingang plus die duur, min één dag.
+- opzegtermijn: de termijn die je in acht moet nemen, als periode in woorden: "1 maand", "30 dagen", "2 weken", "3 maanden". "geen" als het document zegt dat er geen is.
+- bijzonderheden: hooguit één korte zin met wat belangrijk is voor opzeggen of verlengen (bijvoorbeeld "Opzeggen schriftelijk per aangetekende brief"), anders leeg.
+- Bekende klanten (gebruik zo mogelijk precies deze schrijfwijze):
+${klanten||'- (nog geen klanten)'}
+Antwoord met uitsluitend JSON volgens het schema.`;
+  if(soort==='opdracht')return `Je leest een overeenkomst van opdracht: een opdracht of inhuur waarin Frank tegen een uurtarief werk doet.
+${samen}
+- klant: de opdrachtgever of eindklant voor wie het werk is (niet een bemiddelingsbureau en niet Frank zelf).
+- omschrijving: een korte naam voor de opdracht, zoals het document hem noemt, hooguit 60 tekens.
+- uurtarief: het tarief per uur exclusief btw, als getal.
+- urenPerWeek: het aantal uur per week; "3 dagen per week" is 24. 0 als het er niet staat.
+- urenBudget: een maximum aantal uur voor de hele opdracht, als dat er staat; anders 0.`;
+  return `Je leest een overeenkomst: een contract, polis of abonnement.
+${samen}
+- verlenging: wordt het stilzwijgend verlengd, geef dan de periode waarmee: "1 maand" (ook bij "daarna maandelijks opzegbaar" of "voor onbepaalde tijd, per maand opzegbaar"), "3 maanden", "12 maanden". "geen" als het afloopt op de einddatum.
+- soort: één van klant (Frank levert diensten aan de wederpartij), bemiddelaar (een bureau dat Frank bij een eindklant plaatst), leverancier (Frank neemt een product of dienst af), verzekering, abonnement, overig.
+- wederpartij: de naam van de andere partij, niet Frank of Herling Analytics zelf.
+- klant: bij soort klant of bemiddelaar de klant of eindklant voor wie het werk is; anders leeg.
+- omschrijving: een korte naam voor het contract, zoals het document hem noemt, hooguit 60 tekens.
+- getekend: de datum van ondertekening, als die er staat.`;
+}
+
+/* "1 maand", "30 dagen", "vier weken", "maandelijks" → de dichtstbijzijnde
+   keuze uit de lijst van het venster. Leeg of "geen" → ''. */
+function ctrAiTermijn(tekst,opties){
+  const s=String(tekst||'').toLowerCase().trim();
+  if(!s||/^(geen|nee|n\.?v\.?t\.?|onbekend|-)$/.test(s)||/\bgeen\b/.test(s))return '';
+  if(opties.includes(s))return s;
+  const woord={een:1,'één':1,twee:2,drie:3,vier:4,vijf:5,zes:6,acht:8,negen:9,tien:10,twaalf:12};
+  const eenheid={dag:1,dagen:1,week:7,weken:7,maand:30.44,maanden:30.44,kwartaal:91.3,kwartalen:91.3,jaar:365.25,jaren:365.25};
+  let dagen=0;
+  const m=s.match(/(\d+(?:[.,]\d+)?|een|één|twee|drie|vier|vijf|zes|acht|negen|tien|twaalf)\s*(dagen|dag|weken|week|maanden|maand|kwartalen|kwartaal|jaren|jaar)/);
+  if(m)dagen=(woord[m[1]]||Number(String(m[1]).replace(',','.')))*eenheid[m[2]];
+  else if(/half\s*jaar/.test(s))dagen=182.6;
+  else if(/maand/.test(s))dagen=30.44;
+  else if(/kwartaal/.test(s))dagen=91.3;
+  else if(/jaar/.test(s))dagen=365.25;
+  else if(/week/.test(s))dagen=7;
+  if(!(dagen>0))return '';
+  const lengte={'1w':7,'2w':14,'1m':30.44,'2m':60.9,'3m':91.3,'6m':182.6,'12m':365.25};
+  return opties.reduce((best,o)=>Math.abs(lengte[o]-dagen)<Math.abs(lengte[best]-dagen)?o:best,opties[0]);
+}
+/* Klantnaam uit de PDF → een klant uit de lijst. Eerst precies (zoals de
+   urenimport), dan ruimer: "Baggermaatschappij Boskalis B.V." bevat
+   "Boskalis". Alleen als er dan precies één past. */
+function ctrAiKlantId(naam){
+  if(!String(naam||'').trim())return '';
+  const precies=urenImpAiKlantId(naam);
+  if(precies)return precies;
+  const kaal=s=>String(s||'').toLowerCase().replace(/\b(b\.?\s?v\.?|n\.?\s?v\.?|holding|groep)\b/g,'').replace(/[^a-z0-9à-ÿ]+/g,' ').trim();
+  const n=kaal(naam);
+  if(n.length<3)return '';
+  const pas=(kanbanState.clients||[]).filter(c=>[c.name,c.bedrijfsnaam].some(x=>{
+    const k=kaal(x);return k.length>=3&&(n.includes(k)||k.includes(n));}));
+  return pas.length===1?pas[0].id:'';
+}
+
+/* De velden per venster: hoe je ze leest en zet, en hoe het antwoord erin
+   past. `leeg` zegt of een veld als leeg telt -- bij een nieuwe opdracht staat
+   de ingang al op vandaag, en dat is een standaard, geen keuze. */
+function ctrAiVelden(soort){
+  const veld=id=>({lees:()=>String(document.getElementById(id)?.value||'').trim(),
+    zet:v=>{const el=document.getElementById(id);if(el)el.value=v==null?'':v;}});
+  const keuzeTekst=(id,v)=>{const o=[...(document.getElementById(id)?.options||[])].find(x=>x.value===v);return o?o.textContent:v;};
+  const getal=v=>Number(v)>0?String(Math.round(Number(v)*100)/100):'';
+  if(soort==='opdracht'){
+    const f=opdForm;
+    return [
+      {k:'klant',lab:'klant',lees:()=>f.clientId||'',zet:v=>{f.clientId=v||'';opdRenderKlantKeuze();},
+        uit:d=>ctrAiKlantId(d.klant),tekst:v=>opdKlantNaam(v)},
+      {k:'naam',lab:'omschrijving',...veld('opdNaam'),uit:d=>String(d.omschrijving||'').trim().slice(0,80)},
+      {k:'start',lab:'start',...veld('opdStart'),uit:d=>facScanDatum(d.ingang),tekst:opdFmtDatum,
+        leeg:v=>!v||(!f.id&&v===opdVandaag())},
+      {k:'eind',lab:'einde',...veld('opdEind'),uit:d=>facScanDatum(d.einde),tekst:opdFmtDatum},
+      {k:'opzeg',lab:'opzegtermijn',...veld('opdOpzeg'),uit:d=>ctrAiTermijn(d.opzegtermijn,['1w','2w','1m','2m','3m']),
+        tekst:v=>keuzeTekst('opdOpzeg',v)},
+      {k:'tarief',lab:'uurtarief',...veld('opdTarief'),uit:d=>getal(d.uurtarief),tekst:v=>'€ '+v},
+      {k:'upw',lab:'uren per week',...veld('opdUpw'),uit:d=>getal(d.urenPerWeek),tekst:v=>v+' u'},
+      {k:'budget',lab:'urenbudget',...veld('opdBudget'),uit:d=>getal(d.urenBudget),tekst:v=>v+' u'},
+      {k:'notitie',lab:'notitie',...veld('opdNotitie'),uit:d=>String(d.bijzonderheden||'').trim()}
+    ];
+  }
+  const f=ctrForm;
+  const vast=!!f.opdrachtId;   /* datums volgen dan de opdracht: niet aankomen */
+  const soorten=f.domein==='prive'?CTR_SOORTEN_PRIVE:Object.keys(CTR_SOORTEN);
+  const lijst=[
+    {k:'soort',lab:'soort',lees:()=>f.soort,zet:v=>ctrKiesSoort(v),
+      uit:d=>{const s=String(d.soort||'').toLowerCase().trim();return soorten.includes(s)?s:'';},
+      tekst:v=>ctrSoortLabel(v),leeg:()=>!f.id},
+    {k:'partij',lab:'wederpartij',...veld('ctrPartij'),uit:d=>f.soort==='klant'?'':String(d.wederpartij||'').trim()},
+    {k:'klant',lab:'klant',lees:()=>f.clientId||'',zet:v=>ctrKiesKlant(v),
+      uit:d=>ctrKlantKant(f.soort)?ctrAiKlantId(d.klant||(f.soort==='klant'?d.wederpartij:'')):'',tekst:v=>opdKlantNaam(v)},
+    {k:'titel',lab:'omschrijving',...veld('ctrTitel'),uit:d=>String(d.omschrijving||'').trim().slice(0,80)},
+    {k:'getekend',lab:'getekend op',...veld('ctrGetekend'),uit:d=>facScanDatum(d.getekend),tekst:opdFmtDatum},
+    {k:'start',lab:'ingang',...veld('ctrStart'),uit:d=>vast?'':facScanDatum(d.ingang),tekst:opdFmtDatum},
+    {k:'eind',lab:'einde',...veld('ctrEind'),uit:d=>vast?'':facScanDatum(d.einde),tekst:opdFmtDatum},
+    {k:'opzeg',lab:'opzegtermijn',...veld('ctrOpzeg'),uit:d=>vast?'':ctrAiTermijn(d.opzegtermijn,['1w','2w','1m','2m','3m','6m']),
+      tekst:v=>keuzeTekst('ctrOpzeg',v)},
+    {k:'verleng',lab:'verlenging',...veld('ctrVerleng'),uit:d=>ctrAiTermijn(d.verlenging,['1m','3m','6m','12m']),
+      tekst:v=>(CTR_VERLENG_KORT[v]||v)},
+    {k:'notitie',lab:'notitie',...veld('ctrNotitie'),uit:d=>String(d.bijzonderheden||'').trim()}
+  ];
+  return lijst;
+}
+function ctrAiNaInvullen(soort){
+  if(soort==='opdracht')opdRekenVoorbeeld();
+  else ctrRekenVoorbeeld();
+}
+/* Het antwoord in het venster zetten: lege velden vullen, verschillen
+   onthouden. De soort gaat eerst, want die bepaalt welke velden er zijn. */
+function ctrAiVul(soort,d){
+  const ingevuld=[],verschil=[];
+  ctrAiVelden(soort).forEach(v=>{
+    /* De velden lezen de soort op het moment zelf (f.soort), dus na het
+       zetten van de soort bovenaan gelden wederpartij en klant al voor de
+       nieuwe soort. */
+    const nieuw=v.uit(d);
+    if(!nieuw)return;
+    const nu=v.lees();
+    if(nu===nieuw)return;
+    if(v.leeg?v.leeg(nu):!nu){v.zet(nieuw);ingevuld.push({k:v.k,lab:v.lab,oud:nu,nieuw});}
+    else verschil.push({k:v.k,lab:v.lab,nu,nieuw});
+  });
+  ctrAiNaInvullen(soort);
+  return {ingevuld,verschil};
+}
+
+function ctrAiSleutel(){try{return localStorage.getItem(LS_GEMINI_KEY)||'';}catch(_){return '';}}
+/* Welke PDF: de laatst toegevoegde, anders de laatste in de lijst. */
+function ctrAiBijlage(form){
+  const id=form.nieuw.length?form.nieuw[form.nieuw.length-1]:null;
+  return form.bijlagen.find(b=>b.id===id)||form.bijlagen[form.bijlagen.length-1]||null;
+}
+function ctrAiAutomatisch(soort){
+  const form=ctrVenster(soort).form();
+  if(!form||form.id||form.ai||!ctrAiSleutel())return false;
+  const w=id=>String(document.getElementById(id)?.value||'').trim();
+  return soort==='opdracht'?!w('opdEind'):(!w('ctrStart')&&!w('ctrEind')&&!form.opdrachtId);
+}
+async function ctrAiLees(soort){
+  soort=soort==='opdracht'?'opdracht':'contract';
+  const v=ctrVenster(soort), form=v.form();
+  if(!form)return;
+  if(!ctrAiSleutel()){openGeminiKeyPrompt();return;}
+  const b=ctrAiBijlage(form);
+  if(!b)return;
+  form.ai={status:'bezig',naam:b.naam};
+  ctrRenderBijlagen(soort);
+  try{
+    const blob=await ctrPdfHaal(b);
+    if(blob.size>FAC_SCAN_MAX)throw new Error('Deze PDF is te groot om uit te lezen (maximaal 12 MB).');
+    const data=await facScanBestandNaarBase64(blob);
+    const d=await callGemini({system:ctrAiPrompt(soort),user:'Lees deze overeenkomst uit.',
+      bestand:{mime:'application/pdf',data},schema:CTR_AI_SCHEMA[soort],temperature:0});
+    if(v.form()!==form)return;   /* venster intussen dicht of een ander geopend */
+    const r=ctrAiVul(soort,d||{});
+    form.ai={status:'klaar',naam:b.naam,...r};
+  }catch(e){
+    if(v.form()!==form)return;
+    form.ai={status:'fout',naam:b.naam,fout:(e&&e.message)||'onbekende fout'};
+  }
+  ctrRenderBijlagen(soort);
+}
+function ctrAiVerschillen(soort){
+  const form=ctrVenster(soort).form();
+  if(!form||!form.ai||form.ai.status!=='klaar')return;
+  const velden=ctrAiVelden(soort);
+  form.ai.verschil.forEach(x=>{
+    const v=velden.find(y=>y.k===x.k);
+    if(!v)return;
+    v.zet(x.nieuw);
+    form.ai.ingevuld.push({k:x.k,lab:x.lab,oud:x.nu,nieuw:x.nieuw});
+  });
+  form.ai.verschil=[];
+  ctrAiNaInvullen(soort);
+  ctrRenderBijlagen(soort);
+}
+function ctrAiTerug(soort){
+  const form=ctrVenster(soort).form();
+  if(!form||!form.ai||form.ai.status!=='klaar')return;
+  /* In omgekeerde volgorde: de soort als laatste terug, zodat de velden die
+     erbij horen er weer zijn als hun waarde terugkomt. */
+  const velden=ctrAiVelden(soort);
+  form.ai.ingevuld.slice().reverse().forEach(x=>{const v=velden.find(y=>y.k===x.k);if(v)v.zet(x.oud);});
+  form.ai=null;
+  ctrAiNaInvullen(soort);
+  ctrRenderBijlagen(soort);
+}
+function ctrAiWeg(soort){
+  const form=ctrVenster(soort).form();
+  if(form){form.ai=null;ctrRenderBijlagen(soort);}
+}
+/* Onder de PDF's: de knop, of wat het uitlezen opleverde. Het meldingsblok
+   van stijlgids §12 -- gelukt, mislukt of (tijdens het lezen) neutraal. */
+function ctrAiBlok(soort,form){
+  if(!form.bijlagen.length)return '';
+  const ai=form.ai;
+  const knop=(actie,tekst,extra)=>`<button type="button" class="uren-btn ctr-ai-knop${extra||''}" data-action="${actie}" data-arg1="${soort}">${tekst}</button>`;
+  if(!ai)return `<div class="ctr-ai">${knop('ctrAiLees','✦ Gegevens uit de PDF halen')}</div>`;
+  /* <b> is in dit blok de kopregel (eigen regel), de rest de tekst eronder. */
+  const naam=escapeHtml(ai.naam);
+  if(ai.status==='bezig')return `<div class="fac-btw-let ctr-ai-let"><b>De PDF wordt gelezen…</b>${naam}</div>`;
+  if(ai.status==='fout')return `<div class="fac-btw-let let-fout ctr-ai-let"><b>${UITROEP_ICOON}Uitlezen lukte niet</b>${escapeHtml(ai.fout)}
+    <span class="ctr-ai-knoppen">${knop('ctrAiLees','Opnieuw proberen')}${knop('ctrAiWeg','Laat maar')}</span></div>`;
+  const velden=ctrAiVelden(soort);
+  const tekst=x=>{const v=velden.find(y=>y.k===x.k);return v&&v.tekst?v.tekst(x.nieuw):x.nieuw;};
+  const nuTekst=x=>{const v=velden.find(y=>y.k===x.k);return v&&v.tekst?v.tekst(x.nu):x.nu;};
+  const lijst=a=>a.map(x=>x.lab).join(', ').replace(/, ([^,]*)$/,' en $1');
+  const regels=[];
+  if(ai.ingevuld.length)regels.push(`Ingevuld: ${escapeHtml(lijst(ai.ingevuld))}. Kijk ze na voordat je opslaat.`);
+  else regels.push('Er stond niets in wat nog niet was ingevuld.');
+  if(ai.verschil.length)regels.push('De PDF noemt iets anders dan er nu staat: '+
+    ai.verschil.map(x=>`${escapeHtml(x.lab)} <b>${escapeHtml(tekst(x))}</b> (nu ${escapeHtml(nuTekst(x))})`).join('; ')+'.');
+  return `<div class="fac-btw-let let-gelukt ctr-ai-let"><b>${VINK_ICOON}Ingelezen uit ${naam}</b>${regels.join(' ')}
+    <span class="ctr-ai-knoppen">${ai.verschil.length?knop('ctrAiVerschillen','Die ook overnemen'):''}${
+      ai.ingevuld.length?knop('ctrAiTerug','Terugdraaien'):knop('ctrAiWeg','Sluiten')}</span></div>`;
+}
+Object.assign(APP_ACTIONS,{
+  ctrAiLees:(el,e,soort)=>ctrAiLees(soort),
+  ctrAiVerschillen:(el,e,soort)=>ctrAiVerschillen(soort),
+  ctrAiTerug:(el,e,soort)=>ctrAiTerug(soort),
+  ctrAiWeg:(el,e,soort)=>ctrAiWeg(soort)
+});
 
 /* ── De PDF bekijken ──
    Vanuit een venster (ook een PDF die nog niet is opgeslagen) of vanuit een

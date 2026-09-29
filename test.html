@@ -1206,6 +1206,49 @@ async function runChecks() {
           try { w.localStorage.removeItem('herling_agenda'); } catch (_) {}
         }
       }],
+    /* ── Een PDF laten uitlezen (2026-09-29) ─────────────────────────────
+       Termijnen komen als woorden terug en worden de keuze uit het venster
+       die er het dichtst bij ligt; een klantnaam uit de PDF wordt een klant. */
+    ['PDF uitlezen: termijnen in woorden worden de dichtstbijzijnde keuze',
+      () => {
+        const O = ['1w','2w','1m','2m','3m','6m'], V = ['1m','3m','6m','12m'];
+        const t = (s, o) => w.ctrAiTermijn(s, o);
+        return t('30 dagen', O) === '1m' && t('vier weken', O) === '1m' && t('2 weken', O) === '2w' &&
+               t('drie maanden', O) === '3m' && t('geen', O) === '' && t('', O) === '' &&
+               t('daarna maandelijks opzegbaar', V) === '1m' && t('12 maanden', V) === '12m' && t('jaarlijks', V) === '12m';
+      }],
+    ['PDF uitlezen: lege velden vullen, afwijkingen alleen melden, terugdraaien zet alles terug',
+      async () => {
+        const echt = w.callGemini, echtHaal = w.ctrPdfHaal;
+        const sleutel = w.localStorage.getItem('herling_gemini_api_key');
+        const oud = w.eval('JSON.stringify(opdrachtState.opdrachten)');
+        try {
+          w.eval('opdrachtState.opdrachten=' + JSON.stringify([
+            {id:'pa', clientId:null, naam:'Bestaand', start:'2026-10-01', eind:'2027-02-28', opzeg:'', tarief:null,
+             urenPerWeek:null, urenBudget:null, notitie:'', bijlagen:[{id:'pb', naam:'x.pdf', grootte:10, hash:'h', driveId:null}]}]));
+          w.opdOpen('pa');
+          const naam0 = d.getElementById('opdNaam').value;
+          w.ctrPdfHaal = async () => new w.Blob(['%PDF-1.4'], {type:'application/pdf'});
+          if (!sleutel) w.localStorage.setItem('herling_gemini_api_key', 'test');
+          w.callGemini = async () => ({klant:'', omschrijving:'Anders genoemd', ingang:'2026-10-01', einde:'2027-03-31',
+            opzegtermijn:'30 dagen', uurtarief:95, urenPerWeek:24, urenBudget:0, bijzonderheden:''});
+          await w.ctrAiLees('opdracht');
+          const na = {eind: d.getElementById('opdEind').value, opzeg: d.getElementById('opdOpzeg').value,
+            tarief: d.getElementById('opdTarief').value, upw: d.getElementById('opdUpw').value, naam: d.getElementById('opdNaam').value};
+          const ai = w.eval('opdForm.ai');
+          const verschil = ai.verschil.map(x => x.k).sort().join(',');
+          w.ctrAiTerug('opdracht');
+          const terug = d.getElementById('opdOpzeg').value === '' && d.getElementById('opdTarief').value === '' &&
+            d.getElementById('opdUpw').value === '';
+          return na.eind === '2027-02-28' && na.naam === naam0 && na.opzeg === '1m' && na.tarief === '95' && na.upw === '24' &&
+                 verschil === 'eind,naam' && terug;
+        } finally {
+          w.callGemini = echt; w.ctrPdfHaal = echtHaal;
+          if (!sleutel) w.localStorage.removeItem('herling_gemini_api_key');
+          try { w.opdSluit(); } catch (_) {}
+          w.eval('opdrachtState.opdrachten=' + oud);
+        }
+      }],
     ['No iframe console errors',           () => iframeErrors.length === 0]
   ];
 
