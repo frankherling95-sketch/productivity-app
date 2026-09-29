@@ -799,6 +799,9 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
   position:fixed;z-index:9999;min-width:248px;padding:5px;
   background:var(--surface);border:0.5px solid var(--border-strong);
   border-radius:var(--radius-md);box-shadow:var(--shadow-popover);
+  /* Scrollt een menu zelf, dan houdt het de veeg vast: aan het eind van de
+     lijst schoof anders de pagina eronder mee. */
+  overscroll-behavior:contain;
 }
 .uren-menu-lab{
   padding:8px 10px 4px;font-size:10px;font-weight:700;letter-spacing:.08em;
@@ -11459,10 +11462,31 @@ document.getElementById('sidebar')?.addEventListener('keydown',e=>{
    staat) -- zo dekt het nooit de lijst af waar je in zit. In de lade van een
    telefoon is naast geen plek; daar onder de knop, of erboven als dat niet
    past. `scroll:false` voor een venster dat zelf een schuivende lijst heeft. */
+/* De ruimte waarin zo'n venster mag staan. Op een iPhone loopt de pagina door
+   onder de statusbalk en de thuisbalk (viewport-fit=cover), dus "8px van de
+   rand" lag achter de klok: het Instellingen-menu paste op papier precies,
+   scrollde daardoor niet, en zijn bovenkant verdween onder de statusbalk
+   (2026-09-29). env() is alleen in CSS te lezen, vandaar een onzichtbaar
+   meetelement. */
+function schermRand(){
+  let p=document.getElementById('veiligeRandMeter');
+  if(!p){
+    p=document.createElement('div');
+    p.id='veiligeRandMeter';
+    p.setAttribute('aria-hidden','true');
+    p.style.cssText='position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;'+
+      'padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)';
+    document.body.appendChild(p);
+  }
+  const cs=getComputedStyle(p);
+  return {boven:parseFloat(cs.paddingTop)||0,onder:parseFloat(cs.paddingBottom)||0};
+}
 function zijbalkPlaats(pop,anker,opties){
   const o=opties||{};
   const vw=window.innerWidth,vh=window.innerHeight;
-  pop.style.maxHeight=(vh-16)+'px';
+  const rand=schermRand();
+  const min=rand.boven+8, max=vh-rand.onder-8;
+  pop.style.maxHeight=(max-min)+'px';
   if(o.scroll!==false)pop.style.overflowY='auto';
   const r=anker.getBoundingClientRect();
   const w=pop.offsetWidth,h=pop.offsetHeight;
@@ -11472,11 +11496,17 @@ function zijbalkPlaats(pop,anker,opties){
     top=o.onder?r.bottom-h:r.top;
   }else{
     left=Math.min(r.left,vw-w-12);
-    top=r.bottom+6;
-    if(top+h>vh-8)top=r.top-h-6;
+    /* Onder de knop als het past, anders erboven. Past het nergens, dan
+       vult het de grootste van de twee en scrollt het zelf -- zonder de
+       knop af te dekken waar je net op tikte. */
+    const eronder=max-(r.bottom+6), erboven=(r.top-6)-min;
+    if(h<=eronder)top=r.bottom+6;
+    else if(h<=erboven)top=r.top-6-h;
+    else if(erboven>=eronder){pop.style.maxHeight=erboven+'px';top=min;}
+    else{pop.style.maxHeight=eronder+'px';top=r.bottom+6;}
   }
   pop.style.left=Math.max(12,left)+'px';
-  pop.style.top=Math.max(8,Math.min(top,vh-h-8))+'px';
+  pop.style.top=Math.max(min,Math.min(top,max-pop.offsetHeight))+'px';
 }
 /* Er staat hooguit één zijbalkvenster open. */
 function sluitZijbalkVensters(){

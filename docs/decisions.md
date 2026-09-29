@@ -10,6 +10,31 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-29 · Een venster uit de zijbalk blijft uit de statusbalk en scrollt zelf
+
+**Probleem.** Op de iPhone scrolde het Instellingen-menu niet: vegen schoof de
+achtergrond, en de bovenkant ("Weergave") stond achter de klok.
+
+**Oorzaak.** `zijbalkPlaats()` gaf een venster "8px van de rand" en een
+maximale hoogte van schermhoogte min 16px. Maar de pagina loopt op een iPhone
+door onder de statusbalk en de thuisbalk (`viewport-fit=cover`): die 8px lag
+achter de klok, en het menu (727px) paste op papier precies in 932−16 — dus
+geen scrollbalk. Gemeten met nagebootste randen (59/34px): menu van 8 tot 737,
+niet scrollbaar, over de knop Instellingen heen.
+
+**Beslissing.** `schermRand()` leest `env(safe-area-inset-*)` via een onzichtbaar
+meetelement; de ruimte voor een zijbalkvenster ligt daartussen. Past het op een
+telefoon niet onder of boven de knop, dan vult het de grootste van de twee en
+scrollt het zelf, zonder de knop af te dekken. `.uren-menu` kreeg
+`overscroll-behavior:contain`, zodat een veeg aan het eind van de lijst niet
+alsnog de pagina meeneemt. Na: menu van 67 tot 578 (knop op 584), scrollbaar
+(727 in 509), een veeg brengt de laatste regel in beeld en de zijbalk staat
+stil. Desktop ongewijzigd (randen 0, zelfde plek).
+
+**Bestanden.** `index.html` — `schermRand()` (nieuw), `zijbalkPlaats()`,
+`.uren-menu`. Geldt voor alle vensters uit de zijbalk: Instellingen,
+klantwisselaar, gebruikersmenu, Externe tools.
+
 ## 2026-09-29 · Stilzwijgend verlengen: eerst hoe lang de periode nog loopt
 
 **Probleem.** Een contract dat per maand stilzwijgend verlengt (Youfone) toonde
