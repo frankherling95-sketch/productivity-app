@@ -25392,6 +25392,31 @@ function facAnLabel(n){
   if(a>=1000)return '€'+Math.round(n/1000)+'k';
   return '€'+Math.round(n);
 }
+/* Hoeveel past er boven een kolom? Op een telefoon is een baan 33px breed
+   bij negen maanden en 25px bij twaalf, en "€29k" vraagt er ongeveer 27.
+   In plaats van het euroteken altijd weg te laten of de letter onder de
+   ondergrens van 11,5px te duwen, kiest de grafiek de ruimste vorm die
+   past: mét euroteken ('euro'), anders zonder ('kaal'), en pas als ook dat
+   niet lukt om de maand ('omdeandere', dan weer mét euroteken -- er is dan
+   twee banen ruimte). Zo staat er op een breed scherm "€29k" en op een smal
+   scherm bij elke maand nog een cijfer.
+
+   Eén keuze voor twee grafieken: de analyse van Facturen
+   (facAnKolomGrafiek) en het vooruitzicht van Opdrachten (opdGrafiek). Op
+   2026-09-29 had alleen de eerste dit, en stonden in de tweede op een
+   telefoon "€28k€27k" tegen elkaar aan. Welke kolom bij 'omdeandere' zijn
+   cijfer houdt, bepaalt de grafiek zelf; allebei tellen ze vanaf de laatste
+   terug, zoals de maandnamen eronder.
+
+   bedragen: alleen de kolommen die een cijfer krijgen · band: breedte van
+   één baan · fs: de lettergrootte van .an-waarde (--fs-micro). */
+function facAnKolomLabels(bedragen,band,fs){
+  const metEuro=bedragen.map(n=>facAnLabel(n));
+  const kaal=metEuro.map(t=>t.replace('€',''));
+  const past=(rijtje)=>Math.max(...rijtje.map(t=>t.length))*fs*0.64+1<=band;
+  const vorm=!metEuro.length||past(metEuro)?'euro':past(kaal)?'kaal':'omdeandere';
+  return {vorm,tekst:n=>vorm==='kaal'?facAnLabel(n).replace('€',''):facAnLabel(n)};
+}
 function facAnPct(v){
   if(v==null)return '';
   const s=v>=0?'+':'−';
@@ -25448,18 +25473,9 @@ function facAnKolomGrafiek(d,breed){
   }
   let balken='',labels='',banden='';
   const tips=[];
-  /* Hoeveel past er boven een kolom? Op een telefoon is een baan 33px breed
-     bij negen maanden en 25px bij twaalf, en "€29k" vraagt er ongeveer 27.
-     In plaats van het euroteken altijd weg te laten of de letter onder de
-     ondergrens van 11,5px te duwen, kiest de grafiek de ruimste vorm die
-     past: mét euroteken, anders zonder, en pas als ook dat niet lukt om de
-     maand. Zo staat er op een breed scherm "€29k" en op een smal scherm bij
-     elke maand nog een cijfer. */
-  const fs=smal?11.5:10.5;
-  const past=(rijtje)=>Math.max(...rijtje.map(t=>t.length))*fs*0.64+1<=band;
-  const metEuro=d.vakken.filter(v=>v.excl>0).map(v=>facAnLabel(v.excl));
-  const kaal=metEuro.map(t=>t.replace('€',''));
-  const vorm=!metEuro.length||past(metEuro)?'euro':past(kaal)?'kaal':'omdeandere';
+  /* Hoeveel past er boven een kolom: de keuze staat bij facAnKolomLabels,
+     gedeeld met het vooruitzicht van Opdrachten. */
+  const lab=facAnKolomLabels(d.vakken.filter(v=>v.excl>0).map(v=>v.excl),band,smal?11.5:10.5);
   const hoogste=Math.max(...d.vakken.map(v=>v.excl),0);
   d.vakken.forEach((v,i)=>{
     const bx=padL+band*i;
@@ -25476,8 +25492,8 @@ function facAnKolomGrafiek(d,breed){
     if(pn)balken+=`<path d="${pn}" class="an-nu"/>`;
     /* Alleen boven de kolom van deze periode: een cijfer boven elke balk van
        beide reeksen leest niemand meer. */
-    if(v.excl>0&&(vorm!=='omdeandere'||i%2===(n-1)%2)){
-      const tekst=vorm==='kaal'?facAnLabel(v.excl).replace('€',''):facAnLabel(v.excl);
+    if(v.excl>0&&(lab.vorm!=='omdeandere'||i%2===(n-1)%2)){
+      const tekst=lab.tekst(v.excl);
       balken+=`<text x="${(nx+bw/2).toFixed(1)}" y="${(y(v.excl)-7).toFixed(1)}"
         class="an-waarde" text-anchor="middle">${escapeHtml(tekst)}</text>`;
     }
@@ -30130,6 +30146,17 @@ function opdGrafiek(maanden,breed){
     g+=`<line x1="${padL}" y1="${yy}" x2="${breed-padR}" y2="${yy}" class="an-grid"/>`+
       `<text x="${padL-6}" y="${(Number(yy)+3.5).toFixed(1)}" class="an-astekst" text-anchor="end">${facAnKort(v)}</text>`;
   }
+  /* Het cijfer boven een kolom: dezelfde keuze als in de analyse van
+     Facturen (facAnKolomLabels). Op een telefoon is een baan hier 22-26px
+     bij twaalf maanden en "€28k" vraagt er 30; elk cijfer mét euroteken gaf
+     "€28k€27k". Om de maand telt vanaf de laatste, net als de maandnamen
+     eronder. De huidige maand houdt zijn cijfer; valt hij buiten dat ritme
+     (nu niet: drie terug en acht vooruit), dan zwijgen zijn buren, anders
+     staan er toch weer drie cijfers tegen elkaar. */
+  const lab=facAnKolomLabels(maanden.filter(m=>som(m)>0.5).map(som),band,smal?11.5:10.5);
+  const hi=maanden.findIndex(m=>m.huidig);
+  const metCijfer=i=>lab.vorm!=='omdeandere'||i===hi
+    ||((n-1-i)%2===0&&!(hi>=0&&Math.abs(i-hi)===1));
   maanden.forEach((m,i)=>{
     const bx=padL+band*i, x=bx+(band-bw)/2;
     const hG=m.geschreven/max*plotH, hP=m.gepland/max*plotH;
@@ -30139,7 +30166,7 @@ function opdGrafiek(maanden,breed){
     }else if(hG>0.5){
       balken+=`<path d="${facAnBalkPad(x,voet-hG,bw,hG)}" class="an-nu"/>`;
     }
-    if(som(m)>0.5)balken+=`<text x="${(x+bw/2).toFixed(1)}" y="${(y(som(m))-7).toFixed(1)}" class="an-waarde" text-anchor="middle">${escapeHtml(facAnLabel(som(m)))}</text>`;
+    if(som(m)>0.5&&metCijfer(i))balken+=`<text x="${(x+bw/2).toFixed(1)}" y="${(y(som(m))-7).toFixed(1)}" class="an-waarde" text-anchor="middle">${escapeHtml(lab.tekst(som(m)))}</text>`;
     const toon=!smal||(n-1-i)%2===0||m.huidig;
     const tekst=m.kort+(m.maand===0?' '+String(m.jaar).slice(2):'');
     if(toon)labels+=`<text x="${(bx+band/2).toFixed(1)}" y="${H-8}" class="an-astekst${m.huidig?' opd-nu-as':''}" text-anchor="middle">${escapeHtml(tekst)}</text>`;
