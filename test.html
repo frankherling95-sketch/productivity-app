@@ -1125,6 +1125,87 @@ async function runChecks() {
         d.querySelectorAll('.modal-bg.open').forEach(x => x.classList.remove('open'));
         return menuVoor && menuWeg && modaalNog;
       }],
+    /* ── Stilzwijgend verlengen: eerst hoe lang de periode nog loopt ──
+       (2026-09-29) Er stond "verlengt vanzelf met een maand" en dan zag je
+       niet wanneer hij afliep. Na afloop telt hij af naar het volgende
+       maandeinde. */
+    ['Contracten: bij stilzwijgend verlengen telt de looptijd af naar het einde van de periode',
+      () => {
+        const c = {id:'t', soort:'abonnement', start:'2026-01-01', eind:'2026-12-31', opzeg:'', verlenging:'1m'};
+        const tekst = v => { const lt = w.ctrLooptijd(c, v); return {eind: lt.eind,
+          t: w.ctrLooptijdTekst(c, {lt, status: w.ctrStatus(c, v, lt)}, v)}; };
+        const nu = tekst('2026-09-29'), later = tekst('2027-01-15');
+        return nu.eind === '2026-12-31' && /^nog 3 maanden · verlengt daarna per maand$/.test(nu.t) &&
+               later.eind === '2027-01-31' && /^nog .* · verlengt daarna per maand$/.test(later.t);
+      }],
+    /* ── Meldingen in Google Agenda (2026-09-29) ─────────────────────────
+       agdGewenst leest de state; die zetten we even neer en daarna terug. */
+    ['Meldingen: opzegdatum anders einde, 2 maanden vooraf bij een opdracht, herinneringen om 09:00',
+      () => {
+        const oudO = w.eval('JSON.stringify(opdrachtState.opdrachten)');
+        const oudC = w.eval('JSON.stringify(contractState.contracten)');
+        try {
+          w.eval('opdrachtState.opdrachten=' + JSON.stringify([
+            {id:'a', clientId:null, naam:'Met opzeg', start:'2026-01-01', eind:'2026-12-31', opzeg:'1m'},
+            {id:'b', clientId:null, naam:'Zonder opzeg', start:'2026-01-01', eind:'2027-03-31', opzeg:''},
+            {id:'c', clientId:null, naam:'Afgelopen', start:'2026-01-01', eind:'2026-06-30', opzeg:''}]));
+          w.eval('contractState.contracten=' + JSON.stringify([
+            {id:'k', soort:'leverancier', wederpartij:'KPN', titel:'Internet', start:'2025-01-01', eind:'2025-12-31', opzeg:'1m', verlenging:'12m'},
+            {id:'l', soort:'klant', clientId:null, titel:'Aan opdracht', opdrachtId:'a'}]));
+          const g = w.agdGewenst('2026-09-20');
+          const sl = Object.fromEntries(g.map(a => [a.sleutel, a]));
+          const her = sl['opd:a'].body.reminders.overrides.map(o => o.method + o.minutes).join(',');
+          return sl['opd:a'].datum === '2026-11-30' && sl['opd2m:a'].datum === '2026-09-30' &&
+                 sl['opd2m:a'].body.start.dateTime === '2026-09-30T09:00:00' &&
+                 sl['opd:b'].datum === '2027-03-31' && !sl['opd:c'] && !sl['ctr:l'] &&
+                 sl['ctr:k'].datum === '2026-11-30' &&
+                 her === 'popup39780,popup19620,popup9540,popup3780,email39780';
+        } finally {
+          w.eval('opdrachtState.opdrachten=' + oudO); w.eval('contractState.contracten=' + oudC);
+        }
+      }],
+    ['Meldingen: bijwerken voegt toe, doet niets zonder wijziging en haalt weg wat niet meer hoort',
+      async () => {
+        const oudO = w.eval('JSON.stringify(opdrachtState.opdrachten)');
+        const oudC = w.eval('JSON.stringify(contractState.contracten)');
+        const oudS = w.eval('JSON.stringify(rawState.settings.agendaMeldingen||null)');
+        const echtFetch = w.fetch, echtToken = w.driveVraagToken;
+        const kal = {}; let volg = 0; const log = [];
+        const antw = (s, b) => new w.Response(s === 204 ? null : JSON.stringify(b || {}), {status: s});
+        w.driveVraagToken = async () => 'tok';
+        w.fetch = async (url, o) => {
+          url = String(url); o = o || {};
+          const pad = url.replace('https://www.googleapis.com/calendar/v3', '').split('?')[0];
+          const m = o.method || 'GET'; log.push(m);
+          if (pad === '/calendars' && m === 'POST') { const id = 'k' + (++volg); kal[id] = {}; return antw(200, {id}); }
+          const r = /^\/calendars\/([^/]+)\/events(?:\/([^/]+))?$/.exec(pad);
+          const k = r && kal[decodeURIComponent(r[1])];
+          if (!k) return antw(404, {});
+          if (m === 'GET') return antw(200, {items: Object.values(k)});
+          if (m === 'POST') { const id = 'e' + (++volg); k[id] = {...JSON.parse(o.body), id}; return antw(200, k[id]); }
+          if (m === 'PUT') { k[r[2]] = {...JSON.parse(o.body), id: r[2]}; return antw(200, k[r[2]]); }
+          if (m === 'DELETE') { delete k[r[2]]; return antw(204); }
+          return antw(400, {});
+        };
+        try {
+          w.eval('opdrachtState.opdrachten=' + JSON.stringify([
+            {id:'a', clientId:null, naam:'A', start:'2026-01-01', eind:'2099-12-31', opzeg:''},
+            {id:'b', clientId:null, naam:'B', start:'2026-01-01', eind:'2099-06-30', opzeg:''}]));
+          w.eval('contractState.contracten=[]');
+          w.eval("rawState.settings.agendaMeldingen={aan:true,kalenderId:''}");
+          const r1 = await w.agdSync(); log.length = 0;
+          const r2 = await w.agdSync(); const alleenLezen = log.length === 1 && log[0] === 'GET';
+          w.eval("opdrachtState.opdrachten=opdrachtState.opdrachten.filter(o=>o.id!=='b')");
+          const r3 = await w.agdSync();
+          return r1.nieuw === 4 && r2.nieuw + r2.bij + r2.weg === 0 && alleenLezen && r3.weg === 2;
+        } finally {
+          w.fetch = echtFetch; w.driveVraagToken = echtToken;
+          w.eval('clearTimeout(agdTimer)');
+          w.eval('opdrachtState.opdrachten=' + oudO); w.eval('contractState.contracten=' + oudC);
+          w.eval('rawState.settings.agendaMeldingen=' + oudS + ';if(!rawState.settings.agendaMeldingen)delete rawState.settings.agendaMeldingen;');
+          try { w.localStorage.removeItem('herling_agenda'); } catch (_) {}
+        }
+      }],
     ['No iframe console errors',           () => iframeErrors.length === 0]
   ];
 

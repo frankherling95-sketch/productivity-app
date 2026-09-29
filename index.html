@@ -30693,7 +30693,14 @@ function ctrLooptijdTekst(c,i,vandaag){
   const lt=i.lt;
   if(i.status==='gepland')return 'begint over '+opdDuur(opdDagenTussen(vandaag,lt.start));
   if(i.status==='afgelopen')return 'afgelopen';
-  if(lt.verlengt)return 'verlengt vanzelf met '+(CTR_VERLENG[c.verlenging]||'een periode');
+  /* Ook bij stilzwijgende verlenging eerst hoe lang de lopende periode nog
+     duurt: dat wil je weten (Frank, 2026-09-29). lt.eind schuift na afloop
+     vanzelf een periode op, dus bij een maandverlenging telt dit daarna
+     steeds af naar het eerstvolgende maandeinde. */
+  if(lt.verlengt){
+    const d=opdDagenTussen(vandaag,lt.eind);
+    return (d===0?'laatste dag':'nog '+opdDuur(d))+' · verlengt daarna '+(CTR_VERLENG_KORT[c.verlenging]||'vanzelf');
+  }
   if(!lt.eind)return 'onbepaalde tijd';
   const d=opdDagenTussen(vandaag,lt.eind);
   return d===0?'laatste dag':'nog '+opdDuur(d);
@@ -30848,7 +30855,12 @@ function ctrKaart(c,d){
   const kleur=ctrKleur(c);
   const n=(c.bijlagen||[]).length;
   const eindklant=ctrEindklant(c);
+  /* Dat hij stilzwijgend verlengt staat links in de metaregel; rechts staat
+     hoe lang de lopende periode nog duurt. Stond eerst rechts "verlengt per
+     maand" en dan zag je niet wanneer hij afliep (Frank, 2026-09-29). */
+  const verlengt=lt.verlengt&&i.status==='lopend';
   const meta=[ctrSoortLabel(c.soort),eindklant?'voor '+eindklant:null,
+    verlengt?'verlengt '+(CTR_VERLENG_KORT[c.verlenging]||'vanzelf'):null,
     n?(n===1?'PDF':n+" PDF's"):null].filter(Boolean).join(' · ');
   const sigO=i.signalen.some(s=>s.soort==='opzeg');
   const sigE=i.signalen.some(s=>s.soort==='eind');
@@ -30856,8 +30868,9 @@ function ctrKaart(c,d){
   if(i.status==='lopend'&&lt.opzegVoor)tijd=(lt.verlengt?'Opzeggen vóór ':'Beslissen vóór ')+opdFmtDatum(lt.opzegVoor);
   else if(i.status==='lopend'&&!lt.eind&&lt.opzeg)tijd='Opzegbaar met '+ctrTermijn(lt.opzeg);
   const rechts=i.status==='gepland'?opdFmtDatum(lt.start):lt.eind?opdFmtDatum(lt.eind):'Onbepaald';
+  const nog=dd=>dd===0?'laatste dag':'nog '+opdDuur(dd);
   const onder=!lt.eind&&i.status==='lopend'?(lt.start?'sinds '+opdFmtDatum(lt.start):'')
-    :lt.verlengt&&i.status==='lopend'?'verlengt '+(CTR_VERLENG_KORT[c.verlenging]||'vanzelf')
+    :verlengt?nog(opdDagenTussen(d.vandaag,lt.eind))
     :ctrLooptijdTekst(c,i,d.vandaag);
   return `<button type="button" class="uren-mcard ctr-mcard" style="--c:${kleur}" data-action="ctrOpen" data-arg1="${c.id}">
     <div class="links">

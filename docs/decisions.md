@@ -10,6 +10,80 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-29 · Stilzwijgend verlengen: eerst hoe lang de periode nog loopt
+
+**Probleem.** Een contract dat per maand stilzwijgend verlengt (Youfone) toonde
+rechts "verlengt per maand". Frank: *"ik wil wel gewoon zien tot wanneer de
+eind datum is en als dat is verlopen dan moet je het eerst volgende eind moment
+weergeven."*
+
+**Beslissing.** Rechts de einddatum van de lopende periode met "nog 3 maanden"
+eronder; "verlengt per maand" schuift naar de metaregel links. In de tabel:
+"nog 3 maanden · verlengt daarna per maand". De datum zelf schoof al door
+(`ctrLooptijd` rolt `lt.eind` per periode), dus na december staat er vanzelf
+het eerstvolgende maandeinde. Op Franks kaart stond "1 jan 2028" omdat het
+veld Einde van dat contract op die datum staat — de rekensom klopt.
+
+**Bestanden.** `index.html` — `ctrLooptijdTekst`, `ctrKaart`. Test in `test.html`.
+
+## 2026-09-29 · Meldingen over aflopende contracten en opdrachten via Google Agenda
+
+**Probleem.** Frank wil een seintje als een contract of opdracht afloopt, op
+tijd om een nieuw contract af te sluiten: contracten 1 maand, 2 weken, 1 week
+en 3 dagen vooraf, opdrachten daarbovenop al 2 maanden vooraf — liefst als een
+pushmelding zoals een echte app, of per mail.
+
+**Waarom Google Agenda** (Franks keuze uit drie). De app heeft geen server, en
+een melding die komt terwijl de app dicht is moet ergens vandaan worden
+verstuurd. Mail vanuit de app zelf komt alleen als je de app opent; een
+banner in de app idem. Google Agenda verstuurt melding én mail zelf, ook als
+de app wekenlang dicht is geweest.
+
+**Beslissing.**
+- Eén eigen agenda "Herling – aflopend", met de smalste toestemming die er is:
+  `calendar.app.created` — de app ziet en wijzigt alleen agenda's die hij zelf
+  maakte, niet je gewone agenda.
+- Per contract en opdracht één afspraak (hele dag) op de teldatum: de
+  opzegdatum, anders het einde (ook Franks keuze). Herinneringen om 09:00:
+  melding op 4 weken, 2 weken, 1 week, 3 dagen, en een mail bij 4 weken.
+  Google staat per afspraak hooguit vijf herinneringen toe en hooguit 4 weken
+  vooraf, dus "een maand" is 4 weken en mail alleen bij de eerste.
+- Een opdracht krijgt er een afspraak bij 2 maanden vóór de teldatum, om 09:00
+  (een kwartier, met melding en mail op dat moment).
+- Een contract dat aan een opdracht hangt slaan we over: de opdracht heeft de
+  afspraak al.
+- Bijwerken is vergelijken: elke afspraak draagt `sleutel` ("opd:<id>") en een
+  hash van zijn inhoud in `extendedProperties.private`. De app onthoudt geen
+  afspraak-ids en herstelt zich als je in Agenda iets weggooit of verzet.
+- Vanzelf: `agdNaWijziging()` in `scheduleSave()` en `renderAll()` vergelijkt
+  een handtekening van wat er zou moeten staan met de laatste keer op dit
+  apparaat (localStorage `herling_agenda`) en werkt 8 seconden later bij.
+- Token: de app vraagt met `include_granted_scopes`; na één keer toestemming
+  draagt ook het (al stil vernieuwde) Drive-token de agenda. Lukt het toch niet,
+  dan één melding per sessie en "Opnieuw verbinden" in het venster.
+- Aan/uit staat in `rawState.settings.agendaMeldingen` ({aan, kalenderId}) en
+  gaat dus mee naar Drive. Uitzetten verwijdert de hele agenda.
+
+**Vereist in de Google Cloud Console** (eenmalig, zoals bij gmail.send): de
+Google Calendar API aanzetten en de scope `calendar.app.created` op het
+OAuth-toestemmingsscherm zetten. Zonder het eerste zegt het venster dat
+precies.
+
+**Getest** tegen een nagebootste Calendar API (lokaal is er geen Google-login):
+aanmaken (1 agenda, 11 afspraken), niets doen zonder wijziging (1 GET),
+einddatum gewijzigd (2 PUT), contract weg (1 DELETE), zelf verzette afspraak
+teruggezet, weggegooide agenda opnieuw, API uit, toestemming weg, na een
+wijziging vanzelf bijgewerkt, uitzetten. Twee daarvan staan als vaste test in
+`test.html`. Het echte Google-deel is pas live te testen.
+
+**Niet doen.** Afspraak-ids in de state bewaren (dan raakt de app de weg kwijt
+zodra je in Agenda iets weggooit). Een bredere agenda-scope vragen. Contracten
+die aan een opdracht hangen er alsnog in zetten.
+
+**Bestanden.** `index.html` — sectie MELDINGEN IN GOOGLE AGENDA (`agd*`),
+`#agdModal`, Instellingen → Meldingen → Google Agenda, de aanroepen in
+`scheduleSave()` en `renderAll()`, `.agd-*`. `test.html`: drie tests.
+
 ## 2026-09-29 · Opdrachten op een telefoon: lijstkaarten, grafieklabels, tabellen als lijst
 
 Drie klachten van Frank over dezelfde module op zijn telefoon, in één ronde.

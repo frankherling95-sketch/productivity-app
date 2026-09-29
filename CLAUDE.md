@@ -66,7 +66,7 @@ rawState = {
   opdrachten: opdrachtState, // {opdrachten}
   contracten: contractState, // {contracten, opruimen} — de PDF's zelf staan NIET hierin, zie Contracten hieronder
   // agenda: verwijderd 2026-09-06; oude events blijven ongemoeid in Drive staan
-  settings: { calSources, theme, ... }
+  settings: { calSources, theme, agendaMeldingen: {aan, kalenderId}, ... }
 }
 ```
 
@@ -90,6 +90,7 @@ rawState = {
 | `LS_CTR_WEERGAVE` = `herling_contracten_weergave` | Welke tab van Contracten je bekijkt (zakelijk/privé), per apparaat en bewust niet in `rawState` |
 | IndexedDB `herling_bijlagen` | PDF's van Contracten op dit apparaat (kopie; het origineel staat als los bestand in de Drive-`appDataFolder`) |
 | `LS_HERSTEL_KEY` = `herling_analytics_herstel` | Niet-gekozen versie na een conflict; zichtbaar in Instellingen → Versiegeschiedenis, of `herstelDownload()` |
+| `LS_AGD` = `herling_agenda` | Meldingen in Google Agenda: handtekening, tijdstip en aantal van de laatste keer bijwerken op dít apparaat (bewust niet in `rawState`: anders wordt elke keer bijwerken een wijziging voor Drive) |
 
 ### Save flow
 
@@ -306,6 +307,7 @@ waar de fout zit.
 
 Top-3 meest recent. Volledige log + *waarom* per beslissing: [`docs/decisions.md`](docs/decisions.md).
 
+- **2026-09-29**: **Meldingen via Google Agenda** — eigen agenda "Herling – aflopend" (scope `calendar.app.created`), per contract/opdracht een afspraak op de opzegdatum anders het einde, meldingen 09:00 op 4 w / 2 w / 1 w / 3 d + mail bij 4 w; opdrachten ook 2 maanden vooraf. Vergelijken op `sleutel`+hash in `extendedProperties`, vanzelf via `agdNaWijziging()` in `scheduleSave()`/`renderAll()`. Contract aan een opdracht wordt overgeslagen. Vereist in Cloud Console: Calendar API aan + scope op het OAuth-scherm. En: bij stilzwijgend verlengen rechts "nog 3 maanden" i.p.v. "verlengt per maand"
 - **2026-09-29**: **Opdrachten op een telefoon** — lijstkaarten zoals Contracten (`opdKaart`, klassen `.ctr-mcard`), ⋯ vast rechtsboven en ronde +; naam van contract/opdracht mag twee regels (`.ctr-mnaam`). Bedragen boven grafiekkolommen via één helper `facAnKolomLabels()` (ook Facturen-analyse; minstens 4px lucht). Vooruitzicht-tabellen op mobiel een lijst van twee regels (`.opd-maandtabel`/`.opd-opdtabel`, niet de algemene `.fac-an-tabel`-regel). Grafiek en tabellen door twee subagents parallel in eigen worktrees
 - **2026-09-28**: **De service worker vraagt het document altijd na** (`cache:'no-cache'`, v2.24) — GitHub Pages stuurt `max-age=600`, en de kale `fetch(req)` gaf bij een nieuw tabblad of het app-icoon tot tien minuten na een uitrol nog de vorige versie. Bewezen met een testserver die Pages nadoet; offline blijft de cache de terugval
 - **2026-09-28**: **Een te hoog venster scrollt nu ook op een bureaublad** — de themaregel van `.modal` zette `overflow:hidden` en won (later in het bestand) van de basisregel met `overflow-y:auto`; een opdracht of contract met PDF viel op een laptop onderaan weg, knoppen en al. Nu `overflow-x:hidden; overflow-y:auto`. Alle 40 vensters gemeten: alleen `hidden → auto`, geen maatverschil, mobiel ongewijzigd
