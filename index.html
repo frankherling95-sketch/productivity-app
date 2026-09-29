@@ -2223,6 +2223,9 @@ button.uren-mpiv-row:active{background:var(--surface2)}
 .agd-lijst .d{flex:none;width:96px;color:var(--text-muted);font-variant-numeric:tabular-nums}
 .agd-lijst .t{flex:1;min-width:0;color:var(--text)}
 .agd-meer{font-size:var(--fs-micro);color:var(--text-hint);margin:6px 2px 0}
+/* De weg naar de Cloud Console, als knop op een eigen regel in de melding. */
+#agdBody .agd-link{display:flex;width:max-content;margin-top:10px;text-decoration:none}
+@media (max-width:768px){#agdBody .agd-link{height:var(--tap);min-height:var(--tap)}}
 
 /* Venster: de PDF's bij dit contract, en een vlak om er een bij te zetten. */
 .ctr-bijlagen{display:flex;flex-direction:column;gap:8px}
@@ -31963,8 +31966,20 @@ async function agdSync(){
 function agdStatusUitFout(e){
   if(e&&e.verbinden)agdStatus={fase:'verbinden',tekst:'De app heeft opnieuw toestemming nodig om je agenda bij te werken.'};
   else if(e&&(e.reden==='accessNotConfigured'||/has not been used|is disabled/i.test(e.message||'')))
-    agdStatus={fase:'api',tekst:'De Google Calendar API staat nog niet aan in het Cloud-project van de app. Zet hem daar aan (APIs & Services → Library → Google Calendar API) en probeer het opnieuw.'};
+    agdStatus={fase:'api',link:agdApiLink(e.message),
+      tekst:'De Google Calendar API staat nog niet aan in het Cloud-project van de app. Zet hem aan en tik daarna hier op Nu bijwerken — het kan een paar minuten duren voordat Google het doorheeft.'};
   else agdStatus={fase:'fout',tekst:'Bijwerken lukte niet: '+((e&&e.message)||'onbekende fout')+'.'};
+}
+/* Waar je de Calendar API aanzet, als link in de melding (Frank, 2026-09-29:
+   met alleen de menuweg erin zocht hij het op zijn telefoon zelf uit).
+   Google noemt het adres in zijn eigen foutmelding; dat nemen we over, maar
+   alleen als het naar de Cloud Console wijst. Anders bouwen we het op uit
+   het projectnummer: het eerste deel van de client-id. */
+function agdApiLink(bericht){
+  const m=/https:\/\/console\.(?:developers|cloud)\.google\.com\/[^\s"'<>]+/.exec(String(bericht||''));
+  if(m)return m[0].replace(/[.,;)]+$/,'');
+  return 'https://console.developers.google.com/apis/api/calendar-json.googleapis.com/overview?project='+
+    String(GOOGLE_CLIENT_ID).split('-')[0];
 }
 
 /* Na elke wijziging en na elk laden: is wat er in de agenda hoort anders
@@ -32015,9 +32030,10 @@ function agdVensterVernieuw(){
   let status='';
   if(agdBezig)status=`<div class="fac-btw-let">Bezig met bijwerken…</div>`;
   else if(aan&&agdStatus.fase&&agdStatus.fase!=='ok')
-    status=`<div class="fac-btw-let let-fout"><span class="ic">!</span><span>${escapeHtml(agdStatus.tekst)}</span></div>`;
+    status=`<div class="fac-btw-let let-fout">${UITROEP_ICOON}<span>${escapeHtml(agdStatus.tekst)}${agdStatus.link
+      ?`<a class="uren-btn agd-link" href="${escapeHtml(agdStatus.link)}" target="_blank" rel="noopener">Calendar API aanzetten ↗</a>`:''}</span></div>`;
   else if(aan)
-    status=`<div class="fac-btw-let let-gelukt"><span class="ic">✓</span><span>Aan${l.n!=null?' — '+l.n+' '+(l.n===1?'afspraak':'afspraken')+' in de agenda “'+escapeHtml(AGD_KALENDER)+'”':''}${tijd?', op dit apparaat bijgewerkt '+escapeHtml(tijd):''}.</span></div>`;
+    status=`<div class="fac-btw-let let-gelukt">${VINK_ICOON}<span>Aan${l.n!=null?' — '+l.n+' '+(l.n===1?'afspraak':'afspraken')+' in de agenda “'+escapeHtml(AGD_KALENDER)+'”':''}${tijd?', op dit apparaat bijgewerkt '+escapeHtml(tijd):''}.</span></div>`;
   const lijst=gewenst.slice(0,8).map(a=>`<li><span class="d">${escapeHtml(opdFmtDatum(a.datum))}</span><span class="t">${escapeHtml(a.titel)}</span></li>`).join('');
   box.innerHTML=`
     <p class="agd-uitleg">Voor elk contract en elke opdracht die afloopt zet de app een afspraak in een eigen agenda,
