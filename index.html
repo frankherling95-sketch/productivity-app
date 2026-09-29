@@ -2089,6 +2089,47 @@ button.uren-mpiv-row:active{background:var(--surface2)}
   background:var(--mint-soft);color:var(--text)}
 .opd-opdtabel td:first-child{max-width:320px}
 .opd-opdtabel .fac-klant .nm{font-weight:500}
+/* Per maand en Per opdracht op een telefoon: een lijst, zoals de cijfertabel
+   van de Facturen-analyse. Zes of acht kolommen passen niet op 375px, en de
+   algemene lijstregel van .fac-an-tabel (drie kolommen, voor de k-*-cellen
+   van Facturen) liet deze cellen willekeurig door zijn raster lopen: een
+   bedrag brak tussen "€" en het getal, en Per opdracht schoof zijwaarts.
+   Per rij twee regels. Regel 1: waar het over gaat links, het totaal rechts.
+   Regel 2: klein wat erin zit -- per soort of per maand één cel die als
+   geheel naar de volgende regel gaat, dus nooit midden in een bedrag. Het
+   bedrag achter de uren (.opd-vz-mbd) staat alleen hier; op een bureaublad
+   heeft het een eigen kolom. Een cel zonder waarde (—) valt weg.
+   Flex en geen raster: regel 2 heeft per rij een ander aantal cellen en moet
+   kunnen doorlopen. De ::after is de regelafbreking na het totaal. */
+.opd-vz-mbd{display:none}
+@media (max-width:768px){
+  .opd-vz-wrap{overflow:visible}
+  .fac-an-tabel.opd-maandtabel,.fac-an-tabel.opd-opdtabel,
+  .opd-maandtabel tbody,.opd-opdtabel tbody{display:block}
+  .fac-an-tabel.opd-maandtabel tr,.fac-an-tabel.opd-opdtabel tr{
+    display:flex;flex-wrap:wrap;align-items:center;column-gap:var(--sp-3);row-gap:0;
+  }
+  .fac-an-tabel.opd-maandtabel tr::after,.fac-an-tabel.opd-opdtabel tr::after{content:'';order:3;flex-basis:100%}
+  .fac-an-tabel td.opd-vz-per{order:1;flex:1 1 0;min-width:0;max-width:none;white-space:nowrap;
+    font-size:var(--fs-basis);font-weight:600}
+  .fac-an-tabel td.opd-vz-tot{order:2;flex:none;white-space:nowrap;font-size:var(--fs-basis)}
+  .fac-an-tabel.opd-maandtabel td.opd-vz-deel,.fac-an-tabel.opd-opdtabel td.opd-vz-deel{
+    order:4;margin-top:2px;white-space:nowrap;text-align:left;
+    font-size:var(--fs-micro);font-weight:400;color:var(--text-muted);
+  }
+  .fac-an-tabel td.opd-vz-weg,.opd-vz-gelijk{display:none}
+  .opd-vz-mbd{display:inline}
+  /* De lopende maand: het vlak op de rij en niet op de losse cellen, en
+     8px buiten de tekstlijn zodat de tekst gelijk blijft met de rest. */
+  .fac-an-tabel.opd-maandtabel tr.opd-huidig{background:var(--surface2);border-radius:var(--radius-md);
+    margin:0 calc(-1 * var(--sp-2));padding-left:calc(var(--sp-2) + 2px);padding-right:calc(var(--sp-2) + 2px);
+    border-bottom-color:transparent}
+  .fac-an-tabel.opd-maandtabel tr.opd-huidig td{background:none}
+  /* De naam zoals op een lijstkaart (stijlgids §4): kleiner dan het bedrag
+     ernaast, want hij is lang en kapt anders al na de klantnaam af. */
+  .fac-an-tabel.opd-opdtabel td.opd-vz-per{font-size:var(--fs-klein)}
+  .fac-an-tabel.opd-opdtabel .fac-klant .nm{font-weight:600}
+}
 
 /* Venster */
 .opd-velden2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
@@ -30008,15 +30049,24 @@ function opdRenderVooruitzicht(d){
     <p class="opd-voetnoot">Geschreven telt alle klanten mee, ook zonder opdracht. Gepland rekent met werkdagen en kent geen feestdagen of vakantie.</p>
   </div>`;
   html+=`<div class="fac-an-kaart"><div class="fac-an-kaartkop"><div><h3>Per maand</h3></div></div>
-    <div class="fac-an-tabelwrap"><table class="fac-an-tabel opd-maandtabel"><thead><tr>
+    <div class="fac-an-tabelwrap opd-vz-wrap"><table class="fac-an-tabel opd-maandtabel"><thead><tr>
       <th>Maand</th><th class="num">Uren geschreven</th><th class="num">Omzet geschreven</th><th class="num">Uren gepland</th><th class="num">Omzet gepland</th><th class="num">Totaal</th>
-    </tr></thead><tbody>${maanden.map(m=>`<tr${m.huidig?' class="opd-huidig"':''}>
-      <td>${escapeHtml(m.label)}${m.huidig?' <span class="opd-nu">nu</span>':''}</td>
-      <td class="num">${m.geschrevenUren>0?urenFmtShort(Math.round(m.geschrevenUren))+' u':'—'}</td>
-      <td class="num">${m.geschreven>0?opdFmtEuro(m.geschreven):'—'}</td>
-      <td class="num">${m.geplandUren>0?urenFmtShort(Math.round(m.geplandUren))+' u':'—'}</td>
-      <td class="num">${m.gepland>0?opdFmtEuro(m.gepland):'—'}</td>
-      <td class="num"><b>${(m.geschreven+m.gepland)>0?opdFmtEuro(m.geschreven+m.gepland):'—'}</b></td></tr>`).join('')}
+    </tr></thead><tbody>${maanden.map(m=>{
+      /* Op een telefoon is elke rij een lijstregel (CSS bij .opd-vz-wrap):
+         per soort één cel, de uren met het bedrag erachter (.opd-vz-mbd), en
+         de bedragkolommen vallen weg. Is er maar één soort met een bedrag,
+         dan ís dat bedrag het totaal -- dan blijft het achter de uren weg. */
+      const beide=m.geschreven>0&&m.gepland>0;
+      const soort=(uren,bedrag,lab)=>uren>0
+        ?`<td class="num opd-vz-deel" data-lab="${lab}">${urenFmtShort(Math.round(uren))} u${beide?`<span class="opd-vz-mbd"> · ${opdFmtEuro(bedrag)}</span>`:''}</td>`
+        :`<td class="num opd-vz-weg">—</td>`;
+      return `<tr${m.huidig?' class="opd-huidig"':''}>
+      <td class="opd-vz-per">${escapeHtml(m.label)}${m.huidig?' <span class="opd-nu">nu</span>':''}</td>
+      ${soort(m.geschrevenUren,m.geschreven,'geschreven')}
+      <td class="num opd-vz-weg">${m.geschreven>0?opdFmtEuro(m.geschreven):'—'}</td>
+      ${soort(m.geplandUren,m.gepland,'gepland')}
+      <td class="num opd-vz-weg">${m.gepland>0?opdFmtEuro(m.gepland):'—'}</td>
+      <td class="num opd-vz-tot"><b>${(m.geschreven+m.gepland)>0?opdFmtEuro(m.geschreven+m.gepland):'—'}</b></td></tr>`;}).join('')}
     </tbody></table></div></div>`;
   /* Waar de verwachte omzet vandaan komt: per opdracht de komende zes
      maanden. Hier zie je waar een gat valt als een opdracht afloopt. */
@@ -30024,19 +30074,26 @@ function opdRenderVooruitzicht(d){
   const zes=maanden.slice(hi,hi+6);
   const bijdragers=d.lijst.filter(o=>zes.some(m=>(m.perOpdracht[o.id]||{}).bedrag>0.5));
   if(bijdragers.length){
+    const opdVzKop=m=>m.kort+(m.maand===0?' '+String(m.jaar).slice(2):'');
     html+=`<div class="fac-an-kaart"><div class="fac-an-kaartkop"><div><h3>Per opdracht</h3>
       <p>Gepland vanaf morgen, de komende zes maanden</p></div></div>
-      <div class="fac-an-tabelwrap"><table class="fac-an-tabel opd-opdtabel"><thead><tr><th>Opdracht</th>
-      ${zes.map(m=>`<th class="num">${m.kort}${m.maand===0?' '+String(m.jaar).slice(2):''}</th>`).join('')}
+      <div class="fac-an-tabelwrap opd-vz-wrap"><table class="fac-an-tabel opd-opdtabel"><thead><tr><th>Opdracht</th>
+      ${zes.map(m=>`<th class="num">${opdVzKop(m)}</th>`).join('')}
       <th class="num">Samen</th></tr></thead><tbody>
       ${bijdragers.map(o=>{
         const kleur=opdKleur(o.clientId);
         const vals=zes.map(m=>(m.perOpdracht[o.id]||{}).bedrag||0);
         const samen=vals.reduce((s,v)=>s+v,0);
-        return `<tr><td><div class="fac-klant"><span class="sw" style="background:${kleur.bg}"></span>
+        /* Op een telefoon draagt elke maand zijn naam zelf (data-lab), want
+           de kolomkop is daar weg. Heeft een opdracht maar één maand, dan is
+           dat bedrag gelijk aan Samen: dan staat er alleen welke maand. */
+        const alleen=vals.filter(v=>v>0.5).length===1;
+        return `<tr><td class="opd-vz-per"><div class="fac-klant"><span class="sw" style="background:${kleur.bg}"></span>
           <span class="nm">${escapeHtml(opdKlantNaam(o.clientId)+(o.naam?' · '+o.naam:''))}</span></div></td>
-          ${vals.map(v=>`<td class="num">${v>0.5?opdFmtEuro(v):'—'}</td>`).join('')}
-          <td class="num"><b>${opdFmtEuro(samen)}</b></td></tr>`;
+          ${vals.map((v,i)=>v>0.5
+            ?`<td class="num opd-vz-deel" data-lab="${alleen?'alleen ':''}${opdVzKop(zes[i])}">${alleen?`<span class="opd-vz-gelijk">${opdFmtEuro(v)}</span>`:opdFmtEuro(v)}</td>`
+            :`<td class="num opd-vz-weg">—</td>`).join('')}
+          <td class="num opd-vz-tot"><b>${opdFmtEuro(samen)}</b></td></tr>`;
       }).join('')}</tbody></table></div></div>`;
   }
   return html;
