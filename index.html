@@ -2147,6 +2147,19 @@ button.uren-mpiv-row:active{background:var(--surface2)}
 .ctr-mgroep b{font-weight:600;color:var(--text-hint);letter-spacing:0}
 .ctr-afknop{align-self:center;margin-top:4px}
 
+/* Instellingen → Google Agenda: uitleg, status (het meldingsblok, stijlgids
+   §12) en wat er in de agenda staat, eerstvolgende bovenaan. */
+.agd-uitleg{font-size:var(--fs-klein);color:var(--text-muted);line-height:1.55;margin:0 0 10px}
+.agd-uitleg b{color:var(--text);font-weight:600}
+#agdBody .fac-btw-let{margin:14px 0 4px}
+.agd-lijst{list-style:none;margin:6px 0 0;padding:0}
+.agd-lijst li{display:flex;gap:12px;padding:8px 2px;border-bottom:0.5px solid var(--border);
+  font-size:var(--fs-klein);line-height:1.4;min-width:0}
+.agd-lijst li:last-child{border-bottom:0}
+.agd-lijst .d{flex:none;width:96px;color:var(--text-muted);font-variant-numeric:tabular-nums}
+.agd-lijst .t{flex:1;min-width:0;color:var(--text)}
+.agd-meer{font-size:var(--fs-micro);color:var(--text-hint);margin:6px 2px 0}
+
 /* Venster: de PDF's bij dit contract, en een vlak om er een bij te zetten. */
 .ctr-bijlagen{display:flex;flex-direction:column;gap:8px}
 .ctr-bijlage{display:flex;align-items:center;gap:10px;padding:7px 6px 7px 12px;min-width:0;
@@ -8520,6 +8533,24 @@ textarea { line-height: 1.6; resize: vertical; }
 <!-- Print-doel voor "Exporteer → PDF"; gevuld door urenExportPdf() -->
 <div id="urenPrintArea" aria-hidden="true"></div>
 
+<!-- ── Instellingen → Google Agenda: meldingen over aflopende contracten en
+     opdrachten. Inhoud uit agdVensterVernieuw(). 640 breed: een formulier. -->
+<div class="modal-bg" id="agdModal" onclick="if(event.target===this)agdSluit()">
+  <div class="modal" style="max-width:640px;padding:20px 22px">
+    <h3 style="font-size:18px;font-weight:700;margin:0 0 16px">Meldingen in Google Agenda</h3>
+    <div id="agdBody"></div>
+    <div class="modal-footer" style="margin-top:20px">
+      <div class="modal-footer-left">
+        <button class="btn btn-sm btn-danger" id="agdUitknop" data-action="agdUitzetten" style="display:none">Uitzetten</button>
+      </div>
+      <div class="modal-footer-right">
+        <button class="btn btn-sm modal-annuleer" data-action="agdSluit">Sluiten</button>
+        <button class="btn btn-sm btn-primary" id="agdHoofdknop" data-action="agdHoofdknop">Aanzetten</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ── Opdrachten: nieuwe of bestaande opdracht ── -->
 <div class="modal-bg" id="opdModal" onclick="if(event.target===this)opdSluit()">
   <div class="modal" style="max-width:580px;padding:20px 22px">
@@ -10771,6 +10802,9 @@ function scheduleSave(){
   saveTimer=setTimeout(saveGist,1500);
   /* Refresh nav badges on every state change so counts stay current */
   updateNavBadges();
+  /* Meldingen in Google Agenda meeschuiven met wat er veranderde. Doet
+     niets zolang ze uit staan; mag het opslaan nooit hinderen. */
+  try{agdNaWijziging();}catch(_){}
 }
 /* Capture in-flight pending save when the tab closes */
 window.addEventListener('beforeunload',()=>{
@@ -12844,6 +12878,9 @@ function renderAll(){
   updateNavBadges();
   /* Apply hash-based routing on initial load */
   switchModule(moduleUitHash());
+  /* Na elk laden: loopt er intussen iets anders af (een andere computer,
+     of een contract dat vandaag doorverlengde)? Zie agdNaWijziging. */
+  try{agdNaWijziging();}catch(_){}
 }
 
 const GELDIGE_MODULES=['dashboard','notes','checklist','uren','facturen','opdrachten','contracten'];
@@ -13041,6 +13078,10 @@ function toggleAppInstellingen(e){
       <span class="ic" aria-hidden="true">&#9635;</span>
       <span>Wekelijkse review<small>Samenvatting van je week</small></span></button>
     <div class="uren-menu-sep"></div>
+    <div class="uren-menu-lab">Meldingen</div>
+    <button class="uren-menu-item" role="menuitem" data-app-instel="agenda">
+      <span class="ic" aria-hidden="true">&#128197;</span>
+      <span>Google Agenda<small>${escapeHtml(agdMenuTekst())}</small></span></button>
     <button class="uren-menu-item" role="menuitem" data-app-instel="notif">
       <span class="ic" aria-hidden="true">&#128276;</span>
       <span>Notificaties inschakelen<small>Melding bij een deadline</small></span></button>
@@ -13078,6 +13119,7 @@ document.addEventListener('click',e=>{
   if(wat==='slim')openQuickAddAI();
   if(wat==='review')openWeeklyReviewModal();
   if(wat==='notif')requestNotifPermission();
+  if(wat==='agenda')agdOpen();
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeAppInstellingen();});
 
@@ -31429,6 +31471,410 @@ document.getElementById('mod-contracten')?.addEventListener('keydown',e=>{
   rij.click();
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape')ctrSluitMenu();});
+
+/* ═══════════════════════════════════════════════════
+   MELDINGEN IN GOOGLE AGENDA — aflopende contracten en opdrachten
+   ───────────────────────────────────────────────────
+   Frank wil een seintje als iets afloopt, op tijd om er een nieuw contract
+   voor af te sluiten: bij contracten 4 weken, 2 weken, 1 week en 3 dagen
+   van tevoren, bij opdrachten daarbovenop al 2 maanden van tevoren.
+
+   Waarom via Google Agenda (keuze van Frank, 2026-09-29): de app heeft
+   geen server, en een pushmelding die komt terwijl de app dicht is moet
+   ergens vandaan worden verstuurd. Google Agenda doet dat al -- als melding
+   via de Agenda-app op de telefoon en als mail -- en blijft dat doen als
+   de app weken niet open is geweest.
+
+   Hoe:
+   - Eén eigen agenda, "Herling – aflopend". De toestemming is de smalste
+     die er is (calendar.app.created): de app ziet en wijzigt alléén de
+     agenda's die hij zelf maakte, niet je gewone agenda.
+   - Per contract en per opdracht één afspraak, een hele dag, op de
+     teldatum: de opzegdatum, en zonder opzegtermijn het einde (ook een
+     keuze van Frank). Herinneringen om 09:00: een melding 4 weken, 2
+     weken, 1 week en 3 dagen vooraf, plus een mail bij 4 weken. Google
+     staat er per afspraak hooguit vijf toe, en een herinnering hooguit 4
+     weken vooraf; "een maand" is daarom 4 weken.
+   - Een opdracht krijgt er een afspraak bij, 2 maanden vóór de teldatum,
+     om 09:00 met een melding en een mail.
+   - Een contract dat aan een opdracht hangt slaan we over: dat haalt zijn
+     looptijd uit de opdracht, en die heeft al een afspraak.
+   - Bijwerken is vergelijken: wat er zou moeten staan (agdGewenst) tegen
+     wat er staat. Elke afspraak draagt zijn sleutel ("opd:<id>") en een
+     hash van zijn inhoud in extendedProperties; is de hash anders, dan
+     wordt hij bijgewerkt, bestaat hij niet meer, dan gaat hij weg. Daardoor
+     hoeft de app geen afspraak-ids te onthouden en herstelt hij zich ook
+     als je in Agenda zelf iets weggooit of verzet.
+   - Het gebeurt vanzelf: na elke wijziging (scheduleSave) en na elk laden
+     (renderAll) kijkt agdNaWijziging of de verzameling anders is dan bij
+     de laatste keer op dit apparaat. Zo schuift ook een contract dat
+     stilzwijgend verlengt vanzelf door naar zijn volgende opzegdatum.
+
+   Token: de app vraagt tokens met include_granted_scopes. Heb je één keer
+   toestemming voor de agenda gegeven, dan draagt ook elk vers Drive-token
+   die toestemming -- en dat wordt al stil vernieuwd. Zo kan het bijwerken
+   op de achtergrond zonder extra Google-vensters.
+
+   Vereist in de Cloud Console (net als gmail.send): de Google Calendar API
+   aanzetten en de scope calendar.app.created op het OAuth-scherm zetten.
+   Zonder het eerste komt er een 403 "accessNotConfigured"; die melding
+   wordt in het venster vertaald.
+   ═══════════════════════════════════════════════════ */
+const AGD_SCOPE='https://www.googleapis.com/auth/calendar.app.created';
+const AGD_API='https://www.googleapis.com/calendar/v3';
+const AGD_TZ='Europe/Amsterdam';
+const AGD_APP_URL='https://app.herling-analytics.nl/';
+const AGD_KALENDER='Herling – aflopend';
+const AGD_HERINNER_DAGEN=[28,14,7,3];
+/* Per apparaat, niet in de state: wat er bij de laatste keer bijwerken op
+   díe computer is neergezet. Staat dit in rawState, dan wordt elke keer
+   bijwerken zelf een wijziging die weer naar Drive moet. */
+const LS_AGD='herling_agenda';
+let agdStatus={fase:'',tekst:''};
+let agdBezig=null, agdTimer=null, agdTok=null, agdFoutGemeld=false;
+
+/* De instelling zelf gaat wél mee naar Drive: aan of uit, en welke agenda.
+   Zet je hem op de laptop aan, dan werkt de telefoon mee. */
+function agdCfg(){
+  const s=(rawState.settings=rawState.settings||{});
+  if(!s.agendaMeldingen||typeof s.agendaMeldingen!=='object')s.agendaMeldingen={aan:false,kalenderId:''};
+  return s.agendaMeldingen;
+}
+function agdAan(){
+  const c=((typeof rawState!=='undefined'&&rawState&&rawState.settings)||{}).agendaMeldingen;
+  return !!(c&&c.aan);
+}
+function agdLokaal(){try{return JSON.parse(localStorage.getItem(LS_AGD)||'{}')||{};}catch(_){return {};}}
+function agdLokaalZet(p){try{localStorage.setItem(LS_AGD,JSON.stringify({...agdLokaal(),...p}));}catch(_){}}
+
+/* Minuten vóór middernacht van de dag van de afspraak, zodat de melding om
+   09:00 komt, d dagen eerder. 28 dagen = 39780 minuten, onder Googles
+   grens van 40320. */
+function agdMinuten(dagen){return dagen*1440-9*60;}
+function agdHash(s){
+  let h=0x811c9dc5;
+  for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,0x01000193)>>>0;}
+  return h.toString(16);
+}
+function agdDagAfspraak(sleutel,titel,datum,regels,mod){
+  return {sleutel,datum,titel,body:{
+    summary:titel,
+    description:regels.concat(['','Openen in de app: '+AGD_APP_URL+'#'+mod,
+      'Deze afspraak houdt Herling Analytics zelf bij: wijzig de datum in de app, niet hier.']).join('\n'),
+    start:{date:datum},end:{date:opdPlusDagen(datum,1)},
+    transparency:'transparent',
+    reminders:{useDefault:false,overrides:AGD_HERINNER_DAGEN.map(d=>({method:'popup',minutes:agdMinuten(d)}))
+      .concat([{method:'email',minutes:agdMinuten(AGD_HERINNER_DAGEN[0])}])},
+    source:{title:'Herling Analytics',url:AGD_APP_URL+'#'+mod}
+  }};
+}
+/* Het vroege seintje van een opdracht: een kwartier om 09:00, met een
+   melding en een mail op dat moment zelf. Een hele dag kan dat niet: een
+   herinnering valt altijd vóór het begin, dus op middernacht of eerder. */
+function agdMomentAfspraak(sleutel,titel,datum,regels,mod){
+  return {sleutel,datum,titel,body:{
+    summary:titel,
+    description:regels.concat(['','Openen in de app: '+AGD_APP_URL+'#'+mod]).join('\n'),
+    start:{dateTime:datum+'T09:00:00',timeZone:AGD_TZ},end:{dateTime:datum+'T09:15:00',timeZone:AGD_TZ},
+    transparency:'transparent',
+    reminders:{useDefault:false,overrides:[{method:'popup',minutes:0},{method:'email',minutes:0}]},
+    source:{title:'Herling Analytics',url:AGD_APP_URL+'#'+mod}
+  }};
+}
+
+/* Wat er in de agenda hoort te staan, gesorteerd op datum. Zuiver: leest
+   alleen de state, dus ook te gebruiken voor het overzicht in het venster
+   en getest in test.html. */
+function agdGewenst(vandaag){
+  vandaag=vandaag||opdVandaag();
+  const uit=[];
+  (opdrachtState.opdrachten||[]).forEach(o=>{
+    if(opdStatus(o,vandaag)==='afgelopen')return;
+    const opzeg=opdOpzegDatum(o);
+    const metOpzeg=!!(opzeg&&opzeg>=vandaag);
+    const datum=metOpzeg?opzeg:(o.eind&&o.eind>=vandaag?o.eind:null);
+    if(!datum)return;
+    const wie=opdKlantNaam(o.clientId)+(o.naam?' · '+o.naam:'');
+    const regels=[o.eind?'Einde: '+opdFmtDatum(o.eind):'',
+      o.opzeg&&CTR_TERMIJN[o.opzeg]?'Opzegtermijn: '+CTR_TERMIJN[o.opzeg]:'',
+      metOpzeg?'Verlengen of opzeggen uiterlijk '+opdFmtDatum(opzeg):''].filter(Boolean);
+    uit.push(agdDagAfspraak('opd:'+o.id,'Opdracht '+wie+' — '+(metOpzeg?'verlengen of opzeggen':'loopt af'),
+      datum,regels,'opdrachten'));
+    const vroeg=opdOpzegDatum({eind:datum,opzeg:'2m'});
+    if(vroeg&&vroeg>=vandaag)
+      uit.push(agdMomentAfspraak('opd2m:'+o.id,'Opdracht '+wie+' — '+
+        (metOpzeg?'over 2 maanden verlengen of opzeggen':'loopt over 2 maanden af'),vroeg,regels,'opdrachten'));
+  });
+  (contractState.contracten||[]).forEach(c=>{
+    const lt=ctrLooptijd(c,vandaag);
+    if(lt.bron==='opdracht')return;
+    if(ctrStatus(c,vandaag,lt)==='afgelopen')return;
+    const datum=lt.opzegVoor||(lt.eind&&lt.eind>=vandaag?lt.eind:null);
+    if(!datum)return;
+    const wie=ctrPartijNaam(c)+(c.titel?' · '+c.titel:'');
+    const wat=lt.opzegVoor?(lt.verlengt?'opzeggen, anders verlengt het':'verlengen of opzeggen'):'loopt af';
+    const regels=['Soort: '+ctrSoortLabel(c.soort)+(ctrDomein(c)==='prive'?' (privé)':''),
+      lt.eind?(lt.verlengt?'Einde van deze periode: ':'Einde: ')+opdFmtDatum(lt.eind):'',
+      lt.verlengt?'Verlengt vanzelf met '+(CTR_VERLENG[c.verlenging]||'een periode'):'',
+      lt.opzeg&&CTR_TERMIJN[lt.opzeg]?'Opzegtermijn: '+CTR_TERMIJN[lt.opzeg]:'',
+      lt.opzegVoor?'Opzeggen uiterlijk '+opdFmtDatum(lt.opzegVoor):''].filter(Boolean);
+    uit.push(agdDagAfspraak('ctr:'+c.id,wie+' — '+wat,datum,regels,'contracten'));
+  });
+  return uit.sort((a,b)=>a.datum.localeCompare(b.datum)||a.sleutel.localeCompare(b.sleutel));
+}
+function agdHandtekening(gewenst,kalenderId){
+  return agdHash((kalenderId||'')+'|'+gewenst.map(a=>a.sleutel+'='+agdHash(JSON.stringify(a.body))).join(';'));
+}
+
+/* ── Toegang ──
+   Eerst het Drive-token: na één keer toestemming draagt dat ook de agenda.
+   Zegt Google dat de scope ontbreekt, dan stil een eigen token proberen;
+   lukt ook dat niet, dan is er een klik nodig (fase 'verbinden'). */
+function agdNieuwToken(interactief){
+  return new Promise((res,rej)=>{
+    const gebruiker=ingelogdeGebruiker();
+    try{
+      google.accounts.oauth2.initTokenClient({
+        client_id:GOOGLE_CLIENT_ID,
+        scope:AGD_SCOPE,
+        include_granted_scopes:true,
+        hint:gebruiker?gebruiker.email:undefined,
+        hd:TOEGESTAAN_DOMEIN,
+        callback:(r)=>{
+          if(r.error)return rej(new Error(r.error_description||r.error));
+          const t={token:r.access_token,tot:Date.now()+(Number(r.expires_in||3600)*1000)};
+          agdTok=t;
+          /* Draagt dit token ook Drive (include_granted_scopes), dan is het
+             meteen het verse Drive-token: één token voor allebei. */
+          if(String(r.scope||'').split(' ').includes(DRIVE_SCOPE)){driveToken=t;driveTokenBewaar(t);}
+          res(t.token);
+        },
+        error_callback:(e)=>rej(new Error((e&&e.message)||'Toestemming geweigerd'))
+      }).requestAccessToken({prompt:''});
+    }catch(e){rej(e);}
+  });
+}
+async function agdGeefToken(){
+  if(agdTok&&Date.now()<agdTok.tot-60000)return agdTok.token;
+  return driveVraagToken(false);
+}
+function agdScopeFout(e){
+  return e&&e.status===403&&/insufficient|scope/i.test((e.reden||'')+' '+(e.message||''));
+}
+async function agdFetch(pad,opties,poging){
+  opties=opties||{};poging=poging||0;
+  const tok=await agdGeefToken();
+  const r=await fetch(AGD_API+pad,{...opties,headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'}});
+  if(r.status===204)return null;
+  const j=await r.json().catch(()=>({}));
+  if(r.ok)return j;
+  const e=new Error(((j||{}).error||{}).message||('HTTP '+r.status));
+  e.status=r.status;
+  e.reden=((((j||{}).error||{}).errors||[])[0]||{}).reason||((j||{}).error||{}).status||'';
+  if(poging===0&&(r.status===401||agdScopeFout(e))){
+    agdTok=null;
+    try{await googleGereed(8000);await agdNieuwToken(false);}
+    catch(_){const v=new Error('Toestemming voor Google Agenda nodig');v.verbinden=true;throw v;}
+    return agdFetch(pad,opties,1);
+  }
+  if(agdScopeFout(e)||r.status===401)e.verbinden=true;
+  throw e;
+}
+const agdEnc=encodeURIComponent;
+
+async function agdMaakKalender(){
+  const k=await agdFetch('/calendars',{method:'POST',body:JSON.stringify({summary:AGD_KALENDER,timeZone:AGD_TZ,
+    description:'Aflopende contracten en opdrachten uit Herling Analytics. De app houdt deze agenda zelf bij.'})});
+  agdCfg().kalenderId=k.id;
+  scheduleSave();
+  return k.id;
+}
+async function agdLijst(kal){
+  const uit=[];let pagina='';
+  do{
+    const j=await agdFetch(`/calendars/${agdEnc(kal)}/events?privateExtendedProperty=${agdEnc('herling=1')}&maxResults=2500&showDeleted=false`+
+      (pagina?'&pageToken='+agdEnc(pagina):''));
+    uit.push(...(j.items||[]));
+    pagina=j.nextPageToken||'';
+  }while(pagina);
+  return uit;
+}
+
+/* Eén keer bijwerken: agenda (desnoods opnieuw) aanmaken, dan per sleutel
+   toevoegen, bijwerken of weghalen. Er loopt er hooguit één tegelijk. */
+async function agdSync(){
+  if(agdBezig)return agdBezig;
+  agdBezig=(async()=>{
+    const cfg=agdCfg();
+    if(!cfg.aan)return null;
+    const gewenst=agdGewenst();
+    let kal=cfg.kalenderId||await agdMaakKalender();
+    let bestaand;
+    try{bestaand=await agdLijst(kal);}
+    catch(e){
+      if(e.status!==404&&e.status!==410)throw e;
+      kal=await agdMaakKalender();bestaand=[];
+    }
+    const perSleutel=new Map(), dubbel=[];
+    bestaand.forEach(ev=>{
+      const s=((ev.extendedProperties||{}).private||{}).sleutel;
+      if(!s)return;
+      if(perSleutel.has(s))dubbel.push(ev);else perSleutel.set(s,ev);
+    });
+    const tel={nieuw:0,bij:0,weg:0};
+    for(const a of gewenst){
+      const hash=agdHash(JSON.stringify(a.body));
+      const body={...a.body,extendedProperties:{private:{herling:'1',sleutel:a.sleutel,hash}}};
+      const ev=perSleutel.get(a.sleutel);
+      if(!ev){
+        await agdFetch(`/calendars/${agdEnc(kal)}/events`,{method:'POST',body:JSON.stringify(body)});
+        tel.nieuw++;continue;
+      }
+      perSleutel.delete(a.sleutel);
+      /* Ook bijwerken als iemand hem in Agenda zelf heeft verzet. */
+      const staat=((ev.start||{}).date||(ev.start||{}).dateTime||'').slice(0,10);
+      if(((ev.extendedProperties||{}).private||{}).hash!==hash||staat!==a.datum){
+        await agdFetch(`/calendars/${agdEnc(kal)}/events/${agdEnc(ev.id)}`,{method:'PUT',body:JSON.stringify(body)});
+        tel.bij++;
+      }
+    }
+    for(const ev of [...perSleutel.values(),...dubbel]){
+      try{await agdFetch(`/calendars/${agdEnc(kal)}/events/${agdEnc(ev.id)}`,{method:'DELETE'});}
+      catch(e){if(e.status!==404&&e.status!==410)throw e;}
+      tel.weg++;
+    }
+    agdLokaalZet({sig:agdHandtekening(gewenst,kal),bijgewerkt:Date.now(),n:gewenst.length});
+    agdStatus={fase:'ok',tekst:''};
+    agdFoutGemeld=false;
+    return {...tel,n:gewenst.length};
+  })();
+  try{return await agdBezig;}
+  catch(e){agdStatusUitFout(e);throw e;}
+  finally{agdBezig=null;agdVensterVernieuw();}
+}
+function agdStatusUitFout(e){
+  if(e&&e.verbinden)agdStatus={fase:'verbinden',tekst:'De app heeft opnieuw toestemming nodig om je agenda bij te werken.'};
+  else if(e&&(e.reden==='accessNotConfigured'||/has not been used|is disabled/i.test(e.message||'')))
+    agdStatus={fase:'api',tekst:'De Google Calendar API staat nog niet aan in het Cloud-project van de app. Zet hem daar aan (APIs & Services → Library → Google Calendar API) en probeer het opnieuw.'};
+  else agdStatus={fase:'fout',tekst:'Bijwerken lukte niet: '+((e&&e.message)||'onbekende fout')+'.'};
+}
+
+/* Na elke wijziging en na elk laden: is wat er in de agenda hoort anders
+   dan bij de laatste keer op dit apparaat? Dan over acht seconden
+   bijwerken -- genoeg om een reeks wijzigingen als één keer te doen. Kost
+   niets zolang de meldingen uit staan. */
+function agdNaWijziging(){
+  if(!agdAan())return;
+  if(typeof hydratieBezig!=='undefined'&&hydratieBezig)return;
+  clearTimeout(agdTimer);
+  agdTimer=setTimeout(agdMisschienSync,8000);
+}
+function agdMisschienSync(){
+  if(!agdAan()||!ingelogdeGebruiker())return;
+  if(!navigator.onLine)return;
+  const cfg=agdCfg();
+  if(cfg.kalenderId&&agdHandtekening(agdGewenst(),cfg.kalenderId)===agdLokaal().sig)return;
+  agdSync().catch(()=>{
+    /* Op de achtergrond één keer per sessie iets zeggen, niet bij elke
+       wijziging opnieuw; de details staan in Instellingen → Meldingen. */
+    if(agdFoutGemeld)return;
+    agdFoutGemeld=true;
+    appToast('Je meldingen in Google Agenda konden niet worden bijgewerkt — zie Instellingen → Google Agenda',
+      {type:'warning',duration:8000});
+  });
+}
+
+/* ── Het venster in Instellingen ── */
+function agdMenuTekst(){
+  if(!agdAan())return 'Uit — geen meldingen over aflopende zaken';
+  if(agdStatus.fase&&agdStatus.fase!=='ok')return 'Aan — maar bijwerken lukte niet';
+  const l=agdLokaal();
+  return 'Aan'+(l.n!=null?' — '+l.n+' '+(l.n===1?'afspraak':'afspraken'):'');
+}
+function agdOpen(){
+  document.getElementById('agdModal')?.classList.add('open');
+  agdVensterVernieuw();
+}
+function agdSluit(){document.getElementById('agdModal')?.classList.remove('open');}
+/* Alleen tekenen als het venster openstaat: het bijwerken op de achtergrond
+   roept dit ook aan, en dan is er niets te zien. */
+function agdVensterVernieuw(){
+  const box=document.getElementById('agdBody');
+  if(!box||!document.getElementById('agdModal')?.classList.contains('open'))return;
+  const aan=agdAan(), l=agdLokaal();
+  const gewenst=agdGewenst();
+  const tijd=l.bijgewerkt?new Date(l.bijgewerkt).toLocaleString('nl-NL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'';
+  let status='';
+  if(agdBezig)status=`<div class="fac-btw-let">Bezig met bijwerken…</div>`;
+  else if(aan&&agdStatus.fase&&agdStatus.fase!=='ok')
+    status=`<div class="fac-btw-let let-fout"><span class="ic">!</span><span>${escapeHtml(agdStatus.tekst)}</span></div>`;
+  else if(aan)
+    status=`<div class="fac-btw-let let-gelukt"><span class="ic">✓</span><span>Aan${l.n!=null?' — '+l.n+' '+(l.n===1?'afspraak':'afspraken')+' in de agenda “'+escapeHtml(AGD_KALENDER)+'”':''}${tijd?', op dit apparaat bijgewerkt '+escapeHtml(tijd):''}.</span></div>`;
+  const lijst=gewenst.slice(0,8).map(a=>`<li><span class="d">${escapeHtml(opdFmtDatum(a.datum))}</span><span class="t">${escapeHtml(a.titel)}</span></li>`).join('');
+  box.innerHTML=`
+    <p class="agd-uitleg">Voor elk contract en elke opdracht die afloopt zet de app een afspraak in een eigen agenda,
+      <b>${escapeHtml(AGD_KALENDER)}</b>. Google Agenda stuurt je daarvan om 09:00 een melding op je telefoon
+      <b>4 weken, 2 weken, 1 week en 3 dagen</b> van tevoren, en bij 4 weken ook een mail. Voor een opdracht komt
+      er <b>2 maanden</b> van tevoren nog een seintje bij.</p>
+    <p class="agd-uitleg">Er wordt geteld naar de opzegdatum; zonder opzegtermijn naar het einde. Wijzig je een datum in
+      de app, dan schuift de afspraak vanzelf mee. De app ziet en wijzigt alleen deze ene agenda.</p>
+    ${status}
+    <h4 class="fac-an-sub">${aan?'In de agenda':'Wat er in de agenda komt'} · ${gewenst.length}</h4>
+    ${gewenst.length?`<ul class="agd-lijst">${lijst}</ul>${gewenst.length>8?`<p class="agd-meer">en nog ${gewenst.length-8}</p>`:''}`
+      :'<p class="agd-uitleg">Er loopt nu niets af met een datum.</p>'}`;
+  const hoofd=document.getElementById('agdHoofdknop');
+  if(hoofd){
+    hoofd.textContent=!aan?'Aanzetten':agdStatus.fase==='verbinden'?'Opnieuw verbinden':'Nu bijwerken';
+    hoofd.disabled=!!agdBezig;
+  }
+  const uit=document.getElementById('agdUitknop');
+  if(uit)uit.style.display=aan?'':'none';
+}
+/* Aanzetten en opnieuw verbinden gebeuren op een klik: alleen dan mag er
+   een Google-venster open. */
+async function agdHoofdknop(){
+  const aan=agdAan();
+  try{
+    if(!aan||agdStatus.fase==='verbinden'){
+      if(!(await googleGereed(8000)))throw new Error('Google-bibliotheek kon niet geladen worden');
+      await agdNieuwToken(true);
+    }
+    if(!aan){agdCfg().aan=true;scheduleSave();}
+    agdVensterVernieuw();
+    const r=await agdSync();
+    if(r)appToast(aan?`Agenda bijgewerkt · ${r.n} ${r.n===1?'afspraak':'afspraken'}`
+      :`Meldingen staan aan · ${r.n} ${r.n===1?'afspraak':'afspraken'} in je agenda`,{type:'success'});
+  }catch(e){
+    if(!agdStatus.fase||agdStatus.fase==='ok')agdStatusUitFout(e);
+    agdVensterVernieuw();
+  }
+}
+async function agdUitzetten(){
+  const ok=await appBevestig('Meldingen uitzetten?',
+    'De agenda "'+AGD_KALENDER+'" wordt verwijderd, met alle afspraken erin. Je contracten en opdrachten blijven gewoon staan.',
+    {ja:'Uitzetten',gevaar:true});
+  if(!ok)return;
+  const cfg=agdCfg(), kal=cfg.kalenderId;
+  let gelukt=true;
+  if(kal){
+    try{await agdFetch('/calendars/'+agdEnc(kal),{method:'DELETE'});}
+    catch(e){if(e.status!==404&&e.status!==410)gelukt=false;}
+  }
+  cfg.aan=false;cfg.kalenderId='';
+  scheduleSave();
+  try{localStorage.removeItem(LS_AGD);}catch(_){}
+  agdStatus={fase:'',tekst:''};
+  agdVensterVernieuw();
+  appToast(gelukt?'Meldingen staan uit en de agenda is weg'
+    :'Meldingen staan uit, maar de agenda kon niet worden verwijderd — haal "'+AGD_KALENDER+'" zelf weg in Google Agenda',
+    {type:gelukt?'success':'warning',duration:gelukt?4000:9000});
+}
+Object.assign(APP_ACTIONS,{
+  agdOpen:()=>agdOpen(),
+  agdSluit:()=>agdSluit(),
+  agdHoofdknop:()=>agdHoofdknop(),
+  agdUitzetten:()=>agdUitzetten()
+});
 
 /* ═══════════════════════════════════════════════════
    "NIEUW ITEM" DROPDOWN — global quick-add
