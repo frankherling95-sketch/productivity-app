@@ -1376,6 +1376,10 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .uren-mcard .kl{display:flex;align-items:center;gap:7px;font-size:var(--fs-klein);font-weight:600;
   min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .uren-mcard .kl .sw{width:9px;height:9px;border-radius:2px;flex-shrink:0}
+/* .kl is een flexrij, en op losse tekst in een flexrij werkt text-overflow
+   niet: een te lange naam werd hard afgesneden ("…& Transp"). Staat de naam
+   in een eigen span, dan krijgt hij wél zijn beletselteken. */
+.uren-mcard .kl .nm{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .uren-mcard .ds{
   font-size:var(--fs-micro);color:var(--text-muted);line-height:1.45;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
@@ -2103,11 +2107,9 @@ button.uren-mpiv-row:active{background:var(--surface2)}
 .opd-reken-fout{margin:0;padding:10px 12px;border-radius:var(--radius-md);background:var(--danger-bg);color:var(--text)}
 @media (max-width:768px){
   .opd-velden2{grid-template-columns:1fr}
-  /* Tot de mobiele kaarten er zijn: de mobiele laag verbergt .uren-sheet-card
-     (daar staan bij Uren en Facturen kaarten voor in de plaats). Zonder deze
-     regel was de lijst op een telefoon leeg. Nu schuift de tabel binnen zijn
-     kaart zijwaarts. */
-  #mod-opdrachten .uren-sheet-card{display:block}
+  /* De lijst staat op een telefoon als kaarten (opdKaart); de paginavorm --
+     ⋯ vast rechtsboven, ronde + onderin -- deelt Opdrachten met Contracten,
+     zie het mobiele blok daar. */
 }
 
 /* ── Contracten ──────────────────────────────────────────────────────────
@@ -2136,10 +2138,18 @@ button.uren-mpiv-row:active{background:var(--surface2)}
   font-size:var(--fs-micro);font-weight:700;line-height:17px;text-align:center;font-variant-numeric:tabular-nums}
 
 /* Telefoon: de lijstkaart. De tijdregel is de vierde plek links (stijlgids
-   §4) en draagt de opzegdatum; rechts het einde met de looptijd eronder. */
+   §4) en draagt de opzegdatum; rechts het einde met de looptijd eronder.
+   Opdrachten gebruikt dezelfde kaart (opdKaart); daar kan de melding ook
+   rood zijn -- een urenbudget dat op is, dezelfde kleur als in de tabel. */
 .ctr-mcard .ctr-mtijd{font-size:var(--fs-micro);font-weight:500;color:var(--text-muted);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ctr-mcard .ctr-mtijd.let,.ctr-mcard .ctr-msub.let{color:var(--warning);font-weight:600}
+.ctr-mcard .ctr-mtijd.fout{color:var(--danger);font-weight:600}
+/* De naam van een contract of opdracht mag twee regels. Zo'n naam is vaak
+   opgebouwd uit onderdelen ("Boskalis - Kasprarov - Contract 6 mnd - 24u")
+   en op één regel viel precies het onderscheidende eind weg. */
+.uren-mcard .ds.ctr-mnaam{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;
+  -webkit-line-clamp:2;line-clamp:2;overflow-wrap:anywhere}
 .ctr-mcard .ctr-msub{font-size:var(--fs-micro);color:var(--text-muted);white-space:nowrap}
 .ctr-mgroep{display:flex;align-items:center;gap:9px;padding:6px 2px 0;
   font-size:var(--fs-micro);font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-muted)}
@@ -2193,11 +2203,15 @@ button.uren-mpiv-row:active{background:var(--surface2)}
 @media (max-width:768px){
   /* Op een telefoon gaat de brede knop uit (de ronde + doet hetzelfde) en
      staat het ⋯ vast rechtsboven; wat er dan van de topbalk over is, is
-     leeg. Niet verbergen: dan gaat het vastgezette ⋯ mee uit beeld. */
-  #mod-contracten .uren-btn-primary{display:none !important}
-  #mod-contracten .uren-topbar{padding:0 !important;min-height:0 !important;border-bottom:0 !important;gap:0 !important}
+     leeg. Niet verbergen: dan gaat het vastgezette ⋯ mee uit beeld.
+     Opdrachten en Contracten zijn dezelfde soort pagina, dus één regel. */
+  #mod-contracten .uren-btn-primary,
+  #mod-opdrachten .uren-btn-primary{display:none !important}
+  #mod-contracten .uren-topbar,
+  #mod-opdrachten .uren-topbar{padding:0 !important;min-height:0 !important;border-bottom:0 !important;gap:0 !important}
   /* Een lege lijst heeft geen kaarten, dus die mag in zijn kaart blijven. */
-  #mod-contracten .uren-sheet-card.ctr-altijd{display:block}
+  #mod-contracten .uren-sheet-card.ctr-altijd,
+  #mod-opdrachten .uren-sheet-card.opd-altijd{display:block}
   .ctr-pdf-voet{padding:10px 12px calc(10px + env(safe-area-inset-bottom, 0))}
   .ctr-pdf-voet .uren-btn{flex:1 1 auto;min-height:var(--tap)}
   .ctr-pdf-voet .ctr-vul{display:none}
@@ -5865,6 +5879,7 @@ textarea { line-height: 1.6; resize: vertical; }
   #urenMenuBtn,
   #facMenuBtn,
   #ctrMenuBtn,
+  #opdMenuBtn,
   .client-filter-info,
   #mod-notes .notes-groep-mob {
     display: inline-flex !important;
@@ -6543,6 +6558,7 @@ textarea { line-height: 1.6; resize: vertical; }
   #urenMenuBtn,
   #facMenuBtn,
   #ctrMenuBtn,
+  #opdMenuBtn,
   .cl-overflow,
   #mod-notes .notes-overflow,
   .dash-topbar .dash-mobile-settings {
@@ -6578,6 +6594,7 @@ textarea { line-height: 1.6; resize: vertical; }
   #urenMenuBtn:active,
   #facMenuBtn:active,
   #ctrMenuBtn:active,
+  #opdMenuBtn:active,
   .cl-overflow > button:active,
   .dash-topbar .dash-mobile-settings > button:active { background: var(--surface2) !important; }
 
@@ -8374,6 +8391,7 @@ textarea { line-height: 1.6; resize: vertical; }
       </div>
 
       <div class="uren-content" id="opdBody"></div>
+      <button class="uren-fab" data-action="opdNieuw" aria-label="Nieuwe opdracht">+</button>
     </div>
 
     <!-- ══ Module: Contracten ══
@@ -29899,7 +29917,7 @@ function opdCijfers(d){
 function opdRenderLijst(d){
   let html=opdCijfers(d);
   if(!d.lijst.length){
-    return html+`<div class="uren-sheet-card"><div class="uren-empty opd-leeg">
+    return html+`<div class="uren-sheet-card opd-altijd"><div class="uren-empty opd-leeg">
       <b>Nog geen opdrachten</b>
       Leg per klant vast tot wanneer je werkt, hoeveel uur en tegen welk tarief. Daar rekent het vooruitzicht mee.
       <div class="opd-leeg-acties">
@@ -29916,17 +29934,68 @@ function opdRenderLijst(d){
     <th class="num" style="width:104px">Tarief</th>
     <th style="width:230px">Uren</th>
     <th class="num" style="width:150px">Komende 3 maanden</th></tr></thead><tbody>`;
+  /* Op een bureaublad de tabel, op een telefoon kaarten -- beide in de DOM,
+     de CSS kiest (.uren-sheet-card / .uren-mlist), zoals bij Contracten. De
+     tabel schoof daar eerst zijwaarts binnen zijn kaart: twee van de vijf
+     kolommen in beeld en de opdrachtnaam afgekapt tot "2026 L…". */
+  let kaarten=`<div class="uren-mlist">`;
   const kopRij=(titel,n,extra)=>`<tr class="opd-groep"${extra||''}><td colspan="5">${titel}<span class="n">${n}</span></td></tr>`;
-  if(lopend.length)html+=kopRij('Lopend',lopend.length)+lopend.map(o=>opdRij(o,d)).join('');
-  if(gepland.length)html+=kopRij('Gepland',gepland.length)+gepland.map(o=>opdRij(o,d)).join('');
+  const mkop=(titel,n)=>`<div class="ctr-mgroep">${titel}<span class="rule"></span><b>${n}</b></div>`;
+  [['Lopend',lopend],['Gepland',gepland]].forEach(([titel,rij])=>{
+    if(!rij.length)return;
+    html+=kopRij(titel,rij.length)+rij.map(o=>opdRij(o,d)).join('');
+    kaarten+=mkop(titel,rij.length)+rij.map(o=>opdKaart(o,d)).join('');
+  });
   if(af.length){
     html+=`<tr class="opd-groep opd-groep-knop" data-action="opdToggleAfgelopen" tabindex="0"
       aria-expanded="${opdToonAfgelopen}"><td colspan="5">Afgelopen<span class="n">${af.length}</span>
       <svg class="caret icoon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"
         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5L8 10.5 12 6.5"/></svg></td></tr>`;
-    if(opdToonAfgelopen)html+=af.map(o=>opdRij(o,d)).join('');
+    if(opdToonAfgelopen){
+      html+=af.map(o=>opdRij(o,d)).join('');
+      kaarten+=mkop('Afgelopen',af.length)+af.map(o=>opdKaart(o,d)).join('');
+    }
+    kaarten+=`<button type="button" class="uren-btn ctr-afknop" data-action="opdToggleAfgelopen">${
+      opdToonAfgelopen?'Afgelopen opdrachten verbergen':'Afgelopen opdrachten tonen ('+af.length+')'}</button>`;
   }
-  return html+`</tbody></table></div>`;
+  return html+`</tbody></table></div>`+kaarten+`</div>`;
+}
+/* Lijstkaart op een telefoon (stijlgids §4), dezelfde vorm en klassen als
+   een contract (ctrKaart), zodat de twee lijsten naast elkaar hetzelfde
+   lezen. Links: klant, opdracht, tarief en uren per week, en de melding die
+   ertoe doet. Rechts: de datum die telt -- het einde, of de start als hij nog
+   moet beginnen -- met de looptijd eronder.
+
+   "Loopt af over …" staat hier niet als pil: dat is dezelfde datum als
+   rechts, dus kleurt die daar (zelfde afspraak als bij Contracten). En het
+   urenbudget staat óf in de metaregel (x / y u) óf als melding ("Budget 83%
+   gebruikt"), niet allebei: het percentage is een afgeleide van dat getal. */
+function opdKaart(o,d){
+  const i=d.info[o.id];
+  const kleur=opdKleur(o.clientId);
+  const n=(o.bijlagen||[]).length;
+  const rang={fout:0,let:1,info:2};
+  const sig=i.signalen.filter(s=>s.soort!=='eind').sort((a,b)=>rang[a.niveau]-rang[b.niveau])[0]||null;
+  const sigE=i.signalen.some(s=>s.soort==='eind');
+  const budgetSig=i.signalen.some(s=>s.soort==='budget');
+  /* Kort genoteerd: voluit ("€ 90 per uur · 16 u per week · 2 PDF's") paste
+     het op 375px niet naast de datum. */
+  const meta=[i.tarief?'€ '+urenFmtShort(i.tarief)+'/uur':null,
+    o.urenPerWeek?urenFmtShort(o.urenPerWeek)+' u/week':null,
+    i.budget>0&&!budgetSig?urenFmtShort(Math.round(i.gebruikt.uren))+' / '+urenFmtShort(i.budget)+' u':null,
+    n?(n===1?'PDF':n+" PDF's"):null].filter(Boolean).join(' · ');
+  const rechts=i.status==='gepland'?opdFmtDatum(o.start):o.eind?opdFmtDatum(o.eind):'Onbepaald';
+  const onder=i.status==='lopend'&&!o.eind?'sinds '+opdFmtDatum(o.start):opdLooptijdTekst(o,i,d.vandaag);
+  return `<button type="button" class="uren-mcard ctr-mcard" style="--c:${kleur.bg}" data-action="opdOpen" data-arg1="${o.id}">
+    <div class="links">
+      <div class="kl"><span class="sw" style="background:${kleur.bg}"></span><span class="nm">${escapeHtml(opdKlantNaam(o.clientId))}</span></div>
+      ${o.naam?`<div class="ds ctr-mnaam">${escapeHtml(o.naam)}</div>`:''}
+      ${meta?`<div class="ds">${escapeHtml(meta)}</div>`:''}
+      ${sig?`<div class="ctr-mtijd${sig.niveau==='fout'?' fout':sig.niveau==='let'?' let':''}">${escapeHtml(sig.tekst)}</div>`:''}
+    </div>
+    <div class="rechts"><div class="hrs">${escapeHtml(rechts)}</div>
+      <span class="ctr-msub${sigE?' let':''}">${escapeHtml(onder)}</span></div>
+  </button>`;
 }
 function opdLooptijdTekst(o,i,vandaag){
   if(i.status==='gepland')return 'begint over '+opdDuur(opdDagenTussen(vandaag,o.start));
@@ -29996,7 +30065,7 @@ function opdRenderVooruitzicht(d){
   const maanden=d.vz.maanden;
   const iets=maanden.some(m=>m.geschreven>0||m.gepland>0);
   if(!iets){
-    return html+`<div class="uren-sheet-card"><div class="uren-empty"><b>Nog niets om vooruit te kijken</b>
+    return html+`<div class="uren-sheet-card opd-altijd"><div class="uren-empty"><b>Nog niets om vooruit te kijken</b>
       Het vooruitzicht rekent met je geschreven uren en met de uren per week of het budget van je opdrachten.</div></div>`;
   }
   const breed=facAnBreedte('opdBody');
@@ -30654,8 +30723,8 @@ function ctrKaart(c,d){
     :ctrLooptijdTekst(c,i,d.vandaag);
   return `<button type="button" class="uren-mcard ctr-mcard" style="--c:${kleur}" data-action="ctrOpen" data-arg1="${c.id}">
     <div class="links">
-      <div class="kl"><span class="sw" style="background:${kleur}"></span>${escapeHtml(ctrPartijNaam(c))}</div>
-      ${c.titel?`<div class="ds">${escapeHtml(c.titel)}</div>`:''}
+      <div class="kl"><span class="sw" style="background:${kleur}"></span><span class="nm">${escapeHtml(ctrPartijNaam(c))}</span></div>
+      ${c.titel?`<div class="ds ctr-mnaam">${escapeHtml(c.titel)}</div>`:''}
       <div class="ds">${escapeHtml(meta)}</div>
       ${tijd?`<div class="ctr-mtijd${sigO?' let':''}">${escapeHtml(tijd)}</div>`:''}
     </div>
