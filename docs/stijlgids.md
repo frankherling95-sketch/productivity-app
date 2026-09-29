@@ -215,6 +215,21 @@ het getal met de status eronder.
 Alles wat niet in die zeven plekken past hoort er niet op. Twee regels over
 dezelfde datum worden één regel met een `·` ertussen.
 
+**Contracten en Opdrachten** gebruiken dezelfde kaart (`ctrKaart`, `opdKaart`,
+klassen `.ctr-mcard`): links wie, wat, een metaregel en de tijdregel
+(`.ctr-mtijd`, oranje `.let` / rood `.fout`); rechts de datum die telt — het
+einde, of de start als hij nog moet beginnen — met de looptijd eronder
+(`.ctr-msub`, oranje als het einde nadert). Twee afwijkingen van de tabel
+hierboven, bewust:
+
+- **De naam van het contract of de opdracht mag twee regels** (`.ctr-mnaam`,
+  line-clamp 2). Zo'n naam is opgebouwd uit onderdelen ("Boskalis - Kasprarov -
+  Contract 6 mnd - 24u") en op één regel viel precies het onderscheidende eind
+  weg. Een klantnaam blijft één regel.
+- **Een klantnaam staat in een eigen `<span class="nm">`** binnen `.kl`. `.kl`
+  is een flexrij, en daar werkt `text-overflow` niet op losse tekst: zonder de
+  span werd een lange naam hard afgesneden in plaats van met `…`.
+
 ---
 
 ## 5. Pillen en chips
@@ -356,6 +371,12 @@ De regels die daarbij horen:
   nooit gestreept.
 - **Een cijfer bij elke reeks is te veel.** Label één reeks (de huidige), of
   alleen het eindpunt. De rest staat in de tooltip en in de tabelweergave.
+- **Bedragen boven kolommen: één keuze, `facAnKolomLabels()`.** Mét €-teken als
+  het past, anders zonder, anders om de maand (dan weer mét €) — geteld vanaf
+  de laatste, gelijk met de maandnamen eronder. "Past" betekent: minstens 4px
+  lucht (een spatie); bij 1px lazen twee bedragen als één woord ("29k29k").
+  Gebruikt door de Facturen-analyse en het vooruitzicht van Opdrachten; nooit
+  per grafiek opnieuw uitschrijven.
 - **Het raakvlak is de hele baan, niet de balk.** Op negen pixels mikken lukt
   met een duim niet; de baan is ook wat de toets bereikt (`tabindex`).
 - **Elke grafiek heeft een tabelweergave.** Kleur mag nooit de enige drager

@@ -1376,6 +1376,10 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .uren-mcard .kl{display:flex;align-items:center;gap:7px;font-size:var(--fs-klein);font-weight:600;
   min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .uren-mcard .kl .sw{width:9px;height:9px;border-radius:2px;flex-shrink:0}
+/* .kl is een flexrij, en op losse tekst in een flexrij werkt text-overflow
+   niet: een te lange naam werd hard afgesneden ("…& Transp"). Staat de naam
+   in een eigen span, dan krijgt hij wél zijn beletselteken. */
+.uren-mcard .kl .nm{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .uren-mcard .ds{
   font-size:var(--fs-micro);color:var(--text-muted);line-height:1.45;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
@@ -2089,6 +2093,57 @@ button.uren-mpiv-row:active{background:var(--surface2)}
   background:var(--mint-soft);color:var(--text)}
 .opd-opdtabel td:first-child{max-width:320px}
 .opd-opdtabel .fac-klant .nm{font-weight:500}
+/* Per maand en Per opdracht op een telefoon: een lijst, zoals de cijfertabel
+   van de Facturen-analyse. Zes of acht kolommen passen niet op 375px, en de
+   algemene lijstregel van .fac-an-tabel (drie kolommen, voor de k-*-cellen
+   van Facturen) liet deze cellen willekeurig door zijn raster lopen: een
+   bedrag brak tussen "€" en het getal, en Per opdracht schoof zijwaarts.
+   Per rij twee regels. Regel 1: waar het over gaat links, het totaal rechts.
+   Regel 2: klein wat erin zit -- per soort of per maand één cel die als
+   geheel naar de volgende regel gaat, dus nooit midden in een bedrag. Het
+   bedrag achter de uren (.opd-vz-mbd) staat alleen hier; op een bureaublad
+   heeft het een eigen kolom. Een cel zonder waarde (—) valt weg.
+   Flex en geen raster: regel 2 heeft per rij een ander aantal cellen en moet
+   kunnen doorlopen. De ::after is de regelafbreking na het totaal. */
+.opd-vz-mbd{display:none}
+@media (max-width:768px){
+  .opd-vz-wrap{overflow:visible}
+  .fac-an-tabel.opd-maandtabel,.fac-an-tabel.opd-opdtabel,
+  .opd-maandtabel tbody,.opd-opdtabel tbody{display:block}
+  .fac-an-tabel.opd-maandtabel tr,.fac-an-tabel.opd-opdtabel tr{
+    display:flex;flex-wrap:wrap;align-items:center;column-gap:var(--sp-3);row-gap:0;
+  }
+  .fac-an-tabel.opd-maandtabel tr::after,.fac-an-tabel.opd-opdtabel tr::after{content:'';order:3;flex-basis:100%}
+  .fac-an-tabel td.opd-vz-per{order:1;flex:1 1 0;min-width:0;max-width:none;white-space:nowrap;
+    font-size:var(--fs-basis);font-weight:600}
+  .fac-an-tabel td.opd-vz-tot{order:2;flex:none;white-space:nowrap;font-size:var(--fs-basis)}
+  .fac-an-tabel.opd-maandtabel td.opd-vz-deel,.fac-an-tabel.opd-opdtabel td.opd-vz-deel{
+    order:4;margin-top:2px;white-space:nowrap;text-align:left;
+    font-size:var(--fs-micro);font-weight:400;color:var(--text-muted);
+  }
+  .fac-an-tabel td.opd-vz-weg,.opd-vz-gelijk{display:none}
+  .opd-vz-mbd{display:inline}
+  /* De lopende maand: het vlak op de rij en niet op de losse cellen, en
+     8px buiten de tekstlijn zodat de tekst gelijk blijft met de rest. */
+  .fac-an-tabel.opd-maandtabel tr.opd-huidig{background:var(--surface2);border-radius:var(--radius-md);
+    margin:0 calc(-1 * var(--sp-2));padding-left:calc(var(--sp-2) + 2px);padding-right:calc(var(--sp-2) + 2px);
+    border-bottom-color:transparent}
+  .fac-an-tabel.opd-maandtabel tr.opd-huidig td{background:none}
+  /* De naam zoals op een lijstkaart (stijlgids §4): kleiner dan het bedrag
+     ernaast, want hij is lang en kapt anders al na de klantnaam af. */
+  .fac-an-tabel.opd-opdtabel td.opd-vz-per{font-size:var(--fs-klein)}
+  .fac-an-tabel.opd-opdtabel .fac-klant .nm{font-weight:600}
+  /* Twee regels voor "klant · opdracht", zoals de naam op een lijstkaart
+     (.ctr-mnaam): op één regel bleef er na de klant weinig van de opdracht
+     over ("Nordwind Energy BV · Boskalis - K…"). Het totaal staat dan
+     bovenaan, gelijk met de eerste regel, zoals rechts op een kaart. */
+  .fac-an-tabel.opd-opdtabel tr{align-items:flex-start}
+  .fac-an-tabel.opd-opdtabel td.opd-vz-per{white-space:normal}
+  .fac-an-tabel.opd-opdtabel .fac-klant{align-items:flex-start}
+  .fac-an-tabel.opd-opdtabel .fac-klant .sw{margin-top:4px}
+  .fac-an-tabel.opd-opdtabel .fac-klant .nm{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;
+    -webkit-line-clamp:2;line-clamp:2;overflow-wrap:anywhere}
+}
 
 /* Venster */
 .opd-velden2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
@@ -2103,11 +2158,9 @@ button.uren-mpiv-row:active{background:var(--surface2)}
 .opd-reken-fout{margin:0;padding:10px 12px;border-radius:var(--radius-md);background:var(--danger-bg);color:var(--text)}
 @media (max-width:768px){
   .opd-velden2{grid-template-columns:1fr}
-  /* Tot de mobiele kaarten er zijn: de mobiele laag verbergt .uren-sheet-card
-     (daar staan bij Uren en Facturen kaarten voor in de plaats). Zonder deze
-     regel was de lijst op een telefoon leeg. Nu schuift de tabel binnen zijn
-     kaart zijwaarts. */
-  #mod-opdrachten .uren-sheet-card{display:block}
+  /* De lijst staat op een telefoon als kaarten (opdKaart); de paginavorm --
+     ⋯ vast rechtsboven, ronde + onderin -- deelt Opdrachten met Contracten,
+     zie het mobiele blok daar. */
 }
 
 /* ── Contracten ──────────────────────────────────────────────────────────
@@ -2136,10 +2189,18 @@ button.uren-mpiv-row:active{background:var(--surface2)}
   font-size:var(--fs-micro);font-weight:700;line-height:17px;text-align:center;font-variant-numeric:tabular-nums}
 
 /* Telefoon: de lijstkaart. De tijdregel is de vierde plek links (stijlgids
-   §4) en draagt de opzegdatum; rechts het einde met de looptijd eronder. */
+   §4) en draagt de opzegdatum; rechts het einde met de looptijd eronder.
+   Opdrachten gebruikt dezelfde kaart (opdKaart); daar kan de melding ook
+   rood zijn -- een urenbudget dat op is, dezelfde kleur als in de tabel. */
 .ctr-mcard .ctr-mtijd{font-size:var(--fs-micro);font-weight:500;color:var(--text-muted);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ctr-mcard .ctr-mtijd.let,.ctr-mcard .ctr-msub.let{color:var(--warning);font-weight:600}
+.ctr-mcard .ctr-mtijd.fout{color:var(--danger);font-weight:600}
+/* De naam van een contract of opdracht mag twee regels. Zo'n naam is vaak
+   opgebouwd uit onderdelen ("Boskalis - Kasprarov - Contract 6 mnd - 24u")
+   en op één regel viel precies het onderscheidende eind weg. */
+.uren-mcard .ds.ctr-mnaam{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;
+  -webkit-line-clamp:2;line-clamp:2;overflow-wrap:anywhere}
 .ctr-mcard .ctr-msub{font-size:var(--fs-micro);color:var(--text-muted);white-space:nowrap}
 .ctr-mgroep{display:flex;align-items:center;gap:9px;padding:6px 2px 0;
   font-size:var(--fs-micro);font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-muted)}
@@ -2206,11 +2267,15 @@ button.uren-mpiv-row:active{background:var(--surface2)}
 @media (max-width:768px){
   /* Op een telefoon gaat de brede knop uit (de ronde + doet hetzelfde) en
      staat het ⋯ vast rechtsboven; wat er dan van de topbalk over is, is
-     leeg. Niet verbergen: dan gaat het vastgezette ⋯ mee uit beeld. */
-  #mod-contracten .uren-btn-primary{display:none !important}
-  #mod-contracten .uren-topbar{padding:0 !important;min-height:0 !important;border-bottom:0 !important;gap:0 !important}
+     leeg. Niet verbergen: dan gaat het vastgezette ⋯ mee uit beeld.
+     Opdrachten en Contracten zijn dezelfde soort pagina, dus één regel. */
+  #mod-contracten .uren-btn-primary,
+  #mod-opdrachten .uren-btn-primary{display:none !important}
+  #mod-contracten .uren-topbar,
+  #mod-opdrachten .uren-topbar{padding:0 !important;min-height:0 !important;border-bottom:0 !important;gap:0 !important}
   /* Een lege lijst heeft geen kaarten, dus die mag in zijn kaart blijven. */
-  #mod-contracten .uren-sheet-card.ctr-altijd{display:block}
+  #mod-contracten .uren-sheet-card.ctr-altijd,
+  #mod-opdrachten .uren-sheet-card.opd-altijd{display:block}
   .ctr-pdf-voet{padding:10px 12px calc(10px + env(safe-area-inset-bottom, 0))}
   .ctr-pdf-voet .uren-btn{flex:1 1 auto;min-height:var(--tap)}
   .ctr-pdf-voet .ctr-vul{display:none}
@@ -5878,6 +5943,7 @@ textarea { line-height: 1.6; resize: vertical; }
   #urenMenuBtn,
   #facMenuBtn,
   #ctrMenuBtn,
+  #opdMenuBtn,
   .client-filter-info,
   #mod-notes .notes-groep-mob {
     display: inline-flex !important;
@@ -6556,6 +6622,7 @@ textarea { line-height: 1.6; resize: vertical; }
   #urenMenuBtn,
   #facMenuBtn,
   #ctrMenuBtn,
+  #opdMenuBtn,
   .cl-overflow,
   #mod-notes .notes-overflow,
   .dash-topbar .dash-mobile-settings {
@@ -6591,6 +6658,7 @@ textarea { line-height: 1.6; resize: vertical; }
   #urenMenuBtn:active,
   #facMenuBtn:active,
   #ctrMenuBtn:active,
+  #opdMenuBtn:active,
   .cl-overflow > button:active,
   .dash-topbar .dash-mobile-settings > button:active { background: var(--surface2) !important; }
 
@@ -8387,6 +8455,7 @@ textarea { line-height: 1.6; resize: vertical; }
       </div>
 
       <div class="uren-content" id="opdBody"></div>
+      <button class="uren-fab" data-action="opdNieuw" aria-label="Nieuwe opdracht">+</button>
     </div>
 
     <!-- ══ Module: Contracten ══
@@ -25416,6 +25485,33 @@ function facAnLabel(n){
   if(a>=1000)return '€'+Math.round(n/1000)+'k';
   return '€'+Math.round(n);
 }
+/* Hoeveel past er boven een kolom? Op een telefoon is een baan 33px breed
+   bij negen maanden en 25px bij twaalf, en "€29k" vraagt er ongeveer 27.
+   In plaats van het euroteken altijd weg te laten of de letter onder de
+   ondergrens van 11,5px te duwen, kiest de grafiek de ruimste vorm die
+   past: mét euroteken ('euro'), anders zonder ('kaal'), en pas als ook dat
+   niet lukt om de maand ('omdeandere', dan weer mét euroteken -- er is dan
+   twee banen ruimte). Zo staat er op een breed scherm "€29k" en op een smal
+   scherm bij elke maand nog een cijfer.
+
+   Eén keuze voor twee grafieken: de analyse van Facturen
+   (facAnKolomGrafiek) en het vooruitzicht van Opdrachten (opdGrafiek). Op
+   2026-09-29 had alleen de eerste dit, en stonden in de tweede op een
+   telefoon "€28k€27k" tegen elkaar aan. Welke kolom bij 'omdeandere' zijn
+   cijfer houdt, bepaalt de grafiek zelf; allebei tellen ze vanaf de laatste
+   terug, zoals de maandnamen eronder.
+
+   bedragen: alleen de kolommen die een cijfer krijgen · band: breedte van
+   één baan · fs: de lettergrootte van .an-waarde (--fs-micro). */
+function facAnKolomLabels(bedragen,band,fs){
+  const metEuro=bedragen.map(n=>facAnLabel(n));
+  const kaal=metEuro.map(t=>t.replace('€',''));
+  /* +4: past het net, dan staan twee bedragen met ~1px ertussen en leest
+     "29k29k" als één woord (gemeten op 390px). Nu minstens een spatie lucht. */
+  const past=(rijtje)=>Math.max(...rijtje.map(t=>t.length))*fs*0.64+4<=band;
+  const vorm=!metEuro.length||past(metEuro)?'euro':past(kaal)?'kaal':'omdeandere';
+  return {vorm,tekst:n=>vorm==='kaal'?facAnLabel(n).replace('€',''):facAnLabel(n)};
+}
 function facAnPct(v){
   if(v==null)return '';
   const s=v>=0?'+':'−';
@@ -25472,18 +25568,9 @@ function facAnKolomGrafiek(d,breed){
   }
   let balken='',labels='',banden='';
   const tips=[];
-  /* Hoeveel past er boven een kolom? Op een telefoon is een baan 33px breed
-     bij negen maanden en 25px bij twaalf, en "€29k" vraagt er ongeveer 27.
-     In plaats van het euroteken altijd weg te laten of de letter onder de
-     ondergrens van 11,5px te duwen, kiest de grafiek de ruimste vorm die
-     past: mét euroteken, anders zonder, en pas als ook dat niet lukt om de
-     maand. Zo staat er op een breed scherm "€29k" en op een smal scherm bij
-     elke maand nog een cijfer. */
-  const fs=smal?11.5:10.5;
-  const past=(rijtje)=>Math.max(...rijtje.map(t=>t.length))*fs*0.64+1<=band;
-  const metEuro=d.vakken.filter(v=>v.excl>0).map(v=>facAnLabel(v.excl));
-  const kaal=metEuro.map(t=>t.replace('€',''));
-  const vorm=!metEuro.length||past(metEuro)?'euro':past(kaal)?'kaal':'omdeandere';
+  /* Hoeveel past er boven een kolom: de keuze staat bij facAnKolomLabels,
+     gedeeld met het vooruitzicht van Opdrachten. */
+  const lab=facAnKolomLabels(d.vakken.filter(v=>v.excl>0).map(v=>v.excl),band,smal?11.5:10.5);
   const hoogste=Math.max(...d.vakken.map(v=>v.excl),0);
   d.vakken.forEach((v,i)=>{
     const bx=padL+band*i;
@@ -25500,8 +25587,8 @@ function facAnKolomGrafiek(d,breed){
     if(pn)balken+=`<path d="${pn}" class="an-nu"/>`;
     /* Alleen boven de kolom van deze periode: een cijfer boven elke balk van
        beide reeksen leest niemand meer. */
-    if(v.excl>0&&(vorm!=='omdeandere'||i%2===(n-1)%2)){
-      const tekst=vorm==='kaal'?facAnLabel(v.excl).replace('€',''):facAnLabel(v.excl);
+    if(v.excl>0&&(lab.vorm!=='omdeandere'||i%2===(n-1)%2)){
+      const tekst=lab.tekst(v.excl);
       balken+=`<text x="${(nx+bw/2).toFixed(1)}" y="${(y(v.excl)-7).toFixed(1)}"
         class="an-waarde" text-anchor="middle">${escapeHtml(tekst)}</text>`;
     }
@@ -29941,7 +30028,7 @@ function opdCijfers(d){
 function opdRenderLijst(d){
   let html=opdCijfers(d);
   if(!d.lijst.length){
-    return html+`<div class="uren-sheet-card"><div class="uren-empty opd-leeg">
+    return html+`<div class="uren-sheet-card opd-altijd"><div class="uren-empty opd-leeg">
       <b>Nog geen opdrachten</b>
       Leg per klant vast tot wanneer je werkt, hoeveel uur en tegen welk tarief. Daar rekent het vooruitzicht mee.
       <div class="opd-leeg-acties">
@@ -29958,17 +30045,68 @@ function opdRenderLijst(d){
     <th class="num" style="width:104px">Tarief</th>
     <th style="width:230px">Uren</th>
     <th class="num" style="width:150px">Komende 3 maanden</th></tr></thead><tbody>`;
+  /* Op een bureaublad de tabel, op een telefoon kaarten -- beide in de DOM,
+     de CSS kiest (.uren-sheet-card / .uren-mlist), zoals bij Contracten. De
+     tabel schoof daar eerst zijwaarts binnen zijn kaart: twee van de vijf
+     kolommen in beeld en de opdrachtnaam afgekapt tot "2026 L…". */
+  let kaarten=`<div class="uren-mlist">`;
   const kopRij=(titel,n,extra)=>`<tr class="opd-groep"${extra||''}><td colspan="5">${titel}<span class="n">${n}</span></td></tr>`;
-  if(lopend.length)html+=kopRij('Lopend',lopend.length)+lopend.map(o=>opdRij(o,d)).join('');
-  if(gepland.length)html+=kopRij('Gepland',gepland.length)+gepland.map(o=>opdRij(o,d)).join('');
+  const mkop=(titel,n)=>`<div class="ctr-mgroep">${titel}<span class="rule"></span><b>${n}</b></div>`;
+  [['Lopend',lopend],['Gepland',gepland]].forEach(([titel,rij])=>{
+    if(!rij.length)return;
+    html+=kopRij(titel,rij.length)+rij.map(o=>opdRij(o,d)).join('');
+    kaarten+=mkop(titel,rij.length)+rij.map(o=>opdKaart(o,d)).join('');
+  });
   if(af.length){
     html+=`<tr class="opd-groep opd-groep-knop" data-action="opdToggleAfgelopen" tabindex="0"
       aria-expanded="${opdToonAfgelopen}"><td colspan="5">Afgelopen<span class="n">${af.length}</span>
       <svg class="caret icoon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"
         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5L8 10.5 12 6.5"/></svg></td></tr>`;
-    if(opdToonAfgelopen)html+=af.map(o=>opdRij(o,d)).join('');
+    if(opdToonAfgelopen){
+      html+=af.map(o=>opdRij(o,d)).join('');
+      kaarten+=mkop('Afgelopen',af.length)+af.map(o=>opdKaart(o,d)).join('');
+    }
+    kaarten+=`<button type="button" class="uren-btn ctr-afknop" data-action="opdToggleAfgelopen">${
+      opdToonAfgelopen?'Afgelopen opdrachten verbergen':'Afgelopen opdrachten tonen ('+af.length+')'}</button>`;
   }
-  return html+`</tbody></table></div>`;
+  return html+`</tbody></table></div>`+kaarten+`</div>`;
+}
+/* Lijstkaart op een telefoon (stijlgids §4), dezelfde vorm en klassen als
+   een contract (ctrKaart), zodat de twee lijsten naast elkaar hetzelfde
+   lezen. Links: klant, opdracht, tarief en uren per week, en de melding die
+   ertoe doet. Rechts: de datum die telt -- het einde, of de start als hij nog
+   moet beginnen -- met de looptijd eronder.
+
+   "Loopt af over …" staat hier niet als pil: dat is dezelfde datum als
+   rechts, dus kleurt die daar (zelfde afspraak als bij Contracten). En het
+   urenbudget staat óf in de metaregel (x / y u) óf als melding ("Budget 83%
+   gebruikt"), niet allebei: het percentage is een afgeleide van dat getal. */
+function opdKaart(o,d){
+  const i=d.info[o.id];
+  const kleur=opdKleur(o.clientId);
+  const n=(o.bijlagen||[]).length;
+  const rang={fout:0,let:1,info:2};
+  const sig=i.signalen.filter(s=>s.soort!=='eind').sort((a,b)=>rang[a.niveau]-rang[b.niveau])[0]||null;
+  const sigE=i.signalen.some(s=>s.soort==='eind');
+  const budgetSig=i.signalen.some(s=>s.soort==='budget');
+  /* Kort genoteerd: voluit ("€ 90 per uur · 16 u per week · 2 PDF's") paste
+     het op 375px niet naast de datum. */
+  const meta=[i.tarief?'€ '+urenFmtShort(i.tarief)+'/uur':null,
+    o.urenPerWeek?urenFmtShort(o.urenPerWeek)+' u/week':null,
+    i.budget>0&&!budgetSig?urenFmtShort(Math.round(i.gebruikt.uren))+' / '+urenFmtShort(i.budget)+' u':null,
+    n?(n===1?'PDF':n+" PDF's"):null].filter(Boolean).join(' · ');
+  const rechts=i.status==='gepland'?opdFmtDatum(o.start):o.eind?opdFmtDatum(o.eind):'Onbepaald';
+  const onder=i.status==='lopend'&&!o.eind?'sinds '+opdFmtDatum(o.start):opdLooptijdTekst(o,i,d.vandaag);
+  return `<button type="button" class="uren-mcard ctr-mcard" style="--c:${kleur.bg}" data-action="opdOpen" data-arg1="${o.id}">
+    <div class="links">
+      <div class="kl"><span class="sw" style="background:${kleur.bg}"></span><span class="nm">${escapeHtml(opdKlantNaam(o.clientId))}</span></div>
+      ${o.naam?`<div class="ds ctr-mnaam">${escapeHtml(o.naam)}</div>`:''}
+      ${meta?`<div class="ds">${escapeHtml(meta)}</div>`:''}
+      ${sig?`<div class="ctr-mtijd${sig.niveau==='fout'?' fout':sig.niveau==='let'?' let':''}">${escapeHtml(sig.tekst)}</div>`:''}
+    </div>
+    <div class="rechts"><div class="hrs">${escapeHtml(rechts)}</div>
+      <span class="ctr-msub${sigE?' let':''}">${escapeHtml(onder)}</span></div>
+  </button>`;
 }
 function opdLooptijdTekst(o,i,vandaag){
   if(i.status==='gepland')return 'begint over '+opdDuur(opdDagenTussen(vandaag,o.start));
@@ -30038,7 +30176,7 @@ function opdRenderVooruitzicht(d){
   const maanden=d.vz.maanden;
   const iets=maanden.some(m=>m.geschreven>0||m.gepland>0);
   if(!iets){
-    return html+`<div class="uren-sheet-card"><div class="uren-empty"><b>Nog niets om vooruit te kijken</b>
+    return html+`<div class="uren-sheet-card opd-altijd"><div class="uren-empty"><b>Nog niets om vooruit te kijken</b>
       Het vooruitzicht rekent met je geschreven uren en met de uren per week of het budget van je opdrachten.</div></div>`;
   }
   const breed=facAnBreedte('opdBody');
@@ -30050,15 +30188,24 @@ function opdRenderVooruitzicht(d){
     <p class="opd-voetnoot">Geschreven telt alle klanten mee, ook zonder opdracht. Gepland rekent met werkdagen en kent geen feestdagen of vakantie.</p>
   </div>`;
   html+=`<div class="fac-an-kaart"><div class="fac-an-kaartkop"><div><h3>Per maand</h3></div></div>
-    <div class="fac-an-tabelwrap"><table class="fac-an-tabel opd-maandtabel"><thead><tr>
+    <div class="fac-an-tabelwrap opd-vz-wrap"><table class="fac-an-tabel opd-maandtabel"><thead><tr>
       <th>Maand</th><th class="num">Uren geschreven</th><th class="num">Omzet geschreven</th><th class="num">Uren gepland</th><th class="num">Omzet gepland</th><th class="num">Totaal</th>
-    </tr></thead><tbody>${maanden.map(m=>`<tr${m.huidig?' class="opd-huidig"':''}>
-      <td>${escapeHtml(m.label)}${m.huidig?' <span class="opd-nu">nu</span>':''}</td>
-      <td class="num">${m.geschrevenUren>0?urenFmtShort(Math.round(m.geschrevenUren))+' u':'—'}</td>
-      <td class="num">${m.geschreven>0?opdFmtEuro(m.geschreven):'—'}</td>
-      <td class="num">${m.geplandUren>0?urenFmtShort(Math.round(m.geplandUren))+' u':'—'}</td>
-      <td class="num">${m.gepland>0?opdFmtEuro(m.gepland):'—'}</td>
-      <td class="num"><b>${(m.geschreven+m.gepland)>0?opdFmtEuro(m.geschreven+m.gepland):'—'}</b></td></tr>`).join('')}
+    </tr></thead><tbody>${maanden.map(m=>{
+      /* Op een telefoon is elke rij een lijstregel (CSS bij .opd-vz-wrap):
+         per soort één cel, de uren met het bedrag erachter (.opd-vz-mbd), en
+         de bedragkolommen vallen weg. Is er maar één soort met een bedrag,
+         dan ís dat bedrag het totaal -- dan blijft het achter de uren weg. */
+      const beide=m.geschreven>0&&m.gepland>0;
+      const soort=(uren,bedrag,lab)=>uren>0
+        ?`<td class="num opd-vz-deel" data-lab="${lab}">${urenFmtShort(Math.round(uren))} u${beide?`<span class="opd-vz-mbd"> · ${opdFmtEuro(bedrag)}</span>`:''}</td>`
+        :`<td class="num opd-vz-weg">—</td>`;
+      return `<tr${m.huidig?' class="opd-huidig"':''}>
+      <td class="opd-vz-per">${escapeHtml(m.label)}${m.huidig?' <span class="opd-nu">nu</span>':''}</td>
+      ${soort(m.geschrevenUren,m.geschreven,'geschreven')}
+      <td class="num opd-vz-weg">${m.geschreven>0?opdFmtEuro(m.geschreven):'—'}</td>
+      ${soort(m.geplandUren,m.gepland,'gepland')}
+      <td class="num opd-vz-weg">${m.gepland>0?opdFmtEuro(m.gepland):'—'}</td>
+      <td class="num opd-vz-tot"><b>${(m.geschreven+m.gepland)>0?opdFmtEuro(m.geschreven+m.gepland):'—'}</b></td></tr>`;}).join('')}
     </tbody></table></div></div>`;
   /* Waar de verwachte omzet vandaan komt: per opdracht de komende zes
      maanden. Hier zie je waar een gat valt als een opdracht afloopt. */
@@ -30066,19 +30213,26 @@ function opdRenderVooruitzicht(d){
   const zes=maanden.slice(hi,hi+6);
   const bijdragers=d.lijst.filter(o=>zes.some(m=>(m.perOpdracht[o.id]||{}).bedrag>0.5));
   if(bijdragers.length){
+    const opdVzKop=m=>m.kort+(m.maand===0?' '+String(m.jaar).slice(2):'');
     html+=`<div class="fac-an-kaart"><div class="fac-an-kaartkop"><div><h3>Per opdracht</h3>
       <p>Gepland vanaf morgen, de komende zes maanden</p></div></div>
-      <div class="fac-an-tabelwrap"><table class="fac-an-tabel opd-opdtabel"><thead><tr><th>Opdracht</th>
-      ${zes.map(m=>`<th class="num">${m.kort}${m.maand===0?' '+String(m.jaar).slice(2):''}</th>`).join('')}
+      <div class="fac-an-tabelwrap opd-vz-wrap"><table class="fac-an-tabel opd-opdtabel"><thead><tr><th>Opdracht</th>
+      ${zes.map(m=>`<th class="num">${opdVzKop(m)}</th>`).join('')}
       <th class="num">Samen</th></tr></thead><tbody>
       ${bijdragers.map(o=>{
         const kleur=opdKleur(o.clientId);
         const vals=zes.map(m=>(m.perOpdracht[o.id]||{}).bedrag||0);
         const samen=vals.reduce((s,v)=>s+v,0);
-        return `<tr><td><div class="fac-klant"><span class="sw" style="background:${kleur.bg}"></span>
+        /* Op een telefoon draagt elke maand zijn naam zelf (data-lab), want
+           de kolomkop is daar weg. Heeft een opdracht maar één maand, dan is
+           dat bedrag gelijk aan Samen: dan staat er alleen welke maand. */
+        const alleen=vals.filter(v=>v>0.5).length===1;
+        return `<tr><td class="opd-vz-per"><div class="fac-klant"><span class="sw" style="background:${kleur.bg}"></span>
           <span class="nm">${escapeHtml(opdKlantNaam(o.clientId)+(o.naam?' · '+o.naam:''))}</span></div></td>
-          ${vals.map(v=>`<td class="num">${v>0.5?opdFmtEuro(v):'—'}</td>`).join('')}
-          <td class="num"><b>${opdFmtEuro(samen)}</b></td></tr>`;
+          ${vals.map((v,i)=>v>0.5
+            ?`<td class="num opd-vz-deel" data-lab="${alleen?'alleen ':''}${opdVzKop(zes[i])}">${alleen?`<span class="opd-vz-gelijk">${opdFmtEuro(v)}</span>`:opdFmtEuro(v)}</td>`
+            :`<td class="num opd-vz-weg">—</td>`).join('')}
+          <td class="num opd-vz-tot"><b>${opdFmtEuro(samen)}</b></td></tr>`;
       }).join('')}</tbody></table></div></div>`;
   }
   return html;
@@ -30103,6 +30257,17 @@ function opdGrafiek(maanden,breed){
     g+=`<line x1="${padL}" y1="${yy}" x2="${breed-padR}" y2="${yy}" class="an-grid"/>`+
       `<text x="${padL-6}" y="${(Number(yy)+3.5).toFixed(1)}" class="an-astekst" text-anchor="end">${facAnKort(v)}</text>`;
   }
+  /* Het cijfer boven een kolom: dezelfde keuze als in de analyse van
+     Facturen (facAnKolomLabels). Op een telefoon is een baan hier 22-26px
+     bij twaalf maanden en "€28k" vraagt er 30; elk cijfer mét euroteken gaf
+     "€28k€27k". Om de maand telt vanaf de laatste, net als de maandnamen
+     eronder. De huidige maand houdt zijn cijfer; valt hij buiten dat ritme
+     (nu niet: drie terug en acht vooruit), dan zwijgen zijn buren, anders
+     staan er toch weer drie cijfers tegen elkaar. */
+  const lab=facAnKolomLabels(maanden.filter(m=>som(m)>0.5).map(som),band,smal?11.5:10.5);
+  const hi=maanden.findIndex(m=>m.huidig);
+  const metCijfer=i=>lab.vorm!=='omdeandere'||i===hi
+    ||((n-1-i)%2===0&&!(hi>=0&&Math.abs(i-hi)===1));
   maanden.forEach((m,i)=>{
     const bx=padL+band*i, x=bx+(band-bw)/2;
     const hG=m.geschreven/max*plotH, hP=m.gepland/max*plotH;
@@ -30112,7 +30277,7 @@ function opdGrafiek(maanden,breed){
     }else if(hG>0.5){
       balken+=`<path d="${facAnBalkPad(x,voet-hG,bw,hG)}" class="an-nu"/>`;
     }
-    if(som(m)>0.5)balken+=`<text x="${(x+bw/2).toFixed(1)}" y="${(y(som(m))-7).toFixed(1)}" class="an-waarde" text-anchor="middle">${escapeHtml(facAnLabel(som(m)))}</text>`;
+    if(som(m)>0.5&&metCijfer(i))balken+=`<text x="${(x+bw/2).toFixed(1)}" y="${(y(som(m))-7).toFixed(1)}" class="an-waarde" text-anchor="middle">${escapeHtml(lab.tekst(som(m)))}</text>`;
     const toon=!smal||(n-1-i)%2===0||m.huidig;
     const tekst=m.kort+(m.maand===0?' '+String(m.jaar).slice(2):'');
     if(toon)labels+=`<text x="${(bx+band/2).toFixed(1)}" y="${H-8}" class="an-astekst${m.huidig?' opd-nu-as':''}" text-anchor="middle">${escapeHtml(tekst)}</text>`;
@@ -30696,8 +30861,8 @@ function ctrKaart(c,d){
     :ctrLooptijdTekst(c,i,d.vandaag);
   return `<button type="button" class="uren-mcard ctr-mcard" style="--c:${kleur}" data-action="ctrOpen" data-arg1="${c.id}">
     <div class="links">
-      <div class="kl"><span class="sw" style="background:${kleur}"></span>${escapeHtml(ctrPartijNaam(c))}</div>
-      ${c.titel?`<div class="ds">${escapeHtml(c.titel)}</div>`:''}
+      <div class="kl"><span class="sw" style="background:${kleur}"></span><span class="nm">${escapeHtml(ctrPartijNaam(c))}</span></div>
+      ${c.titel?`<div class="ds ctr-mnaam">${escapeHtml(c.titel)}</div>`:''}
       <div class="ds">${escapeHtml(meta)}</div>
       ${tijd?`<div class="ctr-mtijd${sigO?' let':''}">${escapeHtml(tijd)}</div>`:''}
     </div>
