@@ -10,6 +10,68 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-09-29 · Opdrachten op een telefoon: lijstkaarten, grafieklabels, tabellen als lijst
+
+Drie klachten van Frank over dezelfde module op zijn telefoon, in één ronde.
+De lijst deed de coördinator; de grafiek en de tabellen twee subagents in
+eigen worktrees, parallel, elk binnen een afgesproken stuk van het bestand.
+
+**1. De lijst.** Opdrachten had op een telefoon nog geen eigen weergave (de
+entry van 2026-09-16 zei al "mobiel nog niet vormgegeven"): de bureaubladtabel
+van 900px schoof zijwaarts in zijn kaart, twee van de vijf kolommen in beeld,
+namen afgekapt tot "2026 L…", en de brede knop in een eigen balk.
+*Beslissing:* dezelfde paginavorm en kaart als Contracten. Het ⋯ vast
+rechtsboven en de ronde + onderin (de regels van Contracten gelden nu voor
+beide). Kaarten via `opdKaart()` met de klassen van `ctrKaart()`: links klant,
+opdracht, "€ 95/uur · 24 u/week · PDF" en de melding die ertoe doet; rechts het
+einde (of de start) met de looptijd eronder. "Loopt af over 1 dag" is geen pil
+meer naast "nog 1 dag": dezelfde datum, dus kleurt die laatste oranje. Een
+urenbudget staat óf als "x / y u" óf als melding ("Budget 83% gebruikt"), niet
+allebei. Budget op: rode tijdregel (`.ctr-mtijd.fout`).
+*Meegenomen voor beide kaarten:* de naam van een contract of opdracht mag twee
+regels (`.ctr-mnaam`), en een klantnaam staat in een eigen span — in de flexrij
+`.kl` werkte het beletselteken niet ("…& Transp").
+
+**2. De grafiek van het vooruitzicht.** De bedragen boven de kolommen liepen
+tegen elkaar aan ("€28k€27k", "€10k€9k€10k"). De Facturen-analyse had dit al
+opgelost; `opdGrafiek` deed niet mee. *Beslissing:* één helper,
+`facAnKolomLabels(bedragen, band, fs)`, voor beide grafieken: mét €, anders
+kaal, anders om de maand vanaf de laatste (de huidige maand houdt zijn bedrag).
+Daarbovenop de drempel van +1 naar +4px: op 390px paste "kaal" met 1,4px lucht
+en las "29k29k" als één woord. Gevolg voor de Facturen-analyse: 7 van 99
+geteste gevallen (9 datasets × 11 breedtes) kiezen een ruimere vorm, allemaal
+op krappe breedtes; de rest is byte-gelijk.
+
+**3. De tabellen van het vooruitzicht.** De algemene mobiele regel van
+`.fac-an-tabel` maakt van elke rij een raster voor de `k-*`-cellen van de
+Facturen-analyse; de Opdrachten-tabellen hebben die niet, dus hun 6 en 8 cellen
+liepen willekeurig door dat raster ("€" en "10.032" onder elkaar, "— — / — — —",
+een naam die links afviel, zijwaarts schuiven). *Beslissing:* op een telefoon
+een lijst van twee regels met eigen, gerichte selectors (`.opd-maandtabel`,
+`.opd-opdtabel`). Regel 1 maand of opdracht met het totaal; regel 2 klein per
+soort ("geschreven 250 u · € 22.418") of per maand ("okt € 10.032"), één cel per
+groep zodat een regel nooit midden in een bedrag breekt. Is er maar één soort
+of één maand, dan valt het bedrag daar weg (het is het totaal). De opdrachtnaam
+mag twee regels, zoals op een kaart.
+
+**Gemeten.** Lijst op 375px: 0 afgekapte teksten, ⋯ 44×44 op de titelregel, +
+56×56, geen zijwaartse scroll; desktop ongewijzigd. Grafiek: 0 botsende labels
+op 375/390/430 (vóór 5 paren per breedte), desktop byte-gelijk. Tabellen: 0
+gebroken bedragen, 0 overflow op 320–768px; desktop 182 elementen en 13
+berekende stijlen gelijk, screenshot byte-gelijk.
+
+**Niet doen.** De algemene `.fac-an-tabel`-lijstregel aanpassen voor deze
+tabellen (die geldt ook voor Facturen en Uren). De labelkeuze per grafiek
+opnieuw uitschrijven. Een pil tonen die dezelfde datum noemt als de kaart al
+rechts toont.
+
+**Bestanden.** `index.html` — `opdRenderLijst`, `opdKaart` (nieuw),
+`#mod-opdrachten` (`.uren-fab`), de mobiele regels van Contracten (nu ook
+Opdrachten), `#opdMenuBtn` bij de gedeelde icoonknop- en vaste-plekregels,
+`.ctr-mnaam`, `.uren-mcard .kl .nm`, `.ctr-mtijd.fout`; `facAnKolomLabels`,
+`facAnKolomGrafiek`, `opdGrafiek`; `opdRenderVooruitzicht` (tabelblokken) met
+het CSS-blok na `.opd-opdtabel .fac-klant .nm`. Stijlgids §4 en §11.
+
 ## 2026-09-28 · Netwerk eerst betekent nu ook: niet uit de HTTP-cache
 
 **Probleem.** Vlak na de vensterfix (hieronder) meldde Frank dat het
