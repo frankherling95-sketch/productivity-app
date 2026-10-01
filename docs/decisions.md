@@ -10,6 +10,47 @@ Append-only log van significante design-, architectuur- en UX-beslissingen.
 
 ---
 
+## 2026-10-01 · Geplakte opmaak in Notities: kleuren en achtergrond van de bron eruit
+
+**Probleem.** Tekst uit VS Code (het Claude-paneel, donker thema) kwam in een
+notitie binnen als zwarte balken met paarse tekst. De browser zet bij plakken
+de berekende stijl van de bron als inline style op élk blok — alinea, kop,
+tabelcel, lijst. "Opmaak wissen" (`removeFormat`) haalt alleen opmaak van
+woorden weg, niet die van een blok: ook met alles geselecteerd bleven er 15
+blokken zwart.
+
+**Beslissing.** Eén opschoonregel (`noteSchoonOpmaak()`) op twee plekken:
+- **bij het plakken** (`notePlakHtml()`): HTML gaat eerst door de opschoning
+  en dan via `insertHTML` erin, zodat Ctrl+Z het plakken nog terugdraait;
+- **"Opmaak wissen"** (`noteOpmaakWissen()`): zonder selectie de hele notitie,
+  met een toast en "Ongedaan maken" — dat is de weg voor notities die al zwart
+  zijn. Met een selectie de bekende `removeFormat` plus de blokken erin.
+
+Wat blijft is wat de editor zelf kan maken: een kleur uit de werkbalk, een
+lettertype/grootte uit de keuzelijsten (alleen op een inline-element), vet,
+cursief, onderstreept, uitlijning, inspringen, en alles met `var(--…)`.
+Structuur (koppen, lijsten, tabellen, links, code) blijft staan. Code uit de
+VS Code-editor zelf (`white-space:pre` in een schrijfmachineletter) wordt een
+`<pre>`, of inline `<code>` bij één regel — anders zakken de inspringingen in
+elkaar. Tabellen en codeblokken kregen een eigen stijl in `.note-editor`; ze
+leunden op de opmaak van de bron. Op een telefoon schuift een te brede tabel
+zelf opzij, niet de notitie.
+
+**Waarom een witte lijst en niet "achtergrond weg".** Alleen de achtergrond
+weghalen liet paarse tekst op wit staan. Een witte lijst van wat de editor zelf
+maakt is de enige grens die niet per bron hoeft te worden bijgehouden (Word,
+Google Docs en webpagina's doen hetzelfde). Een waarde gelijk aan de standaard
+van de editor gaat ook weg: kopiëren tussen notities nam anders de navy van
+het lichte thema mee naar het donkere.
+
+**Niet doen.** Bestaande notities niet stil bij het laden opschonen — een
+kleur uit een bron kan bewust zijn. Dat gaat via de knop, met ongedaan maken.
+Google Docs' gele markering verdwijnt ook; de editor kent geen markeerstift.
+
+**Bestanden.** `index.html` — `noteSchoonOpmaak`, `notePlakHtml`,
+`noteOpmaakWissen` (bij `noteExec`), de paste-handler in `renderNoteEditor`,
+`.note-editor pre/table/th/td`. `test.html` — twee tests (126/126).
+
 ## 2026-09-29 · De PDF van een contract of opdracht laten uitlezen
 
 **Probleem.** Een contract of opdracht vastleggen was alles overtypen uit de

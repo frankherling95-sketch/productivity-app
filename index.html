@@ -4340,6 +4340,42 @@ textarea { line-height: 1.6; resize: vertical; }
   border-radius: 4px;
   font-size: 0.92em;
 }
+/* Codeblok: geplakt uit VS Code of uit markdown (AI-opschonen). Zelfde vlak
+   en letter als inline code; regels lopen door in plaats van opzij te
+   schuiven, want op een telefoon scrollt een notitie alleen verticaal. */
+.note-editor pre {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  line-height: 1.55;
+  background: var(--surface2);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin: 0.4em 0 0.8em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.note-editor pre code { background: none; padding: 0; border-radius: 0; font-size: inherit; }
+/* Tabel: had geen eigen stijl en leunde op de inline opmaak van de bron. Zonder
+   die opmaak lijnen in de randkleur en een kopregel in het tweede vlak.
+   Smal scherm: eerst afbreken op woordgrenzen; past het dan nog niet, dan
+   schuift de tabel zelf opzij en niet de hele notitie. (overflow-wrap:anywhere
+   paste wel, maar brak op 375px woorden middenin af: "Entitei/t".) */
+.note-editor table {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  margin: 0.4em 0 0.8em;
+}
+.note-editor th,
+.note-editor td {
+  border: 1px solid var(--border);
+  padding: 4px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+.note-editor th { background: var(--surface2); font-weight: 600; }
 .note-editor img {
   max-width: 100%;
   height: auto;
@@ -16152,7 +16188,7 @@ function renderNoteEditor(){
       <span class="note-tb-div"></span>
       <div class="note-tb-colors">${colorDots}</div>
       <span class="note-tb-div"></span>
-      <button type="button" class="note-tb-btn" data-action="noteExec" data-arg1="removeFormat" title="Opmaak wissen"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M3 3h8M5 3v8M9 3v3M3 11h4"/><line x1="8.5" y1="7.5" x2="12.5" y2="11.5"/><line x1="12.5" y1="7.5" x2="8.5" y2="11.5"/></svg></button>
+      <button type="button" class="note-tb-btn" data-action="noteOpmaakWissen" title="Opmaak wissen — zonder selectie: geplakte kleuren en achtergronden in de hele notitie"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M3 3h8M5 3v8M9 3v3M3 11h4"/><line x1="8.5" y1="7.5" x2="12.5" y2="11.5"/><line x1="12.5" y1="7.5" x2="8.5" y2="11.5"/></svg></button>
     </div>
     <div class="notes-editor-body">
       <div class="note-editor" id="noteEditor" contenteditable="true" spellcheck="true" data-placeholder="Begin met typen…"></div>
@@ -16191,13 +16227,21 @@ function renderNoteEditor(){
        Zonder deze handler plakt de browser blob:-URLs in die na
        een page-reload kapot zijn. Hier onderscheppen we de image-items,
        zetten ze om via Canvas (max 1200px breed, JPEG 80%) en voegen
-       ze direct in op de cursorpositie.  Tekst-paste gaat ongewijzigd. */
+       ze direct in op de cursorpositie.  Tekst met opmaak gaat eerst door
+       notePlakHtml() (kleuren en achtergrond van de bron eruit); kale tekst
+       plakt de browser zelf. */
     editor.addEventListener('paste',e=>{
       const items=e.clipboardData?.items;
       if(!items)return;
       let imageItem=null;
       for(const it of items){if(it.type.startsWith('image/')){imageItem=it;break;}}
-      if(!imageItem)return;   // geen afbeelding → normale tekst-paste
+      if(!imageItem){
+        const html=e.clipboardData.getData('text/html');
+        if(!html)return;      // kale tekst → normale paste
+        e.preventDefault();
+        notePlakHtml(editor,html);
+        return;
+      }
       e.preventDefault();
       const file=imageItem.getAsFile();
       if(!file)return;
@@ -16286,6 +16330,188 @@ function noteExec(cmd){
   const editor=document.getElementById('noteEditor');
   if(editor){debouncedUpdateContent(editor.innerHTML);editor.focus();}
   syncNoteToolbarState();
+}
+
+/* ── Geplakte opmaak opschonen ──
+   Plak je uit VS Code (of een andere bron met een donker thema), dan zet de
+   browser de kleuren van de bron als inline style op élk blok: alinea's,
+   koppen, tabelcellen en lijsten krijgen een zwarte achtergrond en paarse
+   tekst. removeFormat haalt alleen opmaak van woorden weg, niet die van een
+   blok — ook met alles geselecteerd bleef het zwart.
+
+   Wat blijft is wat de editor zelf maakt: een kleur uit de werkbalk, een
+   lettertype of grootte uit de keuzelijsten, vet/cursief/onderstreept,
+   uitlijning, inspringen, en alles met een token van de app (var(--…)).
+   Structuur (koppen, lijsten, tabellen, links, code) blijft staan. Een
+   achtergrond kan de editor niet maken, dus die gaat altijd weg. Wat gelijk
+   is aan de standaard van de editor gaat ook weg: tekst die je binnen de app
+   kopieert neemt anders de navy van het lichte thema mee naar het donkere. */
+const NOTE_PLAK_WEG=new Set(['META','STYLE','LINK','SCRIPT','TITLE','HEAD']);
+const NOTE_PLAK_ATTR=new Set(['style','class','href','target','rel','src','alt','title',
+  'colspan','rowspan','start','type','checked','disabled','width','height']);
+/* Letterstijl zet de editor altijd op een span (of een ander inline-element),
+   nooit op een blok. Staat hij op een blok, dan kwam hij van de bron. */
+const NOTE_BLOK=new Set(['P','DIV','H1','H2','H3','H4','H5','H6','TABLE','THEAD','TBODY','TFOOT',
+  'TR','TD','TH','UL','OL','LI','BLOCKQUOTE','PRE']);
+const _noteKleurNorm=k=>{const s=new Option().style;s.color=k;return s.color;};
+const _noteFontNorm=f=>String(f||'').toLowerCase().replace(/["'\s]/g,'');
+
+function _noteBasis(editor){
+  const cs=editor?getComputedStyle(editor):null;
+  return {
+    kleur:cs?_noteKleurNorm(cs.color):'',
+    font:cs?_noteFontNorm(cs.fontFamily):'',
+    grootte:cs?cs.fontSize:'',
+    kleuren:new Set(NOTE_COLOR_SWATCHES.map(_noteKleurNorm)),
+    fonts:new Set(NOTE_FONT_OPTIONS.filter(o=>o.value).map(o=>_noteFontNorm(o.value)))
+  };
+}
+/* Hoort deze stijlregel bij wat de editor zelf maakt? */
+function _noteStijlEigen(el,prop,waarde,basis){
+  const v=String(waarde).trim().toLowerCase();
+  if(NOTE_BLOK.has(el.tagName)&&/^(color|font-|text-decoration)/.test(prop))return false;
+  switch(prop){
+    case 'color':{const k=_noteKleurNorm(v);return k!==basis.kleur&&basis.kleuren.has(k);}
+    /* code heeft zijn eigen letter en maat uit de CSS */
+    case 'font-family':{const f=_noteFontNorm(v);return el.tagName!=='CODE'&&f!==basis.font&&basis.fonts.has(f);}
+    case 'font-size':return el.tagName!=='CODE'&&v!==basis.grootte&&NOTE_SIZE_OPTIONS.some(s=>v===s+'px');
+    case 'font-weight':return v==='bold'||v==='bolder'||parseInt(v,10)>=600;
+    case 'font-style':return v==='italic'||v==='oblique';
+    case 'text-decoration-line':return /underline|line-through/.test(v);
+    case 'text-align':return /^(center|right|justify)$/.test(v);
+  }
+  /* Inspringen (indent met styleWithCSS) is een blockquote met marge */
+  if(el.tagName==='BLOCKQUOTE'&&/^(margin|padding|border)/.test(prop))return true;
+  if(el.tagName==='IMG'&&/^(max-)?(width|height)$/.test(prop))return true;
+  return false;
+}
+/* De regels van een codeblok uit VS Code: elke regel is daar een eigen <div>,
+   een lege regel een <br>. */
+function _noteCodeTekst(el){
+  const regels=[];let regel='';
+  const loop=n=>{
+    for(const k of n.childNodes){
+      if(k.nodeType===3)regel+=k.nodeValue;
+      else if(k.nodeName==='BR'){regels.push(regel);regel='';}
+      else if(k.nodeName==='DIV'||k.nodeName==='P'){
+        if(regel){regels.push(regel);regel='';}
+        loop(k);regels.push(regel);regel='';
+      }
+      else loop(k);
+    }
+  };
+  loop(el);if(regel)regels.push(regel);
+  return regels.join('\n').replace(/\u00a0/g,' ');
+}
+/* Ruimt één element op; true als er iets veranderd is. */
+function _noteSchoonEl(el,basis){
+  let anders=false;
+  for(const a of [...el.attributes]){
+    const n=a.name.toLowerCase();
+    if(n==='class'){
+      const eigen=a.value.split(/\s+/).filter(c=>c.startsWith('note-'));
+      if(eigen.join(' ')!==a.value.trim()){
+        if(eigen.length)el.setAttribute('class',eigen.join(' '));else el.removeAttribute('class');
+        anders=true;
+      }
+    } else if(!NOTE_PLAK_ATTR.has(n)){el.removeAttribute(a.name);anders=true;}
+  }
+  const ruw=el.getAttribute('style');
+  /* Een var(--…) zet alleen de app zelf neer (een bron levert berekende
+     waarden); zo'n element laten we heel. */
+  if(ruw!==null&&!/var\(--/.test(ruw)){
+    const houden=[];
+    for(let i=0;i<el.style.length;i++){
+      const p=el.style[i],v=el.style.getPropertyValue(p);
+      if(_noteStijlEigen(el,p,v,basis))houden.push(p+': '+v+(el.style.getPropertyPriority(p)?' !important':''));
+    }
+    if(!houden.length){el.removeAttribute('style');if(ruw.trim())anders=true;}
+    else if(houden.length<el.style.length){el.setAttribute('style',houden.join('; ')+';');anders=true;}
+  }
+  return anders;
+}
+/* Loopt door alles onder root; `binnen` beperkt het tot een selectie.
+   Geeft het aantal opgeschoonde elementen terug. */
+function noteSchoonOpmaak(root,basis,binnen){
+  let n=0;
+  const loop=ouder=>{
+    for(const el of [...ouder.children]){
+      if(binnen&&!binnen(el))continue;
+      if(NOTE_PLAK_WEG.has(el.tagName)){el.remove();n++;continue;}
+      /* Code uit de editor van VS Code: een div met white-space:pre in een
+         schrijfmachineletter. Zonder die stijl zakken de inspringingen in
+         elkaar, dus wordt het een codeblok — of inline code bij één regel,
+         zodat een geplakte variabelenaam niet je alinea openbreekt. */
+      if((el.tagName==='DIV'||el.tagName==='P')&&/^pre/.test(el.style.whiteSpace)
+         &&/mono|consolas|courier|menlo|monaco/i.test(el.style.fontFamily)&&!el.closest('pre')){
+        const tekst=_noteCodeTekst(el);
+        const code=document.createElement(tekst.includes('\n')?'pre':'code');
+        code.textContent=tekst;
+        el.replaceWith(code);n++;continue;
+      }
+      loop(el);
+      /* Google Docs zet alles in <b style="font-weight:normal"> */
+      if((el.tagName==='B'||el.tagName==='STRONG')&&/^(normal|400)$/.test(el.style.fontWeight)){
+        el.replaceWith(...el.childNodes);n++;continue;
+      }
+      if(_noteSchoonEl(el,basis))n++;
+      /* Een span of font zonder opmaak is alleen nog een omhulsel */
+      if((el.tagName==='SPAN'||el.tagName==='FONT')&&!el.attributes.length)el.replaceWith(...el.childNodes);
+    }
+  };
+  loop(root);
+  /* <!--StartFragment--> en dergelijke van het klembord */
+  if(!binnen){
+    const w=document.createTreeWalker(root,NodeFilter.SHOW_COMMENT);
+    const weg=[];while(w.nextNode())weg.push(w.currentNode);
+    weg.forEach(c=>c.remove());
+  }
+  return n;
+}
+/* Plakken met opmaak: eerst opschonen, dan invoegen. insertHTML houdt het
+   plakken in de eigen geschiedenis van de browser, dus Ctrl+Z werkt. */
+function notePlakHtml(editor,html){
+  const tpl=document.createElement('template');
+  tpl.innerHTML=veiligeHtml(html);
+  noteSchoonOpmaak(tpl.content,_noteBasis(editor));
+  if(!document.execCommand('insertHTML',false,tpl.innerHTML)){
+    document.execCommand('insertText',false,tpl.content.textContent||'');
+  }
+  debouncedUpdateContent(editor.innerHTML);
+  updateNoteWordCount(editor);
+}
+/* "Opmaak wissen" in de werkbalk. Met een selectie: removeFormat zoals
+   altijd, plus de blokken in die selectie (daar zat de zwarte achtergrond).
+   Zonder selectie: de hele notitie, maar alleen wat van buiten kwam — je
+   eigen vet, kleuren en koppen blijven staan. */
+function noteOpmaakWissen(){
+  const editor=document.getElementById('noteEditor');if(!editor)return;
+  const id=notesState.activeId;if(!id)return;
+  const sel=window.getSelection();
+  const rng=sel&&sel.rangeCount?sel.getRangeAt(0):null;
+  const selectie=!!(rng&&!rng.collapsed&&editor.contains(rng.commonAncestorContainer));
+  const voor=editor.innerHTML;
+  if(selectie){
+    editor.focus();
+    try{document.execCommand('styleWithCSS',false,true);}catch(e){}
+    document.execCommand('removeFormat',false,null);
+  }
+  const bereik=selectie&&sel.rangeCount?sel.getRangeAt(0):null;
+  const n=noteSchoonOpmaak(editor,_noteBasis(editor),bereik?el=>bereik.intersectsNode(el):null);
+  syncNoteToolbarState();
+  if(!n){
+    if(selectie)debouncedUpdateContent(editor.innerHTML);
+    else appToast('Geen geplakte kleuren of achtergronden gevonden. Selecteer tekst om ook vet, cursief en kleur te wissen.',{duration:6000});
+    return;
+  }
+  updateNoteContent(editor.innerHTML);
+  appToast(selectie?'Opmaak gewist':'Geplakte kleuren en achtergronden gewist',{
+    undo:()=>{
+      const ed=document.getElementById('noteEditor');
+      if(ed&&notesState.activeId===id){ed.innerHTML=voor;updateNoteContent(voor);updateNoteWordCount(ed);}
+      else{const r=findNode(notesState.tree,id);if(r){r.node.content=voor;r.node.updatedAt=Date.now();scheduleSave();}}
+    }
+  });
 }
 function noteApplyFont(value){
   const editor=document.getElementById('noteEditor');if(!editor)return;
@@ -16511,6 +16737,7 @@ Object.assign(APP_ACTIONS,{
   deleteNode:(el,e,id)=>deleteNode(id),
   /* Rich-text editor toolbar */
   noteExec:(el,e,cmd)=>noteExec(cmd),
+  noteOpmaakWissen:()=>noteOpmaakWissen(),
   noteApplyColor:(el,e,color)=>noteApplyColor(color),
   noteResetColor:()=>noteResetColor(),
   noteApplyHeading:(el,e,tag)=>noteApplyHeading(tag),

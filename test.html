@@ -1249,6 +1249,64 @@ async function runChecks() {
           w.eval('opdrachtState.opdrachten=' + oud);
         }
       }],
+    /* ── Geplakte opmaak in Notities (2026-10-01) ──────────────────────────
+       Plakken uit VS Code zette een zwarte achtergrond en paarse tekst op elk
+       blok. Wat de editor zelf maakt (werkbalkkleur, uitlijning, vet) blijft;
+       code uit de VS Code-editor wordt een codeblok. */
+    ['Notities: opschonen haalt de opmaak van de bron weg en laat de eigen staan',
+      () => {
+        const tpl = d.createElement('template');
+        tpl.innerHTML = '<meta charset="utf-8"><!--StartFragment-->' +
+          '<p style="color: rgb(197, 134, 255); background-color: rgb(24, 24, 24); font-size: 13px;">tekst <span style="color: rgb(220, 38, 38);">rood</span></p>' +
+          '<h2 style="font-weight: 600; background-color: #000;">Kop</h2>' +
+          '<p style="text-align: center;">midden</p>' +
+          '<table><tbody><tr><td bgcolor="#000" id="x" data-a="1" style="color: rgb(197, 134, 255);">cel</td></tr></tbody></table>' +
+          '<div style="font-family: Consolas, monospace; white-space: pre;"><div>a</div><br><div>  b</div></div>' +
+          '<div style="font-family: Consolas, monospace; white-space: pre;"><div>rawState</div></div>' +
+          '<b style="font-weight: normal;"><span style="font-weight: 700;">vet</span></b>' +
+          '<span style="background: var(--surface2);">eigen</span>';
+        w.noteSchoonOpmaak(tpl.content, w._noteBasis(null));
+        const c = tpl.content, html = tpl.innerHTML;
+        const p = c.querySelector('p'), td = c.querySelector('td');
+        return !p.hasAttribute('style') && !!c.querySelector('span[style="color: rgb(220, 38, 38);"]') &&
+               !c.querySelector('h2').hasAttribute('style') &&
+               !!c.querySelector('p[style="text-align: center;"]') &&
+               td.attributes.length === 0 &&
+               c.querySelector('pre')?.textContent === 'a\n\n  b' &&
+               c.querySelector('code')?.textContent === 'rawState' &&
+               !c.querySelector('b') && !!c.querySelector('span[style="font-weight: 700;"]') &&
+               !!c.querySelector('span[style*="var(--surface2)"]') &&
+               !/<meta|<!--/.test(html) && !/24, 24, 24|197, 134, 255/.test(html);
+      }],
+    ['Notities: plakken uit VS Code komt schoon binnen, Opmaak wissen ruimt een oude notitie op',
+      async () => {
+        const oudActief = w.eval('notesState.activeId'), oudModule = w.eval('activeModule');
+        try {
+          w.eval("notesState.tree.push({id:'tplak',type:'page',title:'Plaktest',content:'<p>a</p><p><br></p>',clientId:'',tags:[],children:[]})");
+          w.switchModule('notes'); w.selectNote('tplak');
+          const ed = d.getElementById('noteEditor'); ed.focus();
+          const s = w.getSelection(), r = d.createRange();
+          r.setStart(ed.children[1], 0); r.collapse(true); s.removeAllRanges(); s.addRange(r);
+          const dt = new w.DataTransfer();
+          dt.setData('text/html', '<p style="color: rgb(197, 134, 255); background-color: rgb(24, 24, 24);">uit VS Code</p>');
+          dt.setData('text/plain', 'uit VS Code');
+          const ev = new w.ClipboardEvent('paste', {clipboardData: dt, bubbles: true, cancelable: true});
+          ed.dispatchEvent(ev);
+          const geplakt = ev.defaultPrevented && ed.textContent.includes('uit VS Code') && !ed.querySelector('[style]');
+          /* Een notitie van vóór deze wijziging: zwart blok, plus een eigen kleur */
+          ed.innerHTML = '<p style="background-color: rgb(24, 24, 24); color: rgb(197, 134, 255);">oud</p>' +
+                         '<p><span style="color: rgb(220, 38, 38);">rood</span></p>';
+          s.removeAllRanges();
+          d.querySelector('[data-action="noteOpmaakWissen"]').click();
+          const node = w.eval("findNode(notesState.tree,'tplak').node");
+          const opgeruimd = !ed.querySelector('p[style]') && !!ed.querySelector('span[style*="220, 38, 38"]') &&
+                            !/24, 24, 24/.test(node.content);
+          return geplakt && opgeruimd;
+        } finally {
+          w.eval("notesState.tree=notesState.tree.filter(n=>n.id!=='tplak');notesState.activeId=" + JSON.stringify(oudActief));
+          try { w.appToastHide(); w.switchModule(oudModule); } catch (_) {}
+        }
+      }],
     ['No iframe console errors',           () => iframeErrors.length === 0]
   ];
 
