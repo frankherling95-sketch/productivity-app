@@ -1976,7 +1976,15 @@ button.uren-mpiv-row:active{background:var(--surface2)}
   .fac-an-tabel .k-aantal::after{content:" facturen";color:var(--text-hint)}
   .fac-an-tabel tfoot tr{border-bottom:0;border-top:1px solid var(--border-strong)}
 }
-.fac-aging{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px}
+.fac-aging{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:14px}
+/* Zes tegels naast elkaar vragen ~1080px; daaronder (een laptop met de
+   zijbalk open) liep het bedrag uit zijn tegel. Dan twee rijen van drie:
+   niet-vervallen excl/incl + 1–30, daaronder de drie oudere bakken. Een
+   container query en geen media query, want of het past hangt aan de
+   zijbalk (272 of 72px), niet aan het scherm. Op een telefoon wint de
+   mobiele regel verderop (twee kolommen). */
+.fac-cijfers-blok{container-type:inline-size}
+@container (max-width:1080px){.fac-aging{grid-template-columns:repeat(3,1fr)}}
 /* Omzet en Betaald horen niet in de ouderdomsreeks maar wel in hetzelfde
    uitklapblok; twee kolommen zodat ze niet als losse ouderdomsbak lezen. */
 .fac-aging-2{grid-template-columns:repeat(2,1fr)}
@@ -23744,11 +23752,20 @@ function facDebiteurenTegels(){
   },0);
   /* Ook deze bedragen zijn wat de klant nog moet overmaken, dus inclusief
      btw -- naast een tegel "Omzet" die excl. btw is, moet dat erbij staan. */
+  const aantal=key=>`${groepen[key].length} factu${groepen[key].length===1?'ur':'ren'}`;
   const cel=(lab,key,kleur)=>`<div class="fac-aging-cel" style="--k:${kleur}">
     <div class="fac-aging-lab">${lab} · incl. btw</div>
     <div class="fac-aging-val">${factuurFmtBedrag(som(groepen[key]))}</div>
-    <div class="fac-aging-sub">${groepen[key].length} factu${groepen[key].length===1?'ur':'ren'} · ${
+    <div class="fac-aging-sub">${aantal(key)} · ${
       factuurFmtBedrag(exclDeel(groepen[key]))} excl. btw</div></div>`;
+  /* Nog niet vervallen ook excl. btw als eigen tegel: dat is wat er straks
+     als omzet binnenkomt. De bijregels verwijzen niet naar elkaar, anders
+     staat elk bedrag twee keer in beeld; de incl.-tegel noemt de btw. */
+  const lopendIncl=som(groepen.lopend),lopendExcl=exclDeel(groepen.lopend);
+  const lopend=(lab,val,sub)=>`<div class="fac-aging-cel" style="--k:var(--success)">
+    <div class="fac-aging-lab">Nog niet vervallen · ${lab}</div>
+    <div class="fac-aging-val">${factuurFmtBedrag(val)}</div>
+    <div class="fac-aging-sub">${sub}</div></div>`;
   const lijst=facZichtbaar();
   const betaald=lijst.filter(f=>f.status==='betaald');
   const geteld=lijst.filter(f=>f.status!=='concept').length;
@@ -23765,7 +23782,8 @@ function facDebiteurenTegels(){
       ${kpi('Betaald '+per+' · incl. btw',betaaldSom,betaald.length+' van '+geteld+' · '+factuurFmtBedrag(betaaldExcl)+' excl. btw','var(--success)')}
     </div>
     <div class="fac-aging">
-      ${cel('Nog niet vervallen','lopend','var(--success)')}
+      ${lopend('excl. btw',lopendExcl,aantal('lopend'))}
+      ${lopend('incl. btw',lopendIncl,factuurFmtBedrag(lopendIncl-lopendExcl)+' btw')}
       ${cel('1–30 dagen','d30','var(--warning)')}
       ${cel('31–60 dagen','d60','var(--warning)')}
       ${cel('61–90 dagen','d90','var(--danger)')}
