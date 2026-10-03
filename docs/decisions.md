@@ -5395,3 +5395,27 @@ van `.opd-opdtabel` verwijderd. `test.html` — twee rekentests.
 
 **Niet doen.** Geen eigen rekenwerk in de opbouw naast `opdPlanning()`. Geen
 totaalregel onder de maanden: die herhaalt de contractwaarde van bovenaan.
+
+## 2026-10-03 · Opdrachten: Per maand en Per opdracht worden één kaart "Omzet"
+
+**Probleem.** Onder Vooruitzicht stonden twee kaarten onder elkaar met
+dezelfde omzet: Per maand (totaal) en Per opdracht (uitgesplitst). Op een
+telefoon samen ruim twee schermen. Frank: *"Mogelijk kan je die 2 views
+samenvoegen … waarbij je totaal en per klant kan bekijken."*
+
+**Beslissing.** Eén kaart **Omzet** met in de kop de knop **Per klant**
+(`.uren-btn.fac-an-kaartknop`, `aria-pressed`, zoals "Eindklanten" in de
+Facturen-analyse). Uit: het totaal per maand (de oude Per maand). Aan: per
+opdracht, op klant gesorteerd — bureaublad zes maanden + Samen +
+Contractwaarde, telefoon de lijst met waarde en balk. De stand
+(`opdVzPerKlant`) leeft alleen in het geheugen en begint op Totaal.
+
+**Waarom zo.** Twee standen van dezelfde cijfers horen in één kaart; de
+bediening staat in de kop van die kaart (stijlgids §4). Rijen blijven per
+opdracht en niet per klant opgeteld: de contractwaarde en de opbouw zijn per
+opdracht, en een klant met een doorlopende én een vaste opdracht heeft geen
+zinnige som. De titel is niet "De cijfers": zo heet de uitklapbalk met de
+tegels bovenaan al.
+
+**Bestanden.** `index.html` — `opdRenderVooruitzicht()`,
+`opdVzPerKlantWissel()`, `opdVzPerKlant`.

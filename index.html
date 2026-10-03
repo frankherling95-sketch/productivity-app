@@ -30783,8 +30783,12 @@ function opdRenderVooruitzicht(d){
     <div class="fac-an-plot">${opdGrafiek(maanden,breed)}</div>
     <p class="opd-voetnoot">Geschreven telt alle klanten mee, ook zonder opdracht. Gepland rekent met werkdagen en kent geen feestdagen of vakantie.</p>
   </div>`;
-  html+=`<div class="fac-an-kaart"><div class="fac-an-kaartkop"><div><h3>Per maand</h3></div></div>
-    <div class="fac-an-tabelwrap opd-vz-wrap"><table class="fac-an-tabel opd-maandtabel"><thead><tr>
+  /* Omzet: één kaart met twee standen -- het totaal per maand, of per
+     klant uitgesplitst. Niet "De cijfers": zo heet de uitklapbalk met de
+     tegels bovenaan al. Eerst stonden ze als twee kaarten onder elkaar
+     ("Per maand" en "Per opdracht"); dezelfde cijfers, twee keer de ruimte.
+     De knop in de kop wisselt (stijlgids §4, Bediening in een kaartkop). */
+  const maandHtml=`<div class="fac-an-tabelwrap opd-vz-wrap"><table class="fac-an-tabel opd-maandtabel"><thead><tr>
       <th>Maand</th><th class="num">Uren geschreven</th><th class="num">Omzet geschreven</th><th class="num">Uren gepland</th><th class="num">Omzet gepland</th><th class="num">Totaal</th>
     </tr></thead><tbody>${maanden.map(m=>{
       /* Op een telefoon is elke rij een lijstregel (CSS bij .opd-vz-wrap):
@@ -30802,8 +30806,8 @@ function opdRenderVooruitzicht(d){
       ${soort(m.geplandUren,m.gepland,'gepland')}
       <td class="num opd-vz-weg">${m.gepland>0?opdFmtEuro(m.gepland):'—'}</td>
       <td class="num opd-vz-tot"><b>${(m.geschreven+m.gepland)>0?opdFmtEuro(m.geschreven+m.gepland):'—'}</b></td></tr>`;}).join('')}
-    </tbody></table></div></div>`;
-  /* Waar de verwachte omzet vandaan komt, per opdracht.
+    </tbody></table></div>`;
+  /* Per klant: waar de omzet vandaan komt, per opdracht en op klant gesorteerd.
      Bureaublad: de komende zes maanden naast elkaar -- daar zie je waar een
      gat valt als een opdracht afloopt -- plus de contractwaarde.
      Telefoon: zes maandbedragen passen daar niet naast elkaar (ze liepen als
@@ -30813,15 +30817,17 @@ function opdRenderVooruitzicht(d){
   const hi=maanden.findIndex(m=>m.huidig);
   const zes=maanden.slice(hi,hi+6);
   const bijdragers=d.lijst.filter(o=>d.info[o.id].status!=='afgelopen'||
-    zes.some(m=>(m.perOpdracht[o.id]||{}).bedrag>0.5));
+    zes.some(m=>(m.perOpdracht[o.id]||{}).bedrag>0.5))
+    .sort((a,b)=>opdKlantNaam(a.clientId).localeCompare(opdKlantNaam(b.clientId),'nl')||
+      String(a.naam||'').localeCompare(String(b.naam||''),'nl'));
+  let klantHtml='';
   if(bijdragers.length){
     const opdVzKop=m=>m.kort+(m.maand===0?' '+String(m.jaar).slice(2):'');
     const ob={};
     bijdragers.forEach(o=>{ob[o.id]=opdOpbouw(o,d.vandaag,d.vz.koppeling);});
     const waardeTekst=w=>w.waarde!=null?opdFmtEuro(w.waarde):'doorlopend';
-    html+=`<div class="fac-an-kaart"><div class="fac-an-kaartkop"><div><h3>Per opdracht</h3>
-      <p class="opd-alleen-breed">Gepland vanaf morgen, de komende zes maanden. De contractwaarde telt de hele looptijd; klik voor de opbouw.</p>
-      <p class="opd-alleen-smal">Waarde over de hele looptijd. Tik voor de opbouw.</p></div></div>
+    klantHtml=`<p class="fac-an-uitleg opd-alleen-breed">Gepland vanaf morgen, de komende zes maanden. De contractwaarde telt de hele looptijd; klik voor de opbouw.</p>
+      <p class="fac-an-uitleg opd-alleen-smal">Waarde over de hele looptijd. Tik voor de opbouw.</p>
       <div class="fac-an-tabelwrap opd-alleen-breed"><table class="fac-an-tabel opd-opdtabel"><thead><tr><th>Opdracht</th>
       ${zes.map(m=>`<th class="num">${opdVzKop(m)}</th>`).join('')}
       <th class="num">Samen</th><th class="num opd-waarde-kol">Contractwaarde</th></tr></thead><tbody>
@@ -30847,9 +30853,19 @@ function opdRenderVooruitzicht(d){
           ${w.waarde?opdWaardeBalk(w):''}
           <span class="opd-wsub">${escapeHtml(onder)}</span>
         </button>`;
-      }).join('')}</div></div>`;
+      }).join('')}</div>`;
   }
+  const perKlant=opdVzPerKlant&&!!klantHtml;
+  const knop=klantHtml?`<button type="button" class="uren-btn fac-an-kaartknop" data-action="opdVzPerKlantWissel"
+    aria-pressed="${perKlant?'true':'false'}" title="Splits de cijfers uit per klant en opdracht">Per klant</button>`:'';
+  html+=`<div class="fac-an-kaart"><div class="fac-an-kaartkop"><h3>Omzet</h3>${knop}</div>
+    ${perKlant?klantHtml:maandHtml}</div>`;
   return html;
+}
+let opdVzPerKlant=false;
+function opdVzPerKlantWissel(){
+  opdVzPerKlant=!opdVzPerKlant;
+  opdRenderAll();
 }
 
 /* ── Contractwaarde en de opbouw ervan ──
@@ -31210,6 +31226,7 @@ Object.assign(APP_ACTIONS,{
   opdNieuw:()=>opdNieuw(),
   opdOpen:(el,e,id)=>opdOpen(id),
   opdOpbouwOpen:(el,e,id)=>opdOpbouwOpen(id),
+  opdVzPerKlantWissel:()=>opdVzPerKlantWissel(),
   opdOpbouwSluit:()=>opdOpbouwSluit(),
   opdOpbouwNaarOpdracht:()=>opdOpbouwNaarOpdracht(),
   opdSluit:()=>opdSluit(),
