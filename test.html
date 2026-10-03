@@ -687,6 +687,31 @@ async function runChecks() {
                w.opdWerkdagen('2026-10-01', '2026-10-31') === 22 &&
                w.opdNaWerkdagen('2026-10-01', 2, [2,3,5]) === '2026-10-06';
       }],
+    ['Opdrachten: feestdagen kloppen (Pasen berekend, Koningsdag op zondag naar zaterdag)',
+      () => {
+        const f = j => Object.fromEntries(w.opdFeestdagenJaar(j).map(x => [x.id, x.datum]));
+        const a = f(2026), b = f(2025), c = f(2027);
+        return w.dateStr(w.opdPasen(2026)) === '2026-04-05' && a.paasmaandag === '2026-04-06' &&
+               a.hemelvaart === '2026-05-14' && a.pinkstermaandag === '2026-05-25' &&
+               a.goedevrijdag === '2026-04-03' && a.koningsdag === '2026-04-27' &&
+               b.koningsdag === '2025-04-26' && c.paasmaandag === '2027-03-29';
+      }],
+    ['Opdrachten: feestdagen en vakantie tellen niet als werkdag in de planning',
+      () => {
+        /* December 2026, ma–vr: 23 werkdagen. Eerste kerstdag (vr 25) eraf =
+           22; tweede kerstdag valt op zaterdag. Plus vakantie ma 28 t/m do 31
+           = 18 dagen × 4 u. */
+        const o = {start:'2026-01-01', eind:'2026-12-31', urenPerWeek:20};
+        const feest = new Map([['2026-12-25', {soort:'feest', naam:'Eerste kerstdag'}], ['2026-12-26', {soort:'feest', naam:'Tweede kerstdag'}]]);
+        const metVak = new Map([...feest, ...['2026-12-28','2026-12-29','2026-12-30','2026-12-31'].map(d => [d, {soort:'vakantie', naam:'Kerst'}])]);
+        const p1 = w.opdPlanning(o, 0, '2026-11-30', null, feest);
+        const p2 = w.opdPlanning(o, 0, '2026-11-30', null, metVak);
+        const p0 = w.opdPlanning(o, 0, '2026-11-30', null, null);
+        return p0.dagen['2026-12'] === 23 && p1.dagen['2026-12'] === 22 && p1.maanden['2026-12'] === 88 &&
+               p2.dagen['2026-12'] === 18 && p2.maanden['2026-12'] === 72 &&
+               p2.vrij['2026-12'].length === 5 &&
+               w.opdNaWerkdagen('2026-12-24', 2, null, feest) === '2026-12-28';
+      }],
     ['Opdrachten: een urenbudget raakt op een vaste werkdag op',
       () => {
         /* 40 u over, 8 u per dag op di/wo/vr: vijf dagen vanaf 1 okt = vr 2,

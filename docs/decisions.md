@@ -5488,3 +5488,44 @@ concept gaat mee naar Drive.
 
 **Niet doen.** Geen nieuwe stille vastlegger toevoegen "voor de zekerheid":
 het concept ís de zekerheid.
+
+## 2026-10-03 · Opdrachten: feestdagen en vakantie tellen niet als werkdag
+
+**Probleem.** Gepland rekende elke werkdag mee, ook kerst, Koningsdag en je
+vakantie. Een decembermaand stond daardoor te hoog, en een budget raakte
+volgens de planning eerder op dan in werkelijkheid.
+
+**Beslissing.**
+- `opdrachtState.vrij`: vakantieperiodes `{id, van, tot, omschrijving}`.
+  `opdrachtState.feestdagen`: de feestdagen waarop je vrij bent (ids uit
+  `OPD_FEESTDAGEN`); ontbreekt het, dan de standaard: Nieuwjaarsdag, Tweede
+  paasdag, Koningsdag, Hemelvaartsdag, Tweede pinksterdag en beide kerstdagen.
+  Goede Vrijdag en Bevrijdingsdag staan standaard uit — bij de meeste
+  opdrachtgevers een werkdag — maar zijn aan te zetten.
+- Feestdagen worden berekend (Pasen via de gregoriaanse methode; Koningsdag
+  op zondag gaat naar zaterdag), voor zes jaar terug tot twaalf vooruit.
+  `opdVrijeDagen()` geeft één Map datum → {soort, naam}, bewaard zolang de
+  instellingen gelijk blijven.
+- `opdPlanning()` krijgt de vrije dagen mee (standaard die uit de
+  instellingen) en telt ze niet als werkdag — ook bij het verdelen van een
+  budget en de dag waarop het op is. Per maand onthoudt hij welke vrije dagen
+  eraf gingen (`vrij`), en de opbouw zegt dat: "zonder Eerste kerstdag,
+  8 dagen Kerstvakantie". In de maand waarin het budget opraakt alleen de
+  vrije dagen tot dat moment.
+- Venster **Vrije dagen** via ⋯ in Opdrachten: vakanties toevoegen/weghalen
+  (met ongedaan maken) en keuzechips per feestdag. Wijzigingen gaan meteen in.
+- `voegStateSamen()` vult `vrij` aan op id, zonder het in het rapport te tellen.
+
+**Waarom één lijst voor alle opdrachten.** Vakantie is van jou, niet van een
+opdracht. Een opdrachtgever die tussen kerst en oud en nieuw dicht is, is hier
+hetzelfde als je eigen vakantie.
+
+**Bestanden.** `index.html` — `OPD_FEESTDAGEN`, `opdPasen()`,
+`opdFeestdagenJaar()`, `opdFeestdagenAan()`, `opdVrijeDagen()`,
+`opdVrijIn()`, `opdWerkdagen()`/`opdNaWerkdagen()` (vierde argument),
+`opdPlanning()`, `opdOpbouw()`/`opdOpbouwOpen()`, `opdVrij*`,
+`opdFeestWissel()`, `hydrateerStateIntern()`, `voegStateSamen()`. `test.html` —
+twee tests.
+
+**Niet doen.** Uren (registraties, het gat "werkdag zonder uren" in de
+analyse) gebruikt deze lijst nog niet; dat is een aparte stap.
