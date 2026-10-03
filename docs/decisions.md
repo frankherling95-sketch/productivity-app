@@ -5453,3 +5453,38 @@ een vaste dag).
 
 **Niet doen.** Feestdagen en vakantie zitten er nog steeds niet in; dat is een
 aparte keuze, niet iets om in `opdWerkdagen()` erbij te frommelen.
+
+## 2026-10-03 · Uren: de regel bovenaan wordt alleen nog met Opslaan of Enter vastgelegd
+
+**Probleem.** Frank: registreren in de webversie "loopt niet altijd lekker"
+met opslaan. De lege regel bovenaan de tabel legde zichzelf vast zodra hij
+"verlaten" werd: bij `focusout`, bij bladeren, een andere weergave, de export,
+het verlaten van de module, en bij `visibilitychange` (ander tabblad). Wanneer
+een regel verlaten is verschilt per browser: Safari geeft een knop bij een klik
+geen focus, dus een klik op "Kies klant" of op +/− telde daar al als verlaten.
+En wie halverwege de omschrijving even naar een ander tabblad ging, vond bij
+terugkomst de regel zonder omschrijving opgeslagen en typte verder in een
+nieuwe lege regel. Daarnaast bewaarden +/− en de klantkeuze hun waarde niet in
+het concept.
+
+**Beslissing.** Zoals op een telefoon: opslaan doe je zelf. In de regel staat
+een knop **Opslaan** (op de plek van de nutteloze pil "Open" en de lege
+actiekolom) plus een ✕ om hem leeg te maken; Enter werkt zoals voorheen. Alle
+stille vastleggers zijn weg (`focusout`, bladeren, weergave, export,
+`visibilitychange`, `beforeunload`, vernieuwen). Wat je invult blijft als
+concept staan in `urenState.draft` — nu ook na +/− en de klantkeuze — dus het
+overleeft bladeren en herladen, en de regel kleurt zolang hij niet is
+opgeslagen ("Nog niet opgeslagen — klik Opslaan of druk op Enter"). Verlaat je
+Uren met een complete regel, dan komt er een melding met de knop *Opslaan*.
+
+**Waarom.** Een regel die zichzelf vastlegt op een moment dat per browser
+verschilt is onvoorspelbaar; een knop niet. Kwijtraken kan niet meer: het
+concept gaat mee naar Drive.
+
+**Bestanden.** `index.html` — `urenRenderDraftRow()`, `urenDraftOpslaan()`,
+`urenDraftLeeg()`, `urenDraftWaarschuw()`, `urenDraftStep()`,
+`urenPickClient()`, `switchModule()`, de listeners voor
+`focusout`/`visibilitychange`/`beforeunload`, `.uren-draft-acts`. `test.html`.
+
+**Niet doen.** Geen nieuwe stille vastlegger toevoegen "voor de zekerheid":
+het concept ís de zekerheid.

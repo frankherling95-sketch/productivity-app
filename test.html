@@ -1354,6 +1354,25 @@ async function runChecks() {
           try { w.appToastHide(); w.switchModule(oudModule); } catch (_) {}
         }
       }],
+    ['Uren: de regel bovenaan wordt alleen met Opslaan/Enter vastgelegd, niet bij bladeren of een ander tabblad',
+      () => {
+        const us = w.huidigeStateSnapshot().uren;
+        const voor = us.entries.length, oudModule = w.eval('activeModule');
+        try {
+          w.switchModule('uren');
+          w.eval("urenDraft={date:'2026-10-02',clientId:'tdraft',hours:2,description:'concept'}");
+          w.urenNav(1); w.urenNav(-1);
+          d.dispatchEvent(new Event('visibilitychange'));
+          const nogConcept = us.entries.length === voor && w.eval('urenDraft.hours') === 2;
+          const vastgelegd = w.urenDraftCommitIfComplete() && us.entries.length === voor + 1 &&
+                             us.entries.some(e => e.clientId === 'tdraft' && e.description === 'concept');
+          return nogConcept && vastgelegd;
+        } finally {
+          us.entries = us.entries.filter(e => e.clientId !== 'tdraft');
+          w.eval("urenDraft=null;if(urenState)delete urenState.draft");
+          try { w.appToastHide(); w.switchModule(oudModule); } catch (_) {}
+        }
+      }],
     ['No iframe console errors',           () => iframeErrors.length === 0]
   ];
 

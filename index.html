@@ -1111,6 +1111,17 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .uren-draft.is-compleet ~ tr #urenDraftHint{color:var(--text)}
 .uren-draft:hover td{background:var(--mint-soft)}
 .uren-draft .uren-rn{color:var(--mint);font-weight:700}
+/* Opslaan staat in de regel zelf, in de kolommen van status en acties
+   (een nieuwe regel is altijd Open, dus die pil zei niets). Gedimd zolang
+   klant of uren ontbreekt -- klikken mag wel, dan zegt hij wat er mist.
+   Het kruisje maakt de regel leeg en staat er alleen als er iets in staat. */
+.uren-draft-acts{white-space:nowrap;padding-left:12px;padding-right:8px}
+.uren-draft-acts .uren-draft-opslaan{height:30px;padding:0 14px}
+.uren-draft:not(.is-compleet) .uren-draft-opslaan{opacity:.45}
+.uren-draft-leeg{visibility:hidden;margin-left:4px;background:transparent;border:none;color:var(--text-hint);
+  cursor:pointer;font-size:12px;padding:6px 7px;border-radius:5px;font-family:inherit;line-height:1;vertical-align:middle}
+.uren-draft-leeg:hover{background:var(--surface3);color:var(--text)}
+.uren-draft.heeft-invoer .uren-draft-leeg{visibility:visible}
 
 .uren-sheet tfoot td{
   position:sticky;bottom:0;background:var(--surface2);
@@ -11099,16 +11110,17 @@ function scheduleSave(){
 }
 /* Capture in-flight pending save when the tab closes */
 window.addEventListener('beforeunload',()=>{
-  /* Een complete regel die je liet staan alsnog vastleggen; een
-     halfingevulde blijft als concept bewaard via urenState.draft. */
-  try{urenDraftFlush();}catch(_){}
+  /* De regel bovenaan blijft als concept bewaard (urenState.draft); hij
+     wordt niet stilletjes vastgelegd -- opslaan doe je zelf. */
   if(saveTimer)saveLocalBackup();
 });
 /* Ook als je naar een ander tabblad gaat -- op mobiel is dat vaak het
    laatste moment voordat de pagina wordt weggegooid. */
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState!=='hidden')return;
-  try{urenDraftFlush();}catch(_){}
+  /* Niet de regel bovenaan in Uren vastleggen: wie even naar een ander
+     tabblad gaat en terugkomt, typte daarna zijn omschrijving in een
+     nieuwe lege regel. Hij staat als concept in urenState.draft. */
   if(!saveTimer)return;
   saveLocalBackup();
   /* Meteen wegschrijven in plaats van de 1,5 seconde af te wachten: dit
@@ -11533,11 +11545,12 @@ function switchModule(mod){
   /* Removed modules — silently redirect to dashboard so old hash URLs
      and any leftover internal switchModule calls don't crash. */
   if(mod==='todo')mod='dashboard';
-  /* Verlaat je de uren-module met een complete regel open, leg die dan
-     vast. Moet vóór activeModule wordt bijgewerkt, anders is niet meer
-     te zien waar je vandaan komt. */
+  /* Verlaat je Uren met een complete regel die nog niet is opgeslagen,
+     dan zeg dat -- met een knop om het alsnog te doen. Stil vastleggen
+     deed hij eerst; nu bepaal je dat zelf (zie urenDraftOpslaan). Moet
+     vóór activeModule wordt bijgewerkt. */
   if(activeModule==='uren'&&mod!=='uren'){
-    try{urenDraftFlush();}catch(_){}
+    try{urenDraftWaarschuw();}catch(_){}
   }
   activeModule=mod;
   /* Update nav items */
@@ -12022,8 +12035,6 @@ if(window.visualViewport){
     const t=document.getElementById('ptrTekst');
     if(t)t.textContent='Vernieuwen…';
     try{
-      /* Eerst wat nog openstaat vastleggen, dan pas herstarten. */
-      try{urenDraftFlush();}catch(_){}
       saveLocalBackup();
       if(saveTimer)await hooguit(forceSave(),6000);
       /* De service worker geeft index.html uit zijn cache; zonder deze
@@ -18719,6 +18730,8 @@ const UREN_CLICK_ACTIONS={
   urenKalenderMaandZet:(a)=>urenKalenderMaandZet(a),
   urenKalenderDag:(a)=>urenKalenderDag(a),
   urenDraftStep:(a)=>urenDraftStep(parseFloat(a)),
+  urenDraftOpslaan:()=>urenDraftOpslaan(),
+  urenDraftLeeg:()=>urenDraftLeeg(),
   urenDraftPickClient:()=>{},
   openUrenTemplatesModal:()=>{closeUrenMenu();openUrenTemplatesModal();},
   closeUrenTemplatesModal:()=>closeUrenTemplatesModal(),
@@ -18877,7 +18890,6 @@ function urenAnchorDate(){
 }
 function urenSetView(view){
   if(!['reg','klant','week','maand','analyse'].includes(view))return;
-  urenDraftFlush();
   const anchor=urenAnchorDate();
   urenView=view;
   urenSelection.clear();
@@ -18886,7 +18898,6 @@ function urenSetView(view){
   urenRenderAll();
 }
 function urenSetRegScope(scope){
-  urenDraftFlush();
   const anchor=urenAnchorDate();
   urenRegScope=scope==='month'?'month':'week';
   urenEnsurePeriodContains(anchor);
@@ -18894,7 +18905,6 @@ function urenSetRegScope(scope){
   urenRenderAll();
 }
 function urenNav(dir){
-  urenDraftFlush();
   const scope=urenScope();
   urenOffset[scope]+=dir;
   urenSelection.clear();
@@ -18905,7 +18915,6 @@ function urenNav(dir){
   urenRenderAll();
 }
 function urenNavToday(){
-  urenDraftFlush();
   urenOffset={week:0,month:0,year:0};
   urenSelection.clear();
   urenApplyRecurring();
@@ -20411,7 +20420,6 @@ function urenAnMaandNaarReg(){
   const key=urenAnMaandKey;
   closeUrenAnMaand();
   if(!key)return;
-  urenDraftFlush();
   urenView='reg';
   urenRegScope='month';
   urenSelection.clear();
@@ -20682,8 +20690,12 @@ function urenRenderDraftRow(){
     </td>
     <td><input type="text" class="uren-cell desc" id="urenDraftDesc" value="${escapeHtml(d.description||'')}"
       placeholder="Waar heb je aan gewerkt?" data-uren-change="urenDraftDesc" aria-label="Omschrijving nieuwe regel"/></td>
-    <td class="uren-status-td"><span class="uren-pill uren-pill-open" style="cursor:default;opacity:.6">Open</span></td>
-    <td></td>
+    <td colspan="2" class="uren-draft-acts">
+      <button type="button" class="uren-btn uren-btn-primary uren-draft-opslaan" data-uren-action="urenDraftOpslaan"
+        title="Opslaan (Enter)">Opslaan</button>
+      <button type="button" class="uren-draft-leeg" data-uren-action="urenDraftLeeg"
+        title="Regel leegmaken" aria-label="Regel leegmaken">✕</button>
+    </td>
   </tr>`;
 }
 
@@ -20911,7 +20923,6 @@ function urenCelNaarReg(){
   const c=urenCel;
   closeUrenCel();
   if(!c||urenCelHeelJaar(c))return;
-  urenDraftFlush();
   urenView='reg';
   urenRegScope=urenCelHeleMaand(c)?'month':'week';
   urenSelection.clear();
@@ -21100,7 +21111,6 @@ function urenKalenderMaandZet(ym){
    dag, want daar staan de regels die je wilt zien of aanpassen. */
 function urenKalenderDag(iso){
   if(!iso)return;
-  urenDraftFlush();
   urenView='reg';
   urenRegScope='week';
   urenSelection.clear();
@@ -21390,7 +21400,8 @@ function urenPickClient(target,clientId){
   if(target==='__draft__'){
     urenDraftEnsure();
     urenDraft.clientId=clientId;
-    /* Nog niet opslaan — dat gebeurt als de regel verlaten wordt.
+    urenDraftBewaar();
+    /* Nog niet opslaan — dat doe je met Opslaan of Enter.
        Focus naar de urencel: dat is de logische volgende stap. */
     urenFocusAfterRender='#urenDraftHours';
     urenRenderAll();
@@ -21427,8 +21438,8 @@ function urenMarkeerDraftOnopgeslagen(){
   rij.classList.toggle('heeft-invoer',iets);
   rij.classList.toggle('is-compleet',compleet);
   const hint=document.getElementById('urenDraftHint');
-  if(hint)hint.textContent=compleet?'Druk op Enter om vast te leggen'
-    :iets?'Nog niet vastgelegd — kies klant en uren':'';
+  if(hint)hint.textContent=compleet?'Nog niet opgeslagen — klik Opslaan of druk op Enter'
+    :iets?'Nog niet opgeslagen — kies klant en uren':'';
 }
 
 function urenDraftEnsure(period,renderPass){
@@ -21464,21 +21475,33 @@ function urenDraftStep(delta){
   urenDraft.hours=urenClampHours(urenDraft.hours+delta);
   const el=document.getElementById('urenDraftHours');
   if(el)el.value=urenDraft.hours?urenFmt(urenDraft.hours):'';
+  urenDraftBewaar();
+}
+/* De knop Opslaan in de regel: eerst de waarde vastleggen van het veld
+   waar je nog in stond (dat kreeg zijn change nog niet), dan opslaan. */
+function urenDraftOpslaan(){
+  const actief=document.activeElement;
+  if(actief&&actief.closest&&actief.closest('.uren-draft')&&actief.matches('input'))
+    actief.dispatchEvent(new Event('change',{bubbles:true}));
+  if(!urenDraftCommitIfComplete())
+    appToast(!urenDraft||!urenDraft.clientId?'Kies eerst een klant':'Vul een aantal uren in',{type:'warning'});
+}
+function urenDraftLeeg(){
+  const datum=urenDraft?urenDraft.date:null;
+  urenDraft=null;
+  urenDraftEnsure();
+  if(datum)urenDraft.date=datum;
+  urenDraftBewaar();
+  urenRenderAll();
 }
 
-/* De lege regel wordt pas opgeslagen als je hem verlaat (Tab uit de
-   laatste cel, klik elders) of op Enter drukt. Eerder committen — zodra
-   klant en uren gevuld zijn — zou betekenen dat de omschrijving die je
-   daarna typt in de vólgende lege regel belandt. */
-document.addEventListener('focusout',e=>{
-  if(!e.target.closest||!e.target.closest('.uren-draft'))return;
-  setTimeout(()=>{
-    const actief=document.activeElement;
-    if(actief&&actief.closest&&actief.closest('.uren-draft'))return; /* nog in de regel */
-    if(document.getElementById('urenClientPop'))return;              /* klantkeuze open */
-    urenDraftCommitIfComplete();
-  },0);
-});
+/* De lege regel wordt alleen opgeslagen met de knop Opslaan of Enter --
+   net als het invoerblad op een telefoon. Hij legde zichzelf eerst vast
+   zodra de focus de regel verliet, maar wanneer dat gebeurt verschilt per
+   browser: Safari geeft een knop bij een klik geen focus, dus een klik op
+   "Kies klant" of op +/− telde daar als de regel verlaten. Wat je invult
+   blijft als concept staan (urenDraftBewaar), ook na bladeren of
+   herladen, en de regel kleurt zolang hij niet is opgeslagen. */
 document.addEventListener('keydown',e=>{
   if(e.key!=='Enter')return;
   if(!e.target.closest||!e.target.closest('.uren-draft'))return;
@@ -21504,10 +21527,19 @@ function urenDraftCommitIfComplete(){
     (gesprongen?' — '+urenPeriod().label+' in beeld':''),{type:'success',duration:2500});
   return true;
 }
-/* Bewaart de lege regel zonder te renderen of te melden. Vangnet voor
-   alles wat de tabel opnieuw opbouwt (navigatie, weergavewissel,
-   export): wat is ingevuld gaat nooit verloren, ook niet als het
-   focusout-event uitblijft. Geeft de bewaarde entry terug, of null. */
+/* Bij het verlaten van Uren: staat er een complete regel die nog niet is
+   opgeslagen, dan een melding met een knop om dat alsnog te doen. */
+function urenDraftWaarschuw(){
+  if(!urenDraft||!urenDraft.clientId||!urenDraft.hours)return;
+  appToast(`Nog niet opgeslagen: ${urenFmt(urenDraft.hours)} u · ${urenClientName(urenDraft.clientId)} · ${urenFormatDayLabel(urenDraft.date)}`,
+    {type:'warning',duration:9000,actieLabel:'Opslaan',undo:()=>{
+      const e=urenDraftFlush();
+      if(e)appToast(`${urenFmt(e.hours)} u · ${urenClientName(e.clientId)} opgeslagen`,{type:'success',duration:2500});
+    }});
+}
+/* Legt de lege regel vast zonder te renderen of te melden; alleen nog
+   vanuit Opslaan/Enter (urenDraftCommitIfComplete) en de knop in de
+   melding bij het verlaten van Uren. Geeft de entry terug, of null. */
 function urenDraftFlush(){
   if(!urenDraft||!urenDraft.clientId||!urenDraft.hours)return null;
   const {date,clientId,hours,description}=urenDraft;
@@ -22179,7 +22211,6 @@ function urenPeriodStamp(p){
 
 function urenExport(fmt,mode){
   closeUrenMenu();
-  if(urenDraftFlush())urenRenderAll();   /* half ingevulde regel niet missen */
   const data=urenBuildExport(mode);
   if(!data.rows.length){
     appToast('Geen uren gevonden voor deze periode of dit filter',{type:'warning'});

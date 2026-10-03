@@ -308,6 +308,7 @@ waar de fout zit.
 
 Top-3 meest recent. Volledige log + *waarom* per beslissing: [`docs/decisions.md`](docs/decisions.md).
 
+- **2026-10-03**: **Uren: regel bovenaan alleen met Opslaan/Enter** — knop *Opslaan* + ✕ in de regel; geen stil vastleggen meer bij focusout, bladeren, export, tabbladwissel of afsluiten (verschilde per browser: Safari focust geen knoppen). Concept blijft in `urenState.draft`; bij het verlaten van Uren een melding met *Opslaan*
 - **2026-10-03**: **Opdrachten: vaste werkdagen** — veld `werkdagen` (bijv. `[2,3,5]` = di/wo/vr, `null` = ma–vr). Uren per week ÷ aantal gekozen dagen, per maand alleen die dagen (`opdWerkdagen(a,b,dagen)`), budget en budget-op-datum ook. Keuzechips ma–vr in het venster. *Per klant* onthouden per apparaat (`LS_OPD_PERKLANT`)
 - **2026-10-03**: **Opdrachten → Vooruitzicht: Per maand en Per opdracht zijn één kaart "Omzet"** met de knop *Per klant* in de kop (zoals "Eindklanten" in de Facturen-analyse): uit = totaal per maand, aan = per opdracht op klant gesorteerd (bureaublad zes maanden + Contractwaarde, telefoon lijst met waarde en balk)
 - **2026-10-03**: **Opdrachten: contractwaarde met opbouw** — waarde = geschreven t/m vandaag + gepland tot de einddatum (zonder einddatum alleen een tempo per maand). Venster `#opdOpbouwModal`: som, uitgangspunten, per maand `werkdagen × u per dag`; rekent niets zelf, `opdPlanning()` geeft nu ook `dagen`/`perDag`/`begrensd`/`rest`. Per opdracht: bureaublad + kolom Contractwaarde, telefoon een lijst met waarde en balk geschreven/gepland (`.opd-wlijst`). Ook: plakken in Notities valt niet meer stil weg zonder focus (`notePlakZelf()`), en de voettest wacht op Inter
@@ -436,7 +437,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 130 smoke-, sync-, model-, reken- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
+| `test.html` | 131 smoke-, sync-, model-, reken- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |
