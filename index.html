@@ -6761,6 +6761,9 @@ textarea { line-height: 1.6; resize: vertical; }
     bottom: calc(100% + 8px) !important;
     right: 0 !important;
     max-width: calc(100vw - 34px);
+    /* Zelfde breedte als op een bureaublad; de algemene mobiele regel
+       (min(220px, …)) liet de AI-titel afbreken. */
+    min-width: min(264px, calc(100vw - 34px)) !important;
   }
   /* Het plusje in de hero deed hetzelfde als de ronde knop nu doet. */
   .dash-hero-add { display: none !important; }
@@ -7564,7 +7567,8 @@ textarea { line-height: 1.6; resize: vertical; }
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
-  min-width: 240px;
+  /* 264 en niet 240: daaronder brak 'Slim toevoegen met AI' over twee regels. */
+  min-width: 264px;
   background: var(--surface);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-popover);
@@ -7625,9 +7629,19 @@ textarea { line-height: 1.6; resize: vertical; }
   background-color: var(--info-bg);
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14' fill='none'><path d='M3 1.5h5.5L11.5 4.5v8a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-10a1 1 0 0 1 1-1z' stroke='%232563EB' stroke-width='1.3'/><path d='M8.5 1.5v3h3' stroke='%232563EB' stroke-width='1.3'/></svg>");
 }
+.ha-newitem-option[data-kind="uren"] .ha-newitem-option-icon {
+  background-color: var(--warning-bg);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14' fill='none'><circle cx='7' cy='7' r='5.5' stroke='%23D97706' stroke-width='1.3'/><path d='M7 4v3l2 1.5' stroke='%23D97706' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+}
+.ha-newitem-option[data-kind="factuur"] .ha-newitem-option-icon {
+  background-color: rgba(124, 58, 237, 0.12);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14' fill='none'><path d='M3 1.5h8a.5.5 0 0 1 .5.5v10.5l-1.5-1-1.5 1-1.5-1-1.5 1-1.5-1-1.5 1V2a.5.5 0 0 1 .5-.5z' stroke='%238B5CF6' stroke-width='1.3' stroke-linejoin='round'/><path d='M5 5h4M5 7.5h4' stroke='%238B5CF6' stroke-width='1.3' stroke-linecap='round'/></svg>");
+}
 .ha-newitem-option-body { flex: 1; min-width: 0; }
-.ha-newitem-option-title { font-size: 13px; font-weight: 600; color: var(--text); letter-spacing: -0.005em; }
-.ha-newitem-option-sub   { font-size: 11px; color: var(--text-muted); }
+/* Blok, niet inline: een korte titel ('Notitie') trok zijn onderregel
+   anders mee op dezelfde lijn, een lange niet -- twee vormen in één menu. */
+.ha-newitem-option-title { display: block; font-size: 13px; font-weight: 600; color: var(--text); letter-spacing: -0.005em; }
+.ha-newitem-option-sub   { display: block; font-size: 11px; color: var(--text-muted); }
 .ha-newitem-option-arrow { color: var(--text-hint); flex-shrink: 0; width: 11px; height: 11px; }
 @keyframes ha-fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
 
@@ -8070,6 +8084,22 @@ textarea { line-height: 1.6; resize: vertical; }
                 <span class="ha-newitem-option-body">
                   <span class="ha-newitem-option-title">Notitie</span>
                   <span class="ha-newitem-option-sub">Notities</span>
+                </span>
+                <svg class="ha-newitem-option-arrow" viewBox="0 0 11 11" fill="none"><path d="M3 2L7 5.5L3 9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <button type="button" class="ha-newitem-option" data-kind="uren" data-ha-newitem-target="uren" role="menuitem">
+                <span class="ha-newitem-option-icon"></span>
+                <span class="ha-newitem-option-body">
+                  <span class="ha-newitem-option-title">Urenregistratie</span>
+                  <span class="ha-newitem-option-sub">Uren</span>
+                </span>
+                <svg class="ha-newitem-option-arrow" viewBox="0 0 11 11" fill="none"><path d="M3 2L7 5.5L3 9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <button type="button" class="ha-newitem-option" data-kind="factuur" data-ha-newitem-target="facturen" role="menuitem">
+                <span class="ha-newitem-option-icon"></span>
+                <span class="ha-newitem-option-body">
+                  <span class="ha-newitem-option-title">Factuur</span>
+                  <span class="ha-newitem-option-sub">Facturen</span>
                 </span>
                 <svg class="ha-newitem-option-arrow" viewBox="0 0 11 11" fill="none"><path d="M3 2L7 5.5L3 9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </button>
@@ -32651,6 +32681,9 @@ Object.assign(APP_ACTIONS,{
         if(kind==='task')openNewItemModal();
         else if(kind==='checklist')openChecklistItemModal(null);
         else if(kind==='note')createNote(null);
+        /* Zelfde ingang als de + in die module zelf. */
+        else if(kind==='uren')urenNewEntry();
+        else if(kind==='factuur')facNieuwStart();
       },60);
     });
   });
