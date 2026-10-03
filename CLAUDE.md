@@ -76,7 +76,7 @@ rawState = {
 - Notes node (recursief): `{id, type:'page'|'folder', title, content, clientId, tags, children[]}`
 - Klant: `{id, name, colorIdx}`
 - Contract: `{id, domein ('zakelijk'|'prive'; ontbreekt = zakelijk), soort, titel, clientId|null, wederpartij, opdrachtId|null, getekend, start, eind|null, opzeg, verlenging ('' of '1m'/'3m'/'6m'/'12m'), notitie, bijlagen[]}` — een bijlage is `{id, naam, grootte, hash, driveId|null}`. De PDF staat als **eigen bestand** in de Drive-`appDataFolder` (`contract-<id>.pdf`) plus een kopie in IndexedDB (`herling_bijlagen`), niet in `rawState`. Hangt een contract aan een opdracht, dan komt de looptijd uit de opdracht (`ctrLooptijd()`)
-- Opdracht: `{id, clientId, naam, start, eind|null, opzeg ('', '2w', '1m', …), tarief|null, urenPerWeek|null, urenBudget|null, notitie, bijlagen[]}` — bijlagen zoals bij een contract, zelfde opslag en opruimlijst (`ctrAlleBijlagen()`) — uren horen erbij via klant + looptijd, niet via een veld op de urenregel
+- Opdracht: `{id, clientId, naam, start, eind|null, opzeg ('', '2w', '1m', …), tarief|null, urenPerWeek|null, urenBudget|null, werkdagen|null ([2,3,5] = di/wo/vr; null = ma–vr), notitie, bijlagen[]}` — bijlagen zoals bij een contract, zelfde opslag en opruimlijst (`ctrAlleBijlagen()`) — uren horen erbij via klant + looptijd, niet via een veld op de urenregel
 
 ### Storage keys
 
@@ -87,6 +87,7 @@ rawState = {
 | `LS_BACKUP_KEY` = `herling_analytics_local_backup` | Volledige rawState backup |
 | `LS_SYNC_KEY` = `herling_analytics_sync` | `gewijzigdOp`/`naarDriveOp` (lokale klok) + `driveTijd` (server-klok) |
 | `LS_ZIJBALK` = `herling_zijbalk` | Zijbalk ingeklapt + welke groepen dicht staan (per apparaat, niet in Drive) |
+| `LS_OPD_PERKLANT` = `herling_opdrachten_perklant` | Stand van de knop *Per klant* op Opdrachten → Vooruitzicht, per apparaat |
 | `LS_CTR_WEERGAVE` = `herling_contracten_weergave` | Welke tab van Contracten je bekijkt (zakelijk/privé), per apparaat en bewust niet in `rawState` |
 | IndexedDB `herling_bijlagen` | PDF's van Contracten op dit apparaat (kopie; het origineel staat als los bestand in de Drive-`appDataFolder`) |
 | `LS_HERSTEL_KEY` = `herling_analytics_herstel` | Niet-gekozen versie na een conflict; zichtbaar in Instellingen → Versiegeschiedenis, of `herstelDownload()` |
@@ -307,6 +308,7 @@ waar de fout zit.
 
 Top-3 meest recent. Volledige log + *waarom* per beslissing: [`docs/decisions.md`](docs/decisions.md).
 
+- **2026-10-03**: **Opdrachten: vaste werkdagen** — veld `werkdagen` (bijv. `[2,3,5]` = di/wo/vr, `null` = ma–vr). Uren per week ÷ aantal gekozen dagen, per maand alleen die dagen (`opdWerkdagen(a,b,dagen)`), budget en budget-op-datum ook. Keuzechips ma–vr in het venster. *Per klant* onthouden per apparaat (`LS_OPD_PERKLANT`)
 - **2026-10-03**: **Opdrachten → Vooruitzicht: Per maand en Per opdracht zijn één kaart "Omzet"** met de knop *Per klant* in de kop (zoals "Eindklanten" in de Facturen-analyse): uit = totaal per maand, aan = per opdracht op klant gesorteerd (bureaublad zes maanden + Contractwaarde, telefoon lijst met waarde en balk)
 - **2026-10-03**: **Opdrachten: contractwaarde met opbouw** — waarde = geschreven t/m vandaag + gepland tot de einddatum (zonder einddatum alleen een tempo per maand). Venster `#opdOpbouwModal`: som, uitgangspunten, per maand `werkdagen × u per dag`; rekent niets zelf, `opdPlanning()` geeft nu ook `dagen`/`perDag`/`begrensd`/`rest`. Per opdracht: bureaublad + kolom Contractwaarde, telefoon een lijst met waarde en balk geschreven/gepland (`.opd-wlijst`). Ook: plakken in Notities valt niet meer stil weg zonder focus (`notePlakZelf()`), en de voettest wacht op Inter
 - **2026-10-03**: **Dashboard: kaart Opdrachten & contracten** — hoeveel er lopen plus hooguit vijf regels die om aandacht vragen (signalen uit `opdSignalen()`/`ctrSignalen()`, dus zelfde drempels als de modules); een tik opent het item. Geen bedragen, privécontracten alleen als telling, "weken geen uren" niet, een contract aan een opdracht slaat over. Bureaublad: strook over de volle breedte onder Notities/Checklist; mobiel: inklapbare kaart, naam boven het signaal. Het **+menu** kreeg Urenregistratie en Factuur en is één regel per optie (264px). Dashboard op mobiel heeft nu 96px ruimte onder de laatste kaart voor de ronde +
@@ -434,7 +436,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 126 smoke-, sync-, model-, reken- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
+| `test.html` | 130 smoke-, sync-, model-, reken- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |

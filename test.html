@@ -675,6 +675,25 @@ async function runChecks() {
         const p = w.opdPlanning({start:'2026-09-01', eind:'2026-10-31', urenBudget:128}, 0, '2026-09-16', null);
         return p.maanden['2026-09'] === 40 && p.maanden['2026-10'] === 88 && p.budgetOp === null;
       }],
+    ['Opdrachten: vaste werkdagen (di/wo/vr) — uren per week over die dagen, en per maand alleen die dagen',
+      () => {
+        /* Oktober 2026 begint op donderdag: 4 dinsdagen, 4 woensdagen en 5
+           vrijdagen = 13 dagen × 8 u (24 u ÷ 3). Ma–vr zou 22 × 4,8 zijn. */
+        const p = w.opdPlanning({start:'2026-01-01', eind:'2026-10-31', urenPerWeek:24, werkdagen:[2,3,5]}, 0, '2026-09-30', null);
+        const gewoon = w.opdPlanning({start:'2026-01-01', eind:'2026-10-31', urenPerWeek:24}, 0, '2026-09-30', null);
+        return p.perDag === 8 && p.dagen['2026-10'] === 13 && p.maanden['2026-10'] === 104 &&
+               gewoon.dagen['2026-10'] === 22 && gewoon.maanden['2026-10'] === 105.6 &&
+               w.opdWerkdagen('2026-10-01', '2026-10-31', [2,3,5]) === 13 &&
+               w.opdWerkdagen('2026-10-01', '2026-10-31') === 22 &&
+               w.opdNaWerkdagen('2026-10-01', 2, [2,3,5]) === '2026-10-06';
+      }],
+    ['Opdrachten: een urenbudget raakt op een vaste werkdag op',
+      () => {
+        /* 40 u over, 8 u per dag op di/wo/vr: vijf dagen vanaf 1 okt = vr 2,
+           di 6, wo 7, vr 9, di 13. */
+        const p = w.opdPlanning({start:'2026-01-01', eind:'2026-12-31', urenPerWeek:24, urenBudget:100, werkdagen:[2,3,5]}, 60, '2026-09-30', null);
+        return p.budgetOp === '2026-10-13' && p.uren === 40;
+      }],
     ['Opdrachten: contractwaarde = geschreven t/m vandaag + gepland, met werkdagen per maand',
       () => {
         /* 16 sep: 2 regels geschreven (3 u voor 15 sep, 2 u op 20 sep -- die

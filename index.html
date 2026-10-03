@@ -8890,6 +8890,11 @@ textarea { line-height: 1.6; resize: vertical; }
         </div>
       </div>
       <div class="uren-fld">
+        <label>Werkdagen</label>
+        <div class="uren-statuspick" id="opdDagen" role="group" aria-label="Op welke dagen je werkt"></div>
+        <small class="opd-hint">De uren per week gaan over deze dagen; gepland telt alleen deze dagen mee</small>
+      </div>
+      <div class="uren-fld">
         <label>PDF</label>
         <!-- Zelfde blok als bij Contracten: ctrRenderBijlagen('opdracht'). -->
         <div class="ctr-bijlagen" id="opdBijlagen"></div>
@@ -30283,6 +30288,26 @@ const OPD_OPZEG=[
    zien als de tabel erboven. */
 const OPD_VOORUIT=8;
 const OPD_MAAND_KORT=['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+/* Op welke weekdagen je voor een opdracht werkt, als getDay()-nummers.
+   Ontbreekt het veld (of is het leeg), dan ma–vr: zo blijven bestaande
+   opdrachten rekenen zoals ze deden. Met vaste dagen (di/wo/vr) telt een
+   maand met vijf vrijdagen een dag meer, en een met vier dinsdagen minder. */
+const OPD_WERKWEEK=[1,2,3,4,5];
+const OPD_DAG_KORT=['zo','ma','di','wo','do','vr','za'];
+function opdDagen(o){
+  const d=o&&Array.isArray(o.werkdagen)?o.werkdagen.filter(x=>OPD_WERKWEEK.includes(x)):[];
+  return d.length?[...new Set(d)].sort():OPD_WERKWEEK;
+}
+/* 'di, wo, vr' -- of leeg bij een gewone werkweek, want die hoeft niemand
+   te lezen. */
+function opdDagenTekst(o){
+  const d=opdDagen(o);
+  return d.length===OPD_WERKWEEK.length?'':d.map(x=>OPD_DAG_KORT[x]).join(', ');
+}
+/* Welke stand van de kaart Omzet je laatst koos, per apparaat -- net als de
+   tab van Contracten (LS_CTR_WEERGAVE): een weergavekeuze hoort niet in de
+   state en dus niet in Drive. */
+const LS_OPD_PERKLANT='herling_opdrachten_perklant';
 let opdView='lijst';
 let opdToonAfgelopen=false;
 let opdForm=null;
@@ -30306,25 +30331,28 @@ function opdDuur(dagen){
 }
 function opdFmtEuro(n){return '€ '+Math.round(Number(n)||0).toLocaleString('nl-NL');}
 
-/* Werkdagen (ma–vr) van a tot en met b. Hele weken tellen er vijf, de rest
+/* Werkdagen van a tot en met b -- ma–vr, of de weekdagen die je meegeeft
+   (opdDagen). Hele weken tellen er zoveel als er dagen gekozen zijn, de rest
    wordt per dag geteld -- zo blijft het snel bij een looptijd van jaren. */
-function opdWerkdagen(a,b){
+function opdWerkdagen(a,b,weekdagen){
   if(!a||!b||b<a)return 0;
+  const set=weekdagen||OPD_WERKWEEK;
   const start=opdD(a);
   const dagen=opdDagenTussen(a,b)+1;
-  let n=Math.floor(dagen/7)*5;
+  let n=Math.floor(dagen/7)*set.length;
   const dow=start.getDay();
-  for(let i=0;i<dagen%7;i++){const w=(dow+i)%7;if(w!==0&&w!==6)n++;}
+  for(let i=0;i<dagen%7;i++){if(set.includes((dow+i)%7))n++;}
   return n;
 }
 /* De n-de werkdag vanaf `van`, `van` zelf meegeteld als het een werkdag is. */
-function opdNaWerkdagen(van,n){
+function opdNaWerkdagen(van,n,weekdagen){
   if(!(n>0))return van;
+  const set=weekdagen||OPD_WERKWEEK;
   const d=opdD(van);
   let teller=0;
   for(let i=0;i<4000;i++){
     const w=d.getDay();
-    if(w!==0&&w!==6){teller++;if(teller>=n)return dateStr(d);}
+    if(set.includes(w)){teller++;if(teller>=n)return dateStr(d);}
     d.setDate(d.getDate()+1);
   }
   return null;
@@ -30418,18 +30446,22 @@ function opdPlanning(o,gebruiktUren,vandaag,horizonEind){
   const upw=Number(o.urenPerWeek)||0;
   const budget=Number(o.urenBudget)||0;
   const rest=budget>0?Math.max(0,budget-(Number(gebruiktUren)||0)):Infinity;
+  /* De uren van een week gaan over de dagen waarop je voor deze opdracht
+     werkt: 24 uur op di/wo/vr is 8 per dag, niet 4,8. */
+  const wk=opdDagen(o);
+  uit.weekdagen=wk;
   let perDag=0;
   if(budget>0)uit.rest=rest;
-  if(upw>0){perDag=upw/5;uit.basis='week';}
+  if(upw>0){perDag=upw/wk.length;uit.basis='week';}
   else if(budget>0&&o.eind&&o.eind>=van){
-    const dagen=opdWerkdagen(van,o.eind);
+    const dagen=opdWerkdagen(van,o.eind,wk);
     perDag=dagen>0?rest/dagen:0;
     uit.basis='budget';
   }
   /* Alleen bij een vast aantal uren per week: bij een budget dat over de
      looptijd wordt verdeeld is het budget per definitie op de einddatum op. */
   if(budget>0&&upw>0&&rest>0){
-    const op=opdNaWerkdagen(van,Math.ceil(rest/perDag-1e-9));
+    const op=opdNaWerkdagen(van,Math.ceil(rest/perDag-1e-9),wk);
     if(!o.eind||op<=o.eind)uit.budgetOp=op;
   }
   uit.perDag=perDag;
@@ -30441,7 +30473,7 @@ function opdPlanning(o,gebruiktUren,vandaag,horizonEind){
     if(mStart>tot)break;
     const mEind=dateStr(new Date(d.getFullYear(),d.getMonth()+1,0));
     const a=van>mStart?van:mStart, b=tot<mEind?tot:mEind;
-    const wd=opdWerkdagen(a,b);
+    const wd=opdWerkdagen(a,b,wk);
     let h=wd*perDag;
     if(h>over+1e-9){h=over;uit.begrensd[mStart.slice(0,7)]=true;}
     if(h>0){uit.maanden[mStart.slice(0,7)]=Math.round(h*100)/100;uit.uren+=h;uit.dagen[mStart.slice(0,7)]=wd;}
@@ -30744,7 +30776,7 @@ function opdRij(o,d){
       ${o.naam||(o.bijlagen||[]).length?`<div class="opd-regel2">${o.naam?`<span class="fac-tijd opd-oms">${escapeHtml(o.naam)}</span>`:''}${opdPdfKnop(o)}</div>`:''}</td>
     <td><span class="fac-datum">${periode}</span><span class="fac-tijd">${escapeHtml(opdLooptijdTekst(o,i,d.vandaag))}</span>${opdSigHtml(i,['eind','opzeg'])}</td>
     <td class="num"><span class="fac-bedrag">${i.tarief?'€ '+urenFmtShort(i.tarief):'—'}</span>
-      ${o.urenPerWeek?`<span class="fac-tijd">${urenFmtShort(o.urenPerWeek)} u per week</span>`:''}</td>
+      ${o.urenPerWeek?`<span class="fac-tijd">${urenFmtShort(o.urenPerWeek)} u per week${opdDagenTekst(o)?' · '+opdDagenTekst(o):''}</span>`:''}</td>
     <td>${opdUrenCel(o,i)}</td>
     <td class="num">${i.komendBedrag>0.5
       ?`<span class="fac-bedrag">${opdFmtEuro(i.komendBedrag)}</span><span class="fac-tijd">${urenFmtShort(Math.round(i.komendUren))} uur</span>`
@@ -30862,9 +30894,10 @@ function opdRenderVooruitzicht(d){
     ${perKlant?klantHtml:maandHtml}</div>`;
   return html;
 }
-let opdVzPerKlant=false;
+let opdVzPerKlant=(()=>{try{return localStorage.getItem(LS_OPD_PERKLANT)==='1';}catch(_){return false;}})();
 function opdVzPerKlantWissel(){
   opdVzPerKlant=!opdVzPerKlant;
+  try{localStorage.setItem(LS_OPD_PERKLANT,opdVzPerKlant?'1':'0');}catch(_){}
   opdRenderAll();
 }
 
@@ -30905,7 +30938,7 @@ function opdOpbouw(o,vandaag,koppeling){
     maanden:lijst,
     waarde:o.eind?Math.round((geschreven.bedrag+gepland.bedrag)*100)/100:null,
     perMaand:!o.eind&&upw&&t?upw*52/12*t:null,
-    werkdagen:o.eind&&o.start?opdWerkdagen(o.start,o.eind):null,horizon};
+    werkdagen:o.eind&&o.start?opdWerkdagen(o.start,o.eind,opdDagen(o)):null,horizon};
 }
 /* Eén balk: geschreven egaal, gepland gearceerd (stijlgids §11). */
 function opdWaardeBalk(w){
@@ -30945,8 +30978,17 @@ function opdOpbouwOpen(id){
   const up=[];
   up.push(['Looptijd',o.eind?opdFmtDatum(o.start)+' – '+opdFmtDatum(o.eind)+(w.werkdagen?' · '+w.werkdagen+' werkdagen':''):'vanaf '+opdFmtDatum(o.start)+', geen einddatum']);
   up.push(['Tarief',w.t?'€ '+urenFmtShort(w.t)+' per uur · '+(w.tariefBron==='opdracht'?'van de opdracht':'van de klant'):'geen tarief — gepland telt € 0']);
-  if(w.p.basis==='week')up.push(['Uren',urenFmtShort(o.urenPerWeek)+' u per week ÷ 5 = '+r1(w.p.perDag)+' u per werkdag']);
-  else if(w.p.basis==='budget')up.push(['Uren','rest van het budget over de werkdagen tot het einde = '+urenFmtShort(Math.round(w.p.perDag*100)/100)+' u per werkdag']);
+  const dagenTekst=opdDagenTekst(o);
+  const nDagen=opdDagen(o).length;
+  /* 20 u over 3 dagen is 6,666… per dag: twee decimalen, en '≈' waar de
+     uitkomst daardoor niet precies op te tellen is. */
+  const pd=w.p.perDag;
+  const pdExact=Math.abs(pd*100-Math.round(pd*100))<1e-6;
+  const pdTekst=urenFmtShort(Math.round(pd*100)/100);
+  const isOngeveer=pdExact?'=':'≈';
+  if(dagenTekst)up.push(['Werkdagen',dagenTekst+' · '+nDagen+' per week']);
+  if(w.p.basis==='week')up.push(['Uren',urenFmtShort(o.urenPerWeek)+' u per week ÷ '+nDagen+' '+isOngeveer+' '+pdTekst+' u per werkdag']);
+  else if(w.p.basis==='budget')up.push(['Uren','rest van het budget over de werkdagen tot het einde '+isOngeveer+' '+pdTekst+' u per werkdag']);
   else up.push(['Uren','geen uren per week of budget — er wordt niets gepland']);
   if(Number(o.urenBudget)>0){
     const rest=Math.max(0,Number(o.urenBudget)-w.gebruikt.uren);
@@ -30965,7 +31007,7 @@ function opdOpbouwOpen(id){
        meer: dan staat er wat er van het budget over was. */
     const formule=m.begrensd
       ?`rest van het budget: ${r1(m.geplandUren)} u${w.p.budgetOp?' (op rond '+opdFmtDatum(w.p.budgetOp)+')':''}`
-      :`${m.dagen} werkdag${m.dagen===1?'':'en'} × ${r1(w.p.perDag)} u = ${r1(m.geplandUren)} u`;
+      :`${m.dagen} werkdag${m.dagen===1?'':'en'} × ${pdTekst} u ${isOngeveer} ${r1(m.geplandUren)} u`;
     if(m.geplandUren>0)delen.push(`<span class="opd-ob-g"><i class="afgeleid"></i>${formule}${m.geschreven>0?' · '+opdFmtEuro(m.gepland):''}</span>`);
     return `<div class="opd-ob-rij${m.key===huidig?' nu':''}">
       <span class="opd-ob-maand">${naam}${m.key===huidig?' <span class="opd-nu">nu</span>':''}</span>
@@ -30976,7 +31018,7 @@ function opdOpbouwOpen(id){
   document.getElementById('opdOpbouwBody').innerHTML=som+
     `<h4 class="opd-ob-kop">Uitgangspunten</h4>`+upHtml+
     (rijen?`<h4 class="opd-ob-kop">Per maand</h4><div class="opd-ob-lijst">${rijen}</div>`:'')+
-    `<p class="opd-voetnoot">Geschreven: je urenregels voor deze klant binnen de looptijd, elk tegen zijn eigen tarief. Gepland: werkdagen (ma–vr) × uren per werkdag × het tarief; feestdagen en vakantie telt het niet mee.</p>`;
+    `<p class="opd-voetnoot">Geschreven: je urenregels voor deze klant binnen de looptijd, elk tegen zijn eigen tarief. Gepland: werkdagen (${dagenTekst||'ma–vr'}) × uren per werkdag × het tarief; feestdagen en vakantie telt het niet mee.</p>`;
   document.getElementById('opdOpbouwModal').classList.add('open');
 }
 function opdOpbouwSluit(){
@@ -31076,7 +31118,7 @@ function opdNieuw(){opdOpen(null);}
 function opdOpen(id){
   opdSluitMenu();
   const o=id?(opdrachtState.opdrachten||[]).find(x=>x.id===id):null;
-  opdForm={id:o?o.id:null,clientId:o?o.clientId:'',
+  opdForm={id:o?o.id:null,clientId:o?o.clientId:'',werkdagen:opdDagen(o).slice(),
     bijlagen:o?(o.bijlagen||[]).map(b=>({...b})):[],nieuw:[],weg:[]};
   const zet=(el,val)=>{const x=document.getElementById(el);if(x)x.value=(val==null?'':val);};
   zet('opdNaam',o?o.naam:'');
@@ -31090,6 +31132,7 @@ function opdOpen(id){
   document.getElementById('opdModalTitel').textContent=o?'Opdracht bewerken':'Nieuwe opdracht';
   document.getElementById('opdVerwijderBtn').style.display=o?'':'none';
   opdRenderKlantKeuze();
+  opdRenderDagen();
   ctrRenderBijlagen('opdracht');
   opdRekenVoorbeeld();
   document.getElementById('opdModal').classList.add('open');
@@ -31129,7 +31172,28 @@ function opdLeesVenster(){
   const getal=id=>{const v=Number(w(id).replace(',','.'));return v>0?v:null;};
   return {clientId:opdForm?opdForm.clientId:'',naam:w('opdNaam'),start:w('opdStart'),
     eind:w('opdEind')||null,opzeg:w('opdOpzeg'),tarief:getal('opdTarief'),
-    urenPerWeek:getal('opdUpw'),urenBudget:getal('opdBudget'),notitie:w('opdNotitie')};
+    urenPerWeek:getal('opdUpw'),urenBudget:getal('opdBudget'),notitie:w('opdNotitie'),
+    /* null = ma–vr: dan staat er niets in de opdracht dat niet hoeft */
+    werkdagen:opdForm&&opdForm.werkdagen.length<OPD_WERKWEEK.length?opdForm.werkdagen.slice():null};
+}
+function opdRenderDagen(){
+  const box=document.getElementById('opdDagen');
+  if(!box||!opdForm)return;
+  box.innerHTML=OPD_WERKWEEK.map(d=>{
+    const aan=opdForm.werkdagen.includes(d);
+    return `<button type="button" class="uren-kchip${aan?' active':''}" data-action="opdKiesDag"
+      data-arg1="${d}" aria-pressed="${aan}">${OPD_DAG_KORT[d]}</button>`;}).join('');
+}
+function opdKiesDag(d){
+  if(!opdForm)return;
+  d=Number(d);
+  const nu=opdForm.werkdagen;
+  if(nu.includes(d)){
+    if(nu.length===1)return;   /* minstens één dag: zonder dag valt er niets te plannen */
+    opdForm.werkdagen=nu.filter(x=>x!==d);
+  }else opdForm.werkdagen=[...nu,d].sort();
+  opdRenderDagen();
+  opdRekenVoorbeeld();
 }
 /* Onder het formulier, terwijl je typt: wat deze opdracht betekent. Zo zie
    je een tikfout (240 uur per week) voordat hij in het vooruitzicht staat. */
@@ -31226,6 +31290,7 @@ Object.assign(APP_ACTIONS,{
   opdNieuw:()=>opdNieuw(),
   opdOpen:(el,e,id)=>opdOpen(id),
   opdOpbouwOpen:(el,e,id)=>opdOpbouwOpen(id),
+  opdKiesDag:(el,e,d)=>opdKiesDag(d),
   opdVzPerKlantWissel:()=>opdVzPerKlantWissel(),
   opdOpbouwSluit:()=>opdOpbouwSluit(),
   opdOpbouwNaarOpdracht:()=>opdOpbouwNaarOpdracht(),

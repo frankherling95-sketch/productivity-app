@@ -5419,3 +5419,37 @@ tegels bovenaan al.
 
 **Bestanden.** `index.html` — `opdRenderVooruitzicht()`,
 `opdVzPerKlantWissel()`, `opdVzPerKlant`.
+
+## 2026-10-03 · Opdrachten: vaste werkdagen per opdracht, en "Per klant" per apparaat onthouden
+
+**Probleem.** Gepland rekende altijd met uren per week ÷ 5 over ma–vr. Voor
+Staedion werkt Frank vast op dinsdag, woensdag en vrijdag: per maand is dat
+soms een dag meer of minder dan een vijfde van de werkdagen, en het uurtempo
+per dag is 24 ÷ 3 = 8, niet 4,8. De stand van de knop *Per klant* begon na
+elke herlaadbeurt weer op Totaal.
+
+**Beslissing.**
+- Veld `werkdagen` op een opdracht: getDay()-nummers, bijvoorbeeld `[2,3,5]`.
+  Ontbreekt het of zijn alle vijf gekozen, dan `null` = ma–vr; bestaande
+  opdrachten rekenen dus precies zoals voorheen (geen migratie nodig).
+- `opdWerkdagen(a,b,dagen)` en `opdNaWerkdagen(van,n,dagen)` tellen alleen de
+  gekozen dagen; `opdPlanning()` deelt de uren per week door het aantal
+  gekozen dagen, verdeelt een budget over die dagen en zet de dag waarop het
+  op is ook op zo'n dag. De opbouw toont de dagen bij de uitgangspunten, en
+  "≈" waar het uurtempo niet op twee decimalen uitkomt (20 ÷ 3 = 6,67).
+- In het venster vijf keuzechips ma–vr (`.uren-kchip`, zoals Zakelijk/Privé
+  bij Contracten); minstens één dag blijft aan.
+- *Per klant* staat per apparaat in localStorage (`LS_OPD_PERKLANT`), niet in
+  de state — zelfde reden als `LS_CTR_WEERGAVE`.
+
+**Waarom alleen ma–vr.** Weekend kwam in geen enkele opdracht voor; vijf
+knoppen passen op 375px op één regel, zeven niet.
+
+**Bestanden.** `index.html` — `OPD_WERKWEEK`, `opdDagen()`, `opdDagenTekst()`,
+`opdWerkdagen()`, `opdNaWerkdagen()`, `opdPlanning()`, `opdOpbouwOpen()`,
+`opdRenderDagen()`, `opdKiesDag()`, `opdLeesVenster()`, `LS_OPD_PERKLANT`.
+`test.html` — twee tests (di/wo/vr in oktober 2026: 13 dagen × 8 u; budget op
+een vaste dag).
+
+**Niet doen.** Feestdagen en vakantie zitten er nog steeds niet in; dat is een
+aparte keuze, niet iets om in `opdWerkdagen()` erbij te frommelen.
