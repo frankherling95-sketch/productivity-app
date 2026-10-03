@@ -5606,7 +5606,9 @@ textarea { line-height: 1.6; resize: vertical; }
   .module-title,
   .cl2-title { display: none !important; }
   .dash-topbar .module-sub { font-size: 12.5px !important; color: var(--text-muted) !important; }
-  .dash-scroll { padding: 16px 12px !important; gap: 14px !important; }
+  /* 96px onderaan, zoals Facturen: anders ligt de ronde + over de
+     onderste kaart, ook als je helemaal doorscrolt. */
+  .dash-scroll { padding: 16px 12px 96px !important; gap: 14px !important; }
   /* .dash-scroll is een flex-kolom; zonder dit krimpen de kinderen om in
      de zichtbare hoogte te passen. De hero werd zo tot 36px platgedrukt
      terwijl zijn inhoud 176px is -- met overflow:hidden erop verdwenen de
@@ -5746,6 +5748,24 @@ textarea { line-height: 1.6; resize: vertical; }
   #dashChecklistBody .dash-cl-edit,
   #dashChecklistBody .dash-cl-subs { display: none !important; }
   #dashChecklistBody .dash-cl-row { padding: 10px 4px !important; }
+
+  /* Opdrachten & contracten: één kolom, en 'Opdracht'/'Contract' gaat weg --
+     de naam en het signaal hebben de breedte nodig. De links in de
+     samenvatting krijgen een raakvlak, ze zijn het enige pad naar de module. */
+  /* Naam boven, signaal eronder: naast elkaar bleef er voor de naam
+     ±100px over ('Boskalis - Kaspa…'), terwijl juist het eind van zo'n naam
+     zegt welke opdracht het is. */
+  /* #dashAfsprakenBody ervoor: de basisregels staan verderop in het
+     bestand en zouden anders winnen. 'Gepland' valt weg zodat de
+     samenvatting op één regel blijft. */
+  #dashAfsprakenBody .dash-oc-lijst { grid-template-columns: minmax(0, 1fr); }
+  #dashAfsprakenBody .dash-oc-soort,
+  #dashAfsprakenBody .dash-oc-gepland { display: none; }
+  #dashAfsprakenBody .dash-oc-rij { flex-wrap: wrap; row-gap: 4px; padding: 8px 12px; }
+  #dashAfsprakenBody .dash-oc-naam { flex: 1 1 calc(100% - 20px); }
+  #dashAfsprakenBody .dash-oc-rij .fac-pill { margin-left: 16px; }
+  #dashAfsprakenBody .dash-oc-sum { margin-bottom: 4px; }
+  #dashAfsprakenBody .dash-oc-link { min-height: var(--tap); display: inline-flex; align-items: center; }
 
   /* ── TODO / KANBAN: snap-scroll one column at a time ── */
   .kanban-topbar {
@@ -7216,6 +7236,52 @@ textarea { line-height: 1.6; resize: vertical; }
   min-height: 0;
 }
 
+/* ── Opdrachten & contracten ──
+   Op een bureaublad een strook over de volle breedte onder Notities en
+   Checklist: hooguit vijf regels, dus geen kaart die een halve hoogte
+   verdient. De bovenste rij houdt 1fr en vult wat overblijft. */
+@media (min-width: 901px) {
+  .dash-grid { grid-template-rows: 1fr auto !important; }
+}
+.dash-grid > .dash-oc-card { grid-column: 1 / -1; }
+.dash-oc-card .card-body { flex: 0 0 auto; }
+.dash-oc-sum {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0 5px;
+  font-size: var(--fs-klein); color: var(--text-muted);
+  margin-bottom: 8px; font-variant-numeric: tabular-nums;
+}
+.dash-oc-sep { color: var(--text-hint); }
+.dash-oc-link {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  font: inherit; font-weight: 600; color: var(--text);
+}
+.dash-oc-link:hover { text-decoration: underline; }
+.dash-oc-lijst {
+  display: grid; gap: 6px;
+  /* minmax(0,…): anders telt de pil (nowrap) mee als ondergrens en
+     steekt de regel buiten de kaart. 460px: de naam krijgt zo ±300px. */
+  grid-template-columns: repeat(auto-fill, minmax(min(460px, 100%), 1fr));
+}
+.dash-oc-rij {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; min-height: var(--tap); padding: 6px 10px;
+  background: var(--surface2); border: 0; border-radius: var(--radius-md);
+  font-family: var(--font-body); font-size: var(--fs-klein); color: var(--text);
+  text-align: left; cursor: pointer;
+}
+.dash-oc-rij:hover { background: var(--surface3); }
+.dash-oc-dot { width: 8px; height: 8px; border-radius: 3px; flex-shrink: 0; }
+.dash-oc-naam { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.dash-oc-titel { font-weight: 400; color: var(--text-muted); }
+.dash-oc-soort { font-size: var(--fs-micro); color: var(--text-hint); flex-shrink: 0; }
+.dash-oc-rij .fac-pill { flex-shrink: 0; }
+.dash-oc-meer,
+.dash-oc-rustig,
+.dash-oc-leeg { font-size: var(--fs-klein); color: var(--text-muted); padding: 4px 0; }
+.dash-oc-rustig span { color: var(--text-hint); }
+.dash-oc-leeg { text-align: center; color: var(--text-hint); padding: 12px 0; }
+.dash-oc-prive { display: block; margin-top: 8px; font-weight: 500; color: var(--text-muted); }
+
 /* Staggered card entrance — voelt premium zonder traag te worden */
 .dash-grid > .card,
 .dash-hero,
@@ -7638,10 +7704,9 @@ textarea { line-height: 1.6; resize: vertical; }
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14' fill='none'><path d='M3 1.5h8a.5.5 0 0 1 .5.5v10.5l-1.5-1-1.5 1-1.5-1-1.5 1-1.5-1-1.5 1V2a.5.5 0 0 1 .5-.5z' stroke='%238B5CF6' stroke-width='1.3' stroke-linejoin='round'/><path d='M5 5h4M5 7.5h4' stroke='%238B5CF6' stroke-width='1.3' stroke-linecap='round'/></svg>");
 }
 .ha-newitem-option-body { flex: 1; min-width: 0; }
-/* Blok, niet inline: een korte titel ('Notitie') trok zijn onderregel
-   anders mee op dezelfde lijn, een lange niet -- twee vormen in één menu. */
-.ha-newitem-option-title { display: block; font-size: 13px; font-weight: 600; color: var(--text); letter-spacing: -0.005em; }
-.ha-newitem-option-sub   { display: block; font-size: 11px; color: var(--text-muted); }
+/* Eén regel per optie. Er stond een onderregel met de modulenaam, en die
+   herhaalde meestal de titel ('Notitie' boven 'Notities'). */
+.ha-newitem-option-title { display: block; font-size: 13px; font-weight: 600; color: var(--text); letter-spacing: -0.005em; white-space: nowrap; }
 .ha-newitem-option-arrow { color: var(--text-hint); flex-shrink: 0; width: 11px; height: 11px; }
 @keyframes ha-fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
 
@@ -8075,7 +8140,6 @@ textarea { line-height: 1.6; resize: vertical; }
                 <span class="ha-newitem-option-icon"></span>
                 <span class="ha-newitem-option-body">
                   <span class="ha-newitem-option-title">Checklist item</span>
-                  <span class="ha-newitem-option-sub">Checklist</span>
                 </span>
                 <svg class="ha-newitem-option-arrow" viewBox="0 0 11 11" fill="none"><path d="M3 2L7 5.5L3 9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </button>
@@ -8083,7 +8147,6 @@ textarea { line-height: 1.6; resize: vertical; }
                 <span class="ha-newitem-option-icon"></span>
                 <span class="ha-newitem-option-body">
                   <span class="ha-newitem-option-title">Notitie</span>
-                  <span class="ha-newitem-option-sub">Notities</span>
                 </span>
                 <svg class="ha-newitem-option-arrow" viewBox="0 0 11 11" fill="none"><path d="M3 2L7 5.5L3 9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </button>
@@ -8091,7 +8154,6 @@ textarea { line-height: 1.6; resize: vertical; }
                 <span class="ha-newitem-option-icon"></span>
                 <span class="ha-newitem-option-body">
                   <span class="ha-newitem-option-title">Urenregistratie</span>
-                  <span class="ha-newitem-option-sub">Uren</span>
                 </span>
                 <svg class="ha-newitem-option-arrow" viewBox="0 0 11 11" fill="none"><path d="M3 2L7 5.5L3 9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </button>
@@ -8099,7 +8161,6 @@ textarea { line-height: 1.6; resize: vertical; }
                 <span class="ha-newitem-option-icon"></span>
                 <span class="ha-newitem-option-body">
                   <span class="ha-newitem-option-title">Factuur</span>
-                  <span class="ha-newitem-option-sub">Facturen</span>
                 </span>
                 <svg class="ha-newitem-option-arrow" viewBox="0 0 11 11" fill="none"><path d="M3 2L7 5.5L3 9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </button>
@@ -8111,7 +8172,6 @@ textarea { line-height: 1.6; resize: vertical; }
                 <span class="ha-newitem-option-icon"></span>
                 <span class="ha-newitem-option-body">
                   <span class="ha-newitem-option-title">Slim toevoegen met AI</span>
-                  <span class="ha-newitem-option-sub">Beschrijf in normale taal wat je wil</span>
                 </span>
                 <svg class="ha-newitem-option-arrow" viewBox="0 0 11 11" fill="none"><path d="M3 2L7 5.5L3 9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </button>
@@ -8221,6 +8281,18 @@ textarea { line-height: 1.6; resize: vertical; }
                 onkeydown="if(event.key==='Enter')dashClAdd()"/>
               <button class="btn btn-sm btn-primary" onclick="dashClAdd()">+</button>
             </div>
+          </div>
+          <!-- Opdrachten en contracten: hoeveel er lopen en wat om een handeling
+               vraagt. Geen bedragen -- zie renderDashKpis. -->
+          <div class="card dash-oc-card" data-dash-card="afspraken">
+            <div class="card-hdr" onclick="dashCardToggle(event,this)">
+              <h2>Opdrachten &amp; contracten</h2>
+              <span class="dash-card-count" id="dashCountAfspraken"></span>
+              <span class="dash-card-chevron" aria-hidden="true">
+                <svg viewBox="0 0 12 12" fill="none" width="12" height="12"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+            </div>
+            <div class="card-body" id="dashAfsprakenBody"></div>
           </div>
         </div>
       </div>
@@ -12660,6 +12732,7 @@ function renderDashboard(){
   renderDashKpis();
   renderDashNotes();
   renderDashChecklist();
+  renderDashAfspraken();
   dashCardsInit();
   renderDashCardCounts();
 }
@@ -13051,6 +13124,115 @@ function renderDashNotes(){
   }).join('');
 }
 
+/* ── Opdrachten & contracten ──────────────────────────────────────────────
+   Een overzicht, geen werkblad: hoeveel er lopen, en wat om een handeling
+   vraagt. De signalen komen uit opdSignalen() en ctrSignalen(), dus met
+   dezelfde drempels als in de modules -- het dashboard kan niets anders
+   zeggen dan de module.
+   - Geen bedragen (zie renderDashKpis) en geen "weken geen uren": dat is
+     een informatief signaal, hier zou het alleen ruis zijn.
+   - Privécontracten tellen alleen mee, zonder naam: het dashboard staat
+     ook open als je bij een klant zit.
+   - Een contract aan een opdracht slaat over: zijn looptijd ís die van de
+     opdracht, dus hij zou hetzelfde signaal een tweede keer geven. */
+const DASH_OC_MAX=5;
+function dashOcData(){
+  const vandaag=opdVandaag();
+  const rijen=[];
+  const tel={opd:0,ctr:0,gepland:0,prive:0};
+  const volgende=[];
+  const od=opdData(vandaag);
+  od.lijst.forEach(o=>{
+    const i=od.info[o.id];
+    if(i.status==='gepland'){tel.gepland++;return;}
+    if(i.status!=='lopend')return;
+    tel.opd++;
+    const opzeg=opdOpzegDatum(o);
+    const naam=String(o.naam||'').trim()||opdKlantNaam(o.clientId);
+    const basis={soort:'opd',id:o.id,naam,clientId:o.clientId};
+    const sig=i.signalen.filter(s=>s.soort!=='stil').map(s=>({...s,
+      datum:s.soort==='opzeg'?opzeg:s.soort==='eind'?o.eind:vandaag}));
+    if(sig.length){
+      sig.sort((a,b)=>a.datum.localeCompare(b.datum));
+      rijen.push({...basis,sig:sig[0]});
+    }else{
+      if(opzeg&&opzeg>=vandaag)volgende.push({...basis,datum:opzeg,tekst:'beslissen vóór '+opdFmtDatum(opzeg)});
+      else if(o.eind)volgende.push({...basis,datum:o.eind,tekst:'loopt af op '+opdFmtDatum(o.eind)});
+    }
+  });
+  (contractState.contracten||[]).forEach(c=>{
+    if(ctrOpdracht(c))return;
+    const lt=ctrLooptijd(c,vandaag);
+    const st=ctrStatus(c,vandaag,lt);
+    const sig=ctrSignalen(c,lt,vandaag);
+    if(ctrDomein(c)==='prive'){if(sig.length)tel.prive++;return;}
+    if(st==='gepland'){tel.gepland++;return;}
+    if(st!=='lopend')return;
+    tel.ctr++;
+    const basis={soort:'ctr',id:c.id,naam:ctrPartijNaam(c),titel:String(c.titel||'').trim(),
+      clientId:c.clientId||null};
+    if(sig.length){
+      sig.sort((a,b)=>a.datum.localeCompare(b.datum));
+      rijen.push({...basis,sig:{...sig[0],niveau:'let'}});
+    }else if(lt.opzegVoor){
+      volgende.push({...basis,datum:lt.opzegVoor,
+        tekst:(lt.verlengt?'opzeggen vóór ':'beslissen vóór ')+opdFmtDatum(lt.opzegVoor)});
+    }else if(lt.eind&&!lt.verlengt){
+      volgende.push({...basis,datum:lt.eind,tekst:'loopt af op '+opdFmtDatum(lt.eind)});
+    }
+  });
+  rijen.sort((a,b)=>a.sig.datum.localeCompare(b.sig.datum)||a.naam.localeCompare(b.naam,'nl'));
+  volgende.sort((a,b)=>a.datum.localeCompare(b.datum));
+  return {rijen,tel,volgende:volgende[0]||null};
+}
+function renderDashAfspraken(){
+  const body=document.getElementById('dashAfsprakenBody');
+  if(!body)return;
+  const d=dashOcData();
+  const t=d.tel;
+  const tellerEl=document.getElementById('dashCountAfspraken');
+  if(tellerEl)tellerEl.textContent=(d.rijen.length+t.prive)||'';
+  if(!t.opd&&!t.ctr&&!t.gepland&&!d.rijen.length&&!t.prive){
+    body.innerHTML=`<div class="dash-oc-leeg">Nog geen lopende opdrachten of contracten</div>`;
+    return;
+  }
+  const meervoud=(n,een,veel)=>n+' '+(n===1?een:veel);
+  /* Kort genoeg voor één regel op een telefoon. */
+  const sum=`<button type="button" class="dash-oc-link" data-action="switchModule" data-arg1="opdrachten">${meervoud(t.opd,'opdracht','opdrachten')}</button>
+    <span>en</span>
+    <button type="button" class="dash-oc-link" data-action="switchModule" data-arg1="contracten">${meervoud(t.ctr,'contract','contracten')}</button>
+    <span>${t.opd+t.ctr===1?'loopt':'lopen'}</span>${t.gepland?`<span class="dash-oc-gepland"><span class="dash-oc-sep">·</span> ${t.gepland} gepland</span>`:''}`;
+  const kleur=id=>id&&factuurKlant(id)?opdKleur(id).bg:'var(--border-strong)';
+  const rij=r=>`<button type="button" class="dash-oc-rij" data-action="dashOcOpen" data-arg1="${r.soort}" data-arg2="${escapeHtml(r.id)}">
+      <span class="dash-oc-dot" style="background:${kleur(r.clientId)}"></span>
+      <span class="dash-oc-naam">${escapeHtml(r.naam)}${r.titel?`<span class="dash-oc-titel"> · ${escapeHtml(r.titel)}</span>`:''}</span>
+      <span class="dash-oc-soort">${r.soort==='opd'?'Opdracht':'Contract'}</span>
+      <span class="fac-pill opd-pill-${r.sig.niveau}">${escapeHtml(r.sig.tekst)}</span>
+    </button>`;
+  const getoond=d.rijen.slice(0,DASH_OC_MAX);
+  const rest=d.rijen.length-getoond.length;
+  let lijst='';
+  if(getoond.length){
+    lijst=`<div class="dash-oc-lijst">${getoond.map(rij).join('')}</div>`;
+    if(rest>0)lijst+=`<div class="dash-oc-meer">en nog ${rest}</div>`;
+  }else{
+    const v=d.volgende;
+    lijst=`<div class="dash-oc-rustig">Niets dat aandacht vraagt${v?
+      ` <span>· volgende: ${escapeHtml(v.naam)}, ${escapeHtml(v.tekst)}</span>`:''}</div>`;
+  }
+  const prive=t.prive?`<button type="button" class="dash-oc-link dash-oc-prive" data-action="dashOcPrive">${
+    meervoud(t.prive,'privécontract vraagt','privécontracten vragen')} aandacht ›</button>`:'';
+  body.innerHTML=`<div class="dash-oc-sum">${sum}</div>${lijst}${prive}`;
+}
+function dashOcOpen(soort,id){
+  if(soort==='opd'){switchModule('opdrachten');opdOpen(id);}
+  else{switchModule('contracten');ctrOpen(id);}
+}
+function dashOcPrive(){
+  ctrWeergaveZet('prive');
+  switchModule('contracten');
+}
+
 /* ═══════════════════════════════════════════════════
    RENDER ALL — volledige hertekening, draait na elke load
    ═══════════════════════════════════════════════════ */
@@ -13083,7 +13265,9 @@ Object.assign(APP_ACTIONS,{
   switchModule:(el,e,mod)=>switchModule(mod),
   setClientFilter:(el,e,id)=>setClientFilter(id),
   dashClToggle:(el,e,id)=>dashClToggle(id),
-  dashClToggleSubtask:(el,e,itemId,stId)=>dashClToggleSubtask(itemId,stId)
+  dashClToggleSubtask:(el,e,itemId,stId)=>dashClToggleSubtask(itemId,stId),
+  dashOcOpen:(el,e,soort,id)=>dashOcOpen(soort,id),
+  dashOcPrive:()=>dashOcPrive()
 });
 Object.assign(APP_CHANGE_ACTIONS,{
   dashClSetPriority:(el,e,id)=>dashClSetPriority(id,el.value),

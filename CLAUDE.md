@@ -44,7 +44,7 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 
 | Hash | Module | Functie |
 |------|--------|---------|
-| `#dashboard` | Dashboard | Hero + KPI strip + kaartenraster (Notes/Checklist) |
+| `#dashboard` | Dashboard | Hero + KPI strip + kaartenraster (Notes/Checklist/Opdrachten & contracten) |
 | `#todo` | Kanban | Projecten met kolommen, kaarten met klant/tags/category, drag-drop |
 | `#notes` | Notes | Boomstructuur (folders/pages) met rich-text editor (marked.js) |
 | `#checklist` | Checklist | Taken met subtaken, filters (prio/klant/periode), vastpinnen, drag-drop, archief |
@@ -307,6 +307,7 @@ waar de fout zit.
 
 Top-3 meest recent. Volledige log + *waarom* per beslissing: [`docs/decisions.md`](docs/decisions.md).
 
+- **2026-10-03**: **Dashboard: kaart Opdrachten & contracten** — hoeveel er lopen plus hooguit vijf regels die om aandacht vragen (signalen uit `opdSignalen()`/`ctrSignalen()`, dus zelfde drempels als de modules); een tik opent het item. Geen bedragen, privécontracten alleen als telling, "weken geen uren" niet, een contract aan een opdracht slaat over. Bureaublad: strook over de volle breedte onder Notities/Checklist; mobiel: inklapbare kaart, naam boven het signaal. Het **+menu** kreeg Urenregistratie en Factuur en is één regel per optie (264px). Dashboard op mobiel heeft nu 96px ruimte onder de laatste kaart voor de ronde +
 - **2026-10-01**: **Geplakte opmaak in Notities opgeschoond** — plakken uit VS Code gaf zwarte blokken met paarse tekst (inline style van de bron op elk blok; `removeFormat` raakt blokken niet). `noteSchoonOpmaak()` houdt alleen wat de editor zelf maakt (werkbalkkleur, lettertype/grootte op een inline-element, vet/cursief, uitlijning, inspringen, `var(--…)`) en draait bij elke HTML-plak (`notePlakHtml()`, via `insertHTML` zodat Ctrl+Z werkt) én onder "Opmaak wissen" (`noteOpmaakWissen()`: zonder selectie de hele notitie, met ongedaan maken). Code uit de VS Code-editor wordt `<pre>` (of inline `<code>` bij één regel). `.note-editor` kreeg een eigen stijl voor `pre` en `table`; een te brede tabel schuift op mobiel zelf opzij
 - **2026-09-29**: **PDF van een contract of opdracht laten uitlezen** — Gemini leest soort, wederpartij/klant, omschrijving, datums, opzegtermijn, verlenging (opdracht: tarief, uren per week, budget) uit de PDF (`ctrAiLees`, via `callGemini` zoals de factuurscanner). Lege velden worden gevuld, afwijkingen alleen gemeld ("Die ook overnemen"), "Terugdraaien" zet alles terug; opslaan doe je zelf. Vanzelf bij een nieuw venster zonder datums, anders met de knop onder de PDF. Termijnen komen als woorden terug en `ctrAiTermijn()` kiest de dichtstbijzijnde keuze (geen enums in het schema)
 - **2026-09-29**: **Meldingen via Google Agenda** — eigen agenda "Herling – aflopend" (scope `calendar.app.created`), per contract/opdracht een afspraak op de opzegdatum anders het einde, meldingen 09:00 op 4 w / 2 w / 1 w / 3 d + mail bij 4 w; opdrachten ook 2 maanden vooraf. Vergelijken op `sleutel`+hash in `extendedProperties`, vanzelf via `agdNaWijziging()` in `scheduleSave()`/`renderAll()`. Contract aan een opdracht wordt overgeslagen. Vereist in Cloud Console: Calendar API aan + scope op het OAuth-scherm. En: bij stilzwijgend verlengen rechts "nog 3 maanden" i.p.v. "verlengt per maand"

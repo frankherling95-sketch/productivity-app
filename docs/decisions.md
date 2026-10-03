@@ -5283,3 +5283,48 @@ Bijkomend: bij een ingeklapte zijbalk werden die kopjes onzichtbaar
 **Bestanden.** `index.html` — `.sidebar-sec-lijn`, de twee
 `.sidebar-sec-label`-regels uit de zijbalk. `.sidebar-sec-label` blijft in de
 CSS staan: hij wordt elders nog gebruikt.
+
+## 2026-10-03 · Dashboard: kaart Opdrachten & contracten, en het +menu op één regel
+
+**Probleem.** Wat er bij opdrachten en contracten om een handeling vraagt
+(opzeggen, beslissen, een einde, een budget dat opraakt) zag je alleen als je
+die modules opende — en op een telefoon staan ze niet in de onderbalk. Het
++menu op het dashboard miste Uren en Factuur, en elke optie had een onderregel
+die meestal de titel herhaalde ("Notitie" boven "Notities").
+
+**Beslissing.**
+- Een derde dashboardkaart, *Opdrachten & contracten*: één regel met hoeveel er
+  lopen (links naar beide modules), daaronder hooguit vijf regels die om
+  aandacht vragen, vroegste eerst, elk met het signaal als pil. Een tik opent
+  die opdracht of dat contract. Niets aan de hand: "Niets dat aandacht vraagt ·
+  volgende: …". Op een bureaublad een strook over de volle breedte onder
+  Notities en Checklist (`grid-template-rows: 1fr auto`); op een telefoon een
+  inklapbare kaart zoals de andere, naam boven het signaal.
+- Het +menu: Urenregistratie en Factuur erbij (dezelfde ingang als de + in die
+  modules), onderregels weg, 264px breed.
+
+**Waarom zo.**
+- De signalen komen uit `opdSignalen()` en `ctrSignalen()` — dezelfde drempels
+  als in de modules, dus het dashboard kan niets anders zeggen.
+- **Geen bedragen**, net als de rest van het dashboard: dat scherm staat open
+  als je bij een klant zit. Om dezelfde reden staan **privécontracten er niet
+  met naam** op, alleen als telling ("1 privécontract vraagt aandacht ›", opent
+  de tab Privé).
+- "X weken geen uren" valt weg: in de module is dat een informatief signaal, op
+  het dashboard ruis.
+- Een contract aan een opdracht slaat over: zijn looptijd ís die van de
+  opdracht, dus hetzelfde signaal zou twee keer staan (zelfde keuze als bij de
+  meldingen in Google Agenda).
+- Drie kolommen op een bureaublad gaven de naam ±100px ("Boskalis - …"); een
+  strook met regels van minstens 460px geeft hem ±300px.
+
+**Meegenomen.** Het dashboard had op een telefoon geen ruimte onder de laatste
+kaart, waardoor de ronde + er ook doorgescrold overheen lag. Nu 96px, zoals
+Facturen.
+
+**Bestanden.** `index.html` — `dashOcData()`, `renderDashAfspraken()`,
+`dashOcOpen()`, `dashOcPrive()`, `.dash-oc-*`, `[data-dash-card="afspraken"]`,
+`.ha-newitem-*`, `.dash-scroll` (mobiel).
+
+**Niet doen.** Geen bedragen of tarieven op deze kaart. Geen eigen drempels in
+het dashboard: pas ze aan in `opdSignalen()`/`ctrSignalen()`.
