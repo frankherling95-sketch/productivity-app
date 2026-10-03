@@ -822,7 +822,7 @@ async function runChecks() {
           w.eval('rawState=' + JSON.stringify(bewaard) + ';hydrateerState();');
         }
       }],
-    ['Voet: één mintknop, en dat is Betaling registreren', () => {
+    ['Voet: één mintknop, en dat is Betaling registreren', async () => {
       const f = w.factuurNieuw(null, null, null);
       w.facConceptVastleggen();                 /* pas dan telt hij niet meer als concept */
       f.status = 'verstuurd';
@@ -830,6 +830,15 @@ async function runChecks() {
       try {
         w.facOpenEditor(f.id);
         const bar = d.getElementById('facEditorActies');
+        /* De breedte hangt aan Inter, en de browser vraagt elk gewicht pas op
+           als het in beeld komt -- de 600 van deze knoppen dus pas nu. Eerst
+           de opmaak laten berekenen (dat start het laden), dan wachten. Met
+           de vervanger meten dezelfde acht knoppen 981px in plaats van 872. */
+        void bar.offsetWidth;
+        await d.fonts.ready;
+        /* fonts.check() geeft ook true als Inter helemaal niet bestaat */
+        if (![...d.fonts].some(x => x.family.replace(/["']/g, '') === 'Inter' && x.status === 'loaded'))
+          throw new Error('Inter is niet geladen (Google Fonts onbereikbaar?) — de breedte is dan niet te toetsen');
         const knoppen = [...bar.children].filter(el => el.textContent.trim());
         const mint = knoppen.filter(el => el.classList.contains('uren-btn-primary'));
         const nodig = knoppen.reduce((a, el) => a + el.offsetWidth, 0) + 6 * (knoppen.length - 1);

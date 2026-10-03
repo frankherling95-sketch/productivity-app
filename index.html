@@ -16696,11 +16696,41 @@ function notePlakHtml(editor,html){
   const tpl=document.createElement('template');
   tpl.innerHTML=veiligeHtml(html);
   noteSchoonOpmaak(tpl.content,_noteBasis(editor));
-  if(!document.execCommand('insertHTML',false,tpl.innerHTML)){
-    document.execCommand('insertText',false,tpl.content.textContent||'');
+  if(!document.execCommand('insertHTML',false,tpl.innerHTML)&&
+     !document.execCommand('insertText',false,tpl.content.textContent||'')){
+    notePlakZelf(editor,tpl.content);
   }
   debouncedUpdateContent(editor.innerHTML);
   updateNoteWordCount(editor);
+}
+/* Weigeren insertHTML én insertText (een venster zonder focus, sommige
+   Safari-versies), dan is de plak al tegengehouden en zou hij stil
+   verdwijnen. Dan zelf invoegen op de cursor -- zonder Ctrl+Z-stap, maar de
+   tekst staat er. Blokken (alinea's, code) gaan naast het blok waar de
+   cursor staat, of in de plaats van een leeg blok: een <p> in een <p> leest
+   de browser bij het opnieuw openen anders terug dan hij er stond. */
+function notePlakZelf(editor,frag){
+  const sel=window.getSelection();
+  const rng=sel&&sel.rangeCount&&editor.contains(sel.getRangeAt(0).startContainer)?sel.getRangeAt(0):null;
+  const laatste=frag.lastChild;
+  if(!laatste)return;
+  const heeftBlok=[...frag.children].some(el=>/^(P|DIV|PRE|H[1-6]|UL|OL|TABLE|BLOCKQUOTE)$/.test(el.tagName));
+  if(!rng){editor.appendChild(frag);}
+  else if(heeftBlok){
+    let blok=rng.startContainer;
+    while(blok&&blok.parentNode!==editor)blok=blok.parentNode;
+    if(!blok)editor.appendChild(frag);
+    else if(!blok.textContent.trim())blok.replaceWith(frag);
+    else blok.after(frag);
+  }else{
+    rng.deleteContents();
+    rng.insertNode(frag);
+  }
+  if(sel&&laatste.isConnected){
+    const r=document.createRange();
+    r.setStartAfter(laatste);r.collapse(true);
+    sel.removeAllRanges();sel.addRange(r);
+  }
 }
 /* "Opmaak wissen" in de werkbalk. Met een selectie: removeFormat zoals
    altijd, plus de blokken in die selectie (daar zat de zwarte achtergrond).
