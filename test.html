@@ -675,6 +675,25 @@ async function runChecks() {
         const p = w.opdPlanning({start:'2026-09-01', eind:'2026-10-31', urenBudget:128}, 0, '2026-09-16', null);
         return p.maanden['2026-09'] === 40 && p.maanden['2026-10'] === 88 && p.budgetOp === null;
       }],
+    ['Opdrachten: contractwaarde = geschreven t/m vandaag + gepland, met werkdagen per maand',
+      () => {
+        /* 16 sep: 2 regels geschreven (3 u voor 15 sep, 2 u op 20 sep -- die
+           laatste ligt ná vandaag en telt dus niet als geschreven). Gepland:
+           sep 10 wd × 4 u, okt 22 × 4. Tarief 100. */
+        const o = {id:'cw', clientId:'k', start:'2026-09-01', eind:'2026-10-31', urenPerWeek:20, tarief:100};
+        const kop = w.opdKoppelUren([o], [{clientId:'k', date:'2026-09-15', hours:3},
+                                          {clientId:'k', date:'2026-09-20', hours:2}]);
+        const ob = w.opdOpbouw(o, '2026-09-16', kop);
+        const sep = ob.maanden.find(m => m.key === '2026-09'), okt = ob.maanden.find(m => m.key === '2026-10');
+        return ob.geschreven.uren === 3 && ob.gepland.uren === 128 && ob.waarde === 13100 &&
+               sep.dagen === 10 && sep.geschrevenUren === 3 && okt.dagen === 22 && okt.geplandUren === 88;
+      }],
+    ['Opdrachten: zonder einddatum geen contractwaarde, wel een tempo per maand',
+      () => {
+        const o = {id:'cd', clientId:'k', start:'2026-09-01', eind:null, urenPerWeek:12, tarief:100};
+        const ob = w.opdOpbouw(o, '2026-09-16', w.opdKoppelUren([o], []));
+        return ob.waarde === null && ob.perMaand === 5200 && ob.gepland.uren > 0;
+      }],
     ['Opdrachten: een urenregel hoort bij de opdracht die het laatst begon',
       () => {
         const k = w.opdKoppelUren(

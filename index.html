@@ -1767,7 +1767,8 @@ button.uren-mpiv-row:active{background:var(--surface2)}
 /* Gearceerd = afgeleid: uren die uit een factuur zijn overgenomen en over de
    werkdagen verdeeld, dus op dagniveau geschat. Zelfde tint als de rest van
    de periode -- het is geen andere reeks, het is een andere bron. */
-.fac-an-leg i.afgeleid,.fac-an-krij .vul.afgeleid,.uren-kal-bron i.afgeleid{
+.fac-an-leg i.afgeleid,.fac-an-krij .vul.afgeleid,.uren-kal-bron i.afgeleid,
+.opd-wbalk i.afgeleid,.opd-ob-som i.afgeleid,.opd-ob-g i.afgeleid{
   background:repeating-linear-gradient(135deg,var(--gr-nu) 0 2px,transparent 2px 5px);
   box-shadow:inset 0 0 0 1px var(--gr-nu);
 }
@@ -2104,7 +2105,8 @@ button.uren-mpiv-row:active{background:var(--surface2)}
   background:var(--mint-soft);color:var(--text)}
 .opd-opdtabel td:first-child{max-width:320px}
 .opd-opdtabel .fac-klant .nm{font-weight:500}
-/* Per maand en Per opdracht op een telefoon: een lijst, zoals de cijfertabel
+/* Per maand op een telefoon: een lijst (Per opdracht heeft daar een eigen
+   lijst, .opd-wlijst), zoals de cijfertabel
    van de Facturen-analyse. Zes of acht kolommen passen niet op 375px, en de
    algemene lijstregel van .fac-an-tabel (drie kolommen, voor de k-*-cellen
    van Facturen) liet deze cellen willekeurig door zijn raster lopen: een
@@ -2119,20 +2121,19 @@ button.uren-mpiv-row:active{background:var(--surface2)}
 .opd-vz-mbd{display:none}
 @media (max-width:768px){
   .opd-vz-wrap{overflow:visible}
-  .fac-an-tabel.opd-maandtabel,.fac-an-tabel.opd-opdtabel,
-  .opd-maandtabel tbody,.opd-opdtabel tbody{display:block}
-  .fac-an-tabel.opd-maandtabel tr,.fac-an-tabel.opd-opdtabel tr{
+  .fac-an-tabel.opd-maandtabel,.opd-maandtabel tbody{display:block}
+  .fac-an-tabel.opd-maandtabel tr{
     display:flex;flex-wrap:wrap;align-items:center;column-gap:var(--sp-3);row-gap:0;
   }
-  .fac-an-tabel.opd-maandtabel tr::after,.fac-an-tabel.opd-opdtabel tr::after{content:'';order:3;flex-basis:100%}
+  .fac-an-tabel.opd-maandtabel tr::after{content:'';order:3;flex-basis:100%}
   .fac-an-tabel td.opd-vz-per{order:1;flex:1 1 0;min-width:0;max-width:none;white-space:nowrap;
     font-size:var(--fs-basis);font-weight:600}
   .fac-an-tabel td.opd-vz-tot{order:2;flex:none;white-space:nowrap;font-size:var(--fs-basis)}
-  .fac-an-tabel.opd-maandtabel td.opd-vz-deel,.fac-an-tabel.opd-opdtabel td.opd-vz-deel{
+  .fac-an-tabel.opd-maandtabel td.opd-vz-deel{
     order:4;margin-top:2px;white-space:nowrap;text-align:left;
     font-size:var(--fs-micro);font-weight:400;color:var(--text-muted);
   }
-  .fac-an-tabel td.opd-vz-weg,.opd-vz-gelijk{display:none}
+  .fac-an-tabel td.opd-vz-weg{display:none}
   .opd-vz-mbd{display:inline}
   /* De lopende maand: het vlak op de rij en niet op de losse cellen, en
      8px buiten de tekstlijn zodat de tekst gelijk blijft met de rest. */
@@ -2140,20 +2141,62 @@ button.uren-mpiv-row:active{background:var(--surface2)}
     margin:0 calc(-1 * var(--sp-2));padding-left:calc(var(--sp-2) + 2px);padding-right:calc(var(--sp-2) + 2px);
     border-bottom-color:transparent}
   .fac-an-tabel.opd-maandtabel tr.opd-huidig td{background:none}
-  /* De naam zoals op een lijstkaart (stijlgids §4): kleiner dan het bedrag
-     ernaast, want hij is lang en kapt anders al na de klantnaam af. */
-  .fac-an-tabel.opd-opdtabel td.opd-vz-per{font-size:var(--fs-klein)}
-  .fac-an-tabel.opd-opdtabel .fac-klant .nm{font-weight:600}
-  /* Twee regels voor "klant · opdracht", zoals de naam op een lijstkaart
-     (.ctr-mnaam): op één regel bleef er na de klant weinig van de opdracht
-     over ("Nordwind Energy BV · Boskalis - K…"). Het totaal staat dan
-     bovenaan, gelijk met de eerste regel, zoals rechts op een kaart. */
-  .fac-an-tabel.opd-opdtabel tr{align-items:flex-start}
-  .fac-an-tabel.opd-opdtabel td.opd-vz-per{white-space:normal}
-  .fac-an-tabel.opd-opdtabel .fac-klant{align-items:flex-start}
-  .fac-an-tabel.opd-opdtabel .fac-klant .sw{margin-top:4px}
-  .fac-an-tabel.opd-opdtabel .fac-klant .nm{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;
-    -webkit-line-clamp:2;line-clamp:2;overflow-wrap:anywhere}
+}
+
+/* ── Per opdracht + opbouw van de contractwaarde ──
+   Bureaublad de tabel, telefoon de lijst (.opd-wlijst); de CSS kiest. */
+.opd-alleen-smal{display:none}
+.opd-klikrij{cursor:pointer}
+.opd-klikrij:hover td{background:var(--surface2)}
+.opd-klikrij:focus-visible{outline:2px solid var(--mint);outline-offset:-2px}
+.fac-an-tabel .opd-waarde-kol{padding-left:var(--sp-4);border-left:0.5px solid var(--border)}
+.opd-wlijst{flex-direction:column}   /* display staat in de mediaregel: alleen op een telefoon */
+.opd-wrij{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:var(--sp-3);align-items:start;
+  width:100%;min-height:var(--tap);padding:12px 0;background:none;border:0;border-bottom:0.5px solid var(--border);
+  font-family:var(--font-body);color:var(--text);text-align:left;cursor:pointer}
+.opd-wrij:last-child{border-bottom:0}
+.opd-wnaam{display:flex;align-items:flex-start;gap:8px;min-width:0}
+.opd-wnaam .sw{width:9px;height:9px;border-radius:3px;flex-shrink:0;margin-top:5px}
+.opd-wnaam .nm{font-size:var(--fs-klein);font-weight:600;line-height:1.35;display:-webkit-box;-webkit-box-orient:vertical;
+  -webkit-line-clamp:2;line-clamp:2;overflow:hidden;overflow-wrap:anywhere}
+.opd-wbedrag{font-size:var(--fs-basis);font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+/* Geen einddatum = geen bedrag: dan ook niet zo zwaar als een bedrag. */
+.opd-wbedrag.doorlopend,.opd-doorlopend{font-size:var(--fs-klein);font-weight:500;color:var(--text-muted)}
+.opd-wbalk{grid-column:1/-1;display:flex;height:6px;border-radius:3px;overflow:hidden;background:var(--surface3);margin:8px 0 6px}
+.opd-wbalk i{display:block;height:100%}
+.opd-wbalk i.nu,.opd-ob-som i.nu,.opd-ob-g i.nu{background:var(--gr-nu)}
+.opd-wsub{grid-column:1/-1;margin-top:4px;font-size:var(--fs-micro);color:var(--text-muted);font-variant-numeric:tabular-nums}
+.opd-wbalk + .opd-wsub{margin-top:0}
+/* Venster: opbouw */
+.opd-ob-som{display:flex;flex-direction:column;gap:6px}
+.opd-ob-deel{display:grid;grid-template-columns:10px minmax(0,1fr) auto 64px;align-items:center;column-gap:10px;
+  font-size:var(--fs-klein);font-variant-numeric:tabular-nums}
+.opd-ob-deel i{width:10px;height:10px;border-radius:2px}
+.opd-ob-deel b{font-weight:600;text-align:right}
+.opd-ob-deel small{color:var(--text-muted);text-align:right;font-size:var(--fs-klein)}
+.opd-ob-totaal{border-top:0.5px solid var(--border-strong);padding-top:8px;margin-top:2px;font-size:var(--fs-basis)}
+.opd-ob-totaal b{font-weight:700}
+.opd-ob-som .opd-wbalk{margin:6px 0 0}
+.opd-ob-noot{font-size:var(--fs-klein);color:var(--text-muted);margin:4px 0 0;line-height:1.5}
+.opd-ob-kop{font-size:var(--fs-micro);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);margin:20px 0 8px}
+.opd-ob-up{display:grid;grid-template-columns:88px minmax(0,1fr);gap:6px 12px;margin:0;font-size:var(--fs-klein);line-height:1.45}
+.opd-ob-up dt{color:var(--text-muted)}
+.opd-ob-up dd{margin:0;font-variant-numeric:tabular-nums}
+.opd-ob-lijst{display:flex;flex-direction:column}
+.opd-ob-rij{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:var(--sp-3);row-gap:2px;
+  padding:8px 0;border-bottom:0.5px solid var(--border);font-variant-numeric:tabular-nums}
+.opd-ob-rij:last-child{border-bottom:0}
+.opd-ob-rij.nu{background:var(--surface2);border-radius:var(--radius-md);margin:0 calc(-1 * var(--sp-2));
+  padding-left:var(--sp-2);padding-right:var(--sp-2);border-bottom-color:transparent}
+.opd-ob-maand{font-size:var(--fs-klein);font-weight:600}
+.opd-ob-bedrag{font-size:var(--fs-klein);font-weight:600;text-align:right}
+.opd-ob-delen{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:2px 14px;font-size:var(--fs-klein);color:var(--text-muted)}
+.opd-ob-g{display:inline-flex;align-items:center;gap:6px}
+.opd-ob-g i{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+@media (max-width:768px){
+  .opd-alleen-breed,.fac-an-tabelwrap.opd-alleen-breed{display:none}
+  .opd-alleen-smal{display:block}
+  .opd-wlijst.opd-alleen-smal{display:flex}
 }
 
 /* Venster */
@@ -8779,6 +8822,22 @@ textarea { line-height: 1.6; resize: vertical; }
 </div>
 
 <!-- ── Opdrachten: nieuwe of bestaande opdracht ── -->
+<div class="modal-bg" id="opdOpbouwModal" onclick="if(event.target===this)opdOpbouwSluit()">
+  <div class="modal" style="max-width:640px;padding:0;display:flex;flex-direction:column;max-height:92vh">
+    <div class="modal-kop" style="flex-shrink:0">
+      <h3 style="font-size:18px;font-weight:700;margin:0" id="opdOpbouwTitel">Opbouw contractwaarde</h3>
+      <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0" id="opdOpbouwSub"></p>
+    </div>
+    <div style="padding:16px 20px;overflow-y:auto;overflow-x:hidden;flex:1;min-height:0" id="opdOpbouwBody"></div>
+    <div class="modal-footer" style="padding:14px 22px;border-top:0.5px solid var(--border);flex-shrink:0">
+      <div class="modal-footer-left"></div>
+      <div class="modal-footer-right">
+        <button class="btn btn-sm" type="button" data-action="opdOpbouwSluit">Sluiten</button>
+        <button class="btn btn-sm btn-primary" type="button" data-action="opdOpbouwNaarOpdracht">Opdracht bewerken</button>
+      </div>
+    </div>
+  </div>
+</div>
 <div class="modal-bg" id="opdModal" onclick="if(event.target===this)opdSluit()">
   <div class="modal" style="max-width:580px;padding:20px 22px">
     <h3 id="opdModalTitel" style="font-size:18px;font-weight:700;margin:0 0 16px">Nieuwe opdracht</h3>
@@ -30219,6 +30278,10 @@ const OPD_OPZEG=[
   {id:'1w',label:'1 week'},{id:'2w',label:'2 weken'},
   {id:'1m',label:'1 maand'},{id:'2m',label:'2 maanden'},{id:'3m',label:'3 maanden'}
 ];
+/* Hoeveel maanden het vooruitzicht vooruit kijkt. Ook de horizon van de
+   opbouw bij een opdracht zonder einddatum, zodat die dezelfde maanden laat
+   zien als de tabel erboven. */
+const OPD_VOORUIT=8;
 const OPD_MAAND_KORT=['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
 let opdView='lijst';
 let opdToonAfgelopen=false;
@@ -30345,7 +30408,9 @@ function opdGebruikt(o,regels){
    budgetOp: de werkdag waarop het budget in dit tempo op is -- los van de
    horizon, want juist dat moment wil je ruim van tevoren zien. */
 function opdPlanning(o,gebruiktUren,vandaag,horizonEind){
-  const uit={maanden:{},uren:0,budgetOp:null,basis:''};
+  /* dagen/begrensd/perDag/rest: alleen voor de opbouw (opdOpbouw), zodat
+     die laat zien wat hier gerekend wordt in plaats van het na te doen. */
+  const uit={maanden:{},uren:0,budgetOp:null,basis:'',dagen:{},begrensd:{},perDag:0,rest:null};
   const morgen=opdPlusDagen(vandaag,1);
   const van=(o.start&&o.start>morgen)?o.start:morgen;
   let tot=o.eind||horizonEind||null;
@@ -30354,6 +30419,7 @@ function opdPlanning(o,gebruiktUren,vandaag,horizonEind){
   const budget=Number(o.urenBudget)||0;
   const rest=budget>0?Math.max(0,budget-(Number(gebruiktUren)||0)):Infinity;
   let perDag=0;
+  if(budget>0)uit.rest=rest;
   if(upw>0){perDag=upw/5;uit.basis='week';}
   else if(budget>0&&o.eind&&o.eind>=van){
     const dagen=opdWerkdagen(van,o.eind);
@@ -30366,6 +30432,7 @@ function opdPlanning(o,gebruiktUren,vandaag,horizonEind){
     const op=opdNaWerkdagen(van,Math.ceil(rest/perDag-1e-9));
     if(!o.eind||op<=o.eind)uit.budgetOp=op;
   }
+  uit.perDag=perDag;
   if(!(perDag>0)||!tot||tot<van||!(rest>0))return uit;
   let over=rest;
   const d=opdD(van);d.setDate(1);
@@ -30374,9 +30441,10 @@ function opdPlanning(o,gebruiktUren,vandaag,horizonEind){
     if(mStart>tot)break;
     const mEind=dateStr(new Date(d.getFullYear(),d.getMonth()+1,0));
     const a=van>mStart?van:mStart, b=tot<mEind?tot:mEind;
-    let h=opdWerkdagen(a,b)*perDag;
-    if(h>over)h=over;
-    if(h>0){uit.maanden[mStart.slice(0,7)]=Math.round(h*100)/100;uit.uren+=h;}
+    const wd=opdWerkdagen(a,b);
+    let h=wd*perDag;
+    if(h>over+1e-9){h=over;uit.begrensd[mStart.slice(0,7)]=true;}
+    if(h>0){uit.maanden[mStart.slice(0,7)]=Math.round(h*100)/100;uit.uren+=h;uit.dagen[mStart.slice(0,7)]=wd;}
     over-=h;
     if(over<=1e-9)break;
     d.setMonth(d.getMonth()+1);
@@ -30467,7 +30535,7 @@ function opdSignalen(o,info,vandaag){
 function opdData(vandaag){
   const lijst=opdrachtState.opdrachten||[];
   const entries=urenState.entries||[];
-  const vz=opdVooruitzicht(lijst,entries,vandaag,3,8);
+  const vz=opdVooruitzicht(lijst,entries,vandaag,3,OPD_VOORUIT);
   const hi=vz.maanden.findIndex(m=>m.huidig);
   const komend=vz.maanden.slice(hi,hi+3);
   const info={};
@@ -30735,35 +30803,174 @@ function opdRenderVooruitzicht(d){
       <td class="num opd-vz-weg">${m.gepland>0?opdFmtEuro(m.gepland):'—'}</td>
       <td class="num opd-vz-tot"><b>${(m.geschreven+m.gepland)>0?opdFmtEuro(m.geschreven+m.gepland):'—'}</b></td></tr>`;}).join('')}
     </tbody></table></div></div>`;
-  /* Waar de verwachte omzet vandaan komt: per opdracht de komende zes
-     maanden. Hier zie je waar een gat valt als een opdracht afloopt. */
+  /* Waar de verwachte omzet vandaan komt, per opdracht.
+     Bureaublad: de komende zes maanden naast elkaar -- daar zie je waar een
+     gat valt als een opdracht afloopt -- plus de contractwaarde.
+     Telefoon: zes maandbedragen passen daar niet naast elkaar (ze liepen als
+     tekst door, "okt € 9.120 nov € 9.576 dec …"). Daar per opdracht de
+     contractwaarde met één balk geschreven/gepland; de maanden staan in de
+     opbouw, één tik verder. Beide in de DOM, de CSS kiest. */
   const hi=maanden.findIndex(m=>m.huidig);
   const zes=maanden.slice(hi,hi+6);
-  const bijdragers=d.lijst.filter(o=>zes.some(m=>(m.perOpdracht[o.id]||{}).bedrag>0.5));
+  const bijdragers=d.lijst.filter(o=>d.info[o.id].status!=='afgelopen'||
+    zes.some(m=>(m.perOpdracht[o.id]||{}).bedrag>0.5));
   if(bijdragers.length){
     const opdVzKop=m=>m.kort+(m.maand===0?' '+String(m.jaar).slice(2):'');
+    const ob={};
+    bijdragers.forEach(o=>{ob[o.id]=opdOpbouw(o,d.vandaag,d.vz.koppeling);});
+    const waardeTekst=w=>w.waarde!=null?opdFmtEuro(w.waarde):'doorlopend';
     html+=`<div class="fac-an-kaart"><div class="fac-an-kaartkop"><div><h3>Per opdracht</h3>
-      <p>Gepland vanaf morgen, de komende zes maanden</p></div></div>
-      <div class="fac-an-tabelwrap opd-vz-wrap"><table class="fac-an-tabel opd-opdtabel"><thead><tr><th>Opdracht</th>
+      <p class="opd-alleen-breed">Gepland vanaf morgen, de komende zes maanden. De contractwaarde telt de hele looptijd; klik voor de opbouw.</p>
+      <p class="opd-alleen-smal">Waarde over de hele looptijd. Tik voor de opbouw.</p></div></div>
+      <div class="fac-an-tabelwrap opd-alleen-breed"><table class="fac-an-tabel opd-opdtabel"><thead><tr><th>Opdracht</th>
       ${zes.map(m=>`<th class="num">${opdVzKop(m)}</th>`).join('')}
-      <th class="num">Samen</th></tr></thead><tbody>
+      <th class="num">Samen</th><th class="num opd-waarde-kol">Contractwaarde</th></tr></thead><tbody>
       ${bijdragers.map(o=>{
         const kleur=opdKleur(o.clientId);
         const vals=zes.map(m=>(m.perOpdracht[o.id]||{}).bedrag||0);
         const samen=vals.reduce((s,v)=>s+v,0);
-        /* Op een telefoon draagt elke maand zijn naam zelf (data-lab), want
-           de kolomkop is daar weg. Heeft een opdracht maar één maand, dan is
-           dat bedrag gelijk aan Samen: dan staat er alleen welke maand. */
-        const alleen=vals.filter(v=>v>0.5).length===1;
-        return `<tr><td class="opd-vz-per"><div class="fac-klant"><span class="sw" style="background:${kleur.bg}"></span>
+        return `<tr class="opd-klikrij" data-action="opdOpbouwOpen" data-arg1="${o.id}" tabindex="0"><td><div class="fac-klant"><span class="sw" style="background:${kleur.bg}"></span>
           <span class="nm">${escapeHtml(opdKlantNaam(o.clientId)+(o.naam?' · '+o.naam:''))}</span></div></td>
-          ${vals.map((v,i)=>v>0.5
-            ?`<td class="num opd-vz-deel" data-lab="${alleen?'alleen ':''}${opdVzKop(zes[i])}">${alleen?`<span class="opd-vz-gelijk">${opdFmtEuro(v)}</span>`:opdFmtEuro(v)}</td>`
-            :`<td class="num opd-vz-weg">—</td>`).join('')}
-          <td class="num opd-vz-tot"><b>${opdFmtEuro(samen)}</b></td></tr>`;
-      }).join('')}</tbody></table></div></div>`;
+          ${vals.map(v=>`<td class="num">${v>0.5?opdFmtEuro(v):'—'}</td>`).join('')}
+          <td class="num">${samen>0.5?opdFmtEuro(samen):'—'}</td>
+          <td class="num opd-waarde-kol">${ob[o.id].waarde!=null?`<b>${waardeTekst(ob[o.id])}</b>`:'<span class="opd-doorlopend">doorlopend</span>'}</td></tr>`;
+      }).join('')}</tbody></table></div>
+      <div class="opd-wlijst opd-alleen-smal">${bijdragers.map(o=>{
+        const w=ob[o.id];
+        const kleur=opdKleur(o.clientId);
+        const onder=[w.geschreven.bedrag>0.5?opdFmtEuro(w.geschreven.bedrag)+' geschreven':null,
+          w.waarde!=null&&w.gepland.bedrag>0.5?opdFmtEuro(w.gepland.bedrag)+' gepland':null,
+          w.waarde==null&&w.perMaand?'± '+opdFmtEuro(w.perMaand)+' per maand':null].filter(Boolean).join(' · ')||'nog niets geschreven of gepland';
+        return `<button type="button" class="opd-wrij" data-action="opdOpbouwOpen" data-arg1="${o.id}">
+          <span class="opd-wnaam"><span class="sw" style="background:${kleur.bg}"></span><span class="nm">${escapeHtml(opdKlantNaam(o.clientId)+(o.naam?' · '+o.naam:''))}</span></span>
+          <span class="opd-wbedrag${w.waarde==null?' doorlopend':''}">${waardeTekst(w)}</span>
+          ${w.waarde?opdWaardeBalk(w):''}
+          <span class="opd-wsub">${escapeHtml(onder)}</span>
+        </button>`;
+      }).join('')}</div></div>`;
   }
   return html;
+}
+
+/* ── Contractwaarde en de opbouw ervan ──
+   Contractwaarde = wat je binnen de looptijd geschreven hebt (t/m vandaag,
+   elke regel tegen zijn eigen tarief) + wat er vanaf morgen tot de
+   einddatum gepland staat (opdPlanning, tegen het tarief van de opdracht).
+   Zonder einddatum is er geen waarde, alleen een tempo per maand.
+   De opbouw rekent niets zelf uit: werkdagen, uren per dag en waar het budget
+   de planning afkapt komen uit opdPlanning, zodat de opbouw nooit iets
+   anders zegt dan het vooruitzicht. */
+function opdOpbouw(o,vandaag,koppeling){
+  vandaag=vandaag||opdVandaag();
+  koppeling=koppeling||opdKoppelUren(opdrachtState.opdrachten||[],urenState.entries||[]);
+  const regels=koppeling.perOpdracht[o.id]||[];
+  const gebruikt=opdGebruikt(o,regels);
+  const tm=regels.filter(e=>e.date&&e.date<=vandaag);
+  const geschreven=opdGebruikt(o,tm);
+  let horizon=null;
+  if(!o.eind){const n=opdD(vandaag);horizon=dateStr(new Date(n.getFullYear(),n.getMonth()+OPD_VOORUIT+1,0));}
+  const p=opdPlanning(o,gebruikt.uren,vandaag,horizon);
+  const t=opdTarief(o);
+  const maanden={};
+  const maand=k=>maanden[k]||(maanden[k]={key:k,geschrevenUren:0,geschreven:0,dagen:0,geplandUren:0,gepland:0,begrensd:false});
+  tm.forEach(e=>{
+    const m=maand(e.date.slice(0,7));
+    const h=Number(e.hours)||0;
+    m.geschrevenUren+=h;m.geschreven+=h*opdRegelTarief(e,o);
+  });
+  Object.entries(p.maanden).forEach(([k,h])=>{
+    const m=maand(k);
+    m.geplandUren=h;m.gepland=h*t;m.dagen=p.dagen[k]||0;m.begrensd=!!p.begrensd[k];
+  });
+  const lijst=Object.values(maanden).sort((a,b)=>a.key.localeCompare(b.key));
+  const gepland={uren:p.uren,bedrag:Math.round(p.uren*t*100)/100};
+  const upw=Number(o.urenPerWeek)||0;
+  return {o,t,tariefBron:Number(o.tarief)>0?'opdracht':'klant',p,geschreven,gepland,gebruikt,
+    maanden:lijst,
+    waarde:o.eind?Math.round((geschreven.bedrag+gepland.bedrag)*100)/100:null,
+    perMaand:!o.eind&&upw&&t?upw*52/12*t:null,
+    werkdagen:o.eind&&o.start?opdWerkdagen(o.start,o.eind):null,horizon};
+}
+/* Eén balk: geschreven egaal, gepland gearceerd (stijlgids §11). */
+function opdWaardeBalk(w){
+  const tot=w.geschreven.bedrag+w.gepland.bedrag;
+  if(!(tot>0))return '';
+  const g=Math.max(0,Math.min(100,w.geschreven.bedrag/tot*100));
+  return `<span class="opd-wbalk" aria-hidden="true"><i class="nu" style="width:${g.toFixed(1)}%"></i><i class="afgeleid" style="width:${(100-g).toFixed(1)}%"></i></span>`;
+}
+let opdOpbouwId=null;
+function opdOpbouwOpen(id){
+  const o=(opdrachtState.opdrachten||[]).find(x=>x.id===id);
+  if(!o)return;
+  opdOpbouwId=id;
+  const vandaag=opdVandaag();
+  const w=opdOpbouw(o,vandaag);
+  const r1=v=>urenFmtShort(Math.round(v*10)/10);
+  document.getElementById('opdOpbouwTitel').textContent=w.waarde!=null?'Opbouw contractwaarde':'Opbouw van de opdracht';
+  document.getElementById('opdOpbouwSub').textContent=opdKlantNaam(o.clientId)+(o.naam?' · '+o.naam:'');
+  /* De som bovenaan: geschreven + gepland = waarde. Het totaal staat alleen
+     hier, niet nog eens onder de maanden. */
+  let som;
+  if(w.waarde!=null){
+    som=`<div class="opd-ob-som">
+      <div class="opd-ob-deel"><i class="nu"></i><span>Geschreven t/m vandaag</span><b>${opdFmtEuro(w.geschreven.bedrag)}</b><small>${r1(w.geschreven.uren)} u</small></div>
+      <div class="opd-ob-deel"><i class="afgeleid"></i><span>Gepland vanaf morgen</span><b>${opdFmtEuro(w.gepland.bedrag)}</b><small>${r1(w.gepland.uren)} u</small></div>
+      <div class="opd-ob-deel opd-ob-totaal"><i></i><span>Contractwaarde</span><b>${opdFmtEuro(w.waarde)}</b><small>${r1(w.geschreven.uren+w.gepland.uren)} u</small></div>
+      ${opdWaardeBalk(w)}
+    </div>`;
+  }else{
+    som=`<div class="opd-ob-som">
+      <div class="opd-ob-deel"><i class="nu"></i><span>Geschreven t/m vandaag</span><b>${opdFmtEuro(w.geschreven.bedrag)}</b><small>${r1(w.geschreven.uren)} u</small></div>
+      <p class="opd-ob-noot">Geen einddatum: er is geen contractwaarde, alleen een tempo${w.perMaand?` van <b>± ${opdFmtEuro(w.perMaand)} per maand</b> (${urenFmtShort(o.urenPerWeek)} u per week × 52 ÷ 12 × € ${urenFmtShort(w.t)})`:''}.
+        ${w.gepland.uren>0?`Hieronder gepland t/m ${opdFmtDatum(w.horizon)}, zo ver als het vooruitzicht kijkt.`:''}</p>
+    </div>`;
+  }
+  /* Uitgangspunten: alles waar de som mee rekent. */
+  const up=[];
+  up.push(['Looptijd',o.eind?opdFmtDatum(o.start)+' – '+opdFmtDatum(o.eind)+(w.werkdagen?' · '+w.werkdagen+' werkdagen':''):'vanaf '+opdFmtDatum(o.start)+', geen einddatum']);
+  up.push(['Tarief',w.t?'€ '+urenFmtShort(w.t)+' per uur · '+(w.tariefBron==='opdracht'?'van de opdracht':'van de klant'):'geen tarief — gepland telt € 0']);
+  if(w.p.basis==='week')up.push(['Uren',urenFmtShort(o.urenPerWeek)+' u per week ÷ 5 = '+r1(w.p.perDag)+' u per werkdag']);
+  else if(w.p.basis==='budget')up.push(['Uren','rest van het budget over de werkdagen tot het einde = '+urenFmtShort(Math.round(w.p.perDag*100)/100)+' u per werkdag']);
+  else up.push(['Uren','geen uren per week of budget — er wordt niets gepland']);
+  if(Number(o.urenBudget)>0){
+    const rest=Math.max(0,Number(o.urenBudget)-w.gebruikt.uren);
+    up.push(['Budget',urenFmtShort(o.urenBudget)+' u · '+r1(w.gebruikt.uren)+' u gebruikt · '+r1(rest)+' u over'+
+      (w.p.budgetOp?' · op rond '+opdFmtDatum(w.p.budgetOp)+', daarna stopt de planning':'')]);
+  }
+  const upHtml=`<dl class="opd-ob-up">${up.map(([k,v])=>`<dt>${k}</dt><dd>${escapeHtml(v)}</dd>`).join('')}</dl>`;
+  /* Per maand: waar elk bedrag vandaan komt. */
+  const huidig=vandaag.slice(0,7);
+  const rijen=w.maanden.map(m=>{
+    const [j,mm]=m.key.split('-').map(Number);
+    const naam=MONTH_LABELS_NL[mm-1]+' '+j;
+    const delen=[];
+    if(m.geschrevenUren>0)delen.push(`<span class="opd-ob-g"><i class="nu"></i>geschreven ${r1(m.geschrevenUren)} u${m.gepland>0?' · '+opdFmtEuro(m.geschreven):''}</span>`);
+    /* In de maand waarin het budget opraakt is het geen werkdagen × uren
+       meer: dan staat er wat er van het budget over was. */
+    const formule=m.begrensd
+      ?`rest van het budget: ${r1(m.geplandUren)} u${w.p.budgetOp?' (op rond '+opdFmtDatum(w.p.budgetOp)+')':''}`
+      :`${m.dagen} werkdag${m.dagen===1?'':'en'} × ${r1(w.p.perDag)} u = ${r1(m.geplandUren)} u`;
+    if(m.geplandUren>0)delen.push(`<span class="opd-ob-g"><i class="afgeleid"></i>${formule}${m.geschreven>0?' · '+opdFmtEuro(m.gepland):''}</span>`);
+    return `<div class="opd-ob-rij${m.key===huidig?' nu':''}">
+      <span class="opd-ob-maand">${naam}${m.key===huidig?' <span class="opd-nu">nu</span>':''}</span>
+      <b class="opd-ob-bedrag">${opdFmtEuro(m.geschreven+m.gepland)}</b>
+      <span class="opd-ob-delen">${delen.join('')}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('opdOpbouwBody').innerHTML=som+
+    `<h4 class="opd-ob-kop">Uitgangspunten</h4>`+upHtml+
+    (rijen?`<h4 class="opd-ob-kop">Per maand</h4><div class="opd-ob-lijst">${rijen}</div>`:'')+
+    `<p class="opd-voetnoot">Geschreven: je urenregels voor deze klant binnen de looptijd, elk tegen zijn eigen tarief. Gepland: werkdagen (ma–vr) × uren per werkdag × het tarief; feestdagen en vakantie telt het niet mee.</p>`;
+  document.getElementById('opdOpbouwModal').classList.add('open');
+}
+function opdOpbouwSluit(){
+  document.getElementById('opdOpbouwModal')?.classList.remove('open');
+  opdOpbouwId=null;
+}
+function opdOpbouwNaarOpdracht(){
+  const id=opdOpbouwId;
+  opdOpbouwSluit();
+  if(id)opdOpen(id);
 }
 /* Kolommen per maand: geschreven egaal, gepland gearceerd (afgeleid, zie
    stijlgids §11). In de huidige maand staan ze op elkaar. Zelfde schaal,
@@ -30931,9 +31138,17 @@ function opdRekenVoorbeeld(){
   if(gebruikt>0)regels.push('Al geschreven binnen deze looptijd: <b>'+urenFmtShort(Math.round(gebruikt))+' uur</b>');
   if(o.urenPerWeek)regels.push('Gemiddeld per maand: <b>'+urenFmtShort(Math.round(o.urenPerWeek*52/12))+' uur</b>'+
     (t?' · '+opdFmtEuro(o.urenPerWeek*52/12*t):''));
-  if(o.eind&&o.eind>vandaag){
+  /* De contractwaarde met zijn twee delen -- dezelfde som als in de opbouw
+     onder Vooruitzicht. Vervangt de regel "Vanaf morgen tot het einde",
+     want dat getal is hier het geplande deel. */
+  if(o.eind&&t){
+    const w=opdOpbouw({...o,id:'__venster'},vandaag,kop);
+    const delen=[w.geschreven.bedrag>0.5?opdFmtEuro(w.geschreven.bedrag)+' geschreven':null,
+      w.gepland.uren>0?urenFmtShort(Math.round(w.gepland.uren))+' uur gepland ('+opdFmtEuro(w.gepland.bedrag)+')':null].filter(Boolean);
+    if(w.waarde>0)regels.push('Contractwaarde: <b>'+opdFmtEuro(w.waarde)+'</b>'+(delen.length>1?' · '+delen.join(' + '):''));
+  }else if(o.eind&&o.eind>vandaag){
     const p=opdPlanning(o,gebruikt,vandaag,null);
-    if(p.uren>0)regels.push('Vanaf morgen tot het einde: <b>'+urenFmtShort(Math.round(p.uren))+' uur</b>'+(t?' · '+opdFmtEuro(p.uren*t):''));
+    if(p.uren>0)regels.push('Vanaf morgen tot het einde: <b>'+urenFmtShort(Math.round(p.uren))+' uur</b>');
   }
   if(o.urenBudget){
     const p=opdPlanning(o,gebruikt,vandaag,null);
@@ -30994,6 +31209,9 @@ Object.assign(APP_ACTIONS,{
   opdToggleAfgelopen:()=>{opdSluitMenu();opdToggleAfgelopen();},
   opdNieuw:()=>opdNieuw(),
   opdOpen:(el,e,id)=>opdOpen(id),
+  opdOpbouwOpen:(el,e,id)=>opdOpbouwOpen(id),
+  opdOpbouwSluit:()=>opdOpbouwSluit(),
+  opdOpbouwNaarOpdracht:()=>opdOpbouwNaarOpdracht(),
   opdSluit:()=>opdSluit(),
   opdOpslaan:()=>opdOpslaan(),
   opdVerwijder:()=>opdVerwijder(),

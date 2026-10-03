@@ -5328,3 +5328,70 @@ Facturen.
 
 **Niet doen.** Geen bedragen of tarieven op deze kaart. Geen eigen drempels in
 het dashboard: pas ze aan in `opdSignalen()`/`ctrSignalen()`.
+
+## 2026-10-03 · Twee falende tests: plakken zonder focus, en meten vóór het lettertype
+
+**Probleem.** `test.html` gaf 124/126. (1) *Plakken uit VS Code*: de plak werd
+onderschept, maar er kwam niets in de notitie. `notePlakHtml()` probeerde
+`insertHTML` en daarna `insertText`; weigeren die allebei (een venster zonder
+focus, sommige Safari-versies), dan was de standaardplak al tegengehouden en
+verdween de tekst stil. (2) *Voet: één mintknop*: de acht knoppen moeten in
+956px passen. Met Inter is dat 872px, maar de test mat voordat Inter 600 binnen
+was — de browser vraagt elk gewicht pas op als het in beeld komt, hier dus pas
+als de editor opengaat — en met de vervanger is het 981px.
+
+**Beslissing.** (1) `notePlakZelf()`: weigert de browser beide, dan zelf
+invoegen op de cursor (blokken naast het blok waar de cursor staat of in de
+plaats van een leeg blok, nooit een `<p>` in een `<p>`). (2) De test laat eerst
+de opmaak berekenen, wacht op `document.fonts.ready` en faalt met een eigen
+melding als Inter helemaal niet te laden is.
+
+**Waarom.** (1) is een echt randgeval in de app, geen testprobleem: een plak
+die verdwijnt merk je pas later. (2) meet een breedte die aan het lettertype
+hangt; zonder dat lettertype is er niets te toetsen, en dat moet de test dan
+zeggen in plaats van een kale ✗.
+
+**Bestanden.** `index.html` — `notePlakHtml()`, `notePlakZelf()`. `test.html`.
+
+**Niet doen.** De breedtecontrole niet weghalen: hij bewaakt de keuze van
+2026-09-08 (editor 1000px).
+
+## 2026-10-03 · Opdrachten: contractwaarde met opbouw, Per opdracht op een telefoon
+
+**Probleem.** De waarde van een opdracht over de hele looptijd stond nergens,
+en hoe een bedrag in het vooruitzicht tot stand kwam was niet na te gaan.
+"Per opdracht" werd op een telefoon een lap tekst: zes maandbedragen die als
+woorden doorliepen ("okt € 9.120 nov € 9.576 dec …").
+
+**Beslissing.**
+- **Contractwaarde** = geschreven binnen de looptijd t/m vandaag (elke regel
+  tegen zijn eigen tarief) + gepland vanaf morgen tot de einddatum (tegen het
+  tarief van de opdracht). Zonder einddatum is er geen waarde, alleen een
+  tempo per maand (u/week × 52 ÷ 12 × tarief).
+- **Opbouw** in een eigen venster (`#opdOpbouwModal`, 640px): bovenaan de som
+  geschreven + gepland = waarde (het totaal staat alleen dáár), dan de
+  uitgangspunten (looptijd met werkdagen, tarief en waar het vandaan komt,
+  uren per werkdag, budget en wanneer het op is), dan per maand
+  `werkdagen × uren per dag = uren`. In de maand waarin het budget opraakt
+  staat "rest van het budget" in plaats van een formule die niet klopt.
+- **Per opdracht**: bureaublad houdt de zes maanden en krijgt een kolom
+  Contractwaarde; elke rij opent de opbouw. Telefoon: per opdracht de naam
+  (twee regels), de waarde en één balk geschreven (egaal) / gepland
+  (gearceerd); een tik opent de opbouw, waar de maanden staan.
+- In het bewerkvenster vervangt "Contractwaarde: … · geschreven + gepland" de
+  regel "Vanaf morgen tot het einde" (dat getal is het geplande deel).
+
+**Waarom.** De opbouw rekent niets zelf uit: `opdPlanning()` geeft nu ook per
+maand de werkdagen, het uurtempo en waar het budget afkapt terug
+(`dagen`/`perDag`/`begrensd`/`rest`), zodat de opbouw nooit iets anders kan
+zeggen dan het vooruitzicht. Een doorlopende opdracht plant in de opbouw tot
+dezelfde horizon als het vooruitzicht (`OPD_VOORUIT`, 8 maanden), anders
+liepen de maanden in de tabel en in de opbouw uiteen.
+
+**Bestanden.** `index.html` — `opdOpbouw()`, `opdOpbouwOpen()`,
+`opdWaardeBalk()`, `opdPlanning()` (extra uitvoer), `opdRenderVooruitzicht()`,
+`opdRekenVoorbeeld()`, `OPD_VOORUIT`, `.opd-w*`, `.opd-ob-*`, de mobiele regels
+van `.opd-opdtabel` verwijderd. `test.html` — twee rekentests.
+
+**Niet doen.** Geen eigen rekenwerk in de opbouw naast `opdPlanning()`. Geen
+totaalregel onder de maanden: die herhaalt de contractwaarde van bovenaan.
