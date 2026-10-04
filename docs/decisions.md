@@ -5620,3 +5620,38 @@ eerder per subtaak had aangevinkt.
 `migreerChecklistSubtaken()`, `toggleChecklistDone()`, `toggleSubtask()`,
 `unarchiveItem()`, `dashClToggle()`, `dashClToggleSubtask()`,
 `hydrateerStateIntern()`. `test.html` — twee tests.
+
+## 2026-10-04 · Kanban (Todo) verwijderd
+
+**Probleem.** De Kanban-module werd niet meer gebruikt: de taken staan in
+Checklist, het werk per klant in Opdrachten. Wel kostte hij ~770 regels JS,
+vijf vensters en een paar honderd CSS-regels die bij elke wijziging aan
+knoppen, kaarten en menu's meegelezen moesten worden.
+
+**Beslissing.**
+- Weg: `#mod-todo`, het item-, categorie- en importvenster, de tag-picker, het
+  projectmenu, alle `renderBoard`/`renderTodoModule`-aanroepen, de optie
+  *Taak* in het +menu en de CSS die alleen daar hoorde (`.col-*`, `.cat-*`,
+  `.kanban-*`, `.import-*`, `.tag-picker-*`, `.proj-menu*`, `.toolbar`,
+  `.column`, …). Selectorlijsten met een gedeelde selector zijn ingekort, niet
+  geschrapt.
+- Blijft: de klanten. Die staan in `kanbanState.clients`, opgeslagen als
+  `rawState.tasks` — naam bewust niet gewijzigd, want dan moet elke oude
+  back-up en elk Drive-bestand mee.
+- Oude projecten en kaarten blijven ongemoeid in de data staan (zoals bij de
+  agenda op 2026-09-06): niet getoond, wel mee in Drive en de back-up.
+  Een klant verwijderen haalt hem daar nog steeds ook weg.
+- Een oude `#todo`-link (en `bi_checklist_kanban.html`) opent het dashboard.
+- Versie v2.27, `CACHE_NAME` herling-v227.
+
+**Waarom niet ook `kanbanState` hernoemen.** 60+ plekken lezen
+`kanbanState.clients`; een hernoeming raakt elk spoor tegelijk en levert niets
+op behalve een nettere naam. De commentaarregel bij de declaratie legt het uit.
+
+**Bestanden.** `index.html`, `test.html` (Kanban-test omgedraaid: de module is
+weg, de klanten staan in de state; 136 tests), `.claude/ownership.json`
+(coördinatorregio's), `bi_checklist_kanban.html`, `sw.js`, `CLAUDE.md`.
+
+**Niet doen.** `rawState.tasks` weggooien of leegmaken bij het laden: daar
+staan de klanten, en de oude projecten zijn het enige wat er nog van Kanban
+over is.

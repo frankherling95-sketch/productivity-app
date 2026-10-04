@@ -8,7 +8,7 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 - **Repo**: `frankherling95-sketch/productivity-app` · branch `main`
 - **Live URL**: https://app.herling-analytics.nl (eigen domein via GitHub Pages)
 - **Auto-deploy**: elke push naar `main` → Pages-build (~30s)
-- **Hoofd-bestand**: `index.html` (~580KB, ~12k regels) — alles inline, geen build step
+- **Hoofd-bestand**: `index.html` (~1,7MB, ~34k regels) — alles inline, geen build step
 - **Beslissingen-log**: zie [`docs/decisions.md`](docs/decisions.md) — waarom keuzes gemaakt zijn (lees vóór je iets ongedaan maakt)
 
 ## Wie is de gebruiker
@@ -45,7 +45,6 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 | Hash | Module | Functie |
 |------|--------|---------|
 | `#dashboard` | Dashboard | Hero + KPI strip + kaartenraster (Notes/Checklist/Opdrachten & contracten) |
-| `#todo` | Kanban | Projecten met kolommen, kaarten met klant/tags/category, drag-drop |
 | `#notes` | Notes | Boomstructuur (folders/pages) met rich-text editor (marked.js) |
 | `#checklist` | Checklist | Taken met subtaken, filters (prio/klant/periode), vastpinnen, drag-drop, archief |
 | `#uren` | Uren | Urenregistratie per regel, week/maand, Excel export |
@@ -53,13 +52,13 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 | `#opdrachten` | Opdrachten | Opdrachten per klant (looptijd, uren per week of urenbudget, tarief, opzegtermijn, PDF van de overeenkomst) en een vooruitzicht per werkmaand |
 | `#contracten` | Contracten | Zakelijke én privécontracten (twee tabs), elk met looptijd, opzegtermijn, stilzwijgende verlenging en de PDF erbij |
 
-Entry render functions: `renderDashboard()`, `renderTodoModule()`, `renderNotesModule()`, `renderChecklistModule()`, `renderUrenModule()`, `renderFacturenModule()`, `renderOpdrachtenModule()`, `renderContractenModule()`. `renderAll()` wordt aangeroepen na elke `loadGist()`.
+Entry render functions: `renderDashboard()`, `renderNotesModule()`, `renderChecklistModule()`, `renderUrenModule()`, `renderFacturenModule()`, `renderOpdrachtenModule()`, `renderContractenModule()`. `renderAll()` wordt aangeroepen na elke `loadGist()`.
 
 ## State & persistence
 
 ```js
 rawState = {
-  tasks:    kanbanState,     // {projects, activeProject, clients, tags, categoryGrouping}
+  tasks:    kanbanState,     // {clients} — heet zo uit de tijd van Kanban (weg 2026-10-04); oude projects blijven ongemoeid in Drive
   notes:    notesState,      // {tree, activeId, collapsed, clientGroupCollapsed, recentIds, sortBy, prullenbak, verborgenKlanten}
   checklist: checklistState, // {items, showArchived, sortBy, groupByPriority}
   uren:     urenState,       // {entries, templates}
@@ -71,7 +70,6 @@ rawState = {
 ```
 
 **Item shapes** (snelle referentie):
-- Kanban item: `{id, title, clientId, category, context, tags[], createdAt, updatedAt}`
 - Checklist item: `{id, text, done, priority, deadline, clientId, subtasks[], archived, sortOrder, pinned}` — subtaak `{id, text, done, doorHoofd?}`; `doorHoofd` = mee afgevinkt met de hoofdtaak, gaat weer open als die terugkomt (`clZetHoofdKlaar()`)
 - Notes node (recursief): `{id, type:'page'|'folder', title, content, clientId, tags, children[]}`
 - Klant: `{id, name, colorIdx}`
@@ -146,7 +144,7 @@ Bij toevoegen van een nieuw state-veld: voeg een hydratie-stap toe in `hydrateer
 
 ## CSS conventies
 
-Class-prefix per module: `.cl-` checklist, `.dash-` dashboard, `.col-` kanban, `.note(s)-` notes, `.uren-` uren, `.modal-`, `.btn-`, `.toast-`, `.nav-`, `.mod-` (generiek). Geen utility-classes, geen `!important` tenzij echt nodig.
+Class-prefix per module: `.cl-` checklist, `.dash-` dashboard, `.note(s)-` notes, `.uren-` uren, `.modal-`, `.btn-`, `.toast-`, `.nav-`, `.mod-` (generiek). Geen utility-classes, geen `!important` tenzij echt nodig.
 
 ⚠️ **Ga je iets vormgeven — een knop, een menu, een kaart, een pil — gebruik dan
 de skill [`vormgeven`](.claude/skills/vormgeven/SKILL.md).** Die bevat de hele
@@ -222,8 +220,9 @@ tabel is de leesbare versie. Wijzig ze samen.
 | `uren` | `uren*`, `_uren*` | `.uren-` **minus de 42 gedeelde** | `#mod-uren` |
 | `facturen` | `fac*`, `_fac*`, `factuur*` | `.fac-` | `#mod-facturen` |
 
-`#mod-todo` (Kanban) heeft te weinig eigen code voor een eigen spoor en valt onder
-de coördinator. Dat geldt voorlopig ook voor `#mod-opdrachten` (`opd*`, `.opd-`) en `#mod-contracten` (`ctr*`, `.ctr-`).
+`#mod-opdrachten` (`opd*`, `.opd-`) en `#mod-contracten` (`ctr*`, `.ctr-`) hebben
+voorlopig geen eigen spoor en vallen onder de coördinator. (`#mod-todo`, Kanban, is
+weg sinds 2026-10-04.)
 
 ### Regels
 
@@ -317,9 +316,9 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
+- **2026-10-04**: **Kanban (Todo) verwijderd** — module, markup, ~770 regels JS en de bijbehorende CSS weg (v2.27). Klanten blijven in `kanbanState.clients` (`rawState.tasks`, naam ongewijzigd); oude projecten blijven ongemoeid in Drive. Een oude `#todo`-link opent het dashboard
 - **2026-10-04**: **Checklist: hoofdtaak afvinken vinkt subtaken mee af** — `clZetHoofdKlaar()`/`clZetSubtaak()` op alle plekken; mee-afgevinkte subtaken krijgen `doorHoofd` en gaan weer open als de hoofdtaak terugkomt; een subtaak openzetten opent de hoofdtaak. Bestaande afgeronde taken één keer rechtgezet bij het laden (`migreerChecklistSubtaken()`)
 - **2026-10-04**: **Bibliotheken met een vaste versie en bijgewerkt** — DOMPurify 3.2.4 → 3.4.16 (20 XSS-meldingen), SheetJS 0.18.5 → 0.20.3 via cdn.sheetjs.com (npm wordt niet meer bijgewerkt), marked vast op 18.0.14 via `lib/marked.umd.js` (de oude URL zonder versie gaf sinds marked 16 een 404, dus markdown verscheen als ruwe tekst). Versie v2.25. Daarna jsPDF 2.5.2 → 4.2.1 via PR #11 (v2.26; facturen pixel-identiek)
-- **2026-10-03**: **Opdrachten: feestdagen en vakantie** — `opdrachtState.vrij` (vakanties) en `.feestdagen` (welke; standaard zonder Goede Vrijdag/Bevrijdingsdag), venster *Vrije dagen* via ⋯. `opdVrijeDagen()` → Map; `opdPlanning()` telt ze niet als werkdag (ook budget), de opbouw zegt per maand wat eraf ging
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 
@@ -373,7 +372,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 135 smoke-, sync-, model-, reken- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
+| `test.html` | 136 smoke-, sync-, model-, reken- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |
@@ -394,5 +393,4 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 |------|-----------|
 | Klant / Client | Bedrijf/opdrachtgever — kleurgecodeerd |
 | Module | Top-level sectie (Dashboard, Todo, ...) |
-| Project | Kanban-bord (binnen Todo module) |
 | Subtaak | Onderdeel van een Checklist-item |
