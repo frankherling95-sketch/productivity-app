@@ -5529,3 +5529,42 @@ twee tests.
 
 **Niet doen.** Uren (registraties, het gat "werkdag zonder uren" in de
 analyse) gebruikt deze lijst nog niet; dat is een aparte stap.
+
+## 2026-10-04 · Bibliotheken met een vaste versie, en de beveiligingsupdates
+
+**Probleem.** Twee van de vier bibliotheken laadden zonder versie
+(`unpkg.com/xlsx/...`, `cdn.jsdelivr.net/npm/marked/marked.min.js`), dus
+"de nieuwste". Dat ging mis: marked haalde in versie 16 (juni 2025) het
+bestand `marked.min.js` uit de hoofdmap, de URL gaf sindsdien een 404 en
+`window.marked` bestond niet — markdown van de AI-opschoning, slim toevoegen
+en de wekelijkse review verscheen als ruwe tekst met sterretjes. `npm audit`
+op de gebruikte versies: DOMPurify 3.2.4 heeft 20 meldingen (XSS-omzeilingen,
+opgelost vanaf 3.4.13), SheetJS 0.18.5 twee (prototype pollution en ReDoS bij
+het *inlezen* van een bestand; de app leest Excel bij het importeren van
+taken), jsPDF 2.5.2 twaalf, waarvan één critical.
+
+**Beslissing.** Elke bibliotheek met een vaste versie:
+- DOMPurify 3.4.16 (zelfde aanroep `sanitize(html,{ADD_ATTR:['target']})`).
+- marked 18.0.14 via `lib/marked.umd.js` — het enige bestand dat er nog is;
+  `marked.parse`/`setOptions` zijn ongewijzigd.
+- SheetJS 0.20.3 via `cdn.sheetjs.com`: de npm-versie wordt niet meer
+  bijgewerkt, de reparaties staan alleen op hun eigen CDN.
+- jsPDF blijft hier op 2.5.2; de sprong naar 4.2.1 gaat via een PR met een
+  vergelijking van de factuur-PDF's.
+- Versie v2.25 (`CACHE_NAME` herling-v225).
+
+**Getest.** `test.html` met de oude en de nieuwe versies (lokaal geserveerd
+op de CDN-adressen, de CDN's zelf zijn vanuit de testomgeving niet
+bereikbaar): 133/133 beide. Daarnaast: Excel-export Uren en boekhoudexport
+Facturen (bestand teruggelezen), import van dat bestand bij taken, markdown
+inclusief tabel, en de sanitizer met `onerror`, `javascript:`, `<script>`,
+`data:`-afbeelding en `target`. SheetJS 0.20.3 is getest met de npm-kopie
+`@e965/xlsx@0.20.3`, niet met het bestand van cdn.sheetjs.com zelf.
+
+**Bestanden.** `index.html` (scripttags, versie), `sw.js`, `CLAUDE.md`
+(tabel Dependencies; *Recent gemaakte beslissingen* weer de drie nieuwste),
+`docs/stijlgids.md` (onderdelen van 2026-10-03).
+
+**Niet doen.** Geen URL zonder versienummer meer. Geen SRI-hash toevoegen
+zonder het bestand van het CDN zelf te hebben gehasht — een verkeerde hash
+blokkeert de bibliotheek stil.

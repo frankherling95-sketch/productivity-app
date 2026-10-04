@@ -105,6 +105,21 @@ terug te draaien is (verwijderen) krijgt `danger` en staat apart.
 
 56×56 rechtsonder, `right: 17px`, `bottom: 80px` + safe-area, glyph 26px.
 Alleen op mobiel; op een bureaublad staat dezelfde actie als knop in de balk.
+Een pagina met een ronde + houdt onderaan **96px** vrij (Facturen, Dashboard),
+anders ligt de knop ook doorgescrold over de laatste kaart.
+
+Op het Dashboard is de + een keuzemenu (`.ha-newitem-menu`): **één regel per
+optie** (titel 13px/600, geen onderregel), icoon 30×30 in een eigen tint per
+soort, menu 264px breed.
+
+### Opslaan in een tabelregel (Uren)
+
+De lege regel bovenaan Registraties heeft een eigen knop **Opslaan**
+(`.uren-btn-primary`, 30px hoog) plus een ✕ om leeg te maken, in de kolommen
+van status en acties (`.uren-draft-acts`, colspan 2). Gedimd (`opacity:.45`)
+zolang klant of uren ontbreekt — klikken mag, dan zegt hij wat er mist. Het ✕
+staat er alleen als er iets in de regel staat. Geen stil vastleggen bij het
+verlaten van de regel.
 
 ---
 
@@ -186,6 +201,22 @@ ander getal.
 Op een telefoon staat de tabel er niet; daar is de regel van de lijst
 (`button.uren-mpiv-row`: klant, week of maand) de knop, minstens `var(--tap)`
 hoog. Een regel zonder uren blijft een gewone `div`.
+
+### Strook over de volle breedte (Dashboard: Opdrachten & contracten)
+
+Op een bureaublad een kaart over beide kolommen onder Notities en Checklist
+(`grid-template-rows: 1fr auto`, alleen boven 900px). Regels `.dash-oc-rij`:
+`var(--tap)` hoog, `--surface2`, `radius-md`, `var(--fs-klein)`; naam 600 met
+`…`, het signaal als `.fac-pill.opd-pill-let`/`-fout`. Twee kolommen vanaf 340px
+breed. Op mobiel één kolom, het woord Opdracht/Contract weg.
+
+### Waarde met een balk (Opdrachten → Omzet, Per klant)
+
+Op een telefoon per opdracht `.opd-wrij`: naam (twee regels, `--fs-klein`/600)
+links, waarde rechts (`--fs-basis`/600), daaronder één balk van 6px —
+geschreven egaal (`--gr-nu`), gepland gearceerd (§11) — en een bijregel in
+`--fs-micro`. Geen bedrag (doorlopend) = rechts `--fs-klein`/500 muted, geen
+balk. Op een bureaublad blijft het een tabel; beide in de DOM, de CSS kiest.
 
 ### Taakkaart (Checklist)
 
@@ -289,7 +320,7 @@ verschilt — in Safari ruimer dan in Chrome. Altijd begrenzen met
 | sluitkruis | icoonknop, ín de kopbalk, 9px van de rechterrand — alleen mobiel |
 | voet | knoppen groeien mee; past het niet, dan zakt de hoofdknop naar een eigen volle regel |
 | voetknop | ≥ `var(--tap)` hoog |
-| breedte | 640 (formulier) · 720 (lijst) · 800 (maandoverzicht: de kalender vraagt 720) · **1000** (factuureditor) |
+| breedte | 640 (formulier; ook de opbouw van een contractwaarde en Vrije dagen) · 720 (lijst) · 800 (maandoverzicht: de kalender vraagt 720) · **1000** (factuureditor) |
 
 > **Breedte is geen smaak.** De factuureditor staat op 1000px omdat er een
 > regeltabel van zes kolommen in zit én een voet met acht knoppen; op 900
