@@ -1242,6 +1242,7 @@ async function runChecks() {
         const oudO = w.eval('JSON.stringify(opdrachtState.opdrachten)');
         const oudC = w.eval('JSON.stringify(contractState.contracten)');
         const oudS = w.eval('JSON.stringify(rawState.settings.agendaMeldingen||null)');
+        const oudCl = w.eval('JSON.stringify(checklistState.items)');
         const echtFetch = w.fetch, echtToken = w.driveVraagToken;
         const kal = {}; let volg = 0; const log = [];
         const antw = (s, b) => new w.Response(s === 204 ? null : JSON.stringify(b || {}), {status: s});
@@ -1265,6 +1266,7 @@ async function runChecks() {
             {id:'a', clientId:null, naam:'A', start:'2026-01-01', eind:'2099-12-31', opzeg:''},
             {id:'b', clientId:null, naam:'B', start:'2026-01-01', eind:'2099-06-30', opzeg:''}]));
           w.eval('contractState.contracten=[]');
+          w.eval('checklistState.items=[]');
           w.eval("rawState.settings.agendaMeldingen={aan:true,kalenderId:''}");
           const r1 = await w.agdSync(); log.length = 0;
           const r2 = await w.agdSync(); const alleenLezen = log.length === 1 && log[0] === 'GET';
@@ -1276,7 +1278,178 @@ async function runChecks() {
           w.eval('clearTimeout(agdTimer)');
           w.eval('opdrachtState.opdrachten=' + oudO); w.eval('contractState.contracten=' + oudC);
           w.eval('rawState.settings.agendaMeldingen=' + oudS + ';if(!rawState.settings.agendaMeldingen)delete rawState.settings.agendaMeldingen;');
+          w.eval('checklistState.items=' + oudCl);
           try { w.localStorage.removeItem('herling_agenda'); } catch (_) {}
+        }
+      }],
+    /* ── Checklist-deadlines in Google Agenda (2026-10-04) ── */
+    ['Meldingen: een open taak met een deadline komt erin, met een melding de dag ervoor om 09:00; uit te zetten',
+      () => {
+        const oudCl = w.eval('JSON.stringify(checklistState.items)');
+        const oudS = w.eval('JSON.stringify(rawState.settings.agendaMeldingen||null)');
+        try {
+          w.eval('checklistState.items=' + JSON.stringify([
+            {id:'t1', text:'Rapport opleveren', done:false, deadline:'2026-10-10', subtasks:[{id:'s', text:'x', done:false}]},
+            {id:'t2', text:'Al af', done:true, deadline:'2026-10-10', subtasks:[]},
+            {id:'t3', text:'Gearchiveerd', done:false, archived:true, deadline:'2026-10-10', subtasks:[]},
+            {id:'t4', text:'Verlopen', done:false, deadline:'2026-09-01', subtasks:[]},
+            {id:'t5', text:'Geen deadline', done:false, deadline:'', subtasks:[]}]));
+          w.eval("rawState.settings.agendaMeldingen={aan:true,kalenderId:''}");
+          const g = w.agdGewenst('2026-09-20');
+          const t = g.find(a => a.sleutel === 'cl:t1');
+          const her = t && t.body.reminders.overrides.map(o => o.method + o.minutes).join(',');
+          const alleen = g.filter(a => a.sleutel.startsWith('cl:')).length === 1;
+          w.eval('rawState.settings.agendaMeldingen.checklist=false');
+          const uit = !w.agdGewenst('2026-09-20').some(a => a.sleutel.startsWith('cl:'));
+          return !!t && alleen && uit && t.datum === '2026-10-10' && t.body.start.date === '2026-10-10' &&
+                 her === 'popup900' && /^Deadline: Rapport opleveren$/.test(t.titel) &&
+                 /1 open subtaak/.test(t.body.description);
+        } finally {
+          w.eval('checklistState.items=' + oudCl);
+          w.eval('rawState.settings.agendaMeldingen=' + oudS + ';if(!rawState.settings.agendaMeldingen)delete rawState.settings.agendaMeldingen;');
+        }
+      }],
+    /* ── Archief in Google Drive (2026-10-04) ───────────────────────────
+       archiefGewenst leest de state; archiefSync praat met een nep-Drive. */
+    ['Archief: welke bestanden in welke map, zonder concepten; een betaling verandert de PDF niet',
+      () => {
+        const oudF = w.eval('JSON.stringify(factuurState.invoices)');
+        const oudO = w.eval('JSON.stringify(opdrachtState.opdrachten)');
+        const oudC = w.eval('JSON.stringify(contractState.contracten)');
+        try {
+          w.eval('factuurState.invoices=' + JSON.stringify([
+            {id:'f1', nummer:'2026-001', status:'verstuurd', datum:'2026-03-01', clientId:null, klant:{naam:'Acme BV'}, afzender:{}, regels:[{omschrijving:'Werk', aantal:1, prijs:100}]},
+            {id:'f2', nummer:'2026-002', status:'concept', datum:'2026-03-02', clientId:null, klant:{naam:'Acme BV'}, afzender:{}, regels:[]}]));
+          w.eval('contractState.contracten=' + JSON.stringify([
+            {id:'c1', soort:'leverancier', domein:'prive', wederpartij:'KPN', titel:'Internet', bijlagen:[{id:'b1', naam:'kpn.pdf', hash:'h1'}]},
+            {id:'c2', soort:'leverancier', domein:'prive', wederpartij:'KPN', titel:'Internet', bijlagen:[{id:'b2', naam:'kpn.pdf', hash:'h2'}]}]));
+          w.eval('opdrachtState.opdrachten=' + JSON.stringify([
+            {id:'o1', clientId:null, naam:'Migratie', bijlagen:[{id:'b3', naam:'a.pdf', hash:'h3'}, {id:'b4', naam:'b.pdf', hash:'h4'}]}]));
+          const g = w.archiefGewenst();
+          const sl = Object.fromEntries(g.map(a => [a.sleutel, a]));
+          const voor = sl['fac:f1'].hash;
+          w.eval("factuurState.invoices[0].status='betaald';factuurState.invoices[0].betalingen=[{bedrag:121}]");
+          const naBetaling = w.archiefGewenst().find(a => a.sleutel === 'fac:f1').hash;
+          w.eval("factuurState.invoices[0].regels[0].prijs=110");
+          const naWijziging = w.archiefGewenst().find(a => a.sleutel === 'fac:f1').hash;
+          return g.length === 5 && !sl['fac:f2'] &&
+                 sl['fac:f1'].pad.join('/') === 'Facturen/2026' && /^2026-001.*\.pdf$/.test(sl['fac:f1'].naam) &&
+                 sl['bijl:b1'].pad.join('/') === 'Contracten/Privé' && sl['bijl:b1'].naam === 'KPN - Internet.pdf' &&
+                 sl['bijl:b2'].naam === 'KPN - Internet (2).pdf' &&
+                 sl['bijl:b3'].pad.join('/') === 'Opdrachten' && / - Migratie - a\.pdf$/.test(sl['bijl:b3'].naam) &&
+                 voor === naBetaling && voor !== naWijziging;
+        } finally {
+          w.eval('factuurState.invoices=' + oudF); w.eval('opdrachtState.opdrachten=' + oudO);
+          w.eval('contractState.contracten=' + oudC);
+        }
+      }],
+    ['Archief: bijwerken uploadt, doet niets zonder wijziging, verplaatst zonder opnieuw te uploaden en ruimt op',
+      async () => {
+        const oudF = w.eval('JSON.stringify(factuurState.invoices)');
+        const oudO = w.eval('JSON.stringify(opdrachtState.opdrachten)');
+        const oudC = w.eval('JSON.stringify(contractState.contracten)');
+        const oudS = w.eval('JSON.stringify(rawState.settings.driveArchief||null)');
+        const oudG = w.eval('driveGelezen');
+        const echtFetch = w.fetch, echtToken = w.driveVraagToken, echtPdf = w.archiefFactuurPdf, echtHaal = w.ctrPdfHaal;
+        const drive = {}; let volg = 0; const log = [];
+        const antw = (s, b) => new w.Response(JSON.stringify(b || {}), {status: s});
+        const meta = async body => { const t = typeof body === 'string' ? body : await body.text();
+          const m = /\{[^\r\n]*\}/.exec(t); return JSON.parse(m[0]); };
+        const ouders = (f, q) => { const a = q.get('addParents'), r = q.get('removeParents');
+          if (r) f.parents = f.parents.filter(p => !r.split(',').includes(p)); if (a) f.parents.push(a); };
+        w.driveVraagToken = async () => 'tok';
+        w.archiefFactuurPdf = async () => new w.Blob(['%PDF-factuur'], {type: 'application/pdf'});
+        w.ctrPdfHaal = async b => new w.Blob(['%PDF-' + b.id], {type: 'application/pdf'});
+        w.fetch = async (url, o) => {
+          o = o || {}; const u = new URL(String(url)); const q = u.searchParams; const m = o.method || 'GET';
+          const pad = u.pathname;
+          log.push(m + ' ' + (pad.startsWith('/upload') ? 'upload' : 'meta'));
+          if (m === 'GET' && pad === '/drive/v3/files') {
+            const map = /folder/.test(q.get('q'));
+            return antw(200, {files: Object.values(drive).filter(f => !f.trashed &&
+              (map ? f.mimeType === 'application/vnd.google-apps.folder' : (f.appProperties || {}).herling === '1'))});
+          }
+          if (m === 'POST') { const md = await meta(o.body); const id = 'd' + (++volg);
+            drive[id] = {id, parents: [], ...md}; return antw(200, {id}); }
+          const r = /\/files\/([^/]+)$/.exec(pad); const f = r && drive[decodeURIComponent(r[1])];
+          if (!f) return antw(404, {});
+          if (m === 'PATCH') { const md = await meta(o.body); Object.assign(f, md); ouders(f, q); return antw(200, {id: f.id}); }
+          return antw(400, {});
+        };
+        try {
+          w.eval('driveGelezen=true');
+          w.eval('factuurState.invoices=' + JSON.stringify([
+            {id:'f1', nummer:'2026-001', status:'verstuurd', datum:'2026-03-01', clientId:null, klant:{naam:'Acme'}, afzender:{}, regels:[]}]));
+          w.eval('contractState.contracten=' + JSON.stringify([
+            {id:'c1', soort:'leverancier', domein:'zakelijk', wederpartij:'Eneco', titel:'', bijlagen:[{id:'b1', naam:'e.pdf', hash:'h1'}]}]));
+          w.eval('opdrachtState.opdrachten=[]');
+          w.eval("rawState.settings.driveArchief={aan:true,mapId:''}");
+          const r1 = await w.archiefSync();
+          const mappen = Object.values(drive).filter(f => f.mimeType === 'application/vnd.google-apps.folder')
+            .map(f => f.appProperties.herlingMap).sort().join(',');
+          log.length = 0;
+          const r2 = await w.archiefSync(); const alleenLezen = log.every(x => x.startsWith('GET'));
+          w.eval("contractState.contracten[0].domein='prive'"); log.length = 0;
+          const r3 = await w.archiefSync(); const geenUpload = !log.some(x => x.endsWith('upload'));
+          const kpn = Object.values(drive).find(f => (f.appProperties || {}).sleutel === 'bijl:b1');
+          const privé = drive[kpn.parents[0]].appProperties.herlingMap === 'Contracten/Privé';
+          w.eval('contractState.contracten=[]');
+          const r4 = await w.archiefSync();
+          return r1.nieuw === 2 && mappen === '/,Contracten,Contracten/Zakelijk,Facturen,Facturen/2026' &&
+                 r2.nieuw + r2.bij + r2.weg === 0 && alleenLezen &&
+                 r3.bij === 1 && geenUpload && privé && r4.weg === 1 && kpn.trashed === true;
+        } finally {
+          w.fetch = echtFetch; w.driveVraagToken = echtToken; w.archiefFactuurPdf = echtPdf; w.ctrPdfHaal = echtHaal;
+          w.eval('driveGelezen=' + oudG + ';clearTimeout(archiefTimer);clearTimeout(agdTimer)');
+          w.eval('factuurState.invoices=' + oudF); w.eval('opdrachtState.opdrachten=' + oudO);
+          w.eval('contractState.contracten=' + oudC);
+          w.eval('rawState.settings.driveArchief=' + oudS + ';if(!rawState.settings.driveArchief)delete rawState.settings.driveArchief;');
+          try { w.localStorage.removeItem('herling_archief'); } catch (_) {}
+        }
+      }],
+    ['Archief: veel tegelijk weg gaat niet vanzelf naar de prullenbak, wel na een klik',
+      async () => {
+        const oudO = w.eval('JSON.stringify(opdrachtState.opdrachten)');
+        const oudF = w.eval('JSON.stringify(factuurState.invoices)');
+        const oudC = w.eval('JSON.stringify(contractState.contracten)');
+        const oudS = w.eval('JSON.stringify(rawState.settings.driveArchief||null)');
+        const oudG = w.eval('driveGelezen');
+        const echtFetch = w.fetch, echtToken = w.driveVraagToken, echtHaal = w.ctrPdfHaal;
+        const drive = {}; let volg = 0;
+        const antw = (s, b) => new w.Response(JSON.stringify(b || {}), {status: s});
+        const meta = async body => { const t = typeof body === 'string' ? body : await body.text();
+          return JSON.parse(/\{[^\r\n]*\}/.exec(t)[0]); };
+        w.driveVraagToken = async () => 'tok';
+        w.ctrPdfHaal = async b => new w.Blob(['%PDF-' + b.id], {type: 'application/pdf'});
+        w.fetch = async (url, o) => {
+          o = o || {}; const u = new URL(String(url)); const m = o.method || 'GET';
+          if (m === 'GET') { const map = /folder/.test(u.searchParams.get('q'));
+            return antw(200, {files: Object.values(drive).filter(f => !f.trashed &&
+              (map ? f.mimeType === 'application/vnd.google-apps.folder' : (f.appProperties || {}).herling === '1'))}); }
+          if (m === 'POST') { const id = 'd' + (++volg); drive[id] = {id, parents: [], ...(await meta(o.body))}; return antw(200, {id}); }
+          const f = drive[decodeURIComponent(u.pathname.split('/').pop())];
+          if (!f) return antw(404, {});
+          Object.assign(f, await meta(o.body)); return antw(200, {id: f.id});
+        };
+        try {
+          w.eval('driveGelezen=true');
+          w.eval('factuurState.invoices=[];contractState.contracten=[]');
+          w.eval('opdrachtState.opdrachten=' + JSON.stringify([{id:'o1', clientId:null, naam:'X',
+            bijlagen:[1,2,3,4,5].map(i => ({id:'b' + i, naam:i + '.pdf', hash:'h' + i}))}]));
+          w.eval("rawState.settings.driveArchief={aan:true,mapId:''}");
+          const r1 = await w.archiefSync();
+          w.eval('opdrachtState.opdrachten=[]');
+          const r2 = await w.archiefSync();
+          const nogEr = Object.values(drive).filter(f => f.appProperties && f.appProperties.herling === '1' && !f.trashed).length;
+          const r3 = await w.archiefSync({wegMag: true});
+          return r1.nieuw === 5 && r2.weg === 0 && r2.overgeslagen === 5 && nogEr === 5 && r3.weg === 5;
+        } finally {
+          w.fetch = echtFetch; w.driveVraagToken = echtToken; w.ctrPdfHaal = echtHaal;
+          w.eval('driveGelezen=' + oudG + ';clearTimeout(archiefTimer);clearTimeout(agdTimer)');
+          w.eval('factuurState.invoices=' + oudF); w.eval('opdrachtState.opdrachten=' + oudO);
+          w.eval('contractState.contracten=' + oudC);
+          w.eval('rawState.settings.driveArchief=' + oudS + ';if(!rawState.settings.driveArchief)delete rawState.settings.driveArchief;');
+          try { w.localStorage.removeItem('herling_archief'); } catch (_) {}
         }
       }],
     /* ── Een PDF laten uitlezen (2026-09-29) ─────────────────────────────

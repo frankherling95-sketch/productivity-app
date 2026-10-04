@@ -65,7 +65,7 @@ rawState = {
   opdrachten: opdrachtState, // {opdrachten, vrij (vakanties), feestdagen (ids; ontbreekt = standaard)}
   contracten: contractState, // {contracten, opruimen} — de PDF's zelf staan NIET hierin, zie Contracten hieronder
   // agenda: verwijderd 2026-09-06; oude events blijven ongemoeid in Drive staan
-  settings: { calSources, theme, agendaMeldingen: {aan, kalenderId}, ... }
+  settings: { calSources, theme, agendaMeldingen: {aan, kalenderId, checklist}, driveArchief: {aan, mapId}, ... }
 }
 ```
 
@@ -89,6 +89,7 @@ rawState = {
 | `LS_CTR_WEERGAVE` = `herling_contracten_weergave` | Welke tab van Contracten je bekijkt (zakelijk/privé), per apparaat en bewust niet in `rawState` |
 | IndexedDB `herling_bijlagen` | PDF's van Contracten op dit apparaat (kopie; het origineel staat als los bestand in de Drive-`appDataFolder`) |
 | `LS_HERSTEL_KEY` = `herling_analytics_herstel` | Niet-gekozen versie na een conflict; zichtbaar in Instellingen → Versiegeschiedenis, of `herstelDownload()` |
+| `LS_ARCHIEF` = `herling_archief` | Archief in Google Drive: handtekening, tijdstip, aantal en wat er wacht of is overgeslagen bij de laatste keer bijwerken op dít apparaat (zelfde reden als `LS_AGD`) |
 | `LS_AGD` = `herling_agenda` | Meldingen in Google Agenda: handtekening, tijdstip en aantal van de laatste keer bijwerken op dít apparaat (bewust niet in `rawState`: anders wordt elke keer bijwerken een wijziging voor Drive) |
 
 ### Save flow
@@ -316,9 +317,9 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
+- **2026-10-04**: **Archief in Google Drive + checklist-deadlines in Agenda** (v2.28) — Instellingen → *Archief in Google Drive*: verstuurde facturen en de PDF's van contracten/opdrachten als gewone bestanden in de map *Herling Analytics* (scope `drive.file`), bijgewerkt door vergelijken zoals de agenda (`archiefGewenst()`/`archiefSync()`); weg = prullenbak, veel tegelijk pas na een klik. Taken met een deadline komen in de agenda *Herling – aflopend* (`cl:<id>`, melding de dag ervoor 09:00), uit te zetten met `agendaMeldingen.checklist`
 - **2026-10-04**: **Kanban (Todo) verwijderd** — module, markup, ~770 regels JS en de bijbehorende CSS weg (v2.27). Klanten blijven in `kanbanState.clients` (`rawState.tasks`, naam ongewijzigd); oude projecten blijven ongemoeid in Drive. Een oude `#todo`-link opent het dashboard
 - **2026-10-04**: **Checklist: hoofdtaak afvinken vinkt subtaken mee af** — `clZetHoofdKlaar()`/`clZetSubtaak()` op alle plekken; mee-afgevinkte subtaken krijgen `doorHoofd` en gaan weer open als de hoofdtaak terugkomt; een subtaak openzetten opent de hoofdtaak. Bestaande afgeronde taken één keer rechtgezet bij het laden (`migreerChecklistSubtaken()`)
-- **2026-10-04**: **Bibliotheken met een vaste versie en bijgewerkt** — DOMPurify 3.2.4 → 3.4.16 (20 XSS-meldingen), SheetJS 0.18.5 → 0.20.3 via cdn.sheetjs.com (npm wordt niet meer bijgewerkt), marked vast op 18.0.14 via `lib/marked.umd.js` (de oude URL zonder versie gaf sinds marked 16 een 404, dus markdown verscheen als ruwe tekst). Versie v2.25. Daarna jsPDF 2.5.2 → 4.2.1 via PR #11 (v2.26; facturen pixel-identiek)
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 
@@ -372,7 +373,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 136 smoke-, sync-, model-, reken- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
+| `test.html` | 140 smoke-, sync-, model-, reken- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |
@@ -384,7 +385,8 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 - Toegang via Google-login; alleen accounts van `herling-analytics.nl` komen binnen
 - Data in Drive `appDataFolder`: een verborgen map per gebruiker die alleen deze app kan lezen — geen URL, geen losse token
 - Geen pincode-versleuteling meer (afgeschaft 2026-08-16) — `appDataFolder` is het slot. Alleen het uitpakpad voor een oud versleuteld blok staat er nog (PBKDF2 + AES-GCM, alleen ontsleutelen)
-- Geen telemetrie, geen externe API-calls behalve Google (Drive, Gmail, Fonts)
+- Geen telemetrie, geen externe API-calls behalve Google (Drive, Gmail, Agenda, Fonts)
+- Google-scopes: `drive.appdata` (opslag), `drive.file` (archief: alleen wat de app zelf maakte), `gmail.send`, `calendar.app.created` — elk staat op het OAuth-scherm in de Cloud Console
 - Tokens NIET in `.git/config` URL — gebruik Git Credential Manager (`git config --global credential.helper manager`)
 
 ## Glossarium

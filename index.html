@@ -2181,10 +2181,16 @@ button.uren-mpiv-row:active{background:var(--surface2)}
 .agd-lijst li:last-child{border-bottom:0}
 .agd-lijst .d{flex:none;width:96px;color:var(--text-muted);font-variant-numeric:tabular-nums}
 .agd-lijst .t{flex:1;min-width:0;color:var(--text)}
+/* De tekst in een span: .modal label staat op een telefoon op --fs-micro
+   (!important, voor veldlabels), en dit is geen veldlabel maar een zin. */
+#agdBody .agd-optie{margin:4px 0 14px;align-items:flex-start;line-height:1.45}
+#agdBody .agd-optie span{font-size:var(--fs-klein)}
+#agdBody .agd-optie input{flex:none;margin-top:2px}
+@media (max-width:768px){#agdBody .agd-optie{min-height:var(--tap);align-items:center}}
 .agd-meer{font-size:var(--fs-micro);color:var(--text-hint);margin:6px 2px 0}
 /* De weg naar de Cloud Console, als knop op een eigen regel in de melding. */
-#agdBody .agd-link{display:flex;width:max-content;margin-top:10px;text-decoration:none}
-@media (max-width:768px){#agdBody .agd-link{height:var(--tap);min-height:var(--tap)}}
+#agdBody .agd-link,#archiefBody .agd-link{display:flex;width:max-content;margin-top:10px;text-decoration:none}
+@media (max-width:768px){#agdBody .agd-link,#archiefBody .agd-link{height:var(--tap);min-height:var(--tap)}}
 
 /* Venster: de PDF's bij dit contract, en een vlak om er een bij te zetten. */
 .ctr-bijlagen{display:flex;flex-direction:column;gap:8px}
@@ -7968,7 +7974,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.27</span>
+        <span class="app-versie" title="Appversie">v2.28</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -8590,6 +8596,24 @@ textarea { line-height: 1.6; resize: vertical; }
       <div class="modal-footer-right">
         <button class="btn btn-sm modal-annuleer" data-action="agdSluit">Sluiten</button>
         <button class="btn btn-sm btn-primary" id="agdHoofdknop" data-action="agdHoofdknop">Aanzetten</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Instellingen → Archief in Google Drive: facturen en PDF's als gewone
+     bestanden in een eigen map. Inhoud uit archiefVensterVernieuw(). -->
+<div class="modal-bg" id="archiefModal" onclick="if(event.target===this)archiefSluit()">
+  <div class="modal" style="max-width:640px;padding:20px 22px">
+    <h3 style="font-size:18px;font-weight:700;margin:0 0 16px">Archief in Google Drive</h3>
+    <div id="archiefBody"></div>
+    <div class="modal-footer" style="margin-top:20px">
+      <div class="modal-footer-left">
+        <button class="btn btn-sm btn-danger" id="archiefUitknop" data-action="archiefUitzetten" style="display:none">Uitzetten</button>
+      </div>
+      <div class="modal-footer-right">
+        <button class="btn btn-sm modal-annuleer" data-action="archiefSluit">Sluiten</button>
+        <button class="btn btn-sm btn-primary" id="archiefHoofdknop" data-action="archiefHoofdknop">Aanzetten</button>
       </div>
     </div>
   </div>
@@ -10714,6 +10738,7 @@ function scheduleSave(){
   /* Meldingen in Google Agenda meeschuiven met wat er veranderde. Doet
      niets zolang ze uit staan; mag het opslaan nooit hinderen. */
   try{agdNaWijziging();}catch(_){}
+  try{archiefNaWijziging();}catch(_){}
 }
 /* Capture in-flight pending save when the tab closes */
 window.addEventListener('beforeunload',()=>{
@@ -12918,6 +12943,7 @@ function renderAll(){
   /* Na elk laden: loopt er intussen iets anders af (een andere computer,
      of een contract dat vandaag doorverlengde)? Zie agdNaWijziging. */
   try{agdNaWijziging();}catch(_){}
+  try{archiefNaWijziging();}catch(_){}
 }
 
 const GELDIGE_MODULES=['dashboard','notes','checklist','uren','facturen','opdrachten','contracten'];
@@ -13099,6 +13125,9 @@ function toggleAppInstellingen(e){
     <button class="uren-menu-item" role="menuitem" data-app-instel="herstel">
       <span class="ic" aria-hidden="true">&#8593;</span>
       <span>Back-up terugzetten<small>Een eerder gedownload JSON-bestand</small></span></button>
+    <button class="uren-menu-item" role="menuitem" data-app-instel="archief">
+      <span class="ic" aria-hidden="true">&#128193;</span>
+      <span>Archief in Google Drive<small>${escapeHtml(archiefMenuTekst())}</small></span></button>
     <div class="uren-menu-sep"></div>
     <div class="uren-menu-lab">AI</div>
     <button class="uren-menu-item" role="menuitem" data-app-instel="aikey">
@@ -13159,6 +13188,7 @@ document.addEventListener('click',e=>{
   if(wat==='review')openWeeklyReviewModal();
   if(wat==='notif')requestNotifPermission();
   if(wat==='agenda')agdOpen();
+  if(wat==='archief')archiefOpen();
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeAppInstellingen();});
 
@@ -31922,6 +31952,11 @@ function agdAan(){
   const c=((typeof rawState!=='undefined'&&rawState&&rawState.settings)||{}).agendaMeldingen;
   return !!(c&&c.aan);
 }
+/* Ontbreekt de sleutel (alles van vóór 2026-10-04), dan staat hij aan. */
+function agdChecklistAan(){
+  const c=((typeof rawState!=='undefined'&&rawState&&rawState.settings)||{}).agendaMeldingen;
+  return !(c&&c.checklist===false);
+}
 function agdLokaal(){try{return JSON.parse(localStorage.getItem(LS_AGD)||'{}')||{};}catch(_){return {};}}
 function agdLokaalZet(p){try{localStorage.setItem(LS_AGD,JSON.stringify({...agdLokaal(),...p}));}catch(_){}}
 
@@ -31934,14 +31969,14 @@ function agdHash(s){
   for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,0x01000193)>>>0;}
   return h.toString(16);
 }
-function agdDagAfspraak(sleutel,titel,datum,regels,mod){
+function agdDagAfspraak(sleutel,titel,datum,regels,mod,herinner){
   return {sleutel,datum,titel,body:{
     summary:titel,
     description:regels.concat(['','Openen in de app: '+AGD_APP_URL+'#'+mod,
       'Deze afspraak houdt Herling Analytics zelf bij: wijzig de datum in de app, niet hier.']).join('\n'),
     start:{date:datum},end:{date:opdPlusDagen(datum,1)},
     transparency:'transparent',
-    reminders:{useDefault:false,overrides:AGD_HERINNER_DAGEN.map(d=>({method:'popup',minutes:agdMinuten(d)}))
+    reminders:{useDefault:false,overrides:herinner||AGD_HERINNER_DAGEN.map(d=>({method:'popup',minutes:agdMinuten(d)}))
       .concat([{method:'email',minutes:agdMinuten(AGD_HERINNER_DAGEN[0])}])},
     source:{title:'Herling Analytics',url:AGD_APP_URL+'#'+mod}
   }};
@@ -31998,6 +32033,23 @@ function agdGewenst(vandaag){
       lt.opzegVoor?'Opzeggen uiterlijk '+opdFmtDatum(lt.opzegVoor):''].filter(Boolean);
     uit.push(agdDagAfspraak('ctr:'+c.id,wie+' — '+wat,datum,regels,'contracten'));
   });
+  /* Taken uit Checklist met een deadline (Frank, 2026-10-04): een hele dag
+     op de deadline, met één melding de dag ervoor om 09:00. Op de dag zelf
+     kan niet -- een herinnering valt altijd vóór het begin van een hele dag.
+     Afgevinkt, gearchiveerd of verlopen: dan staat hij er niet (meer) in.
+     Uit te zetten in het venster; standaard aan. */
+  if(agdChecklistAan()){
+    (checklistState.items||[]).forEach(it=>{
+      if(!it||it.done||it.archived||!it.deadline||it.deadline<vandaag)return;
+      const tekst=String(it.text||'').replace(/\s+/g,' ').trim()||'Taak';
+      const open=(it.subtasks||[]).filter(st=>!st.done).length;
+      const regels=[it.clientId?'Klant: '+opdKlantNaam(it.clientId):'',
+        open?open+' open '+(open===1?'subtaak':'subtaken'):'',
+        'Deadline: '+opdFmtDatum(it.deadline)].filter(Boolean);
+      uit.push(agdDagAfspraak('cl:'+it.id,'Deadline: '+(tekst.length>100?tekst.slice(0,99)+'…':tekst),
+        it.deadline,regels,'checklist',[{method:'popup',minutes:agdMinuten(1)}]));
+    });
+  }
   return uit.sort((a,b)=>a.datum.localeCompare(b.datum)||a.sleutel.localeCompare(b.sleutel));
 }
 function agdHandtekening(gewenst,kalenderId){
@@ -32209,6 +32261,8 @@ function agdVensterVernieuw(){
       er <b>2 maanden</b> van tevoren nog een seintje bij.</p>
     <p class="agd-uitleg">Er wordt geteld naar de opzegdatum; zonder opzegtermijn naar het einde. Wijzig je een datum in
       de app, dan schuift de afspraak vanzelf mee. De app ziet en wijzigt alleen deze ene agenda.</p>
+    <label class="fac-mail-check agd-optie"><input type="checkbox" ${agdChecklistAan()?'checked':''} data-change="agdChecklistWissel">
+      <span>Ook taken uit Checklist met een deadline — met een melding de dag ervoor om 09:00</span></label>
     ${status}
     <h4 class="fac-an-sub">${aan?'In de agenda':'Wat er in de agenda komt'} · ${gewenst.length}</h4>
     ${gewenst.length?`<ul class="agd-lijst">${lijst}</ul>${gewenst.length>8?`<p class="agd-meer">en nog ${gewenst.length-8}</p>`:''}`
@@ -32260,11 +32314,481 @@ async function agdUitzetten(){
     :'Meldingen staan uit, maar de agenda kon niet worden verwijderd — haal "'+AGD_KALENDER+'" zelf weg in Google Agenda',
     {type:gelukt?'success':'warning',duration:gelukt?4000:9000});
 }
+Object.assign(APP_CHANGE_ACTIONS,{
+  agdChecklistWissel:(el)=>{agdCfg().checklist=!!el.checked;scheduleSave();agdVensterVernieuw();}
+});
 Object.assign(APP_ACTIONS,{
   agdOpen:()=>agdOpen(),
   agdSluit:()=>agdSluit(),
   agdHoofdknop:()=>agdHoofdknop(),
   agdUitzetten:()=>agdUitzetten()
+});
+
+/* ═══════════════════════════════════════════════════
+   ARCHIEF IN GOOGLE DRIVE — facturen en PDF's als gewone bestanden
+   ───────────────────────────────────────────────────
+   Frank wil alle facturen en contracten ook gewoon in zijn Drive hebben
+   (2026-10-04): terug te vinden zonder de app, te delen met de boekhouder,
+   en een tweede kopie naast de verborgen app-map.
+
+   Wat erin komt, in de map "Herling Analytics" in Mijn Drive:
+   - Facturen/<jaar>/ — elke factuur die geen concept meer is, als PDF uit
+     dezelfde bouwer als downloaden en mailen (facPdfDoc), met dezelfde
+     bestandsnaam. Met meer dan één bedrijf komt er een laag per bedrijf
+     tussen: Facturen/<bedrijf>/<jaar>/.
+   - Contracten/Zakelijk/ en Contracten/Privé/ — de PDF's bij een contract.
+   - Opdrachten/ — de PDF's bij een opdracht (de overeenkomst).
+
+   Hoe (zelfde opzet als de meldingen in Google Agenda):
+   - De toestemming is drive.file: de app ziet en wijzigt alléén bestanden
+     en mappen die hij zelf maakte, niet de rest van je Drive.
+   - Bijwerken is vergelijken: wat er zou moeten staan (archiefGewenst)
+     tegen wat er staat. Elk bestand draagt zijn sleutel ("fac:<id>",
+     "bijl:<id>") en een hash van zijn inhoud in appProperties; elke map
+     zijn pad ("Facturen/2026"). Zo hoeft de app geen Drive-nummers te
+     onthouden en herstelt hij zich als je in Drive iets weggooit.
+   - Is de inhoud anders, dan wordt hetzelfde bestand bijgewerkt (Drive
+     bewaart de vorige versie); is alleen de naam of de map anders, dan
+     wordt hij hernoemd of verplaatst. Hoort een bestand nergens meer bij,
+     dan gaat het naar de prullenbak van Drive -- dertig dagen terug te
+     halen. Zijn dat er ineens veel, dan gebeurt dat niet vanzelf maar
+     vraagt het venster het eerst (zie ARCHIEF_WEG_GRENS).
+   - Het gebeurt vanzelf, net als bij de agenda: na elke wijziging en na
+     elk laden, tien seconden later, en alleen als de verzameling anders is
+     dan bij de laatste keer op dit apparaat.
+   - Alleen als Drive deze sessie gelezen is en de administratie compleet
+     in het geheugen staat (geheimenKlaar): anders zou een halve state de
+     helft van het archief naar de prullenbak sturen.
+
+   Token: zoals bij de agenda draagt na één keer toestemming ook elk vers
+   Drive-token deze scope (include_granted_scopes), dus bijwerken kan op de
+   achtergrond zonder Google-venster.
+
+   Vereist in de Cloud Console: de scope drive.file op het OAuth-scherm.
+   De Drive API staat al aan (die gebruikt de opslag ook). */
+const ARCHIEF_SCOPE='https://www.googleapis.com/auth/drive.file';
+const ARCHIEF_MAP='Herling Analytics';
+const ARCHIEF_MAPTYPE='application/vnd.google-apps.folder';
+/* Meer dan dit aantal én meer dan een kwart van het archief tegelijk naar
+   de prullenbak: eerst vragen. Een lege of halve state hoort nooit stil
+   het archief leeg te halen. */
+const ARCHIEF_WEG_GRENS=3;
+/* Per apparaat, net als LS_AGD: wat er bij de laatste keer bijwerken is
+   neergezet. In rawState zou elke keer bijwerken zelf weer een wijziging
+   voor Drive zijn. */
+const LS_ARCHIEF='herling_archief';
+let archiefStatus={fase:'',tekst:''};
+let archiefBezig=null, archiefTimer=null, archiefTok=null, archiefFoutGemeld=false, archiefNogEens=false;
+
+/* Aan/uit en de map gaan wél mee naar Drive: zet je het op de laptop aan,
+   dan werkt de telefoon mee, in dezelfde map. */
+function archiefCfg(){
+  const s=(rawState.settings=rawState.settings||{});
+  if(!s.driveArchief||typeof s.driveArchief!=='object')s.driveArchief={aan:false,mapId:''};
+  return s.driveArchief;
+}
+function archiefAan(){
+  const c=((typeof rawState!=='undefined'&&rawState&&rawState.settings)||{}).driveArchief;
+  return !!(c&&c.aan);
+}
+function archiefLokaal(){try{return JSON.parse(localStorage.getItem(LS_ARCHIEF)||'{}')||{};}catch(_){return {};}}
+function archiefLokaalZet(p){try{localStorage.setItem(LS_ARCHIEF,JSON.stringify({...archiefLokaal(),...p}));}catch(_){}}
+
+/* Een / in een naam leest in Drive als een map die er niet is. */
+function archiefNaam(s){
+  return String(s||'').replace(/[\/\\:*?"<>|]+/g,'-').replace(/\s+/g,' ').trim();
+}
+/* Eén PDF: "<partij> - <titel>.pdf"; meer PDF's bij hetzelfde contract
+   krijgen hun eigen bestandsnaam erachter. */
+function archiefPdfNaam(basis,b,aantal){
+  if(aantal<=1)return basis+'.pdf';
+  return basis+' - '+archiefNaam(String(b.naam||'bijlage').replace(/\.pdf$/i,''))+'.pdf';
+}
+async function archiefFactuurPdf(id){
+  const f=factuurById(id);
+  const doc=f?facPdfDoc(f):null;
+  if(!doc)throw new Error('PDF-bibliotheek nog niet geladen');
+  return doc.output('blob');
+}
+
+/* Wat er in de map hoort te staan. Zuiver: leest alleen de state (de PDF
+   zelf wordt pas gemaakt als hij er echt heen moet), dus ook te gebruiken
+   voor het overzicht in het venster en getest in test.html.
+   De hash van een factuur dekt alles wat facPdfDoc tekent: de velden, de
+   momentopnamen van klant en afzender, het sjabloon en de uren van de
+   specificatie. Status en betalingen staan niet op de PDF en tellen dus
+   niet mee -- een betaling registreren uploadt niets opnieuw. */
+function archiefGewenst(){
+  const uit=[];
+  const tplHash=new Map();
+  const bedrijven=((typeof factuurSettings==='function'&&factuurSettings())||{}).bedrijven||[];
+  (factuurState.invoices||[]).forEach(f=>{
+    if(!f||f.status==='concept'||!f.nummer)return;
+    const tpl=facSjabloonVoor(f)||{};
+    const tk=tpl.id||'';
+    if(!tplHash.has(tk))tplHash.set(tk,agdHash(JSON.stringify(tpl)));
+    const inhoud={nummer:f.nummer,datum:f.datum,vervaldatum:f.vervaldatum,betaaltermijn:f.betaaltermijn,
+      betreft:f.betreft,periode:f.periode,referentie:f.referentie,notitie:f.notitie,regels:f.regels,
+      btwVerlegd:f.btwVerlegd,specificatie:f.specificatie,
+      klant:f.klant||factuurKlantSnapshot(factuurKlant(f.clientId)),
+      afz:f.afzender||factuurAfzenderSnapshot(factuurBedrijfIdVan(f)),
+      uren:f.specificatie?factuurSpecificatieUren(f).map(e=>[e.date,e.description,e.hours]):null};
+    const jaar=String(f.datum||'').slice(0,4)||'Zonder datum';
+    const pad=bedrijven.length>1
+      ?['Facturen',archiefNaam(facBedrijfNaam(factuurBedrijfIdVan(f)))||'Bedrijf',jaar]:['Facturen',jaar];
+    uit.push({sleutel:'fac:'+f.id,soort:'factuur',naam:archiefNaam(facPdfBestandsnaam(f)),pad,
+      hash:agdHash(tplHash.get(tk)+'|'+JSON.stringify(inhoud)),bron:()=>archiefFactuurPdf(f.id)});
+  });
+  /* De bijlage draagt al een hash van zijn bytes; die is de inhoud. */
+  const bijlage=(b,basis,aantal,pad)=>({sleutel:'bijl:'+b.id,soort:'pdf',naam:archiefPdfNaam(basis,b,aantal),pad,
+    hash:String(b.hash||(b.id+':'+(b.grootte||''))),bron:()=>ctrPdfHaal(b)});
+  (contractState.contracten||[]).forEach(c=>{
+    const bl=c.bijlagen||[];
+    const basis=archiefNaam(ctrPartijNaam(c)+(c.titel?' - '+c.titel:''))||'Contract';
+    bl.forEach(b=>uit.push(bijlage(b,basis,bl.length,['Contracten',ctrDomein(c)==='prive'?'Privé':'Zakelijk'])));
+  });
+  (opdrachtState.opdrachten||[]).forEach(o=>{
+    const bl=o.bijlagen||[];
+    const basis=archiefNaam(opdKlantNaam(o.clientId)+(o.naam?' - '+o.naam:''))||'Opdracht';
+    bl.forEach(b=>uit.push(bijlage(b,basis,bl.length,['Opdrachten'])));
+  });
+  /* Twee keer dezelfde naam in één map mag in Drive, maar je kunt ze dan
+     niet uit elkaar houden: de tweede krijgt " (2)". */
+  const gezien=new Map();
+  uit.forEach(a=>{
+    const k=a.pad.join('/')+'/'+a.naam.toLowerCase();
+    const n=(gezien.get(k)||0)+1;
+    gezien.set(k,n);
+    if(n>1)a.naam=a.naam.replace(/\.pdf$/i,'')+' ('+n+').pdf';
+  });
+  return uit;
+}
+function archiefHandtekening(gewenst,mapId){
+  return agdHash((mapId||'')+'|'+gewenst.map(a=>a.sleutel+'='+a.hash+'@'+a.pad.join('/')+'/'+a.naam).join(';'));
+}
+/* Mag er nu geschreven worden? Zie de kop: alleen met een complete state. */
+function archiefMagSchrijven(){
+  return !!(DRIVE_ACTIEF&&driveGelezen&&geheimenKlaar()&&
+    !(typeof hydratieBezig!=='undefined'&&hydratieBezig));
+}
+
+/* ── Toegang ── (zie agdNieuwToken: zelfde aanpak, andere scope) */
+function archiefNieuwToken(){
+  return new Promise((res,rej)=>{
+    const gebruiker=ingelogdeGebruiker();
+    try{
+      google.accounts.oauth2.initTokenClient({
+        client_id:GOOGLE_CLIENT_ID,
+        scope:ARCHIEF_SCOPE,
+        include_granted_scopes:true,
+        hint:gebruiker?gebruiker.email:undefined,
+        hd:TOEGESTAAN_DOMEIN,
+        callback:(r)=>{
+          if(r.error)return rej(new Error(r.error_description||r.error));
+          const t={token:r.access_token,tot:Date.now()+(Number(r.expires_in||3600)*1000)};
+          archiefTok=t;
+          if(String(r.scope||'').split(' ').includes(DRIVE_SCOPE)){driveToken=t;driveTokenBewaar(t);}
+          res(t.token);
+        },
+        error_callback:(e)=>rej(new Error((e&&e.message)||'Toestemming geweigerd'))
+      }).requestAccessToken({prompt:''});
+    }catch(e){rej(e);}
+  });
+}
+async function archiefGeefToken(){
+  if(archiefTok&&Date.now()<archiefTok.tot-60000)return archiefTok.token;
+  return driveVraagToken(false);
+}
+async function archiefApi(pad,opties,poging){
+  opties=opties||{};poging=poging||0;
+  const tok=await archiefGeefToken();
+  const r=await fetch('https://www.googleapis.com/'+pad,{...opties,
+    headers:{Authorization:'Bearer '+tok,...(opties.headers||{})}});
+  if(r.ok)return r;
+  const j=await r.json().catch(()=>({}));
+  const e=new Error(((j||{}).error||{}).message||('Drive '+r.status));
+  e.status=r.status;
+  e.reden=((((j||{}).error||{}).errors||[])[0]||{}).reason||((j||{}).error||{}).status||'';
+  if(poging===0&&(r.status===401||agdScopeFout(e))){
+    archiefTok=null;
+    try{await googleGereed(8000);await archiefNieuwToken();}
+    catch(_){const v=new Error('Toestemming voor Google Drive nodig');v.verbinden=true;throw v;}
+    return archiefApi(pad,opties,1);
+  }
+  if(agdScopeFout(e)||r.status===401)e.verbinden=true;
+  throw e;
+}
+const archiefEnc=encodeURIComponent;
+const ARCHIEF_JSON={'Content-Type':'application/json; charset=UTF-8'};
+async function archiefLijst(q){
+  const uit=[];let pagina='';
+  do{
+    const r=await archiefApi('drive/v3/files?spaces=drive&pageSize=1000&q='+archiefEnc(q)+
+      '&fields='+archiefEnc('nextPageToken,files(id,name,parents,appProperties)')+
+      (pagina?'&pageToken='+archiefEnc(pagina):''));
+    const j=await r.json();
+    uit.push(...(j.files||[]));
+    pagina=j.nextPageToken||'';
+  }while(pagina);
+  return uit;
+}
+/* Een map op pad ['Facturen','2026'] -- en wat erboven ontbreekt meteen
+   mee. De hoofdmap ('/') komt in Mijn Drive; verplaats je hem, dan vindt
+   de app hem op zijn pad-label gewoon terug. */
+async function archiefZorgMap(pad,cache){
+  const k=pad.length?pad.join('/'):'/';
+  if(cache.has(k))return cache.get(k);
+  const ouder=pad.length?await archiefZorgMap(pad.slice(0,-1),cache):null;
+  const meta={name:pad.length?pad[pad.length-1]:ARCHIEF_MAP,mimeType:ARCHIEF_MAPTYPE,appProperties:{herlingMap:k}};
+  if(ouder)meta.parents=[ouder];
+  const r=await archiefApi('drive/v3/files?fields=id',{method:'POST',headers:ARCHIEF_JSON,body:JSON.stringify(meta)});
+  const id=(await r.json()).id;
+  cache.set(k,id);
+  if(!pad.length){archiefCfg().mapId=id;scheduleSave();}
+  return id;
+}
+/* Nieuw bestand, of nieuwe inhoud voor een bestaand bestand (en dan meteen
+   de goede naam en map). Tot 5 MB in één verzoek, daarboven de hervatbare
+   upload -- zoals ctrDriveUpload. */
+async function archiefUpload(a,blob,mapId,bestaand){
+  const type='application/pdf';
+  const meta={name:a.naam,appProperties:{herling:'1',sleutel:a.sleutel,hash:a.hash}};
+  let pad,method;
+  if(bestaand){
+    const ouders=bestaand.parents||[];
+    const oud=ouders.filter(p=>p!==mapId);
+    pad='upload/drive/v3/files/'+archiefEnc(bestaand.id)+'?fields=id'+
+      (ouders.includes(mapId)?'':'&addParents='+archiefEnc(mapId)+(oud.length?'&removeParents='+archiefEnc(oud.join(',')):''));
+    method='PATCH';
+  }else{
+    meta.parents=[mapId];meta.mimeType=type;
+    pad='upload/drive/v3/files?fields=id';method='POST';
+  }
+  if(blob.size<=5*1024*1024){
+    const grens='herling'+Math.random().toString(36).slice(2);
+    const body=new Blob([
+      '--'+grens+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n',
+      JSON.stringify(meta)+'\r\n',
+      '--'+grens+'\r\nContent-Type: '+type+'\r\n\r\n',
+      blob,
+      '\r\n--'+grens+'--'
+    ]);
+    await archiefApi(pad+'&uploadType=multipart',{method,headers:{'Content-Type':'multipart/related; boundary='+grens},body});
+    return;
+  }
+  const r=await archiefApi(pad+'&uploadType=resumable',{method,
+    headers:{...ARCHIEF_JSON,'X-Upload-Content-Type':type,'X-Upload-Content-Length':String(blob.size)},
+    body:JSON.stringify(meta)});
+  const plek=r.headers.get('Location');
+  if(!plek)throw new Error('Drive gaf geen uploadadres terug');
+  const r2=await fetch(plek,{method:'PUT',headers:{Authorization:'Bearer '+(await archiefGeefToken()),'Content-Type':type},body:blob});
+  if(!r2.ok)throw new Error('Drive '+r2.status+' bij het uploaden');
+}
+
+/* Eén keer bijwerken. Er loopt er hooguit één tegelijk; een wijziging die
+   ondertussen binnenkomt wordt na afloop ingehaald.
+   opties.wegMag: ook als het er veel zijn naar de prullenbak (na een klik
+   in het venster). */
+async function archiefSync(opties){
+  opties=opties||{};
+  if(archiefBezig){archiefNogEens=true;return archiefBezig;}
+  archiefBezig=(async()=>{
+    const cfg=archiefCfg();
+    if(!cfg.aan)return null;
+    if(!archiefMagSchrijven()){
+      const e=new Error('De gegevens uit Drive zijn nog niet helemaal geladen — probeer het zo nog eens');
+      e.wachten=true;throw e;
+    }
+    const gewenst=archiefGewenst();
+    /* Eerst de bestanden: lukt dat, dan draagt het token de scope en is
+       een ontbrekende hoofdmap echt weg, niet onzichtbaar. */
+    const bestanden=await archiefLijst("trashed=false and appProperties has { key='herling' and value='1' }");
+    const mappen=await archiefLijst("trashed=false and mimeType='"+ARCHIEF_MAPTYPE+"'");
+    const cache=new Map();
+    mappen.forEach(m=>{const k=(m.appProperties||{}).herlingMap;if(k&&!cache.has(k))cache.set(k,m.id);});
+    if(cache.has('/')&&cfg.mapId!==cache.get('/')){cfg.mapId=cache.get('/');scheduleSave();}
+    await archiefZorgMap([],cache);
+
+    const perSleutel=new Map(), dubbel=[];
+    bestanden.forEach(b=>{
+      const s=(b.appProperties||{}).sleutel;
+      if(!s)return;
+      if(perSleutel.has(s))dubbel.push(b);else perSleutel.set(s,b);
+    });
+    const tel={nieuw:0,bij:0,weg:0,wacht:0,overgeslagen:0};
+    for(const a of gewenst){
+      const bestaand=perSleutel.get(a.sleutel);
+      perSleutel.delete(a.sleutel);
+      const mapId=await archiefZorgMap(a.pad,cache);
+      const zelfdeInhoud=!!bestaand&&(bestaand.appProperties||{}).hash===a.hash;
+      const zelfdePlek=!!bestaand&&bestaand.name===a.naam&&(bestaand.parents||[]).includes(mapId);
+      if(zelfdeInhoud&&zelfdePlek)continue;
+      if(zelfdeInhoud){
+        /* Alleen hernoemen of verplaatsen: de PDF hoeft niet opnieuw. */
+        const oud=(bestaand.parents||[]).filter(p=>p!==mapId);
+        await archiefApi('drive/v3/files/'+archiefEnc(bestaand.id)+'?fields=id'+
+          ((bestaand.parents||[]).includes(mapId)?'':'&addParents='+archiefEnc(mapId)+(oud.length?'&removeParents='+archiefEnc(oud.join(',')):'')),
+          {method:'PATCH',headers:ARCHIEF_JSON,body:JSON.stringify({name:a.naam})});
+        tel.bij++;continue;
+      }
+      let blob;
+      try{blob=await a.bron();}
+      catch(e){
+        /* Staat alleen op een ander apparaat: dat stuurt hem eerst naar de
+           app-map, daarna komt hij hier vanzelf mee. */
+        if(e&&e.code==='elders'){tel.wacht++;continue;}
+        throw e;
+      }
+      await archiefUpload(a,blob,mapId,bestaand);
+      if(bestaand)tel.bij++;else tel.nieuw++;
+    }
+    const weg=[...perSleutel.values(),...dubbel];
+    if(weg.length>ARCHIEF_WEG_GRENS&&weg.length>bestanden.length/4&&!opties.wegMag){
+      tel.overgeslagen=weg.length;
+    }else{
+      for(const b of weg){
+        try{await archiefApi('drive/v3/files/'+archiefEnc(b.id)+'?fields=id',
+          {method:'PATCH',headers:ARCHIEF_JSON,body:JSON.stringify({trashed:true})});}
+        catch(e){if(e.status!==404)throw e;}
+        tel.weg++;
+      }
+    }
+    const n=gewenst.length-tel.wacht;
+    archiefLokaalZet({sig:archiefHandtekening(gewenst,cfg.mapId),bijgewerkt:Date.now(),n,
+      wacht:tel.wacht,overgeslagen:tel.overgeslagen});
+    archiefStatus={fase:'ok',tekst:''};
+    archiefFoutGemeld=false;
+    return {...tel,n};
+  })();
+  try{return await archiefBezig;}
+  catch(e){archiefStatusUitFout(e);throw e;}
+  finally{
+    archiefBezig=null;
+    archiefVensterVernieuw();
+    if(archiefNogEens){archiefNogEens=false;archiefNaWijziging();}
+  }
+}
+function archiefStatusUitFout(e){
+  if(e&&e.verbinden)archiefStatus={fase:'verbinden',tekst:'De app heeft opnieuw toestemming nodig om in je Drive te schrijven.'};
+  else if(e&&e.wachten)archiefStatus={fase:'fout',tekst:e.message+'.'};
+  else archiefStatus={fase:'fout',tekst:'Bijwerken lukte niet: '+((e&&e.message)||'onbekende fout')+'.'};
+}
+
+/* Na elke wijziging en na elk laden; kost niets zolang het archief uit
+   staat. Staan er PDF's te wachten op een ander apparaat, dan hooguit eens
+   per tien minuten opnieuw kijken. */
+function archiefNaWijziging(){
+  if(!archiefAan())return;
+  if(typeof hydratieBezig!=='undefined'&&hydratieBezig)return;
+  clearTimeout(archiefTimer);
+  archiefTimer=setTimeout(archiefMisschienSync,10000);
+}
+function archiefMisschienSync(){
+  if(!archiefAan()||!ingelogdeGebruiker()||!navigator.onLine||!archiefMagSchrijven())return;
+  const cfg=archiefCfg(), l=archiefLokaal();
+  if(cfg.mapId&&archiefHandtekening(archiefGewenst(),cfg.mapId)===l.sig&&
+    !(l.wacht&&Date.now()-(l.bijgewerkt||0)>10*60000))return;
+  archiefSync().catch(()=>{
+    if(archiefFoutGemeld)return;
+    archiefFoutGemeld=true;
+    appToast('Je archief in Google Drive kon niet worden bijgewerkt — zie Instellingen → Archief in Google Drive',
+      {type:'warning',duration:8000});
+  });
+}
+
+/* ── Het venster in Instellingen ── */
+function archiefMenuTekst(){
+  if(!archiefAan())return 'Uit — facturen en contracten alleen in de app';
+  if(archiefStatus.fase&&archiefStatus.fase!=='ok')return 'Aan — maar bijwerken lukte niet';
+  const l=archiefLokaal();
+  return 'Aan'+(l.n!=null?' — '+l.n+' '+(l.n===1?'bestand':'bestanden'):'');
+}
+function archiefOpen(){
+  document.getElementById('archiefModal')?.classList.add('open');
+  archiefVensterVernieuw();
+}
+function archiefSluit(){document.getElementById('archiefModal')?.classList.remove('open');}
+function archiefVensterVernieuw(){
+  const box=document.getElementById('archiefBody');
+  if(!box||!document.getElementById('archiefModal')?.classList.contains('open'))return;
+  const aan=archiefAan(), l=archiefLokaal(), cfg=archiefCfg();
+  const gewenst=archiefGewenst();
+  const tijd=l.bijgewerkt?new Date(l.bijgewerkt).toLocaleString('nl-NL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'';
+  const map=cfg.mapId?`<a class="uren-btn agd-link" href="https://drive.google.com/drive/folders/${archiefEnc(cfg.mapId)}" target="_blank" rel="noopener">Map openen in Drive ↗</a>`:'';
+  let status='';
+  if(archiefBezig)status=`<div class="fac-btw-let">Bezig met bijwerken…</div>`;
+  else if(aan&&archiefStatus.fase&&archiefStatus.fase!=='ok')
+    status=`<div class="fac-btw-let let-fout">${UITROEP_ICOON}<span>${escapeHtml(archiefStatus.tekst)}</span></div>`;
+  else if(aan){
+    status=`<div class="fac-btw-let let-gelukt">${VINK_ICOON}<span>Aan${l.n!=null?' — '+l.n+' '+(l.n===1?'bestand':'bestanden')+' in de map “'+escapeHtml(ARCHIEF_MAP)+'”':''}${tijd?', op dit apparaat bijgewerkt '+escapeHtml(tijd):''}.${map}</span></div>`;
+    if(l.wacht)status+=`<div class="fac-btw-let">${UITROEP_ICOON}<span>${l.wacht} ${l.wacht===1?'PDF staat':"PDF's staan"} nog alleen op een ander apparaat. Open daar Contracten of Opdrachten; daarna ${l.wacht===1?'komt hij':'komen ze'} hier vanzelf bij.</span></div>`;
+    if(l.overgeslagen)status+=`<div class="fac-btw-let let-fout">${UITROEP_ICOON}<span>${l.overgeslagen} bestanden in de map horen niet meer bij iets in de app. Omdat dat er veel tegelijk zijn, staan ze er nog — kijk of dat klopt.<button class="uren-btn agd-link" data-action="archiefOpruimen">Naar de prullenbak van Drive</button></span></div>`;
+  }
+  const perMap=new Map();
+  gewenst.forEach(a=>{const k=a.pad.join(' / ');perMap.set(k,(perMap.get(k)||0)+1);});
+  const rijen=[...perMap.entries()].sort((a,b)=>a[0].localeCompare(b[0],'nl'))
+    .map(([k,n])=>`<li><span class="d">${n}</span><span class="t">${escapeHtml(k)}</span></li>`).join('');
+  box.innerHTML=`
+    <p class="agd-uitleg">Elke factuur die geen concept meer is en elke PDF bij een contract of opdracht komt als
+      los bestand in de map <b>${escapeHtml(ARCHIEF_MAP)}</b> in je Google Drive: terug te vinden zonder de app,
+      en te delen met je boekhouder.</p>
+    <p class="agd-uitleg">Wijzig je iets in de app, dan wordt het bestand bijgewerkt (Drive bewaart de vorige versie).
+      Haal je iets weg, dan gaat het in Drive naar de prullenbak — dertig dagen terug te halen. De map mag je
+      verplaatsen of delen; de app ziet alleen de bestanden die hij zelf maakte.</p>
+    ${status}
+    <h4 class="fac-an-sub">${aan?'In de map':'Wat er in de map komt'} · ${gewenst.length}</h4>
+    ${gewenst.length?`<ul class="agd-lijst">${rijen}</ul>`
+      :'<p class="agd-uitleg">Er zijn nog geen verstuurde facturen of PDF\'s.</p>'}`;
+  const hoofd=document.getElementById('archiefHoofdknop');
+  if(hoofd){
+    hoofd.textContent=!aan?'Aanzetten':archiefStatus.fase==='verbinden'?'Opnieuw verbinden':'Nu bijwerken';
+    hoofd.disabled=!!archiefBezig;
+  }
+  const uit=document.getElementById('archiefUitknop');
+  if(uit)uit.style.display=aan?'':'none';
+}
+/* Aanzetten en opnieuw verbinden op een klik: alleen dan mag er een
+   Google-venster open. */
+async function archiefHoofdknop(opties){
+  const aan=archiefAan();
+  try{
+    if(!aan||archiefStatus.fase==='verbinden'){
+      if(!(await googleGereed(8000)))throw new Error('Google-bibliotheek kon niet geladen worden');
+      await archiefNieuwToken();
+    }
+    if(!aan){archiefCfg().aan=true;scheduleSave();}
+    archiefVensterVernieuw();
+    const r=await archiefSync(opties);
+    if(r){
+      const wat=r.nieuw+r.bij+r.weg;
+      appToast(!aan?`Archief staat aan · ${r.n} ${r.n===1?'bestand':'bestanden'} in je Drive`
+        :wat?`Archief bijgewerkt · ${r.nieuw} nieuw, ${r.bij} bijgewerkt${r.weg?', '+r.weg+' naar de prullenbak':''}`
+        :'Archief is bij',{type:'success'});
+    }
+  }catch(e){
+    if(!archiefStatus.fase||archiefStatus.fase==='ok')archiefStatusUitFout(e);
+    archiefVensterVernieuw();
+  }
+}
+async function archiefUitzetten(){
+  const ok=await appBevestig('Archief uitzetten?',
+    'De map "'+ARCHIEF_MAP+'" blijft in je Drive staan, met alles erin. Er komt alleen niets meer bij en niets wordt meer bijgewerkt.',
+    {ja:'Uitzetten'});
+  if(!ok)return;
+  archiefCfg().aan=false;
+  scheduleSave();
+  clearTimeout(archiefTimer);
+  try{localStorage.removeItem(LS_ARCHIEF);}catch(_){}
+  archiefStatus={fase:'',tekst:''};
+  archiefVensterVernieuw();
+  appToast('Archief staat uit; de map in je Drive blijft staan',{type:'success'});
+}
+Object.assign(APP_ACTIONS,{
+  archiefOpen:()=>archiefOpen(),
+  archiefSluit:()=>archiefSluit(),
+  archiefHoofdknop:()=>archiefHoofdknop(),
+  archiefOpruimen:()=>archiefHoofdknop({wegMag:true}),
+  archiefUitzetten:()=>archiefUitzetten()
 });
 
 /* ═══════════════════════════════════════════════════

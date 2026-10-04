@@ -5655,3 +5655,66 @@ weg, de klanten staan in de state; 136 tests), `.claude/ownership.json`
 **Niet doen.** `rawState.tasks` weggooien of leegmaken bij het laden: daar
 staan de klanten, en de oude projecten zijn het enige wat er nog van Kanban
 over is.
+
+## 2026-10-04 · Archief in Google Drive: facturen en PDF's als gewone bestanden
+
+**Probleem.** Alles staat in de verborgen app-map van Drive. Goed als slot,
+maar zonder de app kom je er niet bij: een factuur voor de boekhouder of een
+contract terugzoeken liep altijd via de app, en een tweede kopie van de
+administratie was er niet.
+
+**Beslissing.** Instellingen → *Archief in Google Drive*. Aan, dan staat in
+Mijn Drive de map **Herling Analytics** met:
+- `Facturen/<jaar>/` — elke factuur die geen concept meer is, als PDF uit
+  `facPdfDoc()` met dezelfde naam als downloaden en mailen. Met meer dan één
+  bedrijf een laag per bedrijf ertussen.
+- `Contracten/Zakelijk/`, `Contracten/Privé/`, `Opdrachten/` — de PDF's bij
+  contracten en opdrachten.
+
+Hoe, zelfde opzet als de meldingen in Agenda (2026-09-29):
+- Scope `drive.file`: de app ziet alleen wat hij zelf maakte. Eigen
+  tokenaanvraag met `include_granted_scopes`, daarna draagt elk Drive-token
+  hem en gaat bijwerken stil.
+- Bijwerken is vergelijken: `archiefGewenst()` (zuiver) tegen wat er in
+  Drive staat. Bestanden dragen `appProperties` `{herling, sleutel, hash}`,
+  mappen `{herlingMap: pad}`. Geen Drive-nummers in de state; de app vindt
+  zijn mappen ook terug als je ze verplaatst.
+- Andere inhoud → hetzelfde bestand bijwerken (Drive bewaart de vorige
+  versie). Alleen naam of map anders → hernoemen/verplaatsen zonder upload.
+  Status en betalingen tellen niet mee in de hash: ze staan niet op de PDF.
+- Hoort een bestand nergens meer bij → prullenbak van Drive (30 dagen). Meer
+  dan 3 én meer dan een kwart tegelijk → niet vanzelf; het venster vraagt het.
+- Vanzelf, tien seconden na een wijziging of het laden, alleen als de
+  handtekening anders is dan de vorige keer op dit apparaat (`LS_ARCHIEF`).
+  Alleen met `driveGelezen` en `geheimenKlaar()`.
+- Uitzetten laat de map staan.
+
+**Waarom opnieuw uploaden.** De app-map is een eigen ruimte; Drive laat
+daar niets uit naar Mijn Drive verplaatsen. De bytes komen dus uit IndexedDB
+of worden uit de app-map gelezen (`ctrPdfHaal`) en opnieuw geüpload. Een PDF die alleen op een ander apparaat staat wacht tot dat
+apparaat hem naar Drive heeft gestuurd.
+
+**Bestanden.** `index.html` — blok "ARCHIEF IN GOOGLE DRIVE", `#archiefModal`,
+Instellingen-menu, `scheduleSave()`/`renderAll()`. `test.html` — drie tests
+met een nep-Drive.
+
+**Niet doen.** Het archief laten schrijven zonder de poort `geheimenKlaar()`
+of vóór Drive gelezen is: een halve state stuurt dan het archief naar de
+prullenbak. De verwijdergrens niet weghalen om dezelfde reden.
+
+## 2026-10-04 · Checklist-deadlines in Google Agenda
+
+**Probleem.** Een deadline in Checklist gaf alleen een seintje als de app
+openstond (browsernotificatie).
+
+**Beslissing.** `agdGewenst()` neemt open, niet-gearchiveerde taken met een
+deadline vanaf vandaag mee: een hele dag op de deadline in de agenda
+*Herling – aflopend*, sleutel `cl:<id>`, met één melding de dag ervoor om
+09:00. Op de dag zelf kan niet: een herinnering valt altijd vóór het begin
+van een hele dag. Afvinken of de deadline verzetten haalt de afspraak weg of
+schuift hem mee. Standaard aan; uit te zetten met het vinkje in het venster
+(`agendaMeldingen.checklist === false`).
+
+**Bestanden.** `index.html` — `agdGewenst()`, `agdDagAfspraak()` (optionele
+eigen herinneringen; zonder blijven de hashes van bestaande afspraken gelijk),
+`agdChecklistAan()`, het venster. `test.html` — één test.
