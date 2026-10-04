@@ -5568,3 +5568,26 @@ inclusief tabel, en de sanitizer met `onerror`, `javascript:`, `<script>`,
 **Niet doen.** Geen URL zonder versienummer meer. Geen SRI-hash toevoegen
 zonder het bestand van het CDN zelf te hebben gehasht — een verkeerde hash
 blokkeert de bibliotheek stil.
+
+## 2026-10-04 · jsPDF 2.5.2 → 4.2.1
+
+**Probleem.** `npm audit` op jsPDF 2.5.2: twaalf meldingen, waarvan één
+critical (o.a. ReDoS en DoS in `addImage`, PDF-injectie via AcroForm,
+XMP-metadata). De meeste raken deze app niet direct (geen AcroForm, geen
+Node), maar `addImage` wél: het factuurlogo gaat daardoorheen.
+
+**Beslissing.** Naar 4.2.1, de versie waarin alle meldingen zijn opgelost.
+Via een PR, omdat het je facturen raakt.
+
+**Getest.** Vier facturen met 2.5.2 en met 4.2.1 gemaakt via `facPdfDoc()`:
+gewoon, met logo, lang (70 regels, 6 pagina's) en het sjabloonvoorbeeld.
+Tekst (`pdftotext -layout`) identiek; elke pagina op 150 dpi gerenderd en
+pixel voor pixel vergeleken: 0 verschillen. Download (`doc.save`, zelfde
+bestandsnaam), voorbeeld (`output('blob')`) en de Gmail-bijlage
+(`output('datauristring')` → base64, begint met `%PDF`) gedragen zich gelijk.
+`test.html` 133/133, rondgang langs alle modules zonder fouten, `npm audit`
+op de hele set: 0. Bestanden met een logo worden ±30 KB kleiner: 4.x pakt de
+PNG zuiniger in, het beeld is identiek.
+
+**Bestanden.** `index.html` (scripttag, v2.26), `sw.js` (herling-v226),
+`CLAUDE.md`.

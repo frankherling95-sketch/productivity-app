@@ -166,7 +166,7 @@ verschillende maten kreeg en de filterknop twee.
 | SheetJS `xlsx` (cdn.sheetjs.com) | 0.20.3 | Excel-export (Uren, Facturen) en -import (taken) — npm wordt niet meer bijgewerkt |
 | `marked` (jsdelivr, `lib/marked.umd.js`) | 18.0.14 | Markdown → HTML (AI-opschoning, slim toevoegen, wekelijkse review) |
 | `dompurify` (jsdelivr) | 3.4.16 | Sanitizer voor alle HTML die met innerHTML de pagina in gaat (`veiligeHtml()`) |
-| `jspdf` (jsdelivr) | 2.5.2 | Factuur-PDF's |
+| `jspdf` (jsdelivr) | 4.2.1 | Factuur-PDF's |
 | Google Identity Services | — | Inloggen |
 | Google Fonts | — | `Archivo, Inter, Plus Jakarta Sans, JetBrains Mono` |
 
