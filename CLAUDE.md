@@ -317,7 +317,7 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
-- **2026-10-04**: **Bibliotheken met een vaste versie en bijgewerkt** — DOMPurify 3.2.4 → 3.4.16 (20 XSS-meldingen), SheetJS 0.18.5 → 0.20.3 via cdn.sheetjs.com (npm wordt niet meer bijgewerkt), marked vast op 18.0.14 via `lib/marked.umd.js` (de oude URL zonder versie gaf sinds marked 16 een 404, dus markdown verscheen als ruwe tekst). Versie v2.25. jsPDF 2.5.2 → 4.2.1 apart via een PR
+- **2026-10-04**: **Bibliotheken met een vaste versie en bijgewerkt** — DOMPurify 3.2.4 → 3.4.16 (20 XSS-meldingen), SheetJS 0.18.5 → 0.20.3 via cdn.sheetjs.com (npm wordt niet meer bijgewerkt), marked vast op 18.0.14 via `lib/marked.umd.js` (de oude URL zonder versie gaf sinds marked 16 een 404, dus markdown verscheen als ruwe tekst). Versie v2.25. Daarna jsPDF 2.5.2 → 4.2.1 via PR #11 (v2.26; facturen pixel-identiek)
 - **2026-10-03**: **Opdrachten: feestdagen en vakantie** — `opdrachtState.vrij` (vakanties) en `.feestdagen` (welke; standaard zonder Goede Vrijdag/Bevrijdingsdag), venster *Vrije dagen* via ⋯. `opdVrijeDagen()` → Map; `opdPlanning()` telt ze niet als werkdag (ook budget), de opbouw zegt per maand wat eraf ging
 - **2026-10-03**: **Uren: regel bovenaan alleen met Opslaan/Enter** — knop *Opslaan* + ✕ in de regel; geen stil vastleggen meer bij focusout, bladeren, export, tabbladwissel of afsluiten (verschilde per browser: Safari focust geen knoppen). Concept blijft in `urenState.draft`; bij het verlaten van Uren een melding met *Opslaan*
 
