@@ -1379,6 +1379,34 @@ async function runChecks() {
           try { w.appToastHide(); w.switchModule(oudModule); } catch (_) {}
         }
       }],
+    ['Checklist: hoofdtaak afvinken vinkt subtaken mee af, terugzetten zet alleen die weer open',
+      () => {
+        const item = {id:'tsub', text:'Hoofd', done:false, subtasks:[
+          {id:'a', text:'al af', done:true}, {id:'b', text:'open', done:false}, {id:'c', text:'open', done:false}]};
+        w.clZetHoofdKlaar(item, true);
+        const allesAf = item.done && item.subtasks.every(s => s.done) && !item.subtasks[0].doorHoofd;
+        w.clZetHoofdKlaar(item, false);
+        const terug = !item.done && item.subtasks[0].done && !item.subtasks[1].done && !item.subtasks[2].done;
+        /* Subtaak openzetten onder een afgeronde hoofdtaak: hoofdtaak ook open */
+        w.clZetHoofdKlaar(item, true);
+        w.clZetSubtaak(item, item.subtasks[1]);
+        const hoofdOpen = !item.done && !item.subtasks[1].done && !item.subtasks[2].done && item.subtasks[0].done;
+        /* En de laatste open subtaak afvinken maakt de hoofdtaak af (bestaand gedrag) */
+        w.clZetSubtaak(item, item.subtasks[1]); w.clZetSubtaak(item, item.subtasks[2]);
+        return allesAf && terug && hoofdOpen && item.done;
+      }],
+    ['Checklist: bij het laden krijgen afgeronde taken met open subtaken hun subtaken mee afgevinkt',
+      () => {
+        const st = w.huidigeStateSnapshot().checklist;
+        const oud = st.items;
+        try {
+          st.items = [{id:'m1', done:true, subtasks:[{id:'x', done:false}, {id:'y', done:true}]},
+                      {id:'m2', done:false, subtasks:[{id:'z', done:false}]}];
+          const n = w.migreerChecklistSubtaken();
+          return n === 1 && st.items[0].subtasks[0].done && st.items[0].subtasks[0].doorHoofd &&
+                 !st.items[0].subtasks[1].doorHoofd && !st.items[1].subtasks[0].done && w.migreerChecklistSubtaken() === 0;
+        } finally { st.items = oud; }
+      }],
     ['Uren: de regel bovenaan wordt alleen met Opslaan/Enter vastgelegd, niet bij bladeren of een ander tabblad',
       () => {
         const us = w.huidigeStateSnapshot().uren;

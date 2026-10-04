@@ -10796,6 +10796,9 @@ function hydrateerStateIntern(){
   checklistState=rawState.checklist||{items:[],showArchived:false,sortBy:'newest',groupByPriority:true};
   if(!checklistState.items)checklistState.items=[];
   migreerChecklistVolgorde();
+  {const n=migreerChecklistSubtaken();
+   if(n){scheduleSave();
+     setTimeout(()=>appToast(n+(n===1?' subtaak':' subtaken')+' van afgeronde taken mee afgevinkt — zet je zo\'n taak terug, dan gaan ze weer open',{type:'info',duration:7000}),900);}}
   urenState=rawState.uren||{entries:[],templates:[]};
   if(!urenState.entries)urenState.entries=[];
   if(!urenState.templates)urenState.templates=[];
@@ -13165,16 +13168,14 @@ function dashClToggleSubtask(itemId,subId){
   if(!item)return;
   const st=(item.subtasks||[]).find(s=>s.id===subId);
   if(!st)return;
-  st.done=!st.done;
-  if(item.subtasks.length>0&&item.subtasks.every(s=>s.done)&&!item.done){item.done=true;item.doneAt=Date.now();}
+  clZetSubtaak(item,st);
   scheduleSave();renderDashChecklist();
   if(activeModule==='checklist')renderChecklistModule();
 }
 function dashClToggle(id){
   const item=checklistState.items.find(i=>i.id===id);
   if(!item)return;
-  item.done=true;
-  item.doneAt=Date.now();
+  clZetHoofdKlaar(item,true);
   scheduleSave();renderDashChecklist();
   if(activeModule==='checklist')renderChecklistModule();
 }
@@ -17899,9 +17900,8 @@ function toggleChecklistDone(id){
   const item=checklistState.items.find(i=>i.id===id);
   if(!item)return;
   const wasOpen=!item.done;
-  item.done=!item.done;
-  /* Track completion timestamp voor wekelijkse review */
-  item.doneAt=item.done?Date.now():null;
+  /* Zet ook doneAt (voor de wekelijkse review) en de subtaken mee. */
+  clZetHoofdKlaar(item,!item.done);
   /* Recurring: when an item with .recurrence becomes done, spawn the
      next occurrence with the deadline rolled forward. */
   if(wasOpen&&item.done&&item.recurrence&&item.recurrence!=='none'){
@@ -17946,13 +17946,46 @@ function spawnRecurringNext(item){
   };
 }
 
+/* ── Hoofdtaak en subtaken lopen gelijk (2026-10-04) ──
+   Een afgevinkte hoofdtaak heeft geen open subtaken: afvinken vinkt ze
+   mee af. Die krijgen doorHoofd, zodat terugzetten precies díe weer
+   openzet -- een subtaak die je zelf al had afgerond blijft af, en een
+   misklik op de hoofdtaak kost niets. Andersom gold het al: zijn alle
+   subtaken af, dan is de hoofdtaak af. */
+function clZetHoofdKlaar(item,klaar){
+  item.done=!!klaar;
+  item.doneAt=klaar?Date.now():null;
+  (item.subtasks||[]).forEach(st=>{
+    if(klaar&&!st.done){st.done=true;st.doorHoofd=true;}
+    else if(!klaar&&st.doorHoofd){st.done=false;delete st.doorHoofd;}
+  });
+}
+/* Een subtaak omzetten. Wat je zelf aanklikt is jouw keuze, dus doorHoofd
+   vervalt. Zet je er een open onder een afgeronde hoofdtaak, dan gaat de
+   hoofdtaak ook open (en de subtaken die alleen door hem af waren mee). */
+function clZetSubtaak(item,st){
+  st.done=!st.done;
+  delete st.doorHoofd;
+  if(!st.done&&item.done)clZetHoofdKlaar(item,false);
+  else if(item.subtasks.length>0&&item.subtasks.every(s=>s.done)&&!item.done){item.done=true;item.doneAt=Date.now();}
+}
+/* Bij het laden: een afgeronde taak met open subtaken komt van vóór deze
+   regel. Eén keer rechtzetten, met doorHoofd, zodat terugzetten kan. */
+function migreerChecklistSubtaken(){
+  let n=0;
+  (checklistState.items||[]).forEach(item=>{
+    if(!item.done)return;
+    (item.subtasks||[]).forEach(st=>{if(!st.done){st.done=true;st.doorHoofd=true;n++;}});
+  });
+  return n;
+}
+
 function toggleSubtask(itemId,stId){
   const item=checklistState.items.find(i=>i.id===itemId);
   if(!item)return;
   const st=(item.subtasks||[]).find(s=>s.id===stId);
   if(!st)return;
-  st.done=!st.done;
-  if(item.subtasks.length>0&&item.subtasks.every(s=>s.done)&&!item.done){item.done=true;item.doneAt=Date.now();}
+  clZetSubtaak(item,st);
   scheduleSave();renderChecklistModule();
 }
 
@@ -18027,7 +18060,7 @@ function deleteSubtask(itemId,stId){
 function unarchiveItem(id){
   const item=checklistState.items.find(i=>i.id===id);
   if(!item)return;
-  item.archived=false;item.done=false;
+  item.archived=false;clZetHoofdKlaar(item,false);
   scheduleSave();renderChecklistModule();
 }
 

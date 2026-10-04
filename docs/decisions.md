@@ -5591,3 +5591,32 @@ PNG zuiniger in, het beeld is identiek.
 
 **Bestanden.** `index.html` (scripttag, v2.26), `sw.js` (herling-v226),
 `CLAUDE.md`.
+
+## 2026-10-04 · Checklist: hoofdtaak afvinken vinkt de subtaken mee af
+
+**Probleem.** Alle subtaken af maakte de hoofdtaak af, maar andersom niet: een
+afgevinkte hoofdtaak hield zijn open subtaken. In de voortgang telden die als
+niet afgerond ("59/128 subtaken" bij 92 van 127 taken af), en onder een
+doorgestreepte taak stond nog een open vakje.
+
+**Beslissing.**
+- `clZetHoofdKlaar(item, klaar)`: afvinken vinkt open subtaken mee af en geeft
+  ze `doorHoofd:true`; terugzetten zet alleen die weer open. Wat je zelf al
+  had afgevinkt blijft af — een misklik kost niets.
+- `clZetSubtaak(item, st)`: wat je zelf aanklikt verliest `doorHoofd`. Een
+  subtaak openzetten onder een afgeronde hoofdtaak zet de hoofdtaak ook open
+  (anders klopt de regel niet meer); de laatste open subtaak afvinken maakt de
+  hoofdtaak af, zoals al.
+- Alle plekken lopen hierlangs: Checklist, het dashboard, uit het archief halen.
+- `migreerChecklistSubtaken()` in de laadstap: afgeronde taken met open
+  subtaken worden één keer rechtgezet, met `doorHoofd`, en een melding zegt
+  hoeveel.
+
+**Waarom de markering.** Zonder `doorHoofd` zou terugzetten van een hoofdtaak
+moeten kiezen tussen alles open of alles af laten — en beide verliezen wat je
+eerder per subtaak had aangevinkt.
+
+**Bestanden.** `index.html` — `clZetHoofdKlaar()`, `clZetSubtaak()`,
+`migreerChecklistSubtaken()`, `toggleChecklistDone()`, `toggleSubtask()`,
+`unarchiveItem()`, `dashClToggle()`, `dashClToggleSubtask()`,
+`hydrateerStateIntern()`. `test.html` — twee tests.

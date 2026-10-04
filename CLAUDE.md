@@ -72,7 +72,7 @@ rawState = {
 
 **Item shapes** (snelle referentie):
 - Kanban item: `{id, title, clientId, category, context, tags[], createdAt, updatedAt}`
-- Checklist item: `{id, text, done, priority, deadline, clientId, subtasks[], archived, sortOrder, pinned}`
+- Checklist item: `{id, text, done, priority, deadline, clientId, subtasks[], archived, sortOrder, pinned}` — subtaak `{id, text, done, doorHoofd?}`; `doorHoofd` = mee afgevinkt met de hoofdtaak, gaat weer open als die terugkomt (`clZetHoofdKlaar()`)
 - Notes node (recursief): `{id, type:'page'|'folder', title, content, clientId, tags, children[]}`
 - Klant: `{id, name, colorIdx}`
 - Contract: `{id, domein ('zakelijk'|'prive'; ontbreekt = zakelijk), soort, titel, clientId|null, wederpartij, opdrachtId|null, getekend, start, eind|null, opzeg, verlenging ('' of '1m'/'3m'/'6m'/'12m'), notitie, bijlagen[]}` — een bijlage is `{id, naam, grootte, hash, driveId|null}`. De PDF staat als **eigen bestand** in de Drive-`appDataFolder` (`contract-<id>.pdf`) plus een kopie in IndexedDB (`herling_bijlagen`), niet in `rawState`. Hangt een contract aan een opdracht, dan komt de looptijd uit de opdracht (`ctrLooptijd()`)
@@ -317,9 +317,9 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
+- **2026-10-04**: **Checklist: hoofdtaak afvinken vinkt subtaken mee af** — `clZetHoofdKlaar()`/`clZetSubtaak()` op alle plekken; mee-afgevinkte subtaken krijgen `doorHoofd` en gaan weer open als de hoofdtaak terugkomt; een subtaak openzetten opent de hoofdtaak. Bestaande afgeronde taken één keer rechtgezet bij het laden (`migreerChecklistSubtaken()`)
 - **2026-10-04**: **Bibliotheken met een vaste versie en bijgewerkt** — DOMPurify 3.2.4 → 3.4.16 (20 XSS-meldingen), SheetJS 0.18.5 → 0.20.3 via cdn.sheetjs.com (npm wordt niet meer bijgewerkt), marked vast op 18.0.14 via `lib/marked.umd.js` (de oude URL zonder versie gaf sinds marked 16 een 404, dus markdown verscheen als ruwe tekst). Versie v2.25. Daarna jsPDF 2.5.2 → 4.2.1 via PR #11 (v2.26; facturen pixel-identiek)
 - **2026-10-03**: **Opdrachten: feestdagen en vakantie** — `opdrachtState.vrij` (vakanties) en `.feestdagen` (welke; standaard zonder Goede Vrijdag/Bevrijdingsdag), venster *Vrije dagen* via ⋯. `opdVrijeDagen()` → Map; `opdPlanning()` telt ze niet als werkdag (ook budget), de opbouw zegt per maand wat eraf ging
-- **2026-10-03**: **Uren: regel bovenaan alleen met Opslaan/Enter** — knop *Opslaan* + ✕ in de regel; geen stil vastleggen meer bij focusout, bladeren, export, tabbladwissel of afsluiten (verschilde per browser: Safari focust geen knoppen). Concept blijft in `urenState.draft`; bij het verlaten van Uren een melding met *Opslaan*
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 
@@ -373,7 +373,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 133 smoke-, sync-, model-, reken- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
+| `test.html` | 135 smoke-, sync-, model-, reken- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |
