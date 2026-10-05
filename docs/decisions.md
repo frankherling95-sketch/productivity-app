@@ -5718,3 +5718,35 @@ schuift hem mee. Standaard aan; uit te zetten met het vinkje in het venster
 **Bestanden.** `index.html` — `agdGewenst()`, `agdDagAfspraak()` (optionele
 eigen herinneringen; zonder blijven de hashes van bestaande afspraken gelijk),
 `agdChecklistAan()`, het venster. `test.html` — één test.
+
+## 2026-10-05 · Notities standaard op "Laatst gewijzigd"
+
+**Probleem.** Frank wil de laatst bewerkte notulen bovenaan, standaard. De
+sortering bestond, maar stond op handmatig, gold alleen voor het bovenste
+niveau (binnen een map bleef de sleepvolgorde staan, klantgroepen gingen op
+aantal), en was op een bureaublad onbereikbaar: hij zat alleen in het
+⋯-menu, en dat bestaat alleen op een telefoon.
+
+**Beslissing.**
+- `gewijzigd` is de standaard. De hydratie zette een ontbrekende keuze altijd
+  op `handmatig`; zo'n waarde zonder `notesState.sortGekozen` was dus geen
+  keuze en gaat één keer om. Kiezen in een menu zet `sortGekozen` en blijft.
+- Bij `gewijzigd` telt een map met de nieuwste notitie erin, en lopen mappen
+  en pagina's door elkaar (de map met de notulen van vanochtend staat boven
+  een losse pagina van vorige week). Ook binnen een map wordt gesorteerd.
+- Klantgroepen bij `gewijzigd`: de klant met de laatst bewerkte notitie
+  bovenaan. Bij de andere twee blijft het: meeste notities, dan recent
+  geopend. "Geen klant" blijft onderaan.
+- `naam`: groepen boven pagina's, beide op alfabet (zoals het was).
+- Desktop: een sorteerknop in de kop *Pagina's*, een gewoon `.uren-menu`.
+- Slepen naast een notitie terwijl de lijst zelf sorteert: een melding dat de
+  volgorde uit de sortering komt en hoe je handmatig kiest. Slepen ín een map
+  werkt gewoon.
+
+**Bestanden.** `index.html` — `hydrateerStateIntern()`, `NOTES_SORTEER`,
+`notesSortModus()`, `notesNieuwste()`, `notesSorteer()`,
+`notesClientVolgorde()`, `renderNoteNode()`, `setNotesSort()`,
+`notesSortMenu()`, `onNoteDrop()`. `test.html` — drie tests.
+
+**Niet doen.** `NOTES_SORTEER` in de hydratie gebruiken: die constante staat
+verderop in het script en de hydratie kan eerder draaien.

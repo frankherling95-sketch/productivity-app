@@ -7974,7 +7974,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.28</span>
+        <span class="app-versie" title="Appversie">v2.29</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -8230,6 +8230,12 @@ textarea { line-height: 1.6; resize: vertical; }
               <button class="btn btn-xs notes-hdr-nieuw" onclick="createNote(null)" title="Nieuwe notitie" style="padding:2px 7px">+</button>
               <button class="btn btn-xs" onclick="startFolderCreate()" title="Nieuwe groep">
                 <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><path d="M2 4.5a1 1 0 0 1 1-1h2.5l1.2 1.2H11a1 1 0 0 1 1 1V11a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V4.5z"/><line x1="7" y1="7" x2="7" y2="10"/><line x1="5.5" y1="8.5" x2="8.5" y2="8.5"/></svg>
+              </button>
+              <!-- Sorteren: op een bureaublad de enige ingang (het ⋯-menu is daar
+                   verborgen); op een telefoon staat het in het ⋯-menu. -->
+              <button class="btn btn-xs" id="notesSortBtn" data-action="notesSortMenu" title="Sorteren"
+                aria-label="Sorteren" aria-haspopup="menu" aria-expanded="false">
+                <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" width="11" height="11"><path d="M2 3.5h10M2 7h7M2 10.5h4"/></svg>
               </button>
               <!-- Op een bureaublad is dit de enige ingang naar de prullenbak:
                    het ⋯-menu is daar verborgen, want de rest staat gewoon in
@@ -10378,7 +10384,11 @@ function hydrateerStateIntern(){
   if(!kanbanState.clients)kanbanState.clients=[];
   notesState=rawState.notes||{tree:[],activeId:null,collapsed:{}};
   if(!notesState.tree)notesState.tree=[];
-  if(!notesState.sortBy)notesState.sortBy='handmatig';
+  /* Standaard 'Laatst gewijzigd' (Frank, 2026-10-05). Een opgeslagen
+     'handmatig' zonder sortGekozen was de oude standaard en geen keuze --
+     die gaat om. Wie in het ⋯-menu zelf iets kiest, houdt dat. */
+  if(!['gewijzigd','handmatig','naam'].includes(notesState.sortBy)||(!notesState.sortGekozen&&notesState.sortBy==='handmatig'))
+    notesState.sortBy='gewijzigd';
   if(!Array.isArray(notesState.prullenbak))notesState.prullenbak=[];
   /* Klanten waarvan de groep niet in de notitieboom staat. Alleen hier:
      de klant bestaat gewoon door, met al zijn notities, uren en facturen. */
@@ -14562,8 +14572,14 @@ function onNoteDrop(e,targetId){
   if(!tgtAfter){src.parentArr.push(movedNode);noteDrag.id=null;return;}
   if(tgtAfter.node.type==='folder'&&y>h*0.25&&y<h*0.75){
     tgtAfter.node.children=tgtAfter.node.children||[];tgtAfter.node.children.push(movedNode);notesState.collapsed[targetId]=false;
-  } else if(y<h*0.5)tgtAfter.parentArr.splice(tgtAfter.index,0,movedNode);
-  else tgtAfter.parentArr.splice(tgtAfter.index+1,0,movedNode);
+  } else {
+    if(y<h*0.5)tgtAfter.parentArr.splice(tgtAfter.index,0,movedNode);
+    else tgtAfter.parentArr.splice(tgtAfter.index+1,0,movedNode);
+    /* Naast iets neerzetten is ordenen, en dat zie je niet terug zolang de
+       lijst zelf sorteert. Zeggen waarom, in plaats van niets te doen. */
+    if(notesSortModus()!=='handmatig')
+      appToast('De volgorde komt nu uit "'+NOTES_SORTEER[notesSortModus()]+'". Zelf ordenen: ⋯ → Sorteren → Handmatig',{duration:6000});
+  }
   noteDrag.id=null;scheduleSave();renderNotesTree();
 }
 function onNoteDragEnd(){
@@ -14660,7 +14676,8 @@ function toggleAlleNoteGroepen(){
   scheduleSave();renderNotesTree();renderNotesOverflowMenu();
 }
 function setNotesSort(modus){
-  notesState.sortBy=NOTES_SORTEER[modus]?modus:'handmatig';
+  notesState.sortBy=NOTES_SORTEER[modus]?modus:'gewijzigd';
+  notesState.sortGekozen=true;
   scheduleSave();renderNotesTree();renderNotesOverflowMenu();
 }
 /* ══ Notitie opschonen en op zijn plek zetten met Gemini ═════════════════
@@ -14981,7 +14998,7 @@ function renderNotesOverflowMenu(){
     <div class="notes-ovf-scheiding"></div>
     <div class="notes-ovf-kop">Sorteren</div>
     ${Object.keys(NOTES_SORTEER).map(k=>
-      `<button class="notes-ovf-item${(notesState.sortBy||'handmatig')===k?' aan':''}" data-action="setNotesSort" data-arg1="${k}">${NOTES_SORTEER[k]}</button>`).join('')}`;
+      `<button class="notes-ovf-item${notesSortModus()===k?' aan':''}" data-action="setNotesSort" data-arg1="${k}">${NOTES_SORTEER[k]}</button>`).join('')}`;
 }
 function toggleNotesOverflow(e){
   if(e)e.stopPropagation();
@@ -15003,25 +15020,75 @@ document.addEventListener('click',e=>{
   const root=document.getElementById('notesOverflow');
   if(root&&!root.contains(e.target))closeNotesOverflow();
 });
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeNotesOverflow();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeNotesOverflow();notesSortMenuDicht();}});
+
+/* ── Sorteerknop in de kop "Pagina's" (bureaublad) ──
+   Het ⋯-menu van Notities bestaat alleen op een telefoon; zonder deze knop
+   kon je op een bureaublad de volgorde niet kiezen. Gewoon .uren-menu aan de
+   body, zoals elk menu bij een knop in een lijstkop. */
+function notesSortMenu(){
+  if(document.getElementById('notesSortMenu')){notesSortMenuDicht();return;}
+  const btn=document.getElementById('notesSortBtn');
+  if(!btn)return;
+  const nu=notesSortModus();
+  const m=document.createElement('div');
+  m.className='uren-menu';m.id='notesSortMenu';m.setAttribute('role','menu');
+  m.innerHTML='<div class="uren-menu-lab">Sorteren</div>'+Object.keys(NOTES_SORTEER).map(k=>
+    `<button class="uren-menu-item${nu===k?' active':''}" role="menuitemradio" aria-checked="${nu===k}" data-action="notesSortKies" data-arg1="${k}">
+      <span class="ic" aria-hidden="true">${nu===k?'&#10003;':''}</span><span>${NOTES_SORTEER[k]}</span></button>`).join('');
+  document.body.appendChild(m);
+  urenPlacePopover(m,btn);
+  /* De knop staat links in beeld: het menu opent vanaf zijn linkerrand naar
+     rechts, anders valt het over de zijbalk van de app. */
+  m.style.left=Math.max(8,Math.min(btn.getBoundingClientRect().left,window.innerWidth-m.offsetWidth-8))+'px';
+  btn.setAttribute('aria-expanded','true');
+  setTimeout(()=>document.addEventListener('mousedown',notesSortBuiten),20);
+}
+function notesSortBuiten(e){
+  const m=document.getElementById('notesSortMenu');
+  if(m&&!m.contains(e.target)&&!e.target.closest('#notesSortBtn'))notesSortMenuDicht();
+}
+function notesSortMenuDicht(){
+  document.getElementById('notesSortMenu')?.remove();
+  document.getElementById('notesSortBtn')?.setAttribute('aria-expanded','false');
+  document.removeEventListener('mousedown',notesSortBuiten);
+}
+/* De knop zegt in zijn tooltip hoe er nu gesorteerd wordt. */
+function notesSortKnopBij(){
+  const b=document.getElementById('notesSortBtn');
+  if(b)b.title='Sorteren · '+NOTES_SORTEER[notesSortModus()];
+}
 
 /* ── Volgorde binnen een lijst notities ──
-   'handmatig' is de volgorde waarin je ze zelf hebt gesleept -- dat is de
-   volgorde in de boom, dus dan raken we niets aan. De andere twee sorteren
-   binnen dezelfde lijst, met groepen altijd boven losse pagina's: een groep
-   heeft geen eigen datum en zou anders tussen de pagina's door schuiven. */
-const NOTES_SORTEER={handmatig:'Handmatig (slepen)',gewijzigd:'Laatst gewijzigd',naam:'Naam A–Z'};
+   'gewijzigd' is de standaard (2026-10-05): wat je het laatst hebt bewerkt
+   staat bovenaan, op elk niveau -- de klantgroepen, de lijst daarin en de
+   inhoud van een map. Een map telt mee met de nieuwste notitie erin, zodat
+   een map met de notulen van vanochtend boven een losse pagina van vorige
+   week staat; groepen en pagina's lopen hier dus door elkaar.
+   'naam' zet groepen boven pagina's, beide op alfabet. 'handmatig' is de
+   volgorde waarin je ze zelf hebt gesleept -- dat is de volgorde in de
+   boom, dus dan raken we niets aan. */
+const NOTES_SORTEER={gewijzigd:'Laatst gewijzigd',handmatig:'Handmatig (slepen)',naam:'Naam A–Z'};
+function notesSortModus(){
+  const m=notesState&&notesState.sortBy;
+  return NOTES_SORTEER[m]?m:'gewijzigd';
+}
+/* Het nieuwste tijdstip in een notitie of map, met alles eronder. */
+function notesNieuwste(n){
+  let t=Number(n&&n.updatedAt)||0;
+  ((n&&n.children)||[]).forEach(c=>{const x=notesNieuwste(c);if(x>t)t=x;});
+  return t;
+}
 function notesSorteer(nodes){
-  const modus=notesState.sortBy||'handmatig';
+  const modus=notesSortModus();
   if(modus==='handmatig'||!nodes||nodes.length<2)return nodes;
   const kopie=[...nodes];
-  kopie.sort((a,b)=>{
-    const groepVerschil=(a.type==='folder'?0:1)-(b.type==='folder'?0:1);
-    if(groepVerschil)return groepVerschil;
-    if(modus==='naam')return (a.title||'').localeCompare(b.title||'','nl');
-    return (b.updatedAt||0)-(a.updatedAt||0);
-  });
-  return kopie;
+  if(modus==='gewijzigd'){
+    const t=new Map(kopie.map(n=>[n,notesNieuwste(n)]));
+    return kopie.sort((a,b)=>(t.get(b)-t.get(a))||(a.title||'').localeCompare(b.title||'','nl'));
+  }
+  return kopie.sort((a,b)=>
+    ((a.type==='folder'?0:1)-(b.type==='folder'?0:1))||(a.title||'').localeCompare(b.title||'','nl'));
 }
 
 /* ─ Recently opened tracking ─ */
@@ -15053,15 +15120,21 @@ function renderRecentNotes(){
    de klant waar je het laatst in werkte (notesState.recentIds, waarvan de
    laagste index het meest recent is). Klanten zonder notities zakken
    vanzelf naar onderen. */
+/* Bij 'Laatst gewijzigd' (2026-10-05) gaat het om tijd, niet om hoeveelheid:
+   de klant met de laatst bewerkte notitie staat bovenaan. */
 function notesClientVolgorde(clients){
   const recent=notesState.recentIds||[];
+  const opTijd=notesSortModus()==='gewijzigd';
   return [...clients].map(c=>{
     const paginas=flattenNotes(filterNoteTree(notesState.tree,c.id));
     const ids=new Set(paginas.map(n=>n.id));
     let rang=Infinity;
     for(let i=0;i<recent.length;i++){ if(ids.has(recent[i])){rang=i;break;} }
-    return {c, aantal:paginas.filter(n=>n.type==='page').length, rang};
+    const echt=paginas.filter(n=>n.type==='page');
+    return {c, aantal:echt.length, rang,
+      nieuwste:opTijd?echt.reduce((m,n)=>Math.max(m,Number(n.updatedAt)||0),0):0};
   }).sort((a,b)=>
+    (b.nieuwste-a.nieuwste) ||
     (b.aantal-a.aantal) ||
     (a.rang-b.rang) ||
     a.c.name.localeCompare(b.c.name,'nl')
@@ -15071,6 +15144,7 @@ function notesClientVolgorde(clients){
 /* ─ Render tree ─ */
 function renderNotesTree(){
   const el=document.getElementById('notesTree');if(!el)return;
+  notesSortKnopBij();
   const clients=notesClientVolgorde(kanbanState?.clients||[]);
 
   /* Apply text search FIRST — overrides client grouping with a flat result list */
@@ -15239,7 +15313,7 @@ function renderNoteNode(node,depth){
   const col=client?CLIENT_COLORS[client.colorIdx%CLIENT_COLORS.length]:null;
   const clientDot=client?`<span class="note-client-dot" style="background:${col.bg};border:1px solid ${col.tx}" title="${escapeHtml(client.name)}"></span>`:'';
   const children=hasChildren&&!isCollapsed
-    ?`<div class="note-children">${node.children.map(c=>renderNoteNode(c,depth+1)).join('')}</div>`:'';
+    ?`<div class="note-children">${notesSorteer(node.children).map(c=>renderNoteNode(c,depth+1)).join('')}</div>`:'';
   /* label: single click = select, double-click = rename inline.
      The title attribute shows the full title on hover when truncated. */
   const labelHtml=`<span class="note-label"
@@ -15926,6 +16000,8 @@ Object.assign(APP_ACTIONS,{
   notesBakWeg:(el,e,id)=>notesPrullenbakWeg(id),
   notesBakLegen:()=>notesPrullenbakLegen(),
   setNotesSort:(el,e,modus)=>{closeNotesOverflow();setNotesSort(modus);},
+  notesSortMenu:()=>notesSortMenu(),
+  notesSortKies:(el,e,modus)=>{notesSortMenuDicht();setNotesSort(modus);},
   notesAiMenu:()=>notesAiMenu(),
   notesAiOpschonen:()=>{closeNotesOverflow();notesAiOpschonen();},
   notesAiPlek:()=>{closeNotesOverflow();notesAiPlek();},
@@ -34509,7 +34585,7 @@ zetModalSluitknoppen();
    dus altijd, waardoor deze test altijd waar was en Esc nooit iets sloot. */
 const ESC_MENUS=['#urenMenu','#facMenu','#opdMenu','#appInstelMenu','#gebruikerMenu','.klant-wissel.open','#facFilterPop',
   '#urenFilterPop','.uren-filterpop',
-  '.notes-overflow.open','.cl-overflow.open','#dashMobileSettings.open',
+  '.notes-overflow.open','#notesSortMenu','.cl-overflow.open','#dashMobileSettings.open',
   '.ctx-menu.open'];
 function escMenuOpen(){
   return ESC_MENUS.some(sel=>{

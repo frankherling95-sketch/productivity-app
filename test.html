@@ -1407,6 +1407,52 @@ async function runChecks() {
           try { w.localStorage.removeItem('herling_archief'); } catch (_) {}
         }
       }],
+    /* ── Notities: standaard op laatst gewijzigd (2026-10-05) ── */
+    ['Notities: de oude standaard "handmatig" wordt "laatst gewijzigd", een eigen keuze blijft',
+      () => {
+        const bewaar = JSON.stringify(w.huidigeStateSnapshot());
+        try {
+          const st = n => { w.eval('rawState=' + bewaar); w.eval('Object.assign(rawState.notes,' + JSON.stringify(n) + ');' +
+            (('sortGekozen' in n) ? '' : 'delete rawState.notes.sortGekozen;')); w.hydrateerState(); return w.eval('notesState.sortBy'); };
+          return st({sortBy:'handmatig'}) === 'gewijzigd' && st({sortBy:undefined}) === 'gewijzigd' &&
+                 st({sortBy:'handmatig', sortGekozen:true}) === 'handmatig' && st({sortBy:'naam'}) === 'naam';
+        } finally { w.eval('rawState=' + bewaar); w.hydrateerState(); }
+      }],
+    ['Notities: laatst gewijzigd bovenaan, een map telt met zijn nieuwste notitie, ook binnen de map',
+      () => {
+        const oud = w.eval('JSON.stringify({s:notesState.sortBy,t:notesState.tree})');
+        try {
+          const p = (id, t) => ({id, type:'page', title:id, children:[], updatedAt:t});
+          w.eval('notesState.tree=' + JSON.stringify([p('oud', 100),
+            {id:'map', type:'folder', title:'Notulen', updatedAt:1, children:[p('m1', 50), p('m2', 300)]}, p('mid', 200)]));
+          w.eval("notesState.sortBy='gewijzigd'");
+          const top = w.notesSorteer(w.eval('notesState.tree')).map(n => n.id).join(',');
+          const binnen = w.notesSorteer(w.eval('notesState.tree[1].children')).map(n => n.id).join(',');
+          w.eval("notesState.sortBy='naam'");
+          const naam = w.notesSorteer(w.eval('notesState.tree')).map(n => n.id).join(',');
+          w.eval("notesState.sortBy='handmatig'");
+          const hand = w.notesSorteer(w.eval('notesState.tree')).map(n => n.id).join(',');
+          return top === 'map,mid,oud' && binnen === 'm2,m1' && naam === 'map,mid,oud' && hand === 'oud,map,mid';
+        } finally {
+          w.eval('(function(o){notesState.sortBy=o.s;notesState.tree=o.t;})(' + oud + ')');
+        }
+      }],
+    ['Notities: bij laatst gewijzigd staat de klant met de laatst bewerkte notitie bovenaan',
+      () => {
+        const oud = w.eval('JSON.stringify({s:notesState.sortBy,t:notesState.tree})');
+        try {
+          const kl = [{id:'veel', name:'Veel'}, {id:'vers', name:'Vers'}, {id:'leeg', name:'Leeg'}];
+          const p = (id, c, t) => ({id, type:'page', title:id, clientId:c, children:[], updatedAt:t});
+          w.eval('notesState.tree=' + JSON.stringify([p('a', 'veel', 10), p('b', 'veel', 20), p('c', 'veel', 30), p('d', 'vers', 99)]));
+          w.eval("notesState.sortBy='gewijzigd'");
+          const tijd = w.notesClientVolgorde(kl).map(c => c.id).join(',');
+          w.eval("notesState.sortBy='naam'");
+          const aantal = w.notesClientVolgorde(kl).map(c => c.id).join(',');
+          return tijd === 'vers,veel,leeg' && aantal === 'veel,vers,leeg';
+        } finally {
+          w.eval('(function(o){notesState.sortBy=o.s;notesState.tree=o.t;})(' + oud + ')');
+        }
+      }],
     ['Archief: veel tegelijk weg gaat niet vanzelf naar de prullenbak, wel na een klik',
       async () => {
         const oudO = w.eval('JSON.stringify(opdrachtState.opdrachten)');
