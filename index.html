@@ -3664,16 +3664,23 @@ textarea { line-height: 1.6; resize: vertical; }
 /* Verborgen klanten: één regel onderaan de boom, zodat je ziet dát er iets
    verborgen is. Uitklappen geeft de lijst met een oog om ze terug te halen. */
 .note-verborgen { margin-top: 10px; border-top: 1px solid var(--border); padding-top: 8px; }
-.note-verborgen-kop {
+.note-verborgen-kop, .klant-wissel-verborgen-kop {
   display: flex; align-items: center; gap: 7px; width: 100%;
   padding: 6px 8px; background: transparent; border: 0; border-radius: 6px;
   font-family: inherit; font-size: 11px; font-weight: 600;
   color: var(--text-hint); cursor: pointer; text-align: left;
 }
-.note-verborgen-kop:hover { background: var(--surface2); color: var(--text-muted); }
-.note-verborgen-kop .lab { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.note-verborgen-kop .chev { font-size: 10px; transition: transform 0.15s; }
-.note-verborgen.open .note-verborgen-kop .chev { transform: rotate(180deg); }
+.note-verborgen-kop:hover, .klant-wissel-verborgen-kop:hover { background: var(--surface2); color: var(--text-muted); }
+.note-verborgen-kop .lab, .klant-wissel-verborgen-kop .lab { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.note-verborgen-kop .chev, .klant-wissel-verborgen-kop .chev { font-size: 10px; transition: transform 0.15s; }
+.note-verborgen.open .note-verborgen-kop .chev, .klant-wissel-verborgen.open .klant-wissel-verborgen-kop .chev { transform: rotate(180deg); }
+/* Checklist: "3 open taken van verborgen klanten niet getoond", zelfde toon
+   als de verborgen-regel onderaan de notitieboom. */
+.cl-verborgen-regel {
+  display: flex; align-items: center; gap: 7px; margin-top: 16px; padding: 8px 2px 4px;
+  border-top: 1px solid var(--border); font-size: 11px; font-weight: 600; color: var(--text-hint);
+}
+.cl-verborgen-regel > span { flex: 1; min-width: 0; }
 .note-verborgen-rij {
   display: flex; align-items: center; gap: 7px;
   padding: 4px 8px 4px 4px; font-size: 11.5px; color: var(--text-muted);
@@ -3684,7 +3691,7 @@ textarea { line-height: 1.6; resize: vertical; }
   padding: 1px 6px; border-radius: 4px; line-height: 1; display: inline-flex; align-items: center;
 }
 .note-verborgen-rij button:hover { background: var(--surface3); color: var(--text); }
-.note-verborgen-alles {
+.note-verborgen-alles, .klant-wissel-alles, .cl-verborgen-regel button {
   background: transparent; border: 0; color: var(--accent); cursor: pointer;
   font-family: inherit; font-size: 11px; font-weight: 600; padding: 5px 8px;
 }
@@ -6740,8 +6747,10 @@ textarea { line-height: 1.6; resize: vertical; }
     font-size: var(--fs-klein);
   }
   .note-verborgen-kop,
+  .klant-wissel-verborgen-kop,
+  .cl-verborgen-regel,
   .note-verborgen-rij { font-size: var(--fs-micro) !important; }
-  .note-verborgen-kop { min-height: var(--tap); }
+  .note-verborgen-kop, .klant-wissel-verborgen-kop, .cl-verborgen-regel button { min-height: var(--tap); }
 
   /* Laatste losse waarde onder de ondergrens. */
   .cl2-client-tag { font-size: var(--fs-micro) !important; }
@@ -7300,6 +7309,25 @@ textarea { line-height: 1.6; resize: vertical; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .klant-wissel-vink { color: var(--mint); } }
 .klant-wissel-optie.gekozen .klant-wissel-vink { visibility: visible; }
 .klant-wissel-leeg { padding: 12px 10px; font-size: var(--fs-klein); color: var(--text-muted); text-align: center; }
+/* Klanten verbergen (2026-10-05): een rij is de keuze plus een oog. Het oog is
+   een rij-actie zoals in de groepskop van Notities -- rustig grijs, pas
+   donker als je erop staat -- en altijd zichtbaar: geen hover-knop. */
+.klant-wissel-rij { display: flex; align-items: center; gap: 2px; }
+.klant-wissel-rij .klant-wissel-optie { flex: 1; min-width: 0; }
+.klant-wissel-oog {
+  flex: none; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 8px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; color: var(--text-hint); cursor: pointer;
+}
+.klant-wissel-oog svg { width: 16px; height: 16px; }
+.klant-wissel-oog:hover { background: var(--surface2); color: var(--text); }
+.klant-wissel-oog:focus-visible { outline: 2px solid var(--mint); outline-offset: -2px; }
+.klant-wissel-rij.is-verborgen .klant-wissel-optie { cursor: default; opacity: .6; }
+.klant-wissel-rij.is-verborgen .klant-wissel-optie:hover { background: transparent; }
+.klant-wissel-verborgen { margin-top: 6px; border-top: 1px solid var(--border); padding-top: 6px; }
+@media (max-width: 768px) {
+  .klant-wissel-oog { width: var(--tap); height: var(--tap); }
+}
 
 /* Wat bij de gekozen klant hoort: het overzicht, en de klantenlijst beheren.
    Gewone menuregels -- zie .uren-menu-item. */
@@ -7975,7 +8003,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.30</span>
+        <span class="app-versie" title="Appversie">v2.31</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -10394,6 +10422,16 @@ function hydrateerStateIntern(){
   /* Klanten waarvan de groep niet in de notitieboom staat. Alleen hier:
      de klant bestaat gewoon door, met al zijn notities, uren en facturen. */
   if(!Array.isArray(notesState.verborgenKlanten))notesState.verborgenKlanten=[];
+  /* Verbergen geldt sinds 2026-10-05 voor de klant zelf, in alle modules die
+     erom geven (zie klantVerborgen). De oude lijst van alleen Notities één
+     keer overzetten en leegmaken. */
+  if(notesState.verborgenKlanten.length){
+    notesState.verborgenKlanten.forEach(id=>{
+      const c=kanbanState.clients.find(x=>x.id===id);
+      if(c)c.verborgen=true;
+    });
+    notesState.verborgenKlanten=[];
+  }
   checklistState=rawState.checklist||{items:[],showArchived:false,sortBy:'newest',groupByPriority:true};
   if(!checklistState.items)checklistState.items=[];
   migreerChecklistVolgorde();
@@ -11234,7 +11272,7 @@ function switchModule(mod){
 function updateNavBadges(){
   /* Checklist: overdue items only (most actionable signal) */
   const today=new Date().toISOString().slice(0,10);
-  const overdue=(checklistState?.items||[]).filter(i=>!i.done&&!i.archived&&i.deadline&&i.deadline<today).length;
+  const overdue=takenZichtbaar().filter(i=>!i.done&&!i.archived&&i.deadline&&i.deadline<today).length;
   const setBadge=(id,n)=>{
     const el=document.getElementById(id);if(!el)return;
     if(!n){el.style.display='none';return;}
@@ -11916,6 +11954,57 @@ window.addEventListener('load',()=>{
 function flattenNotes(nodes){
   return nodes.reduce((acc,n)=>{acc.push(n);if(n.children)acc.push(...flattenNotes(n.children));return acc;},[]);
 }
+
+/* ── Klanten verbergen (2026-10-05) ──
+   Opschonen zonder weggooien: een verborgen klant (client.verborgen) staat
+   niet meer in de klantwisselaar, niet als groep in Notities en zijn taken
+   niet in de Checklist en op het Dashboard. Uren, Facturen, Opdrachten en
+   Contracten kijken er bewust niet naar: daar moet je altijd voor elke klant
+   kunnen schrijven en factureren.
+   Het staat op de klant zelf en gaat dus mee naar Drive: op elk apparaat
+   hetzelfde. Terughalen kan in de klantwisselaar (Verborgen) en onderaan de
+   notitieboom. Dit vervangt notesState.verborgenKlanten (2026-09-07), dat
+   alleen voor Notities gold; de hydratie zet die lijst één keer om. */
+function klantVerborgen(id){
+  if(!id)return false;
+  const c=(kanbanState?.clients||[]).find(x=>x.id===id);
+  return !!(c&&c.verborgen);
+}
+function klantenZichtbaar(){return (kanbanState?.clients||[]).filter(c=>!c.verborgen);}
+/* Voor een klantkeuze in Checklist en Dashboard: de zichtbare klanten, plus
+   de klant die er al staat als die verborgen is -- anders verdwijnt die
+   stilletjes uit de keuze en zet opslaan hem op "Geen klant". */
+function klantenVoorKeuze(huidigId){
+  return (kanbanState?.clients||[]).filter(c=>!c.verborgen||c.id===huidigId);
+}
+/* De taken die je te zien krijgt: zonder die van verborgen klanten. */
+function takenZichtbaar(){
+  return (checklistState?.items||[]).filter(i=>!klantVerborgen(i.clientId));
+}
+function klantVerbergen(id,verbergen){
+  const c=clientById(id);
+  if(!c)return;
+  if(verbergen)c.verborgen=true;else delete c.verborgen;
+  /* Wie de klant verbergt waarop gefilterd is, zou anders naar een lege
+     pagina kijken met een filter dat je niet meer kunt kiezen. */
+  if(verbergen&&activeClientFilter===id)activeClientFilter='';
+  scheduleSave();
+  renderClientFilters();
+  rerenderActiveModule();
+  updateNavBadges();
+  if(verbergen)appToast(`${c.name} verborgen in Notities, Checklist en Dashboard`,
+    {type:'success',undo:()=>klantVerbergen(id,false)});
+}
+function klantenAllemaalTonen(){
+  const weg=(kanbanState?.clients||[]).filter(c=>c.verborgen);
+  if(!weg.length)return;
+  weg.forEach(c=>{delete c.verborgen;});
+  scheduleSave();
+  renderClientFilters();
+  rerenderActiveModule();
+  updateNavBadges();
+  appToast(weg.length===1?weg[0].name+' weer zichtbaar':weg.length+' klanten weer zichtbaar',{type:'success'});
+}
 function setClientFilter(id){
   activeClientFilter=(activeClientFilter===id)?'':id;
   renderClientFilters();
@@ -11977,24 +12066,32 @@ function renderKlantWissel(){
   if(document.getElementById('klantWissel')?.classList.contains('open'))renderKlantWisselLijst();
 }
 let _kwCursor=-1;
+/* Open of dicht is niets om te bewaren: je klapt het open om iets terug te
+   halen en daarna is het klaar. Zoeken klapt het vanzelf open. */
+let klantWisselVerborgenOpen=false;
 /* De klant met de meeste open taken staat bovenaan: daar ga je het vaakst
    heen. Bij een gelijk aantal op naam, zodat de volgorde niet verspringt.
    "Alle klanten" blijft altijd de eerste regel. */
+/* "3 open taken" -- ook voor een verborgen klant, wiens taken elders niet
+   meetellen: hier zie je wat er ligt voor je hem terughaalt. */
+function klantWisselTakenTekst(id){
+  const n=(checklistState?.items||[]).filter(i=>!i.done&&!i.archived&&i.clientId===id).length;
+  return n?n+' open '+(n===1?'taak':'taken'):'Geen open taken';
+}
 function klantWisselRijen(){
-  const items=checklistState?.items||[];
+  const items=takenZichtbaar();
   const aantal={};
   items.forEach(i=>{
     if(!i.done&&!i.archived&&i.clientId)aantal[i.clientId]=(aantal[i.clientId]||0)+1;
   });
-  const clients=(kanbanState?.clients||[]).slice().sort((a,b)=>
+  const clients=klantenZichtbaar().sort((a,b)=>
     (aantal[b.id]||0)-(aantal[a.id]||0)||a.name.localeCompare(b.name,'nl'));
-  const sub=id=>{
-    const n=aantal[id]||0;
-    return n?n+' open '+(n===1?'taak':'taken'):'Geen open taken';
-  };
+  const nVerborgen=(kanbanState?.clients||[]).length-clients.length;
+  const sub=klantWisselTakenTekst;
   const q=(document.getElementById('klantWisselZoek')?.value||'').trim().toLowerCase();
   return [
-    {id:'',naam:'Alle klanten',sub:clients.length+' '+(clients.length===1?'klant':'klanten'),c:null},
+    {id:'',naam:'Alle klanten',sub:clients.length+' '+(clients.length===1?'klant':'klanten')+
+      (nVerborgen?' · '+nVerborgen+' verborgen':''),c:null},
     ...clients.map(c=>({id:c.id,naam:c.name,sub:sub(c.id),c}))
   ].filter(r=>!q||r.naam.toLowerCase().includes(q));
 }
@@ -12010,16 +12107,37 @@ function renderKlantWisselLijst(){
   if(_kwCursor>=rijen.length)_kwCursor=rijen.length-1;
   const vink='<svg class="klant-wissel-vink" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7"/></svg>';
   const lijst=document.getElementById('klantWisselLijst');
-  lijst.innerHTML=rijen.length?rijen.map((r,i)=>{
+  /* Een klantregel is een rij met twee knoppen: de regel zelf kiest, het oog
+     verbergt. Bewust een eigen, altijd zichtbare knop en niet iets dat pas bij
+     hover verschijnt: op een telefoon kostte zo'n knop de eerste tik (zie
+     2026-09-07). */
+  const q=(document.getElementById('klantWisselZoek')?.value||'').trim().toLowerCase();
+  const verborgen=(kanbanState?.clients||[]).filter(c=>c.verborgen)
+    .sort((a,b)=>a.name.localeCompare(b.name,'nl'));
+  const verborgenZicht=verborgen.filter(c=>!q||c.name.toLowerCase().includes(q));
+  lijst.innerHTML=(rijen.length?rijen.map((r,i)=>{
     const gekozen=r.id===(actief?actief.id:'');
-    return `<button type="button" class="klant-wissel-optie${gekozen?' gekozen':''}${i===_kwCursor?' cursor':''}"
+    return `<div class="klant-wissel-rij"><button type="button" class="klant-wissel-optie${gekozen?' gekozen':''}${i===_kwCursor?' cursor':''}"
       role="option" aria-selected="${gekozen}" data-kw-cid="${escapeHtml(r.id)}">
       <span class="klant-wissel-optie-logo">${klantLogoHtml(r.c)}</span>
       <span class="klant-wissel-optie-tekst">
         <span class="klant-wissel-optie-naam">${escapeHtml(r.naam)}</span>
         <span class="klant-wissel-optie-sub">${escapeHtml(r.sub)}</span>
-      </span>${vink}</button>`;
-  }).join(''):'<div class="klant-wissel-leeg">Geen klant gevonden</div>';
+      </span>${vink}</button>${r.id?`<button type="button" class="klant-wissel-oog" data-kw-verberg="${escapeHtml(r.id)}"
+        title="${escapeHtml(r.naam)} verbergen" aria-label="${escapeHtml(r.naam)} verbergen">${NOTES_OOG_DICHT}</button>`:''}</div>`;
+  }).join(''):(verborgenZicht.length?'':'<div class="klant-wissel-leeg">Geen klant gevonden</div>'))+
+    (verborgenZicht.length?`<div class="klant-wissel-verborgen${klantWisselVerborgenOpen||q?' open':''}">
+      <button type="button" class="klant-wissel-verborgen-kop" data-kw-verborgen-kop aria-expanded="${klantWisselVerborgenOpen||q?'true':'false'}">
+        ${NOTES_OOG_DICHT}<span class="lab">Verborgen · ${verborgenZicht.length}</span><span class="chev">\u25be</span></button>
+      ${klantWisselVerborgenOpen||q?verborgenZicht.map(c=>`<div class="klant-wissel-rij is-verborgen">
+        <span class="klant-wissel-optie" aria-disabled="true">
+          <span class="klant-wissel-optie-logo">${klantLogoHtml(c)}</span>
+          <span class="klant-wissel-optie-tekst"><span class="klant-wissel-optie-naam">${escapeHtml(c.name)}</span>
+            <span class="klant-wissel-optie-sub">${escapeHtml(klantWisselTakenTekst(c.id))}</span></span></span>
+        <button type="button" class="klant-wissel-oog" data-kw-toon="${escapeHtml(c.id)}"
+          title="${escapeHtml(c.name)} weer tonen" aria-label="${escapeHtml(c.name)} weer tonen">${NOTES_OOG_OPEN}</button></div>`).join('')+
+        (verborgenZicht.length>1?`<button type="button" class="klant-wissel-alles" data-kw-alles>Alles weer tonen</button>`:''):''}
+    </div>`:'');
   /* Het overzicht hoort bij één klant; beheren kan altijd. Dit stond eerst
      als ⓘ naast de klantenbalk in de topbalk, die op een bureaublad weg is. */
   document.getElementById('klantWisselActies').innerHTML=
@@ -12076,6 +12194,14 @@ function kiesKlant(cid){
   }
 }
 document.getElementById('klantWisselLijst')?.addEventListener('click',e=>{
+  const oog=e.target.closest('[data-kw-verberg]');
+  if(oog){klantVerbergen(oog.dataset.kwVerberg,true);return;}
+  const toon=e.target.closest('[data-kw-toon]');
+  if(toon){klantVerbergen(toon.dataset.kwToon,false);return;}
+  if(e.target.closest('[data-kw-alles]')){klantenAllemaalTonen();return;}
+  if(e.target.closest('[data-kw-verborgen-kop]')){
+    klantWisselVerborgenOpen=!klantWisselVerborgenOpen;renderKlantWisselLijst();return;
+  }
   const rij=e.target.closest('[data-kw-cid]');
   if(rij)kiesKlant(rij.dataset.kwCid);
 });
@@ -12119,7 +12245,7 @@ document.addEventListener('keydown',e=>{
   toggleKlantWissel();
 });
 function renderOneClientFilter(host){
-  const clients=kanbanState?.clients||[];
+  const clients=klantenVoorKeuze(activeClientFilter);
   const active=clients.find(c=>c.id===activeClientFilter);
   const label=active?active.name:'Alle klanten';
   const dotStyle=active?`background:${CLIENT_COLORS[active.colorIdx%CLIENT_COLORS.length].bg}`:'';
@@ -12512,9 +12638,9 @@ function renderDashCardCounts(){
 function dashDerivedStats(){
   /* Open + overdue checklist items (Todo + Uren modules removed) */
   const today=new Date().toISOString().slice(0,10);
-  const openCl=(checklistState?.items||[]).filter(i=>!i.done&&!i.archived);
+  const openCl=takenZichtbaar().filter(i=>!i.done&&!i.archived);
   const overdueCl=openCl.filter(i=>i.deadline&&i.deadline<today).length;
-  const doneCl=(checklistState?.items||[]).filter(i=>i.done&&!i.archived).length;
+  const doneCl=takenZichtbaar().filter(i=>i.done&&!i.archived).length;
   const totalCl=openCl.length+doneCl;
 
   /* Notes — flat list of pages for sparkline */
@@ -12523,7 +12649,7 @@ function dashDerivedStats(){
     (function walk(arr){(arr||[]).forEach(n=>{if(n.type!=='folder')out.push(n);if(n.children)walk(n.children);});})(nodes);
     return out;
   }
-  const allPages=flatPages(notesState?.tree||[]);
+  const allPages=flatPages(notesState?.tree||[]).filter(n=>!klantVerborgen(n.clientId));
 
   return{openClCount:openCl.length,overdueCl,doneCl,totalCl,allPages};
 }
@@ -12702,7 +12828,7 @@ function renderDashKpis(){
 function renderDashChecklist(){
   const body=document.getElementById('dashChecklistBody');
   if(!body)return;
-  const open=checklistState.items.filter(i=>!i.done&&!i.archived);
+  const open=takenZichtbaar().filter(i=>!i.done&&!i.archived);
   if(!open.length){
     body.innerHTML=`<div style="color:var(--text-hint);font-size:13px;padding:20px 0;text-align:center">
       <p style="margin-bottom:8px">Geen openstaande taken</p>
@@ -12725,7 +12851,7 @@ function renderDashChecklist(){
     return dashCmp(a,b);
   });
   const selStyle='padding:2px 6px;font-size:11px;border:0.5px solid var(--border-strong);border-radius:4px;background:var(--surface);color:var(--text);font-family:inherit;outline:none;cursor:pointer';
-  const clientOpts='<option value="">— klant —</option>'+kanbanState.clients.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  const clientOpts='<option value="">— klant —</option>'+klantenZichtbaar().map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
   body.innerHTML=sorted.map(item=>{
     const cfg=CL_PRIORITY_CFG[item.priority]||CL_PRIORITY_CFG.middel;
     const today=new Date().toISOString().slice(0,10);
@@ -12813,6 +12939,8 @@ function renderDashNotes(){
     });
   }
   collectPages(notesState.tree||[]);
+  /* Notities van een verborgen klant horen hier net zo min als in de boom. */
+  for(let i=pages.length-1;i>=0;i--)if(klantVerborgen(pages[i].clientId))pages.splice(i,1);
   if(!pages.length){
     body.innerHTML=`<div style="color:var(--text-hint);font-size:12px;padding:20px 0;text-align:center">
       <p style="margin-bottom:10px">Nog geen notities</p>
@@ -14232,24 +14360,12 @@ function toggleFolder(id,e){if(e)e.stopPropagation();notesState.collapsed[id]=!n
    samen, en de knopjes die daar in de regels stonden kostten op een telefoon
    de eerste tik (zie de beslissing van 2026-09-07). Hier staat het waar je de
    klant ziet: in zijn eigen groepskop. */
-function notesKlantVerborgen(id){
-  return (notesState.verborgenKlanten||[]).includes(id);
-}
-function notesKlantVerbergen(id){
-  notesState.verborgenKlanten=notesState.verborgenKlanten||[];
-  if(!notesState.verborgenKlanten.includes(id))notesState.verborgenKlanten.push(id);
-  scheduleSave();renderNotesTree();
-  const c=clientById(id);
-  appToast(`${c?c.name:'Klant'} verborgen in Notities`,{type:'success',undo:()=>notesKlantTonen(id)});
-}
-function notesKlantTonen(id){
-  notesState.verborgenKlanten=(notesState.verborgenKlanten||[]).filter(x=>x!==id);
-  scheduleSave();renderNotesTree();
-}
-function notesToonAlleKlanten(){
-  notesState.verborgenKlanten=[];
-  scheduleSave();renderNotesTree();
-}
+/* Sinds 2026-10-05 is dit dezelfde stand als het oog in de klantwisselaar:
+   verbergen geldt voor de klant in Notities, Checklist en Dashboard samen. */
+function notesKlantVerborgen(id){return klantVerborgen(id);}
+function notesKlantVerbergen(id){klantVerbergen(id,true);}
+function notesKlantTonen(id){klantVerbergen(id,false);}
+function notesToonAlleKlanten(){klantenAllemaalTonen();}
 /* Open of dicht is niets om te bewaren: je klapt het open om iets terug te
    zetten en daarna is het klaar. */
 let notesVerborgenOpen=false;
@@ -15257,8 +15373,7 @@ function renderNotesTree(){
   /* Wat verborgen is, blijft zichtbaar als regel -- anders is het weg zonder
      dat je weet dat het weg is. Onderaan, want het gaat over wat je niet
      hoeft te zien. */
-  const verborgen=(notesState.verborgenKlanten||[])
-    .map(id=>clients.find(c=>c.id===id)).filter(Boolean);
+  const verborgen=clients.filter(c=>c.verborgen);
   let bakHtml='';
   if(verborgen.length){
     bakHtml=`<div class="note-verborgen${notesVerborgenOpen?' open':''}">
@@ -16041,6 +16156,7 @@ Object.assign(APP_ACTIONS,{
   notesAiPlek:()=>{closeNotesOverflow();notesAiPlek();},
   notesAiTerugdraaien:()=>{closeNotesOverflow();notesAiTerugdraaien();},
   noteCtxKlant:(el,e,id,clientId)=>{closeNoteCtxMenu();notesKlantZetten(id,clientId||'');},
+  clVerborgenTonen:()=>clVerborgenTonen(),
   setNoteClientUitMenu:(el,e,clientId)=>{
     closeNotesOverflow();
     if(notesState.activeId)setNoteClient(notesState.activeId,clientId||'');
@@ -16261,10 +16377,13 @@ function renderChecklistModule(){
      set AND clear, so 'Alle klanten' actually clears the filter. */
   clFilters.clientId=activeClientFilter||null;
 
-  const notArchived=checklistState.items.filter(i=>!i.archived);
+  /* Taken van verborgen klanten tellen nergens mee (zie klantVerborgen);
+     onderaan zegt een regel hoeveel het er zijn. */
+  const zichtbaar=takenZichtbaar();
+  const notArchived=zichtbaar.filter(i=>!i.archived);
   const allActiveItems=notArchived.filter(i=>!i.done);
   const doneItems=notArchived.filter(i=>i.done);
-  const archived=checklistState.items.filter(i=>i.archived);
+  const archived=zichtbaar.filter(i=>i.archived);
 
   /* ── De voortgangskaart telt binnen de gekozen klant ──
      Het klantfilter is een keuze van bereik -- "ik werk nu voor Staedion" --
@@ -16345,14 +16464,14 @@ function renderChecklistModule(){
     body.innerHTML=`<div class="cl2-empty">
       <div class="cl2-empty-hdr">Nog geen taken</div>
       <div class="cl2-empty-sub">Gebruik het veld hierboven om je eerste taak toe te voegen.</div>
-    </div>`;
+    </div>`+clVerborgenRegel();
     return;
   }
   if(!activeItems.length&&!doneItems.filter(passes).length){
     body.innerHTML=`<div class="cl2-empty">
       <div class="cl2-empty-hdr">Geen taken gevonden</div>
       <div class="cl2-empty-sub">Pas je filter aan of voeg een nieuwe taak toe.</div>
-    </div>`;
+    </div>`+clVerborgenRegel();
     return;
   }
 
@@ -16375,7 +16494,24 @@ function renderChecklistModule(){
       </div>
       ${clDoneExpanded?visibleDone.map(item=>clItemHtml(item)).join(''):''}`);
   }
+  body.insertAdjacentHTML('beforeend',clVerborgenRegel());
   wireChecklistBodyEvents(body);
+}
+/* Wat verborgen is blijft als regel zichtbaar -- anders is het weg zonder
+   dat je weet dat het weg is. De knop opent de klantwisselaar met de
+   verborgen klanten uitgeklapt. */
+function clVerborgenRegel(){
+  const n=(checklistState.items||[]).filter(i=>!i.done&&!i.archived&&klantVerborgen(i.clientId)).length;
+  if(!n)return '';
+  const k=(kanbanState.clients||[]).filter(c=>c.verborgen).length;
+  return `<div class="cl-verborgen-regel">${NOTES_OOG_DICHT}<span>${n} open ${n===1?'taak':'taken'} van
+    ${k===1?'een verborgen klant':k+' verborgen klanten'} niet getoond</span>
+    <button type="button" data-action="clVerborgenTonen">Bekijken</button></div>`;
+}
+function clVerborgenTonen(){
+  klantWisselVerborgenOpen=true;
+  if(window.innerWidth<=768)toggleSidebarMobile(true);
+  setTimeout(()=>toggleKlantWissel(),window.innerWidth<=768?250:0);
 }
 
 /* Render items grouped by priority (HOOG → MIDDEL → LAAG) with group headers.
@@ -16806,7 +16942,7 @@ function renderChecklistHero({notArchived,doneItems,archivedCount,klantNaam}){
 /* ─ New-item inline card ─ */
 function renderChecklistNewItem(){
   const el=document.getElementById('clNewItem');if(!el)return;
-  const clients=kanbanState?.clients||[];
+  const clients=klantenVoorKeuze(clNewDraft.clientId);
   const priorityOpts=['hoog','middel','laag'].map(p=>
     `<option value="${p}"${clNewDraft.priority===p?' selected':''}>${CL_PRIORITY_CFG[p].label}</option>`).join('');
   const clientOpts='<option value="">Geen klant</option>'+
@@ -16983,11 +17119,13 @@ function commitEditSubtask(itemId,subId,val){
 }
 
 function deleteAllDone(){
-  const removed=checklistState.items.filter(i=>i.done&&!i.archived);
+  /* Alleen wat je ziet: afgeronde taken van een verborgen klant blijven staan. */
+  const removed=takenZichtbaar().filter(i=>i.done&&!i.archived);
   if(!removed.length)return;
   /* Snapshot original positions for restore */
   const positions=removed.map(item=>({item,idx:checklistState.items.indexOf(item)}));
-  checklistState.items=checklistState.items.filter(i=>!(i.done&&!i.archived));
+  const weg=new Set(removed);
+  checklistState.items=checklistState.items.filter(i=>!weg.has(i));
   scheduleSave();renderChecklistModule();
   appToast(`${removed.length} voltooide ta${removed.length===1?'ak':'ken'} verwijderd`,{type:'success',undo:()=>{
     /* Re-insert at original positions (sorted ascending so indices stay valid) */
@@ -17061,7 +17199,7 @@ const CL_SORT_LABELS={
 function renderClOverflowMenu(){
   const el=document.getElementById('clOverflowMenu');if(!el)return;
   const vink='<span class="cl-ovf-vink">✓</span>';
-  const items=checklistState.items||[];
+  const items=takenZichtbaar();
   const afgerond=items.filter(i=>i.done&&!i.archived).length;
   const gearchiveerd=items.filter(i=>i.archived).length;
   const agg=(typeof _clSubtaskAggregate==='function')?_clSubtaskAggregate():{withSubs:[],mostlyOpen:false};
@@ -17146,7 +17284,7 @@ function renderClFilterBar(){
 
   /* Count visible items for the right-aligned counter (honours all filters incl. search) */
   const sQ=(clFilters.search||'').trim().toLowerCase();
-  const visible=checklistState.items.filter(i=>{
+  const visible=takenZichtbaar().filter(i=>{
     if(i.archived)return false;
     if(clFilters.prio&&i.priority!==clFilters.prio)return false;
     if(clFilters.clientId&&i.clientId!==clFilters.clientId)return false;
@@ -17224,7 +17362,7 @@ function renderClClientBtns(){
   const el=document.getElementById('clClientBtns');
   if(!el)return;
   const selected=document.getElementById('clItemClient')?.value||'';
-  const klanten=kanbanState.clients||[];
+  const klanten=klantenVoorKeuze(selected);
   if(!klanten.length){
     el.innerHTML=`<span class="klantkies-leeg">Nog geen klanten aangemaakt.</span>`;
     return;

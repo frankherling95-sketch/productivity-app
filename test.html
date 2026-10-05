@@ -1472,6 +1472,45 @@ async function runChecks() {
           try { w.appToastHide(); } catch (_) {}
         }
       }],
+    /* ── Klanten verbergen (2026-10-05) ── */
+    ['Klanten verbergen: de oude lijst van Notities wordt een stand op de klant zelf',
+      () => {
+        const bewaar = JSON.stringify(w.huidigeStateSnapshot());
+        try {
+          w.eval('rawState=' + bewaar);
+          w.eval("rawState.tasks.clients=[{id:'v1',name:'Oud',colorIdx:0},{id:'v2',name:'Lopend',colorIdx:1}];" +
+                 "rawState.notes.verborgenKlanten=['v1','bestaatniet'];");
+          w.hydrateerState();
+          return w.klantVerborgen('v1') && !w.klantVerborgen('v2') &&
+                 w.eval('notesState.verborgenKlanten.length') === 0 &&
+                 w.klantenZichtbaar().map(c => c.id).join() === 'v2';
+        } finally { w.eval('rawState=' + bewaar); w.hydrateerState(); }
+      }],
+    ['Klanten verbergen: taken tellen niet mee, opruimen laat ze staan, een gekozen klant blijft kiesbaar',
+      () => {
+        const oudK = w.eval('JSON.stringify(kanbanState.clients)');
+        const oudI = w.eval('JSON.stringify(checklistState.items)');
+        const oudF = w.eval('activeClientFilter');
+        try {
+          w.eval("kanbanState.clients=[{id:'v1',name:'Oud',colorIdx:0,verborgen:true},{id:'v2',name:'Lopend',colorIdx:1}]");
+          const t = (id, c, done) => ({id, text:id, clientId:c, done, archived:false, subtasks:[], priority:'middel'});
+          w.eval('checklistState.items=' + JSON.stringify([t('a', 'v1', false), t('b', 'v1', true), t('c', 'v2', false), t('d', 'v2', true), t('e', null, false)]));
+          const zicht = w.takenZichtbaar().map(i => i.id).join();
+          w.deleteAllDone();
+          const over = w.eval('checklistState.items.map(i=>i.id).join()');
+          const keuze = w.klantenVoorKeuze('v1').map(c => c.id).join() + '|' + w.klantenVoorKeuze('').map(c => c.id).join();
+          w.eval("activeClientFilter='v2'");
+          w.klantVerbergen('v2', true);
+          const filterWeg = w.eval('activeClientFilter') === '';
+          w.klantVerbergen('v2', false);
+          return zicht === 'c,d,e' && over === 'a,b,c,e' && keuze === 'v1,v2|v2' && filterWeg && !w.klantVerborgen('v2');
+        } finally {
+          w.eval('kanbanState.clients=' + oudK); w.eval('checklistState.items=' + oudI);
+          w.eval('activeClientFilter=' + JSON.stringify(oudF));
+          try { w.appToastHide(); } catch (_) {}
+          w.renderClientFilters();
+        }
+      }],
     ['Archief: veel tegelijk weg gaat niet vanzelf naar de prullenbak, wel na een klik',
       async () => {
         const oudO = w.eval('JSON.stringify(opdrachtState.opdrachten)');

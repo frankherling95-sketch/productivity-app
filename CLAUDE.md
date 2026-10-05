@@ -59,7 +59,7 @@ Entry render functions: `renderDashboard()`, `renderNotesModule()`, `renderCheck
 ```js
 rawState = {
   tasks:    kanbanState,     // {clients} — heet zo uit de tijd van Kanban (weg 2026-10-04); oude projects blijven ongemoeid in Drive
-  notes:    notesState,      // {tree, activeId, collapsed, clientGroupCollapsed, recentIds, sortBy ('gewijzigd' standaard|'handmatig'|'naam'), sortGekozen, prullenbak, verborgenKlanten}
+  notes:    notesState,      // {tree, activeId, collapsed, clientGroupCollapsed, recentIds, sortBy ('gewijzigd' standaard|'handmatig'|'naam'), sortGekozen, prullenbak, verborgenKlanten (leeg sinds 2026-10-05, zie Klant.verborgen)}
   checklist: checklistState, // {items, showArchived, sortBy, groupByPriority}
   uren:     urenState,       // {entries, templates}
   opdrachten: opdrachtState, // {opdrachten, vrij (vakanties), feestdagen (ids; ontbreekt = standaard)}
@@ -72,7 +72,7 @@ rawState = {
 **Item shapes** (snelle referentie):
 - Checklist item: `{id, text, done, priority, deadline, clientId, subtasks[], archived, sortOrder, pinned}` — subtaak `{id, text, done, doorHoofd?}`; `doorHoofd` = mee afgevinkt met de hoofdtaak, gaat weer open als die terugkomt (`clZetHoofdKlaar()`)
 - Notes node (recursief): `{id, type:'page'|'folder', title, content, clientId, tags, children[]}`
-- Klant: `{id, name, colorIdx}`
+- Klant: `{id, name, colorIdx, verborgen?}` — `verborgen` = opgeschoond: weg uit de klantwisselaar, Notities, Checklist en Dashboard, maar gewoon kiesbaar in Uren, Facturen, Opdrachten en Contracten (`klantVerborgen()`, `takenZichtbaar()`, `klantenVoorKeuze()`)
 - Contract: `{id, domein ('zakelijk'|'prive'; ontbreekt = zakelijk), soort, titel, clientId|null, wederpartij, opdrachtId|null, getekend, start, eind|null, opzeg, verlenging ('' of '1m'/'3m'/'6m'/'12m'), notitie, bijlagen[]}` — een bijlage is `{id, naam, grootte, hash, driveId|null}`. De PDF staat als **eigen bestand** in de Drive-`appDataFolder` (`contract-<id>.pdf`) plus een kopie in IndexedDB (`herling_bijlagen`), niet in `rawState`. Hangt een contract aan een opdracht, dan komt de looptijd uit de opdracht (`ctrLooptijd()`)
 - Opdracht: `{id, clientId, naam, start, eind|null, opzeg ('', '2w', '1m', …), tarief|null, urenPerWeek|null, urenBudget|null, werkdagen|null ([2,3,5] = di/wo/vr; null = ma–vr), notitie, bijlagen[]}` — bijlagen zoals bij een contract, zelfde opslag en opruimlijst (`ctrAlleBijlagen()`) — uren horen erbij via klant + looptijd, niet via een veld op de urenregel
 
@@ -317,9 +317,9 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
+- **2026-10-05**: **Klanten verbergen** (v2.31) — oog per klant in de klantwisselaar; `client.verborgen` gaat mee naar Drive. Weg uit Notities, Checklist en Dashboard (taken, tellingen, badge, klantkeuze), niet uit Uren/Facturen/Opdrachten/Contracten. Terughalen onder *Verborgen* in de wisselaar; de Checklist zegt onderaan hoeveel open taken niet getoond worden. Vervangt `notesState.verborgenKlanten` (één keer overgezet)
 - **2026-10-05**: **Notities: klant wijzigen via de rechtermuisknop** (v2.30) — het contextmenu had een `<select>` die het menu bij de eerste klik sloot; nu gewone menuregels met ✓. Op een groep: alle notities erin naar die klant, zonder hun tijd te veranderen (`notesKlantZetten()`), met ongedaan maken
 - **2026-10-05**: **Notities standaard op laatst gewijzigd** (v2.29) — `notesSorteer()` op elk niveau (ook binnen mappen; een map telt met zijn nieuwste notitie), klantgroepen op hun laatst bewerkte notitie (`notesClientVolgorde()`). Een opgeslagen `handmatig` zonder `sortGekozen` gaat één keer om; een eigen keuze blijft. Op desktop een sorteerknop in de kop *Pagina's* (het ⋯-menu bestaat daar niet)
-- **2026-10-04**: **Archief in Google Drive + checklist-deadlines in Agenda** (v2.28) — Instellingen → *Archief in Google Drive*: verstuurde facturen en de PDF's van contracten/opdrachten als gewone bestanden in de map *Herling Analytics* (scope `drive.file`), bijgewerkt door vergelijken zoals de agenda (`archiefGewenst()`/`archiefSync()`); weg = prullenbak, veel tegelijk pas na een klik. Taken met een deadline komen in de agenda *Herling – aflopend* (`cl:<id>`, melding de dag ervoor 09:00), uit te zetten met `agendaMeldingen.checklist`
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 
@@ -373,7 +373,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 144 smoke-, sync-, model-, reken- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
+| `test.html` | 146 smoke-, sync-, model-, reken- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |

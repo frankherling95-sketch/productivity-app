@@ -5780,3 +5780,54 @@ de klik- en Escape-afhandeling, `.ctx-menu`/`.ctx-kop`/`.ctx-item.aan`.
 
 **Niet doen.** Een formulierveld in een menu dat sluit bij elke klik op het
 document: dat is precies hoe deze keuzelijst stuk ging.
+
+## 2026-10-05 · Klanten verbergen, op alle apparaten
+
+**Probleem.** Frank wil oude klanten opschonen: weg uit de Checklist en
+Notities, maar met één klik terug te halen, en op elk apparaat hetzelfde.
+Voor Uren en Facturen moet hij wél altijd voor die klant kunnen schrijven.
+Notities had sinds 2026-09-07 een eigen verbergknop per klantgroep
+(`notesState.verborgenKlanten`), maar die gold alleen daar. Die beslissing
+zei toen ook: geen globale "inactieve klant" zonder het te vragen. Nu is het
+gevraagd.
+
+**Beslissing.**
+- De stand staat op de klant zelf: `client.verborgen` in `rawState.tasks.clients`.
+  Daarmee gaat hij met de rest naar Drive en is hij op elk apparaat gelijk.
+- **Wel weg:** de regel in de klantwisselaar, de groep in de notitieboom, de
+  taken in de Checklist (lijst, afgerond, archief, tellers, "Verwijder
+  afgerond"), op het Dashboard (taken, notities, KPI's) en in de badge bij
+  Checklist; en uit de klantkeuze in de Checklist en het Dashboard — behalve
+  bij een taak die die klant al heeft (`klantenVoorKeuze`), anders zou
+  opslaan hem stil op "Geen klant" zetten.
+- **Niet weg:** Uren, Facturen, Opdrachten, Contracten, het zoeken in
+  Notities, de klant kiezen voor een notitie, de meldingen in Agenda en de
+  deadline-notificaties. Verbergen is opschonen van wat je ziet, geen
+  archivering.
+- **Verbergen:** een oog achter elke klant in de klantwisselaar (de knop
+  linksboven, zoals Frank vroeg), en het bestaande oog in de groepskop van
+  Notities — allebei dezelfde stand. Met ongedaan maken.
+- **Terughalen:** onderaan de klantwisselaar *Verborgen · N*, uitklapbaar, met
+  per klant een open oog en "Alles weer tonen". Zoeken in de wisselaar klapt
+  het vanzelf open. Onderaan de Checklist staat "N open taken van verborgen
+  klanten niet getoond — Bekijken", dat de wisselaar met die lijst opent.
+- Verberg je de klant waarop je filtert, dan gaat het filter naar Alle
+  klanten.
+- `notesState.verborgenKlanten` wordt bij het laden één keer omgezet naar de
+  klant en daarna leeg gelaten.
+
+**Waarom nu wel in de klantwisselaar.** In september gingen de knopjes uit
+het klantfilter omdat ze pas bij hover verschenen en op een telefoon de
+eerste tik kostten. Het oog hier is een eigen, altijd zichtbare knop naast
+de regel: de regel kiest, het oog verbergt. Dat probleem bestaat dus niet.
+
+**Bestanden.** `index.html` — `klantVerborgen()`, `klantenZichtbaar()`,
+`klantenVoorKeuze()`, `takenZichtbaar()`, `klantVerbergen()`,
+`klantenAllemaalTonen()`, `renderKlantWisselLijst()`, `klantWisselRijen()`,
+`notesKlant*()`, `renderChecklistModule()`, `clVerborgenRegel()`,
+`deleteAllDone()`, `renderDashChecklist()`, `renderDashNotes()`,
+`dashDerivedStats()`, `updateNavBadges()`, hydratie. `test.html` — twee tests.
+`docs/stijlgids.md`.
+
+**Niet doen.** Uren, Facturen, Opdrachten of Contracten naar `verborgen` laten
+kijken: daar moet je voor elke klant kunnen schrijven en factureren.

@@ -497,6 +497,10 @@ knop, of erboven als dat niet past. Er staat er hooguit één open
 is een eigen kaart, maar met de maten van het venster van Externe tools: 320px
 breed, 6px binnenrand, regels van 48px met een blokje van 22px, naam 13px/600,
 bijregel `var(--fs-micro)`. Klanten staan op aantal open taken, meeste eerst.
+Achter elke klant een oog (`.klant-wissel-oog`): een rij-actie, `--text-hint`,
+32px op een bureaublad en `var(--tap)` op een telefoon, altijd zichtbaar — geen
+hover-knop. Verborgen klanten staan onderaan onder een uitklapkop *Verborgen · N*,
+met dezelfde regels als het verborgen-blok onderaan de notitieboom.
 
 **Nieuwe module erbij?** Een regel met `data-mod` en `data-titel` (de tooltip
 als hij ingeklapt is). Hoort hij bij een andere, zet hem dan in een
