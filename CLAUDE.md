@@ -317,9 +317,9 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
+- **2026-10-05**: **Notities: klant wijzigen via de rechtermuisknop** (v2.30) — het contextmenu had een `<select>` die het menu bij de eerste klik sloot; nu gewone menuregels met ✓. Op een groep: alle notities erin naar die klant, zonder hun tijd te veranderen (`notesKlantZetten()`), met ongedaan maken
 - **2026-10-05**: **Notities standaard op laatst gewijzigd** (v2.29) — `notesSorteer()` op elk niveau (ook binnen mappen; een map telt met zijn nieuwste notitie), klantgroepen op hun laatst bewerkte notitie (`notesClientVolgorde()`). Een opgeslagen `handmatig` zonder `sortGekozen` gaat één keer om; een eigen keuze blijft. Op desktop een sorteerknop in de kop *Pagina's* (het ⋯-menu bestaat daar niet)
 - **2026-10-04**: **Archief in Google Drive + checklist-deadlines in Agenda** (v2.28) — Instellingen → *Archief in Google Drive*: verstuurde facturen en de PDF's van contracten/opdrachten als gewone bestanden in de map *Herling Analytics* (scope `drive.file`), bijgewerkt door vergelijken zoals de agenda (`archiefGewenst()`/`archiefSync()`); weg = prullenbak, veel tegelijk pas na een klik. Taken met een deadline komen in de agenda *Herling – aflopend* (`cl:<id>`, melding de dag ervoor 09:00), uit te zetten met `agendaMeldingen.checklist`
-- **2026-10-04**: **Kanban (Todo) verwijderd** — module, markup, ~770 regels JS en de bijbehorende CSS weg (v2.27). Klanten blijven in `kanbanState.clients` (`rawState.tasks`, naam ongewijzigd); oude projecten blijven ongemoeid in Drive. Een oude `#todo`-link opent het dashboard
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 
@@ -373,7 +373,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 143 smoke-, sync-, model-, reken- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
+| `test.html` | 144 smoke-, sync-, model-, reken- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |

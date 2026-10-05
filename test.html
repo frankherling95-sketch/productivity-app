@@ -1453,6 +1453,25 @@ async function runChecks() {
           w.eval('(function(o){notesState.sortBy=o.s;notesState.tree=o.t;})(' + oud + ')');
         }
       }],
+    ['Notities: naar een andere klant — één notitie krijgt een nieuwe tijd, een groep neemt alles mee zonder',
+      () => {
+        const oud = w.eval('JSON.stringify(notesState.tree)');
+        try {
+          const p = (id, c) => ({id, type:'page', title:id, clientId:c, children:[], updatedAt:5});
+          w.eval('notesState.tree=' + JSON.stringify([p('los', 'a'),
+            {id:'map', type:'folder', title:'Map', children:[p('m1', 'a'), p('m2', 'b'),
+              {id:'sub', type:'folder', title:'Sub', children:[p('m3', null)]}]}]));
+          w.notesKlantZetten('los', 'x');
+          w.notesKlantZetten('map', 'y');
+          const n = id => w.findNode(w.eval('notesState.tree'), id).node;
+          return n('los').clientId === 'x' && n('los').updatedAt > 5 &&
+                 ['m1', 'm2', 'm3'].every(id => n(id).clientId === 'y' && n(id).updatedAt === 5) &&
+                 !('clientId' in n('map'));
+        } finally {
+          w.eval('notesState.tree=' + oud);
+          try { w.appToastHide(); } catch (_) {}
+        }
+      }],
     ['Archief: veel tegelijk weg gaat niet vanzelf naar de prullenbak, wel na een klik',
       async () => {
         const oudO = w.eval('JSON.stringify(opdrachtState.opdrachten)');

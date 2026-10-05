@@ -453,7 +453,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
   border-radius:var(--radius-md);box-shadow:var(--shadow-modal);padding:6px;
 }
 .notes-overflow.open .notes-overflow-menu{display:block}
-.notes-ovf-kop{
+.notes-ovf-kop,.ctx-kop{
   padding:6px 10px 4px;font-size:var(--fs-micro);font-weight:700;
   letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);
 }
@@ -464,7 +464,8 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
 .notes-ovf-item:hover{background:var(--surface2)}
-.notes-ovf-item.aan{font-weight:700;color:var(--text)}
+.notes-ovf-item.aan,.ctx-item.aan{font-weight:700;color:var(--text)}
+.ctx-item.aan::before{content:'✓'}
 .notes-ovf-item.aan::before{content:'✓  '}
 .notes-ovf-scheiding{height:1px;background:var(--border);margin:5px 0}
 
@@ -589,7 +590,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .app-dlg-voet{font-size:var(--fs-micro);color:var(--text-muted);margin:8px 0 0;line-height:1.45}
 
 /* Note context menu */
-.ctx-menu{position:fixed;background:var(--surface);border:0.5px solid var(--border-strong);border-radius:8px;padding:4px;box-shadow:0 4px 16px rgba(0,0,0,0.12);z-index:300;min-width:180px;display:none;flex-direction:column;gap:1px}
+.ctx-menu{position:fixed;background:var(--surface);border:0.5px solid var(--border-strong);border-radius:8px;padding:4px;box-shadow:0 4px 16px rgba(0,0,0,0.12);z-index:300;min-width:180px;max-height:calc(100vh - 16px);overflow-y:auto;display:none;flex-direction:column;gap:1px}
 .ctx-menu.open{display:flex}
 .ctx-item{background:transparent;border:none;text-align:left;padding:6px 10px;font-size:12px;color:var(--text);cursor:pointer;border-radius:5px;font-family:inherit;display:flex;align-items:center;gap:8px}
 .ctx-item:hover{background:var(--surface2)}
@@ -7974,7 +7975,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.29</span>
+        <span class="app-versie" title="Appversie">v2.30</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -13907,7 +13908,9 @@ document.addEventListener('keydown',e=>{
 });
 
 /* Close dropdowns on outside click */
-document.addEventListener('click',()=>{
+document.addEventListener('click',e=>{
+  /* Een klik op een kopje of een scheiding in het menu is geen klik ernaast. */
+  if(e.target.closest&&e.target.closest('#noteCtxMenu')&&!e.target.closest('button'))return;
   closeNoteCtxMenu();
 });
 
@@ -14593,22 +14596,53 @@ function showNoteCtxMenu(e,id){
   const menu=document.getElementById('noteCtxMenu');
   const r=findNode(notesState.tree,id);if(!r)return;
   const isFolder=r.node.type==='folder';
-  const clientOpts=`<option value="">— geen —</option>`+
-    kanbanState.clients.map(c=>`<option value="${c.id}"${r.node.clientId===c.id?' selected':''}>${escapeHtml(c.name)}</option>`).join('');
+  /* Klant kiezen met gewone menuregels. Hier stond een <select>, maar een
+     klik daarop ging ook naar het document, en dat sluit dit menu: de lijst
+     klapte open en verdween in dezelfde beweging. Bij een groep gaan alle
+     notities erin mee -- een groep heeft zelf geen klant, hij staat bij de
+     klanten van zijn notities. */
+  const paginas=isFolder?flattenNotes(r.node.children||[]).filter(n=>n.type==='page'):[r.node];
+  const nu=new Set(paginas.map(n=>n.clientId||''));
+  const huidig=nu.size===1?[...nu][0]:null;
+  const klanten=[...(kanbanState.clients||[])].sort((a,b)=>
+    (a.bedrijfsnaam||a.name||'').localeCompare(b.bedrijfsnaam||b.name||'','nl'));
+  const klantHtml=!paginas.length?'':`
+    <div class="ctx-divider"></div>
+    <div class="ctx-kop">${isFolder?(paginas.length===1?'De notitie hierin naar klant':'Alle '+paginas.length+' notities hierin naar klant'):'Klant'}</div>
+    ${[{id:'',name:'Geen klant'},...klanten].map(c=>
+      `<button class="ctx-item${huidig===c.id?' aan':''}" data-action="noteCtxKlant" data-arg1="${id}" data-arg2="${c.id}">${escapeHtml(c.bedrijfsnaam||c.name)}</button>`).join('')}`;
   menu.innerHTML=`
     <button class="ctx-item" onclick="closeNoteCtxMenu();renameNode('${id}')">✎ Hernoemen</button>
     <button class="ctx-item" onclick="closeNoteCtxMenu();createNote('${id}')">+ Notitie ${isFolder?'in groep':'erna'}</button>
     ${isFolder?`<button class="ctx-item" onclick="closeNoteCtxMenu();createFolder('${id}')">+ Sub-groep</button>`:''}
-    ${!isFolder?`<div style="padding:4px 8px;display:flex;align-items:center;gap:6px;font-size:12px">
-      <span style="color:var(--text-muted)">Klant:</span>
-      <select style="flex:1;font-size:11px;padding:2px 5px;background:var(--surface2);border:0.5px solid var(--border-strong);border-radius:4px;color:var(--text);font-family:inherit"
-        onchange="setNoteClient('${id}',this.value);closeNoteCtxMenu()">${clientOpts}</select>
-    </div>`:''}
+    ${klantHtml}
     <div class="ctx-divider"></div>
     <button class="ctx-item danger" onclick="closeNoteCtxMenu();deleteNode('${id}')">✕ Verwijderen</button>`;
-  menu.style.left=Math.min(e.clientX,window.innerWidth-200)+'px';
-  menu.style.top=Math.min(e.clientY,window.innerHeight-200)+'px';
+  /* Eerst openen, dan meten: met de klantenlijst erbij is het menu hoger dan
+     de vaste 200px waarmee het eerst werd ingeschoven. */
   menu.classList.add('open');
+  menu.scrollTop=0;
+  menu.style.left=Math.max(8,Math.min(e.clientX,window.innerWidth-menu.offsetWidth-8))+'px';
+  menu.style.top=Math.max(8,Math.min(e.clientY,window.innerHeight-menu.offsetHeight-8))+'px';
+}
+/* Een notitie, of alle notities in een groep, naar een andere klant. Bij een
+   groep blijven de tijdstempels staan: verplaatsen is geen bewerken, en anders
+   schoof de hele groep bovenaan "Laatst gewijzigd". */
+function notesKlantZetten(id,clientId){
+  const r=findNode(notesState.tree,id);if(!r)return;
+  const groep=r.node.type==='folder';
+  const paginas=groep?flattenNotes(r.node.children||[]).filter(n=>n.type==='page'):[r.node];
+  if(!paginas.length)return;
+  const voor=paginas.map(n=>({n,c:n.clientId||null,t:n.updatedAt}));
+  const nu=Date.now();
+  paginas.forEach(n=>{n.clientId=clientId||null;if(!groep)n.updatedAt=nu;});
+  scheduleSave();renderNotesTree();
+  const k=clientId?clientById(clientId):null;
+  const naar=k?(k.bedrijfsnaam||k.name):'Geen klant';
+  appToast((groep?(paginas.length===1?'1 notitie':paginas.length+' notities')+' naar ':'Notitie naar ')+naar,{
+    type:'success',
+    undo:()=>{voor.forEach(x=>{x.n.clientId=x.c;x.n.updatedAt=x.t;});scheduleSave();renderNotesTree();}
+  });
 }
 function closeNoteCtxMenu(){document.getElementById('noteCtxMenu').classList.remove('open');}
 
@@ -15020,7 +15054,7 @@ document.addEventListener('click',e=>{
   const root=document.getElementById('notesOverflow');
   if(root&&!root.contains(e.target))closeNotesOverflow();
 });
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeNotesOverflow();notesSortMenuDicht();}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeNotesOverflow();notesSortMenuDicht();closeNoteCtxMenu();}});
 
 /* ── Sorteerknop in de kop "Pagina's" (bureaublad) ──
    Het ⋯-menu van Notities bestaat alleen op een telefoon; zonder deze knop
@@ -16006,6 +16040,7 @@ Object.assign(APP_ACTIONS,{
   notesAiOpschonen:()=>{closeNotesOverflow();notesAiOpschonen();},
   notesAiPlek:()=>{closeNotesOverflow();notesAiPlek();},
   notesAiTerugdraaien:()=>{closeNotesOverflow();notesAiTerugdraaien();},
+  noteCtxKlant:(el,e,id,clientId)=>{closeNoteCtxMenu();notesKlantZetten(id,clientId||'');},
   setNoteClientUitMenu:(el,e,clientId)=>{
     closeNotesOverflow();
     if(notesState.activeId)setNoteClient(notesState.activeId,clientId||'');

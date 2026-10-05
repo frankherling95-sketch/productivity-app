@@ -5750,3 +5750,33 @@ aantal), en was op een bureaublad onbereikbaar: hij zat alleen in het
 
 **Niet doen.** `NOTES_SORTEER` in de hydratie gebruiken: die constante staat
 verderop in het script en de hydratie kan eerder draaien.
+
+## 2026-10-05 · Notities: klant wijzigen via de rechtermuisknop
+
+**Probleem.** Het rechtermuisknopmenu van een notitie had een keuzelijst
+"Klant", maar die werkte niet: een klik erop ging ook naar het document, en
+de klik-buiten-handler sloot het menu. De lijst klapte open en verdween in
+dezelfde beweging. Op een groep stond de keuze er helemaal niet.
+
+**Beslissing.**
+- Gewone menuregels in plaats van een `<select>`: kopje *Klant*, dan *Geen
+  klant* en de klanten op alfabet, de huidige vet met een ✓. Zelfde stijl als
+  de kopjes en de actieve keuze in het ⋯-menu van Notities.
+- Op een groep: "Alle N notities hierin naar klant". Een groep heeft zelf
+  geen klant; hij staat bij de klanten van zijn notities, dus verplaatsen
+  zet de klant op elke notitie eronder (ook in subgroepen).
+- Eén notitie krijgt een nieuwe `updatedAt` (zoals het al ging, en dan staat
+  hij bovenaan bij zijn nieuwe klant). Bij een groep niet: verplaatsen is
+  geen bewerken, en anders schoof de hele groep bovenaan "Laatst gewijzigd".
+- Een melding met ongedaan maken, want de notitie verdwijnt uit de groep
+  waar je naar keek.
+- Het menu wordt na het openen gemeten en binnen beeld gezet (de vaste 200px
+  van vroeger was te krap met de klantenlijst), en scrolt als het te hoog is.
+  Een klik op een kopje of scheiding sluit het niet; Escape wel.
+
+**Bestanden.** `index.html` — `showNoteCtxMenu()`, `notesKlantZetten()`,
+de klik- en Escape-afhandeling, `.ctx-menu`/`.ctx-kop`/`.ctx-item.aan`.
+`test.html` — één test.
+
+**Niet doen.** Een formulierveld in een menu dat sluit bij elke klik op het
+document: dat is precies hoe deze keuzelijst stuk ging.
