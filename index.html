@@ -7052,6 +7052,9 @@ textarea { line-height: 1.6; resize: vertical; }
   right: 0; top: 0;
   height: 100%;
   width: 46%;
+  /* Breder geschaald valt het ruitje rechtsboven buiten de hero: "slice"
+     vult de breedte en snijdt boven en onder af (op 1920px 16px te hoog). */
+  max-width: 520px;
   pointer-events: none;
   mask-image: linear-gradient(90deg, transparent, #000 40%);
 }
@@ -8428,7 +8431,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.36</span>
+        <span class="app-versie" title="Appversie">v2.37</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -8575,7 +8578,7 @@ textarea { line-height: 1.6; resize: vertical; }
           <button type="button" class="dash-hero-add" onclick="openChecklistItemModal(null)"
             aria-label="Nieuwe taak" title="Nieuwe taak">＋</button>
           <div class="dash-hero-left">
-            <div class="dash-hero-eyebrow">Vandaag</div>
+            <div class="dash-hero-eyebrow" id="dashHeroEyebrow">Vandaag</div>
             <div class="dash-hero-headline" id="dashHeroHeadline">Laden…</div>
             <div class="dash-hero-sub" id="dashHeroSub"></div>
             <!-- Quick-add: parses 'tekst @klant !morgen' and creates a checklist task -->
@@ -13148,6 +13151,9 @@ function renderDashHero(){
   const greet=hour<6?'Goedenacht':hour<12?'Goedemorgen':hour<18?'Goedemiddag':'Goedenavond';
   const weekday=new Date().toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long'});
   document.getElementById('todayStr').textContent=(name?greet+', '+name+' — ':greet+' — ')+weekday;
+  /* "Dinsdag 7 oktober · week 41" -- de kapitalen doet de CSS. */
+  const eyebrow=document.getElementById('dashHeroEyebrow');
+  if(eyebrow)eyebrow.textContent=weekday+' · week '+getISOWeek(new Date());
 
   const parts=[];
   parts.push(`<span class="hl-num">${s.openClCount}</span> open ${s.openClCount===1?'taak':'taken'}`);

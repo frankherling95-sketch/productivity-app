@@ -6008,3 +6008,19 @@ houdt die blur tegen.
 
 **Niet doen.** `--hero-gradient` aanpassen voor de hero (gedeeld met de
 modals), of de open-stand van taken in `rawState` zetten.
+
+## 2026-10-07 · Datum en weeknummer boven de hero; de lijn blijft binnen de rand (v2.37)
+
+**Probleem.** Boven de kop van de hero stond alleen "Vandaag". En op een
+breed scherm viel het ruitje rechtsboven van de lijn half buiten de hero:
+`preserveAspectRatio="xMaxYMid slice"` schaalt de lijn naar de breedte
+(46% van de hero) en snijdt wat te hoog wordt boven en onder af. Bij een
+hero van 1600px stond het ruitje 16px boven de rand.
+
+**Beslissing.** De regel toont nu "dinsdag 7 oktober · week 41" (ISO-week via
+`getISOWeek`; de kapitalen doet de CSS). De lijn wordt hooguit 520px breed;
+dan blijft hij op elk scherm zoals op 1400px.
+
+**Niet doen.** `xMaxYMin slice`: dan blijft het ruitje wel binnen, maar
+valt op een breed scherm het grootste deel van de lijn onderaan weg en loopt
+de rest door de tekst rechtsonder.
