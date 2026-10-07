@@ -23,7 +23,9 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 .
 ├── index.html   ← DE app (alle wijzigingen hier)
 ├── herling_analytics_home.html, bi_checklist_kanban.html  ← redirect-stubs (oude URLs)
-├── herling-icon.svg              ← logo + favicon
+├── herling-icon.svg              ← logo, stilstaand (favicon, manifest, kleine plekken)
+├── herling-icon-anim.svg         ← logo, bewegend (zijbalk, klantwisselaar)
+├── herling-icon-180/192/512.png, herling-icon-maskable-512.png  ← app-iconen (iOS, Android)
 ├── manifest.json, sw.js          ← PWA + Service Worker (zie ⚠️ hieronder)
 ├── CLAUDE.md                     ← dit bestand
 ├── docs/decisions.md             ← append-only beslissingen-log (ADR-stijl)

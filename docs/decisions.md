@@ -5870,3 +5870,30 @@ stijlblok, `geenBeweging()`/`beweegDuur()`/`menuUitfaden()`,
 
 **Niet doen.** Een nieuwe animatie met een vaste duur in plaats van de tokens:
 die negeert "beweging beperken". En geen transform op `.module`.
+
+## 2026-10-07 · Nieuw logo, bewegend in de app en als app-icoon
+
+**Probleem.** Frank heeft een nieuw logo (`herling-b6a-icon-ambient`, uit
+Drive: *Bedrijven Frank/Logo/Logo's - Nieuw/Animated*), een SVG met
+CSS-animatie, en wilde het oude vervangen, ook als icoon van de app.
+
+**Beslissing.**
+- `herling-icon-anim.svg` — het logo zoals aangeleverd, zonder de
+  `@import` van een Google-lettertype dat het niet gebruikt (er staat geen
+  tekst in). Bewegend linksboven in de zijbalk en in de kop van de
+  klantwisselaar. De animatie zit in de SVG zelf en heeft een eigen
+  `prefers-reduced-motion`-regel.
+- `herling-icon.svg` — dezelfde SVG zonder `<style>`: de beginstand, stil.
+  Voor het tabblad, het manifest en de regel "Alle klanten" (22px, daar is
+  beweging alleen onrust). Een tabbladicoon beweegt in Chrome en Safari toch niet.
+- PNG's: `herling-icon-180.png` voor het beginscherm van een iPhone (iOS kent
+  geen SVG als `apple-touch-icon`; stond er wel, dus daar verscheen een
+  schermafdruk), tot de rand gevuld omdat iOS zelf afrondt; 192 en 512 voor
+  Android; `herling-icon-maskable-512.png` met de inhoud op 80% binnen de
+  veilige zone van een masker. Meldingen gebruiken nu de 192-PNG.
+
+**Bestanden.** `herling-icon*.svg/png`, `manifest.json`, `index.html`
+(`<head>`, zijbalk, `klantLogoHtml(c, bewegend)`, meldingen), `sw.js`.
+
+**Niet doen.** De bewegende SVG als favicon of app-icoon gebruiken: dat
+beweegt daar niet, en de begintoestand van die versie is dezelfde als de stille.

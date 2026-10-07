@@ -8,12 +8,15 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover"/>
 <title>Herling Analytics</title>
 <link rel="icon" type="image/svg+xml" href="herling-icon.svg"/>
+<link rel="icon" type="image/png" sizes="192x192" href="herling-icon-192.png"/>
 <link rel="manifest" href="manifest.json"/>
 <meta name="theme-color" content="#0F1B3D"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="Herling"/>
-<link rel="apple-touch-icon" href="herling-icon.svg"/>
+<!-- iOS kan geen SVG als icoon op het beginscherm; een PNG tot de rand gevuld,
+     want het rondt de hoeken zelf af. -->
+<link rel="apple-touch-icon" href="herling-icon-180.png"/>
 <!-- Invoervelden staan smal, behalve op de ene plek waar dat niet kan:
      Safari op een iPhone, in een gewóón tabblad. Daar zoomt de pagina in
      zodra je een veld aanraakt dat kleiner is dan 16px, en verspringt het
@@ -8038,7 +8041,7 @@ textarea { line-height: 1.6; resize: vertical; }
     <div class="sb-kop">
       <button type="button" class="sb-wissel" id="klantWisselBtn" onclick="toggleKlantWissel(event)"
         aria-haspopup="dialog" aria-expanded="false" aria-controls="klantWissel" title="Klant kiezen (Ctrl+J)">
-        <span class="sb-wissel-logo" id="klantWisselLogo"><img src="herling-icon.svg" alt=""/></span>
+        <span class="sb-wissel-logo" id="klantWisselLogo"><img src="herling-icon-anim.svg" alt=""/></span>
         <span class="sb-wissel-tekst">
           <span class="sb-wissel-naam" id="klantWisselNaam">Herling Analytics</span>
           <span class="sb-pil" id="klantWisselPil">Alle klanten</span>
@@ -8102,7 +8105,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.32</span>
+        <span class="app-versie" title="Appversie">v2.33</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -12010,7 +12013,7 @@ function checkDeadlineNotifications(){
     try{
       new Notification('Vandaag deadline',{
         body:dueToday.length===1?dueToday[0].text:`${dueToday.length} taken vervallen vandaag`,
-        icon:'./herling-icon.svg',
+        icon:'./herling-icon-192.png',
         tag:'herling-due-today'
       });
       log[todayKey]=todayIso;
@@ -12021,7 +12024,7 @@ function checkDeadlineNotifications(){
     try{
       new Notification('Achterstallige taken',{
         body:`${overdue.length} ${overdue.length===1?'taak is':'taken zijn'} over de deadline`,
-        icon:'./herling-icon.svg',
+        icon:'./herling-icon-192.png',
         tag:'herling-overdue'
       });
       log[overdueKey]=todayIso;
@@ -12146,8 +12149,12 @@ function klantInitialen(naam){
   const tweede=woorden.slice(1).find(w=>/^\p{Lu}/u.test(w));
   return (woorden[0].charAt(0)+(tweede?tweede.charAt(0):woorden[0].charAt(1))).toUpperCase();
 }
-function klantLogoHtml(c){
-  if(!c)return '<img src="herling-icon.svg" alt=""/>';
+/* Het logo (2026-10-07): op de grote plekken -- linksboven in de zijbalk en
+   de kop van de klantwisselaar -- de bewegende versie; in een lijstregel van
+   22px de stilstaande, daar is beweging alleen onrust. Het bewegen zit in de
+   SVG zelf en staat stil bij "beweging beperken". */
+function klantLogoHtml(c,bewegend){
+  if(!c)return `<img src="${bewegend?'herling-icon-anim.svg':'herling-icon.svg'}" alt=""/>`;
   const col=CLIENT_COLORS[c.colorIdx%CLIENT_COLORS.length];
   return `<span class="sb-initialen" style="background:${col.bg};color:${col.tx}">${escapeHtml(klantInitialen(c.name))}</span>`;
 }
@@ -12155,7 +12162,7 @@ function renderKlantWissel(){
   const clients=kanbanState?.clients||[];
   const actief=clients.find(c=>c.id===activeClientFilter)||null;
   const logo=document.getElementById('klantWisselLogo');
-  if(logo)logo.innerHTML=klantLogoHtml(actief);
+  if(logo)logo.innerHTML=klantLogoHtml(actief,true);
   const naam=document.getElementById('klantWisselNaam');
   if(naam)naam.textContent=actief?actief.name:'Herling Analytics';
   const pil=document.getElementById('klantWisselPil');
@@ -12197,7 +12204,7 @@ function klantWisselRijen(){
 function renderKlantWisselLijst(){
   const clients=kanbanState?.clients||[];
   const actief=clients.find(c=>c.id===activeClientFilter)||null;
-  document.getElementById('klantWisselPopLogo').innerHTML=klantLogoHtml(actief);
+  document.getElementById('klantWisselPopLogo').innerHTML=klantLogoHtml(actief,true);
   document.getElementById('klantWisselPopNaam').textContent=actief?actief.name:'Herling Analytics';
   document.getElementById('klantWisselPopSub').textContent=actief
     ?'Filter op Dashboard, Notities en Checklist'
