@@ -5831,3 +5831,42 @@ de regel: de regel kiest, het oog verbergt. Dat probleem bestaat dus niet.
 
 **Niet doen.** Uren, Facturen, Opdrachten of Contracten naar `verborgen` laten
 kijken: daar moet je voor elke klant kunnen schrijven en factureren.
+
+## 2026-10-07 · Beweging: tokens, module wisselen, Checklist, vensters en menu's
+
+**Probleem.** Frank wilde meer beweging in de app. Er zat wat in (openen van
+vensters, de voortgangsring), maar met losse duren (0,14s / 0,26s / 0,3s /
+0,4s), vensters en menu's verdwenen in één klap, een module wissel was een
+harde knip, en een afgevinkte taak sprong uit de lijst. "Beweging beperken"
+op het apparaat werd op één plek gerespecteerd.
+
+**Beslissing.** Gekozen uit een voorstel van negen punten: de tokens, en 1
+(module wisselen), 2 (Checklist) en 3 (vensters en menu's sluiten).
+- **Tokens** `--duur-kort` 140ms, `--duur` 220ms, `--ease` (bestond al) en
+  `--ease-weg`. "Beweging beperken" zet de duren op 0; de JS leest de tokens
+  (`beweegDuur()`) en kijkt `geenBeweging()`.
+- **Module wisselen**: de nieuwe faded in. Bewust geen View Transitions:
+  `startViewTransition` werkt de pagina pas in een volgend frame bij, en veel
+  code roept `switchModule()` aan en gaat er meteen vanuit dat de module er
+  staat. En geen transform, want dat maakt de vaste knoppen in een module
+  (de ronde +, het ⋯) tijdens de animatie relatief aan de module.
+- **Checklist**: het vinkje tekent zich, de taak klapt dicht, daarna pas
+  hertekenen; elke hertekening glijdt de taken via FLIP naar hun nieuwe plek
+  (sorteren, filteren, groeperen, vastpinnen). De state wordt meteen
+  bijgewerkt en bewaard; een tweede klik tijdens de animatie telt niet.
+- **Vensters**: sluiten faded uit (`display … allow-discrete`, `@starting-style`),
+  met `pointer-events: none` zodra ze dicht zijn.
+- **Menu's met een class**: openen en sluiten in CSS. **Menu's die uit de
+  pagina gaan** (`.uren-menu`, `.uren-filterpop`, tientallen kale `.remove()`'s):
+  een MutationObserver zet er meteen een kopie zonder id's voor terug die
+  uitfaded — geen enkele aanroep hoefde te veranderen, en code die met
+  `getElementById` kijkt of het menu open is ziet het meteen als dicht.
+
+**Bestanden.** `index.html` — tokens in `:root`, blok BEWEGING onderaan het
+stijlblok, `geenBeweging()`/`beweegDuur()`/`menuUitfaden()`,
+`renderChecklistModule()` (FLIP) en `renderChecklistModuleKaal()`,
+`clAfvinkAnimatie()`, `toggleChecklistDone()`. `docs/stijlgids.md` §14.
+`test.html` — één test.
+
+**Niet doen.** Een nieuwe animatie met een vaste duur in plaats van de tokens:
+die negeert "beweging beperken". En geen transform op `.module`.

@@ -2757,6 +2757,13 @@ button.uren-mpiv-row:active{background:var(--surface2)}
   --ease:                 cubic-bezier(0.2, 0.8, 0.2, 1);
   --transition-fast:      0.15s var(--ease);
   --transition-med:       0.25s var(--ease);
+  /* Beweging (2026-10-07) -- zie docs/stijlgids.md §Beweging. Twee duren en
+     twee curves, meer niet: --ease remt af (iets komt binnen), --ease-weg
+     trekt op (iets gaat weg). "Beweging beperken" op het apparaat zet beide
+     duren op 0, onderaan het stijlblok. */
+  --duur-kort:            140ms;   /* menu's en kleine dingen */
+  --duur:                 220ms;   /* vensters, modules, taken */
+  --ease-weg:             cubic-bezier(0.4, 0, 1, 1);
 }
 
 /* ─── A.2 TOKEN OVERRIDES (dark mode) ─────────────────────────────────────── */
@@ -3214,7 +3221,7 @@ textarea { line-height: 1.6; resize: vertical; }
   border-radius: var(--radius-lg) !important;
   box-shadow: var(--shadow-modal) !important;
   color: var(--text);
-  animation: ha-modalIn 0.26s var(--ease);
+  animation: ha-modalIn var(--duur) var(--ease);
   /* Zijwaarts dicht, omlaag scrollen. Stond op overflow:hidden, en omdat
      deze regel ná de basisregel van .modal komt won die van diens
      overflow-y:auto: een venster dat hoger werd dan 90vh (een opdracht of
@@ -3360,7 +3367,7 @@ textarea { line-height: 1.6; resize: vertical; }
   font-size: 13px;
   font-weight: 500;
   border-left: 3px solid var(--mint) !important;
-  animation: ha-toastIn 0.3s var(--ease);
+  animation: ha-toastIn var(--duur) var(--ease);
 }
 @keyframes ha-toastIn {
   from { opacity: 0; transform: translateY(10px); }
@@ -7879,6 +7886,98 @@ textarea { line-height: 1.6; resize: vertical; }
   transition: all .15s;
 }
 .ai-retry-btn:hover { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+/* ═════════════════════════════════════════════════════════════════════════════
+   BEWEGING (2026-10-07) — zie docs/stijlgids.md §Beweging
+   Staat onderaan, zodat het bij gelijke specificiteit wint van de losse
+   animaties die de menu's eerst elk zelf hadden.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* Wisselen van module: de nieuwe komt rustig binnen. Alleen opacity -- een
+   transform op de module zou de vaste knoppen erin (de ronde + en het ⋯ op
+   een telefoon) tijdens de animatie aan de module vastmaken en laten
+   verspringen. Een animatie start vanzelf opnieuw zodra display van none
+   naar flex gaat, dus er is geen JS voor nodig. */
+.module.active { animation: mod-binnen var(--duur) var(--ease); }
+@keyframes mod-binnen { from { opacity: 0; } }
+
+/* Vensters: openen deed .modal al (ha-modalIn); nu ook sluiten. De
+   achtergrond blijft met allow-discrete zichtbaar tot hij is uitgefaded, en
+   laat in die tijd klikken door -- hij is dan al dicht. */
+.modal-bg {
+  opacity: 0; pointer-events: none;
+  transition: opacity var(--duur) var(--ease-weg), display var(--duur) allow-discrete;
+}
+.modal-bg.open { opacity: 1; pointer-events: auto; transition-timing-function: var(--ease); }
+@starting-style { .modal-bg.open { opacity: 0; } }
+.modal-bg:not(.open) .modal {
+  scale: .97; translate: 0 8px;
+  transition: scale var(--duur) var(--ease-weg), translate var(--duur) var(--ease-weg);
+}
+
+/* Uitklapmenu's die met een class open- en dichtgaan: openen en sluiten met
+   dezelfde korte beweging. Vervangt hun eigen ha-fadeIn (alleen openen). */
+.client-filter-menu, .cl-overflow-menu, .dash-mobile-settings-menu,
+.ha-newitem-menu, .notes-overflow-menu, .ctx-menu {
+  animation: none;
+  opacity: 0; translate: 0 -4px; pointer-events: none;
+  transition: opacity var(--duur-kort) var(--ease-weg), translate var(--duur-kort) var(--ease-weg),
+              display var(--duur-kort) allow-discrete;
+}
+.client-filter[data-open="true"] .client-filter-menu,
+.cl-overflow.open .cl-overflow-menu,
+.dash-mobile-settings.open .dash-mobile-settings-menu,
+.ha-newitem[data-open="true"] .ha-newitem-menu,
+.notes-overflow.open .notes-overflow-menu,
+.ctx-menu.open {
+  opacity: 1; translate: 0 0; pointer-events: auto; transition-timing-function: var(--ease);
+}
+@starting-style {
+  .client-filter[data-open="true"] .client-filter-menu,
+  .cl-overflow.open .cl-overflow-menu,
+  .dash-mobile-settings.open .dash-mobile-settings-menu,
+  .ha-newitem[data-open="true"] .ha-newitem-menu,
+  .notes-overflow.open .notes-overflow-menu,
+  .ctx-menu.open { opacity: 0; translate: 0 -4px; }
+}
+/* Vensters uit de zijbalk schuiven zijwaarts, zoals ze al deden. */
+.klant-wissel, .ext-tools-popover {
+  animation: none;
+  opacity: 0; translate: -4px 0; pointer-events: none;
+  transition: opacity var(--duur-kort) var(--ease-weg), translate var(--duur-kort) var(--ease-weg),
+              display var(--duur-kort) allow-discrete;
+}
+.klant-wissel.open, .ext-tools-popover.is-open {
+  opacity: 1; translate: 0 0; pointer-events: auto; transition-timing-function: var(--ease);
+}
+@starting-style { .klant-wissel.open, .ext-tools-popover.is-open { opacity: 0; translate: -4px 0; } }
+
+/* Menu's die in de pagina worden gezet en er bij sluiten uit gaan
+   (.uren-menu, de filtervensters): binnenkomen in CSS; het weggaan doet een
+   kopie die even blijft staan en uitfaded -- zie menuUitfaden(). */
+.uren-menu, .uren-filterpop {
+  transition: opacity var(--duur-kort) var(--ease), translate var(--duur-kort) var(--ease);
+}
+@starting-style { .uren-menu:not(.is-weg), .uren-filterpop:not(.is-weg) { opacity: 0; translate: 0 -4px; } }
+/* Een overgang gaat in de cascade vóór een animatie; de kopie mag er dus
+   geen hebben, anders wint hij van het uitfaden. */
+.uren-menu.is-weg, .uren-filterpop.is-weg { pointer-events: none; transition: none; }
+
+/* Checklist: het vinkje tekent zich bij afvinken (alleen de taak die je net
+   aanklikte -- .zojuist -- niet elke afgeronde taak bij elke render). */
+.cl2-check.zojuist { animation: cl-vink-tik var(--duur) var(--ease); }
+.cl2-check.zojuist svg path {
+  stroke-dasharray: 11; stroke-dashoffset: 11;
+  animation: cl-vink-teken var(--duur) var(--ease) forwards;
+}
+@keyframes cl-vink-teken { to { stroke-dashoffset: 0; } }
+@keyframes cl-vink-tik { 50% { scale: 1.15; } }
+
+/* "Beweging beperken" aan op het apparaat: alles wat de tokens gebruikt
+   staat dan stil, en de JS kijkt via geenBeweging(). */
+@media (prefers-reduced-motion: reduce) {
+  :root { --duur-kort: 0ms; --duur: 0ms; }
+}
 </style>
 </head>
 <body>
@@ -8003,7 +8102,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.31</span>
+        <span class="app-versie" title="Appversie">v2.32</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -14047,6 +14146,56 @@ document.getElementById('renameModal').addEventListener('click',e=>{if(e.target.
 if(window.marked)marked.setOptions({breaks:true,gfm:true});
 
 /* ═══════════════════════════════════════════════════
+   BEWEGING (2026-10-07) — zie docs/stijlgids.md §Beweging
+   ───────────────────────────────────────────────────
+   De duren en curves staan als tokens in de CSS (--duur, --duur-kort,
+   --ease, --ease-weg); de JS leest ze daar, zodat er één bron is. Staat
+   "beweging beperken" aan op het apparaat, dan zijn de duren 0 en slaat de
+   JS de animaties over.
+   ═══════════════════════════════════════════════════ */
+const MQ_MINDER_BEWEGING=window.matchMedia?window.matchMedia('(prefers-reduced-motion: reduce)'):null;
+function geenBeweging(){return !!(MQ_MINDER_BEWEGING&&MQ_MINDER_BEWEGING.matches);}
+function beweegToken(naam,terug){
+  const v=getComputedStyle(document.documentElement).getPropertyValue(naam).trim();
+  return v||terug;
+}
+function beweegDuur(kort){
+  const v=parseFloat(beweegToken(kort?'--duur-kort':'--duur',''));
+  return isFinite(v)?v:(kort?140:220);
+}
+
+/* Menu's die bij sluiten uit de pagina worden gehaald (.uren-menu en de
+   filtervensters) verdwenen in één klap, en dat gebeurt op tientallen
+   plekken met een kale .remove(). In plaats van die allemaal aan te passen:
+   valt zo'n menu uit de pagina, dan zet dit er meteen een kopie voor terug
+   die uitfaded. De kopie heeft geen id's en vangt geen klikken, dus code die
+   met getElementById kijkt of het menu open is, ziet het al als dicht.
+   Wordt er in dezelfde beweging een nieuw menu neergezet (hertekenen), dan
+   geen kopie: die zou over het nieuwe heen liggen. */
+(function menuUitfaden(){
+  if(!window.MutationObserver||!document.body)return;
+  const SEL='.uren-menu, .uren-filterpop';
+  new MutationObserver(lijst=>{
+    if(geenBeweging())return;
+    if(lijst.some(m=>[...m.addedNodes].some(n=>n.nodeType===1&&n.matches(SEL)&&!n.classList.contains('is-weg'))))return;
+    lijst.forEach(m=>m.removedNodes.forEach(n=>{
+      if(n.nodeType!==1||!n.matches(SEL)||n.classList.contains('is-weg'))return;
+      const kopie=n.cloneNode(true);
+      kopie.removeAttribute('id');
+      kopie.querySelectorAll('[id]').forEach(x=>x.removeAttribute('id'));
+      kopie.classList.add('is-weg');
+      kopie.setAttribute('aria-hidden','true');
+      kopie.inert=true;
+      document.body.appendChild(kopie);
+      kopie.scrollTop=n.scrollTop;
+      kopie.animate([{opacity:1,translate:'0 0'},{opacity:0,translate:'0 -4px'}],
+        {duration:beweegDuur(true),easing:beweegToken('--ease-weg','ease-in'),fill:'forwards'})
+        .finished.catch(()=>{}).then(()=>kopie.remove());
+    }));
+  }).observe(document.body,{childList:true});
+})();
+
+/* ═══════════════════════════════════════════════════
    GENERAL TOAST — appToast(msg, {undo, type, duration, html})
    ───────────────────────────────────────────────────
    Single shared #undoToast DOM. Caller passes:
@@ -16360,7 +16509,34 @@ function renderClSortControls(){
   if(btn)btn.classList.toggle('active',clGroepeertOpPrioriteit());
 }
 
+/* ── Beweging in de lijst (2026-10-07) ──
+   Elke wijziging hertekent de hele lijst. Zonder meer verspringen de taken
+   dan naar hun nieuwe plek; met FLIP glijden ze erheen: posities onthouden,
+   hertekenen, en elke taak vanaf zijn oude plek naar de nieuwe laten
+   schuiven. Een taak die er net bij komt, faded in. Alleen als de lijst in
+   beeld is en er al taken stonden -- bij het openen van de module komt alles
+   tegelijk binnen, en dat doet de module zelf al. */
 function renderChecklistModule(){
+  const body=document.getElementById('clBody');
+  if(!body||geenBeweging()||activeModule!=='checklist'||!body.offsetParent){renderChecklistModuleKaal();return;}
+  const voor=new Map();
+  body.querySelectorAll('.cl-item[data-id]').forEach(el=>voor.set(el.dataset.id,el.getBoundingClientRect().top));
+  renderChecklistModuleKaal();
+  if(!voor.size)return;
+  const duur=beweegDuur(), ease=beweegToken('--ease','ease-out'), hoog=window.innerHeight+80;
+  body.querySelectorAll('.cl-item[data-id]').forEach(el=>{
+    const oud=voor.get(el.dataset.id);
+    const nu=el.getBoundingClientRect().top;
+    if(oud===undefined){
+      if(nu<hoog)el.animate([{opacity:0},{opacity:1}],{duration:duur,easing:ease});
+      return;
+    }
+    const dy=oud-nu;
+    if(Math.abs(dy)<1||(oud>hoog&&nu>hoog))return;
+    el.animate([{transform:`translateY(${dy}px)`},{transform:'none'}],{duration:duur,easing:ease});
+  });
+}
+function renderChecklistModuleKaal(){
   const body=document.getElementById('clBody');
   const hero=document.getElementById('clHero');
   const newItem=document.getElementById('clNewItem');
@@ -16987,7 +17163,31 @@ function clAddInlineItem(){
   setTimeout(()=>document.getElementById('clNewItemInput')?.focus(),30);
 }
 
+/* Afvinken: het vinkje tekent zich, daarna klapt de taak dicht en sluit de
+   rest aan; pas dan wordt de lijst hertekend (en glijdt de taak, als
+   Afgerond openstaat, naar beneden). De state is dan allang bijgewerkt en
+   bewaard -- alleen het hertekenen wacht. Een tweede klik op dezelfde taak
+   tijdens die animatie telt niet. */
+const clAnimeert=new Set();
+function clAfvinkAnimatie(id,klaar){
+  if(geenBeweging()||activeModule!=='checklist')return false;
+  const rij=[...document.querySelectorAll('#clBody .cl-item[data-id]')].find(el=>el.dataset.id===id);
+  if(!rij||!rij.offsetParent)return false;
+  clAnimeert.add(id);
+  rij.querySelector('.cl2-check')?.classList.add('checked','zojuist');
+  rij.querySelector('.cl2-item-title')?.classList.add('done');
+  const cs=getComputedStyle(rij), duur=beweegDuur();
+  rij.style.overflow='hidden';
+  rij.animate([
+    {height:rij.offsetHeight+'px',opacity:1,marginTop:cs.marginTop,marginBottom:cs.marginBottom,
+      paddingTop:cs.paddingTop,paddingBottom:cs.paddingBottom},
+    {height:'0px',opacity:0,marginTop:'0px',marginBottom:'0px',paddingTop:'0px',paddingBottom:'0px'}
+  ],{duration:duur,delay:duur,easing:beweegToken('--ease-weg','ease-in'),fill:'forwards'})
+    .finished.catch(()=>{}).then(()=>{clAnimeert.delete(id);klaar();});
+  return true;
+}
 function toggleChecklistDone(id){
+  if(clAnimeert.has(id))return;
   const item=checklistState.items.find(i=>i.id===id);
   if(!item)return;
   const wasOpen=!item.done;
@@ -17003,7 +17203,9 @@ function toggleChecklistDone(id){
         {type:'info',duration:4000});
     }
   }
-  scheduleSave();renderChecklistModule();
+  scheduleSave();
+  if(item.done&&clAfvinkAnimatie(id,renderChecklistModule))return;
+  renderChecklistModule();
 }
 
 /* Compute the next deadline for a recurring item and return a fresh

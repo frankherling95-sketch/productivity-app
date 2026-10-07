@@ -136,6 +136,8 @@ Bij toevoegen van een nieuw state-veld: voeg een hydratie-stap toe in `hydrateer
 `--font-cijfer` (álle getallen — is de body-letter; uitlijnen doet
 `tabular-nums`), `--font-mono` (alleen echte code: codeblok, kbd, pincodeveld).
 
+**Beweging**: `--duur-kort` (140ms), `--duur` (220ms), `--ease` (binnen), `--ease-weg` (weg) — altijd deze, dan werkt "beweging beperken" vanzelf. Zie `docs/stijlgids.md` §14.
+
 **Color tokens**: `--navy #0F1B3D`, `--navy-dark #0A1330`, `--teal #0D3D3A`, `--mint #00E5B0`, plus `--bg/--surface/--text/--border/--accent/--danger` etc. Volledige set in regels 798–893.
 
 ## Mobile
@@ -317,9 +319,9 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
+- **2026-10-07**: **Beweging** (v2.32) — tokens `--duur-kort`/`--duur`/`--ease-weg`; module faded in (geen View Transitions: die werken asynchroon), Checklist afvinken + FLIP bij elke hertekening, vensters en menu's faden ook uit (`allow-discrete`, `@starting-style`, en `menuUitfaden()` voor menu's die uit de pagina gaan). "Beweging beperken" zet alles op 0
 - **2026-10-05**: **Klanten verbergen** (v2.31) — oog per klant in de klantwisselaar; `client.verborgen` gaat mee naar Drive. Weg uit Notities, Checklist en Dashboard (taken, tellingen, badge, klantkeuze), niet uit Uren/Facturen/Opdrachten/Contracten. Terughalen onder *Verborgen* in de wisselaar; de Checklist zegt onderaan hoeveel open taken niet getoond worden. Vervangt `notesState.verborgenKlanten` (één keer overgezet)
 - **2026-10-05**: **Notities: klant wijzigen via de rechtermuisknop** (v2.30) — het contextmenu had een `<select>` die het menu bij de eerste klik sloot; nu gewone menuregels met ✓. Op een groep: alle notities erin naar die klant, zonder hun tijd te veranderen (`notesKlantZetten()`), met ongedaan maken
-- **2026-10-05**: **Notities standaard op laatst gewijzigd** (v2.29) — `notesSorteer()` op elk niveau (ook binnen mappen; een map telt met zijn nieuwste notitie), klantgroepen op hun laatst bewerkte notitie (`notesClientVolgorde()`). Een opgeslagen `handmatig` zonder `sortGekozen` gaat één keer om; een eigen keuze blijft. Op desktop een sorteerknop in de kop *Pagina's* (het ⋯-menu bestaat daar niet)
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 
@@ -373,7 +375,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 146 smoke-, sync-, model-, reken- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
+| `test.html` | 147 smoke-, sync-, model-, reken- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |

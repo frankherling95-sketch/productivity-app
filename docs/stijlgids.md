@@ -505,3 +505,42 @@ met dezelfde regels als het verborgen-blok onderaan de notitieboom.
 **Nieuwe module erbij?** Een regel met `data-mod` en `data-titel` (de tooltip
 als hij ingeklapt is). Hoort hij bij een andere, zet hem dan in een
 `.nav-groep` — geen kopje en geen losse streep.
+
+---
+
+## 14. Beweging
+
+Twee duren en twee curves, als token in `:root`. Een nieuwe animatie gebruikt
+deze; geen losse `.15s` of `0.3s` meer.
+
+| Token | Waarde | Waarvoor |
+|---|---|---|
+| `--duur-kort` | 140ms | menu's, dropdowns, de kopie die uitfaded |
+| `--duur` | 220ms | vensters, wisselen van module, taken in de Checklist |
+| `--ease` | `cubic-bezier(0.2, 0.8, 0.2, 1)` | iets komt binnen of op zijn plek (remt af) |
+| `--ease-weg` | `cubic-bezier(0.4, 0, 1, 1)` | iets gaat weg (trekt op) |
+
+**Wat beweegt.**
+- *Module wisselen*: de nieuwe faded in (`mod-binnen`). Alleen `opacity`: een
+  transform op de module zou de vaste knoppen erin laten verspringen.
+- *Vensters*: openen met `ha-modalIn`, sluiten met uitfaden + `scale .97`. De
+  achtergrond blijft met `display … allow-discrete` staan tot hij weg is, met
+  `pointer-events: none` — hij is dan al dicht.
+- *Menu's met een class* (`.open`, `data-open`): openen en sluiten met
+  `opacity` + `translate 0 -4px`; uit de zijbalk zijwaarts (`-4px 0`). Nieuw
+  menu van die soort? Zet de selector bij de regels onder BEWEGING onderaan
+  het stijlblok, met zijn open-selector in de open-regel én in `@starting-style`.
+- *Menu's die uit de pagina worden gehaald* (`.uren-menu`, `.uren-filterpop`):
+  binnenkomen via `@starting-style`, weggaan via een kopie die uitfaded
+  (`menuUitfaden()`). Daar hoef je niets voor te doen.
+- *Checklist*: afvinken tekent het vinkje (`.zojuist`), klapt de taak dicht en
+  hertekent daarna; elke hertekening laat de taken naar hun nieuwe plek glijden
+  (FLIP in `renderChecklistModule()`).
+
+**Regels.**
+- Alleen `opacity` en `transform`/`translate`/`scale` animeren. Hoogte alleen
+  voor het dichtklappen van één taak.
+- "Beweging beperken" op het apparaat zet `--duur` en `--duur-kort` op 0; de JS
+  vraagt `geenBeweging()` en slaat dan over. Een nieuwe animatie moet dus de
+  tokens gebruiken, anders blijft hij lopen.
+- Geen animatiebibliotheek: CSS en de Web Animations API zijn genoeg.
