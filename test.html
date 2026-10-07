@@ -384,17 +384,17 @@ async function runChecks() {
       w.facAnKort(950) === '€950' && w.facAnKort(0) === '€0'],
     ['Analyse: eindklant uit de betreft-regel', () => {
       const r = (b, k) => w.facEindRaad(b, k);
-      return r('LabsData - Uwoon Gewerkte uren Juni/Juli 2026', 'LabsData B.V.') === 'Uwoon' &&
-             r('POM Gewerkte uren Augustus 2026', 'LabsData B.V.') === 'POM' &&
+      return r('Acme Data - Klant West Gewerkte uren Juni/Juli 2026', 'Acme Data B.V.') === 'Klant West' &&
+             r('Klant Zuid Gewerkte uren Augustus 2026', 'Acme Data B.V.') === 'Klant Zuid' &&
              /* \b in de regex: zonder woordgrens vond "uren" zichzelf terug
-                in "Buren" en hield je een losse B over. */
-             r('LabsData - Buren Gewerkte uren Juli 2026', 'LabsData B.V.') === 'Buren' &&
-             r('Consultancy Boskalis 01-07-2026 t/m 31-07-2026', 'Kasparov BI B.V.') === 'Boskalis' &&
-             r('LabsData - Bibliotheek Eindhoven - Power BI Rapportage - Werkzaamheden Juni/Juli',
-               'LabsData B.V.') === 'Bibliotheek Eindhoven' &&
+                in "Puren" en hield je een losse P over. */
+             r('Acme Data - Puren Gewerkte uren Juli 2026', 'Acme Data B.V.') === 'Puren' &&
+             r('Consultancy Klant Oost 01-07-2026 t/m 31-07-2026', 'Acme BI B.V.') === 'Klant Oost' &&
+             r('Acme Data - Bibliotheek Noordstad - Power BI Rapportage - Werkzaamheden Juni/Juli',
+               'Acme Data B.V.') === 'Bibliotheek Noordstad' &&
              /* De klant zelf is geen eindklant, en een maand is geen naam. */
-             r('Kasparov BI B.V. Gewerkte uren Augustus 2026', 'Kasparov BI B.V.') === '' &&
-             r('Nordwind Energy Werkzaamheden Juli 2026', 'Nordwind Energy BV') === '';
+             r('Acme BI B.V. Gewerkte uren Augustus 2026', 'Acme BI B.V.') === '' &&
+             r('Voorbeeld Energie Werkzaamheden Juli 2026', 'Voorbeeld Energie BV') === '';
     }],
     ['Analyse: doorklikken geeft de facturen achter een balk', () => {
       /* De doorklik moet uit dezelfde selectie putten als de grafiek erboven,
@@ -420,7 +420,7 @@ async function runChecks() {
       }
     }],
     ['Analyse: het veld op de factuur gaat vóór de regel', () =>
-      w.facEindklantVan({eindklant:'  Uwoon  ', betreft:'Staedion Gewerkte uren Juli', clientId:'x'}) === 'Uwoon' &&
+      w.facEindklantVan({eindklant:'  Klant West  ', betreft:'Klant Noord Gewerkte uren Juli', clientId:'x'}) === 'Klant West' &&
       w.facEindklantVan({betreft:'niets herkenbaars', clientId:'x'}) === ''],
 
     /* ── Facturen inscannen: de wachtrij ──
@@ -1223,7 +1223,7 @@ async function runChecks() {
             {id:'b', clientId:null, naam:'Zonder opzeg', start:'2026-01-01', eind:'2027-03-31', opzeg:''},
             {id:'c', clientId:null, naam:'Afgelopen', start:'2026-01-01', eind:'2026-06-30', opzeg:''}]));
           w.eval('contractState.contracten=' + JSON.stringify([
-            {id:'k', soort:'leverancier', wederpartij:'KPN', titel:'Internet', start:'2025-01-01', eind:'2025-12-31', opzeg:'1m', verlenging:'12m'},
+            {id:'k', soort:'leverancier', wederpartij:'Voorbeeld Telecom', titel:'Internet', start:'2025-01-01', eind:'2025-12-31', opzeg:'1m', verlenging:'12m'},
             {id:'l', soort:'klant', clientId:null, titel:'Aan opdracht', opdrachtId:'a'}]));
           const g = w.agdGewenst('2026-09-20');
           const sl = Object.fromEntries(g.map(a => [a.sleutel, a]));
@@ -1321,8 +1321,8 @@ async function runChecks() {
             {id:'f1', nummer:'2026-001', status:'verstuurd', datum:'2026-03-01', clientId:null, klant:{naam:'Acme BV'}, afzender:{}, regels:[{omschrijving:'Werk', aantal:1, prijs:100}]},
             {id:'f2', nummer:'2026-002', status:'concept', datum:'2026-03-02', clientId:null, klant:{naam:'Acme BV'}, afzender:{}, regels:[]}]));
           w.eval('contractState.contracten=' + JSON.stringify([
-            {id:'c1', soort:'leverancier', domein:'prive', wederpartij:'KPN', titel:'Internet', bijlagen:[{id:'b1', naam:'kpn.pdf', hash:'h1'}]},
-            {id:'c2', soort:'leverancier', domein:'prive', wederpartij:'KPN', titel:'Internet', bijlagen:[{id:'b2', naam:'kpn.pdf', hash:'h2'}]}]));
+            {id:'c1', soort:'leverancier', domein:'prive', wederpartij:'Voorbeeld Telecom', titel:'Internet', bijlagen:[{id:'b1', naam:'telecom.pdf', hash:'h1'}]},
+            {id:'c2', soort:'leverancier', domein:'prive', wederpartij:'Voorbeeld Telecom', titel:'Internet', bijlagen:[{id:'b2', naam:'telecom.pdf', hash:'h2'}]}]));
           w.eval('opdrachtState.opdrachten=' + JSON.stringify([
             {id:'o1', clientId:null, naam:'Migratie', bijlagen:[{id:'b3', naam:'a.pdf', hash:'h3'}, {id:'b4', naam:'b.pdf', hash:'h4'}]}]));
           const g = w.archiefGewenst();
@@ -1334,8 +1334,8 @@ async function runChecks() {
           const naWijziging = w.archiefGewenst().find(a => a.sleutel === 'fac:f1').hash;
           return g.length === 5 && !sl['fac:f2'] &&
                  sl['fac:f1'].pad.join('/') === 'Facturen/2026' && /^2026-001.*\.pdf$/.test(sl['fac:f1'].naam) &&
-                 sl['bijl:b1'].pad.join('/') === 'Contracten/Privé' && sl['bijl:b1'].naam === 'KPN - Internet.pdf' &&
-                 sl['bijl:b2'].naam === 'KPN - Internet (2).pdf' &&
+                 sl['bijl:b1'].pad.join('/') === 'Contracten/Privé' && sl['bijl:b1'].naam === 'Voorbeeld Telecom - Internet.pdf' &&
+                 sl['bijl:b2'].naam === 'Voorbeeld Telecom - Internet (2).pdf' &&
                  sl['bijl:b3'].pad.join('/') === 'Opdrachten' && / - Migratie - a\.pdf$/.test(sl['bijl:b3'].naam) &&
                  voor === naBetaling && voor !== naWijziging;
         } finally {
@@ -1519,6 +1519,23 @@ async function runChecks() {
         /* De iframe staat niet op de Checklist: dan geen animatie, gewoon direct. */
         const direct = w.eval("activeModule!=='checklist'") ? w.clAfvinkAnimatie('bestaat-niet', () => {}) === false : true;
         return tokensOk && direct;
+      }],
+    /* ── Externe tools uit de eigen instellingen (2026-10-07) ── */
+    ['Externe tools: regels "Groep | Naam | URL" lezen, alleen http(s), zonder eigen lijst de standaard',
+      () => {
+        const oud = w.eval('JSON.stringify(rawState.settings.externeTools===undefined?null:rawState.settings.externeTools)');
+        try {
+          const r = w.extToolsLees('Uren | Portaal | https://voorbeeld.nl/x\n\nDev | Code | https://github.com/\nFout | Kwaad | javascript:alert(1)\nAlleen | https://a.nl');
+          const leesOk = r.lijst.length === 3 && r.fout.join() === 'regel 4' &&
+                         r.lijst[0].groep === 'Uren' && r.lijst[0].naam === 'Portaal' && r.lijst[2].naam === 'Alleen';
+          w.eval('delete rawState.settings.externeTools');
+          const standaard = w.eval('extToolsLijst()===EXT_TOOLS_STANDAARD');
+          w.eval("rawState.settings.externeTools=[{groep:'Uren',naam:'Portaal',url:'https://voorbeeld.nl/'}]");
+          const eigen = w.extToolsLijst().length === 1;
+          return leesOk && standaard && eigen && !w.extToolsVeiligeUrl('javascript:alert(1)');
+        } finally {
+          w.eval('rawState.settings.externeTools=' + oud + ';if(rawState.settings.externeTools===null)delete rawState.settings.externeTools;');
+        }
       }],
     ['Archief: veel tegelijk weg gaat niet vanzelf naar de prullenbak, wel na een klik',
       async () => {

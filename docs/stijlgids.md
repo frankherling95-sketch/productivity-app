@@ -254,7 +254,7 @@ einde, of de start als hij nog moet beginnen — met de looptijd eronder
 hierboven, bewust:
 
 - **De naam van het contract of de opdracht mag twee regels** (`.ctr-mnaam`,
-  line-clamp 2). Zo'n naam is opgebouwd uit onderdelen ("Boskalis - Kasprarov -
+  line-clamp 2). Zo'n naam is opgebouwd uit onderdelen ("Klant Oost - Acme BI -
   Contract 6 mnd - 24u") en op één regel viel precies het onderscheidende eind
   weg. Een klantnaam blijft één regel.
 - **Een klantnaam staat in een eigen `<span class="nm">`** binnen `.kl`. `.kl`

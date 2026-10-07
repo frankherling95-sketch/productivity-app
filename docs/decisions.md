@@ -78,7 +78,7 @@ te worden in plaats van een weigering.
 
 **Klant herkennen.** Eerst precies (zoals de urenimport), dan ruimer: bevat de
 ene naam de andere en past er precies één klant, dan die
-("Nordwind Energy B.V." → Nordwind Energy BV).
+("Voorbeeld Energie B.V." → Voorbeeld Energie BV).
 
 **Getest** met een nagebootste Gemini: nieuw privécontract vult 9 velden en
 draait volledig terug; een bestaande opdracht met datums meldt alleen de
@@ -1240,7 +1240,7 @@ periode, en het zegt niet of je daarop áfkoerst of juist wegloopt.
 grootste klant in díe maand.
 
 **Waarom niet één vaste klant volgen.** De vraag is hoe geconcentreerd je omzet
-is, niet hoe het met LabsData gaat. Wie het per maand is staat in de tooltip —
+is, niet hoe het met Acme Data gaat. Wie het per maand is staat in de tooltip —
 verandert dat, dan is dat zelf het nieuws. Een maand zonder omzet levert geen
 aandeel op (delen door nul) en daar breekt de lijn. Bij één klant is het altijd
 100% en zegt de grafiek niets; dan verschijnt hij niet.
@@ -1415,7 +1415,7 @@ losse velden en een knop vormen geen raster.
 ## 2026-09-10 · Factuurregels groeperen op onderwerp
 
 **Probleem.** Een maand werk staat als één regel op de factuur: de betreft-tekst
-(`LabsData Gewerkte uren Mei 2026`), 25 uur, één bedrag. Wat je die maand deed
+(`Acme Data Gewerkte uren Mei 2026`), 25 uur, één bedrag. Wat je die maand deed
 staat in je urenomschrijvingen, en die komen alleen op pagina 2 terecht als de
 urenspecificatie aanstaat — als 22 regels privé-steno, gesorteerd op datum. Dat
 is onderbouwing, geen antwoord op "waar heb ik voor betaald".
@@ -1456,7 +1456,7 @@ dan ben je je eigen aanpassingen aan die regels kwijt.
 `#facSpecAiModal`, `.fac-spec-ai-tab`, plus de knop in de regelbalk.
 
 **Niet doen.** Dit automatisch laten draaien bij het aanmaken van een factuur.
-Je urenomschrijvingen zijn voor jezelf geschreven — "mail + call Buren" bevat
+Je urenomschrijvingen zijn voor jezelf geschreven — "mail + call Puren" bevat
 een eindklantnaam die je klant straks leest. Het maskeren beschermt richting
 Google, niet richting je klant. Daarom blijft het een voorstel dat jij leest.
 
@@ -1473,8 +1473,8 @@ te zien. Gemeten op vier echte vormen:
 
 | betreft | wat de regex ervan maakt |
 |---|---|
-| `LabsData - Buren Gewerkte uren Mei 2026` | `Buren` ✓ |
-| `Consultancy Bibliotheek Rotterdam juni` | `Bibliotheek Rotterdam juni` — de maand plakt eraan |
+| `Acme Data - Puren Gewerkte uren Mei 2026` | `Puren` ✓ |
+| `Consultancy Bibliotheek Zuidstad juni` | `Bibliotheek Zuidstad juni` — de maand plakt eraan |
 | `Beheer omgeving Waterschap Rivierenland Q2` | `Beheer omgeving Waterschap` — volledig mis |
 | `Gewerkte uren Augustus 2026` | leeg ✓ |
 
@@ -1515,20 +1515,20 @@ maskeren uit is dat nog steeds de lijst die je krijgt.
 ## 2026-09-10 · De maskeerder liet de kale bedrijfsnaam staan
 
 **Probleem.** `_aiMaskeerTermen()` neemt elke waarde uit de klantenkaart
-letterlijk over en matcht die in zijn geheel. De kaart zegt `LabsData B.V.`,
+letterlijk over en matcht die in zijn geheel. De kaart zegt `Acme Data B.V.`,
 maar je eigen tekst zegt zelden de rechtsvorm: een betreft-regel luidt
-`LabsData - Buren Gewerkte uren Mei`. Die kale naam matchte dus nergens op en
+`Acme Data - Puren Gewerkte uren Mei`. Die kale naam matchte dus nergens op en
 ging onvermomd naar Google — terwijl de schakelaar "Namen maskeren" aan stond.
 
 Gemeten vóór de reparatie:
-`r1 | klant: {{KLANT_1}} | betreft: LabsData - Buren Gewerkte uren Mei 2026`
+`r1 | klant: {{KLANT_1}} | betreft: Acme Data - Puren Gewerkte uren Mei 2026`
 
 **Beslissing.** Voor de naamvelden (`KLANT`, `PERSOON`) gaat ook de vorm zonder
 rechtsvorm mee als term. De sortering op lengte was er al, dus de volledige naam
 wordt nog steeds als eerste geprobeerd en houdt zijn eigen token.
 
 Na de reparatie:
-`r1 | klant: {{KLANT_1}} | betreft: {{KLANT_2}} - Buren Gewerkte uren Mei 2026`
+`r1 | klant: {{KLANT_1}} | betreft: {{KLANT_2}} - Puren Gewerkte uren Mei 2026`
 
 **Waarom dit hier boven kwam.** De eindklant-herkenning is de eerste functie die
 betreft-regels verstuurt; de andere drie sturen taaknamen, notities en PDF's.
@@ -2352,7 +2352,7 @@ dan één, want dan denk je dat je de andere leest.
 **Probleem.** Een grafiek is pas te vertrouwen als je erin kunt kijken. Staat er
 €22.022 boven april, dan wil je weten wélke facturen dat zijn — en nu moest je
 daarvoor terug naar de lijst en zelf gaan filteren op iets wat die lijst niet
-eens kan uitdrukken ("april én eindklant Uwoon").
+eens kan uitdrukken ("april én eindklant Klant West").
 
 **Beslissing.** Elke kolom, elk punt op de cumulatieve lijn en elke klantbalk
 opent hetzelfde venster: de facturen die het getal maken, met hun regels
@@ -2466,7 +2466,7 @@ keuzes op twee plekken en raken ze uit de pas.
 
 **Probleem.** De facturenlijst vertelt wat er is gefactureerd, niet of het
 oploopt of terugvalt en waar het vandaan komt. En één regel omzet klopt niet:
-LabsData is één factuurklant maar vijf opdrachtgevers.
+Acme Data is één factuurklant maar vijf opdrachtgevers.
 
 **Waar het staat.** Een zesde tab in Facturen (niet een eigen module), met een
 eigen periodekeuze in de balk onder de tabs. De jaarpijlen in de topbalk gaan
@@ -2499,8 +2499,8 @@ en tekent de cumulatieve lijn een vlak stuk voor maanden die nog moeten komen.
 "Dit jaar" vergelijkt dus met dezelfde maanden van vorig jaar.
 
 **Eindklanten.** Twee wegen naar dezelfde uitkomst:
-1. Een *regel* per doorgeefluik: "voor klant LabsData, als de betreft `Uwoon`
-   bevat → telt als Uwoon". De app stelt die regels voor uit je eigen
+1. Een *regel* per doorgeefluik: "voor klant Acme Data, als de betreft `Klant West`
+   bevat → telt als Klant West". De app stelt die regels voor uit je eigen
    facturen; `facEindRaad()` knipt de klantnaam, de omschrijving ("Gewerkte
    uren", "Consultancy") en de periode weg en houdt de naam over.
 2. Een *veld* op de factuur zelf (Eindklant, onder Betreft). Dat gaat vóór de
@@ -3041,7 +3041,7 @@ gebruikerstekst moeten door *dezelfde* kaart, anders krijgt de klantenlijst een
 ander token dan de naam in de zin en kan het model ze niet meer koppelen.
 (2) Bij streaming breekt een token over twee chunks (`{{KLA` + `NT_1}}`);
 `_aiKnippunt()` houdt de staart vast tot de rest binnen is. (3) Langste term
-eerst vervangen, anders maakt "Staedion" van "Staedion B.V." een halve naam.
+eerst vervangen, anders maakt "Klant Noord" van "Klant Noord B.V." een halve naam.
 
 **Wat het niet is.** Geen slot. Bedragen, uren, deadlines en omschrijvingen gaan
 onveranderd mee, en een naam die nergens in de klantenkaart staat wordt niet
@@ -3129,9 +3129,9 @@ PDF en moet de klantnamen kunnen lezen.
 
 **Probleem.** Kies je een klant, dan filtert de lijst mee maar bleef de kaart erboven het totaal van alles tonen: "78 van 103 taken afgerond" boven twee zichtbare taken. Het cijfer waar je naar keek ging niet over waar je naar keek.
 
-**Beslissing.** De kaart telt binnen het klantfilter. Staat er een klant gekozen, dan staat zijn naam in de eyebrow — "Voortgang · Staedion" — want "0 van 2 afgerond" is anders een raadsel naast een lijst van honderd taken.
+**Beslissing.** De kaart telt binnen het klantfilter. Staat er een klant gekozen, dan staat zijn naam in de eyebrow — "Voortgang · Klant Noord" — want "0 van 2 afgerond" is anders een raadsel naast een lijst van honderd taken.
 
-**Waarom alleen dit filter en niet de andere.** Het klantfilter is een keuze van *bereik*: ik werk nu voor Staedion. Prioriteit, periode en het zoekveld zijn zoekhulpen — een *lens*, geen bereik. Zou de ring daarop meebewegen, dan verspringt hij bij elke tik en zegt "3 van 3 afgerond" niets meer. Dezelfde scheiding zit al in de filterbalk: de telling daar verschijnt alleen als je filtert, en dan is dat precies het antwoord op wat je net deed.
+**Waarom alleen dit filter en niet de andere.** Het klantfilter is een keuze van *bereik*: ik werk nu voor Klant Noord. Prioriteit, periode en het zoekveld zijn zoekhulpen — een *lens*, geen bereik. Zou de ring daarop meebewegen, dan verspringt hij bij elke tik en zegt "3 van 3 afgerond" niets meer. Dezelfde scheiding zit al in de filterbalk: de telling daar verschijnt alleen als je filtert, en dan is dat precies het antwoord op wat je net deed.
 
 **Het archief blijft ongefilterd geteld.** Die weergave laat sowieso alles zien, ongeacht de gekozen klant; een knop die een ander aantal noemt dan wat erachter zit is erger dan een knop die het totaal noemt.
 
@@ -3688,10 +3688,10 @@ Vervolg op de entry hierboven; drie resterende gaten in hetzelfde verhaal.
 
 ## 2026-08-19 · Uren van één klant binnen een factuurpartij kiezen
 
-**Probleem**: je factureert LabsData, maar schrijft je uren op POM en Staedion — twee klanten die via LabsData op de rekening komen. De wizard nam altijd álle openstaande uren van de partij in één keer mee (116 u in één regelblok), zonder manier om er een deel uit te pakken. Wil je POM en Staedion op aparte facturen, dan kon dat niet.
+**Probleem**: je factureert Acme Data, maar schrijft je uren op Klant Zuid en Klant Noord — twee klanten die via Acme Data op de rekening komen. De wizard nam altijd álle openstaande uren van de partij in één keer mee (116 u in één regelblok), zonder manier om er een deel uit te pakken. Wil je Klant Zuid en Klant Noord op aparte facturen, dan kon dat niet.
 
 **Beslissing**: onder de gekozen partij verschijnt een uitsplitsing per meeliftende klant, met vinkjes en per klant de uren en het bedrag. Standaard staat alles aan, dus één klik blijft één klik; wie wil splitst uit.
-- De uitsplitsing verschijnt **pas na het kiezen** van de partij en **alleen bij meer dan één** leverende klant — bij Kasparov zou een vinkje alleen ruis zijn.
+- De uitsplitsing verschijnt **pas na het kiezen** van de partij en **alleen bij meer dan één** leverende klant — bij Acme BI zou een vinkje alleen ruis zijn.
 - De kop van de partij telt mee met de vinkjes, zodat je het effect direct ziet (44,00 u → 24,00 u).
 - Het laatste vinkje kan niet uit: nul klanten geeft een factuur zonder regels, en daarvoor is "Lege factuur" de eerlijkere weg.
 - Van partij wisselen of de periode aanpassen zet de keuze terug op alles — een vinkje van de vorige situatie zegt niets over de nieuwe.
@@ -3699,8 +3699,8 @@ Vervolg op de entry hierboven; drie resterende gaten in hetzelfde verhaal.
 **Technisch**: een optionele `alleenKlanten` (array met client-ids, leeg/afwezig = alles) loopt door `factuurNieuw` → `factuurRegelsUitUren` en `factuurStandaardBetreft`. De keuze wordt als `f.urenKlanten` op de factuur bewaard, zodat "Uren ophalen" in de editor niet alsnog de rest erbij haalt.
 
 **Naamgeving, twee kanten op**:
-- `factuurStandaardBetreft` noemt de klantnaam nu ook als er precies één klant is gekozen binnen een partij. Zonder dat heten twee facturen aan LabsData allebei "Gewerkte uren Augustus 2026".
-- `factuurRegelsUitUren` zet de klantnaam alleen nog vóór de regel als er méér dan één klant op de factuur staat. Anders werd het "POM B.V. — POM B.V. Gewerkte uren Augustus 2026", omdat het onderwerp de naam al noemt.
+- `factuurStandaardBetreft` noemt de klantnaam nu ook als er precies één klant is gekozen binnen een partij. Zonder dat heten twee facturen aan Acme Data allebei "Gewerkte uren Augustus 2026".
+- `factuurRegelsUitUren` zet de klantnaam alleen nog vóór de regel als er méér dan één klant op de factuur staat. Anders werd het "Klant Zuid B.V. — Klant Zuid B.V. Gewerkte uren Augustus 2026", omdat het onderwerp de naam al noemt.
 
 **Bestanden**: `index.html` — `facWizardRenderKlanten`, `facWizardKies`, `facWizardKlantToggle` (nieuw), `facWizardMaak`, `factuurNieuw`, `factuurRegelsUitUren`, `factuurStandaardBetreft`, `facUrenOphalen`, CSS `.fac-wizard-partij`/`.fac-wizard-sub`
 
@@ -3972,7 +3972,7 @@ Daarbij hoort een nieuw veld `f.gegevensVastOp`, gezet door `factuurBevriesGegev
 
 ## 2026-05-11 · AI Smart Quick-Add via Google Gemini Flash
 
-**Probleem**: bestaande quick-add vereiste `@klant !datum` token-syntax. Niet natuurlijk voor "morgen 10u Boskalis call + concept-doc voor vrijdag" — leverde taken+events tegelijk op.
+**Probleem**: bestaande quick-add vereiste `@klant !datum` token-syntax. Niet natuurlijk voor "morgen 10u Klant Oost call + concept-doc voor vrijdag" — leverde taken+events tegelijk op.
 **Beslissing**: nieuwe "✨ Slim toevoegen" sidebar-knop. Modal met natuurlijke-taal input → Gemini Flash API → preview-kaarten → confirm → schrijft tasks naar `checklistState.items` + events naar `rawState.agenda.events`.
 **Waarom Gemini Flash (niet Claude API)**: gratis tier 1500 req/dag dekt dagelijks gebruik. Anthropic API heeft prepaid billing nodig — Frank's Claude Max plan dekt API niet. Gemini Flash kwaliteit voor NL parsing-taken is voldoende.
 **Architectuur**: generieke `callGemini({system,user,schema})` helper — herbruikbaar voor wekelijkse review (volgende feature) + toekomstige AI-uitbreidingen. JSON-mode response met defensieve normalisatie. API-key in `LS_GEMINI_KEY` localStorage.
@@ -4012,7 +4012,7 @@ Daarbij hoort een nieuw veld `f.gegevensVastOp`, gezet door `factuurBevriesGegev
 
 ## 2026-05-04 · iCal 4-proxy chain + 5-maands event-cache
 
-**Probleem**: Boskalis-feed deed 25s over de cold load; sommige proxies vielen om bij grote feeds.
+**Probleem**: Klant Oost-feed deed 25s over de cold load; sommige proxies vielen om bij grote feeds.
 **Beslissing**: 4-proxy chain (corsproxy.io → allorigins/raw → allorigins/get → codetabs.com) met parallel race + per-feed proxy-cache. Plus 5-maands event-cache met stale-while-revalidate.
 **Resultaat**: 25s → 0ms na cold load.
 **Bestanden**: `herling_analytics_home.html` `fetchICalText`, `_refreshSourceEvents`
@@ -4293,11 +4293,11 @@ De teller onder de regel telt nu de registraties die er echt nog zijn, met "· n
 
 ## 2026-08-10 · Klant erft de gegevens van zijn factuurpartij
 
-**Probleem**: klanten die via een tussenpersoon gefactureerd worden (POM, Staedion, Gemeente Buren → LabsData) stonden met "⚠ Adresgegevens ontbreken" in het overzicht. Die gegevens hoeven daar ook niet te staan — de rekening gaat naar de tussenpersoon — maar de app deed alsof er iets miste.
+**Probleem**: klanten die via een tussenpersoon gefactureerd worden (Klant Zuid, Klant Noord, Gemeente Puren → Acme Data) stonden met "⚠ Adresgegevens ontbreken" in het overzicht. Die gegevens hoeven daar ook niet te staan — de rekening gaat naar de tussenpersoon — maar de app deed alsof er iets miste.
 
 **Beslissing**: `factuurKlantVol(klant)` vult lege velden aan met die van de factuurpartij: adres, postcode, plaats, land, btw-nummer, kvk, e-mail, contactpersoon, telefoon, betaaltermijn, uurtarief en btw-tarief. **De naam niet** — die blijft staan waaronder jij de klant kent, ook op de factuurregel. Alleen lege velden erven; een eigen tarief of adres bij de klant wint altijd.
 
-Gebruikt in `factuurKlantCompleet`, `factuurKlantSnapshot` (dus ook op de factuur en in de PDF), bij het opstellen van factuurregels (uurtarief) en bij `factuurNieuw` (betaaltermijn, bedrijf). Op de klantkaart staat het geërfde adres met "van LabsData B.V." eronder, zodat zichtbaar blijft dat het niet van de klant zelf komt.
+Gebruikt in `factuurKlantCompleet`, `factuurKlantSnapshot` (dus ook op de factuur en in de PDF), bij het opstellen van factuurregels (uurtarief) en bij `factuurNieuw` (betaaltermijn, bedrijf). Op de klantkaart staat het geërfde adres met "van Acme Data B.V." eronder, zodat zichtbaar blijft dat het niet van de klant zelf komt.
 
 **Waarom niet kopiëren bij het opslaan van de klant**: dan is de koppeling weg en loopt de klant achter zodra de tussenpersoon verhuist. Erven bij het lezen houdt één plek de waarheid.
 
@@ -5031,7 +5031,7 @@ zat.
    een breed scherm overhoudt. Op 1920px werd dat 640px: één lange regel dwars
    door de tabel, en op de korte regels een gat tussen de klant en de bedragen.
 3. Andersom op een smal scherm: de zeven vaste kolommen zijn samen ruim 800px,
-   dus bij `min-width:820px` hield Betreft nog geen 100px over — "POM Ge…".
+   dus bij `min-width:820px` hield Betreft nog geen 100px over — "Klant Zuid Ge…".
 
 **Beslissing.**
 - De **nummerkolom past zich aan de reeks aan**: `nrTekens*8.5+30`, ondergrens
@@ -5315,7 +5315,7 @@ die meestal de titel herhaalde ("Notitie" boven "Notities").
 - Een contract aan een opdracht slaat over: zijn looptijd ís die van de
   opdracht, dus hetzelfde signaal zou twee keer staan (zelfde keuze als bij de
   meldingen in Google Agenda).
-- Drie kolommen op een bureaublad gaven de naam ±100px ("Boskalis - …"); een
+- Drie kolommen op een bureaublad gaven de naam ±100px ("Klant Oost - …"); een
   strook met regels van minstens 460px geeft hem ±300px.
 
 **Meegenomen.** Het dashboard had op een telefoon geen ruimte onder de laatste
@@ -5423,7 +5423,7 @@ tegels bovenaan al.
 ## 2026-10-03 · Opdrachten: vaste werkdagen per opdracht, en "Per klant" per apparaat onthouden
 
 **Probleem.** Gepland rekende altijd met uren per week ÷ 5 over ma–vr. Voor
-Staedion werkt Frank vast op dinsdag, woensdag en vrijdag: per maand is dat
+Klant Noord werkt Frank vast op dinsdag, woensdag en vrijdag: per maand is dat
 soms een dag meer of minder dan een vijfde van de werkdagen, en het uurtempo
 per dag is 24 ÷ 3 = 8, niet 4,8. De stand van de knop *Per klant* begon na
 elke herlaadbeurt weer op Totaal.
@@ -5897,3 +5897,42 @@ CSS-animatie, en wilde het oude vervangen, ook als icoon van de app.
 
 **Niet doen.** De bewegende SVG als favicon of app-icoon gebruiken: dat
 beweegt daar niet, en de begintoestand van die versie is dezelfde als de stille.
+
+## 2026-10-07 · Geen namen van klanten of relaties in de (openbare) repo
+
+**Probleem.** De repo is openbaar (GitHub Free, voor GitHub Pages). Er
+stonden echte namen in van klanten, tussenpartijen, een gemeente,
+bibliotheken en bedrijven uit een mockup: in commentaar, tests, docs, een
+voorbeeldtekst bij contracten en in de links onder Externe tools (een
+urenportaal met de naam van een tussenpartij erin, en een label naar een
+klant). Frank wil de repo openbaar houden, zonder die namen.
+
+**Beslissing.**
+- Alle namen vervangen door een vaste set verzonnen namen (zie de tabel in
+  CLAUDE.md, *Hard rules*). Ook in oudere entries van dit logboek: alleen de
+  namen, verder niets aan die entries veranderd — de append-only-regel wijkt
+  hier voor de privacy.
+- **Externe tools** staan niet meer vast in de HTML maar in
+  `rawState.settings.externeTools` (in Drive). Zonder eigen lijst staan er
+  alleen algemene tools; "Links bewerken" opent een venster met één link per
+  regel, `Groep | Naam | URL`, alleen http(s).
+- De voorbeeldteksten bij contracten (`CTR_VOORBEELD`) noemen een soort
+  partij, geen bedrijf.
+- **Afgedwongen** in `validate.mjs`: elk woord en elke reeks van 2–3 woorden
+  in alle bestanden (en met `--commits` in commitberichten) wordt gehasht en
+  vergeleken met een lijst bekende namen. Als hash, zodat de lijst zelf niets
+  verraadt; een leesbare aanvulling kan in `.claude/namen.local` (gitignored).
+  De PreToolUse-hook draait dit bij elke `git push` (ook in een verse
+  cloudsessie, waar `core.hooksPath` niet staat), `.githooks/pre-push` ook en
+  nu voor elke branch.
+
+**Wat blijft.** De oude commits bevatten de namen nog, in de bestanden en in
+een paar commitberichten. Echt weg is alleen met het herschrijven van de
+geschiedenis en een force-push; dat is een aparte beslissing van Frank.
+
+**Bestanden.** `index.html` (Externe tools, `CTR_VOORBEELD`, commentaar),
+`test.html`, `docs/*`, `validate.mjs`, `.githooks/pre-push`,
+`.claude/hooks/pre-tool-use.mjs`, `.gitignore`, `CLAUDE.md`.
+
+**Niet doen.** Een leesbare namenlijst in de repo zetten "voor de controle",
+of een echte naam als voorbeeld in een test of mockup gebruiken.

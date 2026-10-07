@@ -36,6 +36,26 @@ process.stdin.on('end', () => {
     }
   }
 
+  /* Rule 2b: geen namen van klanten of relaties naar de openbare repo
+     (2026-10-07). De git-hook in .githooks/pre-push doet dit ook, maar die
+     staat alleen aan waar core.hooksPath is ingesteld -- in een verse
+     cloudsessie niet. Deze hook draait altijd: validate.mjs loopt de
+     bestanden en de berichten van de nog niet gepushte commits na. */
+  if (/\bgit\s+push\b/.test(cmd) && !/--no-verify\b/.test(cmd)) {
+    try {
+      execSync('node validate.mjs --commits origin/main..HEAD', { stdio: 'pipe', encoding: 'utf8', timeout: 60000 });
+    } catch (e) {
+      const uit = String((e.stdout || '') + (e.stderr || '')).trim();
+      if (/Naam van een klant/.test(uit) || e.status === 1) {
+        console.error('BLOCKED: validate.mjs keurt deze push af.');
+        console.error(uit.split('\n').slice(0, 12).join('\n'));
+        console.error('Namen van klanten of relaties: vervang ze (CLAUDE.md, "Geen namen"). ' +
+          'Staat er een in een commitbericht dat nog niet gepusht is: herschrijf dat bericht vóór de push.');
+        process.exit(2);
+      }
+    }
+  }
+
   /* Rule 3: warn loudly on rm -rf, git reset --hard outside common cases */
   if (/\brm\s+-rf?\s+\//.test(cmd)) {
     console.error('BLOCKED: rm -rf on absolute path. Confirm with user explicitly.');

@@ -10,8 +10,15 @@
  *    (the ID never appears anywhere in the HTML)
  * 5. Geen font-size onder 11,5px binnen een mobiele media query
  *    (waarschuwing — zie docs/mobile.md voor de schaal)
+ * 6. Geen namen van klanten of relaties in de repo (zie hieronder)
+ *
+ * Extra:
+ *   node validate.mjs --commits <van>..<tot>   ook de commitberichten nalopen
+ *   node validate.mjs --namen-hash "Naam"      hash voor de lijst hieronder
  */
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
+import { execSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import vm from 'node:vm';
 
 const FILE = 'index.html';
@@ -354,6 +361,75 @@ if (teKlein.size) {
         `herling-v${n}. Dat hoort ${hoort} te zijn (n = major * 100 + build).`
       );
     }
+  }
+}
+
+/* ─── Geen namen van klanten of relaties (2026-10-07) ───────────────────────
+   De repo is openbaar. Echte namen van klanten, tussenpartijen en andere
+   relaties horen er niet in: niet in code, commentaar, tests, docs of
+   commitberichten. Gebruik de vaste verzonnen namen uit CLAUDE.md.
+
+   Een lijst met die namen in de repo zou ze juist openbaar maken; daarom
+   staan hier alleen hashes (sha256 van "herling-namen-v1|" + de genormaliseerde
+   naam, eerste 16 tekens). Elk woord en elke reeks van twee of drie woorden in
+   de bestanden wordt zo gehasht en vergeleken. Een nieuwe naam erbij:
+     node validate.mjs --namen-hash "Naam"   → regel hieronder toevoegen.
+   Wil je een naam niet eens als hash in de repo, zet hem dan leesbaar in
+   .claude/namen.local (één per regel; staat in .gitignore) -- die telt op
+   dat apparaat mee. */
+{
+  const norm = t => String(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const hash = t => createHash('sha256').update('herling-namen-v1|' + norm(t)).digest('hex').slice(0, 16);
+  const i = process.argv.indexOf('--namen-hash');
+  if (i > 0) { console.log(`  '${hash(process.argv[i + 1] || '')}',`); process.exit(0); }
+
+  const NAMEN = new Set([
+    'e39c1845888d37fb', '391f5e2aa2a04ac7', 'c9f3a4e622680d72', 'ce14501d00cbc184',
+    '0be84a06ff5a0396', 'c60d766b7c504db9', 'c22926b909c4d737', '6c9d450774c40737',
+    '4100c86c847a1e6d', '76d8f1c4c260f296', '0ca4cf5f5d4c6840', '5295d133696f43e5',
+    'e626b3c1f03d9686', '0023d6c935daf231', '43551ce0c898ed4a', '71569f4ca4c34051',
+    '23b6f92841ce94ba', 'b2cad52824eac47e', '6ec895d182db94f0', '292816e0b5ee79d3',
+    '00a598ea3006abde', '36998bdf770dbb0f', '2fd04496c77c9456', '994fb2084d630a43'
+  ]);
+  if (existsSync('.claude/namen.local')) {
+    readFileSync('.claude/namen.local', 'utf8').split('\n').map(r => r.trim())
+      .filter(r => r && !r.startsWith('#')).forEach(r => NAMEN.add(hash(r)));
+  }
+  const vind = (tekst, waar) => {
+    const regels = tekst.split('\n');
+    for (let r = 0; r < regels.length; r++) {
+      const w = norm(regels[r]).split(' ').filter(Boolean);
+      for (let k = 0; k < w.length; k++) {
+        for (let n = 1; n <= 3 && k + n <= w.length; n++) {
+          const term = w.slice(k, k + n).join(' ');
+          if (NAMEN.has(hash(term))) {
+            errors.push(`Naam van een klant of relatie in ${waar}${regels.length > 1 ? ' regel ' + (r + 1) : ''}: "${term}" ` +
+              `— vervang door een verzonnen naam (CLAUDE.md, "Geen namen")`);
+            return;
+          }
+        }
+      }
+    }
+  };
+  let bestanden = [];
+  try {
+    bestanden = execSync('git ls-files -co --exclude-standard', { encoding: 'utf8' }).split('\n')
+      .filter(f => /\.(html|md|mjs|js|json|svg|txt|css)$/.test(f) && f !== '.claude/namen.local');
+  } catch (e) { bestanden = [FILE]; }
+  for (const f of bestanden) {
+    let t; try { t = readFileSync(f, 'utf8'); } catch (e) { continue; }
+    vind(t, f);
+  }
+  const c = process.argv.indexOf('--commits');
+  if (c > 0 && process.argv[c + 1]) {
+    try {
+      const log = execSync(`git log --format=%H%x00%B%x01 ${process.argv[c + 1]}`, { encoding: 'utf8' });
+      log.split('\x01').map(x => x.trim()).filter(Boolean).forEach(x => {
+        const [sha, bericht] = x.split('\x00');
+        vind(bericht || '', 'commitbericht ' + sha.slice(0, 7));
+      });
+    } catch (e) { warnings.push('Commitberichten niet na te lopen: ' + e.message.split('\n')[0]); }
   }
 }
 

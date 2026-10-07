@@ -52,10 +52,17 @@ while read -r local_ref local_sha remote_ref remote_sha; do
     fi
   fi
 
-  # 3. Run validation on the file being pushed (only for main branch).
-  if [ "$branch" = "main" ] && [ -f validate.mjs ] && [ -f herling_analytics_home.html ]; then
+  # 3. Run validation on what is being pushed -- elke branch, want de repo is
+  #    openbaar en een branch dus ook. Met --commits lopen ook de berichten van
+  #    de nieuwe commits mee in de controle op namen van klanten (CLAUDE.md).
+  if [ -f validate.mjs ] && [ -f herling_analytics_home.html ]; then
     if command -v node >/dev/null 2>&1; then
-      if ! node validate.mjs; then
+      if [ "$remote_sha" = "0000000000000000000000000000000000000000" ] || [ -z "$remote_sha" ]; then
+        bereik="$remote/main..$local_sha"
+      else
+        bereik="$remote_sha..$local_sha"
+      fi
+      if ! node validate.mjs --commits "$bereik"; then
         echo ""
         echo "✗ BLOCKED — validate.mjs reported errors. Fix them before pushing."
         echo "  To bypass (use sparingly): git push --no-verify"

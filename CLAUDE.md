@@ -321,15 +321,46 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
+- **2026-10-07**: **Geen namen van klanten of relaties in de repo** (v2.34) — de repo is openbaar; alle namen vervangen door vaste verzonnen namen, Externe tools uit de HTML naar `rawState.settings.externeTools`, en `validate.mjs` + de push-hooks houden namen tegen (gehashte lijst). Oude commits bevatten ze nog
 - **2026-10-07**: **Beweging** (v2.32) — tokens `--duur-kort`/`--duur`/`--ease-weg`; module faded in (geen View Transitions: die werken asynchroon), Checklist afvinken + FLIP bij elke hertekening, vensters en menu's faden ook uit (`allow-discrete`, `@starting-style`, en `menuUitfaden()` voor menu's die uit de pagina gaan). "Beweging beperken" zet alles op 0
 - **2026-10-05**: **Klanten verbergen** (v2.31) — oog per klant in de klantwisselaar; `client.verborgen` gaat mee naar Drive. Weg uit Notities, Checklist en Dashboard (taken, tellingen, badge, klantkeuze), niet uit Uren/Facturen/Opdrachten/Contracten. Terughalen onder *Verborgen* in de wisselaar; de Checklist zegt onderaan hoeveel open taken niet getoond worden. Vervangt `notesState.verborgenKlanten` (één keer overgezet)
-- **2026-10-05**: **Notities: klant wijzigen via de rechtermuisknop** (v2.30) — het contextmenu had een `<select>` die het menu bij de eerste klik sloot; nu gewone menuregels met ✓. Op een groep: alle notities erin naar die klant, zonder hun tijd te veranderen (`notesKlantZetten()`), met ongedaan maken
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 
 ## Hard rules voor Claude
 
 Afgedwongen door git hooks (`.githooks/pre-push`) en Claude Code hooks (`.claude/settings.json`). Niet omzeilen — bestaan vanwege fouten van 2026-04-30.
+
+### ⚠️ Geen namen van klanten of relaties — de repo is openbaar
+
+Echte namen van klanten, opdrachtgevers, tussenpartijen, bemiddelaars,
+leveranciers en andere zakelijke relaties komen **nergens** in de repo: niet
+in code, commentaar, tests, testdata, docs, mockups, voorbeeldteksten (placeholders),
+URL's of commitberichten. Ook niet "even als voorbeeld" en niet uit een
+screenshot of uit Franks eigen data overgenomen. Dat geldt net zo voor
+persoonsnamen, adressen, IBAN's en KvK-nummers.
+
+Gebruik altijd deze verzonnen namen:
+
+| Rol | Naam |
+|---|---|
+| klanten | Klant Noord, Klant Zuid, Klant Oost, Klant West (en Klant A–E in mockups) |
+| tussenpartij / factuurklant | Acme Data B.V., Acme BI B.V. |
+| gemeente / instelling | Gemeente Puren, Bibliotheek Noordstad, Bibliotheek Zuidstad |
+| overig bedrijf | Voorbeeld B.V., Voorbeeld Energie, Voorbeeld Telecom |
+| persoon | Jan Jansen, iemand@voorbeeld.nl |
+
+Wat Frank zelf invult (klanten, links naar portalen van relaties) hoort in zijn
+eigen gegevens in Drive, niet in de code — zie Externe tools
+(`rawState.settings.externeTools`).
+
+**Afgedwongen:** `validate.mjs` hasht elk woord en elke reeks van 2–3 woorden
+in de bestanden (en met `--commits` in de commitberichten) en vergelijkt met een
+lijst bekende namen — als hash, zodat de lijst zelf niets prijsgeeft. De
+PreToolUse-hook draait dat bij elke `git push`, ook in een verse cloudsessie;
+`.githooks/pre-push` doet het waar `core.hooksPath` aanstaat. Nieuwe naam
+erbij: `node validate.mjs --namen-hash "Naam"` en de regel in de lijst zetten,
+of leesbaar in `.claude/namen.local` (gitignored, alleen dat apparaat).
 
 ### Vóór elke edit
 
@@ -377,7 +408,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 147 smoke-, sync-, model-, reken- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
+| `test.html` | 148 smoke-, sync-, model-, reken- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |
@@ -392,6 +423,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 - Geen telemetrie, geen externe API-calls behalve Google (Drive, Gmail, Agenda, Fonts)
 - Google-scopes: `drive.appdata` (opslag), `drive.file` (archief: alleen wat de app zelf maakte), `gmail.send`, `calendar.app.created` — elk staat op het OAuth-scherm in de Cloud Console
 - Tokens NIET in `.git/config` URL — gebruik Git Credential Manager (`git config --global credential.helper manager`)
+- **De repo is openbaar** (GitHub Free + Pages). Geen namen van klanten of relaties erin — zie *Hard rules*
 
 ## Glossarium
 
