@@ -6024,3 +6024,24 @@ dan blijft hij op elk scherm zoals op 1400px.
 **Niet doen.** `xMaxYMin slice`: dan blijft het ruitje wel binnen, maar
 valt op een breed scherm het grootste deel van de lijn onderaan weg en loopt
 de rest door de tekst rechtsonder.
+
+## 2026-10-07 · Dubbele koppen weg: datum op mobiel, logo in de klantwisselaar (v2.38–v2.39)
+
+**Probleem.** Twee keer hetzelfde onder elkaar. Op een telefoon stond de datum
+in de kopbalk ("Goedenavond — woensdag 7 oktober") én sinds v2.37 boven de
+hero. En de klantwisselaar begon met het logo, "Herling Analytics" en "Geen
+klantfilter — je ziet alles", direct onder het zijbalkblok dat logo en naam
+al toont.
+
+**Beslissing.** Op mobiel verdwijnt de ondertitel van het dashboard, en het
+dan lege kopblok ook (het telde nog mee in de tussenruimte). Op een
+bureaublad blijft hij. De kop van de klantwisselaar is overal weg: hij opent
+altijd vanuit dat zijbalkblok (of met Ctrl+J), en welke klant gekozen is zegt
+het vinkje in de lijst. Het zoekveld krijgt 4px bovenmarge, zodat het rondom
+even ver van de rand staat.
+
+**Bestanden.** `index.html` (mobiele laag `.dash-topbar`, `#klantWissel`,
+`renderKlantWisselLijst`, `.klant-wissel-zoek`), `sw.js`.
+
+**Niet doen.** De kop terugzetten voor de ingeklapte zijbalk: ook daar staat
+het logo erboven, en de lijst zegt met het vinkje wat er gekozen is.
