@@ -322,9 +322,9 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
+- **2026-10-07**: **Dashboard in een nieuwe stijl** (v2.36) — hero als donkere tech-tegel met de logolijn en een lichtpuls (`dashHeroPuls`), één kaartkop (getint icoon, telpil, "Alles ›"), Checklist-kaart met uitklapbare subtaken (open-stand alleen in de sessie; titel opent het taakvenster), notitieregels die díe notitie openen, voortgangsbalk bij Opdrachten & contracten
 - **2026-10-07**: **Geen namen van klanten of relaties in de repo** (v2.34) — de repo is openbaar; alle namen vervangen door vaste verzonnen namen, Externe tools uit de HTML naar `rawState.settings.externeTools`, en `validate.mjs` + de push-hooks houden namen tegen (gehashte lijst). Oude commits bevatten ze nog
 - **2026-10-07**: **Beweging** (v2.32) — tokens `--duur-kort`/`--duur`/`--ease-weg`; module faded in (geen View Transitions: die werken asynchroon), Checklist afvinken + FLIP bij elke hertekening, vensters en menu's faden ook uit (`allow-discrete`, `@starting-style`, en `menuUitfaden()` voor menu's die uit de pagina gaan). "Beweging beperken" zet alles op 0
-- **2026-10-05**: **Klanten verbergen** (v2.31) — oog per klant in de klantwisselaar; `client.verborgen` gaat mee naar Drive. Weg uit Notities, Checklist en Dashboard (taken, tellingen, badge, klantkeuze), niet uit Uren/Facturen/Opdrachten/Contracten. Terughalen onder *Verborgen* in de wisselaar; de Checklist zegt onderaan hoeveel open taken niet getoond worden. Vervangt `notesState.verborgenKlanten` (één keer overgezet)
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 

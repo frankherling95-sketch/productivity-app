@@ -5584,7 +5584,6 @@ textarea { line-height: 1.6; resize: vertical; }
   }
   .dash-hero-headline { font-size: 19px !important; line-height: 1.35 !important; }
   .dash-hero-right { width: 100%; align-items: flex-start !important; }
-  .dash-hero-spark { width: 100%; max-width: 280px; }
   /* align-items:flex-start laat de kolom op zijn natuurlijke breedte
      staan; het snel-toevoegen-veld werd daardoor breder dan de hero en
      de knop 'Voeg toe' viel buiten het scherm. Expliciet op de volle
@@ -5672,11 +5671,12 @@ textarea { line-height: 1.6; resize: vertical; }
     gap: 8px;
     -webkit-tap-highlight-color: transparent;
   }
-  .dash-grid [data-dash-card] > .card-hdr h2 { flex: 1; font-size: 15px !important; }
+  .dash-grid [data-dash-card] > .card-hdr h2 { flex: 1; font-size: var(--fs-groot) !important; }
   .dash-grid [data-dash-card] > .card-hdr:active { background: var(--surface2); }
   /* 'Bekijk ↗' verdwijnt: elke module heeft al een eigen tab in de
      onderbalk, dus die knop was een derde weg naar dezelfde plek. */
-  .dash-grid [data-dash-card] > .card-hdr .btn { display: none !important; }
+  .dash-grid [data-dash-card] > .card-hdr .btn,
+  .dash-grid [data-dash-card] > .card-hdr .dash-alles { display: none !important; }
   .dash-card-count {
     display: inline-flex !important;
     align-items: center; justify-content: center;
@@ -5700,15 +5700,40 @@ textarea { line-height: 1.6; resize: vertical; }
     overflow-y: auto;
   }
 
-  /* ── Checklist-kaart: overzicht, geen werkblad ──
-     Elke regel droeg drie invoervelden (prioriteit, datum, klant) plus
-     alle subtaken; op telefoonbreedte wikkelden die naar 130-195px per
-     taak, zodat er nog geen twee taken in beeld pasten. Op mobiel toont
-     de kaart alleen het vinkje en de titel -- bewerken doe je in de
-     Checklist zelf, die één tik verderop in de onderbalk zit. */
-  #dashChecklistBody .dash-cl-edit,
-  #dashChecklistBody .dash-cl-subs { display: none !important; }
-  #dashChecklistBody .dash-cl-row { padding: 10px 4px !important; }
+  /* ── Checklist-kaart ──
+     Rij en uitklapknop minstens een vingerbreed. Het vinkje blijft 20px
+     om de boomlijn op zijn plek te houden; zijn raakvlak is groter.
+     #dashChecklistBody ervoor: de basisregels staan verderop. */
+  /* Pil naast de titel, metaregel eronder over de volle breedte: naast pil
+     en uitklapknop bleef er ±175px over en brak de regel op de ring. */
+  #dashChecklistBody .dash-taak-rij {
+    min-height: var(--tap);
+    display: grid;
+    grid-template-columns: 20px minmax(0, 1fr) auto auto;
+    grid-template-areas: "vink titel pri exp" "vink meta meta exp";
+    column-gap: 10px;
+    row-gap: 2px;
+  }
+  #dashChecklistBody .dash-taak-tekst { display: contents; }
+  #dashChecklistBody .dash-vink { grid-area: vink; }
+  #dashChecklistBody .dash-taak-titel { grid-area: titel; }
+  #dashChecklistBody .dash-taak-meta { grid-area: meta; }
+  #dashChecklistBody .dash-pri { grid-area: pri; }
+  #dashChecklistBody .dash-exp { grid-area: exp; }
+  /* Twee regels titel: op 375px blijft er naast pil en knop ±150px over. */
+  #dashChecklistBody .dash-taak-titel {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  #dashChecklistBody .dash-exp { width: var(--tap); height: var(--tap); }
+  #dashChecklistBody .dash-vink::before {
+    content: ""; position: absolute; inset: -12px;
+  }
+  #dashChecklistBody .dash-sub { min-height: var(--tap); }
+  #dashChecklistBody .dash-sub-nieuw { min-height: var(--tap); }
+  .ios-tab .dash-sub-invoer { font-size: 16px !important; }
 
   /* Opdrachten & contracten: één kolom, en 'Opdracht'/'Contract' gaat weg --
      de naam en het signaal hebben de breedte nodig. De links in de
@@ -5724,7 +5749,8 @@ textarea { line-height: 1.6; resize: vertical; }
   #dashAfsprakenBody .dash-oc-gepland { display: none; }
   #dashAfsprakenBody .dash-oc-rij { flex-wrap: wrap; row-gap: 4px; padding: 8px 12px; }
   #dashAfsprakenBody .dash-oc-naam { flex: 1 1 calc(100% - 20px); }
-  #dashAfsprakenBody .dash-oc-rij .fac-pill { margin-left: 16px; }
+  #dashAfsprakenBody .dash-oc-balk { margin-left: 16px; }
+  #dashAfsprakenBody .dash-oc-rij .fac-pill { margin-left: auto; }
   #dashAfsprakenBody .dash-oc-sum { margin-bottom: 4px; }
   #dashAfsprakenBody .dash-oc-link { min-height: var(--tap); display: inline-flex; align-items: center; }
 
@@ -6976,8 +7002,13 @@ textarea { line-height: 1.6; resize: vertical; }
 }
 
 /* ── Hero ────────────────────────────────────────────────────────────────── */
+/* Een "tech-tegel": donker in elk thema, net als de zijbalk. Eigen
+   achtergrond in plaats van --hero-gradient, want die delen de modals. */
 .dash-hero {
-  background: var(--hero-gradient);
+  background:
+    radial-gradient(120% 140% at 100% 0%, rgba(56,189,248,.16) 0%, transparent 45%),
+    linear-gradient(135deg, #0B1C3A 0%, #050D1C 100%);
+  border: 1px solid rgba(255,255,255,.06);
   color: #fff;
   border-radius: var(--radius-lg);
   padding: 24px;
@@ -6996,15 +7027,33 @@ textarea { line-height: 1.6; resize: vertical; }
 /* Zichtbaar vanaf de 768px-breakpoint; op een breed scherm staat de
    snel-toevoegbalk er nog gewoon en is dit plusje overbodig. */
 .dash-hero-add { display: none; }
-.dash-hero::after {
+/* Raster dat naar rechts opkomt, en een lichtlijn langs de bovenrand. */
+.dash-hero::before {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background:
-    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 140' preserveAspectRatio='xMaxYMid slice'><polyline points='0,110 60,85 120,95 180,65 240,50 300,55 360,25 400,18' fill='none' stroke='%2300e5b0' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round' opacity='0.35'/></svg>")
-    no-repeat right center / 45% 100%;
-  opacity: 0.9;
+  background-image:
+    linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: linear-gradient(90deg, transparent 0%, #000 60%);
+}
+.dash-hero::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--mint) 30%, #38BDF8 70%, transparent);
+}
+.dash-hero-trace {
+  position: absolute;
+  right: 0; top: 0;
+  height: 100%;
+  width: 46%;
+  pointer-events: none;
+  mask-image: linear-gradient(90deg, transparent, #000 40%);
 }
 .dash-hero-left { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; position: relative; z-index: 1; }
 .dash-hero-eyebrow {
@@ -7027,29 +7076,32 @@ textarea { line-height: 1.6; resize: vertical; }
 .dash-hero-sub { font-size: 13px; color: rgba(255,255,255,0.7); }
 .dash-hero-right {
   flex-shrink: 0;
+  align-self: flex-end;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: 4px;
   position: relative; z-index: 1;
 }
-.dash-hero-spark { width: 200px; height: 60px; display: block; }
 /* Quick-add form in hero */
 .dash-quickadd {
   display: flex;
   align-items: center;
   gap: 6px;
   margin-top: 12px;
-  background: rgba(255,255,255,0.10);
-  border: 1px solid rgba(255,255,255,0.15);
+  /* Donker en geblurd, zodat de lijn er netjes achter langs loopt. */
+  background: rgba(5,13,28,.6);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,.12);
   border-radius: 10px;
   padding: 6px 10px 6px 12px;
   max-width: 520px;
-  transition: background 0.15s, border-color 0.15s;
+  transition: border-color var(--duur-kort) var(--ease), box-shadow var(--duur-kort) var(--ease);
 }
 .dash-quickadd:focus-within {
-  background: rgba(255,255,255,0.18);
   border-color: var(--mint);
+  box-shadow: 0 0 0 4px var(--mint-soft);
 }
 .dash-quickadd-icon {
   color: rgba(255,255,255,0.7);
@@ -7129,17 +7181,258 @@ textarea { line-height: 1.6; resize: vertical; }
   box-shadow: var(--shadow-card) !important;
   padding: 0 !important;
 }
+/* Eén kop voor alle kaarten: icoon in de tint van de soort, titel, telpil,
+   en rechts "Alles ›" naar de module. */
 .dash-grid .card-hdr {
-  padding: 10px 18px 8px !important;            /* tighter header */
+  padding: 12px 16px 12px 14px !important;
   border-bottom: 1px solid var(--border) !important;
   flex-shrink: 0;
+  justify-content: flex-start;
+  gap: 10px;
 }
 .dash-grid .card-hdr h2 {
   font-family: var(--font-display) !important;
-  font-size: 18px !important;
-  font-weight: 600 !important;
-  letter-spacing: -0.018em !important;
+  font-size: var(--fs-groot) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em !important;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+.dash-kop-icoon {
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  display: grid; place-items: center;
+  background: var(--dash-tint, var(--surface2));
+  color: var(--dash-inkt, var(--text-muted));
+}
+.dash-kop-icoon svg { width: 16px; height: 16px; }
+[data-dash-card="checklist"] { --dash-tint: var(--mint-soft); --dash-inkt: #00936C; }
+[data-dash-card="notes"]     { --dash-tint: var(--info-bg);   --dash-inkt: var(--info); }
+[data-dash-card="afspraken"] { --dash-tint: var(--warning-bg); --dash-inkt: var(--warning); }
+/* In het donker is de echte mint leesbaar; #00936C is alleen voor licht. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) [data-dash-card="checklist"] { --dash-inkt: var(--mint); }
+}
+:root[data-theme="dark"] [data-dash-card="checklist"] { --dash-inkt: var(--mint); }
+/* De telpil staat op een bureaublad ook in beeld (de basisregel bovenin
+   verbergt hem; op mobiel had hij al deze vorm). */
+.dash-grid .card-hdr .dash-card-count {
+  display: inline-flex;
+  align-items: center; justify-content: center;
+  min-width: 22px; height: 22px; padding: 0 7px;
+  border-radius: 11px;
+  background: var(--surface2); color: var(--text-muted);
+  font-family: var(--font-cijfer);
+  font-size: var(--fs-micro); font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.dash-grid .card-hdr .dash-card-count:empty { display: none; }
+.dash-alles {
+  margin-left: auto;
+  height: 30px;
+  padding: 0 10px;
+  flex-shrink: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: var(--fs-klein);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--duur-kort) var(--ease), border-color var(--duur-kort) var(--ease);
+}
+.dash-alles:hover,
+.dash-alles:focus-visible { color: var(--dash-inkt, var(--mint)); border-color: var(--mint); }
+[data-dash-card="checklist"] .dash-alles:hover { color: var(--dash-inkt); }
+
+/* ── Notitieregel ── */
+.dash-notitie {
+  display: flex; align-items: center; gap: 12px;
+  padding: 7px 8px;
+  margin: 0 -8px;
+  width: calc(100% + 16px);
+  border: 0; border-radius: var(--radius-md);
+  background: none;
+  font-family: var(--font-body); color: var(--text);
+  text-align: left; cursor: pointer;
+  transition: background var(--duur-kort) var(--ease);
+}
+.dash-notitie:hover { background: var(--surface2); }
+.dash-notitie-icoon {
+  width: 30px; height: 30px; flex-shrink: 0;
+  border-radius: 8px;
+  display: grid; place-items: center;
+  background: var(--surface2); color: var(--text-muted);
+}
+.dash-notitie:hover .dash-notitie-icoon { background: var(--surface3); }
+.dash-notitie-icoon svg { width: 16px; height: 16px; }
+.dash-notitie-tekst { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.dash-notitie-titel {
+  font-size: var(--fs-basis); font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.dash-notitie-klant {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--fs-micro); color: var(--text-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.dash-notitie-klant.geen { color: var(--text-hint); }
+.dash-notitie-tijd {
+  flex-shrink: 0;
+  font-family: var(--font-cijfer); font-variant-numeric: tabular-nums;
+  font-size: var(--fs-micro); color: var(--text-hint);
+}
+
+/* ── Checklist-kaart ──
+   Het vinkje staat 7px van de rand, zodat zijn midden op 17px ligt: daar
+   loopt de boomlijn naar de subtaken. */
+.dash-taak {
+  position: relative;
+  border-radius: 9px;
+  margin: 0 -8px;
+  transition: background var(--duur-kort) var(--ease);
+}
+.dash-taak + .dash-taak { margin-top: 2px; }
+.dash-taak.open { background: var(--surface2); }
+.dash-taak-rij {
+  position: relative;
+  display: flex; align-items: center; gap: 10px;
+  min-height: 48px;
+  padding: 6px 8px 6px 7px;
+}
+/* Boomlijn van het midden van het hoofdvinkje naar de onderkant van de rij;
+   de subtaken nemen hem over. */
+.dash-taak.met-subs .dash-taak-rij::after {
+  content: "";
+  position: absolute; left: 17px; top: 50%; bottom: 0;
+  width: 1px; background: var(--border-strong);
+  opacity: 0;
+  transition: opacity var(--duur) var(--ease);
+}
+.dash-taak.open .dash-taak-rij::after { opacity: 1; }
+.dash-vink,
+.dash-subvink {
+  flex-shrink: 0;
+  display: grid; place-items: center;
+  padding: 0;
+  border: 1.5px solid var(--border-strong);
+  background: var(--surface);
+  color: transparent;
+  cursor: pointer;
+  transition: border-color var(--duur-kort) var(--ease), background var(--duur-kort) var(--ease), color var(--duur-kort) var(--ease);
+}
+.dash-vink { width: 20px; height: 20px; border-radius: 6px; position: relative; z-index: 1; }
+.dash-vink svg { width: 12px; height: 12px; }
+.dash-subvink { width: 16px; height: 16px; border-radius: 5px; }
+.dash-subvink svg { width: 10px; height: 10px; }
+.dash-vink:hover,
+.dash-subvink:hover { border-color: var(--mint); color: var(--mint); }
+.dash-sub.af .dash-subvink { background: var(--mint); border-color: var(--mint); color: var(--navy); }
+.dash-taak-tekst { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.dash-taak-titel {
+  display: block; max-width: 100%;
+  padding: 0; border: 0; background: none;
+  font-family: var(--font-body); font-size: var(--fs-basis); font-weight: 600;
+  color: var(--text); text-align: left;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  cursor: pointer;
+}
+.dash-taak-titel:hover { text-decoration: underline; text-decoration-color: var(--border-strong); text-underline-offset: 3px; }
+.dash-taak-meta {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  font-size: var(--fs-micro); color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 0;
+}
+.dash-taak-sep { color: var(--text-hint); }
+.dash-taak-klant { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
+.dash-taak-blok { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+.dash-notitie-klant .dash-taak-blok { border-radius: 2px; }
+.dash-taak-datum.te-laat { color: var(--danger); font-weight: 600; }
+.dash-taak-ring {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 0; border: 0; background: none;
+  font: inherit; color: inherit;
+  font-family: var(--font-cijfer);
+  cursor: pointer;
+}
+.dash-taak-ring:hover { color: var(--text); }
+.dash-taak-ring svg { width: 11px; height: 11px; }
+.dash-exp {
+  width: 28px; height: 28px; flex-shrink: 0;
+  padding: 0; border: 0; background: none;
+  border-radius: 7px;
+  color: var(--text-hint);
+  display: grid; place-items: center;
+  cursor: pointer;
+}
+.dash-exp:hover { background: var(--surface3); color: var(--text); }
+.dash-exp svg { width: 16px; height: 16px; transition: transform var(--duur) var(--ease); }
+.dash-taak.open .dash-exp svg { transform: rotate(180deg); }
+.dash-pri {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: var(--fs-micro); font-weight: 700;
+  white-space: nowrap;
+}
+.dash-subs {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--duur) var(--ease);
+}
+.dash-taak.open .dash-subs { grid-template-rows: 1fr; }
+.dash-subs-in { overflow: hidden; min-height: 0; padding-bottom: 0; }
+.dash-taak.open .dash-subs-in { padding-bottom: 4px; }
+.dash-sub {
+  position: relative;
+  display: flex; align-items: center; gap: 10px;
+  min-height: 36px;
+  padding: 2px 8px 2px 40px;
+  font-size: var(--fs-klein);
+  border-radius: 7px;
+}
+.dash-sub::before {
+  content: "";
+  position: absolute; left: 17px; top: 0; bottom: 0;
+  width: 1px; background: var(--border-strong);
+}
+.dash-sub:last-of-type::before { bottom: 50%; }
+.dash-sub::after {
+  content: "";
+  position: absolute; left: 17px; top: 50%;
+  width: 14px; height: 1px; background: var(--border-strong);
+}
+.dash-sub-tekst { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dash-sub.af .dash-sub-tekst { color: var(--text-hint); text-decoration: line-through; }
+.dash-sub-nieuw,
+.dash-sub-invoer {
+  display: block;
+  margin-left: 40px;
+  min-height: 32px;
+  padding: 0 8px;
+  border: 0; background: none;
+  font-family: var(--font-body); font-size: var(--fs-klein);
+}
+.dash-sub-nieuw { color: var(--text-hint); cursor: pointer; border-radius: 7px; transition: color var(--duur-kort) var(--ease); }
+.dash-sub-nieuw:hover { color: var(--mint); }
+.dash-sub-invoer {
+  width: calc(100% - 48px);
+  border-radius: 7px;
+  background: var(--surface) !important;
+  border: 1px solid var(--border-strong) !important;
+  color: var(--text);
+  outline: none;
+}
+.dash-sub-invoer:focus { border-color: var(--mint) !important; }
 .dash-grid .card-body {
   padding: 10px 18px !important;
   flex: 1;
@@ -7186,6 +7479,21 @@ textarea { line-height: 1.6; resize: vertical; }
 .dash-oc-titel { font-weight: 400; color: var(--text-muted); }
 .dash-oc-soort { font-size: var(--fs-micro); color: var(--text-hint); flex-shrink: 0; }
 .dash-oc-rij .fac-pill { flex-shrink: 0; }
+/* Hoeveel van de looptijd erop zit. Leeg (zonder einddatum) houdt hij zijn
+   plek, zodat de pillen onder elkaar blijven staan. */
+.dash-oc-balk {
+  width: 70px; height: 4px; flex-shrink: 0;
+  border-radius: 2px;
+  background: var(--surface3);
+  overflow: hidden;
+}
+.dash-oc-balk > span { display: block; height: 100%; border-radius: 2px; background: var(--gr-nu); }
+.dash-oc-balk.leeg { background: none; }
+/* Smaller dan ~1200px heeft de naam de ruimte harder nodig dan het woord
+   Opdracht/Contract; de module zegt het al bij het openen. */
+@media (max-width: 1200px) {
+  .dash-oc-soort { display: none; }
+}
 .dash-oc-meer,
 .dash-oc-rustig,
 .dash-oc-leeg { font-size: var(--fs-klein); color: var(--text-muted); padding: 4px 0; }
@@ -8120,7 +8428,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.35</span>
+        <span class="app-versie" title="Appversie">v2.36</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -8245,6 +8553,20 @@ textarea { line-height: 1.6; resize: vertical; }
       <div class="dash-scroll">
         <!-- Hero -->
         <div class="dash-hero">
+          <!-- Sfeer, geen gegevens: een vaste lijn met een lichtpuls die er
+               eens in de zes seconden overheen loopt (dashHeroPuls). De
+               sparkline die hier stond telde bewerkte notities per dag; die
+               telling staat nu als tekst rechtsonder (#dashHeroDelta). -->
+          <svg class="dash-hero-trace" viewBox="0 0 400 200" preserveAspectRatio="xMaxYMid slice" fill="none" aria-hidden="true">
+            <defs>
+              <linearGradient id="dashHtg" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#00E5B0" stop-opacity="0"/><stop offset=".4" stop-color="#00E5B0" stop-opacity=".55"/><stop offset="1" stop-color="#38BDF8"/></linearGradient>
+              <filter id="dashHgl"><feGaussianBlur stdDeviation="4"/></filter>
+            </defs>
+            <path d="M0,170 H90 L120,140 H190 L215,152 L260,96 L290,108 L350,40 H400" stroke="url(#dashHtg)" stroke-width="2.5"/>
+            <path class="dash-hero-puls" d="M0,170 H90 L120,140 H190 L215,152 L260,96 L290,108 L350,40 H400" stroke="#fff" stroke-width="3" stroke-linecap="round" pathLength="1" stroke-dasharray=".06 .94" stroke-dashoffset=".06" opacity="0" filter="url(#dashHgl)"/>
+            <g transform="translate(350 40) rotate(45)"><rect x="-6" y="-6" width="12" height="12" fill="#38BDF8"/></g>
+            <g transform="translate(260 96) rotate(45)"><rect x="-4.5" y="-4.5" width="9" height="9" fill="#050D1C" stroke="#00E5B0" stroke-width="2"/></g>
+          </svg>
           <!-- Alleen op telefoonbreedte zichtbaar. Daar vervangt dit plusje de
                hele snel-toevoegbalk: die kostte met zijn hulpregel ruim 80px
                en vroeg om een syntax (@klant, !morgen) die je op een telefoon
@@ -8270,7 +8592,6 @@ textarea { line-height: 1.6; resize: vertical; }
             </div>
           </div>
           <div class="dash-hero-right">
-            <svg class="dash-hero-spark" id="dashHeroSpark" viewBox="0 0 200 60" preserveAspectRatio="none" aria-hidden="true"></svg>
             <div class="dash-hero-delta" id="dashHeroDelta"></div>
           </div>
         </div>
@@ -8279,9 +8600,10 @@ textarea { line-height: 1.6; resize: vertical; }
         <div class="dash-grid">
           <div class="card" data-dash-card="notes">
             <div class="card-hdr" onclick="dashCardToggle(event,this)">
+              <span class="dash-kop-icoon" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 1.75h5.25L12.5 5v8.25a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-10.5a1 1 0 0 1 1-1z"/><path d="M9.25 1.75V5h3.25M5.5 8.5h5M5.5 11h3.5"/></svg></span>
               <h2>Recente notities</h2>
               <span class="dash-card-count" id="dashCountNotes"></span>
-              <button class="btn btn-xs btn-primary" onclick="switchModule('notes')">Bekijk ↗</button>
+              <button type="button" class="dash-alles" onclick="switchModule('notes')">Alles ›</button>
               <span class="dash-card-chevron" aria-hidden="true">
                 <svg viewBox="0 0 12 12" fill="none" width="12" height="12"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </span>
@@ -8292,14 +8614,15 @@ textarea { line-height: 1.6; resize: vertical; }
           </div>
           <div class="card" data-dash-card="checklist">
             <div class="card-hdr" onclick="dashCardToggle(event,this)">
+              <span class="dash-kop-icoon" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="12" height="12" rx="3"/><path d="M5.25 8.25l2 2 3.5-4"/></svg></span>
               <h2>Checklist</h2>
               <span class="dash-card-count" id="dashCountChecklist"></span>
-              <button class="btn btn-xs btn-primary" onclick="switchModule('checklist')">Bekijk ↗</button>
+              <button type="button" class="dash-alles" onclick="switchModule('checklist')">Alles ›</button>
               <span class="dash-card-chevron" aria-hidden="true">
                 <svg viewBox="0 0 12 12" fill="none" width="12" height="12"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </span>
             </div>
-            <div class="card-body" id="dashChecklistBody" style="display:flex;flex-direction:column;gap:0">
+            <div class="card-body" id="dashChecklistBody">
               <div class="loading-state"><div class="spinner"></div><span>Laden...</span></div>
             </div>
             <div style="padding:10px 18px;border-top:1px solid var(--border);flex-shrink:0;display:flex;gap:6px">
@@ -8313,8 +8636,10 @@ textarea { line-height: 1.6; resize: vertical; }
                vraagt. Geen bedragen -- zie renderDashKpis. -->
           <div class="card dash-oc-card" data-dash-card="afspraken">
             <div class="card-hdr" onclick="dashCardToggle(event,this)">
+              <span class="dash-kop-icoon" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.75" y="4.5" width="12.5" height="9" rx="1.5"/><path d="M5.5 4.5V3a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v1.5M1.75 8.5h12.5"/></svg></span>
               <h2>Opdrachten &amp; contracten</h2>
               <span class="dash-card-count" id="dashCountAfspraken"></span>
+              <button type="button" class="dash-alles" onclick="switchModule('opdrachten')">Alles ›</button>
               <span class="dash-card-chevron" aria-hidden="true">
                 <svg viewBox="0 0 12 12" fill="none" width="12" height="12"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </span>
@@ -12703,9 +13028,9 @@ function renderSidebarClients(){}
      ═══ VIEW  ═══  renderDashboard zet vijf onderdelen neer:
                     hero, KPI-strip, Notities, Checklist.
 
-   Acties lopen via de app-brede dispatcher: data-action voor vinkjes,
-   moduleknoppen en taak-toevoegen, data-change voor de selects voor
-   prioriteit, deadline en klant.
+   Acties lopen via de app-brede dispatcher (data-action): vinkjes,
+   uitklappen, subtaak toevoegen, moduleknoppen. Prioriteit, deadline en
+   klant wijzig je in het taakvenster van de Checklist (titel aanklikken).
    ═══════════════════════════════════════════════════ */
 function renderDashboard(){
   document.getElementById('todayStr').textContent=formatToday();
@@ -12716,6 +13041,20 @@ function renderDashboard(){
   renderDashAfspraken();
   dashCardsInit();
   renderDashCardCounts();
+  dashHeroPuls();
+}
+
+/* De lichtpuls over de lijn in de hero. Eén keer starten: renderDashboard()
+   loopt na elke wijziging, en een tweede animatie erbovenop zou de eerste
+   halverwege laten verspringen. 6s is bewust trager dan --duur: het is
+   sfeer, geen terugkoppeling. Bij "beweging beperken" blijft hij weg. */
+function dashHeroPuls(){
+  const pk=document.querySelector('#mod-dashboard .dash-hero-puls');
+  if(!pk||!pk.animate)return;
+  if(geenBeweging()){pk.getAnimations().forEach(a=>a.cancel());return;}
+  if(pk.getAnimations().length)return;
+  pk.animate([{strokeDashoffset:.06,opacity:0},{opacity:1,offset:.05},{opacity:1,offset:.9},{strokeDashoffset:-1,opacity:0}],
+    {duration:6000,iterations:Infinity,easing:'linear'});
 }
 
 /* ── Dashboard-kaarten in- en uitklappen (alleen mobiel) ──────────────────
@@ -12801,7 +13140,6 @@ function dashDerivedStats(){
 function renderDashHero(){
   const hl=document.getElementById('dashHeroHeadline');
   const sub=document.getElementById('dashHeroSub');
-  const spark=document.getElementById('dashHeroSpark');
   const delta=document.getElementById('dashHeroDelta');
   if(!hl)return;
   const s=dashDerivedStats();
@@ -12819,36 +13157,11 @@ function renderDashHero(){
     ? `${s.doneCl} van ${s.totalCl} taken afgerond.`
     : 'Klaar om te starten.';
 
-  /* Sparkline: notes updated per day (last 7 days) */
-  const dayBuckets=[];
-  for(let i=6;i>=0;i--){
-    const d=new Date();d.setDate(d.getDate()-i);d.setHours(0,0,0,0);
-    dayBuckets.push(d.getTime());
-  }
-  const vals=dayBuckets.map(dayMs=>{
-    const next=dayMs+86400000;
-    return s.allPages.filter(n=>(n.updatedAt||0)>=dayMs&&(n.updatedAt||0)<next).length;
-  });
-  const W=200,H=60,PAD=4;
-  const max=Math.max(1,...vals);
-  const pts=vals.map((v,i)=>{
-    const x=PAD+(i*(W-2*PAD))/(vals.length-1);
-    const y=H-PAD-(v/max)*(H-2*PAD);
-    return[x,y];
-  });
-  const poly=pts.map(([x,y])=>`${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
-  const area=`${PAD},${H-PAD} ${poly} ${(W-PAD)},${H-PAD}`;
-  spark.innerHTML=`
-    <defs><linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#00e5b0" stop-opacity="0.35"/>
-      <stop offset="100%" stop-color="#00e5b0" stop-opacity="0"/>
-    </linearGradient></defs>
-    <polyline points="${area}" fill="url(#sparkFill)" stroke="none"/>
-    <polyline points="${poly}" fill="none" stroke="#00e5b0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    ${pts.map(([x,y])=>`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2" fill="#00e5b0"/>`).join('')}
-  `;
-  const total7=vals.reduce((a,b)=>a+b,0);
-  delta.textContent=total7>0?`${total7} ${total7===1?'notitie':'notities'} bewerkt afgelopen 7 dagen`:'Nog geen activiteit deze week';
+  /* Bewerkte notities in de afgelopen zeven dagen, als tekst rechtsonder.
+     Hier stond een sparkline per dag; de lijn in de hero is nu decoratie. */
+  const sinds=new Date();sinds.setHours(0,0,0,0);sinds.setDate(sinds.getDate()-6);
+  const total7=s.allPages.filter(n=>(n.updatedAt||0)>=sinds.getTime()).length;
+  if(delta)delta.textContent=total7>0?`${total7} ${total7===1?'notitie':'notities'} bewerkt afgelopen 7 dagen`:'Nog geen activiteit deze week';
 }
 
 /* Quick-add parser: parses '@klantnaam' and '!deadline' tokens out of
@@ -12969,6 +13282,81 @@ function renderDashKpis(){
      in de facturenmodule onder Debiteuren. */
 }
 
+/* ── Checklist-kaart ──────────────────────────────────────────────────────
+   Per taak één regel: vinkje, titel, een metaregel (klant · deadline ·
+   voortgang van de subtaken) en de prioriteit als pil. Subtaken klappen
+   uit onder de taak, met een boomlijn vanaf het hoofdvinkje.
+   - Prioriteit, deadline en klant wijzig je niet meer met drie selects op
+     elke regel: de titel opent het taakvenster van de Checklist, waar ze
+     alle drie staan (plus herhaling). Drie velden per taak maakten van een
+     overzicht een formulier.
+   - Welke taken openstaan onthoudt alleen deze sessie (dashTakenOpen):
+     het is een kijkstand, geen gegeven, en hoort dus niet in Drive.
+   - Afvinken loopt via clZetHoofdKlaar/clZetSubtaak, dezelfde regels als
+     in de module (subtaken mee af, alles af = hoofdtaak af). */
+const dashTakenOpen=new Set();
+let dashSubInvoer=null;   /* id van de taak waar nu een subtaak wordt getikt */
+let dashClHertekent=false; /* het oude invoerveld vuurt blur als innerHTML het weghaalt */
+
+const DASH_CHEV_SVG='<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const DASH_VINK_SVG='<svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2.5 6.2l2.3 2.3L9.5 3.8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+function dashTaakDeadline(iso,vandaag){
+  if(!iso)return '';
+  const d=new Date(iso+'T00:00:00'), t=new Date(vandaag+'T00:00:00');
+  const diff=Math.round((d-t)/86400000);
+  if(diff===0)return 'Vandaag';
+  if(diff===1)return 'Morgen';
+  if(diff===-1)return 'Gisteren';
+  if(diff<0)return `${-diff} dgn te laat`;
+  if(diff<7)return d.toLocaleDateString('nl-NL',{weekday:'short'}).replace('.','');
+  return d.toLocaleDateString('nl-NL',{day:'numeric',month:'short'}).replace('.','');
+}
+
+function dashTaakHtml(item,vandaag){
+  const cfg=CL_PRIORITY_CFG[item.priority]||CL_PRIORITY_CFG.middel;
+  const subs=item.subtasks||[];
+  const af=subs.filter(s=>s.done).length;
+  const open=subs.length>0&&dashTakenOpen.has(item.id);
+  const client=item.clientId?clientById(item.clientId):null;
+  const col=client?CLIENT_COLORS[client.colorIdx%CLIENT_COLORS.length]:null;
+  const overdue=item.deadline&&item.deadline<vandaag;
+  const id=escapeHtml(item.id);
+  const meta=[];
+  if(client)meta.push(`<span class="dash-taak-klant"><span class="dash-taak-blok" style="background:${col.tx}"></span>${escapeHtml(client.name)}</span>`);
+  if(item.deadline)meta.push(`<span class="dash-taak-datum${overdue?' te-laat':''}">${dashTaakDeadline(item.deadline,vandaag)}</span>`);
+  if(subs.length){
+    const omtrek=50.27, boog=(af/subs.length)*omtrek;
+    meta.push(`<button type="button" class="dash-taak-ring" data-action="dashTaakOpen" data-arg1="${id}" aria-expanded="${open}" aria-controls="dashSubs-${id}" title="${af} van ${subs.length} subtaken af">
+      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="8" stroke="var(--surface3)" stroke-width="4"/><circle cx="10" cy="10" r="8" stroke="var(--mint)" stroke-width="4" stroke-dasharray="${boog.toFixed(2)} ${omtrek}" transform="rotate(-90 10 10)"/></svg>${af}/${subs.length}</button>`);
+  }
+  const sep='<span class="dash-taak-sep" aria-hidden="true">·</span>';
+  let subsHtml='';
+  if(subs.length){
+    const rijen=subs.map(st=>`<div class="dash-sub${st.done?' af':''}">
+        <button type="button" class="dash-subvink" data-action="dashClToggleSubtask" data-arg1="${id}" data-arg2="${escapeHtml(st.id)}" aria-pressed="${!!st.done}" aria-label="${st.done?'Weer openzetten':'Afvinken'}: ${escapeHtml(st.text)}">${DASH_VINK_SVG}</button>
+        <span class="dash-sub-tekst">${escapeHtml(st.text)}</span>
+      </div>`).join('');
+    const nieuw=dashSubInvoer===item.id
+      ?`<input class="dash-sub-invoer" data-dash-sub-invoer="${id}" placeholder="Subtaak…" autocomplete="off"
+          onkeydown="dashSubToets(event,'${id}')" onblur="dashSubKlaar('${id}',this.value)"/>`
+      :`<button type="button" class="dash-sub-nieuw" data-action="dashSubNieuw" data-arg1="${id}">+ Subtaak</button>`;
+    subsHtml=`<div class="dash-subs" id="dashSubs-${id}"><div class="dash-subs-in">${rijen}${nieuw}</div></div>`;
+  }
+  return `<div class="dash-taak${open?' open':''}${subs.length?' met-subs':''}" data-id="${id}">
+    <div class="dash-taak-rij">
+      <button type="button" class="dash-vink" data-action="dashClToggle" data-arg1="${id}" aria-label="Afvinken: ${escapeHtml(item.text)}">${DASH_VINK_SVG}</button>
+      <div class="dash-taak-tekst">
+        <button type="button" class="dash-taak-titel" data-action="dashTaakBewerk" data-arg1="${id}" title="Bewerken">${escapeHtml(item.text)}</button>
+        ${meta.length?`<div class="dash-taak-meta">${meta.join(sep)}</div>`:''}
+      </div>
+      ${subs.length?`<button type="button" class="dash-exp" data-action="dashTaakOpen" data-arg1="${id}" aria-expanded="${open}" aria-controls="dashSubs-${id}" aria-label="${open?'Subtaken inklappen':'Subtaken tonen'}">${DASH_CHEV_SVG}</button>`:''}
+      <span class="dash-pri" style="background:${cfg.bg};color:${cfg.tx}">${cfg.label}</span>
+    </div>
+    ${subsHtml}
+  </div>`;
+}
+
 function renderDashChecklist(){
   const body=document.getElementById('dashChecklistBody');
   if(!body)return;
@@ -12994,38 +13382,69 @@ function renderDashChecklist(){
     }
     return dashCmp(a,b);
   });
-  const selStyle='padding:2px 6px;font-size:11px;border:0.5px solid var(--border-strong);border-radius:4px;background:var(--surface);color:var(--text);font-family:inherit;outline:none;cursor:pointer';
-  const clientOpts='<option value="">— klant —</option>'+klantenZichtbaar().map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
-  body.innerHTML=sorted.map(item=>{
-    const cfg=CL_PRIORITY_CFG[item.priority]||CL_PRIORITY_CFG.middel;
-    const today=new Date().toISOString().slice(0,10);
-    const overdue=item.deadline&&item.deadline<today;
-    return `<div class="dash-cl-row" style="padding:7px 4px;border-bottom:0.5px solid var(--border)">
-      <div style="display:flex;align-items:center;gap:8px">
-        <div data-action="dashClToggle" data-arg1="${item.id}" style="width:18px;height:18px;border-radius:4px;border:1.5px solid var(--border-strong);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s"
-          onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border-strong)'"></div>
-        <span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(item.text)}</span>
-      </div>
-      <div class="dash-cl-edit" style="display:flex;align-items:center;gap:6px;margin-top:5px;padding-left:26px;flex-wrap:wrap">
-        <select style="${selStyle};background:${cfg.bg};color:${cfg.tx};font-weight:600;border-color:${cfg.tx}40" data-change="dashClSetPriority" data-arg1="${item.id}">
-          ${['hoog','middel','laag'].map(p=>`<option value="${p}"${item.priority===p?' selected':''}>${CL_PRIORITY_CFG[p].label}</option>`).join('')}
-        </select>
-        <input type="date" value="${item.deadline||''}" style="${selStyle};color:${overdue?'var(--danger)':'var(--text-muted)'}" data-change="dashClSetDeadline" data-arg1="${item.id}"/>
-        <select style="${selStyle}" data-change="dashClSetClient" data-arg1="${item.id}">
-          ${clientOpts.replace(`value="${item.clientId||''}"`,`value="${item.clientId||''}" selected`)}
-        </select>
-      </div>
-      ${(item.subtasks&&item.subtasks.length)?`<div class="dash-cl-subs" style="padding-left:26px;margin-top:6px;display:flex;flex-direction:column;gap:3px">
-        ${item.subtasks.map(st=>`<div style="display:flex;align-items:center;gap:6px">
-          <div data-action="dashClToggleSubtask" data-arg1="${item.id}" data-arg2="${st.id}" style="width:14px;height:14px;border-radius:3px;border:1.5px solid var(--border-strong);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;${st.done?'background:var(--accent);border-color:var(--accent)':''};transition:all .15s"
-            onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='${st.done?'var(--accent)':'var(--border-strong)'}'">
-            ${st.done?`<svg width="9" height="9" viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`:''}
-          </div>
-          <span style="font-size:12px;color:var(--text-muted);${st.done?'text-decoration:line-through;opacity:.6':''};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(st.text)}</span>
-        </div>`).join('')}
-      </div>`:''}
-    </div>`;
-  }).join('');
+  const vandaag=new Date().toISOString().slice(0,10);
+  dashClHertekent=true;
+  try{body.innerHTML=sorted.map(item=>dashTaakHtml(item,vandaag)).join('');}
+  finally{dashClHertekent=false;}
+  if(dashSubInvoer){
+    const inp=body.querySelector(`[data-dash-sub-invoer="${CSS.escape(dashSubInvoer)}"]`);
+    if(inp)inp.focus();else dashSubInvoer=null;
+  }
+}
+
+/* Open- en dichtklappen zonder hertekenen: dan loopt de overgang van
+   grid-template-rows (0fr → 1fr) gewoon, en blijft de rest staan. */
+function dashTaakOpen(id){
+  const el=document.querySelector(`#dashChecklistBody .dash-taak[data-id="${CSS.escape(id)}"]`);
+  if(!el)return;
+  const open=!dashTakenOpen.has(id);
+  if(open)dashTakenOpen.add(id);else dashTakenOpen.delete(id);
+  el.classList.toggle('open',open);
+  el.querySelectorAll('.dash-exp,.dash-taak-ring').forEach(b=>b.setAttribute('aria-expanded',open));
+  const exp=el.querySelector('.dash-exp');
+  if(exp)exp.setAttribute('aria-label',open?'Subtaken inklappen':'Subtaken tonen');
+}
+function dashTaakBewerk(id){
+  openChecklistItemModal(id);
+}
+/* Het taakvenster is van de Checklist en tekent bij opslaan alleen die
+   module opnieuw. Gaat het dicht terwijl het dashboard in beeld is, dan
+   werkt dit de kaart en de hero bij -- ook na de + in de hero. */
+(function dashVolgTaakvenster(){
+  const m=document.getElementById('clItemModal');
+  if(!m||typeof MutationObserver==='undefined')return;
+  let wasOpen=m.classList.contains('open');
+  new MutationObserver(()=>{
+    const nu=m.classList.contains('open');
+    if(wasOpen&&!nu&&activeModule==='dashboard'){renderDashHero();renderDashChecklist();}
+    wasOpen=nu;
+  }).observe(m,{attributes:true,attributeFilter:['class']});
+})();
+
+function dashSubNieuw(id){
+  dashSubInvoer=id;
+  renderDashChecklist();
+}
+function dashSubToets(e,id){
+  if(e.key==='Enter'){e.preventDefault();dashSubKlaar(id,e.target.value,true);}
+  else if(e.key==='Escape'){e.preventDefault();dashSubInvoer=null;renderDashChecklist();}
+}
+/* Enter legt vast en houdt het veld open voor de volgende; blur legt vast
+   en sluit. De blur die ná een hertekening nog afgaat, doet niets meer. */
+function dashSubKlaar(id,waarde,verder){
+  if(dashSubInvoer!==id||dashClHertekent)return;
+  const text=String(waarde||'').trim();
+  const item=checklistState.items.find(i=>i.id===id);
+  if(!verder)dashSubInvoer=null;
+  if(text&&item){
+    if(!item.subtasks)item.subtasks=[];
+    item.subtasks.push({id:uid(),text,done:false});
+    item.updatedAt=Date.now();
+    scheduleSave();
+    if(activeModule==='checklist')renderChecklistModule();
+  }
+  if(!text&&verder)dashSubInvoer=null;
+  renderDashChecklist();
 }
 
 function dashClToggleSubtask(itemId,subId){
@@ -13034,29 +13453,15 @@ function dashClToggleSubtask(itemId,subId){
   const st=(item.subtasks||[]).find(s=>s.id===subId);
   if(!st)return;
   clZetSubtaak(item,st);
-  scheduleSave();renderDashChecklist();
+  scheduleSave();renderDashChecklist();renderDashHero();
   if(activeModule==='checklist')renderChecklistModule();
 }
 function dashClToggle(id){
   const item=checklistState.items.find(i=>i.id===id);
   if(!item)return;
   clZetHoofdKlaar(item,true);
-  scheduleSave();renderDashChecklist();
-  if(activeModule==='checklist')renderChecklistModule();
-}
-function dashClSetPriority(id,val){
-  const item=checklistState.items.find(i=>i.id===id);
-  if(!item)return;item.priority=val;scheduleSave();renderDashChecklist();
-  if(activeModule==='checklist')renderChecklistModule();
-}
-function dashClSetDeadline(id,val){
-  const item=checklistState.items.find(i=>i.id===id);
-  if(!item)return;item.deadline=val||null;scheduleSave();renderDashChecklist();
-  if(activeModule==='checklist')renderChecklistModule();
-}
-function dashClSetClient(id,val){
-  const item=checklistState.items.find(i=>i.id===id);
-  if(!item)return;item.clientId=val||null;scheduleSave();renderDashChecklist();
+  dashTakenOpen.delete(id);
+  scheduleSave();renderDashChecklist();renderDashHero();
   if(activeModule==='checklist')renderChecklistModule();
 }
 
@@ -13095,14 +13500,34 @@ function renderDashNotes(){
   body.innerHTML=recent.map(n=>{
     const client=n.clientId?clientById(n.clientId):null;
     const col=client?CLIENT_COLORS[client.colorIdx%CLIENT_COLORS.length]:null;
-    const badge=client?`<span style="font-size:10px;font-weight:600;padding:1px 6px;border-radius:4px;background:${col.bg};color:${col.tx};flex-shrink:0">${escapeHtml(client.name)}</span>`:'';
-    const ts=n.updatedAt?new Date(n.updatedAt).toLocaleDateString('nl-NL',{day:'numeric',month:'short'}):'';
-    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border-radius:var(--radius-md);margin-bottom:6px;cursor:pointer" data-action="switchModule" data-arg1="notes">
-      <span style="font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(n.title)}</span>
-      ${badge}
-      <span style="font-size:10px;color:var(--text-hint);white-space:nowrap">${ts}</span>
-    </div>`;
+    const klant=client?`<span class="dash-notitie-klant"><span class="dash-taak-blok" style="background:${col.tx}"></span>${escapeHtml(client.name)}</span>`
+      :'<span class="dash-notitie-klant geen">Geen klant</span>';
+    return `<button type="button" class="dash-notitie" data-action="dashNotitieOpen" data-arg1="${escapeHtml(n.id)}">
+      <span class="dash-notitie-icoon" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 1.75h5.25L12.5 5v8.25a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-10.5a1 1 0 0 1 1-1z"/><path d="M9.25 1.75V5h3.25"/></svg></span>
+      <span class="dash-notitie-tekst">
+        <span class="dash-notitie-titel">${escapeHtml(n.title||'Naamloos')}</span>
+        ${klant}
+      </span>
+      <span class="dash-notitie-tijd">${dashRelTijd(n.updatedAt)}</span>
+    </button>`;
   }).join('');
+}
+
+/* "14:20" vandaag, "gisteren", "ma" deze week, daarna "28 sep". */
+function dashRelTijd(ms){
+  if(!ms)return '';
+  const d=new Date(ms), nu=new Date();
+  const dag=x=>new Date(x.getFullYear(),x.getMonth(),x.getDate()).getTime();
+  const diff=Math.round((dag(nu)-dag(d))/86400000);
+  if(diff===0)return d.toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});
+  if(diff===1)return 'gisteren';
+  if(diff>1&&diff<7)return d.toLocaleDateString('nl-NL',{weekday:'short'}).replace('.','');
+  return d.toLocaleDateString('nl-NL',{day:'numeric',month:'short'}).replace('.','');
+}
+/* Een notitie op het dashboard opent díe notitie, niet alleen de module. */
+function dashNotitieOpen(id){
+  switchModule('notes');
+  if(typeof selectNote==='function')selectNote(id);
 }
 
 /* ── Opdrachten & contracten ──────────────────────────────────────────────
@@ -13117,6 +13542,13 @@ function renderDashNotes(){
    - Een contract aan een opdracht slaat over: zijn looptijd ís die van de
      opdracht, dus hij zou hetzelfde signaal een tweede keer geven. */
 const DASH_OC_MAX=5;
+/* Hoeveel van de (huidige) looptijd erop zit, 0–1. Zonder einddatum is er
+   geen "hoe ver", en dan ook geen balk. */
+function dashOcVoortgang(start,eind,vandaag){
+  if(!start||!eind||eind<=start)return null;
+  const t=d=>new Date(d+'T00:00:00').getTime();
+  return Math.min(1,Math.max(0,(t(vandaag)-t(start))/(t(eind)-t(start))));
+}
 function dashOcData(){
   const vandaag=opdVandaag();
   const rijen=[];
@@ -13130,7 +13562,7 @@ function dashOcData(){
     tel.opd++;
     const opzeg=opdOpzegDatum(o);
     const naam=String(o.naam||'').trim()||opdKlantNaam(o.clientId);
-    const basis={soort:'opd',id:o.id,naam,clientId:o.clientId};
+    const basis={soort:'opd',id:o.id,naam,clientId:o.clientId,voortgang:dashOcVoortgang(o.start,o.eind,vandaag)};
     const sig=i.signalen.filter(s=>s.soort!=='stil').map(s=>({...s,
       datum:s.soort==='opzeg'?opzeg:s.soort==='eind'?o.eind:vandaag}));
     if(sig.length){
@@ -13151,7 +13583,7 @@ function dashOcData(){
     if(st!=='lopend')return;
     tel.ctr++;
     const basis={soort:'ctr',id:c.id,naam:ctrPartijNaam(c),titel:String(c.titel||'').trim(),
-      clientId:c.clientId||null};
+      clientId:c.clientId||null,voortgang:dashOcVoortgang(lt.periodeStart,lt.eind,vandaag)};
     if(sig.length){
       sig.sort((a,b)=>a.datum.localeCompare(b.datum));
       rijen.push({...basis,sig:{...sig[0],niveau:'let'}});
@@ -13188,6 +13620,8 @@ function renderDashAfspraken(){
       <span class="dash-oc-dot" style="background:${kleur(r.clientId)}"></span>
       <span class="dash-oc-naam">${escapeHtml(r.naam)}${r.titel?`<span class="dash-oc-titel"> · ${escapeHtml(r.titel)}</span>`:''}</span>
       <span class="dash-oc-soort">${r.soort==='opd'?'Opdracht':'Contract'}</span>
+      ${r.voortgang===null?'<span class="dash-oc-balk leeg"></span>'
+        :`<span class="dash-oc-balk" title="${Math.round(r.voortgang*100)}% van de looptijd verstreken"><span style="width:${(r.voortgang*100).toFixed(1)}%"></span></span>`}
       <span class="fac-pill opd-pill-${r.sig.niveau}">${escapeHtml(r.sig.tekst)}</span>
     </button>`;
   const getoond=d.rijen.slice(0,DASH_OC_MAX);
@@ -13248,13 +13682,12 @@ Object.assign(APP_ACTIONS,{
   setClientFilter:(el,e,id)=>setClientFilter(id),
   dashClToggle:(el,e,id)=>dashClToggle(id),
   dashClToggleSubtask:(el,e,itemId,stId)=>dashClToggleSubtask(itemId,stId),
+  dashTaakOpen:(el,e,id)=>dashTaakOpen(id),
+  dashTaakBewerk:(el,e,id)=>dashTaakBewerk(id),
+  dashSubNieuw:(el,e,id)=>dashSubNieuw(id),
+  dashNotitieOpen:(el,e,id)=>dashNotitieOpen(id),
   dashOcOpen:(el,e,soort,id)=>dashOcOpen(soort,id),
   dashOcPrive:()=>dashOcPrive()
-});
-Object.assign(APP_CHANGE_ACTIONS,{
-  dashClSetPriority:(el,e,id)=>dashClSetPriority(id,el.value),
-  dashClSetDeadline:(el,e,id)=>dashClSetDeadline(id,el.value),
-  dashClSetClient:(el,e,id)=>dashClSetClient(id,el.value)
 });
 
 /* ═══════════════════════════════════════════════════

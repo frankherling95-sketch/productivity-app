@@ -208,7 +208,38 @@ Op een bureaublad een kaart over beide kolommen onder Notities en Checklist
 (`grid-template-rows: 1fr auto`, alleen boven 900px). Regels `.dash-oc-rij`:
 `var(--tap)` hoog, `--surface2`, `radius-md`, `var(--fs-klein)`; naam 600 met
 `…`, het signaal als `.fac-pill.opd-pill-let`/`-fout`. Twee kolommen vanaf 340px
-breed. Op mobiel één kolom, het woord Opdracht/Contract weg.
+breed. Op mobiel één kolom, het woord Opdracht/Contract weg (en al onder
+1200px). Vóór de pil een balk van 70×4px: hoeveel van de looptijd erop zit,
+vulling `--gr-nu` op `--surface3`; zonder einddatum blijft zijn plek leeg
+zodat de pillen onder elkaar staan. Op mobiel staat de balk onder de naam en
+de pil rechts.
+
+### Kaartkop op het Dashboard
+
+Eén kop voor alle dashboardkaarten (`.dash-grid .card-hdr`):
+
+| | |
+|---|---|
+| icoon | `.dash-kop-icoon` 30×30, radius 8, svg 16px; tint via `--dash-tint`/`--dash-inkt` op de kaart |
+| tinten | Checklist `--mint-soft` / #00936C (donker: `--mint`) · Notities `--info-bg` / `--info` · Opdrachten & contracten `--warning-bg` / `--warning` |
+| titel | `--font-display`, `--fs-groot`, 700 |
+| telpil | `--fs-micro`, 700, 22px hoog, `--surface2`; leeg = weg |
+| rechts | `.dash-alles` "Alles ›": 30px, `--fs-klein`/600, rand `--border-strong`, hover mint. Op mobiel weg (de kop klapt daar in en uit) |
+
+Notitieregel (`.dash-notitie`): documenticoon 30×30 op `--surface2`, titel
+`--fs-basis`/600, klant eronder `--fs-micro` met een blokje van 8px, tijd
+rechts `--fs-micro` `--text-hint` ("14:20", "gisteren", "ma", "28 sep").
+
+### Taakregel op het Dashboard
+
+| | |
+|---|---|
+| vinkje | 20px, radius 6, 7px van de rand: zijn midden (17px) is de boomlijn |
+| titel | `--fs-basis` / 600, één regel (mobiel twee); klik = taakvenster |
+| meta | `--fs-micro`: klantblokje 8px · deadline (te laat in `--danger`) · ring 11px + `d/n` (de ring is ook de uitklapknop) |
+| uitklappen | `.dash-exp` 28px (mobiel `--tap`), chevron 16px, `aria-expanded`; alleen bij subtaken |
+| prioriteit | pil `--fs-micro`/700 in de kleuren van `CL_PRIORITY_CFG`; op mobiel naast de titel |
+| open | vlak `--surface2`; subtaken 36px (mobiel `--tap`), `--fs-klein`, vinkje 16px, boomlijn 1px `--border-strong`; "+ Subtaak" `--text-hint`, hover mint |
 
 ### Waarde met een balk (Opdrachten → Omzet, Per klant)
 

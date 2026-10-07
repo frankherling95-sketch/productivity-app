@@ -5958,3 +5958,53 @@ Het app-icoon (180–512px) en het manifest houden de gedetailleerde versie.
 
 **Niet doen.** Het grote logo op een kleine plek terugzetten, of de
 klein-versie op het app-icoon: daar is de detaillering juist het mooie.
+
+## 2026-10-07 · Dashboard in een nieuwe stijl (v2.36)
+
+**Probleem.** Het dashboard zag er anders uit dan de rest van de nieuwe
+huisstijl (het logo met de lijnchart), de kaartkoppen hadden elk een
+primaire knop "Bekijk ↗" en verder niets, en de Checklist-kaart droeg per
+taak drie selects (prioriteit, deadline, klant) plus alle subtaken open —
+een formulier in plaats van een overzicht.
+
+**Beslissing.**
+- *Hero*: een donkere "tech-tegel" (eigen achtergrond, raster, lichtlijn
+  langs de bovenrand) met de lijn uit het logo en een lichtpuls die er eens
+  in de zes seconden overheen loopt (`dashHeroPuls()`, Web Animations API,
+  één keer gestart). Blijft donker in elk thema, zoals de zijbalk. De
+  sparkline van bewerkte notities is weg; de telling staat als tekst
+  rechtsonder. Het snelveld is donker en geblurd, met een mint focusring.
+- *Kaartkop*: één vorm voor alle kaarten — icoon 30×30 in de tint van de
+  soort (Checklist mint, Notities info, Opdrachten & contracten warning),
+  titel `--fs-groot`/700, telpil (nu ook op een bureaublad), "Alles ›".
+- *Checklist*: per taak vinkje, titel, metaregel (klant · deadline · ring
+  `d/n`) en de prioriteit als pil. Subtaken klappen uit (`grid-template-rows`
+  0fr→1fr) met een boomlijn vanaf het hoofdvinkje, en "+ Subtaak" eronder.
+  Welke taken openstaan onthoudt alleen de sessie (`dashTakenOpen`). De
+  titel opent het taakvenster van de Checklist voor prioriteit, deadline en
+  klant; de drie selects zijn weg (`dashClSetPriority/Deadline/Client`).
+- *Notities*: documenticoon, titel, klant eronder, relatieve tijd rechts; een
+  klik opent díe notitie (`dashNotitieOpen`), niet alleen de module.
+- *Opdrachten & contracten*: een balk van 70×4px vóór de pil met hoeveel van
+  de (huidige) looptijd erop zit. Zonder einddatum houdt hij zijn plek leeg.
+  Onder 1200px valt het woord Opdracht/Contract weg.
+
+**Waarom de titel het venster opent.** Prioriteit, deadline en klant pas je
+zelden vanaf het dashboard aan; het taakvenster heeft ze alle drie (plus
+herhaling) en bestond al. Het venster tekende na opslaan alleen de Checklist
+opnieuw — ook bij de + in de hero bleef het dashboard dus oud. Een
+MutationObserver op `#clItemModal` werkt nu kaart en hero bij zodra het
+venster dichtgaat terwijl het dashboard in beeld is.
+
+**Valkuil.** Enter in het subtaakveld hertekent de kaart; het oude veld vuurt
+dan nog een blur en legde de subtaak een tweede keer vast. `dashClHertekent`
+houdt die blur tegen.
+
+**Bestanden.** `index.html` — `#mod-dashboard`-markup, `renderDashboard`,
+`dashHeroPuls`, `renderDashHero`, `renderDashChecklist`/`dashTaakHtml`,
+`dashTaakOpen`, `dashSub*`, `renderDashNotes`, `dashRelTijd`,
+`dashOcVoortgang`, `renderDashAfspraken`, `.dash-*`-CSS en de mobiele laag;
+`sw.js`; `docs/stijlgids.md`.
+
+**Niet doen.** `--hero-gradient` aanpassen voor de hero (gedeeld met de
+modals), of de open-stand van taken in `rawState` zetten.
