@@ -5936,3 +5936,25 @@ geschiedenis en een force-push; dat is een aparte beslissing van Frank.
 
 **Niet doen.** Een leesbare namenlijst in de repo zetten "voor de controle",
 of een echte naam als voorbeeld in een test of mockup gebruiken.
+
+## 2026-10-07 · Een kleine versie van het logo voor 16–64px
+
+**Probleem.** Het nieuwe logo zag er in de zijbalk pixelig uit; inzoomen
+maakte het beter. Het is getekend op 512px: op 44px wordt de omlijning van de
+H (9 eenheden) 0,8px, de binnenlijn en de rand (3) een kwart pixel en het
+raster (5% wit om de 32 eenheden) een moiré. Op een gewoon scherm (1x) vallen
+die lijnen in gekartelde stukjes uiteen.
+
+**Beslissing.** Een tweede versie voor kleine maten, zoals bij iconen gebruikelijk:
+`herling-icon-klein.svg` en `herling-icon-anim-klein.svg`. Zelfde ontwerp en
+animatie, maar: geen raster en geen dunne binnenlijn; omlijning 22, rand 8,
+grafieklijnen 18, lichtpulsen 14, knooppunten ruim anderhalf keer zo groot,
+vulling van de H iets sterker. Gebruikt in de zijbalk (44px), de kop van de
+klantwisselaar (32px), de regel "Alle klanten" (22px) en als tabbladicoon.
+Het app-icoon (180–512px) en het manifest houden de gedetailleerde versie.
+
+**Bestanden.** `herling-icon-klein.svg`, `herling-icon-anim-klein.svg`,
+`index.html` (`<head>`, zijbalk, `klantLogoHtml`), `sw.js`, `CLAUDE.md`.
+
+**Niet doen.** Het grote logo op een kleine plek terugzetten, of de
+klein-versie op het app-icoon: daar is de detaillering juist het mooie.

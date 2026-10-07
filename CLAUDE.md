@@ -23,8 +23,9 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 .
 ├── index.html   ← DE app (alle wijzigingen hier)
 ├── herling_analytics_home.html, bi_checklist_kanban.html  ← redirect-stubs (oude URLs)
-├── herling-icon.svg              ← logo, stilstaand (favicon, manifest, kleine plekken)
-├── herling-icon-anim.svg         ← logo, bewegend (zijbalk, klantwisselaar)
+├── herling-icon.svg              ← logo, stilstaand, groot (manifest)
+├── herling-icon-anim.svg         ← logo, bewegend, groot (bron van de klein-versie; niet in de app)
+├── herling-icon-klein.svg, herling-icon-anim-klein.svg  ← zelfde logo voor 16–64px: dikkere lijnen, geen raster (tabblad, zijbalk, klantwisselaar)
 ├── herling-icon-180/192/512.png, herling-icon-maskable-512.png  ← app-iconen (iOS, Android)
 ├── manifest.json, sw.js          ← PWA + Service Worker (zie ⚠️ hieronder)
 ├── CLAUDE.md                     ← dit bestand
