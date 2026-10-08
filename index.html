@@ -315,7 +315,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .note-chev{font-size:8px;color:var(--text-hint);width:10px;text-align:center;cursor:pointer;flex-shrink:0}
 .note-chev.collapsed{transform:rotate(-90deg)}
 .note-icon{font-size:11px;color:var(--text-hint);flex-shrink:0}
-.note-label{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.note-label{flex:1;min-width:0;white-space:normal;overflow-wrap:anywhere}
 .note-client-dot{width:9px;height:9px;border-radius:3px;flex-shrink:0;box-shadow:inset 0 0 0 1px rgba(255,255,255,0.15)}
 .note-actions{display:none;gap:1px}
 .note-node:hover .note-actions{display:flex}
@@ -3178,8 +3178,13 @@ textarea { line-height: 1.6; resize: vertical; }
 }
 
 /* ─── Notes tree node ─────────────────────────────────────────────────────── */
+/* Flex, met alles bovenaan: een lange titel loopt door over meer regels en
+   chevron, icoon en klantblokje blijven naast de eerste regel staan. Hier
+   stond display:block, waardoor het icoon bij een lange titel op een eigen
+   regel viel en de titel werd afgekapt. */
 .note-node {
-  display: block !important;
+  display: flex !important;
+  align-items: flex-start;
   padding: 9px 11px !important;
   border-radius: var(--radius) !important;
   margin-bottom: 2px !important;
@@ -4375,11 +4380,40 @@ textarea { line-height: 1.6; resize: vertical; }
    instead of auto-growing with content — required so the body inside
    the editor column gets a constrained height and overflow:auto works. */
 .notes-layout {
-  grid-template-columns: 240px 1fr !important;
+  /* Breedte van de lijst: te verslepen (notesLijstInit), per apparaat
+     bewaard in LS_NOTES_LIJST. */
+  grid-template-columns: var(--notes-lijst, 240px) 1fr !important;
+  position: relative;
   grid-template-rows: 1fr !important;
   min-height: 0 !important;
 }
 .notes-editor { min-height: 0 !important; min-width: 0 !important; }
+/* De greep ligt over de rand tussen lijst en editor: 8px raakvlak, een lijn
+   van 2px die mint wordt als je eroverheen gaat of sleept. Absoluut, zodat
+   hij geen derde kolom in het raster wordt. */
+.notes-sleep {
+  position: absolute;
+  top: 0; bottom: 0;
+  left: calc(var(--notes-lijst, 240px) - 4px);
+  width: 8px;
+  z-index: 5;
+  cursor: col-resize;
+  touch-action: none;
+}
+.notes-sleep::after {
+  content: "";
+  position: absolute;
+  top: 0; bottom: 0; left: 3px;
+  width: 2px;
+  background: transparent;
+  transition: background var(--duur-kort) var(--ease);
+}
+.notes-sleep:hover::after,
+.notes-sleep:focus-visible::after,
+.notes-sleep.sleept::after { background: var(--mint); }
+.notes-sleep:focus-visible { outline: none; }
+body.notes-sleept { cursor: col-resize; user-select: none; }
+body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none; }
 
 .notes-sidebar {
   padding: 12px 8px !important;
@@ -4422,20 +4456,27 @@ textarea { line-height: 1.6; resize: vertical; }
   font-size: 9px !important;
   color: var(--text-hint);
   width: 12px !important;
+  height: 20px;
+  line-height: 20px;
   transition: transform 0.15s;
 }
 .note-icon {
   font-size: 12px !important;
   color: var(--text-hint);
   width: 14px;
+  height: 20px;
   display: inline-flex;
+  align-items: center;
   justify-content: center;
 }
 .note-node.active .note-icon { color: var(--mint); }
 .note-label {
   font-size: 13px;
+  line-height: 20px;
   letter-spacing: -0.005em;
 }
+.note-node .note-client-dot { margin-top: 5.5px; }
+.note-node .note-actions { margin-top: -1px; }
 
 /* Action icon buttons on tree nodes — cl2-iconbtn look */
 .note-actions { gap: 2px !important; }
@@ -4639,8 +4680,9 @@ textarea { line-height: 1.6; resize: vertical; }
 }
 .notes-recent-item:hover { background: var(--surface2); color: var(--text); }
 .notes-recent-item.active { background: var(--mint-soft); color: var(--text); font-weight: 600; }
-.notes-recent-item svg { color: var(--text-hint); flex-shrink: 0; }
-.notes-recent-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.notes-recent-item { align-items: flex-start; }
+.notes-recent-item svg { color: var(--text-hint); flex-shrink: 0; margin-top: 3px; }
+.notes-recent-item span { min-width: 0; overflow-wrap: anywhere; }
 
 /* Editor footer (word count + shortcuts hint) */
 .notes-editor-footer {
@@ -5771,6 +5813,8 @@ textarea { line-height: 1.6; resize: vertical; }
     grid-template-columns: 1fr !important;
     grid-template-rows: 1fr !important;
   }
+  /* Op een telefoon is de lijst het hele scherm; niets te verslepen. */
+  .notes-sleep { display: none; }
   /* By default, show only the tree (sidebar). The editor is hidden
      until a note is opened, then add .mobile-editing class on the
      module to swap visibility. */
@@ -8412,7 +8456,7 @@ textarea { line-height: 1.6; resize: vertical; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.39</span>
+        <span class="app-versie" title="Appversie">v2.40</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -8705,6 +8749,9 @@ textarea { line-height: 1.6; resize: vertical; }
           <div class="notes-tree" id="notesTree"></div>
           <div id="notesRecent" class="notes-recent" style="display:none"></div>
         </div>
+        <div class="notes-sleep" id="notesSleep" role="separator" aria-orientation="vertical"
+          aria-label="Breedte van de lijst" tabindex="0"
+          title="Sleep om de lijst breder of smaller te maken · dubbelklik voor de standaardbreedte"></div>
         <div class="notes-editor">
           <div id="noteContent">
             <div class="notes-empty">
@@ -15899,6 +15946,73 @@ function notesClientVolgorde(clients){
 }
 
 /* ─ Render tree ─ */
+/* ── Breedte van de lijst ─────────────────────────────────────────────────
+   Te verslepen aan de rand tussen lijst en editor, met de pijltjes als de
+   greep focus heeft, en dubbelklik zet hem terug op 240px. Per apparaat
+   (localStorage), net als de stand van de zijbalk: op een laptop wil je
+   een andere breedte dan op een groot scherm, en het is geen gegeven dat
+   naar Drive hoort. De editor houdt altijd minstens 360px. */
+const LS_NOTES_LIJST='herling_notes_lijst';
+const NOTES_LIJST_STANDAARD=240, NOTES_LIJST_MIN=180, NOTES_LIJST_MAX=640, NOTES_EDITOR_MIN=360;
+function notesLijstGrens(px){
+  const lay=document.querySelector('#mod-notes .notes-layout');
+  const ruimte=lay&&lay.clientWidth?lay.clientWidth-NOTES_EDITOR_MIN:NOTES_LIJST_MAX;
+  return Math.round(Math.max(NOTES_LIJST_MIN,Math.min(px,NOTES_LIJST_MAX,ruimte)));
+}
+function notesLijstZet(px,bewaar){
+  const lay=document.querySelector('#mod-notes .notes-layout');
+  if(!lay)return;
+  const w=notesLijstGrens(px);
+  lay.style.setProperty('--notes-lijst',w+'px');
+  const g=document.getElementById('notesSleep');
+  if(g){g.setAttribute('aria-valuenow',w);g.setAttribute('aria-valuemin',NOTES_LIJST_MIN);g.setAttribute('aria-valuemax',NOTES_LIJST_MAX);}
+  if(bewaar){try{localStorage.setItem(LS_NOTES_LIJST,String(w));}catch(_){}}
+}
+function notesLijstBreedte(){
+  const lay=document.querySelector('#mod-notes .notes-layout');
+  const v=lay&&parseFloat(lay.style.getPropertyValue('--notes-lijst'));
+  return v||NOTES_LIJST_STANDAARD;
+}
+(function notesLijstInit(){
+  const g=document.getElementById('notesSleep');
+  if(!g)return;
+  let opgeslagen=NOTES_LIJST_STANDAARD;
+  try{opgeslagen=parseFloat(localStorage.getItem(LS_NOTES_LIJST))||NOTES_LIJST_STANDAARD;}catch(_){}
+  /* Nog niet begrenzen op de ruimte: de module kan verborgen zijn (0px). */
+  const lay=document.querySelector('#mod-notes .notes-layout');
+  if(lay)lay.style.setProperty('--notes-lijst',Math.max(NOTES_LIJST_MIN,Math.min(opgeslagen,NOTES_LIJST_MAX))+'px');
+  let startX=0,startW=0;
+  g.addEventListener('pointerdown',e=>{
+    if(e.button!==0)return;
+    e.preventDefault();
+    startX=e.clientX;startW=notesLijstBreedte();
+    g.setPointerCapture(e.pointerId);
+    g.classList.add('sleept');document.body.classList.add('notes-sleept');
+  });
+  g.addEventListener('pointermove',e=>{
+    if(!g.hasPointerCapture(e.pointerId))return;
+    notesLijstZet(startW+e.clientX-startX,false);
+  });
+  const klaar=e=>{
+    if(!g.classList.contains('sleept'))return;
+    g.classList.remove('sleept');document.body.classList.remove('notes-sleept');
+    notesLijstZet(notesLijstBreedte(),true);
+  };
+  g.addEventListener('pointerup',klaar);
+  g.addEventListener('pointercancel',klaar);
+  g.addEventListener('dblclick',()=>notesLijstZet(NOTES_LIJST_STANDAARD,true));
+  g.addEventListener('keydown',e=>{
+    const stap=e.shiftKey?64:16;
+    if(e.key==='ArrowLeft'){e.preventDefault();notesLijstZet(notesLijstBreedte()-stap,true);}
+    else if(e.key==='ArrowRight'){e.preventDefault();notesLijstZet(notesLijstBreedte()+stap,true);}
+    else if(e.key==='Home'){e.preventDefault();notesLijstZet(NOTES_LIJST_STANDAARD,true);}
+  });
+  /* Kleiner venster: de editor houdt zijn 360px. */
+  window.addEventListener('resize',()=>{
+    if(activeModule==='notes')notesLijstZet(notesLijstBreedte(),false);
+  });
+})();
+
 function renderNotesTree(){
   const el=document.getElementById('notesTree');if(!el)return;
   notesSortKnopBij();

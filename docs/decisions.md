@@ -6045,3 +6045,33 @@ even ver van de rand staat.
 
 **Niet doen.** De kop terugzetten voor de ingeklapte zijbalk: ook daar staat
 het logo erboven, en de lijst zegt met het vinkje wat er gekozen is.
+
+## 2026-10-08 · Notities: lijst te verslepen, titels lopen door (v2.40)
+
+**Probleem.** Lange titels in de lijst met pagina's werden afgekapt, en het
+icoon viel dan op een eigen regel erboven. Oorzaak: een oude regel zette
+`.note-node` op `display:block !important`, terwijl de rest van de opmaak
+(gap, `flex:1` op de titel) van flex uitging. De titel stond op `nowrap`
+met ellipsis, en de boom kreeg een horizontale scrollbalk. De lijst had
+een vaste breedte van 240px.
+
+**Beslissing.**
+- `.note-node` is flex met `align-items:flex-start`; de titel mag over
+  meer regels (`overflow-wrap:anywhere`). Chevron, icoon en klantblokje
+  staan op de hoogte van de eerste regel (20px). Ook "Recent geopend"
+  kapt niet meer af.
+- Een sleepgreep op de rand tussen lijst en editor (`#notesSleep`,
+  `role="separator"`): slepen met de muis, pijltjes (Shift = grotere stap)
+  als hij focus heeft, dubbelklik of Home = terug naar 240px. Grenzen:
+  180–640px, en de editor houdt altijd 360px. Op een telefoon is er geen
+  greep.
+- De breedte staat per apparaat in localStorage (`LS_NOTES_LIJST`), net als
+  de stand van de zijbalk: op een laptop wil je iets anders dan op een
+  groot scherm, en het is geen gegeven voor Drive.
+
+**Bestanden.** `index.html` (`.note-node`, `.note-label`, `.notes-layout`,
+`.notes-sleep`, `.notes-recent-item`, `notesLijst*`), `sw.js`, `CLAUDE.md`.
+
+**Niet doen.** De breedte in `rawState` zetten, of de greep als derde kolom
+in het raster: hij is absoluut gepositioneerd zodat de kolommen blijven
+zoals ze zijn.

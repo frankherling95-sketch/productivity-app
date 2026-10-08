@@ -88,6 +88,7 @@ rawState = {
 | `LS_BACKUP_KEY` = `herling_analytics_local_backup` | Volledige rawState backup |
 | `LS_SYNC_KEY` = `herling_analytics_sync` | `gewijzigdOp`/`naarDriveOp` (lokale klok) + `driveTijd` (server-klok) |
 | `LS_ZIJBALK` = `herling_zijbalk` | Zijbalk ingeklapt + welke groepen dicht staan (per apparaat, niet in Drive) |
+| `LS_NOTES_LIJST` = `herling_notes_lijst` | Breedte van de lijst in Notities (sleepgreep tussen lijst en editor), per apparaat |
 | `LS_OPD_PERKLANT` = `herling_opdrachten_perklant` | Stand van de knop *Per klant* op Opdrachten → Vooruitzicht, per apparaat |
 | `LS_CTR_WEERGAVE` = `herling_contracten_weergave` | Welke tab van Contracten je bekijkt (zakelijk/privé), per apparaat en bewust niet in `rawState` |
 | IndexedDB `herling_bijlagen` | PDF's van Contracten op dit apparaat (kopie; het origineel staat als los bestand in de Drive-`appDataFolder`) |
