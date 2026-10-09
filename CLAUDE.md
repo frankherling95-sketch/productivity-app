@@ -129,6 +129,7 @@ Bij toevoegen van een nieuw state-veld: voeg een hydratie-stap toe in `hydrateer
 | `appToast(msg, opts)` | Floating toast met optionele undo-knop |
 | `updateNavBadges()` | Tellingen naast de nav-items (Checklist, Uren, Facturen) |
 | Undo systeem | Verwijderacties tonen toast met "Ongedaan maken" |
+| AI-chat (`aiChatOpen()`) | "Vraag het je app": vragen over taken, uren, facturen, opdrachten, contracten via Gemini. `aiChatOverzicht()` rekent vooraf (zelfde functies als de modules) en gaat als systeeminstructie mee; gesprek alleen in de sessie |
 
 ## Theme
 
@@ -410,7 +411,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 149 smoke-, sync-, model-, reken- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
+| `test.html` | 151 smoke-, sync-, model-, reken- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |

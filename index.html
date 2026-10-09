@@ -8113,6 +8113,91 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
 }
 @keyframes wr-blink { 50% { opacity: 0.2; } }
 
+/* ── Vraag het je app (AI-chat) ──
+   Kop als .modal-kop (rand tot rand), daaronder het gesprek dat scrolt,
+   onderin het invoerveld en de voet. Vaste hoogte: het venster springt
+   niet bij elk nieuw antwoord. */
+.modal.aic-modal {
+  max-width: 760px; width: 100%;
+  height: min(780px, 88vh);
+  display: flex; flex-direction: column;
+  padding: 0 !important; overflow: hidden !important;
+}
+.aic-kop { flex-shrink: 0; }
+.aic-kop h3 { margin: 0; display: flex; align-items: center; gap: 8px; font-size: var(--fs-groot); }
+.aic-kop .ai-spark { font-size: 18px; }
+.aic-kop p { margin: 4px 0 0; font-size: var(--fs-klein); }
+.aic-lijst {
+  flex: 1; min-height: 0; overflow-y: auto;
+  padding: 18px 20px; display: flex; flex-direction: column; gap: 12px;
+}
+.aic-beurt {
+  max-width: 88%;
+  padding: 10px 14px; border-radius: 12px;
+  font-size: var(--fs-basis); line-height: 1.55; color: var(--text);
+  overflow-wrap: anywhere;
+}
+.aic-jij { align-self: flex-end; background: var(--mint-soft); border: 1px solid rgba(0,229,176,.25); white-space: pre-wrap; }
+.aic-ai { align-self: flex-start; background: var(--surface2); border: 1px solid var(--border); }
+.aic-ai.is-fout { color: var(--danger); background: var(--danger-bg, rgba(239,68,68,.08)); border-color: rgba(239,68,68,.25); }
+.aic-ai.is-fout .aic-deel { color: var(--text); margin-top: 8px; }
+.aic-ai > :first-child { margin-top: 0; }
+.aic-ai > :last-child { margin-bottom: 0; }
+.aic-ai p { margin: 0 0 8px; }
+.aic-ai ul, .aic-ai ol { margin: 0 0 8px; padding-left: 20px; }
+.aic-ai h1, .aic-ai h2, .aic-ai h3 { font-family: var(--font-display); font-size: var(--fs-groot); margin: 10px 0 6px; }
+.aic-ai table { border-collapse: collapse; margin: 6px 0 10px; font-variant-numeric: tabular-nums; font-size: var(--fs-klein); }
+.aic-ai th, .aic-ai td { border: 1px solid var(--border); padding: 4px 8px; text-align: left; }
+.aic-ai th { background: var(--surface3); font-weight: 600; }
+.aic-denkt { display: inline-flex; gap: 4px; padding: 4px 0; }
+.aic-denkt span { width: 6px; height: 6px; border-radius: 50%; background: var(--text-hint); animation: aic-denk 1.2s infinite ease-in-out; }
+.aic-denkt span:nth-child(2) { animation-delay: .15s; }
+.aic-denkt span:nth-child(3) { animation-delay: .3s; }
+@keyframes aic-denk { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .aic-denkt span { animation: none; opacity: .6; } }
+.aic-leeg { margin: auto 0; text-align: center; color: var(--text-muted); font-size: var(--fs-basis); }
+.aic-leeg p { margin: 0 0 14px; }
+.aic-suggesties { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.aic-suggestie {
+  padding: 8px 12px; border-radius: 999px;
+  border: 1px solid var(--border-strong); background: var(--surface);
+  font-family: var(--font-body); font-size: var(--fs-klein); color: var(--text);
+  cursor: pointer; text-align: left;
+  transition: border-color var(--duur-kort) var(--ease), color var(--duur-kort) var(--ease);
+}
+.aic-suggestie:hover { border-color: var(--mint); }
+.aic-invoer {
+  flex-shrink: 0; display: flex; align-items: flex-end; gap: 8px;
+  margin: 0 20px; padding: 6px 6px 6px 12px;
+  border: 1px solid var(--border-strong); border-radius: 12px; background: var(--surface);
+  transition: border-color var(--duur-kort) var(--ease), box-shadow var(--duur-kort) var(--ease);
+}
+.aic-invoer:focus-within { border-color: var(--mint); box-shadow: 0 0 0 3px var(--mint-soft); }
+.aic-invoer textarea {
+  flex: 1; resize: none; border: 0 !important; background: transparent !important; outline: none;
+  font-family: var(--font-body); font-size: var(--fs-basis); color: var(--text);
+  line-height: 1.45; padding: 7px 0 !important; min-height: 0 !important; max-height: 140px;
+  box-shadow: none !important;
+}
+.aic-zend { width: 36px; height: 36px; padding: 0 !important; display: grid; place-items: center; flex-shrink: 0; border-radius: 9px !important; }
+.aic-zend svg { width: 16px; height: 16px; }
+.aic-voet {
+  flex-shrink: 0; display: flex; justify-content: space-between; align-items: center;
+  gap: 8px; flex-wrap: wrap; padding: 12px 20px 16px;
+}
+.aic-voet-l, .aic-voet-r { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* De mobiele .btn-regel zet display met !important en wint dan van [hidden]. */
+.aic-voet [hidden] { display: none !important; }
+@media (max-width: 768px) {
+  .modal.aic-modal { height: 92vh; }
+  .aic-lijst { padding: 14px; }
+  .aic-invoer { margin: 0 14px; }
+  .aic-voet { padding: 10px 14px 14px; }
+  .aic-beurt { max-width: 94%; }
+  .aic-zend { width: var(--tap); height: var(--tap); }
+  .ios-tab .aic-invoer textarea { font-size: 16px !important; }
+}
+
 /* Weekreview header met week-navigatie. Een kopbalk (.modal-kop) die met
    negatieve marges tot de rand loopt, zoals de kop van elke andere modaal;
    de weekknop staat erin. De kleur stond eerst alleen achter de titel,
@@ -8479,7 +8564,7 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.44</span>
+        <span class="app-versie" title="Appversie">v2.45</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -8512,6 +8597,7 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
         </div>
         <div style="display:flex;gap:8px;align-items:center">
           <!-- Wekelijkse review (AI) -->
+          <button class="btn btn-sm btn-ai" id="aiChatBtn" onclick="aiChatOpen()" title="Stel een vraag over je taken, uren, facturen en contracten"><span class="ai-spark">✨</span>Vraag het</button>
           <button class="btn btn-sm btn-ai" id="weeklyReviewBtn" onclick="openWeeklyReviewModal()" title="AI-gegenereerde samenvatting van wat je deze week hebt afgerond"><span class="ai-spark">📊</span>Wekelijkse review</button>
           <!-- Nieuw item dropdown (global quick-add) -->
           <div class="ha-newitem" data-ha-newitem>
@@ -8585,6 +8671,7 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
                    je zelden midden in je werk nodig hebt. -->
               <button type="button" onclick="closeDashMobileSettings();openNewClientModal()">＋ Nieuwe klant</button>
               <button type="button" onclick="closeDashMobileSettings();openKlantenBeheer()">⚙ Klanten beheren</button>
+              <button type="button" onclick="closeDashMobileSettings();aiChatOpen()">✨ Vraag het je app</button>
               <button type="button" onclick="closeDashMobileSettings();openWeeklyReviewModal()">📊 Wekelijkse review</button>
               <button type="button" onclick="closeDashMobileSettings();openQuickAddAI()">✨ Slim toevoegen</button>
               <div class="dash-mobile-settings-divider"></div>
@@ -10080,6 +10167,34 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
 </div>
 
 <!-- ── Wekelijkse Review (AI) ── -->
+<!-- ── Vraag het je app (AI-chat) ── zie aiChatOpen() -->
+<div class="modal-bg" id="aiChatModal" onclick="if(event.target===this)aiChatSluit()">
+  <div class="modal aic-modal">
+    <div class="modal-kop aic-kop">
+      <h3><span class="ai-spark" aria-hidden="true">✨</span>Vraag het je app</h3>
+      <p>Over je taken, uren, facturen, opdrachten en contracten</p>
+    </div>
+    <div class="aic-lijst" id="aiChatLijst" aria-live="polite"></div>
+    <form class="aic-invoer" onsubmit="event.preventDefault();aiChatVraag()">
+      <textarea id="aiChatInvoer" rows="1" placeholder="Stel een vraag…" aria-label="Je vraag"></textarea>
+      <button type="submit" class="btn btn-primary aic-zend" id="aiChatZend" aria-label="Versturen" title="Versturen (Enter)">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 13V3M3.5 7.5L8 3l4.5 4.5"/></svg>
+      </button>
+    </form>
+    <div class="aic-voet">
+      <div class="aic-voet-l">
+        <button class="btn btn-sm" type="button" onclick="openGeminiKeyPrompt()" title="Gemini API-key instellen" style="font-size:11px">⚙ API-key</button>
+        <span class="ai-quota-badge" id="aiQuotaBadgeChat" title="Aantal API-verzoeken vandaag vanaf dit apparaat"></span>
+      </div>
+      <div class="aic-voet-r">
+        <button class="btn btn-sm" type="button" id="aiChatOpnieuwBtn" onclick="aiChatOpnieuw()" hidden>🔄 Opnieuw</button>
+        <button class="btn btn-sm" type="button" id="aiChatNieuwBtn" onclick="aiChatNieuw()">Nieuw gesprek</button>
+        <button class="btn btn-sm modal-annuleer" type="button" onclick="aiChatSluit()">Sluiten</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="weeklyReviewModal" onclick="if(event.target===this)closeWeeklyReviewModal()">
   <div class="modal" style="max-width:720px;display:flex;flex-direction:column;max-height:88vh">
     <div class="wr-header modal-kop">
@@ -34050,7 +34165,7 @@ let _quickAddAIResult=null;        /* tijdelijke buffer tussen parse en apply */
 let _weeklyReviewMarkdown='';      /* buffer voor copy/save acties */
 let _weeklyReviewMeta=null;        /* week-info voor note-titel */
 let _weeklyReviewOffset=0;         /* 0=deze week, -1=vorige, -2=2-weken-terug */
-const _aiCalling={quickAdd:false,weeklyReview:false}; /* concurrent-guard */
+const _aiCalling={quickAdd:false,weeklyReview:false,chat:false}; /* concurrent-guard */
 
 /* ─ Quota tracking — per-dag teller in localStorage ─ */
 function _aiTodayStr(){return new Date().toISOString().slice(0,10);}
@@ -34077,7 +34192,7 @@ function _updateAIQuotaBadges(){
      plafond: dan zoek je de fout op de verkeerde plek. */
   const text=`${u.count} vandaag`;
   const cls=u.count>=400?'high':u.count>=150?'mid':'';
-  ['aiQuotaBadgeQuick','aiQuotaBadgeReview'].forEach(id=>{
+  ['aiQuotaBadgeQuick','aiQuotaBadgeReview','aiQuotaBadgeChat'].forEach(id=>{
     const el=document.getElementById(id);
     if(el){el.textContent=text;el.className='ai-quota-badge '+cls;}
   });
@@ -34598,17 +34713,26 @@ function _geminiJson(text){
 
 /* ─ Streaming Gemini caller — async iterator die chunks yielded ─
    Gebruikt voor de wekelijkse review: tekst verschijnt woord voor woord. */
-async function* _streamGemini({system,user,temperature=0.5,maskeer=false}){
+async function* _streamGemini({system,user,temperature=0.5,maskeer=false,geschiedenis=null}){
   const key=localStorage.getItem(LS_GEMINI_KEY);
   if(!key)throw new Error('Geen Gemini API-key ingesteld. Klik op ⚙ API-key.');
   const masker=(maskeer&&aiMaskerenAan())?aiMaskerder():null;
-  if(masker){if(system)system=masker.maskeer(system);user=masker.maskeer(user);}
+  /* Eerdere beurten van een gesprek (AI-chat): [{rol:'user'|'model',tekst}].
+     Door hetzelfde masker als de rest, in dezelfde volgorde, zodat een klant
+     in elke beurt hetzelfde token krijgt. */
+  let eerder=(geschiedenis||[]).filter(b=>b&&b.tekst)
+    .map(b=>({role:b.rol==='model'?'model':'user',parts:[{text:String(b.tekst)}]}));
+  if(masker){
+    if(system)system=masker.maskeer(system);
+    eerder.forEach(c=>{c.parts[0].text=masker.maskeer(c.parts[0].text);});
+    user=masker.maskeer(user);
+  }
   /* maxOutputTokens expliciet en ruim: op Gemini 3 telt het nadenken mee in
      dit plafond, en zonder eigen waarde brak de weekreview halverwege af
      ("**Ge", "Voor volgende") terwijl het eruitzag als een compleet antwoord
      (2026-10-09). Een review is ±600 tokens; dit laat het denkwerk ruim. */
   const body={
-    contents:[{role:'user',parts:[{text:user}]}],
+    contents:[...eerder,{role:'user',parts:[{text:user}]}],
     generationConfig:{temperature,maxOutputTokens:16384}
   };
   if(system)body.systemInstruction={parts:[{text:system}]};
@@ -35443,13 +35567,313 @@ function saveWeeklyReviewAsNote(){
   switchModule('notes');
 }
 
-/* ─ Globale Escape-handler: sluit beide AI-modals ─ */
+
+/* ╔══════════════════════════════════════════════════════════════════╗
+   ║                    VRAAG HET JE APP (AI-chat)                    ║
+   ╚══════════════════════════════════════════════════════════════════╝
+   Vragen stellen over je eigen gegevens: afgeronde taken, uren, facturen,
+   opdrachten, contracten. Gemini krijgt bij elke vraag een vers overzicht
+   mee als systeeminstructie (aiChatOverzicht), plus de eerdere beurten.
+
+   - Vooraf gerekend, niet door het model: totalen per maand en week, wat er
+     openstaat, wat te laat is. Een taalmodel telt slecht; met de getallen
+     al klaar leest het ze alleen nog af. Bedragen komen uit dezelfde
+     functies als de modules (factuurTotalen, urenStatusOf, opdData,
+     ctrLooptijd), zodat de chat niets anders kan zeggen dan het scherm.
+   - Taken volgen takenZichtbaar() (verborgen klanten tellen niet mee, net
+     als op Dashboard en Checklist); uren en facturen tellen alle klanten,
+     net als in die modules.
+   - Klantnamen gaan gemaskeerd de deur uit, als aiMaskerenAan() aanstaat
+     (standaard), net als bij de weekreview.
+   - Is het oude versleutelde blok nog dicht (geheimenKlaar), dan zijn uren
+     en facturen leeg. Dan gaan ze niet mee en staat erbij waarom, anders
+     zou de chat "€ 0" als feit noemen.
+   - Het gesprek leeft alleen in deze sessie; niets ervan gaat naar Drive. */
+const AI_CHAT_MAX_BEURTEN=12;          /* zoveel eerdere beurten gaan mee */
+const AI_CHAT_SUGGESTIES=[
+  'Hoeveel taken heb ik deze week afgerond?',
+  'Welke facturen staan nog open, en welke zijn te laat?',
+  'Hoeveel uren heb ik deze maand geschreven, per klant?',
+  'Welke contracten of opdrachten vragen binnenkort een beslissing?',
+  'Hoeveel uren heb ik nog niet gefactureerd?',
+  'Wat was mijn omzet per maand dit jaar?'
+];
+let aiChatGesprek=[];                  /* [{rol:'user'|'model',tekst,fout?}] */
+
+function _aiChatRond(n){return Math.round((Number(n)||0)*100)/100;}
+function _aiChatKlant(id){
+  const k=id?factuurKlant(id):null;
+  return k?(k.name||k.bedrijfsnaam||'Zonder naam'):'Geen klant';
+}
+function _aiChatMaand(iso){return String(iso||'').slice(0,7);}
+function _aiChatWeek(iso){
+  const d=new Date(String(iso).slice(0,10)+'T00:00:00');
+  /* ISO-jaar hoort bij de donderdag van die week */
+  const do_=new Date(d);do_.setDate(d.getDate()+3-((d.getDay()+6)%7));
+  return do_.getFullYear()+'-W'+String(getISOWeek(d)).padStart(2,'0');
+}
+function _aiChatTel(obj,sleutel,n){obj[sleutel]=_aiChatRond((obj[sleutel]||0)+(n==null?1:n));}
+
+function aiChatOverzicht(vandaagIso){
+  const vandaag=vandaagIso||opdVandaag();
+  const nu=new Date(vandaag+'T12:00:00');
+  const maandGrens=(()=>{const d=new Date(nu);d.setMonth(d.getMonth()-23,1);return d.toISOString().slice(0,7);})();
+  const weekGrens=(()=>{const d=new Date(nu);d.setDate(d.getDate()-7*11-((d.getDay()+6)%7));return d.toISOString().slice(0,10);})();
+  const uit={
+    vandaag, dag:nu.toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long',year:'numeric'}),
+    isoWeek:_aiChatWeek(vandaag),
+    uitleg:'Bedragen in euro. excl = exclusief btw, incl = inclusief btw. Weken zijn ISO-weken (maandag t/m zondag).'
+  };
+
+  /* ── Taken ── */
+  const items=takenZichtbaar().filter(i=>!i.archived);
+  const open=items.filter(i=>!i.done), klaar=items.filter(i=>i.done);
+  const openPerKlant={}, telaatPerKlant={};
+  open.forEach(i=>{
+    _aiChatTel(openPerKlant,_aiChatKlant(i.clientId));
+    if(i.deadline&&i.deadline<vandaag)_aiChatTel(telaatPerKlant,_aiChatKlant(i.clientId));
+  });
+  const perWeek={}, perMaand={};
+  /* Lokale datum, niet toISOString(): die is UTC, en een taak die je om
+     00:30 afvinkt viel dan op de dag ervoor. */
+  const afDatum=i=>{if(!i.doneAt)return null;const d=new Date(i.doneAt);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
+  klaar.forEach(i=>{
+    const d=afDatum(i); if(!d)return;
+    if(d>=weekGrens){const w=_aiChatWeek(d);perWeek[w]=perWeek[w]||{aantal:0,perKlant:{}};
+      perWeek[w].aantal++;_aiChatTel(perWeek[w].perKlant,_aiChatKlant(i.clientId));}
+    if(_aiChatMaand(d)>=maandGrens)_aiChatTel(perMaand,_aiChatMaand(d));
+  });
+  const recentGrens=new Date(nu);recentGrens.setDate(recentGrens.getDate()-30);
+  uit.taken={
+    open:open.length,
+    teLaat:open.filter(i=>i.deadline&&i.deadline<vandaag).length,
+    openPerKlant, teLaatPerKlant:telaatPerKlant,
+    afgerondZonderDatum:klaar.filter(i=>!i.doneAt).length,
+    afgerondPerWeek:Object.keys(perWeek).sort().map(w=>({week:w,...perWeek[w]})),
+    afgerondPerMaand:Object.keys(perMaand).sort().map(m=>({maand:m,aantal:perMaand[m]})),
+    openLijst:open.slice().sort((a,b)=>(a.deadline||'9999').localeCompare(b.deadline||'9999')).slice(0,80)
+      .map(i=>({taak:i.text,klant:_aiChatKlant(i.clientId),deadline:i.deadline||null,prioriteit:i.priority||'middel',
+        subtaken:(i.subtasks||[]).length?(i.subtasks.filter(t=>t.done).length+'/'+i.subtasks.length):undefined})),
+    recentAfgerond:klaar.filter(i=>i.doneAt&&i.doneAt>=recentGrens.getTime())
+      .sort((a,b)=>b.doneAt-a.doneAt).slice(0,60)
+      .map(i=>({taak:i.text,klant:_aiChatKlant(i.clientId),afgerond:afDatum(i)}))
+  };
+
+  if(!geheimenKlaar()){
+    uit.uren=uit.facturen='Niet beschikbaar: de uren- en factuurgegevens zijn op dit apparaat nog vergrendeld. Zeg dat, noem geen getallen.';
+  }else{
+    /* ── Uren ── */
+    const tariefVan=e=>{const k=factuurKlant(e.clientId);const t=e.tarief!=null?e.tarief:(k&&k.tarief);return Number(t)||0;};
+    const urenMaand={}, urenWeek={}, nietGef={};
+    let ditJaar=0, vorigJaar=0;
+    const jaar=vandaag.slice(0,4), vorig=String(Number(jaar)-1);
+    (urenState.entries||[]).forEach(e=>{
+      if(!e||!e.date)return;
+      const u=Number(e.hours)||0, k=_aiChatKlant(e.clientId);
+      if(e.date.slice(0,4)===jaar&&e.date<=vandaag)ditJaar+=u;
+      if(e.date.slice(0,4)===vorig)vorigJaar+=u;
+      const m=_aiChatMaand(e.date);
+      if(m>=maandGrens){urenMaand[m]=urenMaand[m]||{uren:0,perKlant:{}};
+        _aiChatTel(urenMaand[m],'uren',u);_aiChatTel(urenMaand[m].perKlant,k,u);}
+      if(e.date>=weekGrens){const w=_aiChatWeek(e.date);urenWeek[w]=urenWeek[w]||{uren:0,perKlant:{}};
+        _aiChatTel(urenWeek[w],'uren',u);_aiChatTel(urenWeek[w].perKlant,k,u);}
+      if(urenStatusOf(e)!=='invoiced'){nietGef[k]=nietGef[k]||{uren:0,bedragExcl:0};
+        _aiChatTel(nietGef[k],'uren',u);_aiChatTel(nietGef[k],'bedragExcl',u*tariefVan(e));}
+    });
+    uit.uren={
+      ditJaarTotDusver:_aiChatRond(ditJaar), vorigJaar:_aiChatRond(vorigJaar),
+      perMaand:Object.keys(urenMaand).sort().map(m=>({maand:m,...urenMaand[m]})),
+      perWeek:Object.keys(urenWeek).sort().map(w=>({week:w,...urenWeek[w]})),
+      nogNietGefactureerd:Object.keys(nietGef).map(k=>({klant:k,...nietGef[k]})),
+      toelichting:'nogNietGefactureerd = uren met status open of concept; bedrag = uren × tarief (van de regel, anders van de klant).'
+    };
+    /* ── Facturen ── */
+    const fac=(factuurState.invoices||[]);
+    const omzetMaand={};
+    let openstaand=0, teLaatBedrag=0, teLaatAantal=0;
+    const lijst=fac.filter(f=>f.status!=='concept').map(f=>{
+      const t=factuurTotalen(f), laat=factuurDagenTeLaat(f);
+      const m=_aiChatMaand(f.datum);
+      if(m>=maandGrens&&f.status!=='oninbaar')_aiChatTel(omzetMaand,m,t.excl);
+      if(f.status==='verstuurd'){openstaand+=t.openstaand;if(laat>0){teLaatBedrag+=t.openstaand;teLaatAantal++;}}
+      return {nummer:f.nummer||null,klant:(f.klant&&f.klant.naam)||_aiChatKlant(f.clientId),datum:f.datum||null,
+        vervaldatum:f.vervaldatum||null,status:f.status,excl:_aiChatRond(t.excl),incl:_aiChatRond(t.incl),
+        openstaand:_aiChatRond(t.openstaand),dagenTeLaat:laat||undefined,betreft:f.betreft||undefined};
+    }).sort((a,b)=>String(b.datum).localeCompare(String(a.datum)));
+    uit.facturen={
+      openstaandTotaal:_aiChatRond(openstaand), teLaat:{aantal:teLaatAantal,bedrag:_aiChatRond(teLaatBedrag)},
+      concepten:fac.filter(f=>f.status==='concept').length,
+      omzetExclPerMaand:Object.keys(omzetMaand).sort().map(m=>({maand:m,excl:omzetMaand[m]})),
+      lijst:lijst.slice(0,250),
+      toelichting:'Status: verstuurd = nog niet (helemaal) betaald, betaald, oninbaar. Omzet = factuurdatum, excl btw, zonder concepten en oninbaar.'
+    };
+  }
+
+  /* ── Opdrachten ── */
+  try{
+    const od=opdData(vandaag);
+    uit.opdrachten=od.lijst.map(o=>{const i=od.info[o.id]||{};return {
+      klant:_aiChatKlant(o.clientId),naam:o.naam||'',status:i.status||opdStatus(o,vandaag),
+      start:o.start||null,eind:o.eind||null,opzegtermijn:o.opzeg||null,tarief:opdTarief(o)||null,
+      urenPerWeek:o.urenPerWeek||null,urenBudget:o.urenBudget||null,
+      gebruikt:i.gebruikt?{uren:_aiChatRond(i.gebruikt.uren),bedragExcl:_aiChatRond(i.gebruikt.bedrag)}:undefined,
+      signalen:(i.signalen||[]).map(x=>x.tekst)};});
+  }catch(e){uit.opdrachten='Kon de opdrachten niet lezen.';}
+  /* ── Contracten ── */
+  try{
+    uit.contracten=(contractState.contracten||[]).map(c=>{
+      const lt=ctrLooptijd(c,vandaag);
+      return {domein:ctrDomein(c),soort:c.soort||null,partij:ctrPartijNaam(c),titel:c.titel||'',
+        status:ctrStatus(c,vandaag,lt),start:lt.start||null,eind:lt.eind||null,
+        stilzwijgendVerlengd:lt.verlengt||undefined,opzeggenVoor:lt.opzegVoor||null,
+        signalen:ctrSignalen(c,lt,vandaag).map(x=>x.tekst)};
+    });
+  }catch(e){uit.contracten='Kon de contracten niet lezen.';}
+  return uit;
+}
+
+function aiChatSysteem(){
+  return [
+    'Je bent de assistent in de productiviteitsapp van een zelfstandig BI-consultant.',
+    'Je beantwoordt vragen over zijn eigen gegevens: taken, uren, facturen, opdrachten en contracten.',
+    '',
+    'Regels:',
+    '- Antwoord in het Nederlands, kort en zakelijk. Markdown mag (een tabel als dat helpt).',
+    '- Gebruik alleen de gegevens hieronder. Staat iets er niet in, zeg dat; verzin niets.',
+    '- De totalen zijn vooraf berekend. Gebruik die; reken alleen zelf als het niet anders kan, en zeg dan waarop.',
+    '- Bedragen als € 1.234,56. Datums als "9 okt 2026". Zeg bij een periode welke je bedoelt ("deze week" = de ISO-week van vandaag).',
+    '- Namen zoals {{KLANT_1}} zijn vervangen klantnamen: neem ze precies zo over.',
+    '',
+    'GEGEVENS (JSON):',
+    JSON.stringify(aiChatOverzicht())
+  ].join('\n');
+}
+
+function aiChatToon(){
+  const lijst=document.getElementById('aiChatLijst');
+  if(!lijst)return;
+  if(!aiChatGesprek.length){
+    lijst.innerHTML=`<div class="aic-leeg">
+      <p>Stel een vraag over je taken, uren, facturen, opdrachten of contracten.</p>
+      <div class="aic-suggesties">${AI_CHAT_SUGGESTIES.map((t,i)=>
+        `<button type="button" class="aic-suggestie" data-action="aiChatSuggestie" data-arg1="${i}">${escapeHtml(t)}</button>`).join('')}</div>
+    </div>`;
+    return;
+  }
+  lijst.innerHTML=aiChatGesprek.map((b,i)=>b.rol==='user'
+    ?`<div class="aic-beurt aic-jij">${escapeHtml(b.tekst)}</div>`
+    :`<div class="aic-beurt aic-ai${b.fout?' is-fout':''}" data-beurt="${i}">${b.fout
+        ?`⚠ ${escapeHtml(b.fout)}${b.tekst?'<div class="aic-deel">'+_aiChatHtml(b.tekst)+'</div>':''}`
+        :(b.tekst?_aiChatHtml(b.tekst):'<span class="aic-denkt"><span></span><span></span><span></span></span>')}</div>`).join('');
+  lijst.scrollTop=lijst.scrollHeight;
+}
+function _aiChatHtml(t){
+  return (typeof marked!=='undefined'&&marked.parse)?veiligeHtml(marked.parse(t)):escapeHtml(t).replace(/\n/g,'<br>');
+}
+
+async function aiChatVraag(tekst){
+  const inp=document.getElementById('aiChatInvoer');
+  const vraag=String(tekst!=null?tekst:(inp?inp.value:'')).trim();
+  if(!vraag||_aiCalling.chat)return;
+  if(!localStorage.getItem(LS_GEMINI_KEY)){openGeminiKeyPrompt();return;}
+  if(inp){inp.value='';aiChatInvoerHoogte();}
+  const eerder=aiChatGesprek.filter(b=>!b.fout&&b.tekst).slice(-AI_CHAT_MAX_BEURTEN)
+    .map(b=>({rol:b.rol,tekst:b.tekst}));
+  aiChatGesprek.push({rol:'user',tekst:vraag});
+  const antwoord={rol:'model',tekst:''};
+  aiChatGesprek.push(antwoord);
+  _aiCalling.chat=true;
+  aiChatKnoppen();
+  aiChatToon();
+  const lijst=document.getElementById('aiChatLijst');
+  let laatst=0;
+  try{
+    for await (const stuk of _streamGemini({system:aiChatSysteem(),user:vraag,temperature:0.2,maskeer:true,geschiedenis:eerder})){
+      antwoord.tekst+=stuk;
+      const nu=Date.now();
+      if(nu-laatst>100){
+        const el=lijst&&lijst.querySelector(`[data-beurt="${aiChatGesprek.length-1}"]`);
+        if(el){el.innerHTML=_aiChatHtml(antwoord.tekst);lijst.scrollTop=lijst.scrollHeight;}
+        laatst=nu;
+      }
+    }
+  }catch(e){
+    antwoord.fout=(e&&e.message)||'Er ging iets mis.';
+  }finally{
+    _aiCalling.chat=false;
+    _updateAIQuotaBadges();
+    aiChatToon();
+    aiChatKnoppen();
+    if(inp)inp.focus();
+  }
+}
+function aiChatOpnieuw(){
+  /* De laatste vraag nog eens, zonder het mislukte antwoord. */
+  if(_aiCalling.chat)return;
+  let i=aiChatGesprek.length-1;
+  while(i>=0&&aiChatGesprek[i].rol!=='user')i--;
+  if(i<0)return;
+  const vraag=aiChatGesprek[i].tekst;
+  aiChatGesprek=aiChatGesprek.slice(0,i);
+  aiChatVraag(vraag);
+}
+function aiChatNieuw(){
+  if(_aiCalling.chat)return;
+  aiChatGesprek=[];
+  aiChatToon();aiChatKnoppen();
+  document.getElementById('aiChatInvoer')?.focus();
+}
+function aiChatKnoppen(){
+  const bezig=_aiCalling.chat;
+  const zend=document.getElementById('aiChatZend');
+  if(zend)zend.disabled=bezig;
+  const nieuw=document.getElementById('aiChatNieuwBtn');
+  if(nieuw)nieuw.disabled=bezig||!aiChatGesprek.length;
+  const opn=document.getElementById('aiChatOpnieuwBtn');
+  const laatste=aiChatGesprek[aiChatGesprek.length-1];
+  if(opn)opn.hidden=bezig||!(laatste&&laatste.fout);
+}
+/* Het invoerveld groeit mee tot vijf regels. */
+function aiChatInvoerHoogte(){
+  const inp=document.getElementById('aiChatInvoer');
+  if(!inp)return;
+  inp.style.height='auto';
+  inp.style.height=Math.min(inp.scrollHeight,140)+'px';
+}
+function aiChatOpen(){
+  const m=document.getElementById('aiChatModal');
+  if(!m)return;
+  m.classList.add('open');
+  _updateAIQuotaBadges();
+  aiChatToon();aiChatKnoppen();
+  setTimeout(()=>document.getElementById('aiChatInvoer')?.focus(),60);
+}
+function aiChatSluit(){
+  document.getElementById('aiChatModal')?.classList.remove('open');
+}
+(function aiChatInit(){
+  const inp=document.getElementById('aiChatInvoer');
+  if(!inp)return;
+  inp.addEventListener('input',aiChatInvoerHoogte);
+  inp.addEventListener('keydown',e=>{
+    /* Enter verstuurt, Shift+Enter is een nieuwe regel. */
+    if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();aiChatVraag();}
+  });
+})();
+Object.assign(APP_ACTIONS,{
+  aiChatSuggestie:(el,e,i)=>aiChatVraag(AI_CHAT_SUGGESTIES[Number(i)]||'')
+});
+
+/* ─ Globale Escape-handler: sluit de AI-vensters ─ */
 document.addEventListener('keydown',e=>{
   if(e.key!=='Escape')return;
   const qa=document.getElementById('quickAddAIModal');
   const wr=document.getElementById('weeklyReviewModal');
+  const ch=document.getElementById('aiChatModal');
   if(qa?.classList.contains('open')){closeQuickAddAI();return;}
   if(wr?.classList.contains('open')){closeWeeklyReviewModal();return;}
+  if(ch?.classList.contains('open')){aiChatSluit();return;}
 });
 
 /* ══ Sluiten met een kruisje in de kopbalk (mobiel) ══
