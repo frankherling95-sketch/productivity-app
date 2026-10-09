@@ -6188,3 +6188,42 @@ Frank in beeld, zie hieronder.
 
 **Niet doen.** Een stroom als compleet behandelen zonder `finishReason:
 STOP` te hebben gezien.
+
+## 2026-10-09 · Vraag het je app: een chat over je eigen gegevens (v2.45)
+
+**Vraag.** Frank wil vragen kunnen stellen over wat er in de app gebeurt:
+afgeronde taken, uitstaande facturen, gewerkte uren, lopende contracten.
+
+**Beslissing.**
+- **Vooraf rekenen, niet het model laten tellen.** Bij elke vraag bouwt
+  `aiChatOverzicht()` een compact JSON-overzicht: taken (open, te laat,
+  afgerond per ISO-week en per maand, open lijst, recent afgerond), uren
+  (per maand 24 mnd, per week 12 wkn, per klant, nog niet gefactureerd met
+  bedrag), facturen (lijst met excl/incl/openstaand/dagen te laat, omzet per
+  maand, totalen), opdrachten (met gebruik en signalen) en contracten (met
+  looptijd en opzegdatum). De bedragen komen uit `factuurTotalen`,
+  `urenStatusOf`, `opdData`, `ctrLooptijd`: de chat kan niets anders zeggen
+  dan de modules. Het overzicht gaat mee als systeeminstructie, vers per vraag.
+- **Geen function calling.** Eén gebruiker, honderden regels: het overzicht
+  past ruim in één verzoek (±5–30 kB), en het is één heen-en-weer in plaats
+  van een lus met tool-aanroepen die vaker misgaat op de gratis laag.
+- **Zelfde regels als de schermen.** Taken via `takenZichtbaar()` (verborgen
+  klanten tellen niet, net als Dashboard/Checklist); uren en facturen alle
+  klanten. Is het oude versleutelde blok nog dicht (`geheimenKlaar()`), dan
+  gaan uren en facturen niet mee en zegt de chat dat, in plaats van € 0.
+- **Privacy.** Klantnamen gemaskeerd als `aiMaskerenAan()` aanstaat
+  (standaard), ook in de eerdere beurten: `_streamGemini` kreeg
+  `geschiedenis` en maskeert systeem, geschiedenis en vraag met één masker.
+  Bedragen en uren gaan wél mee — anders valt er niets te vragen. Het gesprek
+  blijft in het geheugen van de sessie; niets naar Drive.
+- **Bediening.** Knop "✨ Vraag het" in de dashboardbalk, op mobiel in het
+  ⋯-menu. Venster met kopbalk, suggesties bij een leeg gesprek, Enter
+  verstuurt (Shift+Enter = nieuwe regel), antwoord stroomt binnen, Opnieuw
+  bij een fout of afgebroken antwoord, Nieuw gesprek, Escape sluit.
+
+**Bestanden.** `index.html` (`aiChat*`, `.aic-*`, `#aiChatModal`,
+`_streamGemini`, dashboardbalk en ⋯-menu, Escape-handler,
+`_updateAIQuotaBadges`), `test.html`, `sw.js`, `CLAUDE.md`.
+
+**Niet doen.** Ruwe urenregels of facturen zonder totalen meesturen en het
+model laten optellen; de chatgeschiedenis in `rawState` zetten.

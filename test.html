@@ -341,6 +341,36 @@ async function runChecks() {
       w._geminiTekst({candidates:[{content:{parts:[
         {text:'even nadenken', thought:true},{text:'{"a":1}'}]}}]}) === '{"a":1}' &&
       w._geminiTekst({candidates:[{content:{parts:[{text:'{"a":'},{text:'1}'}]}}]}) === '{"a":1}'],
+    /* ── Vraag het je app (AI-chat) ──
+       Het overzicht dat met elke vraag meegaat, en het gesprek: eerdere
+       beurten gaan mee als user/model, in volgorde, vóór de nieuwe vraag. */
+    ['Chat: overzicht heeft alle onderdelen', () => {
+      const o = w.aiChatOverzicht('2026-10-09');
+      return o.vandaag === '2026-10-09' && o.isoWeek === '2026-W41' &&
+        typeof o.taken === 'object' && 'open' in o.taken &&
+        'uren' in o && 'facturen' in o && Array.isArray(o.opdrachten) && Array.isArray(o.contracten) &&
+        /GEGEVENS \(JSON\)/.test(w.aiChatSysteem());
+    }],
+    ['Chat: eerdere beurten gaan mee als user/model', async () => {
+      let body = null;
+      const oudFetch = w.fetch, oudKey = w.localStorage.getItem('herling_gemini_api_key');
+      const oudSlot = w._geminiSlot, oudTel = w._aiBumpUsage;
+      w._geminiSlot = async () => {}; w._aiBumpUsage = () => {};
+      w.fetch = async (u, opt) => { body = JSON.parse(opt.body);
+        return new w.Response('data: ' + JSON.stringify({candidates:[{content:{parts:[{text:'ok'}]},finishReason:'STOP'}]}) + '\r\n\r\n',
+          {status:200, headers:{'Content-Type':'text/event-stream'}}); };
+      if (!oudKey) w.localStorage.setItem('herling_gemini_api_key', 'test');
+      let uit = '';
+      try {
+        for await (const c of w._streamGemini({user:'vraag 2', geschiedenis:[
+          {rol:'user', tekst:'vraag 1'}, {rol:'model', tekst:'antwoord 1'}]})) uit += c;
+      } finally {
+        w.fetch = oudFetch; w._geminiSlot = oudSlot; w._aiBumpUsage = oudTel;
+        if (!oudKey) w.localStorage.removeItem('herling_gemini_api_key');
+      }
+      return uit === 'ok' && body.contents.map(c => c.role).join(',') === 'user,model,user' &&
+        body.contents[2].parts[0].text === 'vraag 2';
+    }],
     ['Antwoord: JSON in een codehek wordt gelezen', () =>
       w._geminiJson('{"b":2}').b === 2 &&
       w._geminiJson('```json\n{"a":1}\n```').a === 1 &&
