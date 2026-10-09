@@ -8564,7 +8564,7 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.45</span>
+        <span class="app-versie" title="Appversie">v2.46</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -10900,21 +10900,29 @@ async function loadGist(){
        vernieuwt, dan zegt de melding dat -- "Drive onbereikbaar" stuurt
        je anders de verkeerde kant op. */
     const geblokkeerd=/popup|blocked|window/i.test(e.message||'');
-    const uitleg=geblokkeerd
-      ? 'Je browser blokkeerde het venster waarmee Google de toegang vernieuwt.'
-      : 'Drive kon niet gelezen worden: '+e.message;
     const lokaal=loadLocalBackup();
     if(lokaal){
       rawState=lokaal;
       hydrateerState();
       renderAll();
     }
-    setSync('error','Niet verbonden met Drive - klik op \u21bb');
-    appToast(uitleg+' '+driveHerstelHint()+' '+
-      (lokaal?'Zolang dat niet is gelukt werk je met je lokale kopie en '+
-              'wordt er niets naar Drive geschreven.'
-            :'Er is nog niets geladen.'),
-      {type:'error',duration:18000});
+    /* Alleen het venster van Google werd tegengehouden (verlopen token, geen
+       klik): geen fout, gewoon nog één klik. Die klik mag overal zijn --
+       zie driveVerbindBijGebaar(). */
+    if(geblokkeerd){
+      setSync('saving','Klik ergens om met Drive te verbinden');
+      driveVerbindBijGebaar();
+      appToast('Google vernieuwt je toegang tot Drive bij je eerstvolgende klik. '+
+        (lokaal?'Tot dan zie je je lokale kopie.':''),
+        {type:'info',duration:6000});
+    }else{
+      setSync('error','Niet verbonden met Drive - klik op \u21bb');
+      appToast('Drive kon niet gelezen worden: '+e.message+' '+driveHerstelHint()+' '+
+        (lokaal?'Zolang dat niet is gelukt werk je met je lokale kopie en '+
+                'wordt er niets naar Drive geschreven.'
+              :'Er is nog niets geladen.'),
+        {type:'error',duration:18000});
+    }
   }
 }
 
@@ -11294,6 +11302,14 @@ async function saveGistIntern(){
     saveRetryStap++;
     clearTimeout(saveRetryTimer);
     saveRetryTimer=setTimeout(saveGist,wacht[stap]);
+    /* Alleen het venster van Google tegengehouden (verlopen token, geen
+       klik)? Dan is er niets mis: bij je volgende klik wordt verbonden en
+       gaat deze opslag meteen (driveVerbindBijGebaar). Geen foutmelding. */
+    if(/popup|blocked|window/i.test(e.message||'')){
+      setSync('saving','Klik ergens om op te slaan in Drive');
+      driveVerbindBijGebaar();
+      return;
+    }
     setSync('error','Opslaan mislukt - opnieuw over '+Math.round(wacht[stap]/1000)+'s');
     if(driveLaatsteFout!==e.message){
       driveLaatsteFout=e.message;
@@ -14216,7 +14232,9 @@ async function driveVraagToken(interactief){
   driveTokenBezig=(async()=>{
     if(!(await googleGereed(8000)))
       throw new Error('Google-bibliotheek kon niet geladen worden');
-    const t=await driveNieuwToken(interactief);
+    let t;
+    try{t=await driveNieuwToken(interactief);}
+    catch(e){driveVerbindBijGebaar();throw e;}
     driveToken=t;
     driveTokenBewaar(t);
     drivePlanTokenVerversing();
@@ -14263,10 +14281,62 @@ async function driveVerversToken(){
     driveToken=t;
     driveTokenBewaar(t);
   }catch(_){
-    /* Stil laten: het huidige token is nog geldig. Lukt het straks weer
-       niet, dan merkt de schrijfactie het en volgt de gewone herkansing. */
+    /* Zonder klik blokkeert de browser het venster van Google meestal. Dan
+       gebeurt het bij je volgende klik, terwijl het huidige token nog
+       werkt -- zo verloopt hij niet onder je handen. */
+    driveVerbindBijGebaar();
   }
   drivePlanTokenVerversing();
+}
+
+/* ── Opnieuw verbinden bij je volgende klik (2026-10-09) ──
+   Google geeft een toegangstoken voor een uur, en een nieuw token komt
+   alleen via een venster van Google. Dat venster staat de browser alleen
+   toe direct na een klik of tik. Was de app een tijd dicht of op de
+   achtergrond, dan was het bewaarde token verlopen en moest je zelf de ↻
+   zoeken.
+
+   Nu wacht de app op de eerstvolgende klik of tik, waar dan ook, en vraagt
+   dán het token aan. Is de toestemming al gegeven, dan flitst het venster
+   alleen even en gaat het vanzelf dicht.
+   - pointerdown voor een muis, touchend voor een vinger: precies de
+     momenten waarop de browser een venster toestaat, en vóór het klikken
+     zelf -- de actie onder je vinger draait zo al met de verbinding erbij.
+   - Was Drive deze sessie nog niet gelezen (koude start), dan laadt dit
+     Drive zoals de ↻ zou doen; dezelfde regels voor lokaal werk gelden.
+     Was hij wél gelezen, dan alleen een nieuw token, en een wachtende
+     opslag gaat meteen.
+   - Een tik op de ↻ zelf doet het al, daar dus niet dubbel. */
+let driveGebaarGewapend=false;
+function driveVerbindBijGebaar(){
+  if(driveGebaarGewapend||!DRIVE_ACTIEF)return;
+  driveGebaarGewapend=true;
+  const opties={capture:true,passive:true};
+  const af=()=>{
+    driveGebaarGewapend=false;
+    document.removeEventListener('pointerdown',opMuis,opties);
+    document.removeEventListener('touchend',opVinger,opties);
+  };
+  const doe=e=>{
+    if(e.target&&e.target.closest&&e.target.closest('[onclick*="refreshGist"]')){af();return;}
+    af();
+    if(!driveGelezen){refreshGist();return;}
+    /* Rechtstreeks een vers token, niet via driveVraagToken(): die geeft
+       het bewaarde terug zolang dat nog even geldt, en dan was deze klik
+       verspild en verliep het token straks alsnog onder je handen. */
+    googleGereed(8000).then(ok=>{
+      if(!ok)throw new Error('Google-bibliotheek kon niet geladen worden');
+      return driveNieuwToken(false);
+    }).then(t=>{
+      driveToken=t;driveTokenBewaar(t);drivePlanTokenVerversing();
+      if(saveRetryTimer){clearTimeout(saveRetryTimer);saveRetryTimer=null;saveRetryStap=0;saveGist();}
+      else setSync('saved','Verbonden met Drive');
+    }).catch(()=>driveVerbindBijGebaar());
+  };
+  const opMuis=e=>{if(e.pointerType==='mouse'||e.pointerType==='pen')doe(e);};
+  const opVinger=e=>doe(e);
+  document.addEventListener('pointerdown',opMuis,opties);
+  document.addEventListener('touchend',opVinger,opties);
 }
 /* Kom je terug op een tabblad dat lang weg is geweest, dan kan het token
    inmiddels verlopen zijn. Meteen ophalen, nu er wél een gebruiker is. */

@@ -6227,3 +6227,45 @@ afgeronde taken, uitstaande facturen, gewerkte uren, lopende contracten.
 
 **Niet doen.** Ruwe urenregels of facturen zonder totalen meesturen en het
 model laten optellen; de chatgeschiedenis in `rawState` zetten.
+
+## 2026-10-09 · Opnieuw verbinden met Drive bij je volgende klik (v2.46)
+
+**Probleem.** Na een tijdje niet gebruiken, of na verversen, moest Frank vaak
+op ↻ ("Gegevens opnieuw ophalen") drukken. Het Drive-token is een uur
+geldig; een nieuw token komt alleen via een venster van Google, en dat staat
+de browser alleen toe direct na een klik. Was het bewaarde token verlopen,
+dan mislukte het laden bij de start (geen klik), en verscheen een rode
+melding met "klik op ↻". Tijdens het werken gold hetzelfde: het stille
+vernieuwen 25 minuten vooraf werd meestal ook tegengehouden, dus het token
+verliep alsnog en de volgende opslag faalde.
+
+**Beslissing.** `driveVerbindBijGebaar()`: mislukt een tokenaanvraag zonder
+klik, dan wacht de app op de eerstvolgende klik of tik, waar dan ook, en
+vraagt dán het token aan (`pointerdown` voor muis/pen, `touchend` voor een
+vinger: de momenten waarop de browser een venster toestaat, en vóór de klik
+zelf).
+- Koude start (Drive nog niet gelezen): die klik doet wat ↻ deed
+  (`refreshGist`), met dezelfde regels voor lokaal werk: staat Drive nog op
+  de versie die dit apparaat kende, dan blijft het lokale werk staan.
+- Tijdens het werken: alleen een vers token (`driveNieuwToken`, niet het
+  bewaarde), en een wachtende opslag gaat meteen.
+- Bewapend vanuit drie plekken: `driveVraagToken` (elke mislukte aanvraag),
+  `driveVerversToken` (stil vooraf vernieuwen mislukt) en het laad- en
+  opslagpad.
+- Alleen een tegengehouden venster is geen fout meer: status "Klik ergens om
+  met Drive te verbinden" en een korte info-melding in plaats van een rode
+  van 18 seconden; bij opslaan geen foutmelding. Andere fouten melden zoals
+  voorheen.
+- Een klik op ↻ zelf doet het al; daar niet dubbel.
+
+**Getest** met een nagebootste Google die alleen binnen een seconde na een
+klik een token geeft: koude start → eerste klik laadt Drive; token verlopen
+tijdens werken → rustige status, eerste klik slaat op; geldig bewaard token →
+geen venster; ↻ laadt één keer; telefoon met tik.
+
+**Bestanden.** `index.html` (`driveVerbindBijGebaar`, `driveVraagToken`,
+`driveVerversToken`, `loadGist`, `saveGistIntern`), `sw.js`.
+
+**Niet doen.** Het token zonder klik blijven aanvragen in een lus (de
+browser blokkeert het toch), of `keydown` als gebaar gebruiken: dan springt
+het Google-venster tevoorschijn midden in het typen.
