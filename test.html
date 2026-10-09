@@ -348,6 +348,30 @@ async function runChecks() {
     ['Antwoord: leeg antwoord noemt de reden', () =>
       /paste niet/.test(w._geminiLeegUitleg({candidates:[{finishReason:'MAX_TOKENS'}]})) &&
       /tegen/.test(w._geminiLeegUitleg({candidates:[{finishReason:'SAFETY'}]}))],
+    ['Stroom: \\r\\n tussen de events, en het laatste zonder lege regel', async () => {
+      /* Google scheidt de events van streamGenerateContent met \r\n\r\n.
+         De lezer zocht alleen \n\n en vond dus nooit een grens: de weekreview
+         kwam terug als "Lege response van Gemini" (2026-10-09). */
+      const ev = t => 'data: ' + JSON.stringify({candidates:[{content:{parts:[{text:t}]}}]});
+      const leesUit = async body => {
+        const oudFetch = w.fetch, oudKey = w.localStorage.getItem('herling_gemini_api_key');
+        w.fetch = async () => new w.Response(body, {status:200, headers:{'Content-Type':'text/event-stream'}});
+        if (!oudKey) w.localStorage.setItem('herling_gemini_api_key', 'test');
+        let uit = '', fout = '';
+        try { for await (const c of w._streamGemini({user:'x'})) uit += c; }
+        catch (e) { fout = e.message; }
+        finally {
+          w.fetch = oudFetch;
+          if (!oudKey) w.localStorage.removeItem('herling_gemini_api_key');
+        }
+        return {uit, fout};
+      };
+      const a = await leesUit(ev('Deze week ') + '\r\n\r\n' + ev('ging het goed.') + '\r\n\r\n');
+      const b = await leesUit(ev('Deze week ') + '\n\n' + ev('ging het goed.'));
+      const c = await leesUit('data: ' + JSON.stringify({candidates:[{finishReason:'SAFETY'}]}) + '\r\n\r\n');
+      return a.uit === 'Deze week ging het goed.' && b.uit === 'Deze week ging het goed.' &&
+             c.uit === '' && /SAFETY/.test(c.fout);
+    }],
 
     /* ── Analyse ──
        De grafieken zelf kun je hier niet beoordelen, de rekenkant wel: de

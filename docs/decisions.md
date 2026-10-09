@@ -6129,3 +6129,31 @@ Het vorige logo (`herling-icon-klein.svg`, `herling-icon-anim-klein.svg`,
 
 **Niet doen.** Het gewone icoon met de afgeronde hoeken als maskable
 gebruiken.
+
+## 2026-10-09 · Weekreview: lege response opgelost, kop over de volle breedte (v2.43)
+
+**Probleem.** De wekelijkse review gaf steeds "Lege response van Gemini". Hij
+is de enige AI-functie die het antwoord als stroom leest
+(`streamGenerateContent?alt=sse`), en `_streamGemini()` knipte de events op
+bij `\n\n`. Google scheidt ze met `\r\n\r\n`: daarin staat nooit `\n\n`,
+dus er werd geen enkel event gelezen. Het laatste event werd bovendien nooit
+verwerkt als er geen lege regel achter stond. Nagebootst met een stroom met
+`\r\n`: de oude code gaf precies deze melding.
+
+Daarnaast liep de kleur van de kop alleen achter de titel door: de h3 staat
+in een flexrij naast de weekknop, en de algemene regel (`.modal h3:first-child`)
+kleurt dan alleen die kolom.
+
+**Beslissing.**
+- `\r\n` wordt eerst `\n`; wat er na de stroom in de buffer staat wordt alsnog
+  gelezen. Komt er geen tekst, dan zegt de fout waarom (tegengehouden, te
+  lang) via `_geminiLeegUitleg`, net als bij `callGemini`.
+- De kop is een `.modal-kop` met negatieve marges tot de rand; de weekknop
+  staat erin, op de donkere balk. Het kruisje (mobiel) komt vanzelf op de balk.
+- Test in `test.html`: `\r\n`, `\n` zonder afsluiter, en een tegengehouden
+  antwoord. Faalt op de oude code.
+
+**Bestanden.** `index.html` (`_streamGemini`, `#weeklyReviewModal`,
+`.wr-header`), `test.html`, `sw.js`, `CLAUDE.md`.
+
+**Niet doen.** Een SSE-stroom alleen op `\n\n` splitsen.

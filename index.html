@@ -8113,11 +8113,17 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
 }
 @keyframes wr-blink { 50% { opacity: 0.2; } }
 
-/* Weekreview header met week-navigatie */
+/* Weekreview header met week-navigatie. Een kopbalk (.modal-kop) die met
+   negatieve marges tot de rand loopt, zoals de kop van elke andere modaal;
+   de weekknop staat erin. De kleur stond eerst alleen achter de titel,
+   omdat die in een flexrij naast de weekknop staat. */
 .wr-header {
   display: flex; align-items: center; justify-content: space-between;
-  gap: 12px; margin-bottom: 8px; flex-wrap: wrap;
+  gap: 12px; flex-wrap: wrap; flex-shrink: 0;
+  margin: calc(-1 * var(--modal-pad-y, 1.25rem)) calc(-1 * var(--modal-pad-x, 1.25rem)) 14px;
 }
+.modal-kop .wr-week-nav { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.14); }
+.modal-kop .wr-week-label { color: #fff; }
 .wr-week-nav {
   display: inline-flex; align-items: center; gap: 4px;
   background: var(--surface2); border: 1px solid var(--border);
@@ -8473,7 +8479,7 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.42</span>
+        <span class="app-versie" title="Appversie">v2.43</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -10076,7 +10082,7 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
 <!-- ── Wekelijkse Review (AI) ── -->
 <div class="modal-bg" id="weeklyReviewModal" onclick="if(event.target===this)closeWeeklyReviewModal()">
   <div class="modal" style="max-width:720px;display:flex;flex-direction:column;max-height:88vh">
-    <div class="wr-header">
+    <div class="wr-header modal-kop">
       <h3 style="margin:0;display:flex;align-items:center;gap:8px">
         <span class="ai-spark" style="font-size:22px">📊</span>
         <span id="weeklyReviewTitle">Wekelijkse review</span>
@@ -34617,32 +34623,46 @@ async function* _streamGemini({system,user,temperature=0.5,maskeer=false}){
      chunks aan elkaar en rendert ze, en krijgt dus meteen echte namen. */
   const terug=masker?masker.stroom():null;
   let buffer='';
+  let laatste=null, gekregen=false;
+  /* Eén SSE-event: de regels "data: {...}". Gedachten van een denkend
+     model komen als eigen parts mee en horen niet in beeld (_geminiTekst). */
+  function* verwerk(event){
+    for(const line of event.split('\n')){
+      if(!line.startsWith('data:'))continue;
+      let data;
+      try{data=JSON.parse(line.slice(5).trim());}catch(e){continue;}   /* half of kapot event */
+      laatste=data;
+      const chunk=_geminiTekst(data);
+      if(!chunk)continue;
+      gekregen=true;
+      if(!terug){yield chunk;continue;}
+      const stuk=terug.duw(chunk);
+      if(stuk)yield stuk;
+    }
+  }
+  /* Events worden gescheiden door een lege regel. Google schrijft die als
+     \r\n\r\n; hier stond alleen \n\n, dus er werd nooit een grens gevonden
+     en de hele review kwam terug als "Lege response van Gemini" (2026-10-09).
+     Daarom eerst elke \r\n terug naar \n. Het laatste event heeft soms
+     geen lege regel erachter -- dat wordt na de stroom alsnog gelezen. */
   while(true){
     const {done,value}=await reader.read();
     if(done)break;
-    buffer+=decoder.decode(value,{stream:true});
-    /* SSE events gescheiden door \n\n */
+    buffer+=decoder.decode(value,{stream:true}).replace(/\r\n?/g,'\n');
     let idx;
     while((idx=buffer.indexOf('\n\n'))>=0){
       const event=buffer.slice(0,idx);
       buffer=buffer.slice(idx+2);
-      for(const line of event.split('\n')){
-        if(!line.startsWith('data: '))continue;
-        try{
-          const data=JSON.parse(line.slice(6));
-          /* Zelfde reden als in callGemini: de gedachten van een denkend
-             model komen als eigen parts mee en horen niet in beeld. */
-          const chunk=_geminiTekst(data);
-          if(!chunk)continue;
-          if(!terug){yield chunk;continue;}
-          const stuk=terug.duw(chunk);
-          if(stuk)yield stuk;
-        }catch(e){/* malformed event, skip */}
-      }
+      yield* verwerk(event);
     }
   }
+  buffer+=decoder.decode().replace(/\r\n?/g,'\n');
+  if(buffer.trim())yield* verwerk(buffer);
   /* Wat werd vastgehouden omdat het een half token kon zijn. */
   if(terug){const rest=terug.slot();if(rest)yield rest;}
+  /* Niets gekregen? Dan zeggen waaróm, net als callGemini: tegengehouden,
+     te lang, of echt leeg. */
+  if(!gekregen)throw new Error(laatste?_geminiLeegUitleg(laatste):'Gemini stuurde geen antwoord terug.');
 }
 
 /* ══ Vraagvenster ══════════════════════════════════════════════════════════
