@@ -348,29 +348,41 @@ async function runChecks() {
     ['Antwoord: leeg antwoord noemt de reden', () =>
       /paste niet/.test(w._geminiLeegUitleg({candidates:[{finishReason:'MAX_TOKENS'}]})) &&
       /tegen/.test(w._geminiLeegUitleg({candidates:[{finishReason:'SAFETY'}]}))],
-    ['Stroom: \\r\\n tussen de events, en het laatste zonder lege regel', async () => {
+    ['Stroom: \\r\\n tussen de events, laatste zonder lege regel, en halverwege gestopt', async () => {
       /* Google scheidt de events van streamGenerateContent met \r\n\r\n.
          De lezer zocht alleen \n\n en vond dus nooit een grens: de weekreview
          kwam terug als "Lege response van Gemini" (2026-10-09). */
-      const ev = t => 'data: ' + JSON.stringify({candidates:[{content:{parts:[{text:t}]}}]});
+      const ev = (t, fr) => 'data: ' + JSON.stringify({candidates:[{content:{parts:[{text:t}]},
+                                                             ...(fr ? {finishReason: fr} : {})}]});
       const leesUit = async body => {
         const oudFetch = w.fetch, oudKey = w.localStorage.getItem('herling_gemini_api_key');
+        /* De rem (4 per minuut) en de verbruiksteller horen bij echte
+           verzoeken; hier gaat er niets de deur uit. */
+        const oudSlot = w._geminiSlot, oudTel = w._aiBumpUsage;
+        w._geminiSlot = async () => {}; w._aiBumpUsage = () => {};
         w.fetch = async () => new w.Response(body, {status:200, headers:{'Content-Type':'text/event-stream'}});
         if (!oudKey) w.localStorage.setItem('herling_gemini_api_key', 'test');
         let uit = '', fout = '';
         try { for await (const c of w._streamGemini({user:'x'})) uit += c; }
         catch (e) { fout = e.message; }
         finally {
-          w.fetch = oudFetch;
+          w.fetch = oudFetch; w._geminiSlot = oudSlot; w._aiBumpUsage = oudTel;
           if (!oudKey) w.localStorage.removeItem('herling_gemini_api_key');
         }
         return {uit, fout};
       };
-      const a = await leesUit(ev('Deze week ') + '\r\n\r\n' + ev('ging het goed.') + '\r\n\r\n');
-      const b = await leesUit(ev('Deze week ') + '\n\n' + ev('ging het goed.'));
+      const a = await leesUit(ev('Deze week ') + '\r\n\r\n' + ev('ging het goed.', 'STOP') + '\r\n\r\n');
+      const b = await leesUit(ev('Deze week ') + '\n\n' + ev('ging het goed.', 'STOP'));
       const c = await leesUit('data: ' + JSON.stringify({candidates:[{finishReason:'SAFETY'}]}) + '\r\n\r\n');
-      return a.uit === 'Deze week ging het goed.' && b.uit === 'Deze week ging het goed.' &&
-             c.uit === '' && /SAFETY/.test(c.fout);
+      /* Halverwege gestopt (MAX_TOKENS, of zonder reden): de tekst komt door,
+         maar de stroom eindigt met een fout, zodat een half antwoord niet
+         als compleet in beeld blijft (2026-10-09). */
+      const d = await leesUit(ev('Deze week ') + '\r\n\r\n' + ev('ging het **Ge', 'MAX_TOKENS') + '\r\n\r\n');
+      const e = await leesUit(ev('Deze week ') + '\r\n\r\n' + ev('ging het **Ge') + '\r\n\r\n');
+      return a.uit === 'Deze week ging het goed.' && !a.fout && b.uit === 'Deze week ging het goed.' && !b.fout &&
+             c.uit === '' && /SAFETY/.test(c.fout) &&
+             d.uit === 'Deze week ging het **Ge' && /halverwege/.test(d.fout) &&
+             e.uit === 'Deze week ging het **Ge' && /halverwege/.test(e.fout);
     }],
 
     /* ── Analyse ──

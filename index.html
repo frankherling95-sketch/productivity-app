@@ -8479,7 +8479,7 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.43</span>
+        <span class="app-versie" title="Appversie">v2.44</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -34603,9 +34603,13 @@ async function* _streamGemini({system,user,temperature=0.5,maskeer=false}){
   if(!key)throw new Error('Geen Gemini API-key ingesteld. Klik op ⚙ API-key.');
   const masker=(maskeer&&aiMaskerenAan())?aiMaskerder():null;
   if(masker){if(system)system=masker.maskeer(system);user=masker.maskeer(user);}
+  /* maxOutputTokens expliciet en ruim: op Gemini 3 telt het nadenken mee in
+     dit plafond, en zonder eigen waarde brak de weekreview halverwege af
+     ("**Ge", "Voor volgende") terwijl het eruitzag als een compleet antwoord
+     (2026-10-09). Een review is ±600 tokens; dit laat het denkwerk ruim. */
   const body={
     contents:[{role:'user',parts:[{text:user}]}],
-    generationConfig:{temperature}
+    generationConfig:{temperature,maxOutputTokens:16384}
   };
   if(system)body.systemInstruction={parts:[{text:system}]};
   /* Zie callGemini: op Gemini 3 gaat er anders eerst een denkronde overheen,
@@ -34623,7 +34627,7 @@ async function* _streamGemini({system,user,temperature=0.5,maskeer=false}){
      chunks aan elkaar en rendert ze, en krijgt dus meteen echte namen. */
   const terug=masker?masker.stroom():null;
   let buffer='';
-  let laatste=null, gekregen=false;
+  let laatste=null, gekregen=false, reden='', gebruik=null;
   /* Eén SSE-event: de regels "data: {...}". Gedachten van een denkend
      model komen als eigen parts mee en horen niet in beeld (_geminiTekst). */
   function* verwerk(event){
@@ -34632,6 +34636,9 @@ async function* _streamGemini({system,user,temperature=0.5,maskeer=false}){
       let data;
       try{data=JSON.parse(line.slice(5).trim());}catch(e){continue;}   /* half of kapot event */
       laatste=data;
+      const fr=data?.candidates?.[0]?.finishReason;
+      if(fr)reden=fr;
+      if(data?.usageMetadata)gebruik=data.usageMetadata;
       const chunk=_geminiTekst(data);
       if(!chunk)continue;
       gekregen=true;
@@ -34663,6 +34670,23 @@ async function* _streamGemini({system,user,temperature=0.5,maskeer=false}){
   /* Niets gekregen? Dan zeggen waaróm, net als callGemini: tegengehouden,
      te lang, of echt leeg. */
   if(!gekregen)throw new Error(laatste?_geminiLeegUitleg(laatste):'Gemini stuurde geen antwoord terug.');
+  /* Wel tekst, maar niet netjes afgesloten met STOP: dan is het een half
+     antwoord, en dat mag niet als compleet in beeld blijven staan. De
+     aanroeper krijgt een fout met .afgebroken, en houdt de tekst die er al
+     staat. In de console staat waarom, met het tokengebruik erbij. */
+  if(reden!=='STOP'){
+    try{console.info('[Gemini] stroom gestopt',{reden:reden||'(geen)',gebruik});}catch(_){}
+    const err=new Error(_geminiAfgebrokenUitleg(reden));
+    err.afgebroken=true;
+    throw err;
+  }
+}
+function _geminiAfgebrokenUitleg(reden){
+  if(reden==='MAX_TOKENS')return 'Gemini stopte halverwege: het antwoord paste niet in de ruimte die het model kreeg.';
+  if(/SAFETY|PROHIBITED|BLOCKLIST/i.test(reden||''))return 'Gemini stopte halverwege: Google hield de rest tegen ('+reden+').';
+  if(reden==='RECITATION')return 'Gemini stopte halverwege: de rest leek te veel op bestaande tekst.';
+  if(!reden)return 'De verbinding met Gemini werd halverwege gesloten; het antwoord is niet compleet.';
+  return 'Gemini stopte halverwege (reden: '+reden+').';
 }
 
 /* ══ Vraagvenster ══════════════════════════════════════════════════════════
@@ -35336,32 +35360,34 @@ async function generateWeeklyReview(){
   contentEl.innerHTML='';
   contentEl.style.display='';
   contentEl.classList.add('streaming');
+  let fullText='';
+  const toon=t=>{contentEl.innerHTML=(typeof marked!=='undefined'&&marked.parse)
+    ?veiligeHtml(marked.parse(t)):escapeHtml(t).replace(/\n/g,'<br>');};
   try{
     const prompt=_buildWeeklyReviewPrompt(_weeklyReviewMeta);
-    let fullText='';
     let lastRender=0;
     for await (const chunk of _streamGemini({user:prompt,temperature:0.5,maskeer:true})){
       fullText+=chunk;
       /* Throttle marked.parse calls naar max 10 fps voor performance */
       const now=Date.now();
-      if(now-lastRender>100){
-        const html=(typeof marked!=='undefined'&&marked.parse)?veiligeHtml(marked.parse(fullText)):escapeHtml(fullText).replace(/\n/g,'<br>');
-        contentEl.innerHTML=html;
-        lastRender=now;
-      }
+      if(now-lastRender>100){toon(fullText);lastRender=now;}
     }
     if(!fullText)throw new Error('Lege response van Gemini');
     _weeklyReviewMarkdown=fullText;
-    /* Finale render */
-    const html=(typeof marked!=='undefined'&&marked.parse)?veiligeHtml(marked.parse(fullText)):escapeHtml(fullText).replace(/\n/g,'<br>');
-    contentEl.innerHTML=html;
+    toon(fullText);   /* finale render */
     contentEl.classList.remove('streaming');
     copyBtn.style.display='';
     saveBtn.style.display='';
     if(regenBtn)regenBtn.style.display='';
   }catch(e){
     contentEl.classList.remove('streaming');
-    contentEl.style.display='none';
+    /* Halverwege afgebroken: de tekst die er al is laten staan, met de
+       melding erboven en Opnieuw ernaast. Opslaan en kopiëren blijven uit --
+       een halve review hoort niet ongemerkt in Notities te belanden. */
+    if(e&&e.afgebroken&&fullText){
+      toon(fullText);
+      if(regenBtn)regenBtn.style.display='';
+    }else contentEl.style.display='none';
     _aiSetError(errEl,e.message,'generateWeeklyReview');
   }finally{
     loadEl.style.display='none';

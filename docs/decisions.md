@@ -6157,3 +6157,34 @@ kleurt dan alleen die kolom.
 `.wr-header`), `test.html`, `sw.js`, `CLAUDE.md`.
 
 **Niet doen.** Een SSE-stroom alleen op `\n\n` splitsen.
+
+## 2026-10-09 · Weekreview: halve antwoorden (v2.44)
+
+**Probleem.** Na v2.43 kwam de review wel door, maar brak hij halverwege
+af ("**Ge", "⏭ Voor volgende") en stond hij er toch als compleet, met
+Opslaan en Kopiëren erbij. De stroom stopte netjes, alleen eerder dan het
+antwoord. De app keek niet naar `finishReason`, dus waarom bleef onzichtbaar.
+
+Waarschijnlijkste oorzaak: geen `maxOutputTokens` in het verzoek. Op Gemini 3
+telt het nadenken mee in dat plafond, en dan blijft er voor de tekst minder
+over dan een review nodig heeft. Niet bewezen: de echte reden komt pas bij
+Frank in beeld, zie hieronder.
+
+**Beslissing.**
+- `_streamGemini` vraagt `maxOutputTokens: 16384` (een review is ±600
+  tokens; het denkwerk krijgt ruim de rest).
+- Eindigt de stroom niet met `STOP`, dan gooit hij een fout met
+  `.afgebroken`, met de reden in gewone taal (`_geminiAfgebrokenUitleg`):
+  te lang, tegengehouden, of verbinding gesloten. De reden en het
+  tokengebruik staan ook in de console (`[Gemini] stroom gestopt`).
+- De weekreview laat bij een afgebroken antwoord de ontvangen tekst staan,
+  met de melding en Opnieuw erbij. Opslaan en Kopiëren blijven uit: een
+  halve review hoort niet ongemerkt in Notities.
+- Test in `test.html` voor MAX_TOKENS en een stroom zonder reden; de rem
+  (4/min) en de verbruiksteller staan daarin tijdelijk uit.
+
+**Bestanden.** `index.html` (`_streamGemini`, `_geminiAfgebrokenUitleg`,
+`generateWeeklyReview`), `test.html`, `sw.js`.
+
+**Niet doen.** Een stroom als compleet behandelen zonder `finishReason:
+STOP` te hebben gezien.
