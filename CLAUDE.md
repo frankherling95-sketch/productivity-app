@@ -25,7 +25,8 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 ├── herling_analytics_home.html, bi_checklist_kanban.html  ← redirect-stubs (oude URLs)
 ├── herling-icon.svg              ← logo, stilstaand, groot (manifest)
 ├── herling-icon-anim.svg         ← logo, bewegend, groot (bron van de klein-versie; niet in de app)
-├── herling-icon-klein.svg, herling-icon-anim-klein.svg  ← zelfde logo voor 16–64px: dikkere lijnen, geen raster (tabblad, zijbalk, klantwisselaar)
+├── herling-icon-klein.svg, herling-icon-anim-klein.svg  ← vorige logo voor 16–64px (klein = tabblad; anim-klein niet meer in de app)
+├── herling-ring-48.png           ← open-ring-logo (2026-10-09), regel "Alle klanten" in de klantwisselaar; het logo met tekst linksboven staat inline in index.html
 ├── herling-icon-180/192/512.png, herling-icon-maskable-512.png  ← app-iconen (iOS, Android)
 ├── manifest.json, sw.js          ← PWA + Service Worker (zie ⚠️ hieronder)
 ├── CLAUDE.md                     ← dit bestand

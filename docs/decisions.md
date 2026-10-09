@@ -6075,3 +6075,35 @@ een vaste breedte van 240px.
 **Niet doen.** De breedte in `rawState` zetten, of de greep als derde kolom
 in het raster: hij is absoluut gepositioneerd zodat de kolommen blijven
 zoals ze zijn.
+
+## 2026-10-09 · Logo met tekst linksboven, klantfilter eronder; groet weg (v2.41)
+
+**Probleem.** Een nieuwe logoset (de "open ring"). Linksboven stond het oude
+icoon met "Herling Analytics" als tekst ernaast en een pilletje "Alle
+klanten" eronder, alles in één knop die de klantwisselaar opende. Onder
+"Dashboard" stond nog "Goedemiddag — vrijdag 9 oktober", terwijl datum en
+week sinds v2.37 boven de hero staan.
+
+**Beslissing.**
+- Linksboven het bewegende logo mét tekst (de donkere *ambient*-versie),
+  **inline** in de pagina. Als `<img>` laadt een SVG geen webfont, en dan
+  valt HERLING terug op een ander lettertype. Unbounded (700) komt erbij in
+  de Google Fonts-link. Het bewegen zit in de SVG en stopt bij "beweging
+  beperken".
+- Eén versie, de donkere: de zijbalk is in elk thema donker
+  (`--sidebar-gradient`), dus een lichte variant zou nergens op staan.
+- Het klantfilter is een eigen blok onder het logo: icoon (groep-icoon bij
+  "Alle klanten", initialen bij een klant), naam, pijl. Het pilletje is weg.
+- Ingeklapt (72px) toont het logo alleen het teken: het SVG wordt 48px hoog
+  en het vak knipt op 48px af, precies het linkerdeel.
+- In de klantwisselaar staat bij "Alle klanten" het nieuwe icoon
+  (`herling-ring-48.png`). Tabblad- en app-iconen zijn nog de vorige.
+- De groet met datum onder "Dashboard" is ook op een bureaublad weg
+  (`#todayStr`, `formatToday`).
+
+**Bestanden.** `index.html` (`.sb-kop`, `.sb-logo`, `.sb-wissel*`,
+`renderKlantWissel`, `klantLogoHtml`, Google Fonts-link, dashboard-topbar,
+`renderDashHero`), `herling-ring-48.png`, `sw.js`, `CLAUDE.md`.
+
+**Niet doen.** Het logo als `<img src="….svg">` zetten (lettertype weg), of
+de lichte versie in de zijbalk.
