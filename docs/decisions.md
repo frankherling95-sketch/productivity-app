@@ -6107,3 +6107,25 @@ week sinds v2.37 boven de hero staan.
 
 **Niet doen.** Het logo als `<img src="….svg">` zetten (lettertype weg), of
 de lichte versie in de zijbalk.
+
+## 2026-10-09 · Tabblad- en app-iconen naar het open-ring-logo (v2.42)
+
+**Beslissing.** Tabblad, iOS-beginscherm, Android en het manifest gebruiken
+het nieuwe logo, met de bestanden uit de set van de ontwerper: favicon als
+PNG van 32 en 16px (de SVG met stippen is op 16px te fijn),
+`herling-icon-180/192/512.png` en `herling-icon.svg` op dezelfde namen,
+zodat manifest, meldingen en service worker niet hoefden te veranderen.
+
+De maskable versie zat niet in de set. Het gewone icoon heeft transparante,
+afgeronde hoeken, en Android snijdt een maskable icoon zelf bij: dan zou je
+die hoeken zien. Daarom is hij opnieuw gemaakt: het teken op 74% (379px)
+op een volle achtergrond #050D1C, binnen de veilige cirkel van 80%.
+
+Het vorige logo (`herling-icon-klein.svg`, `herling-icon-anim-klein.svg`,
+`herling-icon-anim.svg`) is weg; het staat nergens meer in de app.
+
+**Bestanden.** `herling-favicon-16/32.png`, `herling-icon*.png`,
+`herling-icon.svg`, `index.html` (`<head>`), `sw.js`, `CLAUDE.md`.
+
+**Niet doen.** Het gewone icoon met de afgeronde hoeken als maskable
+gebruiken.

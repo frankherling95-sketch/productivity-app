@@ -23,11 +23,10 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 .
 ├── index.html   ← DE app (alle wijzigingen hier)
 ├── herling_analytics_home.html, bi_checklist_kanban.html  ← redirect-stubs (oude URLs)
-├── herling-icon.svg              ← logo, stilstaand, groot (manifest)
-├── herling-icon-anim.svg         ← logo, bewegend, groot (bron van de klein-versie; niet in de app)
-├── herling-icon-klein.svg, herling-icon-anim-klein.svg  ← vorige logo voor 16–64px (klein = tabblad; anim-klein niet meer in de app)
-├── herling-ring-48.png           ← open-ring-logo (2026-10-09), regel "Alle klanten" in de klantwisselaar; het logo met tekst linksboven staat inline in index.html
-├── herling-icon-180/192/512.png, herling-icon-maskable-512.png  ← app-iconen (iOS, Android)
+├── herling-icon.svg              ← open-ring-logo op donkere tegel, stilstaand (manifest)
+├── herling-favicon-16/32.png     ← tabblad
+├── herling-ring-48.png           ← regel "Alle klanten" in de klantwisselaar; het logo met tekst linksboven staat inline in index.html
+├── herling-icon-180/192/512.png, herling-icon-maskable-512.png  ← app-iconen (iOS, Android; maskable = teken op volle achtergrond, binnen de veilige zone)
 ├── manifest.json, sw.js          ← PWA + Service Worker (zie ⚠️ hieronder)
 ├── CLAUDE.md                     ← dit bestand
 ├── docs/decisions.md             ← append-only beslissingen-log (ADR-stijl)
