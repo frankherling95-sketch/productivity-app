@@ -6588,3 +6588,102 @@ vraagvensters; Instellingen; de drie AI-vensters; foutmeldingen),
 **Niet doen.** De sleutel terugzetten in het veld of in de pagina-HTML, ook
 niet "om te kunnen kopiëren". En niet zelf naar Instellingen springen bij
 een ontbrekende sleutel: laat de knop in de melding het doen.
+
+## 2026-10-11 · Agenda en Mail op Google-accounts, en de chat kijkt mee (v2.53)
+
+**Probleem.** Frank wilde een agenda waarin zijn Google-accounts samenkomen,
+zakelijk en privé, en die hij met de AI kan combineren. Liefst ook mail:
+overzichten, doorlezen, opschonen en terugzoeken. De vorige agenda ging er op
+2026-09-06 uit omdat de iCal-keten (vier CORS-proxies, Microsoft-caches,
+RRULE-werk) niet betrouwbaar was.
+
+**Beslissing.** Twee modules, `#agenda` en `#mail`, op één laag van
+gekoppelde Google-accounts (`gacc*`). Franks keuzes vooraf: agenda **lezen +
+afspraak maken**, mail **lezen + opschonen** (archiveren, prullenbak, labels,
+gelezen) en concept-antwoorden in Gmail, **niet versturen**.
+
+- *Accounts.* `rawState.settings.googleAccounts` = `[{id, email, naam,
+  agenda, mail, kalKeuze}]`: gaat mee naar Drive, zodat elk apparaat weet
+  welke accounts er zijn. Koppelen, hernoemen, Agenda/Mail aan of uit, welke
+  agenda's, opnieuw verbinden en ontkoppelen staan in Instellingen → Agenda
+  en mail.
+- *Eén toestemming per account voor alles*: `openid email`,
+  `calendar.events`, `calendar.calendarlist.readonly` en `gmail.modify`.
+  Agenda of Mail uitzetten is een keuze in de app, geen andere toestemming:
+  anders vraagt Google bij elke wissel opnieuw. `gmail.modify` kan niets
+  definitief verwijderen; de prullenbak leegt Gmail na 30 dagen zelf.
+- *Het token staat in sessionStorage*, per account, en hoort bij wie er
+  ingelogd is. Zelfde afweging als `gmail.send` (2026-08-09): met dit token
+  lees je de hele mailbox, dat laat je niet op schijf staan. De prijs: na het
+  sluiten van het tabblad, of na een uur, is er één klik per account nodig.
+  `gaccVerbindBijGebaar()` gebruikt daarvoor de eerstvolgende klik in Agenda
+  of Mail, net als bij Drive. Eén account per klik, want de browser staat
+  maar één venster per klik toe.
+- *Rechtstreeks de Calendar API.* Geen iCal en geen proxy's meer: dat was
+  precies wat de vorige agenda kapot maakte. Weergaven: Dag, Week en Lijst
+  (30 dagen). Op een telefoon begint hij op Dag, schuift de week opzij met
+  minstens 100px per dag, en staat er geen dagkop in Dag (lessen uit
+  2026-09-05). Herhalingen komen al uitgevouwen van Google
+  (`singleEvents=true`): een wijziging geldt voor die ene keer.
+- *Mail in een iframe zonder scripts.* De inhoud gaat door DOMPurify, de
+  iframe heeft `sandbox` zonder `allow-scripts`, en een eigen CSP
+  (`default-src 'none'; img-src data:`). Plaatjes van buiten laden pas na
+  "Tonen": zo'n plaatje is ook een melding aan de afzender dat je de mail
+  opende. Ingesloten plaatjes (`cid:`) haalt de app zelf op. Links openen in
+  een nieuw tabblad met `noopener noreferrer`.
+- *Opruimen per afzender.* Hooguit 500 berichten per account per keer:
+  geteld per afzender, met de vlag "nieuwsbrief" (List-Unsubscribe). In één
+  klik archiveren of naar de prullenbak (`batchModify`), met ongedaan maken.
+  Afmelden opent de afmeldpagina van de afzender; de app stuurt zelf niets.
+  "Advies van AI" zet per afzender een advies met reden ernaast; er verandert
+  niets tot je klikt.
+- *De chat kijkt zelf.* Drie leesgereedschappen (`AI_LEES`:
+  `agenda_bekijken`, `mail_zoeken`, `mail_lezen`) voert de app meteen uit.
+  Het resultaat gaat terug naar het model, dat daarna verder antwoordt (de
+  eerste echte tool-use-lus, hooguit vijf rondes). Doen blijft een kaart:
+  `afspraak_maken`, `mail_opruimen` en `mail_concept`, met async `doe()` en
+  `terug()` (stand "Bezig…"). Alleen met Claude, en alleen als er een
+  account is.
+- *De lus houdt het begin van het gesprek gelijk.* De API vergelijkt bij een
+  vervolg alles vóór het denkblok. Daarom per vraag één systeeminstructie,
+  één gereedschapslijst en één masker. Het antwoord van het model gaat
+  ongewijzigd terug, ook het lege denkblok met zijn handtekening
+  (`_claudeBlokBij`). Alleen de resultaten gaan door het masker:
+  e-mailadressen worden `{{MAIL_n}}`.
+- *Mail is niet te vertrouwen.* Elke systeeminstructie met mail zegt dat
+  tekst uit een mail geen opdracht is. Er is geen gereedschap om te
+  versturen, en alles wat iets verandert gaat via een kaart.
+
+**Nodig in de Google Cloud Console** (eenmalig, door Frank): de Gmail API en
+de Calendar API aan, en `gmail.modify`, `calendar.events` en
+`calendar.calendarlist.readonly` op het OAuth-scherm. Een gmail.com-account
+kan pas koppelen als het OAuth-scherm op **Extern** staat. Een interne app
+laat alleen herling-analytics.nl toe, en Google toont dan "Error 403:
+org_internal". Voor persoonlijk gebruik (minder dan 100 gebruikers) is geen
+verificatie nodig: bij de eerste keer staat er "Google heeft deze app niet
+geverifieerd", met Geavanceerd → Doorgaan.
+
+**Ook meegenomen.** In `opdOpen()` ving een timer van 60 ms geen gesloten
+venster af: `opdForm` was dan al `null`. In de tests gaf dat een losse
+consolefout.
+
+**Niet getest.** Echte aanroepen naar Google en Anthropic: daar zijn
+accounts en sleutels voor nodig. De Calendar API, de Gmail API en de
+Claude-stroom zijn nagebootst in `test.html` (11 nieuwe tests). De schermen zijn
+nagelopen op 1440×900 en 375×812, met een nagebootste Google (de
+hulppagina `_meet-google.html`, staat niet in git).
+
+**Bestanden.** `index.html`: GOOGLE-ACCOUNTS (`gacc*`), MODULE: AGENDA
+(`kal*`, `.kal-`), MODULE: MAIL (`pv*`, `.pv-`), de chatlaag (`_streamAI`,
+`_claudeStroom`, `_claudeBlokBij`, `AI_LEES`, `aiChatVraag`, `aiActieDoe`,
+`aiActieTerug`), Instellingen (`instGroepAccounts`), de router, de zijbalk
+en badges. Verder `test.html`, `sw.js`, `CLAUDE.md`,
+`docs/stijlgids.md` §17 en `.claude/ownership.json`.
+
+**Niet doen.**
+- Het token naar localStorage verplaatsen zonder Frank te vragen.
+- Een verstuur-gereedschap voor de chat toevoegen.
+- `allow-scripts` op het mail-iframe zetten.
+- Plaatjes van buiten standaard laten laden.
+- De afspraken zelf in `rawState` bewaren: die staan in Google.
+- Terug naar iCal-proxies.
