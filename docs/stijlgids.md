@@ -634,9 +634,15 @@ als je klikt.
 | kaart | `--surface` op het vlak van de bubbel, `1px var(--border-strong)`, radius 10px, vulling `10px 12px` |
 | kop | icoon van 16px in mint, titel `--fs-klein` / 700; rechts de stand in `--fs-micro` met een stip van 7px (grijs, groen als uitgevoerd, rood als het niet kan) |
 | regels | `dl` in twee kolommen: label muted, waarde `--text`, beide `--fs-klein`; namen en datums voluit ("vr 16 okt 2026"), zoals ze in de app staan |
-| knoppen | `.btn-sm`: **Uitvoeren** primair, **Overslaan** secundair; na uitvoeren een melding plus **Ongedaan maken** |
+| knoppen | `.btn-sm`: **Uitvoeren** primair, **Overslaan** secundair; na uitvoeren een melding, **Bekijk in …** primair (naar het resultaat) en **Ongedaan maken** |
 | kan niet | een regel in `--danger` met de reden, zonder Uitvoeren |
 | twee of meer open | onder de kaarten één knop **Alles uitvoeren (n)** |
 
-Overgeslagen en ongedaan gemaakte kaarten blijven staan op 65% dekking. Zo
-blijft zichtbaar wat er voorgesteld is.
+Overgeslagen, ongedaan gemaakte en vervallen kaarten blijven staan op 65%
+dekking, zonder knoppen. Zo blijft zichtbaar wat er voorgesteld is. Een
+voorstel vervalt zodra je een nieuwe vraag stelt.
+
+**Naar het resultaat.** Een taak waar je vanuit de chat naartoe springt,
+licht op met een omlijning van 2px in mint die in `10 × --duur` uitdooft
+(`.cl-item.is-gevonden`). Schaduw en vulling van `.cl-item` staan op
+`!important` en winnen van een animatie; een `outline` niet.

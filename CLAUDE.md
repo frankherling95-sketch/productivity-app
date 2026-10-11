@@ -69,7 +69,7 @@ rawState = {
   opdrachten: opdrachtState, // {opdrachten, vrij (vakanties), feestdagen (ids; ontbreekt = standaard)}
   contracten: contractState, // {contracten, opruimen} — de PDF's zelf staan NIET hierin, zie Contracten hieronder
   // agenda: verwijderd 2026-09-06; oude events blijven ongemoeid in Drive staan
-  settings: { calSources, theme, agendaMeldingen: {aan, kalenderId, checklist}, driveArchief: {aan, mapId}, ... }
+  settings: { calSources, theme, agendaMeldingen: {aan, kalenderId, checklist}, driveArchief: {aan, mapId}, externeTools, aiVerbruik: {'JJJJ-MM': {model: {n, in, uit, lees, schrijf, usd}}}, ... }
 }
 ```
 
@@ -132,7 +132,7 @@ Bij toevoegen van een nieuw state-veld: voeg een hydratie-stap toe in `hydrateer
 | `updateNavBadges()` | Tellingen naast de nav-items (Checklist, Uren, Facturen) |
 | Undo systeem | Verwijderacties tonen toast met "Ongedaan maken" |
 | AI-aanroep (`callAI()`, `_streamAI()`) | Eén ingang voor alle AI-functies: maskeert, en stuurt dan naar de aanbieder van het gekozen model (`aiKiesModel()`; standaard Claude Haiku 5.5, kiezen in Instellingen of onderin Vraag het je app). Nieuwe AI-functie? Roep `callAI()` aan, nooit `_geminiVraag`/`_claudeVraag` rechtstreeks (dan slaat hij het maskeren over) |
-| AI-chat (`aiChatOpen()`) | "Vraag het je app": vragen over taken, uren, facturen, opdrachten, contracten via de gekozen aanbieder. `aiChatOverzicht()` rekent vooraf (zelfde functies als de modules) en gaat als systeeminstructie mee; gesprek alleen in de sessie. Met Claude kan hij ook iets **doen** (`AI_ACTIES`: taak toevoegen/afvinken, uren schrijven, factuur betaald, notitie): altijd als voorstelkaart, pas na jouw klik op Uitvoeren, en daarna ongedaan te maken |
+| AI-chat (`aiChatOpen()`) | "Vraag het je app": vragen over taken, uren, facturen, opdrachten, contracten via de gekozen aanbieder. `aiChatOverzicht()` rekent vooraf (zelfde functies als de modules) en gaat als systeeminstructie mee; gesprek alleen in de sessie. Met Claude kan hij ook iets **doen** (`AI_ACTIES`: taak toevoegen/afvinken, uren schrijven, factuur betaald, notitie): altijd als voorstelkaart, pas na jouw klik op Uitvoeren, en daarna ongedaan te maken. Na uitvoeren brengt *Bekijk in Checklist* (of Uren, factuur, notitie) je erheen; een open voorstel vervalt bij je volgende vraag. Elk Claude-antwoord telt mee in `aiVerbruikTel()` (geschat in dollars, per maand en model, in Instellingen → AI) |
 
 ## Theme
 
@@ -327,9 +327,9 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
+- **2026-10-11**: **Verbruik van Claude en Bekijk vanuit de chat** (v2.51) — tokens uit elk antwoord → geschatte kosten per maand en model in `rawState.settings.aiVerbruik` (over apparaten heen), in Instellingen → AI en onderin de chat. Een uitgevoerde actie heeft een knop naar het resultaat; open voorstellen vervallen bij een nieuwe vraag (geen dubbele taak)
 - **2026-10-11**: **De chat doet ook dingen** (v2.50) — Claude krijgt vijf gereedschappen (`AI_ACTIES`, strict tool use). Een aanroep wordt een voorstelkaart in het gesprek (wat, voor welke klant, welke datum), uitgevoerd pas na een klik, via de gewone functies van de modules, en ongedaan te maken. Geen resultaat terug naar het model; de geschiedenis zegt wat er gebeurde
 - **2026-10-11**: **Instellingen als eigen pagina, Claude Haiku standaard** (v2.49) — `#instellingen` vervangt het pop-upmenu: groepen met regels (knop, keuze met vinkje, schakelaar), twee kolommen op een breed scherm, één op een telefoon. Eén modelkeuze die ook de aanbieder bepaalt, goedkoopste eerst; ook als keuzelijst onderin Vraag het je app
-- **2026-10-11**: **AI-aanbieder kiezen: Gemini of Claude** (v2.48) — alle AI-functies via `callAI()`/`_streamAI()`, die maskeren en dan de aanbieder uit Instellingen → AI kiezen. Claude via `fetch` op de Messages API (standaard `claude-opus-5-5`, effort `low` voor uitlezen, `medium` voor chat), sleutel/keuze/model per apparaat in localStorage. Gemini blijft standaard
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 
@@ -414,7 +414,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 169 smoke-, sync-, model-, reken- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
+| `test.html` | 173 smoke-, sync-, model-, reken- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |

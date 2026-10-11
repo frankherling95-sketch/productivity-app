@@ -6499,3 +6499,49 @@ model zeker lijkt. Een gereedschap toevoegen zonder `bekijk()` dat de
 klant, datum en het bestaan van het doel controleert, of zonder `terug()`.
 En geen verwijder-gereedschap: weggooien doe je zelf, met de prullenbak en de
 undo die daar al bij horen.
+
+## 2026-10-11 · Verbruik van Claude, Bekijk vanuit de chat, voorstellen vervallen (v2.51)
+
+**Probleem.** Na de eerste echte acties wilde Frank twee dingen. Ten eerste
+wilde hij weten wat Claude kost. Ten tweede wilde hij vanuit een uitgevoerde
+actie naar de taak in de Checklist kunnen springen. Op zijn screenshot stond
+bovendien een eerste voorstel (zonder klant) dat nog een Uitvoeren-knop had
+naast het verbeterde voorstel. Twee klikken gaven dus twee taken.
+
+**Beslissing.**
+- **Verbruik.** Elk antwoord van Claude meldt hoeveel tokens het kostte
+  (`usage`: in, uit, cache lezen, cache schrijven). `aiVerbruikTel()` telt
+  dat op per maand en per model in `rawState.settings.aiVerbruik`, en rekent
+  het meteen om naar dollars (`CLAUDE_PRIJS`, met het hogere Haiku-tarief
+  boven 100K invoer per verzoek). Bij een stroom komt het model uit
+  `message_start`: bij een terugval is dat het model dat er echt is
+  afgerekend. Ook een afgebroken of geweigerd antwoord telt mee, want dat
+  is ook betaald. Het verbruik staat in Instellingen → AI (deze en vorige
+  maand, per model) en onderin de chat ("≈ $0,27 deze maand").
+- **Gesynchroniseerd**, net als de externe tools. Frank werkt op meerdere
+  computers en wil het totaal zien, niet het verbruik van één apparaat. Er
+  blijven dertien maanden bewaard.
+- **Het blijft een schatting.** Het tegoed en wat er echt is afgerekend,
+  kan de app niet ophalen: daar is een beheersleutel voor nodig, en die
+  hoort niet in een browser. Een knop "Naar de Claude Console" opent de
+  Console.
+- **Bekijk.** Elke actie geeft naast `terug()` ook `open` terug, met een
+  label en een weg erheen. Een taak: de chat gaat dicht en de Checklist
+  opent. Archiefweergave, filters en een klantfilter die de taak verbergen
+  gaan opzij, en de taak scrolt in beeld en licht op. Uren opent de regel in
+  het invulblad, een factuur opent in de editor, een notitie opent.
+- **Vervallen.** Stel je een nieuwe vraag, dan vervallen open voorstellen
+  uit eerdere beurten (`aiActieVervalOpen()`). Het model leest daarna in de
+  geschiedenis "niet uitgevoerd", en zet zo nodig een nieuw voorstel klaar.
+- De testpagina zet `aiVerbruik` na afloop terug. Nagebootste
+  Claude-antwoorden tellen anders mee in de demogegevens.
+
+**Bestanden.** `index.html` (Claude-laag: `aiVerbruik*`, tellen in
+`_claudeVraag` en `_claudeStroom`; de badge; Instellingen → AI; chat:
+`open`, `aiActieOpen`, `aiNaarTaak`, `aiFlits`, `aiActieVervalOpen`),
+`test.html` (4 tests), `sw.js`, `CLAUDE.md`, `docs/stijlgids.md` §16.
+
+**Niet doen.** Een Admin-API-sleutel in de app zetten om het echte tegoed
+te tonen. Het verbruik per apparaat in localStorage zetten: dan klopt het
+totaal nooit. En geen `box-shadow` of `background` animeren op `.cl-item`,
+want die staan op `!important`.
