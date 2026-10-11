@@ -8257,10 +8257,19 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
   display: flex; flex-direction: column;
   padding: 0 !important; overflow: hidden !important;
 }
-.aic-kop { flex-shrink: 0; }
+.aic-kop { flex-shrink: 0; display: flex; align-items: center; gap: var(--sp-2); }
+.aic-kop-tekst { flex: 1; min-width: 0; }
 .aic-kop h3 { margin: 0; display: flex; align-items: center; gap: 8px; font-size: var(--fs-groot); }
-.aic-kop .ai-spark { font-size: 18px; }
+.aic-kop .aic-spark { width: 18px; height: 18px; flex-shrink: 0; }
 .aic-kop p { margin: 4px 0 0; font-size: var(--fs-klein); }
+/* Icoonknop op de band (stijlgids §2): raakvlak --tap, geen rand of vulling,
+   wit zoals het kruisje ernaast; uit = .35. */
+.aic-nieuw {
+  width: var(--tap); height: var(--tap); flex: none; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; border: 0; border-radius: var(--radius); cursor: pointer;
+}
+.aic-nieuw:disabled { opacity: .35; cursor: default; background: transparent !important; }
 .aic-lijst {
   flex: 1; min-height: 0; overflow-y: auto;
   padding: 18px 20px; display: flex; flex-direction: column; gap: 12px;
@@ -8322,7 +8331,11 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
 @keyframes aic-denk { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .aic-denkt span { animation: none; opacity: .6; } }
 .aic-leeg { margin: auto 0; text-align: center; color: var(--text-muted); font-size: var(--fs-basis); }
-.aic-leeg p { margin: 0 0 14px; }
+.aic-leeg-titel {
+  margin: 0 0 6px; color: var(--text);
+  font-family: var(--font-display); font-size: var(--fs-groot); font-weight: 700; letter-spacing: -0.01em;
+}
+.aic-leeg-uitleg { margin: 0 auto 16px; max-width: 540px; font-size: var(--fs-klein); line-height: 1.5; }
 .aic-suggesties { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 .aic-suggestie {
   padding: 8px 12px; border-radius: 999px;
@@ -8363,10 +8376,36 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
   .modal.aic-modal { height: 92vh; }
   .aic-lijst { padding: 14px; }
   .aic-invoer { margin: 0 14px; }
-  .aic-voet { padding: 10px 14px 14px; }
   .aic-beurt { max-width: 94%; }
   .aic-zend { width: var(--tap); height: var(--tap); }
   .ios-tab .aic-invoer textarea { font-size: 16px !important; }
+  /* Rustiger op een telefoon (2026-10-11). De kop is één regel: titel, +
+     en het kruisje. De ondertitel herhaalde wat de lege stand al zegt. */
+  .aic-kop { padding-top: 10px; padding-bottom: 10px; }
+  .aic-kop p { display: none; }
+  /* Lege stand onderin, bij je duim en het invoerveld: één vraag als kop
+     en vier suggesties als gelijke regels, links uitgelijnd. Geen uitleg
+     -- de suggesties laten zelf zien wat kan. */
+  .aic-leeg { margin: auto 0 0; text-align: left; }
+  .aic-leeg-titel { margin-bottom: var(--sp-3); }
+  .aic-leeg-uitleg { display: none; }
+  .aic-suggesties { flex-direction: column; flex-wrap: nowrap; gap: var(--sp-2); }
+  .aic-suggestie {
+    display: flex; align-items: center; width: 100%; min-height: var(--tap);
+    padding: 10px 14px; border-radius: 12px; border-color: var(--border);
+  }
+  .aic-suggestie:nth-child(n+5) { display: none; }
+  /* Voet: één regel. Het model links als stille keuzelijst (geen doos),
+     het verbruik rechts als gewone tekst. Onderin ruimte voor de thuisbalk. */
+  .aic-voet { padding: 4px 14px calc(8px + env(safe-area-inset-bottom, 0px)); flex-wrap: nowrap; }
+  .aic-voet-l { flex: 1; min-width: 0; justify-content: space-between; flex-wrap: nowrap; }
+  .aic-model {
+    min-width: 0; max-width: 65%; min-height: var(--tap);
+    background: transparent !important; border: 0 !important; box-shadow: none !important;
+    padding: 0 4px !important; font-size: var(--fs-klein) !important; color: var(--text-muted);
+  }
+  .ios-tab .aic-model { font-size: 16px !important; }
+  .aic-voet .ai-quota-badge { background: none; border: 0; padding: 0; font-size: var(--fs-micro); white-space: nowrap; }
 }
 
 /* Weekreview header met week-navigatie. Een kopbalk (.modal-kop) die met
@@ -10378,8 +10417,18 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
 <div class="modal-bg" id="aiChatModal" onclick="if(event.target===this)aiChatSluit()">
   <div class="modal aic-modal">
     <div class="modal-kop aic-kop">
-      <h3><span class="ai-spark" aria-hidden="true">✨</span>Vraag het je app</h3>
-      <p>Over je taken, uren, facturen, opdrachten en contracten — en wat je vraagt, zet hij voor je klaar</p>
+      <div class="aic-kop-tekst">
+        <h3><svg class="aic-spark" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><defs><linearGradient id="aicVerloop" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#00E5B0"/><stop offset="1" stop-color="#38BDF8"/></linearGradient></defs><g fill="url(#aicVerloop)"><path d="M9 3.5Q10.4 9.6 16.5 11Q10.4 12.4 9 18.5Q7.6 12.4 1.5 11Q7.6 9.6 9 3.5Z"/><path d="M15.5 1.5Q16.1 3.9 18.5 4.5Q16.1 5.1 15.5 7.5Q14.9 5.1 12.5 4.5Q14.9 3.9 15.5 1.5Z"/></g></svg>Vraag het je app</h3>
+        <p>Over je taken, uren, facturen, opdrachten en contracten — en wat je vraagt, zet hij voor je klaar</p>
+      </div>
+      <!-- Nieuw gesprek: een icoon in de kop, links van het kruisje (dat
+           zetModalSluitknoppen() op een telefoon toevoegt). Stond als
+           tekstknop in de voet en zakte daar op een telefoon naar een
+           eigen regel. Uit (niet weg) zolang er nog geen gesprek is. -->
+      <button type="button" class="aic-nieuw" id="aiChatNieuwBtn" onclick="aiChatNieuw()"
+        aria-label="Nieuw gesprek" title="Nieuw gesprek">
+        <svg class="icoon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>
+      </button>
     </div>
     <div class="aic-lijst" id="aiChatLijst" aria-live="polite"></div>
     <form class="aic-invoer" onsubmit="event.preventDefault();aiChatVraag()">
@@ -10396,7 +10445,6 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
       </div>
       <div class="aic-voet-r">
         <button class="btn btn-sm" type="button" id="aiChatOpnieuwBtn" onclick="aiChatOpnieuw()" hidden>🔄 Opnieuw</button>
-        <button class="btn btn-sm" type="button" id="aiChatNieuwBtn" onclick="aiChatNieuw()">Nieuw gesprek</button>
         <button class="btn btn-sm modal-annuleer" type="button" onclick="aiChatSluit()">Sluiten</button>
       </div>
     </div>
@@ -37116,14 +37164,16 @@ function saveWeeklyReviewAsNote(){
      zou de chat "€ 0" als feit noemen.
    - Het gesprek leeft alleen in deze sessie; niets ervan gaat naar Drive. */
 const AI_CHAT_MAX_BEURTEN=12;          /* zoveel eerdere beurten gaan mee */
+/* Op een telefoon staan alleen de eerste vier (zie .aic-suggestie in de
+   mobiele laag): daar de nuttigste, met één die iets klaarzet. */
 const AI_CHAT_SUGGESTIES=[
-  'Hoeveel taken heb ik deze week afgerond?',
   'Welke facturen staan nog open, en welke zijn te laat?',
-  'Hoeveel uren heb ik deze maand geschreven, per klant?',
-  'Welke contracten of opdrachten vragen binnenkort een beslissing?',
   'Hoeveel uren heb ik nog niet gefactureerd?',
-  'Wat was mijn omzet per maand dit jaar?',
-  'Zet een taak klaar: offerte nalopen, deadline vrijdag'
+  'Welke contracten of opdrachten vragen binnenkort een beslissing?',
+  'Zet een taak klaar: offerte nalopen, deadline vrijdag',
+  'Hoeveel uren heb ik deze maand geschreven, per klant?',
+  'Hoeveel taken heb ik deze week afgerond?',
+  'Wat was mijn omzet per maand dit jaar?'
 ];
 let aiChatGesprek=[];                  /* [{rol:'user'|'model',tekst,fout?}] */
 
@@ -37656,8 +37706,9 @@ function aiChatToon(houdPlek){
   const plek=lijst.scrollTop;
   if(!aiChatGesprek.length){
     lijst.innerHTML=`<div class="aic-leeg">
-      <p>Stel een vraag over je taken, uren, facturen, opdrachten of contracten.<br>
-        Of laat iets klaarzetten: een taak, uren, een betaling, een notitie. Er gebeurt pas iets als jij op Uitvoeren klikt.</p>
+      <p class="aic-leeg-titel">Waar kan ik mee helpen?</p>
+      <p class="aic-leeg-uitleg">Vraag iets over je taken, uren, facturen, opdrachten of contracten, of laat iets klaarzetten:
+        een taak, uren, een betaling, een notitie. Er gebeurt pas iets als jij op Uitvoeren klikt.</p>
       <div class="aic-suggesties">${AI_CHAT_SUGGESTIES.map((t,i)=>
         `<button type="button" class="aic-suggestie" data-action="aiChatSuggestie" data-arg1="${i}">${escapeHtml(t)}</button>`).join('')}</div>
     </div>`;

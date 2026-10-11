@@ -851,6 +851,26 @@ async function runChecks() {
         w.switchModule(terugNaar || 'dashboard');
       }
     }],
+    ['Chat: Nieuw gesprek is een + in de kop, uit zonder gesprek, en maakt het gesprek leeg', async () => {
+      const knop = d.getElementById('aiChatNieuwBtn');
+      if (!knop || !knop.closest('.aic-kop') || d.querySelector('.aic-voet #aiChatNieuwBtn')) return false;
+      const oud = w.eval('JSON.stringify(aiChatGesprek)');
+      try {
+        w.eval('aiChatGesprek=[]');
+        w.aiChatOpen();
+        const uitLeeg = knop.disabled;
+        w.eval('aiChatGesprek=[{rol:"user",tekst:"x"},{rol:"model",tekst:"y"}]');
+        w.aiChatToon(); w.aiChatKnoppen();
+        const aan = !knop.disabled;
+        knop.click();
+        await new Promise(r => setTimeout(r, 30));
+        return uitLeeg && aan && w.eval('aiChatGesprek.length') === 0 && knop.disabled &&
+          !!d.querySelector('#aiChatLijst .aic-leeg-titel');
+      } finally {
+        w.eval('aiChatGesprek=' + oud);
+        w.aiChatSluit();
+      }
+    }],
     ['Zijbalk: de sparkle naast de wisselaar opent Vraag het je app, en sluit eerst de lade op een telefoon', async () => {
       const knop = d.getElementById('sbAiBtn'), sb = d.getElementById('sidebar');
       if (!knop || !knop.closest('.sb-kop-rij') || knop.getAttribute('aria-label') !== 'Vraag het je app') return false;

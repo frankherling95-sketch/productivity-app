@@ -632,7 +632,23 @@ Een nieuwe instelling krijgt een regel op deze pagina, ook als hij in een
 
 ---
 
-## 16. Een voorstel in de chat
+## 16. Vraag het je app
+
+**Het venster.** Een kop op de band met de sparkle (in het verloop van het
+logo, geen emoji), de titel en rechts een **+** voor een nieuw gesprek: een
+icoonknop zoals in §2, uit (`.35`) zolang er nog geen gesprek is. Daaronder
+het gesprek, het invoerveld en een voet met het model en het verbruik.
+
+| | Bureaublad | Telefoon |
+|---|---|---|
+| kop | titel + ondertitel, **+** rechts | alleen de titel; **+** en ✕ rechts, elk `var(--tap)` |
+| lege stand | midden: kop *Waar kan ik mee helpen?* (`--fs-groot` / 700 display), uitleg `--fs-klein` muted, zeven suggesties als pillen | onderin bij het invoerveld: dezelfde kop, geen uitleg, de eerste **vier** suggesties als gelijke regels van de volle breedte (radius 12px, min. `var(--tap)`, `--fs-klein`, links uitgelijnd) |
+| voet | model als `.btn-sm`-keuze, verbruik als badge, rechts **Sluiten** | één regel: model als stille keuze (geen doos, `--fs-klein` muted), verbruik rechts als gewone tekst; onderin ruimte voor de thuisbalk |
+
+De volgorde van de suggesties telt: op een telefoon staan alleen de eerste
+vier, dus daar de nuttigste, met één die iets klaarzet.
+
+### Een voorstel in de chat
 
 Wil Vraag het je app iets doen, dan staat er een kaart in het antwoord
 (`.aic-actie`). Op die kaart staat wat er gaat gebeuren. Er verandert pas iets

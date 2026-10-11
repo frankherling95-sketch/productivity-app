@@ -6682,3 +6682,41 @@ wisselaar is het patroon van een werkruimtekiezer met een snelknop ernaast.
 **Niet doen.** De tegel een eigen kleur of rand geven: dan vraagt hij meer
 aandacht dan de wisselaar ernaast. En niet zonder `aria-label`, want er
 staat geen tekst op.
+
+## 2026-10-11 · Vraag het je app rustiger op een telefoon (v2.53)
+
+**Probleem.** Op een telefoon was het chatvenster druk. De kop had een
+ondertitel van drie regels. Daaronder stond een uitleg van vijf regels,
+gecentreerd, met zeven suggesties als pillen van wisselende breedte. Onderin
+stond het model als grote doos, en "Nieuw gesprek" zakte naar een eigen
+regel. Uit (zonder gesprek) zag die knop eruit als een fout, en hij zat
+tegen de thuisbalk aan.
+
+**Beslissing.**
+- **Nieuw gesprek** is een **+** in de kop, links van het kruisje, op elke
+  breedte (`#aiChatNieuwBtn`, `.aic-nieuw`). Het is een icoonknop zoals in
+  stijlgids §2: uit op `.35` zolang er geen gesprek is, niet weggehaald.
+  De tekstknop in de voet is weg.
+- De sparkle in de kop is een svg in het verloop van het logo, net als in
+  de zijbalk. De emoji ✨ werd op een iPhone geel.
+- **Telefoon:**
+  - de kop is één regel, zonder ondertitel;
+  - de lege stand staat onderin bij het invoerveld, met de kop *Waar kan ik
+    mee helpen?* en vier suggesties als gelijke regels van de volle breedte;
+  - de uitleg staat er niet;
+  - de voet is één regel: het model als stille keuze, het verbruik als
+    tekst, en onderin `env(safe-area-inset-bottom)`.
+- De volgorde van `AI_CHAT_SUGGESTIES` is aangepast: op een telefoon staan
+  alleen de eerste vier (facturen, open uren, beslissingen en één die iets
+  klaarzet).
+- **Bureaublad:** alleen de **+**, de sparkle, de kop *Waar kan ik mee
+  helpen?* en de kortere uitleg. Pillen en voet blijven.
+
+**Bestanden.** `index.html` (`#aiChatModal`, CSS bij `.aic-*`,
+`aiChatToon()`, `AI_CHAT_SUGGESTIES`), `test.html` (1 test),
+`docs/stijlgids.md` §16, `CLAUDE.md`.
+
+**Niet doen.** De **+** verbergen zonder gesprek. Een knop die er soms wel
+en soms niet is, zoek je (stijlgids §2). En de uitleg op een telefoon niet
+terugzetten: de suggesties laten zelf zien wat kan, en een voorstel heeft
+zijn eigen knop **Uitvoeren**.
