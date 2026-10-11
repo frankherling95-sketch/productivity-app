@@ -89,6 +89,7 @@ rawState = {
 | Constant | Doel |
 |----------|------|
 | `DRIVE_BESTAND` = `herling-analytics.json` | Bestand in Drive `appDataFolder` |
+| `AI_GESCH_BESTAND` = `ai-gesprekken.json` | Eerdere gesprekken van Vraag het je app, als eigen bestand in Drive `appDataFolder` (niet in `rawState`: dat gaat bij elke wijziging in zijn geheel naar Drive en als vangnet naar localStorage) |
 | `LS_LOGIN` = `herling_login` | Ingelogde gebruiker (e-mail + geldigheid) |
 | `LS_BACKUP_KEY` = `herling_analytics_local_backup` | Volledige rawState backup |
 | `LS_SYNC_KEY` = `herling_analytics_sync` | `gewijzigdOp`/`naarDriveOp` (lokale klok) + `driveTijd` (server-klok) |
@@ -140,7 +141,7 @@ Bij toevoegen van een nieuw state-veld: voeg een hydratie-stap toe in `hydrateer
 | `updateNavBadges()` | Tellingen naast de nav-items (Checklist, Uren, Facturen) |
 | Undo systeem | Verwijderacties tonen toast met "Ongedaan maken" |
 | AI-aanroep (`callAI()`, `_streamAI()`) | Eén ingang voor alle AI-functies: maskeert, en stuurt dan naar de aanbieder van het gekozen model (`aiKiesModel()`; standaard Claude Haiku 5.5, kiezen in Instellingen of onderin Vraag het je app). Nieuwe AI-functie? Roep `callAI()` aan, nooit `_geminiVraag`/`_claudeVraag` rechtstreeks (dan slaat hij het maskeren over) |
-| AI-chat (`aiChatOpen()`) | "Vraag het je app": vragen over taken, uren, facturen, opdrachten, contracten via de gekozen aanbieder. `aiChatOverzicht()` rekent vooraf (zelfde functies als de modules) en gaat als systeeminstructie mee; gesprek alleen in de sessie. Met Claude kan hij ook iets **doen** (`AI_ACTIES`: taak toevoegen/afvinken, uren schrijven, factuur betaald, notitie): altijd als voorstelkaart, pas na jouw klik op Uitvoeren, en daarna ongedaan te maken. Na uitvoeren brengt *Bekijk in Checklist* (of Uren, factuur, notitie) je erheen; een open voorstel vervalt bij je volgende vraag. Elk Claude-antwoord telt mee in `aiVerbruikTel()` (geschat in dollars, per maand en model, in Instellingen → AI). Met een gekoppeld account kijkt hij ook zelf in agenda en mail (`AI_LEES`: `agenda_bekijken`, `mail_zoeken`, `mail_lezen`; het resultaat gaat terug naar het model, hooguit vijf rondes) en stelt hij voor: afspraak maken, mail opruimen, concept-antwoord. Tekst uit een mail is gegevens, geen opdracht |
+| AI-chat (`aiChatOpen()`) | "Vraag het je app": vragen over taken, uren, facturen, opdrachten, contracten via de gekozen aanbieder. `aiChatOverzicht()` rekent vooraf (zelfde functies als de modules) en gaat als systeeminstructie mee. Gesprekken bewaart hij in Drive in een eigen bestand (`ai-gesprekken.json`, de laatste 100, niet in `rawState`); de klok in de kop van de chat toont ze (`aiGesch*`). Met Claude kan hij ook iets **doen** (`AI_ACTIES`: taak toevoegen/afvinken, uren schrijven, factuur betaald, notitie): altijd als voorstelkaart, pas na jouw klik op Uitvoeren, en daarna ongedaan te maken. Na uitvoeren brengt *Bekijk in Checklist* (of Uren, factuur, notitie) je erheen; een open voorstel vervalt bij je volgende vraag. Elk Claude-antwoord telt mee in `aiVerbruikTel()` (geschat in dollars, per maand en model, in Instellingen → AI). Met een gekoppeld account kijkt hij ook zelf in agenda en mail (`AI_LEES`: `agenda_bekijken`, `mail_zoeken`, `mail_lezen`; het resultaat gaat terug naar het model, hooguit vijf rondes) en stelt hij voor: afspraak maken, mail opruimen, concept-antwoord. Tekst uit een mail is gegevens, geen opdracht |
 
 ## Theme
 
@@ -335,9 +336,9 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
+- **2026-10-11**: **Eerdere gesprekken van Vraag het je app** (v2.57) — bewaard in Drive in een eigen bestand (`ai-gesprekken.json`, de laatste 100, niet in `rawState`), samengevoegd per gesprek met grafstenen voor verwijderde. Klok in de kop van de chat: lijst, openen en doorvragen, verwijderen met ongedaan maken. Een open voorstel is na terugopenen vervallen; ongedaan maken kan dan niet meer. Draait het besluit "niets naar Drive" van 2026-10-09 terug, op verzoek
 - **2026-10-11**: **Instellingen: blokken inklappen** (v2.55) — accountkaarten en API-sleutels hebben een kopregel met de stand (*Verbonden*, *Ingesteld*) die het blok open- en dichtklapt; dicht is de standaard, de stand onthoudt het apparaat (`LS_INST_OPEN`). Twee vaste kolommen in plaats van CSS-kolommen, zodat niets verspringt. De knop *Vraag het* is van het Dashboard af (staat in de zijbalk)
 - **2026-10-11**: **Uren factureren per maand, klanten samenvoegen** (v2.54) — *Uren factureren* zet per ontvanger een concept klaar uit alle open uren van een maand; wie de rekening krijgt volgt "Factureren aan" en is per keer om te zetten. Uren op een concept tellen niet meer als open; concepten houden bij versturen hun nummer in volgorde. Plus: *Vraag het je app* als sparkle-tegel bovenin de zijbalk, naast de klantwisselaar, op elke pagina, en het chatvenster rustiger op een telefoon (+ voor een nieuw gesprek in de kop)
-- **2026-10-11**: **Agenda en Mail op Google-accounts** (v2.53) — meerdere accounts (zakelijk, privé) in Instellingen; Agenda (dag/week/lijst, afspraak maken) en Mail (lezen in een iframe zonder scripts, zoeken, opschonen per afzender, AI-overzicht, concept-antwoord, niet versturen) rechtstreeks op de API's van Google. De chat zoekt zelf in agenda en mail (resultaat terug naar het model, denkblok ongewijzigd mee) en stelt voor wat hij wil doen. Token per tabblad, niet op schijf
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 
@@ -422,7 +423,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 195 smoke-, sync-, model-, reken-, sorteer-, agenda- en mailtests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
+| `test.html` | 198 smoke-, sync-, model-, reken-, sorteer-, agenda- en mailtests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |
