@@ -2329,6 +2329,26 @@ button.inst-rij:focus-visible{outline:2px solid var(--mint);outline-offset:-2px}
 /* Het thema: de vier staaltjes uit het themavenster, nu in de kaart. */
 .inst-kaart .thema-keuzes{padding:12px}
 .inst-voet{margin:0;font-size:var(--fs-micro);color:var(--text-hint)}
+/* Een API-sleutel: kop zoals een regel, daaronder wat er staat, een veld en
+   de knoppen. Alleen de laatste vier tekens komen in beeld. */
+.inst-sleutel{display:flex;flex-direction:column;gap:8px;padding:12px 14px}
+.inst-sleutel + .inst-sleutel,.inst-sleutel + .inst-rij{border-top:0.5px solid var(--border)}
+.inst-sleutel-kop{display:flex;align-items:center;gap:12px}
+.inst-sleutel-in-gebruik{margin-left:6px;padding:1px 7px;border-radius:999px;vertical-align:1px;
+  font-size:var(--fs-micro);font-weight:600;background:var(--mint-soft);color:var(--text)}
+.inst-sleutel-nu{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:var(--fs-klein);color:var(--text-muted)}
+.inst-sleutel-eind{font-variant-numeric:tabular-nums}
+.inst-sleutel-stand::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;
+  margin-right:6px;vertical-align:1px;background:var(--text-hint)}
+.inst-sleutel-stand.is-ok{color:var(--text)}
+.inst-sleutel-stand.is-ok::before{background:var(--success)}
+.inst-sleutel-stand.is-fout{color:var(--danger)}
+.inst-sleutel-stand.is-fout::before{background:var(--danger)}
+.inst-sleutel-rij{display:flex;gap:8px;align-items:stretch}
+.inst-sleutel-rij .inst-veld{flex:1;min-width:0;width:auto}
+.inst-sleutel-knoppen{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.inst-link{margin-left:auto;font-size:var(--fs-klein);color:var(--text-muted);text-decoration:none}
+.inst-link:hover{color:var(--text);text-decoration:underline}
 @media (max-width:768px){
   /* De titel staat al in de mobiele topbalk, en knoppen heeft deze kop niet. */
   #mod-instellingen .uren-topbar{display:none}
@@ -8678,7 +8698,7 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.51</span>
+        <span class="app-versie" title="Appversie">v2.52</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -10304,7 +10324,6 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
     </form>
     <div class="aic-voet">
       <div class="aic-voet-l">
-        <button class="btn btn-sm" type="button" onclick="openAiKeyPrompt()" title="API-key instellen" style="font-size:11px">⚙ API-key</button>
         <!-- Welk model antwoordt. Zelfde keuze als in Instellingen → AI; zie aiChatModelToon(). -->
         <select class="btn btn-sm aic-model" id="aiChatModel" data-change="aiChatKiesModel" aria-label="Model"></select>
         <span class="ai-quota-badge" id="aiQuotaBadgeChat" title="Aantal API-verzoeken vandaag vanaf dit apparaat"></span>
@@ -10341,7 +10360,6 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
     <div id="weeklyReviewContent" class="wr-content" style="display:none"></div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;gap:8px;flex-wrap:wrap">
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <button class="btn btn-sm" type="button" onclick="openAiKeyPrompt()" title="API-key instellen" style="font-size:11px">⚙ API-key</button>
         <span class="ai-quota-badge" id="aiQuotaBadgeReview" title="Aantal API-verzoeken vandaag vanaf dit apparaat. Je werkelijke limiet staat op aistudio.google.com"></span>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -10374,7 +10392,6 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
     <div id="quickAddAIPreview" class="quickadd-preview" style="display:none"></div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;gap:8px;flex-wrap:wrap">
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <button class="btn btn-sm" type="button" onclick="openAiKeyPrompt()" title="API-key instellen" style="font-size:11px">⚙ API-key</button>
         <span class="ai-quota-badge" id="aiQuotaBadgeQuick" title="Aantal API-verzoeken vandaag vanaf dit apparaat. Je werkelijke limiet staat op aistudio.google.com"></span>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -14146,13 +14163,9 @@ function instGroepAi(){
     modellen.push(instRij({soort:'keuze',doe:'instModel',arg:nu,label:nu,hint:'Zelf ingetypt',aan:true}));
   modellen.push(instRij({doe:'instDoe',arg:'aiModelTypen',label:'Ander model…',
     hint:'Een nieuwe Claude of Gemini die hier nog niet tussen staat'}));
-  const heeft=k=>{try{return !!localStorage.getItem(k);}catch(_){return false;}};
-  const ck=heeft(LS_CLAUDE_KEY), gk=heeft(LS_GEMINI_KEY);
   const sleutels=[
-    instRij({doe:'instDoe',arg:'claudeKey',label:'Claude API-key',hint:'Van platform.claude.com · betaald per gebruik',
-      waarde:ck?'Ingesteld':'Niet ingesteld',toon:ck?'aan':(aiAanbieder()==='claude'?'uit':'')}),
-    instRij({doe:'instDoe',arg:'geminiKey',label:'Gemini API-key',hint:'Van aistudio.google.com · gratis laag',
-      waarde:gk?'Ingesteld':'Niet ingesteld',toon:gk?'aan':(aiAanbieder()==='gemini'?'uit':'')}),
+    instSleutelBlok('claude'),
+    instSleutelBlok('gemini'),
     instRij({soort:'schakel',doe:'instDoe',arg:'maskeren',label:'Namen maskeren',aan:aiMaskerenAan(),
       hint:'Klantnamen, adressen en KVK-nummers gaan als code de deur uit en komen hier weer terug'})
   ];
@@ -14175,6 +14188,41 @@ function instVerbruikRijen(){
     instRij({doe:'instDoe',arg:'console',label:'Naar de Claude Console',
       hint:'Wat er echt is afgerekend, en je tegoed. Deze telling is een schatting uit de tokens per antwoord.'})];
 }
+/* Eén aanbieder: wat er staat (alleen de laatste vier tekens), een veld om
+   een nieuwe te plakken, en testen en verwijderen. Zie aiSleutelBewaar. */
+function instSleutelBlok(a){
+  const d=AI_SLEUTELS[a], key=aiSleutelVan(a), gekozen=aiAanbieder()===a;
+  const stand=key?'Ingesteld':'Niet ingesteld';
+  return '<div class="inst-sleutel" data-sleutel="'+a+'">'+
+    '<div class="inst-sleutel-kop"><span class="inst-tekst"><b>'+d.naam+' API-key'+
+    (gekozen?' <span class="inst-sleutel-in-gebruik">in gebruik</span>':'')+'</b>'+
+    '<small>'+escapeHtml(d.uitleg)+'</small></span>'+
+    '<span class="inst-waarde'+(key?' is-aan':gekozen?' is-uit':'')+'">'+stand+'</span></div>'+
+    (key?'<div class="inst-sleutel-nu"><span class="inst-sleutel-eind">Eindigt op …'+escapeHtml(key.slice(-4))+'</span>'+
+      instSleutelStandHtml(a)+'</div>':'')+
+    '<div class="inst-sleutel-rij">'+
+      '<input type="password" class="inp inst-veld" id="instSleutel-'+a+'" data-sleutel-veld="'+a+'" autocomplete="off" '+
+      'spellcheck="false" aria-label="'+d.naam+' API-key" placeholder="'+
+      escapeHtml(key?'Nieuwe sleutel plakken':'Plak je sleutel ('+d.voorbeeld+')')+'">'+
+      '<button type="button" class="btn btn-sm btn-primary" data-action="instSleutelBewaar" data-arg1="'+a+'">Opslaan</button>'+
+    '</div>'+
+    '<div class="inst-sleutel-knoppen">'+
+      (key?'<button type="button" class="btn btn-sm" data-action="instSleutelTest" data-arg1="'+a+'">Testen</button>'+
+        '<button type="button" class="btn btn-sm" data-action="instSleutelWeg" data-arg1="'+a+'">Verwijderen</button>':'')+
+      '<a class="inst-link" href="'+d.url+'" target="_blank" rel="noopener">Sleutel aanmaken bij '+d.bedrijf+' ↗</a>'+
+    '</div></div>';
+}
+function instSleutelStandHtml(a){
+  const st=aiSleutelStand[a];
+  return '<span class="inst-sleutel-stand'+(st?' is-'+st.fase:'')+'" data-sleutel-stand="'+a+'" aria-live="polite">'+
+    escapeHtml(st?st.tekst:'Nog niet getest')+'</span>';
+}
+document.addEventListener('keydown',e=>{
+  const a=e.target&&e.target.dataset&&e.target.dataset.sleutelVeld;
+  if(!a||e.key!=='Enter')return;
+  e.preventDefault();
+  if(aiSleutelBewaar(a,e.target.value))renderInstellingenModule();
+});
 function instGroepWeergave(){
   const cur=huidigThema();
   const staal={auto:'auto',light:'licht',dark:'donker',schedule:'rooster'};
@@ -14270,8 +14318,6 @@ function renderInstellingenModule(){
 /* Wat elke regel doet. Dezelfde functies als het oude menu. */
 const INST_DOEN={
   aiModelTypen:()=>openAiModelPrompt(),
-  claudeKey:()=>openClaudeKeyPrompt(),
-  geminiKey:()=>openGeminiKeyPrompt(),
   maskeren:()=>aiMaskerenWissel(),
   verversen:()=>refreshGist(),
   versies:()=>openVersiesModal(),
@@ -14306,6 +14352,12 @@ async function instDoe(wat){
 Object.assign(APP_ACTIONS,{
   instDoe:(el,e,wat)=>instDoe(wat),
   instModel:(el,e,m)=>aiKiesModel(m),
+  instSleutelBewaar:(el,e,a)=>{
+    const veld=document.getElementById('instSleutel-'+a);
+    if(aiSleutelBewaar(a,veld?veld.value:''))renderInstellingenModule();
+  },
+  instSleutelTest:(el,e,a)=>aiSleutelTest(a),
+  instSleutelWeg:(el,e,a)=>aiSleutelWeg(a),
   instThema:(el,e,t)=>{kiesThema(t);renderInstellingenModule();}
 });
 
@@ -33353,7 +33405,7 @@ async function ctrAiLees(soort){
   soort=soort==='opdracht'?'opdracht':'contract';
   const v=ctrVenster(soort), form=v.form();
   if(!form)return;
-  if(!ctrAiSleutel()){openAiKeyPrompt();return;}
+  if(!ctrAiSleutel()){aiGeenSleutel();return;}
   const b=ctrAiBijlage(form);
   if(!b)return;
   form.ai={status:'bezig',naam:b.naam};
@@ -34608,7 +34660,7 @@ function geminiIsDrie(m){return /^gemini-3/.test(m||'');}
    Methods zegt bovendien of dit model door deze ingang te bereiken is. */
 async function geminiHaalModellen(){
   const key=localStorage.getItem(LS_GEMINI_KEY);
-  if(!key)throw new Error('Geen Gemini API-key ingesteld. Klik op ⚙ API-key.');
+  if(!key)throw new Error('Geen Gemini API-key ingesteld. Vul hem in onder Instellingen → AI.');
   const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models'
     +'?pageSize=200',{headers:{'x-goog-api-key':key}});
   if(!r.ok)throw new Error((await _aiParseErrorResponse(r)).msg);
@@ -34776,10 +34828,11 @@ async function aiKiesModel(m,opt){
     return false;
   }
   aiModelBijwerken();
+  /* Nog geen sleutel voor deze aanbieder: op de Instellingen-pagina staat
+     het veld er al, elders een melding met een knop erheen. */
   if(!aiSleutel()){
-    await openAiKeyPrompt();
-    aiModelBijwerken();
-    if(!aiSleutel())return true;
+    if(activeModule==='instellingen')aiNaarSleutel();else aiGeenSleutel();
+    return true;
   }
   if(probeer)await _aiModelProbeer();
   else appToast('Model: '+aiModelNaam(),{type:'success',duration:2500});
@@ -34790,9 +34843,6 @@ function aiModelBijwerken(){
   _updateAIQuotaBadges();
   aiChatModelToon();
   if(typeof activeModule!=='undefined'&&activeModule==='instellingen')renderInstellingenModule();
-}
-function openAiKeyPrompt(){
-  return aiAanbieder()==='claude'?openClaudeKeyPrompt():openGeminiKeyPrompt();
 }
 /* De lijst als venster, mét een veld voor een model dat er (nog) niet
    tussen staat -- een nieuwe Claude of Flash is sneller uit dan deze lijst. */
@@ -34946,7 +34996,7 @@ async function _aiParseErrorResponse(r){
      volgende diagnose weer gissen op een melding die vertaald is. */
   if(r.status===429)console.warn('[gemini] 429 —',
     {quota:quota.trim()||'(geen details)',wachtMs:wacht,perDag});
-  if(r.status===400&&/API key/i.test(msg))msg='Ongeldige API-key. Check via ⚙ API-key.';
+  if(r.status===400&&/API key/i.test(msg))msg='Ongeldige Gemini API-key. Controleer hem onder Instellingen → AI.';
   const sec=wacht?Math.round(wacht/1000):0;
   const geduld=sec?(sec>=90?' Google vraagt '+Math.round(sec/60)+' minuten geduld.'
                           :' Google vraagt '+sec+' seconden geduld.'):'';
@@ -35318,7 +35368,7 @@ function aiMaskerder(){
    Wie het doet staat in Instellingen → AI. De aanroeper merkt daar niets
    van: dezelfde opties, hetzelfde antwoord, dezelfde Nederlandse fouten. */
 async function callAI({system,user,schema,bestand,bestanden,temperature=0.2,maskeer=false,geenTerugval=false}){
-  if(!aiSleutel())throw new Error('Geen '+aiNaam()+' API-key ingesteld. Klik op ⚙ API-key.');
+  if(!aiSleutel())throw new Error('Geen '+aiNaam()+' API-key ingesteld. Vul hem in onder Instellingen → AI.');
   /* Eén of meer bestanden in hetzelfde verzoek. Elk mag een regel tekst vóór
      zich hebben die zegt welk document het is; zonder zo'n scheiding is een
      antwoord over meerdere documenten niet terug te koppelen. */
@@ -35425,7 +35475,7 @@ function _aiJson(text){
    dan komt er naast tekst een object {type:'actie',naam,input} uit deze
    stroom -- met de namen erin al terugvertaald. Gemini krijgt ze niet. */
 async function* _streamAI({system,user,temperature=0.5,maskeer=false,geschiedenis=null,gereedschap=null}){
-  if(!aiSleutel())throw new Error('Geen '+aiNaam()+' API-key ingesteld. Klik op ⚙ API-key.');
+  if(!aiSleutel())throw new Error('Geen '+aiNaam()+' API-key ingesteld. Vul hem in onder Instellingen → AI.');
   const masker=(maskeer&&aiMaskerenAan())?aiMaskerder():null;
   /* Eerdere beurten van een gesprek (AI-chat): [{rol:'user'|'model',tekst}].
      Door hetzelfde masker als de rest, in dezelfde volgorde, zodat een klant
@@ -35693,7 +35743,7 @@ async function _claudeFout(r,model){
   }catch(e){}
   const s=r.status;
   let uit;
-  if(s===401)uit='Ongeldige Claude API-key. Check via ⚙ API-key.';
+  if(s===401)uit='Ongeldige Claude API-key. Controleer hem onder Instellingen → AI.';
   else if(/credit balance/i.test(msg))
     uit='Je Claude-tegoed is op. Waardeer op via platform.claude.com → Billing, of kies Gemini onder Instellingen → AI.';
   else if(/usage limit|spend limit/i.test(msg))
@@ -36020,48 +36070,118 @@ document.addEventListener('keydown',e=>{
   else if(e.key==='Enter'&&e.target&&e.target.id==='appDlgVeld'){e.preventDefault();appDlgBevestig();}
 },true);
 
-/* ─ API-key beheer ─ */
-async function openGeminiKeyPrompt(){
-  const cur=localStorage.getItem(LS_GEMINI_KEY)||'';
-  const v=await appVraag('Gemini API-key',
-    'Gratis aan te maken op aistudio.google.com onder "Get API Key".',
-    cur,
-    {label:'API-key',placeholder:'AIza…',ja:'Opslaan',
-     voetnoot:'Wordt lokaal in deze browser bewaard, per apparaat — hij gaat niet mee '+
-       'naar Drive. Leeg laten verwijdert hem.'});
-  if(v===null)return; /* geannuleerd */
-  const trimmed=(v||'').trim();
-  if(!trimmed){
-    localStorage.removeItem(LS_GEMINI_KEY);
-    appToast('API-key verwijderd',{type:'info',duration:2500});
-    return;
-  }
-  localStorage.setItem(LS_GEMINI_KEY,trimmed);
-  appToast('API-key opgeslagen',{type:'success',duration:2500});
+/* ─ API-sleutels beheren ─────────────────────────────────────────────
+   (2026-10-11) Op de Instellingen-pagina, per aanbieder apart: invullen,
+   testen, verwijderen. Tot v2.51 was dat een vraagvenster achter een knop
+   "⚙ API-key" in elk AI-venster, steeds voor de aanbieder die toevallig
+   gekozen was -- de andere sleutel was dan niet te beheren.
+
+   De sleutel zelf komt nooit meer in beeld: alleen de laatste vier tekens,
+   om te herkennen welke het is. Bewaard per apparaat in localStorage, niet
+   in Drive. Testen kost niets: het vraagt de lijst met modellen op, en dat
+   lukt alleen met een geldige sleutel. */
+const AI_SLEUTELS={
+  claude:{naam:'Claude',bedrijf:'Anthropic',ls:LS_CLAUDE_KEY,vorm:/^sk-ant-/,voorbeeld:'sk-ant-…',
+    url:'https://platform.claude.com/dashboard',
+    uitleg:'Van platform.claude.com, onder API keys. Betaald per gebruik; zet daar ook een bestedingslimiet.'},
+  gemini:{naam:'Gemini',bedrijf:'Google',ls:LS_GEMINI_KEY,vorm:/^AIza/,voorbeeld:'AIza…',
+    url:'https://aistudio.google.com/apikey',
+    uitleg:'Van aistudio.google.com, onder Get API key. Gratis laag, maar krap.'}
+};
+function aiSleutelVan(a){
+  try{return localStorage.getItem(AI_SLEUTELS[a].ls)||'';}catch(e){return '';}
 }
-async function openClaudeKeyPrompt(){
-  const cur=localStorage.getItem(LS_CLAUDE_KEY)||'';
-  /* Anders dan bij Gemini kost elk verzoek geld. Een eigen sleutel voor deze
-     app met een limiet erop maakt een fout -- een lus, een stapel van
-     honderd facturen -- begrensd. */
-  const v=await appVraag('Claude API-key',
-    'Aan te maken op platform.claude.com onder API keys. Zet daar ook een '+
-    'bestedingslimiet, dan kost een vergissing nooit meer dan je wilt.',
-    cur,
-    {label:'API-key',placeholder:'sk-ant-…',ja:'Opslaan',
-     voetnoot:'Wordt lokaal in deze browser bewaard, per apparaat — hij gaat niet mee '+
-       'naar Drive. Leeg laten verwijdert hem.'});
-  if(v===null)return;
-  /* Een sleutel die uit een mail of PDF is geplakt heeft soms een spatie
-     of een onzichtbaar teken middenin; dat is altijd fout in een sleutel. */
-  const trimmed=(v||'').replace(/[\s​-‍﻿]+/g,'');
-  if(!trimmed){
-    localStorage.removeItem(LS_CLAUDE_KEY);
-    appToast('API-key verwijderd',{type:'info',duration:2500});
-    return;
+/* Een sleutel uit een mail of PDF heeft soms een spatie of een onzichtbaar
+   teken middenin; dat is in een sleutel altijd fout. */
+function aiSleutelSchoon(v){return String(v||'').replace(/[\s​-‍﻿]+/g,'');}
+/* Hoe de laatste test afliep, per aanbieder, alleen in deze sessie. */
+let aiSleutelStand={};
+
+function aiSleutelBewaar(a,ruw){
+  const d=AI_SLEUTELS[a];
+  if(!d)return false;
+  const key=aiSleutelSchoon(ruw);
+  if(!key){appToast('Plak eerst een sleutel in het veld',{type:'warning'});return false;}
+  /* De meest gemaakte vergissing: de sleutel van de ander in het veld. */
+  const ander=Object.keys(AI_SLEUTELS).find(x=>x!==a&&AI_SLEUTELS[x].vorm.test(key));
+  if(ander){
+    appToast('Dit is een '+AI_SLEUTELS[ander].naam+'-sleutel, geen '+d.naam+'-sleutel.',{type:'warning',duration:6000});
+    return false;
   }
-  localStorage.setItem(LS_CLAUDE_KEY,trimmed);
-  appToast('API-key opgeslagen',{type:'success',duration:2500});
+  try{localStorage.setItem(d.ls,key);}
+  catch(e){appToast('Opslaan lukte niet in deze browser',{type:'error'});return false;}
+  aiSleutelStand[a]=null;
+  aiModelBijwerken();
+  appToast(d.naam+'-sleutel opgeslagen',{type:'success',duration:2500});
+  aiSleutelTest(a);
+  return true;
+}
+async function aiSleutelWeg(a){
+  const d=AI_SLEUTELS[a];
+  if(!d||!aiSleutelVan(a))return false;
+  const ja=await appBevestig('Sleutel verwijderen',
+    'De '+d.naam+'-sleutel gaat van dit apparaat af. '+(aiAanbieder()===a
+      ?'Zolang er geen nieuwe staat, werken de AI-functies niet met '+d.naam+'.'
+      :'Op je andere apparaten blijft hij staan.'),
+    {ja:'Verwijderen',gevaar:true});
+  if(!ja)return false;
+  try{localStorage.removeItem(d.ls);}catch(e){}
+  aiSleutelStand[a]=null;
+  aiModelBijwerken();
+  appToast(d.naam+'-sleutel verwijderd',{type:'info',duration:2500});
+  return true;
+}
+async function aiSleutelTest(a){
+  const key=aiSleutelVan(a);
+  if(!key)return;
+  aiSleutelStand[a]={fase:'bezig',tekst:'Bezig met testen…'};
+  aiSleutelStandToon(a);
+  try{
+    if(a==='claude'){
+      let r;
+      try{
+        r=await fetch('https://api.anthropic.com/v1/models?limit=1',{headers:{'x-api-key':key,
+          'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'}});
+      }catch(e){throw new Error('Geen verbinding met Anthropic.');}
+      if(!r.ok)throw new Error((await _claudeFout(r,claudeModel())).msg);
+    }else{
+      await geminiHaalModellen();
+    }
+    aiSleutelStand[a]={fase:'ok',tekst:'Werkt'};
+  }catch(e){
+    /* "Controleer hem onder Instellingen" klopt niet als je daar al staat. */
+    aiSleutelStand[a]={fase:'fout',tekst:String((e&&e.message)||'Werkt niet')
+      .replace(/\s*(Controleer hem|Vul hem in) onder Instellingen → AI\.?/,'')};
+  }
+  aiSleutelStandToon(a);
+}
+/* Alleen de standregel bijwerken, niet de hele pagina: anders verdwijnt
+   wat je ondertussen in het andere veld typt. */
+function aiSleutelStandToon(a){
+  const el=document.querySelector('[data-sleutel-stand="'+a+'"]');
+  if(el)el.outerHTML=instSleutelStandHtml(a);
+}
+
+/* Geen sleutel voor de gekozen aanbieder: zeggen waar hij hoort, met een
+   knop erheen. Niet zelf wegspringen -- je kunt midden in een formulier
+   zitten (een contract uitlezen) en dat wil je niet kwijt. */
+function aiGeenSleutel(){
+  appToast('Er staat nog geen '+aiNaam()+'-sleutel op dit apparaat.',
+    {type:'warning',duration:9000,undo:aiNaarSleutel,actieLabel:'Naar Instellingen'});
+}
+/* Naar het veld van de sleutel op de Instellingen-pagina. */
+function aiNaarSleutel(a){
+  a=AI_SLEUTELS[a]?a:aiAanbieder();
+  ['aiChatModal','weeklyReviewModal','quickAddAIModal'].forEach(id=>
+    document.getElementById(id)?.classList.remove('open'));
+  if(activeModule==='instellingen')renderInstellingenModule();
+  else switchModule('instellingen');
+  setTimeout(()=>{
+    const veld=document.getElementById('instSleutel-'+a);
+    if(!veld)return;
+    veld.closest('.inst-sleutel')?.scrollIntoView({block:'center',behavior:geenBeweging()?'auto':'smooth'});
+    veld.focus({preventScroll:true});
+  },60);
 }
 
 /* ─ Quick-Add modal: open / close ─ */
@@ -37266,7 +37386,7 @@ async function aiChatVraag(tekst){
   const inp=document.getElementById('aiChatInvoer');
   const vraag=String(tekst!=null?tekst:(inp?inp.value:'')).trim();
   if(!vraag||_aiCalling.chat)return;
-  if(!aiSleutel()){openAiKeyPrompt();return;}
+  if(!aiSleutel()){aiGeenSleutel();return;}
   if(inp){inp.value='';aiChatInvoerHoogte();}
   aiActieVervalOpen();
   /* Een beurt met alleen voorstellen (geen tekst) telt ook mee: het model
@@ -37605,8 +37725,7 @@ window.openQuickAddAI=openQuickAddAI;
 window.closeQuickAddAI=closeQuickAddAI;
 window.parseQuickAddAI=parseQuickAddAI;
 window.applyQuickAddAI=applyQuickAddAI;
-window.openGeminiKeyPrompt=openGeminiKeyPrompt;
-window.openAiKeyPrompt=openAiKeyPrompt;
+window.aiNaarSleutel=aiNaarSleutel;
 window.openAiModelPrompt=openAiModelPrompt;
 window.renderInstellingenModule=renderInstellingenModule;
 window.geminiModel=geminiModel;

@@ -327,9 +327,9 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
+- **2026-10-11**: **API-sleutels op de Instellingen-pagina** (v2.52) — per aanbieder een blok met veld, Opslaan, Testen (gratis: de modellenlijst) en Verwijderen; alleen de laatste vier tekens in beeld. De ⚙ API-key-knoppen en vraagvensters zijn weg; zonder sleutel een melding met de knop *Naar Instellingen* (`aiGeenSleutel`, `aiNaarSleutel`)
 - **2026-10-11**: **Verbruik van Claude en Bekijk vanuit de chat** (v2.51) — tokens uit elk antwoord → geschatte kosten per maand en model in `rawState.settings.aiVerbruik` (over apparaten heen), in Instellingen → AI en onderin de chat. Een uitgevoerde actie heeft een knop naar het resultaat; open voorstellen vervallen bij een nieuwe vraag (geen dubbele taak)
 - **2026-10-11**: **De chat doet ook dingen** (v2.50) — Claude krijgt vijf gereedschappen (`AI_ACTIES`, strict tool use). Een aanroep wordt een voorstelkaart in het gesprek (wat, voor welke klant, welke datum), uitgevoerd pas na een klik, via de gewone functies van de modules, en ongedaan te maken. Geen resultaat terug naar het model; de geschiedenis zegt wat er gebeurde
-- **2026-10-11**: **Instellingen als eigen pagina, Claude Haiku standaard** (v2.49) — `#instellingen` vervangt het pop-upmenu: groepen met regels (knop, keuze met vinkje, schakelaar), twee kolommen op een breed scherm, één op een telefoon. Eén modelkeuze die ook de aanbieder bepaalt, goedkoopste eerst; ook als keuzelijst onderin Vraag het je app
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 
@@ -414,7 +414,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 173 smoke-, sync-, model-, reken- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
+| `test.html` | 178 smoke-, sync-, model-, reken- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |
