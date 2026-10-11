@@ -94,6 +94,7 @@ rawState = {
 | IndexedDB `herling_bijlagen` | PDF's van Contracten op dit apparaat (kopie; het origineel staat als los bestand in de Drive-`appDataFolder`) |
 | `LS_HERSTEL_KEY` = `herling_analytics_herstel` | Niet-gekozen versie na een conflict; zichtbaar in Instellingen → Versiegeschiedenis, of `herstelDownload()` |
 | `LS_ARCHIEF` = `herling_archief` | Archief in Google Drive: handtekening, tijdstip, aantal en wat er wacht of is overgeslagen bij de laatste keer bijwerken op dít apparaat (zelfde reden als `LS_AGD`) |
+| `LS_AI_AANBIEDER` = `herling_ai_aanbieder` | `claude` als Claude gekozen is; ontbreekt = Gemini. Met `LS_CLAUDE_KEY` en `LS_CLAUDE_MODEL` (en de Gemini-sleutel) per apparaat en bewust niet in `rawState`: een API-key hoort niet in Drive |
 | `LS_AGD` = `herling_agenda` | Meldingen in Google Agenda: handtekening, tijdstip en aantal van de laatste keer bijwerken op dít apparaat (bewust niet in `rawState`: anders wordt elke keer bijwerken een wijziging voor Drive) |
 
 ### Save flow
@@ -129,7 +130,8 @@ Bij toevoegen van een nieuw state-veld: voeg een hydratie-stap toe in `hydrateer
 | `appToast(msg, opts)` | Floating toast met optionele undo-knop |
 | `updateNavBadges()` | Tellingen naast de nav-items (Checklist, Uren, Facturen) |
 | Undo systeem | Verwijderacties tonen toast met "Ongedaan maken" |
-| AI-chat (`aiChatOpen()`) | "Vraag het je app": vragen over taken, uren, facturen, opdrachten, contracten via Gemini. `aiChatOverzicht()` rekent vooraf (zelfde functies als de modules) en gaat als systeeminstructie mee; gesprek alleen in de sessie |
+| AI-aanroep (`callAI()`, `_streamAI()`) | Eén ingang voor alle AI-functies: maskeert, kiest dan Gemini of Claude naar Instellingen → AI → *AI-aanbieder* (`aiAanbieder()`). Nieuwe AI-functie? Roep `callAI()` aan, nooit `_geminiVraag`/`_claudeVraag` rechtstreeks (dan slaat hij het maskeren over) |
+| AI-chat (`aiChatOpen()`) | "Vraag het je app": vragen over taken, uren, facturen, opdrachten, contracten via de gekozen aanbieder. `aiChatOverzicht()` rekent vooraf (zelfde functies als de modules) en gaat als systeeminstructie mee; gesprek alleen in de sessie |
 
 ## Theme
 
@@ -324,9 +326,9 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
+- **2026-10-11**: **AI-aanbieder kiezen: Gemini of Claude** (v2.48) — alle AI-functies via `callAI()`/`_streamAI()`, die maskeren en dan de aanbieder uit Instellingen → AI kiezen. Claude via `fetch` op de Messages API (standaard `claude-opus-5-5`, effort `low` voor uitlezen, `medium` voor chat), sleutel/keuze/model per apparaat in localStorage. Gemini blijft standaard
 - **2026-10-11**: **Wereldbol onderin de zijbalk** (v2.47) — de grafieklijn is een draaiende aarde van stippen in het logoverloop, op een canvas achter alles (`#sbWereld`, `z-index:-1`, `zijbalkWereld()`). Land: Natural Earth 110m als inline bitmasker (geen request). Hoogte volgt de vrije ruimte boven de voet, stippen achter de voet gedimd; 20 beelden/s, alleen in beeld en met focus, stil bij "beweging beperken"
 - **2026-10-07**: **Dashboard in een nieuwe stijl** (v2.36) — hero als donkere tech-tegel met de logolijn en een lichtpuls (`dashHeroPuls`), één kaartkop (getint icoon, telpil, "Alles ›"), Checklist-kaart met uitklapbare subtaken (open-stand alleen in de sessie; titel opent het taakvenster), notitieregels die díe notitie openen, voortgangsbalk bij Opdrachten & contracten
-- **2026-10-07**: **Geen namen van klanten of relaties in de repo** (v2.34) — de repo is openbaar; alle namen vervangen door vaste verzonnen namen, Externe tools uit de HTML naar `rawState.settings.externeTools`, en `validate.mjs` + de push-hooks houden namen tegen (gehashte lijst). Oude commits bevatten ze nog
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 
@@ -411,7 +413,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 151 smoke-, sync-, model-, reken- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
+| `test.html` | 160 smoke-, sync-, model-, reken- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |
@@ -423,7 +425,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 - Toegang via Google-login; alleen accounts van `herling-analytics.nl` komen binnen
 - Data in Drive `appDataFolder`: een verborgen map per gebruiker die alleen deze app kan lezen — geen URL, geen losse token
 - Geen pincode-versleuteling meer (afgeschaft 2026-08-16) — `appDataFolder` is het slot. Alleen het uitpakpad voor een oud versleuteld blok staat er nog (PBKDF2 + AES-GCM, alleen ontsleutelen)
-- Geen telemetrie, geen externe API-calls behalve Google (Drive, Gmail, Agenda, Fonts)
+- Geen telemetrie, geen externe API-calls behalve Google (Drive, Gmail, Agenda, Fonts, Gemini) en — alleen als je Claude kiest onder Instellingen → AI — Anthropic (`api.anthropic.com`)
 - Google-scopes: `drive.appdata` (opslag), `drive.file` (archief: alleen wat de app zelf maakte), `gmail.send`, `calendar.app.created` — elk staat op het OAuth-scherm in de Cloud Console
 - Tokens NIET in `.git/config` URL — gebruik Git Credential Manager (`git config --global credential.helper manager`)
 - **De repo is openbaar** (GitHub Free + Pages). Geen namen van klanten of relaties erin — zie *Hard rules*

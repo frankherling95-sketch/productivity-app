@@ -593,6 +593,10 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 .app-dlg-veldwrap span{display:block;font-size:var(--fs-micro);font-weight:600;
   letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);margin-bottom:5px}
 .app-dlg-veldwrap .inp{width:100%}
+/* display:block/flex hierboven wint van het hidden-attribuut: een venster
+   zonder veld toonde dan toch het veld van het vorige venster, met de oude
+   waarde erin (gezien bij AI-aanbieder na AI-model, 2026-10-11). */
+.app-dlg-lijst[hidden],.app-dlg-veldwrap[hidden]{display:none}
 .app-dlg-voet{font-size:var(--fs-micro);color:var(--text-muted);margin:8px 0 0;line-height:1.45}
 
 /* Note context menu */
@@ -8570,7 +8574,7 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.47</span>
+        <span class="app-versie" title="Appversie">v2.48</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -10189,7 +10193,7 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
     </form>
     <div class="aic-voet">
       <div class="aic-voet-l">
-        <button class="btn btn-sm" type="button" onclick="openGeminiKeyPrompt()" title="Gemini API-key instellen" style="font-size:11px">⚙ API-key</button>
+        <button class="btn btn-sm" type="button" onclick="openAiKeyPrompt()" title="API-key instellen" style="font-size:11px">⚙ API-key</button>
         <span class="ai-quota-badge" id="aiQuotaBadgeChat" title="Aantal API-verzoeken vandaag vanaf dit apparaat"></span>
       </div>
       <div class="aic-voet-r">
@@ -10224,7 +10228,7 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
     <div id="weeklyReviewContent" class="wr-content" style="display:none"></div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;gap:8px;flex-wrap:wrap">
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <button class="btn btn-sm" type="button" onclick="openGeminiKeyPrompt()" title="Gemini API-key instellen" style="font-size:11px">⚙ API-key</button>
+        <button class="btn btn-sm" type="button" onclick="openAiKeyPrompt()" title="API-key instellen" style="font-size:11px">⚙ API-key</button>
         <span class="ai-quota-badge" id="aiQuotaBadgeReview" title="Aantal API-verzoeken vandaag vanaf dit apparaat. Je werkelijke limiet staat op aistudio.google.com"></span>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -10257,7 +10261,7 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
     <div id="quickAddAIPreview" class="quickadd-preview" style="display:none"></div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;gap:8px;flex-wrap:wrap">
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <button class="btn btn-sm" type="button" onclick="openGeminiKeyPrompt()" title="Gemini API-key instellen" style="font-size:11px">⚙ API-key</button>
+        <button class="btn btn-sm" type="button" onclick="openAiKeyPrompt()" title="API-key instellen" style="font-size:11px">⚙ API-key</button>
         <span class="ai-quota-badge" id="aiQuotaBadgeQuick" title="Aantal API-verzoeken vandaag vanaf dit apparaat. Je werkelijke limiet staat op aistudio.google.com"></span>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -10441,7 +10445,7 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
 
    EXTRA'S
      "NIEUW ITEM" DROPDOWN    globale snelle invoer
-     "AI INTEGRATIE"          Gemini Flash: quick-add + wekelijkse review
+     "AI INTEGRATIE"          Gemini of Claude: callAI, _streamAI, quick-add, review
    ════════════════════════════════════════════════════════════════════════════ */
 
 /* ═══════════════════════════════════════════════════
@@ -14002,7 +14006,7 @@ function toggleAppInstellingen(e){
      ⋯-menu op het Dashboard (alleen mobiel) meer kon dan deze knop: de
      API-key, opnieuw laden, een back-up terugzetten en notificaties zaten
      daar wel en hier niet. Op een bureaublad waren die dus onbereikbaar. */
-  const key=(()=>{try{return localStorage.getItem(LS_GEMINI_KEY)||'';}catch(e){return '';}})();
+  const key=aiSleutel();
   const maskAan=aiMaskerenAan();
   sluitZijbalkVensters();
   m.innerHTML=`
@@ -14029,12 +14033,15 @@ function toggleAppInstellingen(e){
       <span>Archief in Google Drive<small>${escapeHtml(archiefMenuTekst())}</small></span></button>
     <div class="uren-menu-sep"></div>
     <div class="uren-menu-lab">AI</div>
+    <button class="uren-menu-item" role="menuitem" data-app-instel="aiaanbieder">
+      <span class="ic" aria-hidden="true">&#8644;</span>
+      <span>AI-aanbieder<small>${escapeHtml(aiNaam()+' ('+aiBedrijf()+')')}</small></span></button>
     <button class="uren-menu-item" role="menuitem" data-app-instel="aikey">
       <span class="ic" aria-hidden="true">&#9881;</span>
-      <span>Gemini API-key<small>${key?'Ingesteld op dit apparaat':'Nog niet ingesteld'}</small></span></button>
+      <span>${escapeHtml(aiNaam())} API-key<small>${key?'Ingesteld op dit apparaat':'Nog niet ingesteld'}</small></span></button>
     <button class="uren-menu-item" role="menuitem" data-app-instel="aimodel">
       <span class="ic" aria-hidden="true">&#9673;</span>
-      <span>AI-model<small>${escapeHtml(geminiModel())}</small></span></button>
+      <span>AI-model<small>${escapeHtml(aiModel())}</small></span></button>
     <button class="uren-menu-item" role="menuitem" data-app-instel="aimask">
       <span class="ic" aria-hidden="true">&#9788;</span>
       <span>Namen maskeren<small>${maskAan?'Aan — klantnamen gaan als code weg':'Uit — namen gaan onbewerkt mee'}</small></span></button>
@@ -14080,9 +14087,10 @@ document.addEventListener('click',e=>{
   if(wat==='versies')openVersiesModal();
   if(wat==='verversen')refreshGist();
   if(wat==='herstel')document.getElementById('restoreFileInput')?.click();
-  if(wat==='aikey')openGeminiKeyPrompt();
+  if(wat==='aiaanbieder')openAiAanbiederPrompt();
+  if(wat==='aikey')openAiKeyPrompt();
   if(wat==='aimask')aiMaskerenWissel();
-  if(wat==='aimodel')openGeminiModelPrompt();
+  if(wat==='aimodel')openAiModelPrompt();
   if(wat==='slim')openQuickAddAI();
   if(wat==='review')openWeeklyReviewModal();
   if(wat==='notif')requestNotifPermission();
@@ -16048,7 +16056,7 @@ async function notesAiMenu(){
     titel:'Met AI',
     tekst:aiMaskerenAan()
       ?'Klantnamen, adressen en KVK-nummers gaan als code de deur uit en komen hier weer terug.'
-      :'Let op: het maskeren van namen staat uit, dus de tekst gaat onbewerkt naar Google.',
+      :'Let op: het maskeren van namen staat uit, dus de tekst gaat onbewerkt naar '+aiBedrijf()+'.',
     opties
   });
   if(keuze==='schoon')notesAiOpschonen();
@@ -16073,7 +16081,7 @@ function _notesAiBezigVenster(titel,wat){
   _notesAiOpen(titel,
     '<div class="notes-ai-bezig"><div class="spinner"></div><span>'+escapeHtml(wat)+'</span></div>',null);
 }
-/* Eén plek voor "het ging mis": de melding van callGemini is al Nederlands en
+/* Eén plek voor "het ging mis": de melding van callAI is al Nederlands en
    zegt genoeg (geen sleutel, quota op, model ingetrokken). */
 function _notesAiFout(e){
   notesAiSluit();
@@ -16093,9 +16101,9 @@ async function notesAiOpschonen(){
   const tekst=notesAiTekst(r.node);
   if(tekst.length<40){appToast('Deze notitie is te kort om op te schonen',{type:'warning'});return;}
   _notesAiBezig=true;
-  _notesAiBezigVenster('Tekst opschonen','Gemini leest je notitie…');
+  _notesAiBezigVenster('Tekst opschonen',aiNaam()+' leest je notitie…');
   try{
-    const uit=await callGemini({
+    const uit=await callAI({
       system:'Je bent een redacteur die ruwe aantekeningen leesbaar maakt.\n'+
         'Regels:\n'+
         '- Behoud ALLE informatie. Niets weglaten, niets verzinnen, geen samenvatting.\n'+
@@ -16110,7 +16118,7 @@ async function notesAiOpschonen(){
       maskeer:true
     });
     const md=String((uit&&uit.markdown)||'').trim();
-    if(!md)throw new Error('Gemini gaf geen tekst terug.');
+    if(!md)throw new Error(aiNaam()+' gaf geen tekst terug.');
     const nieuwHtml=sanitizeNoteContent(window.marked?marked.parse(md):noteContentToHtml(md));
     _notesAiVoorstel={soort:'tekst',nodeId:r.node.id,html:nieuwHtml};
     /* Afbeeldingen overleven dit niet: we sturen de tekst, niet de opmaak.
@@ -16147,9 +16155,9 @@ async function notesAiPlek(){
   const klanten=(kanbanState.clients||[]).map(c=>c.bedrijfsnaam||c.name);
   const mappen=notesAiMappen();
   _notesAiBezig=true;
-  _notesAiBezigVenster('Waar hoort dit?','Gemini kijkt waar deze notitie thuishoort…');
+  _notesAiBezigVenster('Waar hoort dit?',aiNaam()+' kijkt waar deze notitie thuishoort…');
   try{
-    const uit=await callGemini({
+    const uit=await callAI({
       system:'Je bepaalt waar een notitie thuishoort.\n'+
         'Kies de klant UITSLUITEND uit deze lijst, of laat leeg als geen enkele past:\n'+
         (klanten.length?klanten.map(k=>'- '+k).join('\n'):'(geen klanten bekend)')+'\n'+
@@ -19842,7 +19850,7 @@ async function urenImpAiVerzoek(groep){
   const bestanden=groep.map((g,n)=>({
     mime:g.r.mime||facScanMime(g.r.file), data:g.data,
     kop:'--- Document '+(n+1)+': '+g.r.naam+' ---'}));
-  const uit=await callGemini({
+  const uit=await callAI({
     system:urenImpAiPrompt(groep.length),
     user:'Lees deze '+groep.length+' factu'+(groep.length===1?'ur':'ren')+' uit.',
     bestanden, schema:UREN_IMP_AI_SCHEMA, temperature:0
@@ -19877,7 +19885,8 @@ async function urenImpAiLees(files){
     return {naam:f.name,file:f,mime,maanden:[],klant:'',clientId:null,
       factuurId:'',nummer:'',
       fout:f.size>FAC_SCAN_MAX?((f.size/1048576).toFixed(1)+' MB — maximaal 12 MB')
-        :!mime?'dit soort bestand kan niet gelezen worden — maak er een PDF of foto van':''};
+        :!mime?'dit soort bestand kan niet gelezen worden — maak er een PDF of foto van'
+        :aiBestandFout(mime)};
   });
   urenImpAiBezig=true;
   urenImpRender();
@@ -20180,15 +20189,15 @@ function urenImpRender(){
           aria-pressed="${urenImpModus==='ai'?'true':'false'}">✦ Uit de PDF laten lezen</button>
       </div>
       <p class="fac-an-uitleg">${
-        urenImpModus==='ai' ? 'Gemini leest je factuurbestanden en haalt er het aantal uren én de gewerkte maand uit. Het meest nauwkeurig: het staat er letterlijk op, ook als je tarief in die periode anders was.'
+        urenImpModus==='ai' ? aiNaam()+' leest je factuurbestanden en haalt er het aantal uren én de gewerkte maand uit. Het meest nauwkeurig: het staat er letterlijk op, ook als je tarief in die periode anders was.'
         : urenImpModus==='bedrag' ? 'Voor facturen die je hebt ingescand: die krijgen één regel met aantal 1 en het hele bedrag, dus het aantal zegt niets. Het bedrag wél.'
         : 'Voor facturen die je uit je eigen urenregistratie hebt opgebouwd: daar staat het aantal uren al op de regel.'}</p>
       ${urenImpModus==='ai'?`
         <div class="fac-btw-let" style="margin-bottom:12px">
-          <b>Je facturen gaan onvermomd naar Google</b>
+          <b>Je facturen gaan onvermomd naar ${escapeHtml(aiBedrijf())}</b>
           Het model moet de klantnaam en de gewerkte periode kunnen lézen, dus het maskeren
-          staat hier uit — anders dan bij de andere AI-functies. Vijf facturen per verzoek,
-          en de gratis laag telt twintig verzoeken per dag.</div>
+          staat hier uit — anders dan bij de andere AI-functies. Vijf facturen per verzoek${
+          aiAanbieder()==='gemini'?', en de gratis laag telt twintig verzoeken per dag':''}.</div>
         <div class="uren-imp-modus">
           <button type="button" class="uren-btn uren-btn-primary" data-uren-action="urenImpAiKies"
             ${urenImpAiBezig?'disabled':''}>${urenImpAiRij.length?'Andere facturen kiezen':'Facturen kiezen…'}</button>
@@ -20196,7 +20205,7 @@ function urenImpRender(){
             style="display:none" data-uren-change="urenImpAiBestanden"/>
         </div>
         ${urenImpAiBezig?`<div class="notes-ai-bezig"><div class="spinner"></div>
-          <span>Gemini leest je facturen… ${escapeHtml(urenImpAiVoortgang)}</span></div>`:''}
+          <span>${escapeHtml(aiNaam())} leest je facturen… ${escapeHtml(urenImpAiVoortgang)}</span></div>`:''}
         ${urenImpAiRij.length?`<table class="fac-an-tabel uren-imp-tabel">
           <thead><tr><th>Bestand</th><th>Klant</th><th class="num">Gevonden</th></tr></thead>
           <tbody>${urenImpAiRij.map(r=>{
@@ -25954,9 +25963,9 @@ async function facSpecAiVragen(){
   }
   _facSpecAiBezig=true;
   facSpecAiVenster('Bezig','<div class="notes-ai-bezig"><div class="spinner"></div>'+
-    '<span>Gemini deelt je registraties in…</span></div>',null);
+    '<span>'+escapeHtml(aiNaam())+' deelt je registraties in…</span></div>',null);
   try{
-    const uit=await callGemini({
+    const uit=await callAI({
       system:'Je maakt van losse urenregistraties een leesbare factuurspecificatie.\n'+
         'Deel ELKE registratie in bij precies één onderwerp. Laat er geen weg en gebruik\n'+
         'geen id twee keer. Verzin geen id\'s en geen uren.\n'+
@@ -27432,7 +27441,7 @@ async function facEindAiVragen(){
   _facEindAiBezig=true;
   facEindRender();
   try{
-    const uit=await callGemini({
+    const uit=await callAI({
       system:'Je krijgt de onderwerpregels van facturen. Op sommige staat, naast de\n'+
         'klant die de rekening krijgt, de opdrachtgever voor wie het werk was.\n'+
         'Haal die opdrachtgever eruit.\n'+
@@ -27468,7 +27477,7 @@ async function facEindAiVragen(){
       gevonden[s].omzet+=r.omzet;
     });
     _facEindAi=Object.values(gevonden).sort((a,b)=>b.omzet-a.omzet);
-    if(!_facEindAi.length)appToast('Gemini vond geen opdrachtgevers in je betreft-regels',{type:'info'});
+    if(!_facEindAi.length)appToast(aiNaam()+' vond geen opdrachtgevers in je betreft-regels',{type:'info'});
   }catch(e){
     appToast(String((e&&e.message)||e),{type:'error',duration:12000});
   }finally{
@@ -27558,7 +27567,7 @@ function facEindRender(){
     <h4 class="fac-an-sub">Gevonden in je facturen
       ${_facEindAi?'<span class="fac-eind-bron">door AI</span>':''}</h4>
     ${_facEindAiBezig
-      ? '<div class="notes-ai-bezig"><div class="spinner"></div><span>Gemini leest je betreft-regels…</span></div>'
+      ? '<div class="notes-ai-bezig"><div class="spinner"></div><span>'+escapeHtml(aiNaam())+' leest je betreft-regels…</span></div>'
       : voorstellen.length
         ? `<div class="fac-an-voorstellen">${voorstellen.slice(0,16).map(v=>`
             <button class="uren-btn" data-fac-action="facEindNeemVoorstel"
@@ -27860,7 +27869,7 @@ async function facScanLus(){
         groep.forEach(g=>{g.post.status='bezig';});
         if(inBeeld())facScanToon();
         try{
-          const uit=await facScanVraagGeminiGroep(groep);
+          const uit=await facScanVraagAiGroep(groep);
           groep.forEach((g,i)=>{
             const post=g.post;
             if(uit[i]){post.data=uit[i];post.status='klaar';post.alleen=false;return;}
@@ -28108,8 +28117,8 @@ function facScanNormaliseer(d){
     verstuurdOp:'', betaaldOp:''
   };
 }
-async function facScanVraagGemini(bestand){
-  return facScanNormaliseer(await callGemini({
+async function facScanVraagAi(bestand){
+  return facScanNormaliseer(await callAI({
     system:facScanPrompt(1),user:'Lees deze factuur uit.',bestand,temperature:0}));
 }
 
@@ -28130,6 +28139,12 @@ async function facScanVolgendeGroep(){
   const uit=[];let totaal=0;
   for(const post of facScanRij){
     if(post.status!=='wacht')continue;
+    const kan=aiBestandFout(post.mime||facScanMime(post.file));
+    if(kan){
+      post.status='fout';post.fout=kan;post.tijdelijk=false;
+      if(post===facScanRij[facScanIdx])facScanToon();
+      continue;
+    }
     const data=await facScanBestandNaarBase64(post.file);
     /* Wie er alleen doorheen moet, gaat alleen -- ook als er ruimte is. */
     if(post.alleen)return uit.length?uit:[{post,data}];
@@ -28139,15 +28154,15 @@ async function facScanVolgendeGroep(){
   }
   return uit;
 }
-async function facScanVraagGeminiGroep(groep){
+async function facScanVraagAiGroep(groep){
   if(groep.length===1){
     const g=groep[0];
-    return [await facScanVraagGemini({mime:g.post.mime||facScanMime(g.post.file),data:g.data})];
+    return [await facScanVraagAi({mime:g.post.mime||facScanMime(g.post.file),data:g.data})];
   }
   const bestanden=groep.map((g,i)=>({
     mime:g.post.mime||facScanMime(g.post.file),data:g.data,
     kop:'--- Document '+(i+1)+': '+g.post.naam+' ---'}));
-  const d=await callGemini({system:facScanPrompt(groep.length),
+  const d=await callAI({system:facScanPrompt(groep.length),
     user:'Lees deze '+groep.length+' facturen uit.',bestanden,temperature:0});
   const lijst=Array.isArray(d)?d:(d&&Array.isArray(d.facturen)?d.facturen:[]);
   return groep.map((g,i)=>{
@@ -28209,7 +28224,7 @@ function facOudRender(){
        ${escapeHtml(post.fout)} — vul hem met de hand in, sla hem over, of
        <button class="btn btn-sm" type="button" data-fac-action="facScanHerkans" style="margin-left:4px">probeer opnieuw</button></div>`
     : facOudBezig&&facScanRustTot>Date.now()
-    ? `<div class="fac-uren-info" style="margin-bottom:14px">✲ Het is druk bij Google.
+    ? `<div class="fac-uren-info" style="margin-bottom:14px">✲ Het is druk bij ${escapeHtml(aiBedrijf())}.
        <b>${escapeHtml(facOudBron)}</b> staat in de wachtrij en wordt vanzelf opnieuw
        geprobeerd — je kunt dit venster open laten staan en weglopen.</div>`
     : facOudBezig
@@ -33112,7 +33127,7 @@ function ctrAiVul(soort,d){
   return {ingevuld,verschil};
 }
 
-function ctrAiSleutel(){try{return localStorage.getItem(LS_GEMINI_KEY)||'';}catch(_){return '';}}
+function ctrAiSleutel(){return aiSleutel();}
 /* Welke PDF: de laatst toegevoegde, anders de laatste in de lijst. */
 function ctrAiBijlage(form){
   const id=form.nieuw.length?form.nieuw[form.nieuw.length-1]:null;
@@ -33128,7 +33143,7 @@ async function ctrAiLees(soort){
   soort=soort==='opdracht'?'opdracht':'contract';
   const v=ctrVenster(soort), form=v.form();
   if(!form)return;
-  if(!ctrAiSleutel()){openGeminiKeyPrompt();return;}
+  if(!ctrAiSleutel()){openAiKeyPrompt();return;}
   const b=ctrAiBijlage(form);
   if(!b)return;
   form.ai={status:'bezig',naam:b.naam};
@@ -33137,7 +33152,7 @@ async function ctrAiLees(soort){
     const blob=await ctrPdfHaal(b);
     if(blob.size>FAC_SCAN_MAX)throw new Error('Deze PDF is te groot om uit te lezen (maximaal 12 MB).');
     const data=await facScanBestandNaarBase64(blob);
-    const d=await callGemini({system:ctrAiPrompt(soort),user:'Lees deze overeenkomst uit.',
+    const d=await callAI({system:ctrAiPrompt(soort),user:'Lees deze overeenkomst uit.',
       bestand:{mime:'application/pdf',data},schema:CTR_AI_SCHEMA[soort],temperature:0});
     if(v.form()!==form)return;   /* venster intussen dicht of een ander geopend */
     const r=ctrAiVul(soort,d||{});
@@ -34320,7 +34335,7 @@ Object.assign(APP_ACTIONS,{
 })();
 
 /* ═══════════════════════════════════════════════════════════════════
-   AI INTEGRATIE — Gemini Flash
+   AI INTEGRATIE — Gemini (Google) of Claude (Anthropic)
    Features:
      • Smart Quick-Add (natuurlijke taal → taken + events)
      • Wekelijkse review (auto-verzamelde checklist-summary)
@@ -34331,8 +34346,10 @@ Object.assign(APP_ACTIONS,{
      • Quota-badge: aantal verzoeken vandaag vanaf dit apparaat (elke
        poging telt; het werkelijke plafond staat in AI Studio)
      • Vorige-week navigatie in review (← Vorige | Deze week →)
-   Architectuur: generieke callGemini() (sync JSON) + _streamGemini()
-   (async iterator) — herbruikbaar voor toekomstige AI-features.
+   Architectuur: generieke callAI() (sync JSON) + _streamAI() (async
+   iterator). Die maskeren en kiezen dan de aanbieder uit Instellingen →
+   AI (aiAanbieder()); daaronder zitten per aanbieder _geminiVraag /
+   _geminiStroom en _claudeVraag / _claudeStroom.
    ═══════════════════════════════════════════════════════════════════ */
 const LS_GEMINI_KEY='herling_gemini_api_key';
 const LS_AI_USAGE='herling_ai_usage';
@@ -34475,16 +34492,122 @@ async function openGeminiModelPrompt(){
   });
   if(v===null)return;
   geminiZetModel((v||'').trim());
-  const m=geminiModel();
-  /* Meteen uitproberen. Een naam die niet bestaat merk je anders pas als je
-     een factuur inleest, en dan lijkt het aan die factuur te liggen. */
+  await _aiModelProbeer();
+}
+/* Meteen uitproberen. Een naam die niet bestaat merk je anders pas als je
+   een factuur inleest, en dan lijkt het aan die factuur te liggen. */
+async function _aiModelProbeer(){
+  const m=aiModel();
   appToast('Model: '+m+' — even proberen…',{type:'info',duration:2500});
   try{
-    await callGemini({user:'Antwoord met {"ok":true}',temperature:0,geenTerugval:true});
+    await callAI({user:'Antwoord met {"ok":true}',temperature:0,geenTerugval:true});
     appToast('Model '+m+' werkt',{type:'success',duration:3000});
   }catch(e){
     appToast('Model '+m+': '+e.message,{type:'error',duration:12000});
   }
+}
+
+/* ═══ Welke aanbieder: Gemini of Claude ══════════════════════════════
+   (2026-10-11) Naast Gemini kan Claude (Anthropic) het werk doen. Alle
+   AI-functies lopen via callAI() en _streamAI(); die maskeren eerst en
+   kiezen dan de aanbieder die in Instellingen → AI staat.
+
+   Keuze, sleutel en model staan per apparaat in localStorage, net als de
+   Gemini-sleutel altijd al deed: een API-key hoort niet in Drive, en de
+   keuze hoort bij de sleutel die op dít apparaat staat. Gemini blijft de
+   standaard -- daar staat een gratis laag tegenover. Claude rekent per
+   token af van je tegoed op platform.claude.com, maar kent geen dagquotum
+   van twintig verzoeken. */
+const LS_AI_AANBIEDER='herling_ai_aanbieder';
+const AI_AANBIEDERS={
+  gemini:{naam:'Gemini',bedrijf:'Google'},
+  claude:{naam:'Claude',bedrijf:'Anthropic'}
+};
+function aiAanbieder(){
+  try{return localStorage.getItem(LS_AI_AANBIEDER)==='claude'?'claude':'gemini';}
+  catch(e){return 'gemini';}
+}
+function aiZetAanbieder(a){
+  try{
+    if(a==='claude')localStorage.setItem(LS_AI_AANBIEDER,'claude');
+    else localStorage.removeItem(LS_AI_AANBIEDER);
+  }catch(e){}
+}
+function aiNaam(){return AI_AANBIEDERS[aiAanbieder()].naam;}
+function aiBedrijf(){return AI_AANBIEDERS[aiAanbieder()].bedrijf;}
+function aiSleutel(){
+  try{return localStorage.getItem(aiAanbieder()==='claude'?LS_CLAUDE_KEY:LS_GEMINI_KEY)||'';}
+  catch(e){return '';}
+}
+function aiModel(){return aiAanbieder()==='claude'?claudeModel():geminiModel();}
+
+const LS_CLAUDE_KEY='herling_claude_api_key';
+const LS_CLAUDE_MODEL='herling_claude_model';
+const CLAUDE_MODEL_STANDAARD='claude-opus-5-5';
+/* Prijzen per miljoen tokens, invoer / uitvoer (oktober 2026). Een factuur
+   uitlezen is een paar duizend tokens in en een paar honderd uit. */
+const CLAUDE_MODELLEN=[
+  ['claude-opus-5-5','Opus 5.5 — sterk en grondig · $4 / $20 per miljoen tokens'],
+  ['claude-sonnet-5-5','Sonnet 5.5 — snel, goed voor het meeste · $2 / $10'],
+  ['claude-haiku-5-5','Haiku 5.5 — snelst en goedkoopst, prima om uit te lezen · $0,10 / $0,50'],
+  ['claude-fable-5-1','Fable 5.1 — het sterkste model, en het duurste · $10 / $50']
+];
+function claudeModel(){
+  try{return localStorage.getItem(LS_CLAUDE_MODEL)||CLAUDE_MODEL_STANDAARD;}
+  catch(e){return CLAUDE_MODEL_STANDAARD;}
+}
+function claudeZetModel(m){
+  try{
+    if(!m||m===CLAUDE_MODEL_STANDAARD)localStorage.removeItem(LS_CLAUDE_MODEL);
+    else localStorage.setItem(LS_CLAUDE_MODEL,m);
+  }catch(e){}
+}
+
+async function openAiAanbiederPrompt(){
+  const nu=aiAanbieder();
+  const v=await appKies({
+    titel:'AI-aanbieder',
+    tekst:'Welk taalmodel het werk doet: slim toevoegen, de weekreview, Vraag het je app, '+
+      'notities opschonen en het uitlezen van facturen en contracten.',
+    opties:[
+      {waarde:'gemini',naam:'Gemini (Google)',
+       uitleg:'Gratis laag, maar krap: per minuut en per dag geteld.'},
+      {waarde:'claude',naam:'Claude (Anthropic)',
+       uitleg:'Betaald per gebruik van je tegoed op platform.claude.com; geen dagquotum.'}
+    ],
+    waarde:nu,
+    voetnoot:'Geldt voor dit apparaat. Elke aanbieder heeft een eigen API-key.'
+  });
+  /* Zonder klik op een optie geeft OK een lege tekst terug: niets gekozen. */
+  if(!v||v===nu)return;
+  aiZetAanbieder(v);
+  _updateAIQuotaBadges();
+  appToast('AI: '+aiNaam()+' · '+aiModel(),{type:'success',duration:3000});
+  if(!aiSleutel())openAiKeyPrompt();
+}
+function openAiKeyPrompt(){
+  return aiAanbieder()==='claude'?openClaudeKeyPrompt():openGeminiKeyPrompt();
+}
+function openAiModelPrompt(){
+  return aiAanbieder()==='claude'?openClaudeModelPrompt():openGeminiModelPrompt();
+}
+async function openClaudeModelPrompt(){
+  const nu=claudeModel();
+  /* Lijst én veld, net als bij Gemini: een model dat hier nog niet staat
+     blijft in te typen. */
+  const v=await appKies({
+    titel:'Claude-model',
+    tekst:'Prijzen per miljoen tokens, invoer / uitvoer. Een vraag in de chat stuurt je '+
+      'hele overzicht mee en is dus groter dan een factuur uitlezen.',
+    opties:CLAUDE_MODELLEN.map(([m,uitleg])=>({waarde:m,naam:m,uitleg})),
+    waarde:nu,
+    veld:{label:'Model',waarde:nu,placeholder:CLAUDE_MODEL_STANDAARD},
+    voetnoot:'Leeg laten = terug naar '+CLAUDE_MODEL_STANDAARD+'.',
+    ja:'Gebruiken'
+  });
+  if(v===null)return;
+  claudeZetModel((v||'').trim());
+  await _aiModelProbeer();
 }
 /* State */
 let _quickAddAIResult=null;        /* tijdelijke buffer tussen parse en apply */
@@ -34516,11 +34639,17 @@ function _updateAIQuotaBadges(){
      verwijst naar AI Studio) en bleek in de praktijk veel lager. Een verzonnen
      plafond dat op 12% staat terwijl je quotum al op is, is erger dan geen
      plafond: dan zoek je de fout op de verkeerde plek. */
-  const text=`${u.count} vandaag`;
+  /* De naam van de aanbieder erbij: zo zie je in elk AI-venster wie er
+     antwoordt, zonder naar Instellingen te gaan. De teller is voor beide
+     samen -- het is een indruk van vandaag, geen afrekening. */
+  const text=`${aiNaam()} · ${u.count} vandaag`;
+  const titel='Aantal API-verzoeken vandaag vanaf dit apparaat. '+(aiAanbieder()==='claude'
+    ?'Je verbruik en tegoed staan op platform.claude.com'
+    :'Je werkelijke limiet staat op aistudio.google.com');
   const cls=u.count>=400?'high':u.count>=150?'mid':'';
   ['aiQuotaBadgeQuick','aiQuotaBadgeReview','aiQuotaBadgeChat'].forEach(id=>{
     const el=document.getElementById(id);
-    if(el){el.textContent=text;el.className='ai-quota-badge '+cls;}
+    if(el){el.textContent=text;el.title=titel;el.className='ai-quota-badge '+cls;}
   });
 }
 
@@ -34802,7 +34931,7 @@ async function _geminiFetch(methode,body,opties){
 
    Alleen voor tekst. Een PDF of foto valt erbuiten -- bij de factuurscan
    is het uitlezen van de naam juist de bedoeling, dus die vraagt er niet
-   om, en callGemini slaat het sowieso over zodra er een bestand meegaat.
+   om, en callAI slaat het sowieso over zodra er een bestand meegaat.
 
    Aan/uit staat in Instellingen; standaard aan. Heeft een klant een naam
    die ook een gewoon woord is, dan wordt dat woord overal vervangen en
@@ -34815,7 +34944,7 @@ function aiMaskerenAan(){
 function aiMaskerenWissel(){
   const aan=aiMaskerenAan();
   try{localStorage.setItem(LS_AI_MASKEER,aan?'uit':'aan');}catch(e){}
-  appToast(aan?'Namen gaan nu onbewerkt mee naar Gemini'
+  appToast(aan?'Namen gaan nu onbewerkt mee naar '+aiNaam()
               :'Namen worden voortaan gemaskeerd voor ze weggaan',
            {type:aan?'warning':'success'});
 }
@@ -34952,25 +35081,43 @@ function aiMaskerder(){
   return {maskeer,ontmaskeer,ontmaskeerDiep,stroom,kaart};
 }
 
-/* ─ Generic Gemini API caller (sync JSON) ─ */
-async function callGemini({system,user,schema,bestand,bestanden,temperature=0.2,maskeer=false,geenTerugval=false}){
-  const key=localStorage.getItem(LS_GEMINI_KEY);
-  if(!key)throw new Error('Geen Gemini API-key ingesteld. Klik op ⚙ API-key.');
+/* ─ Eén ingang voor elk AI-verzoek dat JSON teruggeeft ─────────────────
+   Wie het doet staat in Instellingen → AI. De aanroeper merkt daar niets
+   van: dezelfde opties, hetzelfde antwoord, dezelfde Nederlandse fouten. */
+async function callAI({system,user,schema,bestand,bestanden,temperature=0.2,maskeer=false,geenTerugval=false}){
+  if(!aiSleutel())throw new Error('Geen '+aiNaam()+' API-key ingesteld. Klik op ⚙ API-key.');
+  /* Eén of meer bestanden in hetzelfde verzoek. Elk mag een regel tekst vóór
+     zich hebben die zegt welk document het is; zonder zo'n scheiding is een
+     antwoord over meerdere documenten niet terug te koppelen. */
+  const lijst=bestanden&&bestanden.length?bestanden:(bestand?[bestand]:[]);
   /* Namen eruit voor het verzoek de deur uit gaat, en er weer in zodra
      het antwoord terug is. Beide prompts door dezelfde kaart, zie
      aiMaskerder(). Gaat er een bestand mee, dan slaan we het over: een
      PDF valt niet te maskeren en de klantenlijst in de systeemprompt
      moet dan juist leesbaar blijven om ertegen te kunnen matchen. */
-  const masker=(maskeer&&!bestand&&!bestanden&&aiMaskerenAan())?aiMaskerder():null;
+  const masker=(maskeer&&!lijst.length&&aiMaskerenAan())?aiMaskerder():null;
   if(masker){system=masker.maskeer(system);user=masker.maskeer(user);}
+  const text=aiAanbieder()==='claude'
+    ? await _claudeVraag({system,user,schema,bestanden:lijst})
+    : await _geminiVraag({system,user,schema,bestanden:lijst,temperature,geenTerugval});
+  const uit=_aiJson(text);
+  return masker?masker.ontmaskeerDiep(uit):uit;
+}
+/* Kan de gekozen aanbieder dit bestand lezen? '' als dat zo is, anders de
+   reden. Vóór het versturen vragen: één HEIC-foto in een stapel van vijf
+   zou anders de andere vier meenemen in zijn fout. */
+function aiBestandFout(mime){
+  if(aiAanbieder()!=='claude')return '';
+  try{_claudeBestandBlok({mime,data:''});return '';}catch(e){return e.message;}
+}
+
+/* ─ Gemini: één verzoek, het antwoord als tekst ─ */
+async function _geminiVraag({system,user,schema,bestanden,temperature,geenTerugval}){
   /* Een PDF of foto gaat als tweede deel mee in hetzelfde verzoek. Flash
      leest een PDF rechtstreeks, dus er hoeft geen bibliotheek bij om er
      eerst tekst of plaatjes uit te halen. */
   const parts=[{text:user}];
-  /* Eén of meer bestanden in hetzelfde verzoek. Elk mag een regel tekst vóór
-     zich hebben die zegt welk document het is; zonder zo'n scheiding is een
-     antwoord over meerdere documenten niet terug te koppelen. */
-  ((bestanden&&bestanden.length?bestanden:(bestand?[bestand]:[]))).forEach(b=>{
+  bestanden.forEach(b=>{
     if(b.kop)parts.push({text:b.kop});
     parts.push({inline_data:{mime_type:b.mime,data:b.data}});
   });
@@ -34995,8 +35142,7 @@ async function callGemini({system,user,schema,bestand,bestanden,temperature=0.2,
   const data=await r.json();
   const text=_geminiTekst(data);
   if(!text)throw new Error(_geminiLeegUitleg(data));
-  const uit=_geminiJson(text);
-  return masker?masker.ontmaskeerDiep(uit):uit;
+  return text;
 }
 
 /* ─ Het antwoord uit de body vissen ──────────────────────────────────
@@ -35024,8 +35170,9 @@ function _geminiLeegUitleg(data){
 /* responseMimeType:application/json hóórt kale JSON te geven, maar een model
    dat er toch een ```json-hek omheen zet leverde "ongeldige JSON" op terwijl
    het antwoord goed was. Eerst gewoon proberen, dan het hek eraf, dan het
-   stuk tussen de eerste { en de laatste }. */
-function _geminiJson(text){
+   stuk tussen de eerste { en de laatste }. Voor beide aanbieders: Claude
+   zonder schema krijgt kale JSON alleen als regel in de prompt. */
+function _aiJson(text){
   try{return JSON.parse(text);}catch(e){}
   const t=String(text).trim().replace(/^```(?:json)?\s*/i,'').replace(/```\s*$/,'').trim();
   try{return JSON.parse(t);}catch(e){}
@@ -35034,74 +35181,64 @@ function _geminiJson(text){
     const a=t.indexOf(open),b=t.lastIndexOf(dicht);
     if(a>=0&&b>a){try{return JSON.parse(t.slice(a,b+1));}catch(e){}}
   }
-  throw new Error('Gemini gaf geen bruikbare JSON terug.');
+  throw new Error(aiNaam()+' gaf geen bruikbare JSON terug.');
 }
 
-/* ─ Streaming Gemini caller — async iterator die chunks yielded ─
-   Gebruikt voor de wekelijkse review: tekst verschijnt woord voor woord. */
-async function* _streamGemini({system,user,temperature=0.5,maskeer=false,geschiedenis=null}){
-  const key=localStorage.getItem(LS_GEMINI_KEY);
-  if(!key)throw new Error('Geen Gemini API-key ingesteld. Klik op ⚙ API-key.');
+/* ─ Eén ingang voor een antwoord dat woord voor woord binnenkomt ───────
+   Weekreview en Vraag het je app. Maskeren en terugvertalen gebeurt hier,
+   vóór de splitsing: de ontvanger plakt de stukken aan elkaar en rendert
+   ze, en krijgt dus meteen echte namen -- welke aanbieder het ook was. */
+async function* _streamAI({system,user,temperature=0.5,maskeer=false,geschiedenis=null}){
+  if(!aiSleutel())throw new Error('Geen '+aiNaam()+' API-key ingesteld. Klik op ⚙ API-key.');
   const masker=(maskeer&&aiMaskerenAan())?aiMaskerder():null;
   /* Eerdere beurten van een gesprek (AI-chat): [{rol:'user'|'model',tekst}].
      Door hetzelfde masker als de rest, in dezelfde volgorde, zodat een klant
      in elke beurt hetzelfde token krijgt. */
-  let eerder=(geschiedenis||[]).filter(b=>b&&b.tekst)
-    .map(b=>({role:b.rol==='model'?'model':'user',parts:[{text:String(b.tekst)}]}));
+  const eerder=(geschiedenis||[]).filter(b=>b&&b.tekst)
+    .map(b=>({rol:b.rol==='model'?'model':'user',tekst:String(b.tekst)}));
   if(masker){
     if(system)system=masker.maskeer(system);
-    eerder.forEach(c=>{c.parts[0].text=masker.maskeer(c.parts[0].text);});
+    eerder.forEach(b=>{b.tekst=masker.maskeer(b.tekst);});
     user=masker.maskeer(user);
   }
-  /* maxOutputTokens expliciet en ruim: op Gemini 3 telt het nadenken mee in
-     dit plafond, en zonder eigen waarde brak de weekreview halverwege af
-     ("**Ge", "Voor volgende") terwijl het eruitzag als een compleet antwoord
-     (2026-10-09). Een review is ±600 tokens; dit laat het denkwerk ruim. */
-  const body={
-    contents:[...eerder,{role:'user',parts:[{text:user}]}],
-    generationConfig:{temperature,maxOutputTokens:16384}
-  };
-  if(system)body.systemInstruction={parts:[{text:system}]};
-  /* Zie callGemini: op Gemini 3 gaat er anders eerst een denkronde overheen,
-     en bij een review die woord voor woord verschijnt is dat wachten dat je
-     ziet. Wat hier gevraagd wordt is samenvatten, niet uitpuzzelen. */
-  if(geminiIsDrie(geminiModel()))
-    body.generationConfig.thinkingConfig={thinkingLevel:'low'};
-  /* Ook hier het geduld van _geminiFetch(): de herkansing gebeurt vóór er
-     ook maar iets is uitgelezen, dus er kan geen halve tekst dubbel komen. */
-  const r=await _geminiFetch('streamGenerateContent',body,{extra:'alt=sse'});
-  /* Tellen gebeurt in _geminiFetch(), per poging. */
-  const reader=r.body.getReader();
-  const decoder=new TextDecoder();
-  /* Terugvertalen gebeurt hier, niet bij de ontvanger: die plakt de
-     chunks aan elkaar en rendert ze, en krijgt dus meteen echte namen. */
+  const bron=aiAanbieder()==='claude'
+    ? _claudeStroom({system,eerder,user})
+    : _geminiStroom({system,eerder,user,temperature});
   const terug=masker?masker.stroom():null;
-  let buffer='';
-  let laatste=null, gekregen=false, reden='', gebruik=null;
-  /* Eén SSE-event: de regels "data: {...}". Gedachten van een denkend
-     model komen als eigen parts mee en horen niet in beeld (_geminiTekst). */
-  function* verwerk(event){
-    for(const line of event.split('\n')){
-      if(!line.startsWith('data:'))continue;
-      let data;
-      try{data=JSON.parse(line.slice(5).trim());}catch(e){continue;}   /* half of kapot event */
-      laatste=data;
-      const fr=data?.candidates?.[0]?.finishReason;
-      if(fr)reden=fr;
-      if(data?.usageMetadata)gebruik=data.usageMetadata;
-      const chunk=_geminiTekst(data);
-      if(!chunk)continue;
-      gekregen=true;
+  try{
+    for await (const chunk of bron){
       if(!terug){yield chunk;continue;}
       const stuk=terug.duw(chunk);
       if(stuk)yield stuk;
     }
+  }catch(e){
+    /* Een afgebroken antwoord houdt de tekst die er al staat, en daar hoort
+       het stukje bij dat werd vastgehouden omdat het een half token kon zijn. */
+    if(terug){const rest=terug.slot();if(rest)yield rest;}
+    throw e;
   }
-  /* Events worden gescheiden door een lege regel. Google schrijft die als
-     \r\n\r\n; hier stond alleen \n\n, dus er werd nooit een grens gevonden
-     en de hele review kwam terug als "Lege response van Gemini" (2026-10-09).
-     Daarom eerst elke \r\n terug naar \n. Het laatste event heeft soms
-     geen lege regel erachter -- dat wordt na de stroom alsnog gelezen. */
+  if(terug){const rest=terug.slot();if(rest)yield rest;}
+}
+
+/* ─ Server-sent events uit een fetch-antwoord, als JSON per data-regel ─
+   Beide aanbieders sturen SSE. Events worden gescheiden door een lege
+   regel. Google schrijft die als \r\n\r\n; hier stond alleen \n\n, dus er
+   werd nooit een grens gevonden en de hele review kwam terug als "Lege
+   response van Gemini" (2026-10-09). Daarom eerst elke \r\n terug naar \n.
+   Het laatste event heeft soms geen lege regel erachter -- dat wordt na de
+   stroom alsnog gelezen. */
+async function* _aiSse(r){
+  const reader=r.body.getReader();
+  const decoder=new TextDecoder();
+  let buffer='';
+  function* lees(event){
+    for(const line of event.split('\n')){
+      if(!line.startsWith('data:'))continue;
+      let data;
+      try{data=JSON.parse(line.slice(5).trim());}catch(e){continue;}   /* half of kapot event */
+      yield data;
+    }
+  }
   while(true){
     const {done,value}=await reader.read();
     if(done)break;
@@ -35110,14 +35247,48 @@ async function* _streamGemini({system,user,temperature=0.5,maskeer=false,geschie
     while((idx=buffer.indexOf('\n\n'))>=0){
       const event=buffer.slice(0,idx);
       buffer=buffer.slice(idx+2);
-      yield* verwerk(event);
+      yield* lees(event);
     }
   }
   buffer+=decoder.decode().replace(/\r\n?/g,'\n');
-  if(buffer.trim())yield* verwerk(buffer);
-  /* Wat werd vastgehouden omdat het een half token kon zijn. */
-  if(terug){const rest=terug.slot();if(rest)yield rest;}
-  /* Niets gekregen? Dan zeggen waaróm, net als callGemini: tegengehouden,
+  if(buffer.trim())yield* lees(buffer);
+}
+
+/* ─ Gemini: het antwoord als stroom, nog gemaskeerd ─ */
+async function* _geminiStroom({system,eerder,user,temperature}){
+  /* maxOutputTokens expliciet en ruim: op Gemini 3 telt het nadenken mee in
+     dit plafond, en zonder eigen waarde brak de weekreview halverwege af
+     ("**Ge", "Voor volgende") terwijl het eruitzag als een compleet antwoord
+     (2026-10-09). Een review is ±600 tokens; dit laat het denkwerk ruim. */
+  const body={
+    contents:[...eerder.map(b=>({role:b.rol,parts:[{text:b.tekst}]})),
+      {role:'user',parts:[{text:user}]}],
+    generationConfig:{temperature,maxOutputTokens:16384}
+  };
+  if(system)body.systemInstruction={parts:[{text:system}]};
+  /* Zie _geminiVraag: op Gemini 3 gaat er anders eerst een denkronde overheen,
+     en bij een review die woord voor woord verschijnt is dat wachten dat je
+     ziet. Wat hier gevraagd wordt is samenvatten, niet uitpuzzelen. */
+  if(geminiIsDrie(geminiModel()))
+    body.generationConfig.thinkingConfig={thinkingLevel:'low'};
+  /* Ook hier het geduld van _geminiFetch(): de herkansing gebeurt vóór er
+     ook maar iets is uitgelezen, dus er kan geen halve tekst dubbel komen. */
+  const r=await _geminiFetch('streamGenerateContent',body,{extra:'alt=sse'});
+  /* Tellen gebeurt in _geminiFetch(), per poging. */
+  let laatste=null, gekregen=false, reden='', gebruik=null;
+  /* Gedachten van een denkend model komen als eigen parts mee en horen niet
+     in beeld (_geminiTekst). */
+  for await (const data of _aiSse(r)){
+    laatste=data;
+    const fr=data?.candidates?.[0]?.finishReason;
+    if(fr)reden=fr;
+    if(data?.usageMetadata)gebruik=data.usageMetadata;
+    const chunk=_geminiTekst(data);
+    if(!chunk)continue;
+    gekregen=true;
+    yield chunk;
+  }
+  /* Niets gekregen? Dan zeggen waaróm, net als _geminiVraag: tegengehouden,
      te lang, of echt leeg. */
   if(!gekregen)throw new Error(laatste?_geminiLeegUitleg(laatste):'Gemini stuurde geen antwoord terug.');
   /* Wel tekst, maar niet netjes afgesloten met STOP: dan is het een half
@@ -35137,6 +35308,269 @@ function _geminiAfgebrokenUitleg(reden){
   if(reden==='RECITATION')return 'Gemini stopte halverwege: de rest leek te veel op bestaande tekst.';
   if(!reden)return 'De verbinding met Gemini werd halverwege gesloten; het antwoord is niet compleet.';
   return 'Gemini stopte halverwege (reden: '+reden+').';
+}
+
+/* ═══ Claude (Anthropic) ═════════════════════════════════════════════
+   Rechtstreeks met fetch naar de Messages API, zonder SDK: de app heeft
+   geen build-stap en laadt geen bibliotheek voor iets dat één POST is.
+
+   Wat anders is dan bij Gemini:
+   • Geen temperature. De nieuwe modellen weigeren een andere waarde dan
+     de standaard met een 400, dus die gaat niet mee.
+   • Nadenken staat altijd aan; "effort" bepaalt hoeveel. Uitlezen en
+     indelen krijgen 'low' (er valt niets te overwegen, alleen af te lezen),
+     een antwoord in de chat of een weekreview 'medium'.
+   • Een schema gaat als output_config.format; elk object moet daar
+     additionalProperties:false hebben (_claudeSchema).
+   • Geen rem per minuut zoals _geminiSlot: er is geen gratis laag met twintig
+     verzoeken per dag. Een 429 of overbelasting wacht hij gewoon kort uit. */
+const CLAUDE_API='https://api.anthropic.com/v1/messages';
+const CLAUDE_TIJDLIMIET=180000;          /* nadenken plus vijf PDF's: ruimer dan Gemini */
+const CLAUDE_WACHT=[2000,6000,15000];    /* 429 / overbelast */
+
+/* Wat een model kent. Een veld dat het niet kent is een 400, en het
+   modelveld in Instellingen laat elke naam toe. effort kent de hele
+   5-familie. De terugval bij een weigering (fallbacks) bestaat op Opus 5.x,
+   Fable 5.x en Sonnet 5.5 -- niet op Haiku. */
+function _claudeKentEffort(m){return /^claude-(opus|sonnet|haiku|fable)-([5-9]|\d\d)\b/.test(m||'');}
+function _claudeKentTerugval(m){return /^claude-(opus-5|fable-5|sonnet-5-5)\b/.test(m||'');}
+
+function _claudeKoppen(model){
+  let key='';
+  try{key=localStorage.getItem(LS_CLAUDE_KEY)||'';}catch(e){}
+  const h={
+    'Content-Type':'application/json',
+    'x-api-key':key,
+    'anthropic-version':'2023-06-01',
+    /* Zonder deze kopregel weigert de API een verzoek uit een browser. Het
+       "dangerous" slaat op een sleutel die in de pagina staat: hier is dat
+       zo bedoeld -- je eigen sleutel, in je eigen browser, net als bij Gemini. */
+    'anthropic-dangerous-direct-browser-access':'true'
+  };
+  /* Weigert het model een verzoek (een veiligheidsfilter dat bij gewone
+     zakelijke tekst onterecht afgaat), dan probeert Anthropic het zelf op
+     een ander model in plaats van een weigering terug te geven. */
+  if(_claudeKentTerugval(model))h['anthropic-beta']='server-side-fallback-2026-07-01';
+  return h;
+}
+
+/* De schema's in de app zijn voor Gemini geschreven. Claude wil bij elk
+   object additionalProperties:false en kent geen grenzen als minimum of
+   maxLength; hier worden ze aangevuld en opgeschoond, niet herschreven.
+   `properties` is een lijst namen, geen schema: een eigenschap die "type"
+   of "minimum" heet moet blijven staan. */
+const CLAUDE_SCHEMA_WEG=/^(minimum|maximum|exclusiveMinimum|exclusiveMaximum|multipleOf|minLength|maxLength|minItems|maxItems|nullable|propertyOrdering)$/;
+function _claudeSchema(s){
+  if(!s||typeof s!=='object'||Array.isArray(s))return s;
+  const uit={};
+  Object.keys(s).forEach(k=>{
+    if(CLAUDE_SCHEMA_WEG.test(k))return;
+    const v=s[k];
+    if(k==='properties'&&v&&typeof v==='object'){
+      uit.properties={};
+      Object.keys(v).forEach(p=>{uit.properties[p]=_claudeSchema(v[p]);});
+    }else if(k==='items')uit.items=_claudeSchema(v);
+    else if((k==='anyOf'||k==='allOf')&&Array.isArray(v))uit[k]=v.map(_claudeSchema);
+    else if(k==='type'&&typeof v==='string')uit.type=v.toLowerCase();
+    else uit[k]=v;
+  });
+  if(uit.type==='object'||uit.properties)uit.additionalProperties=false;
+  return uit;
+}
+
+/* Een bestand als blok in het bericht. Claude leest PDF en de gewone
+   fotoformaten; HEIC (iPhone) niet. Dat zeggen we liever meteen dan dat de
+   API er een onleesbare 400 van maakt. */
+function _claudeBestandBlok(b){
+  let mime=String((b&&b.mime)||'').toLowerCase();
+  if(mime==='image/jpg')mime='image/jpeg';
+  if(mime==='application/pdf')
+    return {type:'document',source:{type:'base64',media_type:mime,data:b.data}};
+  if(/^image\/(jpeg|png|gif|webp)$/.test(mime))
+    return {type:'image',source:{type:'base64',media_type:mime,data:b.data}};
+  const soort=mime?mime.replace(/^[a-z]+\//,'').toUpperCase()+'-bestanden':'bestanden van dit type';
+  throw new Error('Claude leest geen '+soort+'. PDF, JPG, PNG en WEBP gaan wel — '+
+    'sla een foto op als JPG, of kies Gemini onder Instellingen → AI.');
+}
+
+/* Het gesprek als berichten. Claude wil de beurten om en om en de eerste
+   van de gebruiker; het chatgesprek is dat al, maar twee op rij worden voor
+   de zekerheid samengevoegd en een opening van het model overgeslagen.
+   Bestanden gaan vóór de vraag in het laatste bericht. */
+function _claudeBerichten(eerder,user,blokken){
+  const uit=[];
+  const zet=(role,inhoud)=>{
+    const vorige=uit[uit.length-1];
+    if(!vorige){if(role==='user')uit.push({role,content:inhoud});return;}
+    if(vorige.role!==role){uit.push({role,content:inhoud});return;}
+    const alsBlokken=c=>typeof c==='string'?[{type:'text',text:c}]:c;
+    vorige.content=(typeof vorige.content==='string'&&typeof inhoud==='string')
+      ? vorige.content+'\n\n'+inhoud
+      : [...alsBlokken(vorige.content),...alsBlokken(inhoud)];
+  };
+  (eerder||[]).forEach(b=>{
+    const t=String((b&&b.tekst)||'');
+    if(t)zet(b.rol==='model'?'assistant':'user',t);
+  });
+  const vraag=String(user||'');
+  zet('user',blokken&&blokken.length
+    ? [...blokken,...(vraag?[{type:'text',text:vraag}]:[])]
+    : vraag);
+  return uit;
+}
+
+function _claudeBody(model,{system,berichten,schema,stroom}){
+  /* max_tokens dekt ook het nadenken. Ruim, want te krap breekt een
+     antwoord halverwege af; je betaalt alleen wat er werkelijk uitkomt. */
+  const body={model,max_tokens:stroom?32000:16000,messages:berichten};
+  /* In de chat gaat bij elke vraag hetzelfde overzicht mee. Met een
+     cachemarkering kost dat bij de tweede vraag een tiende; is het te kort
+     om te bewaren, dan gebeurt er gewoon niets. */
+  if(system)body.system=stroom?[{type:'text',text:system,cache_control:{type:'ephemeral'}}]:system;
+  const oc={};
+  if(_claudeKentEffort(model))oc.effort=stroom?'medium':'low';
+  if(schema)oc.format={type:'json_schema',schema:_claudeSchema(schema)};
+  if(Object.keys(oc).length)body.output_config=oc;
+  if(stroom)body.stream=true;
+  if(_claudeKentTerugval(model))body.fallbacks='default';
+  return body;
+}
+
+/* Wat er mis is, in woorden waar je iets mee kunt. */
+async function _claudeFout(r,model){
+  let msg='',type='';
+  try{const j=await r.json();msg=String(j?.error?.message||'');type=String(j?.error?.type||'');}catch(e){}
+  let wacht=0;
+  try{
+    const h=r.headers?.get?.('retry-after');
+    if(h&&/^\d+(\.\d+)?$/.test(h.trim()))wacht=Math.ceil(parseFloat(h)*1000);
+  }catch(e){}
+  const s=r.status;
+  let uit;
+  if(s===401)uit='Ongeldige Claude API-key. Check via ⚙ API-key.';
+  else if(/credit balance/i.test(msg))
+    uit='Je Claude-tegoed is op. Waardeer op via platform.claude.com → Billing, of kies Gemini onder Instellingen → AI.';
+  else if(/usage limit|spend limit/i.test(msg))
+    uit='De bestedingslimiet die je in de Claude Console hebt gezet is bereikt. Verhoog hem daar, of kies Gemini onder Instellingen → AI.';
+  else if(s===403)uit='Anthropic weigert dit verzoek met deze sleutel'+(msg?' ('+msg+')':'')+'.';
+  else if(s===404)uit='Het model '+model+' bestaat niet of je sleutel mag het niet gebruiken. Kies een ander onder Instellingen → AI-model.';
+  else if(s===413)uit='Het verzoek is te groot voor Claude (maximaal 32 MB). Probeer minder of kleinere bestanden tegelijk.';
+  else if(s===429)uit='De limiet van je Claude-account is even bereikt. Probeer het over een minuut opnieuw.';
+  else if(s===529||type==='overloaded_error')uit='Claude is tijdelijk overbelast. Probeer het over een minuut opnieuw.';
+  else if(s>=500)uit='Claude-server tijdelijk niet beschikbaar (status '+s+'). Probeer over een minuut opnieuw.';
+  else uit='Claude API fout '+s+(msg?': '+msg:'');
+  /* Eén regel in de console met wat Anthropic werkelijk zei. */
+  console.warn('[claude] '+s,{type,msg});
+  return {msg:uit,wacht};
+}
+
+async function _claudeFetch(body){
+  let poging=0;
+  for(;;){
+    const stop=new AbortController();
+    const wekker=setTimeout(()=>stop.abort(),CLAUDE_TIJDLIMIET);
+    let r;
+    try{
+      r=await fetch(CLAUDE_API,{method:'POST',headers:_claudeKoppen(body.model),
+        body:JSON.stringify(body),signal:stop.signal});
+    }catch(e){
+      const err=new Error(e&&e.name==='AbortError'
+        ? 'Claude antwoordde niet binnen drie minuten.'
+        : 'Geen verbinding met Claude: '+(e.message||'netwerkfout'));
+      err.netwerk=true;throw err;
+    }finally{
+      /* Alleen de kop staat onder de klok; een stroom leest daarna door. */
+      clearTimeout(wekker);
+    }
+    _aiBumpUsage();
+    if(r.ok)return r;
+    const fout=await _claudeFout(r,body.model);   /* body kan maar één keer */
+    /* 429 en overbelasting gaan vanzelf over. Een paar keer wachten, met de
+       wachttijd die Anthropic zelf noemt -- tenzij die langer is dan een
+       minuut: dan liever nu de melding dan een spinner die blijft draaien. */
+    const tijdelijk=r.status===429||r.status>=500;
+    if(tijdelijk&&poging<CLAUDE_WACHT.length&&fout.wacht<=60000){
+      await _geminiPauze(fout.wacht||_geminiRuis(CLAUDE_WACHT[poging++]));
+      continue;
+    }
+    const err=new Error(fout.msg);
+    err.status=r.status;
+    throw err;
+  }
+}
+
+function _claudeTekst(data){
+  return (data?.content||[]).filter(b=>b&&b.type==='text'&&typeof b.text==='string')
+    .map(b=>b.text).join('');
+}
+function _claudeWeigering(details){
+  const cat=details&&details.category;
+  return 'Claude weigerde dit verzoek'+(cat?' (categorie: '+cat+')':'')+
+    '. Formuleer het anders, of kies Gemini onder Instellingen → AI.';
+}
+
+/* ─ Claude: één verzoek, het antwoord als tekst ─ */
+async function _claudeVraag({system,user,schema,bestanden}){
+  const model=claudeModel();
+  const blokken=[];
+  (bestanden||[]).forEach(b=>{
+    if(b.kop)blokken.push({type:'text',text:b.kop});
+    blokken.push(_claudeBestandBlok(b));
+  });
+  /* Zonder schema vraagt Gemini om kale JSON via responseMimeType; Claude
+     krijgt het als regel in de systeemprompt. Het antwoord gaat daarna door
+     dezelfde vergevingsgezinde lezer (_aiJson). */
+  const sys=schema?system:[system,
+    'Antwoord uitsluitend met geldige JSON: geen uitleg ervoor of erna, geen codeblok.']
+    .filter(Boolean).join('\n\n');
+  const r=await _claudeFetch(_claudeBody(model,{system:sys,
+    berichten:_claudeBerichten(null,user,blokken),schema}));
+  const data=await r.json();
+  /* Eerst de stop-reden, dan pas de inhoud: bij een weigering is die leeg of
+     half, en bij max_tokens is de JSON afgekapt. */
+  if(data?.stop_reason==='refusal')throw new Error(_claudeWeigering(data.stop_details));
+  if(data?.stop_reason==='max_tokens')
+    throw new Error('Het antwoord paste niet in de ruimte die het model heeft. Probeer minder tegelijk.');
+  const text=_claudeTekst(data);
+  if(!text)throw new Error('Leeg antwoord van Claude (reden: '+(data?.stop_reason||'onbekend')+').');
+  return text;
+}
+
+/* ─ Claude: het antwoord als stroom, nog gemaskeerd ─ */
+async function* _claudeStroom({system,eerder,user}){
+  const model=claudeModel();
+  const r=await _claudeFetch(_claudeBody(model,{system,
+    berichten:_claudeBerichten(eerder,user),stroom:true}));
+  let gekregen=false, reden='', details=null, gebruik=null, fout=null;
+  /* Alleen tekst komt in beeld. Nadenken komt als eigen blok mee (leeg, want
+     de gedachten zelf geeft Claude niet terug) en wordt overgeslagen. */
+  for await (const d of _aiSse(r)){
+    if(d.type==='content_block_delta'&&d.delta?.type==='text_delta'&&d.delta.text){
+      gekregen=true;
+      yield d.delta.text;
+    }else if(d.type==='message_delta'){
+      if(d.delta?.stop_reason)reden=d.delta.stop_reason;
+      if(d.delta?.stop_details)details=d.delta.stop_details;
+      if(d.usage)gebruik=d.usage;
+    }else if(d.type==='error'){
+      fout=d.error||{};
+    }
+  }
+  const halfAf=msg=>{const e=new Error(msg);e.afgebroken=gekregen;return e;};
+  if(fout)throw halfAf(fout.type==='overloaded_error'
+    ? 'Claude raakte halverwege overbelast; het antwoord is niet compleet.'
+    : 'Claude stopte halverwege: '+(fout.message||fout.type||'onbekende fout')+'.');
+  if(reden==='refusal')throw halfAf(_claudeWeigering(details));
+  if(!gekregen)throw new Error('Claude stuurde geen antwoord terug'+(reden?' (reden: '+reden+')':'')+'.');
+  /* Wel tekst, maar niet netjes afgesloten: dan is het een half antwoord en
+     dat mag niet als compleet in beeld blijven staan (zie _geminiStroom). */
+  if(reden!=='end_turn'&&reden!=='stop_sequence'){
+    try{console.info('[Claude] stroom gestopt',{reden:reden||'(geen)',gebruik});}catch(_){}
+    throw halfAf(reden==='max_tokens'
+      ? 'Claude stopte halverwege: het antwoord paste niet in de ruimte die het model kreeg.'
+      : reden ? 'Claude stopte halverwege (reden: '+reden+').'
+      : 'De verbinding met Claude werd halverwege gesloten; het antwoord is niet compleet.');
+  }
 }
 
 /* ══ Vraagvenster ══════════════════════════════════════════════════════════
@@ -35275,6 +35709,30 @@ async function openGeminiKeyPrompt(){
   localStorage.setItem(LS_GEMINI_KEY,trimmed);
   appToast('API-key opgeslagen',{type:'success',duration:2500});
 }
+async function openClaudeKeyPrompt(){
+  const cur=localStorage.getItem(LS_CLAUDE_KEY)||'';
+  /* Anders dan bij Gemini kost elk verzoek geld. Een eigen sleutel voor deze
+     app met een limiet erop maakt een fout -- een lus, een stapel van
+     honderd facturen -- begrensd. */
+  const v=await appVraag('Claude API-key',
+    'Aan te maken op platform.claude.com onder API keys. Zet daar ook een '+
+    'bestedingslimiet, dan kost een vergissing nooit meer dan je wilt.',
+    cur,
+    {label:'API-key',placeholder:'sk-ant-…',ja:'Opslaan',
+     voetnoot:'Wordt lokaal in deze browser bewaard, per apparaat — hij gaat niet mee '+
+       'naar Drive. Leeg laten verwijdert hem.'});
+  if(v===null)return;
+  /* Een sleutel die uit een mail of PDF is geplakt heeft soms een spatie
+     of een onzichtbaar teken middenin; dat is altijd fout in een sleutel. */
+  const trimmed=(v||'').replace(/[\s​-‍﻿]+/g,'');
+  if(!trimmed){
+    localStorage.removeItem(LS_CLAUDE_KEY);
+    appToast('API-key verwijderd',{type:'info',duration:2500});
+    return;
+  }
+  localStorage.setItem(LS_CLAUDE_KEY,trimmed);
+  appToast('API-key opgeslagen',{type:'success',duration:2500});
+}
 
 /* ─ Quick-Add modal: open / close ─ */
 function openQuickAddAI(){
@@ -35361,7 +35819,7 @@ async function parseQuickAddAI(){
   applyBtn.style.display='none';
   try{
     const system=_buildQuickAddSystemPrompt();
-    const data=await callGemini({system,user:input,maskeer:true});
+    const data=await callAI({system,user:input,maskeer:true});
     /* Defensieve normalisatie — Gemini kan velden weglaten of fout-getypeerd retourneren */
     const tasks=Array.isArray(data.tasks)?data.tasks.filter(t=>t&&t.text).map(t=>{
       /* Subtasks: filter naar string-array, max 10 om over-eager AI te begrenzen */
@@ -35816,13 +36274,13 @@ async function generateWeeklyReview(){
   try{
     const prompt=_buildWeeklyReviewPrompt(_weeklyReviewMeta);
     let lastRender=0;
-    for await (const chunk of _streamGemini({user:prompt,temperature:0.5,maskeer:true})){
+    for await (const chunk of _streamAI({user:prompt,temperature:0.5,maskeer:true})){
       fullText+=chunk;
       /* Throttle marked.parse calls naar max 10 fps voor performance */
       const now=Date.now();
       if(now-lastRender>100){toon(fullText);lastRender=now;}
     }
-    if(!fullText)throw new Error('Lege response van Gemini');
+    if(!fullText)throw new Error('Leeg antwoord van '+aiNaam());
     _weeklyReviewMarkdown=fullText;
     toon(fullText);   /* finale render */
     contentEl.classList.remove('streaming');
@@ -36102,7 +36560,7 @@ async function aiChatVraag(tekst){
   const inp=document.getElementById('aiChatInvoer');
   const vraag=String(tekst!=null?tekst:(inp?inp.value:'')).trim();
   if(!vraag||_aiCalling.chat)return;
-  if(!localStorage.getItem(LS_GEMINI_KEY)){openGeminiKeyPrompt();return;}
+  if(!aiSleutel()){openAiKeyPrompt();return;}
   if(inp){inp.value='';aiChatInvoerHoogte();}
   const eerder=aiChatGesprek.filter(b=>!b.fout&&b.tekst).slice(-AI_CHAT_MAX_BEURTEN)
     .map(b=>({rol:b.rol,tekst:b.tekst}));
@@ -36115,7 +36573,7 @@ async function aiChatVraag(tekst){
   const lijst=document.getElementById('aiChatLijst');
   let laatst=0;
   try{
-    for await (const stuk of _streamGemini({system:aiChatSysteem(),user:vraag,temperature:0.2,maskeer:true,geschiedenis:eerder})){
+    for await (const stuk of _streamAI({system:aiChatSysteem(),user:vraag,temperature:0.2,maskeer:true,geschiedenis:eerder})){
       antwoord.tekst+=stuk;
       const nu=Date.now();
       if(nu-laatst>100){
@@ -36433,6 +36891,9 @@ window.parseQuickAddAI=parseQuickAddAI;
 window.applyQuickAddAI=applyQuickAddAI;
 window.openGeminiKeyPrompt=openGeminiKeyPrompt;
 window.openGeminiModelPrompt=openGeminiModelPrompt;
+window.openAiKeyPrompt=openAiKeyPrompt;
+window.openAiModelPrompt=openAiModelPrompt;
+window.openAiAanbiederPrompt=openAiAanbiederPrompt;
 window.geminiModel=geminiModel;
 /* Ook naar buiten zodat je in de console kunt kijken wat er écht weggaat:
    aiMaskerder().maskeer('rapport voor <klantnaam>') */

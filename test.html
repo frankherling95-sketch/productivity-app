@@ -124,6 +124,23 @@ async function runChecks() {
     meldServerNodig('Geen toegang tot de iframe: ' + e.message);
     return;
   }
+  /* Een paar sleutels in localStorage tijdelijk zetten (null = weghalen) en
+     daarna terugzetten zoals ze waren. De tests delen hun opslag met de app
+     op dezelfde poort: wie zelf Claude heeft gekozen mag de Gemini-tests niet
+     laten falen, en omgekeerd. */
+  const metLS = async (zet, fn) => {
+    const oud = {};
+    for (const k in zet) {
+      oud[k] = w.localStorage.getItem(k);
+      if (zet[k] === null) w.localStorage.removeItem(k); else w.localStorage.setItem(k, zet[k]);
+    }
+    try { return await fn(); }
+    finally {
+      for (const k in oud) {
+        if (oud[k] === null) w.localStorage.removeItem(k); else w.localStorage.setItem(k, oud[k]);
+      }
+    }
+  };
   const tests = [
     ['Module: Dashboard exists',           () => !!d.getElementById('mod-dashboard')],
     ['Module: Kanban is weg',              () => !d.getElementById('mod-todo')],
@@ -298,7 +315,7 @@ async function runChecks() {
     ['Model: functies aanwezig',           () => ['geminiModel','geminiZetModel','geminiIsDrie',
                                                   'geminiFlashModellen','geminiHaalModellen',
                                                   '_geminiVolgendModel','_geminiModelWeg','_geminiUrl',
-                                                  '_geminiTekst','_geminiJson','_geminiLeegUitleg']
+                                                  '_geminiTekst','_aiJson','_geminiLeegUitleg']
                                                   .every(f => typeof w[f] === 'function')],
     ['Model: geen "-latest" als standaard', () => {
       /* Een alias volgt het nieuwste model, en juist dat heeft de krapste
@@ -362,8 +379,10 @@ async function runChecks() {
       if (!oudKey) w.localStorage.setItem('herling_gemini_api_key', 'test');
       let uit = '';
       try {
-        for await (const c of w._streamGemini({user:'vraag 2', geschiedenis:[
-          {rol:'user', tekst:'vraag 1'}, {rol:'model', tekst:'antwoord 1'}]})) uit += c;
+        await metLS({herling_ai_aanbieder: null}, async () => {
+          for await (const c of w._streamAI({user:'vraag 2', geschiedenis:[
+            {rol:'user', tekst:'vraag 1'}, {rol:'model', tekst:'antwoord 1'}]})) uit += c;
+        });
       } finally {
         w.fetch = oudFetch; w._geminiSlot = oudSlot; w._aiBumpUsage = oudTel;
         if (!oudKey) w.localStorage.removeItem('herling_gemini_api_key');
@@ -372,9 +391,9 @@ async function runChecks() {
         body.contents[2].parts[0].text === 'vraag 2';
     }],
     ['Antwoord: JSON in een codehek wordt gelezen', () =>
-      w._geminiJson('{"b":2}').b === 2 &&
-      w._geminiJson('```json\n{"a":1}\n```').a === 1 &&
-      w._geminiJson('Hier is het:\n{"c":3}\nklaar').c === 3],
+      w._aiJson('{"b":2}').b === 2 &&
+      w._aiJson('```json\n{"a":1}\n```').a === 1 &&
+      w._aiJson('Hier is het:\n{"c":3}\nklaar').c === 3],
     ['Antwoord: leeg antwoord noemt de reden', () =>
       /paste niet/.test(w._geminiLeegUitleg({candidates:[{finishReason:'MAX_TOKENS'}]})) &&
       /tegen/.test(w._geminiLeegUitleg({candidates:[{finishReason:'SAFETY'}]}))],
@@ -393,7 +412,11 @@ async function runChecks() {
         w.fetch = async () => new w.Response(body, {status:200, headers:{'Content-Type':'text/event-stream'}});
         if (!oudKey) w.localStorage.setItem('herling_gemini_api_key', 'test');
         let uit = '', fout = '';
-        try { for await (const c of w._streamGemini({user:'x'})) uit += c; }
+        try {
+          await metLS({herling_ai_aanbieder: null}, async () => {
+            for await (const c of w._streamAI({user:'x'})) uit += c;
+          });
+        }
         catch (e) { fout = e.message; }
         finally {
           w.fetch = oudFetch; w._geminiSlot = oudSlot; w._aiBumpUsage = oudTel;
@@ -413,6 +436,157 @@ async function runChecks() {
              c.uit === '' && /SAFETY/.test(c.fout) &&
              d.uit === 'Deze week ging het **Ge' && /halverwege/.test(d.fout) &&
              e.uit === 'Deze week ging het **Ge' && /halverwege/.test(e.fout);
+    }],
+
+    /* ── Claude als tweede aanbieder (2026-10-11) ──
+       Alles via een nagebootste fetch: geen van deze tests belt Anthropic,
+       en ze kosten dus ook geen tegoed. */
+    ['Aanbieder: functies aanwezig', () => ['aiAanbieder','aiZetAanbieder','aiNaam','aiBedrijf',
+        'aiSleutel','aiModel','aiBestandFout','callAI','_streamAI','_aiSse','claudeModel',
+        'claudeZetModel','_claudeSchema','_claudeBestandBlok','_claudeBerichten','_claudeBody',
+        '_claudeKoppen','_claudeFetch','_claudeVraag','_claudeStroom','openAiAanbiederPrompt',
+        'openAiKeyPrompt','openAiModelPrompt','openClaudeKeyPrompt','openClaudeModelPrompt']
+        .every(f => typeof w[f] === 'function')],
+    ['Aanbieder: standaard Gemini, Claude per apparaat te kiezen', () =>
+      metLS({herling_ai_aanbieder: null}, () => {
+        const eerst = w.aiAanbieder() === 'gemini' && w.aiNaam() === 'Gemini' && w.aiModel() === w.geminiModel();
+        w.aiZetAanbieder('claude');
+        const dan = w.aiAanbieder() === 'claude' && w.aiNaam() === 'Claude' && w.aiBedrijf() === 'Anthropic' &&
+          w.aiModel() === w.claudeModel() && /^claude-/.test(w.aiModel());
+        w.aiZetAanbieder('gemini');
+        return eerst && dan && w.localStorage.getItem('herling_ai_aanbieder') === null;
+      })],
+    ['Claude: schema krijgt additionalProperties:false, een eigenschap "type" blijft', () => {
+      const orig = {type:'object', properties:{
+        type:{type:'string'},
+        lijst:{type:'array', items:{type:'object', properties:{n:{type:'number', minimum:0}}, required:['n']}}
+      }, required:['type']};
+      const s = w._claudeSchema(orig);
+      return s.additionalProperties === false && s.properties.type.type === 'string' &&
+        !('additionalProperties' in s.properties) &&
+        s.properties.lijst.items.additionalProperties === false &&
+        !('minimum' in s.properties.lijst.items.properties.n) &&
+        s.required.join() === 'type' &&
+        !('additionalProperties' in orig) && orig.properties.lijst.items.properties.n.minimum === 0;
+    }],
+    ['Claude: PDF als document, foto als image, HEIC met uitleg', async () => {
+      const pdf = w._claudeBestandBlok({mime:'application/pdf', data:'AA'});
+      const jpg = w._claudeBestandBlok({mime:'image/jpg', data:'AA'});
+      let heic = '';
+      try { w._claudeBestandBlok({mime:'image/heic', data:'AA'}); } catch (e) { heic = e.message; }
+      /* Gemini leest HEIC wel, dus daar mag niets worden tegengehouden. */
+      const gemini = await metLS({herling_ai_aanbieder: null}, () => w.aiBestandFout('image/heic') === '');
+      const claude = await metLS({herling_ai_aanbieder: 'claude'}, () =>
+        /HEIC/.test(w.aiBestandFout('image/heic')) && w.aiBestandFout('application/pdf') === '');
+      return pdf.type === 'document' && pdf.source.media_type === 'application/pdf' &&
+        jpg.type === 'image' && jpg.source.media_type === 'image/jpeg' && /HEIC/.test(heic) &&
+        gemini && claude;
+    }],
+    ['Claude: beurten om en om, bestanden vóór de vraag', () => {
+      const m = w._claudeBerichten([{rol:'model', tekst:'hoi'}, {rol:'user', tekst:'a'},
+        {rol:'user', tekst:'b'}, {rol:'model', tekst:'c'}], 'd');
+      const f = w._claudeBerichten(null, 'lees', [{type:'text', text:'--- 1 ---'}, {type:'document'}]);
+      return m.map(x => x.role).join() === 'user,assistant,user' &&
+        m[0].content === 'a\n\nb' && m[2].content === 'd' &&
+        f.length === 1 && f[0].content.map(b => b.type).join() === 'text,document,text' &&
+        f[0].content[2].text === 'lees';
+    }],
+    ['Claude: geen temperature; effort, schema en terugval alleen waar het kan', async () => {
+      const a = w._claudeBody('claude-opus-5-5', {system:'s', berichten:[], schema:{type:'object', properties:{}}});
+      const b = w._claudeBody('claude-haiku-5-5', {system:'s', berichten:[], stroom:true});
+      const c = w._claudeBody('claude-haiku-4-5', {berichten:[]});
+      const k = await metLS({herling_claude_api_key: 'test'}, () => w._claudeKoppen('claude-opus-5-5'));
+      return !('temperature' in a) && a.max_tokens === 16000 && a.output_config.effort === 'low' &&
+        a.output_config.format.type === 'json_schema' &&
+        a.output_config.format.schema.additionalProperties === false && a.fallbacks === 'default' &&
+        b.stream === true && b.output_config.effort === 'medium' && !('fallbacks' in b) &&
+        Array.isArray(b.system) && b.system[0].cache_control.type === 'ephemeral' &&
+        !('output_config' in c) &&
+        k['x-api-key'] === 'test' && k['anthropic-version'] === '2023-06-01' &&
+        k['anthropic-dangerous-direct-browser-access'] === 'true' &&
+        k['anthropic-beta'] === 'server-side-fallback-2026-07-01' &&
+        !('anthropic-beta' in w._claudeKoppen('claude-haiku-5-5'));
+    }],
+    ['Claude: callAI gaat naar Anthropic, maskeert en leest het antwoord', async () => {
+      let url = '', kop = null, body = null;
+      const oudFetch = w.fetch, oudTel = w._aiBumpUsage;
+      w._aiBumpUsage = () => {};
+      w.fetch = async (u, opt) => {
+        url = u; kop = opt.headers; body = JSON.parse(opt.body);
+        /* Een nadenkblok vóór de tekst, zoals de nieuwe modellen doen. */
+        return new w.Response(JSON.stringify({content:[{type:'thinking', thinking:''},
+          {type:'text', text:'{"mail":"' + body.messages[0].content.match(/\{\{MAIL_\d+\}\}/)[0] + '"}'}],
+          stop_reason:'end_turn'}), {status:200});
+      };
+      let uit = null, weiger = '';
+      try {
+        await metLS({herling_ai_aanbieder:'claude', herling_claude_api_key:'test',
+                     herling_ai_maskeren: null}, async () => {
+          uit = await w.callAI({system:'sys', user:'mail iemand@voorbeeld.nl', maskeer:true});
+          w.fetch = async () => new w.Response(JSON.stringify({content:[], stop_reason:'refusal',
+            stop_details:{category:'cyber'}}), {status:200});
+          try { await w.callAI({user:'x'}); } catch (e) { weiger = e.message; }
+        });
+      } finally { w.fetch = oudFetch; w._aiBumpUsage = oudTel; }
+      return url === 'https://api.anthropic.com/v1/messages' && kop['x-api-key'] === 'test' &&
+        /^claude-/.test(body.model) && !('temperature' in body) &&
+        !/iemand@voorbeeld/.test(JSON.stringify(body)) &&
+        /geldige JSON/.test(body.system) &&
+        uit && uit.mail === 'iemand@voorbeeld.nl' &&
+        /weigerde/.test(weiger) && /cyber/.test(weiger);
+    }],
+    ['Claude: fouten in het Nederlands, sleutel en tegoed niet herhaald', async () => {
+      const oudFetch = w.fetch, oudTel = w._aiBumpUsage;
+      let pogingen = 0;
+      w._aiBumpUsage = () => {};
+      const fout = async (status, msg) => {
+        pogingen = 0;
+        w.fetch = async () => { pogingen++;
+          return new w.Response(JSON.stringify({type:'error', error:{type:'x', message:msg}}), {status}); };
+        try { await w.callAI({user:'x'}); return ''; } catch (e) { return e.message; }
+      };
+      let a = '', b = '', p = 0;
+      try {
+        await metLS({herling_ai_aanbieder:'claude', herling_claude_api_key:'test'}, async () => {
+          a = await fout(401, 'invalid x-api-key'); p += pogingen;
+          b = await fout(400, 'Your credit balance is too low to access the Anthropic API.'); p += pogingen;
+        });
+      } finally { w.fetch = oudFetch; w._aiBumpUsage = oudTel; }
+      return /Ongeldige Claude API-key/.test(a) && /tegoed is op/.test(b) && p === 2;
+    }],
+    ['Claude: stroom — tekst komt door, nadenken niet, halverwege gestopt is een fout', async () => {
+      const ev = (type, data) => 'event: ' + type + '\ndata: ' + JSON.stringify({type, ...data}) + '\n\n';
+      const begin = ev('message_start', {message:{model:'claude-opus-5-5'}}) +
+        ev('content_block_start', {index:0, content_block:{type:'thinking', thinking:''}}) +
+        ev('content_block_delta', {index:0, delta:{type:'thinking_delta', thinking:'hmm'}}) +
+        ev('content_block_start', {index:1, content_block:{type:'text', text:''}}) +
+        ev('content_block_delta', {index:1, delta:{type:'text_delta', text:'Deze week '}}) +
+        ev('content_block_delta', {index:1, delta:{type:'text_delta', text:'ging het goed.'}});
+      const eind = r => ev('message_delta', {delta:{stop_reason:r}, usage:{output_tokens:9}}) + ev('message_stop', {});
+      let body = null;
+      const leesUit = async sse => {
+        const oudFetch = w.fetch, oudTel = w._aiBumpUsage;
+        w._aiBumpUsage = () => {};
+        w.fetch = async (u, opt) => { body = JSON.parse(opt.body);
+          return new w.Response(sse, {status:200, headers:{'Content-Type':'text/event-stream'}}); };
+        let uit = '', fout = '';
+        try {
+          await metLS({herling_ai_aanbieder:'claude', herling_claude_api_key:'test'}, async () => {
+            for await (const c of w._streamAI({system:'s', user:'vraag 2', geschiedenis:[
+              {rol:'user', tekst:'vraag 1'}, {rol:'model', tekst:'antwoord 1'}]})) uit += c;
+          });
+        } catch (e) { fout = e.message; }
+        finally { w.fetch = oudFetch; w._aiBumpUsage = oudTel; }
+        return {uit, fout};
+      };
+      const a = await leesUit(begin + eind('end_turn'));
+      const rollen = body.messages.map(m => m.role).join();
+      const b = await leesUit(begin + eind('max_tokens'));
+      const c = await leesUit(begin + ev('error', {error:{type:'overloaded_error', message:'Overloaded'}}));
+      return a.uit === 'Deze week ging het goed.' && !a.fout && rollen === 'user,assistant,user' &&
+        body.stream === true &&
+        b.uit === 'Deze week ging het goed.' && /halverwege/.test(b.fout) &&
+        /overbelast/.test(c.fout);
     }],
 
     /* ── Analyse ──
@@ -522,21 +696,21 @@ async function runChecks() {
       const post = n => ({post:{naam:n+'.pdf', mime:'application/pdf', file:{name:n+'.pdf'}},
                           data:'AAA'});
       const groep = [post('F1'), post('F2'), post('F3')];
-      const echt = w.callGemini;
+      const echt = w.callAI;
       try {
-        w.callGemini = async (o) => {
+        w.callAI = async (o) => {
           const namen = (o.bestanden||[]).map(b =>
             String(b.kop||'').replace(/^.*: /, '').replace(/ ---$/, ''));
           /* omgekeerd terug, en F2 vergeten */
           return namen.slice().reverse().filter(n => n !== 'F2.pdf')
             .map(n => ({bestand:n, nummer:'NR-'+n, datum:'2026-01-02', excl:'100', btw:'21'}));
         };
-        const uit = await w.facScanVraagGeminiGroep(groep);
+        const uit = await w.facScanVraagAiGroep(groep);
         return uit.length === 3 &&
                uit[0] && uit[0].nummer === 'NR-F1.pdf' &&
                uit[1] === null &&                       /* de vergetene */
                uit[2] && uit[2].nummer === 'NR-F3.pdf';
-      } finally { w.callGemini = echt; }
+      } finally { w.callAI = echt; }
     }],
     ['Scan: de prompt vraagt om een array zodra het er meer zijn', () =>
       /JSON-array/.test(w.facScanPrompt(4)) && /4 objecten/.test(w.facScanPrompt(4)) &&
@@ -1661,7 +1835,7 @@ async function runChecks() {
       }],
     ['PDF uitlezen: lege velden vullen, afwijkingen alleen melden, terugdraaien zet alles terug',
       async () => {
-        const echt = w.callGemini, echtHaal = w.ctrPdfHaal;
+        const echt = w.callAI, echtHaal = w.ctrPdfHaal;
         const sleutel = w.localStorage.getItem('herling_gemini_api_key');
         const oud = w.eval('JSON.stringify(opdrachtState.opdrachten)');
         try {
@@ -1672,7 +1846,7 @@ async function runChecks() {
           const naam0 = d.getElementById('opdNaam').value;
           w.ctrPdfHaal = async () => new w.Blob(['%PDF-1.4'], {type:'application/pdf'});
           if (!sleutel) w.localStorage.setItem('herling_gemini_api_key', 'test');
-          w.callGemini = async () => ({klant:'', omschrijving:'Anders genoemd', ingang:'2026-10-01', einde:'2027-03-31',
+          w.callAI = async () => ({klant:'', omschrijving:'Anders genoemd', ingang:'2026-10-01', einde:'2027-03-31',
             opzegtermijn:'30 dagen', uurtarief:95, urenPerWeek:24, urenBudget:0, bijzonderheden:''});
           await w.ctrAiLees('opdracht');
           const na = {eind: d.getElementById('opdEind').value, opzeg: d.getElementById('opdOpzeg').value,
@@ -1685,7 +1859,7 @@ async function runChecks() {
           return na.eind === '2027-02-28' && na.naam === naam0 && na.opzeg === '1m' && na.tarief === '95' && na.upw === '24' &&
                  verschil === 'eind,naam' && terug;
         } finally {
-          w.callGemini = echt; w.ctrPdfHaal = echtHaal;
+          w.callAI = echt; w.ctrPdfHaal = echtHaal;
           if (!sleutel) w.localStorage.removeItem('herling_gemini_api_key');
           try { w.opdSluit(); } catch (_) {}
           w.eval('opdrachtState.opdrachten=' + oud);
