@@ -509,6 +509,7 @@ beide thema's donker; de vensters die eruit opengaan volgen het thema.
 | rij in een groep (`.nav-sub`) | 12px dieper (vulling links 24px) | idem |
 | wisselaar bovenin | 60px, logo 44px, naam 15px / 700 display | naam `var(--fs-groot)` |
 | gebruiker onderin | 56px, avatar 40px, naam 14px / 600, e-mail `var(--fs-klein)` | naam `var(--fs-basis)` |
+| Vraag het je app (`.sb-ai`) | rechts naast de wisselaar: 44px in het vierkant, dezelfde tegel (vulling, rand, hoek 10px), sparkle 20px in het verloop van het logo; ingeklapt onder de wisselaar, 48×46 | idem, 44px; tikken sluit eerst de lade |
 | inklapknop | 28px rond, half over de rand, op de streep boven de gebruiker | weg |
 | pil onder de naam (`.sb-pil`) | `var(--fs-micro)` / 700, kapitalen, mint op 16% mint | idem |
 
@@ -631,7 +632,25 @@ Een nieuwe instelling krijgt een regel op deze pagina, ook als hij in een
 
 ---
 
-## 16. Een voorstel in de chat
+## 16. Vraag het je app
+
+**Het venster.** Een kop op de band met de sparkle (in het verloop van het
+logo, geen emoji), de titel en rechts een **+** voor een nieuw gesprek: een
+icoonknop zoals in §2, uit (`.35`) zolang er nog geen gesprek is. Daaronder
+het gesprek, het invoerveld en een voet met het model en het verbruik.
+
+| | Bureaublad | Telefoon |
+|---|---|---|
+| kop | titel + ondertitel, **+** rechts | alleen de titel; **+** en ✕ rechts, elk `var(--tap)` |
+| lege stand | midden: kop *Waar kan ik mee helpen?* (`--fs-groot` / 700 display), uitleg `--fs-klein` muted, zeven suggesties als pillen | onderin bij het invoerveld: dezelfde kop, geen uitleg, de eerste **vier** suggesties als gelijke regels van de volle breedte (radius 12px, min. `var(--tap)`, `--fs-klein`, links uitgelijnd) |
+| voet | model als `.btn-sm`-keuze, verbruik als badge, rechts **Sluiten** | één regel: model als stille keuze (geen doos, `--fs-klein` muted), verbruik rechts als gewone tekst; onderin ruimte voor de thuisbalk |
+
+De volgorde van de suggesties telt: op een telefoon staan alleen de eerste
+vier, dus daar de nuttigste, met één die iets klaarzet. Met een gekoppeld
+Google-account (en Claude) gaan de agenda- en mailvraag daar nog voor
+(`aiChatSuggesties()`).
+
+### Een voorstel in de chat
 
 Wil Vraag het je app iets doen, dan staat er een kaart in het antwoord
 (`.aic-actie`). Op die kaart staat wat er gaat gebeuren. Er verandert pas iets

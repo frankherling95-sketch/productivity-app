@@ -6687,3 +6687,135 @@ en badges. Verder `test.html`, `sw.js`, `CLAUDE.md`,
 - Plaatjes van buiten standaard laten laden.
 - De afspraken zelf in `rawState` bewaren: die staan in Google.
 - Terug naar iCal-proxies.
+
+## 2026-10-11 · Uren factureren per maand, en klanten samenvoegen op één factuur (v2.54)
+
+**Probleem.** Frank wil aan het eind of begin van de maand alle openstaande
+uren in één keer factureren, met per klant automatisch een factuur. Daarnaast
+wil hij de uren van een paar kleine klanten samenvoegen op één factuur aan één
+partij (een tussenpartij zoals Acme Data B.V.), met de regels bij elkaar. Vast
+per klant, maar per keer om te zetten. Samenvoegen bestond al
+(`factuurPartijId`, "Factureren aan"), maar alleen via de wizard, één partij
+tegelijk, en alleen voor klanten die vast aan die partij hingen.
+
+Bij het uitzoeken kwamen drie fouten boven die een maandafsluiting meteen
+zou raken:
+1. Een concept reserveert zijn uren niet (zie 2026-08-19, "Uren van één
+   klant binnen een factuurpartij kiezen", onder *Let op*). Twee concepten
+   met dezelfde uren konden allebei worden verstuurd.
+2. Concepten telden mee als gebruikte nummers. Bij drie concepten F10, F11,
+   F12 werd F10 bij het versturen F13.
+3. "Factureer" in Uren voor een klant die via een partij loopt, gaf een
+   factuur zonder regels. `factuurNieuw(klant)` zocht de klanten "van" die
+   klant en vond er geen.
+
+**Beslissing.**
+- **Uren factureren** (`facMaandStart`): een venster per maand (vanaf de
+  20e de lopende, daarvoor de vorige; ‹ › om te wisselen). Per ontvanger een
+  kaart met een vinkje, en per klant de uren, het bedrag en een keuze
+  "Eigen factuur" of "Op factuur aan …". De standaard volgt
+  `factuurPartijId`; omzetten geldt alleen voor deze keer, en de
+  klantinstelling blijft staan. **Klaarzetten** maakt per ontvanger één
+  concept en bewaart het meteen (`facConceptVastleggen`). Er zijn er
+  meerdere tegelijk, en `facConcept` kan er maar één vasthouden. Er wordt
+  niets verstuurd: nakijken en versturen gaan zoals altijd.
+- Te vinden via een **melding boven de facturenlijst** ("Uit september staan
+  nog 33 u open bij 4 klanten", `facMaandHint`), bovenaan het **⋯-menu** van
+  Facturen, en via **Factureer** per maand in Uren. Die knop zette eerst
+  alleen de status op gefactureerd, zonder factuur; dat kan nog met de
+  selectiebalk.
+- **`alleenKlanten` betekent nu "precies deze klanten"**
+  (`factuurFactuurKlanten`), ook als ze niet vast aan de ontvanger hangen.
+  Bij meerdere klanten op één factuur krijgt **elke** regel de klantnaam,
+  ook die van de ontvanger zelf. Eén regel per klant, en per afwijkend
+  tarief, zoals altijd.
+- **Uren op een bewaard concept tellen niet meer als open**
+  (`factuurUrenInConcepten`, `factuurUrenVoorKlant(…, negeerId)`). Dat geldt
+  in de wizard, de maandafsluiting en Uren ophalen. Het concept zelf houdt
+  zijn uren bij Uren ophalen (`negeerId = f.id`). Twee keer afsluiten geeft
+  dus geen dubbele concepten.
+- **Nummering bij versturen:** concepten zonder vast nummer tellen niet als
+  gebruikt (`factuurVolgendNummer(…, zonderConcepten)`, alleen vanuit
+  `factuurMarkeerVerstuurd`). F10, F11, F12 die je in volgorde verstuurt,
+  houden hun nummer. De reeks blijft doorlopend: verstuurde facturen en
+  concepten met een zelf ingetypt nummer tellen gewoon mee.
+- "Factureer" bij één klant in Uren maakt nu een factuur aan wie de rekening
+  krijgt, met alleen de uren van die klant.
+
+**Bestanden.** `index.html` (Facturen: `factuurUrenInConcepten`,
+`factuurFactuurKlanten`, `factuurRegelsUitUren`, `factuurStandaardBetreft`,
+`factuurVolgendNummer`, `factuurMarkeerVerstuurd`, `facUrenOphalen`; blok
+"Maandafsluiting" vóór `facNieuwStart`; `#facMaandModal`; ⋯-menu; melding
+boven de lijst; Uren: `urenInvoiceClient`), `test.html` (4 tests),
+`sw.js`, `CLAUDE.md`.
+
+**Niet doen.** Een concept zonder vast nummer laten meetellen bij het
+versturen, want dan springt de reeks. Uren die al op een concept staan nog
+eens aanbieden. En in de maandafsluiting niets automatisch versturen: Frank
+koos expliciet voor concepten klaarzetten.
+
+## 2026-10-11 · Vraag het je app vast in de zijbalk (v2.54)
+
+**Probleem.** "Vraag het" stond alleen in de kopbalk van het Dashboard, en op
+een telefoon alleen in het ⋯-menu daarvan. Vanuit Uren, Facturen of een
+andere module moest je eerst terug naar het Dashboard. Frank wilde de knop
+vast in de navigatie, als icoon, zodat hij weinig ruimte inneemt.
+
+**Beslissing.** Een vierkante tegel van 44px rechts naast de klantwisselaar
+(`#sbAiBtn`, `.sb-ai`, in `.sb-kop-rij`). Dezelfde vulling, rand, hoek en
+hover als de wisselaar; de kleur zit alleen in het icoon, een sparkle in het
+verloop van het logo (mint → lichtblauw). Ingeklapt staat hij onder de
+wisselaar, even breed en even hoog (48×46). In de lade op een telefoon gaat
+de lade eerst dicht (`zijbalkVraagHet()`). De knop in de kopbalk van het
+Dashboard blijft staan: Frank vroeg om de zijbalkknop "ook".
+
+**Waarom daar.** De kop van de zijbalk staat op elke pagina in beeld en
+scrolt niet mee. Een rij in de lijst kost 44px hoogte en hoort bij de
+modules; de voet zit vol met opslagstatus en gebruiker. Naast de
+wisselaar is het patroon van een werkruimtekiezer met een snelknop ernaast.
+
+**Bestanden.** `index.html` (markup in `.sb-kop`, CSS bij `.sb-wissel`,
+`zijbalkVraagHet()` bij `toggleSidebarMobile()`), `test.html` (1 test),
+`docs/stijlgids.md` §13, `CLAUDE.md`.
+
+**Niet doen.** De tegel een eigen kleur of rand geven: dan vraagt hij meer
+aandacht dan de wisselaar ernaast. En niet zonder `aria-label`, want er
+staat geen tekst op.
+
+## 2026-10-11 · Vraag het je app rustiger op een telefoon (v2.54)
+
+**Probleem.** Op een telefoon was het chatvenster druk. De kop had een
+ondertitel van drie regels. Daaronder stond een uitleg van vijf regels,
+gecentreerd, met zeven suggesties als pillen van wisselende breedte. Onderin
+stond het model als grote doos, en "Nieuw gesprek" zakte naar een eigen
+regel. Uit (zonder gesprek) zag die knop eruit als een fout, en hij zat
+tegen de thuisbalk aan.
+
+**Beslissing.**
+- **Nieuw gesprek** is een **+** in de kop, links van het kruisje, op elke
+  breedte (`#aiChatNieuwBtn`, `.aic-nieuw`). Het is een icoonknop zoals in
+  stijlgids §2: uit op `.35` zolang er geen gesprek is, niet weggehaald.
+  De tekstknop in de voet is weg.
+- De sparkle in de kop is een svg in het verloop van het logo, net als in
+  de zijbalk. De emoji ✨ werd op een iPhone geel.
+- **Telefoon:**
+  - de kop is één regel, zonder ondertitel;
+  - de lege stand staat onderin bij het invoerveld, met de kop *Waar kan ik
+    mee helpen?* en vier suggesties als gelijke regels van de volle breedte;
+  - de uitleg staat er niet;
+  - de voet is één regel: het model als stille keuze, het verbruik als
+    tekst, en onderin `env(safe-area-inset-bottom)`.
+- De volgorde van `AI_CHAT_SUGGESTIES` is aangepast: op een telefoon staan
+  alleen de eerste vier (facturen, open uren, beslissingen en één die iets
+  klaarzet).
+- **Bureaublad:** alleen de **+**, de sparkle, de kop *Waar kan ik mee
+  helpen?* en de kortere uitleg. Pillen en voet blijven.
+
+**Bestanden.** `index.html` (`#aiChatModal`, CSS bij `.aic-*`,
+`aiChatToon()`, `AI_CHAT_SUGGESTIES`), `test.html` (1 test),
+`docs/stijlgids.md` §16, `CLAUDE.md`.
+
+**Niet doen.** De **+** verbergen zonder gesprek. Een knop die er soms wel
+en soms niet is, zoek je (stijlgids §2). En de uitleg op een telefoon niet
+terugzetten: de suggesties laten zelf zien wat kan, en een voorstel heeft
+zijn eigen knop **Uitvoeren**.

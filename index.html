@@ -2887,6 +2887,28 @@ iframe.pv-inhoud{display:block;width:100%;height:120px;border:0;background:trans
 .fac-wizard-klant .sw{width:10px;height:10px;border-radius:2px;flex-shrink:0}
 .fac-wizard-klant .nm{flex:1;min-width:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fac-wizard-klant .uren{font-family:var(--font-cijfer);font-size:12.5px;font-variant-numeric:tabular-nums;color:var(--text-muted);white-space:nowrap}
+/* Maandafsluiting (facMaandStart): dezelfde kaarten als de wizard. De kop is
+   een vinkje (concept maken of niet), en per klant staat wie de rekening
+   krijgt -- voor deze keer, de klantinstelling blijft staan. */
+.fac-maand-nav{display:flex;align-items:center;gap:10px;margin:0 0 14px}
+.fac-maand-nav b{min-width:150px;text-align:center;font-size:var(--fs-basis);font-weight:600}
+.fac-maand-lijst{max-height:none;overflow:visible}
+.fac-maand-kop input{accent-color:var(--mint);width:16px;height:16px;flex-shrink:0;cursor:pointer;margin:0}
+.fac-maand-kop .nm em{display:block;font-style:normal;font-size:var(--fs-micro);font-weight:400;color:var(--text-muted);margin-top:2px}
+.fac-wizard-partij.is-uit .fac-wizard-sub,.fac-wizard-partij.is-uit .fac-maand-kop .nm,
+.fac-wizard-partij.is-uit .fac-maand-kop .uren{opacity:.5}
+.fac-maand-rij{cursor:default}
+.fac-maand-aan{width:auto;max-width:220px;height:30px;font-size:12px;padding:0 6px}
+.fac-maand-noten{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.fac-maand-hint{align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px}
+@media (max-width:768px){
+  .fac-maand-rij{flex-wrap:wrap}
+  .fac-maand-aan{flex:1 1 100%;max-width:none;height:var(--tap);font-size:var(--fs-basis)}
+  /* De mobiele laag verbergt elke primaire knop in Facturen (de "+ Nieuwe
+     factuur" wordt daar de ronde knop). Deze hoort wel in beeld. */
+  #mod-facturen .fac-maand-hint .uren-btn-primary{display:inline-flex !important;flex:1 1 100%;
+    justify-content:center;min-height:var(--tap)}
+}
 
 /* Mobiele kaartweergave — tegenhanger van .fac-table, precies één van
    beide is zichtbaar. Zonder dit zou de lijst op telefoon wegvallen:
@@ -3339,8 +3361,23 @@ h1, h2, h3, h4, h5 {
   font-family: var(--font-body); text-align: left; color: #fff; cursor: pointer;
   transition: background .15s, border-color .15s;
 }
-.sb-wissel:hover, .sb-wissel[aria-expanded="true"] { background: rgba(255, 255, 255, 0.09); border-color: rgba(255, 255, 255, 0.14); }
-.sb-wissel:focus-visible { outline: 2px solid var(--mint); outline-offset: -2px; }
+.sb-wissel:hover, .sb-wissel[aria-expanded="true"],
+.sb-ai:hover { background: rgba(255, 255, 255, 0.09); border-color: rgba(255, 255, 255, 0.14); }
+.sb-wissel:focus-visible, .sb-ai:focus-visible { outline: 2px solid var(--mint); outline-offset: -2px; }
+/* De rij met de wisselaar en, rechts ervan, Vraag het je app: een vierkante
+   tegel met dezelfde vulling, rand en hoek. Het icoon draagt de kleur (het
+   verloop van het logo), de tegel niet. */
+.sb-kop-rij { display: flex; gap: 8px; }
+.sb-kop-rij .sb-wissel { flex: 1 1 auto; width: auto; min-width: 0; }
+.sb-ai {
+  width: 44px; height: 44px; flex-shrink: 0; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.sb-ai svg { width: 20px; height: 20px; display: block; transition: transform var(--duur) var(--ease); }
+.sb-ai:hover svg { transform: scale(1.1); }
 .sb-wissel-logo {
   width: 28px; height: 28px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
@@ -3463,6 +3500,9 @@ h1, h2, h3, h4, h5 {
 .sidebar.collapsed .sb-logo { width: 48px; height: 48px; padding: 0; margin: 0 auto 10px; overflow: hidden; }
 .sidebar.collapsed .sb-logo-svg { width: auto; height: 48px; max-width: none; }
 .sidebar.collapsed .sb-wissel { justify-content: center; padding: 8px 0; }
+.sidebar.collapsed .sb-kop-rij { flex-direction: column; gap: 6px; }
+/* Even hoog als de wisselaar ingeklapt: blokje 28px + 2x8px + de rand. */
+.sidebar.collapsed .sb-ai { width: 100%; height: 46px; }
 .sidebar.collapsed .sb-wissel-tekst,
 .sidebar.collapsed .sb-chevron,
 .sidebar.collapsed .nav-label,
@@ -8555,10 +8595,19 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
   display: flex; flex-direction: column;
   padding: 0 !important; overflow: hidden !important;
 }
-.aic-kop { flex-shrink: 0; }
+.aic-kop { flex-shrink: 0; display: flex; align-items: center; gap: var(--sp-2); }
+.aic-kop-tekst { flex: 1; min-width: 0; }
 .aic-kop h3 { margin: 0; display: flex; align-items: center; gap: 8px; font-size: var(--fs-groot); }
-.aic-kop .ai-spark { font-size: 18px; }
+.aic-kop .aic-spark { width: 18px; height: 18px; flex-shrink: 0; }
 .aic-kop p { margin: 4px 0 0; font-size: var(--fs-klein); }
+/* Icoonknop op de band (stijlgids §2): raakvlak --tap, geen rand of vulling,
+   wit zoals het kruisje ernaast; uit = .35. */
+.aic-nieuw {
+  width: var(--tap); height: var(--tap); flex: none; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; border: 0; border-radius: var(--radius); cursor: pointer;
+}
+.aic-nieuw:disabled { opacity: .35; cursor: default; background: transparent !important; }
 .aic-lijst {
   flex: 1; min-height: 0; overflow-y: auto;
   padding: 18px 20px; display: flex; flex-direction: column; gap: 12px;
@@ -8625,7 +8674,11 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
 @keyframes aic-denk { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .aic-denkt span { animation: none; opacity: .6; } }
 .aic-leeg { margin: auto 0; text-align: center; color: var(--text-muted); font-size: var(--fs-basis); }
-.aic-leeg p { margin: 0 0 14px; }
+.aic-leeg-titel {
+  margin: 0 0 6px; color: var(--text);
+  font-family: var(--font-display); font-size: var(--fs-groot); font-weight: 700; letter-spacing: -0.01em;
+}
+.aic-leeg-uitleg { margin: 0 auto 16px; max-width: 540px; font-size: var(--fs-klein); line-height: 1.5; }
 .aic-suggesties { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 .aic-suggestie {
   padding: 8px 12px; border-radius: 999px;
@@ -8666,10 +8719,36 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
   .modal.aic-modal { height: 92vh; }
   .aic-lijst { padding: 14px; }
   .aic-invoer { margin: 0 14px; }
-  .aic-voet { padding: 10px 14px 14px; }
   .aic-beurt { max-width: 94%; }
   .aic-zend { width: var(--tap); height: var(--tap); }
   .ios-tab .aic-invoer textarea { font-size: 16px !important; }
+  /* Rustiger op een telefoon (2026-10-11). De kop is één regel: titel, +
+     en het kruisje. De ondertitel herhaalde wat de lege stand al zegt. */
+  .aic-kop { padding-top: 10px; padding-bottom: 10px; }
+  .aic-kop p { display: none; }
+  /* Lege stand onderin, bij je duim en het invoerveld: één vraag als kop
+     en vier suggesties als gelijke regels, links uitgelijnd. Geen uitleg
+     -- de suggesties laten zelf zien wat kan. */
+  .aic-leeg { margin: auto 0 0; text-align: left; }
+  .aic-leeg-titel { margin-bottom: var(--sp-3); }
+  .aic-leeg-uitleg { display: none; }
+  .aic-suggesties { flex-direction: column; flex-wrap: nowrap; gap: var(--sp-2); }
+  .aic-suggestie {
+    display: flex; align-items: center; width: 100%; min-height: var(--tap);
+    padding: 10px 14px; border-radius: 12px; border-color: var(--border);
+  }
+  .aic-suggestie:nth-child(n+5) { display: none; }
+  /* Voet: één regel. Het model links als stille keuzelijst (geen doos),
+     het verbruik rechts als gewone tekst. Onderin ruimte voor de thuisbalk. */
+  .aic-voet { padding: 4px 14px calc(8px + env(safe-area-inset-bottom, 0px)); flex-wrap: nowrap; }
+  .aic-voet-l { flex: 1; min-width: 0; justify-content: space-between; flex-wrap: nowrap; }
+  .aic-model {
+    min-width: 0; max-width: 65%; min-height: var(--tap);
+    background: transparent !important; border: 0 !important; box-shadow: none !important;
+    padding: 0 4px !important; font-size: var(--fs-klein) !important; color: var(--text-muted);
+  }
+  .ios-tab .aic-model { font-size: 16px !important; }
+  .aic-voet .ai-quota-badge { background: none; border: 0; padding: 0; font-size: var(--fs-micro); white-space: nowrap; }
 }
 
 /* Weekreview header met week-navigatie. Een kopbalk (.modal-kop) die met
@@ -8976,6 +9055,10 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
 @keyframes th6fl{0%{opacity:0;transform:translate(0,0) scale(1)}12%{opacity:1}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(.35)}}
 @keyframes th6rg{0%{stroke-dashoffset:1}100%{stroke-dashoffset:0}}
 @media (prefers-reduced-motion:reduce){#th6m *{animation:none!important}#th6m .fl{display:none}#th6m .sf{display:inline}}]]></style><g fill="url(#th6g)"><g transform="translate(256 256) scale(.74) translate(-256 -256)"><g class="bd" style="--i:0.05s"><g class="tw" style="--d:0.00s"><circle cx="136" cy="88" r="2.1"/><circle cx="208" cy="88" r="2.1"/><circle cx="352" cy="88" r="3.1"/><circle cx="220" cy="112" r="3.1"/><circle cx="136" cy="136" r="6"/><circle cx="208" cy="136" r="4.2"/><circle cx="220" cy="160" r="3.3"/><circle cx="136" cy="184" r="5.8"/><circle cx="208" cy="184" r="8.4"/><circle cx="124" cy="208" r="2.8"/><circle cx="268" cy="208" r="3.3"/><circle cx="136" cy="232" r="5.1"/><circle cx="376" cy="280" r="6.7"/><circle cx="244" cy="304" r="2.6"/><circle cx="388" cy="304" r="3.3"/><circle cx="280" cy="328" r="1.6"/><circle cx="220" cy="352" r="3.4"/><circle cx="136" cy="376" r="4.4"/><circle cx="208" cy="376" r="6.9"/><circle cx="304" cy="376" r="4.9"/><circle cx="376" cy="376" r="5.6"/><circle cx="292" cy="400" r="3.3"/><circle cx="160" cy="424" r="1.9"/><circle cx="304" cy="424" r="2.9"/><circle cx="376" cy="424" r="2.2"/></g><g class="tw" style="--d:1.07s"><circle cx="160" cy="88" r="2.5"/><circle cx="304" cy="88" r="2.3"/><circle cx="376" cy="88" r="1.9"/><circle cx="292" cy="112" r="3.9"/><circle cx="304" cy="136" r="4.3"/><circle cx="376" cy="136" r="4.7"/><circle cx="292" cy="160" r="4.3"/><circle cx="232" cy="184" r="1.6"/><circle cx="220" cy="208" r="4.9"/><circle cx="292" cy="208" r="3.8"/><circle cx="376" cy="232" r="4.1"/><circle cx="388" cy="256" r="2.5"/><circle cx="124" cy="304" r="2.8"/><circle cx="268" cy="304" r="3"/><circle cx="136" cy="328" r="5.7"/><circle cx="208" cy="328" r="5.4"/><circle cx="304" cy="328" r="6.2"/><circle cx="376" cy="328" r="5.1"/><circle cx="292" cy="352" r="2.5"/><circle cx="232" cy="376" r="1.7"/><circle cx="124" cy="400" r="2.1"/><circle cx="388" cy="400" r="2.5"/><circle cx="184" cy="424" r="2.8"/><circle cx="328" cy="424" r="2.3"/></g><g class="tw" style="--d:2.14s"><circle cx="184" cy="88" r="2.5"/><circle cx="328" cy="88" r="2.7"/><circle cx="124" cy="112" r="1.8"/><circle cx="388" cy="112" r="2.5"/><circle cx="124" cy="160" r="3.3"/><circle cx="388" cy="160" r="3.1"/><circle cx="304" cy="184" r="6.8"/><circle cx="376" cy="184" r="3.4"/><circle cx="244" cy="208" r="3.1"/><circle cx="388" cy="208" r="3.1"/><circle cx="124" cy="256" r="2.3"/><circle cx="136" cy="280" r="3.7"/><circle cx="220" cy="304" r="3.8"/><circle cx="292" cy="304" r="3.2"/><circle cx="232" cy="328" r="1.6"/><circle cx="124" cy="352" r="3"/><circle cx="388" cy="352" r="1.7"/><circle cx="280" cy="376" r="1.5"/><circle cx="220" cy="400" r="3.8"/><circle cx="136" cy="424" r="2.1"/><circle cx="208" cy="424" r="3"/><circle cx="352" cy="424" r="1.9"/></g><circle cx="148" cy="112" r="9.5"/><circle cx="172" cy="112" r="9.5"/><circle cx="196" cy="112" r="9.5"/><circle cx="316" cy="112" r="9.5"/><circle cx="340" cy="112" r="9.5"/><circle cx="364" cy="112" r="9.5"/><circle cx="160" cy="136" r="9.5"/><circle cx="184" cy="136" r="9.5"/><circle cx="328" cy="136" r="9.5"/><circle cx="352" cy="136" r="9.5"/><circle cx="148" cy="160" r="9.5"/><circle cx="172" cy="160" r="9.5"/><circle cx="196" cy="160" r="9.5"/><circle cx="316" cy="160" r="9.5"/><circle cx="340" cy="160" r="9.5"/><circle cx="364" cy="160" r="9.5"/><circle cx="160" cy="184" r="9.5"/><circle cx="184" cy="184" r="9.5"/><circle cx="328" cy="184" r="9.5"/><circle cx="352" cy="184" r="9.5"/><circle cx="148" cy="208" r="9.5"/><circle cx="172" cy="208" r="9.5"/><circle cx="196" cy="208" r="9.5"/><circle cx="316" cy="208" r="9.5"/><circle cx="340" cy="208" r="9.5"/><circle cx="364" cy="208" r="9.5"/><circle cx="160" cy="232" r="9.5"/><circle cx="184" cy="232" r="9.5"/><circle cx="208" cy="232" r="9.5"/><circle cx="232" cy="232" r="9.5"/><circle cx="256" cy="232" r="9.5"/><circle cx="280" cy="232" r="9.5"/><circle cx="304" cy="232" r="9.5"/><circle cx="328" cy="232" r="9.5"/><circle cx="352" cy="232" r="9.5"/><circle cx="148" cy="256" r="9.5"/><circle cx="172" cy="256" r="9.5"/><circle cx="196" cy="256" r="9.5"/><circle cx="220" cy="256" r="9.5"/><circle cx="244" cy="256" r="9.5"/><circle cx="268" cy="256" r="9.5"/><circle cx="292" cy="256" r="9.5"/><circle cx="316" cy="256" r="9.5"/><circle cx="340" cy="256" r="9.5"/><circle cx="364" cy="256" r="9.5"/><circle cx="160" cy="280" r="9.5"/><circle cx="184" cy="280" r="9.5"/><circle cx="208" cy="280" r="9.5"/><circle cx="232" cy="280" r="9.5"/><circle cx="256" cy="280" r="9.5"/><circle cx="280" cy="280" r="9.5"/><circle cx="304" cy="280" r="9.5"/><circle cx="328" cy="280" r="9.5"/><circle cx="352" cy="280" r="9.5"/><circle cx="148" cy="304" r="9.5"/><circle cx="172" cy="304" r="9.5"/><circle cx="196" cy="304" r="9.5"/><circle cx="316" cy="304" r="9.5"/><circle cx="340" cy="304" r="9.5"/><circle cx="364" cy="304" r="9.5"/><circle cx="160" cy="328" r="9.5"/><circle cx="184" cy="328" r="9.5"/><circle cx="328" cy="328" r="9.5"/><circle cx="352" cy="328" r="9.5"/><circle cx="148" cy="352" r="9.5"/><circle cx="172" cy="352" r="9.5"/><circle cx="196" cy="352" r="9.5"/><circle cx="316" cy="352" r="9.5"/><circle cx="340" cy="352" r="9.5"/><circle cx="364" cy="352" r="9.5"/><circle cx="160" cy="376" r="9.5"/><circle cx="184" cy="376" r="9.5"/><circle cx="328" cy="376" r="9.5"/><circle cx="352" cy="376" r="9.5"/><circle cx="148" cy="400" r="9.5"/><circle cx="172" cy="400" r="9.5"/><circle cx="196" cy="400" r="9.5"/><circle cx="316" cy="400" r="9.5"/><circle cx="340" cy="400" r="9.5"/><circle cx="364" cy="400" r="9.5"/></g></g><circle class="fl" cx="344.7" cy="150.3" r="3.0" style="--dx:104.1px;--dy:-124.1px;--f:0.00s"/><circle class="fl" cx="358.8" cy="149.5" r="6.0" style="--dx:105.6px;--dy:-109.3px;--f:0.63s"/><circle class="fl" cx="373.4" cy="150.3" r="5.0" style="--dx:105.5px;--dy:-95.0px;--f:1.26s"/><circle class="fl" cx="364.7" cy="171.0" r="4.0" style="--dx:127.7px;--dy:-99.7px;--f:1.89s"/><circle class="fl" cx="378.7" cy="173.2" r="3.0" style="--dx:126.0px;--dy:-85.0px;--f:2.52s"/><circle class="fl" cx="392.8" cy="177.0" r="6.0" style="--dx:123.0px;--dy:-71.0px;--f:3.15s"/><circle class="fl" cx="380.0" cy="195.5" r="5.0" style="--dx:145.6px;--dy:-71.0px;--f:3.78s"/><g class="sf"><circle cx="404.7" cy="102.1" r="6"/><circle cx="434.1" cy="116.9" r="5"/><circle cx="439.6" cy="150.0" r="5.5"/><circle cx="437.3" cy="92.7" r="3.5"/><circle cx="464.9" cy="115.1" r="3"/><circle cx="468.1" cy="152.5" r="4"/><circle cx="467.2" cy="91.0" r="2.5"/><circle cx="495.0" cy="118.0" r="2"/></g></g><path class="rg" d="M446.2,194.2 A200 200 0 1 1 362.0,86.4" fill="none" stroke="url(#th6g)" stroke-width="14" stroke-linecap="round" pathLength="1" stroke-dasharray="1"/></g><text x="590" y="262" font-family="Unbounded,'Arial Black',sans-serif" font-weight="700" font-size="128" fill="#FFFFFF" textLength="860" lengthAdjust="spacing">HERLING</text><text x="594" y="340" font-family="'JetBrains Mono',ui-monospace,monospace" font-weight="500" font-size="46" fill="#00E5B0" textLength="852" lengthAdjust="spacing">ANALYTICS</text></svg></div>
+      <!-- Naast de wisselaar: Vraag het je app, op elke pagina te bereiken
+           (2026-10-11). Een tegel zoals de wisselaar, met de sparkle in het
+           verloop van het logo. Zie zijbalkVraagHet(). -->
+      <div class="sb-kop-rij">
       <button type="button" class="sb-wissel" id="klantWisselBtn" onclick="toggleKlantWissel(event)"
         aria-haspopup="dialog" aria-expanded="false" aria-controls="klantWissel" title="Klant kiezen (Ctrl+J)">
         <span class="sb-wissel-logo is-alle" id="klantWisselLogo"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="5.5" r="2.5"/><path d="M1.5 13.5c0-2.5 2-4.2 4.5-4.2s4.5 1.7 4.5 4.2"/><path d="M10.5 3.2a2.4 2.4 0 0 1 0 4.6"/><path d="M12 9.6c1.5.5 2.5 1.9 2.5 3.9"/></svg></span>
@@ -8984,6 +9067,11 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
         </span>
         <svg class="sb-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
       </button>
+      <button type="button" class="sb-ai" id="sbAiBtn" onclick="zijbalkVraagHet()"
+        aria-haspopup="dialog" aria-label="Vraag het je app" title="Vraag het je app">
+        <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><defs><linearGradient id="sbAiVerloop" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#00E5B0"/><stop offset="1" stop-color="#38BDF8"/></linearGradient></defs><g fill="url(#sbAiVerloop)"><path d="M9 3.5Q10.4 9.6 16.5 11Q10.4 12.4 9 18.5Q7.6 12.4 1.5 11Q7.6 9.6 9 3.5Z"/><path d="M15.5 1.5Q16.1 3.9 18.5 4.5Q16.1 5.1 15.5 7.5Q14.9 5.1 12.5 4.5Q14.9 3.9 15.5 1.5Z"/></g></svg>
+      </button>
+      </div>
     </div>
 
     <nav class="sidebar-scroll" aria-label="Modules">
@@ -9047,7 +9135,7 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.53</span>
+        <span class="app-versie" title="Appversie">v2.54</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -10227,6 +10315,23 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
   </div>
 </div>
 
+<!-- ── Facturen: maandafsluiting ── zie facMaandStart() -->
+<div class="modal-bg" id="facMaandModal">
+  <div class="modal" style="max-width:640px;padding:22px;display:flex;flex-direction:column;max-height:92vh">
+    <h3 style="font-size:18px;margin:0 0 4px">Uren factureren</h3>
+    <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 16px">
+      Alle uren die nog op geen factuur staan: per ontvanger een concept. Je kijkt ze daarna na en verstuurt ze zelf.</p>
+    <div id="facMaandBody" style="overflow:auto;flex:1;min-height:0"></div>
+    <div class="modal-footer" style="margin-top:18px">
+      <div class="modal-footer-left"></div>
+      <div class="modal-footer-right">
+        <button class="btn btn-sm modal-annuleer" data-fac-action="closeFacMaand">Annuleer</button>
+        <button class="btn btn-sm btn-primary" data-fac-action="facMaandMaak" id="facMaandMaakBtn">Concepten klaarzetten</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ── Facturen: mailen ── -->
 <div class="modal-bg" id="facMailModal">
   <div class="modal" style="max-width:640px;padding:22px;display:flex;flex-direction:column;max-height:92vh">
@@ -10879,8 +10984,18 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
 <div class="modal-bg" id="aiChatModal" onclick="if(event.target===this)aiChatSluit()">
   <div class="modal aic-modal">
     <div class="modal-kop aic-kop">
-      <h3><span class="ai-spark" aria-hidden="true">✨</span>Vraag het je app</h3>
-      <p>Over je taken, uren, facturen, opdrachten, contracten, agenda en mail — en wat je vraagt, zet hij voor je klaar</p>
+      <div class="aic-kop-tekst">
+        <h3><svg class="aic-spark" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><defs><linearGradient id="aicVerloop" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#00E5B0"/><stop offset="1" stop-color="#38BDF8"/></linearGradient></defs><g fill="url(#aicVerloop)"><path d="M9 3.5Q10.4 9.6 16.5 11Q10.4 12.4 9 18.5Q7.6 12.4 1.5 11Q7.6 9.6 9 3.5Z"/><path d="M15.5 1.5Q16.1 3.9 18.5 4.5Q16.1 5.1 15.5 7.5Q14.9 5.1 12.5 4.5Q14.9 3.9 15.5 1.5Z"/></g></svg>Vraag het je app</h3>
+        <p>Over je taken, uren, facturen, opdrachten, contracten, agenda en mail — en wat je vraagt, zet hij voor je klaar</p>
+      </div>
+      <!-- Nieuw gesprek: een icoon in de kop, links van het kruisje (dat
+           zetModalSluitknoppen() op een telefoon toevoegt). Stond als
+           tekstknop in de voet en zakte daar op een telefoon naar een
+           eigen regel. Uit (niet weg) zolang er nog geen gesprek is. -->
+      <button type="button" class="aic-nieuw" id="aiChatNieuwBtn" onclick="aiChatNieuw()"
+        aria-label="Nieuw gesprek" title="Nieuw gesprek">
+        <svg class="icoon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>
+      </button>
     </div>
     <div class="aic-lijst" id="aiChatLijst" aria-live="polite"></div>
     <form class="aic-invoer" onsubmit="event.preventDefault();aiChatVraag()">
@@ -10897,7 +11012,6 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
       </div>
       <div class="aic-voet-r">
         <button class="btn btn-sm" type="button" id="aiChatOpnieuwBtn" onclick="aiChatOpnieuw()" hidden>🔄 Opnieuw</button>
-        <button class="btn btn-sm" type="button" id="aiChatNieuwBtn" onclick="aiChatNieuw()">Nieuw gesprek</button>
         <button class="btn btn-sm modal-annuleer" type="button" onclick="aiChatSluit()">Sluiten</button>
       </div>
     </div>
@@ -13108,6 +13222,13 @@ function toggleSidebarMobile(force){
   sb.classList.toggle('mobile-open',open);
   if(bd)bd.classList.toggle('open',open);
   document.body.style.overflow=open?'hidden':'';
+}
+
+/* De sparkle bovenin de zijbalk. In de lade op een telefoon eerst de lade
+   dicht: anders staat hij nog open als je het venster sluit. */
+function zijbalkVraagHet(){
+  if(document.getElementById('sidebar')?.classList.contains('mobile-open'))toggleSidebarMobile(false);
+  aiChatOpen();
 }
 
 /* ─ Update mobile top bar title + bottom-nav active state ─ */
@@ -22575,24 +22696,19 @@ function urenBulkDelete(){
 /* Factureer alle openstaande uren van één klant in de huidige maand,
    of (vanuit het maandoverzicht) van een hele maand. */
 function urenInvoiceClient(clientId,ym){
-  let list;
-  let wat;
-  if(ym){
-    const from=ym+'-01',to=ym+'-31';
-    list=urenState.entries.filter(e=>e.date>=from&&e.date<=to&&urenStatusOf(e)==='open');
-    const [y,m]=ym.split('-');
-    wat=MONTH_LABELS_NL[parseInt(m,10)-1]+' '+y;
-  } else {
-    const p=urenPeriod();
-    list=urenState.entries.filter(e=>e.clientId===clientId&&e.date>=p.from&&e.date<=p.to&&urenStatusOf(e)==='open');
-    wat=urenClientName(clientId)+' · '+p.label;
-  }
+  /* Een hele maand factureren gaat sinds 2026-10-11 via de maandafsluiting:
+     per ontvanger een concept. Alleen de status omzetten kan nog met de
+     selectiebalk ("Gefactureerd"). */
+  if(ym){facMaandStart(ym);return;}
+  const per=urenPeriod();
+  const list=urenState.entries.filter(e=>e.clientId===clientId&&e.date>=per.from&&e.date<=per.to&&urenStatusOf(e)==='open');
+  const wat=urenClientName(clientId)+' · '+per.label;
   if(!list.length)return;
   const sum=urenSum(list);
   /* Nu de facturatiemodule bestaat is een factuur opstellen de normale
      route; alleen de status omzetten blijft mogelijk voor uren die je
      buiten de app om factureert. */
-  const viaFactuur=clientId&&!ym;
+  const viaFactuur=!!clientId;
   if(viaFactuur){
     const p=urenPeriod();
     const keuze=confirm(
@@ -22600,7 +22716,11 @@ function urenInvoiceClient(clientId,ym){
       `OK — factuur opstellen (uren gaan mee als factuurregel)\n`+
       `Annuleren — alleen de status op "gefactureerd" zetten`);
     if(keuze){
-      const f=factuurNieuw(clientId,p.from,p.to);
+      /* De factuur gaat naar wie de rekening krijgt, met alleen de uren
+         van deze klant. factuurNieuw(clientId) zocht voor een klant met een
+         factuurpartij de klanten "van" die klant, vond er geen en gaf een
+         factuur zonder regels. */
+      const f=factuurNieuw(factuurPartijIdVan(clientId),p.from,p.to,[clientId]);
       switchModule('facturen');
       setTimeout(()=>facOpenEditor(f.id),80);
       return;
@@ -23826,7 +23946,12 @@ function factuurVolgnummerUit(nummer,prefix){
 /* `datum` is de factuurdatum. Zonder die parameter keek de reeks naar het
    jaar van vandaag: een factuur die je op 2 januari maakt maar op 31
    december dateert, belandde dan in de verkeerde jaarreeks. */
-function factuurVolgendNummer(peek,negeerId,bedrijfId,datum){
+/* `zonderConcepten`: concepten zonder vast nummer tellen niet als gebruikt.
+   Alleen bij het versturen. Een rij concepten (F10, F11, F12, zie
+   facMaandMaak) kreeg anders bij het versturen van F10 het nummer F13,
+   omdat F11 en F12 als bezet telden -- terwijl een conceptnummer pas bij
+   het versturen vast ligt. */
+function factuurVolgendNummer(peek,negeerId,bedrijfId,datum,zonderConcepten){
   const bedrijf=factuurBedrijf(bedrijfId);
   const n=bedrijf.nummer;
   const jaar=datum?new Date(datum+'T00:00:00').getFullYear():new Date().getFullYear();
@@ -23836,7 +23961,8 @@ function factuurVolgendNummer(peek,negeerId,bedrijfId,datum){
   /* Nooit onder een bestaand nummer van hetzelfde bedrijf duiken;
      andere bedrijven hebben hun eigen reeks. */
   const gebruikt=factuurState.invoices
-    .filter(f=>f.id!==negeerId&&factuurBedrijfIdVan(f)===bedrijf.id)
+    .filter(f=>f.id!==negeerId&&factuurBedrijfIdVan(f)===bedrijf.id&&
+      !(zonderConcepten&&f.status==='concept'&&!f.nummerVast))
     .map(f=>factuurVolgnummerUit(f.nummer,n.prefix))
     .filter(v=>!isNaN(v));
   if(gebruikt.length)volg=Math.max(volg,Math.max(...gebruikt)+1);
@@ -24152,26 +24278,46 @@ function factuurFmtDatumLang(iso){
    periode en maakt daar één regel van: aantal uur × tarief. Uren met
    een eigen tarief krijgen een eigen regel, anders zouden ze in het
    gemiddelde verdwijnen. */
-function factuurUrenVoorKlant(clientId,from,to){
+/* Uren die al op een bewaard concept staan tellen niet meer als open.
+   Tot 2026-10-11 wel: een concept reserveert zijn uren pas bij het
+   versturen, dus de wizard bood ze nog eens aan, en twee concepten met
+   dezelfde uren konden allebei de deur uit. Met een maandafsluiting die
+   in één keer alle concepten maakt, is dat geen randgeval meer.
+   `negeerId`: het concept dat zijn eigen uren opnieuw ophaalt. */
+function factuurUrenInConcepten(negeerId){
+  const ids=new Set();
+  (factuurState.invoices||[]).forEach(f=>{
+    if(f.status!=='concept'||f.id===negeerId)return;
+    (f.regels||[]).forEach(r=>(r.urenIds||[]).forEach(id=>ids.add(id)));
+  });
+  return ids;
+}
+function factuurUrenVoorKlant(clientId,from,to,negeerId,bezet){
+  const opConcept=bezet||factuurUrenInConcepten(negeerId);
   return (urenState.entries||[]).filter(e=>
     e.clientId===clientId&&e.date>=from&&e.date<=to&&
-    urenStatusOf(e)!=='invoiced'&&!e.factuurId);
+    urenStatusOf(e)!=='invoiced'&&!e.factuurId&&!opConcept.has(e.id));
 }
-/* `alleenKlanten` beperkt de uren tot een deel van de klanten die op deze
-   partij meeliften. Je factureert Acme Data, maar schrijft je uren op Klant Zuid
-   en Klant Noord; soms wil je die twee op aparte facturen. Leeg of niet
-   meegegeven = alles, zoals het altijd was. */
-function factuurRegelsUitUren(partijId,from,to,omschrijving,alleenKlanten){
-  let klanten=factuurKlantenVanPartij(partijId);
-  if(Array.isArray(alleenKlanten)&&alleenKlanten.length)
-    klanten=klanten.filter(c=>alleenKlanten.includes(c.id));
+/* `alleenKlanten`: precies deze klanten op de factuur. Leeg of niet
+   meegegeven = alle klanten die vast via deze partij lopen, zoals het
+   altijd was. Sinds 2026-10-11 hoeven ze niet vast aan de partij te hangen:
+   in de maandafsluiting (facMaandMaak) zet je een klant voor één keer op
+   de factuur van een ander. `negeerId`: zie factuurUrenVoorKlant. */
+function factuurFactuurKlanten(partijId,alleenKlanten){
+  return (Array.isArray(alleenKlanten)&&alleenKlanten.length)
+    ? alleenKlanten.map(factuurKlant).filter(Boolean)
+    : factuurKlantenVanPartij(partijId);
+}
+function factuurRegelsUitUren(partijId,from,to,omschrijving,alleenKlanten,negeerId){
+  const klanten=factuurFactuurKlanten(partijId,alleenKlanten);
+  const bezet=factuurUrenInConcepten(negeerId);
   const regels=[];
   /* Staat er maar een klant op deze factuur, dan noemt het onderwerp hem
      al; de regel hoeft die naam er niet nog eens voor te zetten. Anders
      werd het "Klant Zuid B.V. - Klant Zuid B.V. Gewerkte uren Augustus". */
-  const levert=klanten.filter(c=>factuurUrenVoorKlant(c.id,from,to).length).length;
+  const levert=klanten.filter(c=>factuurUrenVoorKlant(c.id,from,to,negeerId,bezet).length).length;
   klanten.forEach(klant0=>{
-    const uren=factuurUrenVoorKlant(klant0.id,from,to);
+    const uren=factuurUrenVoorKlant(klant0.id,from,to,negeerId,bezet);
     if(!uren.length)return;
     /* Ontbreekt het tarief bij de klant, dan geldt dat van de partij
        waar de rekening naartoe gaat. */
@@ -24188,8 +24334,10 @@ function factuurRegelsUitUren(partijId,from,to,omschrijving,alleenKlanten){
     /* Factureer je via een tussenpersoon, dan moet op de regel staan
        voor wie het werk was -- anders weet de ontvanger niet waar het
        over gaat. */
-    const viaPartij=factuurPartijIdVan(klant.id)!==klant.id;
-    const basis=(viaPartij&&levert>1)
+    /* Staan er meerdere klanten op deze factuur, dan krijgt elke regel een
+       naam -- ook die van de ontvanger zelf, anders staat er tussen
+       "Klant Zuid — …" en "Klant Noord — …" één regel zonder. */
+    const basis=(levert>1)
       ? (klant.bedrijfsnaam||klant.name)+' \u2014 '+(omschrijving||'Gewerkte uren')
       : (omschrijving||'Gewerkte uren');
     Object.keys(groepen).forEach(t=>{
@@ -24214,10 +24362,9 @@ function factuurStandaardBetreft(clientId,from,to,alleenKlanten){
   const klant=factuurKlant(clientId);
   /* Meerdere klanten op een factuur? Dan zegt een klantnaam in het
      onderwerp niets; de regels vermelden ze afzonderlijk. */
-  let leveren=factuurKlantenVanPartij(clientId).filter(c=>
-    factuurUrenVoorKlant(c.id,from||'1970-01-01',to||'2999-12-31').length);
-  if(Array.isArray(alleenKlanten)&&alleenKlanten.length)
-    leveren=leveren.filter(c=>alleenKlanten.includes(c.id));
+  const bezet=factuurUrenInConcepten(null);
+  const leveren=factuurFactuurKlanten(clientId,alleenKlanten).filter(c=>
+    factuurUrenVoorKlant(c.id,from||'1970-01-01',to||'2999-12-31',null,bezet).length);
   const meerdere=leveren.length>1;
   /* Precies één klant gekozen binnen een partij? Dan hoort diens naam er
      juist wél in -- anders heten twee facturen aan dezelfde partij
@@ -24406,7 +24553,7 @@ function factuurMarkeerVerstuurd(id){
   const nummers=factuurState.invoices
     .filter(x=>x.id!==f.id&&factuurBedrijfIdVan(x)===bedrijfId).map(x=>x.nummer);
   if(!f.nummerVast||nummers.includes(f.nummer))
-    f.nummer=factuurVolgendNummer(false,f.id,bedrijfId,f.datum);
+    f.nummer=factuurVolgendNummer(false,f.id,bedrijfId,f.datum,true);
   f.nummerVast=true;
   /* Hier wordt bewust géén momentopname van klant en afzender gemaakt.
      Die hoort bij het moment dat de klant het document daadwerkelijk
@@ -24497,6 +24644,10 @@ let facWizard=null;       /* {clientId,from,to} tijdens "nieuwe factuur" */
 /* ── Event-delegatie (zelfde patroon als Uren) ── */
 const FAC_CLICK_ACTIONS={
   facSetView:(a)=>facSetView(a),
+  facMaandStart:(a)=>facMaandStart(a),
+  facMaandStap:(a)=>facMaandStap(Number(a)),
+  facMaandMaak:()=>facMaandMaak(),
+  closeFacMaand:()=>closeFacMaand(),
   facToggleCijfers:()=>facToggleCijfers(),
   facAnZetBereik:(a)=>facAnZetBereik(a),
   facAnWisselBereik:(a)=>facAnWisselBereik(a),
@@ -24625,6 +24776,8 @@ const FAC_CHANGE_ACTIONS={
        periode kan naar klanten wijzen die er nu niet meer zijn. */
     facWizard.klanten=null;facWizardRenderKlanten();}},
   facWizardKlantToggle:(el,a)=>facWizardKlantToggle(el,a),
+  facMaandKeuze:(el,a)=>facMaandKeuze(el,a),
+  facMaandGroep:(el,a)=>facMaandGroep(el,a),
   facSjStijl:(el,a)=>facSjStijl(el,a),
   facSjVeld:(el,a)=>facSjVeld(el,a),
   facSjRegelOptie:(el,a)=>facSjRegelOptie(el,a),
@@ -25079,7 +25232,7 @@ function facRenderBody(){
   if(facView==='debiteuren'){body.innerHTML=kop+facRenderDebiteuren();return;}
   if(facView==='btw'){body.innerHTML=facRenderBtw();return;}
   if(facView==='mails'){body.innerHTML=kop+facRenderMails();return;}
-  body.innerHTML=kop+facRenderLijst();
+  body.innerHTML=kop+facMaandHint()+facRenderLijst();
 }
 
 /* ── Sorteren van de facturenlijst ──
@@ -25951,6 +26104,189 @@ function facRenderKlanten(){
 }
 
 /* ── Nieuwe factuur: klant + periode ── */
+/* ══ Maandafsluiting: alle openstaande uren in één keer ══════════════════
+   (2026-10-11) Aan het eind of begin van de maand alle uren die nog op
+   geen factuur staan, per ontvanger een concept. Je kijkt ze daarna na en
+   verstuurt ze zelf -- hier wordt niets verstuurd.
+
+   Wie de rekening krijgt, volgt de vaste instelling van de klant
+   ("Factureren aan", factuurPartijId). Per keer kun je dat omzetten: een
+   klant op de factuur van een ander, of juist apart. Dat geldt alleen voor
+   deze keer; de klantinstelling blijft staan. Klanten met dezelfde
+   ontvanger komen samen op één factuur, met één regel per klant (en per
+   afwijkend tarief, zoals altijd -- zie factuurRegelsUitUren).
+
+   Uren die al op een concept staan gaan niet nog eens mee
+   (factuurUrenInConcepten), dus twee keer afsluiten geeft geen dubbele. */
+let facMaand=null;   /* {ym:'2026-09', keuze:{klantId:ontvangerId}, uit:[ontvangerIds]} */
+
+/* Welke maand je bedoelt: vanaf de 20e de lopende, daarvoor de vorige. */
+function facMaandStandaard(){
+  const d=new Date();
+  const m=d.getDate()>=20?d:new Date(d.getFullYear(),d.getMonth()-1,1);
+  return dateStr(m).slice(0,7);
+}
+function facMaandGrenzen(ym){
+  const [y,m]=ym.split('-').map(Number);
+  return {from:ym+'-01',to:dateStr(new Date(y,m,0))};
+}
+function facMaandNaam(ym){
+  const [y,m]=ym.split('-').map(Number);
+  return MONTH_LABELS_NL[m-1]+' '+y;
+}
+/* Het voorstel: per ontvanger de klanten met open uren, plus wat er niet
+   mee kan (uren zonder klant) en wat al op een concept staat. */
+function facMaandVoorstel(ym,keuze){
+  const {from,to}=facMaandGrenzen(ym);
+  const bezet=factuurUrenInConcepten(null);
+  const rond=n=>Math.round(n*100)/100;
+  const perAan={};
+  (kanbanState.clients||[]).forEach(c=>{
+    const uren=factuurUrenVoorKlant(c.id,from,to,null,bezet);
+    if(!uren.length)return;
+    const kv=factuurKlantVol(c);
+    const aantal=rond(uren.reduce((s,e)=>s+Number(e.hours||0),0));
+    const bedrag=rond(uren.reduce((s,e)=>s+Number(e.hours||0)*
+      ((e.tarief!=null&&e.tarief!=='')?Number(e.tarief):Number(kv.tarief||0)),0));
+    const gekozen=keuze&&keuze[c.id]&&factuurKlant(keuze[c.id])?keuze[c.id]:null;
+    const aan=gekozen||factuurPartijIdVan(c.id);
+    (perAan[aan]=perAan[aan]||[]).push({klant:c,aantal,bedrag,aan});
+  });
+  const naam=id=>{const k=factuurKlant(id);return k?(k.bedrijfsnaam||k.name):'';};
+  const groepen=Object.keys(perAan).map(aan=>({aan,ontvanger:factuurKlant(aan),
+    rijen:perAan[aan].sort((a,b)=>naam(a.klant.id).localeCompare(naam(b.klant.id),'nl')),
+    aantal:rond(perAan[aan].reduce((s,r)=>s+r.aantal,0)),
+    bedrag:rond(perAan[aan].reduce((s,r)=>s+r.bedrag,0))}))
+    .sort((a,b)=>naam(a.aan).localeCompare(naam(b.aan),'nl'));
+  const inPeriode=e=>e.date>=from&&e.date<=to&&urenStatusOf(e)!=='invoiced'&&!e.factuurId;
+  const alle=(urenState.entries||[]);
+  return {from,to,groepen,
+    zonderKlant:rond(alle.filter(e=>!e.clientId&&inPeriode(e)).reduce((s,e)=>s+Number(e.hours||0),0)),
+    opConcept:rond(alle.filter(e=>e.clientId&&inPeriode(e)&&bezet.has(e.id)).reduce((s,e)=>s+Number(e.hours||0),0))};
+}
+
+function facMaandStart(ym){
+  facMaand={ym:/^\d{4}-\d{2}$/.test(ym||'')?ym:facMaandStandaard(),keuze:{},uit:[]};
+  closeFacMenu();
+  facMaandRender();
+  document.getElementById('facMaandModal').classList.add('open');
+}
+function closeFacMaand(){
+  document.getElementById('facMaandModal')?.classList.remove('open');
+  facMaand=null;
+}
+function facMaandStap(d){
+  if(!facMaand)return;
+  const [y,m]=facMaand.ym.split('-').map(Number);
+  facMaand.ym=dateStr(new Date(y,m-1+d,1)).slice(0,7);
+  /* Een andere maand, andere klanten: een keuze van de vorige zegt hier niets. */
+  facMaand.keuze={};facMaand.uit=[];
+  facMaandRender();
+}
+/* Een klant voor deze keer op de factuur van een ander zetten (of apart). */
+function facMaandKeuze(el,klantId){
+  if(!facMaand)return;
+  facMaand.keuze[klantId]=el.value;
+  facMaandRender();
+}
+function facMaandGroep(el,aan){
+  if(!facMaand)return;
+  facMaand.uit=facMaand.uit.filter(x=>x!==aan);
+  if(!el.checked)facMaand.uit.push(aan);
+  facMaandRender();
+}
+function facMaandRender(){
+  const box=document.getElementById('facMaandBody');
+  if(!box||!facMaand)return;
+  const v=facMaandVoorstel(facMaand.ym,facMaand.keuze);
+  /* Wie een factuur kan krijgen: elke klant die zelf niet via een ander
+     factureert, plus de klant zelf. */
+  const ontvangers=(kanbanState.clients||[]).filter(c=>!c.factuurPartijId)
+    .sort((a,b)=>(a.bedrijfsnaam||a.name).localeCompare(b.bedrijfsnaam||b.name,'nl'));
+  const naam=k=>k?(k.bedrijfsnaam||k.name):'';
+  const keuzeLijst=(rij)=>{
+    const opties=[{id:rij.klant.id,label:'Eigen factuur'}].concat(
+      ontvangers.filter(c=>c.id!==rij.klant.id).map(c=>({id:c.id,label:'Op factuur aan '+naam(c)})));
+    return '<select class="fac-ed-inp fac-maand-aan" data-fac-change="facMaandKeuze" data-fac-arg1="'+rij.klant.id+'" '+
+      'aria-label="Factureren aan, voor '+escapeHtml(naam(rij.klant))+'">'+
+      opties.map(o=>'<option value="'+o.id+'"'+(o.id===rij.aan?' selected':'')+'>'+escapeHtml(o.label)+'</option>').join('')+
+      '</select>';
+  };
+  const kop='<div class="fac-maand-nav">'+
+    '<button type="button" class="uren-btn" data-fac-action="facMaandStap" data-fac-arg1="-1" aria-label="Vorige maand">‹</button>'+
+    '<b>'+escapeHtml(facMaandNaam(facMaand.ym))+'</b>'+
+    '<button type="button" class="uren-btn" data-fac-action="facMaandStap" data-fac-arg1="1" aria-label="Volgende maand">›</button></div>';
+  const lijst=v.groepen.length
+    ? '<div class="fac-wizard-klanten fac-maand-lijst">'+v.groepen.map(g=>{
+        const aan=!facMaand.uit.includes(g.aan);
+        const col=g.ontvanger?CLIENT_COLORS[g.ontvanger.colorIdx%CLIENT_COLORS.length]:null;
+        return '<div class="fac-wizard-partij'+(aan?'':' is-uit')+'">'+
+          '<label class="fac-wizard-klant fac-maand-kop">'+
+            '<input type="checkbox"'+(aan?' checked':'')+' data-fac-change="facMaandGroep" data-fac-arg1="'+g.aan+'" '+
+              'aria-label="Concept maken voor '+escapeHtml(naam(g.ontvanger))+'">'+
+            '<span class="sw" style="background:'+(col?col.bg:'var(--text-hint)')+'"></span>'+
+            '<span class="nm">'+escapeHtml(naam(g.ontvanger))+
+              (g.rijen.length>1?'<em>'+g.rijen.length+' klanten op één factuur</em>':'')+'</span>'+
+            '<span class="uren">'+urenFmt(g.aantal)+' u'+(g.bedrag?' · '+factuurFmtBedrag(g.bedrag):'')+'</span>'+
+          '</label>'+
+          '<div class="fac-wizard-sub">'+g.rijen.map(r=>
+            '<div class="fac-wizard-subrij fac-maand-rij">'+
+              '<span class="nm">'+escapeHtml(naam(r.klant))+'</span>'+
+              '<span class="uren">'+urenFmt(r.aantal)+' u'+(r.bedrag?' · '+factuurFmtBedrag(r.bedrag):'')+'</span>'+
+              keuzeLijst(r)+'</div>').join('')+'</div>'+
+        '</div>';
+      }).join('')+'</div>'
+    : '<div class="uren-empty"><b>Geen openstaande uren in '+escapeHtml(facMaandNaam(facMaand.ym))+'</b>'+
+      'Alles uit deze maand staat al op een factuur of een concept.</div>';
+  const noten=[];
+  if(v.opConcept)noten.push('<div class="fac-uren-info"><span><b>'+urenFmt(v.opConcept)+' u</b> uit deze maand staat al op een concept en gaat niet nog eens mee.</span></div>');
+  if(v.zonderKlant)noten.push('<div class="fac-btw-let"><b>'+urenFmt(v.zonderKlant)+' u zonder klant</b>Die kunnen niet op een factuur. Zet er in Uren eerst een klant bij.</div>');
+  box.innerHTML=kop+lijst+(noten.length?'<div class="fac-maand-noten">'+noten.join('')+'</div>':'');
+  const n=v.groepen.filter(g=>!facMaand.uit.includes(g.aan)).length;
+  const btn=document.getElementById('facMaandMaakBtn');
+  if(btn){btn.disabled=!n;btn.textContent=n?n+' '+(n===1?'concept':'concepten')+' klaarzetten':'Niets te factureren';}
+}
+/* Per ontvanger een concept, meteen bewaard: je maakt er hier meerdere
+   tegelijk, en een concept dat alleen in het geheugen staat (facConcept)
+   kan er maar één zijn. Zie "Een nieuwe factuur bestaat pas na Opslaan"
+   -- hier ís klaarzetten het opslaan. */
+function facMaandMaak(){
+  if(!facMaand)return;
+  const v=facMaandVoorstel(facMaand.ym,facMaand.keuze);
+  const gemaakt=[], onvolledig=[];
+  v.groepen.filter(g=>!facMaand.uit.includes(g.aan)).forEach(g=>{
+    const f=factuurNieuw(g.aan,v.from,v.to,g.rijen.map(r=>r.klant.id));
+    if(!f.regels.length){facConcept=null;return;}
+    facConceptVastleggen();
+    gemaakt.push(f);
+    if(!factuurKlantCompleet(factuurKlant(g.aan)))onvolledig.push(g.ontvanger.bedrijfsnaam||g.ontvanger.name);
+  });
+  const maand=facMaandNaam(facMaand.ym);
+  closeFacMaand();
+  if(activeModule!=='facturen')switchModule('facturen');
+  else facRenderAll();
+  if(!gemaakt.length){appToast('Er stonden geen uren meer open',{type:'info'});return;}
+  const totaal=gemaakt.reduce((s,f)=>s+factuurTotalen(f).excl,0);
+  appToast(gemaakt.length+' '+(gemaakt.length===1?'concept':'concepten')+' voor '+maand+' klaargezet — '+
+    factuurFmtBedrag(totaal)+' excl. btw'+
+    (onvolledig.length?'. Vul nog de adresgegevens aan van '+onvolledig.join(', '):''),
+    {type:onvolledig.length?'warning':'success',duration:onvolledig.length?9000:5000});
+}
+/* Boven de facturenlijst: staan er uren open uit de maand die je nu zou
+   afsluiten, dan zegt dit hoeveel, met de knop erheen. */
+function facMaandHint(){
+  const ym=facMaandStandaard();
+  const v=facMaandVoorstel(ym,null);
+  if(!v.groepen.length)return '';
+  const uren=v.groepen.reduce((s,g)=>s+g.aantal,0);
+  const bedrag=v.groepen.reduce((s,g)=>s+g.bedrag,0);
+  const klanten=v.groepen.reduce((s,g)=>s+g.rijen.length,0);
+  return '<div class="fac-uren-info fac-maand-hint"><span>Uit <b>'+escapeHtml(facMaandNaam(ym).toLowerCase())+'</b> staan nog <b>'+
+    urenFmt(uren)+' u</b> open bij '+klanten+' '+(klanten===1?'klant':'klanten')+
+    (bedrag?' (<b>'+factuurFmtBedrag(bedrag)+'</b> excl. btw)':'')+'.</span>'+
+    '<button type="button" class="uren-btn uren-btn-primary" data-fac-action="facMaandStart" data-fac-arg1="'+ym+'">Uren factureren</button></div>';
+}
+
 function facNieuwStart(){
   const eind=new Date();
   const start=new Date(eind.getFullYear(),eind.getMonth(),1);
@@ -26890,7 +27226,7 @@ function facUrenOphalen(){
   const p=f.urenPeriode||{from:f.datum.slice(0,8)+'01',to:f.datum};
   const keuze=Array.isArray(f.urenKlanten)&&f.urenKlanten.length?f.urenKlanten:null;
   const nieuw=factuurRegelsUitUren(f.clientId,p.from,p.to,
-    f.betreft||factuurStandaardBetreft(f.clientId,p.from,p.to,keuze),keuze);
+    f.betreft||factuurStandaardBetreft(f.clientId,p.from,p.to,keuze),keuze,f.id);
   if(!nieuw.length){appToast('Geen openstaande uren in deze periode',{type:'info'});return;}
   /* Bestaande urenregels vervangen, handmatige regels behouden */
   f.regels=(f.regels||[]).filter(r=>!(r.urenIds&&r.urenIds.length)).concat(nieuw);
@@ -30254,6 +30590,10 @@ function facToggleMenu(){
   const m=document.createElement('div');
   m.className='uren-menu';m.id='facMenu';m.setAttribute('role','menu');
   m.innerHTML=`
+    <button class="uren-menu-item" role="menuitem" data-fac-action="facMaandStart">
+      <span class="ic" aria-hidden="true">⏱</span>
+      <span>Uren factureren<small>Alle open uren van een maand op concepten</small></span></button>
+    <div class="uren-menu-sep"></div>
     <button class="uren-menu-item" role="menuitem" data-fac-action="openFacInstellingen">
       <span class="ic" aria-hidden="true">⚙</span>
       <span>Facturatie-instellingen<small>Bedrijfsgegevens en nummering</small></span></button>
@@ -39645,14 +39985,18 @@ function saveWeeklyReviewAsNote(){
      zou de chat "€ 0" als feit noemen.
    - Het gesprek leeft alleen in deze sessie; niets ervan gaat naar Drive. */
 const AI_CHAT_MAX_BEURTEN=12;          /* zoveel eerdere beurten gaan mee */
+/* Op een telefoon staan alleen de eerste vier (zie .aic-suggestie in de
+   mobiele laag): daar de nuttigste, met één die iets klaarzet. Met een
+   gekoppeld account gaan de agenda- en mailvraag daar nog voor
+   (aiChatSuggesties). */
 const AI_CHAT_SUGGESTIES=[
-  'Hoeveel taken heb ik deze week afgerond?',
   'Welke facturen staan nog open, en welke zijn te laat?',
-  'Hoeveel uren heb ik deze maand geschreven, per klant?',
-  'Welke contracten of opdrachten vragen binnenkort een beslissing?',
   'Hoeveel uren heb ik nog niet gefactureerd?',
-  'Wat was mijn omzet per maand dit jaar?',
-  'Zet een taak klaar: offerte nalopen, deadline vrijdag'
+  'Welke contracten of opdrachten vragen binnenkort een beslissing?',
+  'Zet een taak klaar: offerte nalopen, deadline vrijdag',
+  'Hoeveel uren heb ik deze maand geschreven, per klant?',
+  'Hoeveel taken heb ik deze week afgerond?',
+  'Wat was mijn omzet per maand dit jaar?'
 ];
 /* Met een gekoppeld account (en Claude) kijkt de chat ook in agenda en mail;
    dan staan die vragen vooraan. */
@@ -40471,7 +40815,8 @@ function aiChatToon(houdPlek){
   const plek=lijst.scrollTop;
   if(!aiChatGesprek.length){
     lijst.innerHTML=`<div class="aic-leeg">
-      <p>Stel een vraag over je taken, uren, facturen, opdrachten of contracten${aiAanbieder()==='claude'&&gaccLijst().length?', of over je agenda en mail':''}.<br>
+      <p class="aic-leeg-titel">Waar kan ik mee helpen?</p>
+      <p class="aic-leeg-uitleg">Vraag iets over je taken, uren, facturen, opdrachten of contracten${aiAanbieder()==='claude'&&gaccLijst().length?', en over je agenda en mail':''}.
         Of laat iets klaarzetten: een taak, uren, een betaling, een notitie. Er gebeurt pas iets als jij op Uitvoeren klikt.</p>
       <div class="aic-suggesties">${aiChatSuggesties().map((t,i)=>
         `<button type="button" class="aic-suggestie" data-action="aiChatSuggestie" data-arg1="${i}">${escapeHtml(t)}</button>`).join('')}</div>

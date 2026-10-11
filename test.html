@@ -831,6 +831,139 @@ async function runChecks() {
         w.switchModule(terugNaar === 'instellingen' ? 'dashboard' : (terugNaar || 'dashboard'));
         return ok && daar;
       })],
+    /* ── Uren factureren: maandafsluiting en samenvoegen (2026-10-11) ──
+       Met tijdelijke klanten en uren in januari 2031, zodat de demo-
+       gegevens er niet in zitten; na afloop staat alles weer terug. */
+    ['Factureren: maandafsluiting volgt "Factureren aan", omzetten kan per keer, en klaarzetten maakt per ontvanger één concept',
+      async () => {
+        const voor = w.eval('JSON.stringify({c:kanbanState.clients,u:urenState.entries,f:factuurState.invoices,s:factuurState.settings})');
+        const terugNaar = w.eval('activeModule');
+        try {
+          w.eval(`(function(){
+            kanbanState.clients.push(
+              {id:'tP',name:'Acme Data B.V.',colorIdx:0,tarief:90,adres:'Straat 1',postcode:'1000 AA',plaats:'Puren',email:'iemand@voorbeeld.nl'},
+              {id:'tA',name:'Klant Noord',colorIdx:1,factuurPartijId:'tP'},
+              {id:'tB',name:'Klant Zuid',colorIdx:2,factuurPartijId:'tP'},
+              {id:'tC',name:'Klant Oost',colorIdx:3,tarief:100,adres:'Weg 2',postcode:'2000 BB',plaats:'Noordstad',email:'iemand@voorbeeld.nl'});
+            [['tA','2031-01-06',4],['tA','2031-01-13',3],['tB','2031-01-08',2],['tC','2031-01-09',5]]
+              .forEach(([c,d,h])=>urenAddEntry({date:d,clientId:c,hours:h,description:'test'}));
+          })()`);
+          const eerst = w.facMaandVoorstel('2031-01', {});
+          const groepen = eerst.groepen.map(g => g.aan + ':' + g.rijen.map(r => r.klant.id).join('+')).join(' ');
+          w.facMaandStart('2031-01');
+          await new Promise(r => setTimeout(r, 30));
+          const sel = d.querySelector('#facMaandBody select[data-fac-arg1="tC"]');
+          sel.value = 'tP';
+          sel.dispatchEvent(new w.Event('change', {bubbles: true}));
+          await new Promise(r => setTimeout(r, 30));
+          const knop = d.getElementById('facMaandMaakBtn');
+          const tekst = knop.textContent;
+          knop.click();
+          await new Promise(r => setTimeout(r, 60));
+          const concepten = w.eval('factuurState.invoices').filter(f => f.status === 'concept' && f.clientId === 'tP');
+          const f = concepten[0];
+          const regels = f ? f.regels.map(r => r.klantId + '|' + r.aantal + '|' + r.stuksprijs + '|' + /^Klant (Noord|Zuid|Oost) — /.test(r.omschrijving)).join(' ') : '';
+          const daarna = w.facMaandVoorstel('2031-01', {});
+          const klantBleef = w.eval('kanbanState.clients').find(c => c.id === 'tC').factuurPartijId == null;
+          return groepen === 'tP:tA+tB tC:tC' && tekst === '1 concept klaarzetten' && concepten.length === 1 &&
+            regels === 'tA|7|90|true tC|5|100|true tB|2|90|true' &&
+            !d.getElementById('facMaandModal').classList.contains('open') &&
+            daarna.groepen.length === 0 && daarna.opConcept === 14 && klantBleef;
+        } finally {
+          w.eval('(function(o){kanbanState.clients=o.c;urenState.entries=o.u;factuurState.invoices=o.f;factuurState.settings=o.s;})(' + voor + ')');
+          w.switchModule(terugNaar || 'dashboard');
+        }
+      }],
+    ['Factureren: uren op een concept zijn niet meer open, behalve voor dat concept zelf', () => {
+      const voor = w.eval('JSON.stringify({c:kanbanState.clients,u:urenState.entries,f:factuurState.invoices})');
+      try {
+        w.eval(`kanbanState.clients.push({id:'tC',name:'Klant Oost',colorIdx:3,tarief:100});
+          urenAddEntry({date:'2031-01-09',clientId:'tC',hours:5,description:'test'});`);
+        const f = w.factuurNieuw('tC', '2031-01-01', '2031-01-31');
+        w.facConceptVastleggen();
+        const nuOpen = w.factuurUrenVoorKlant('tC', '2031-01-01', '2031-01-31').length;
+        const voorZelf = w.factuurUrenVoorKlant('tC', '2031-01-01', '2031-01-31', f.id).length;
+        const tweede = w.factuurNieuw('tC', '2031-01-01', '2031-01-31');
+        w.eval('facConcept=null');
+        return f.regels.length === 1 && nuOpen === 0 && voorZelf === 1 && tweede.regels.length === 0;
+      } finally {
+        w.eval('(function(o){kanbanState.clients=o.c;urenState.entries=o.u;factuurState.invoices=o.f;})(' + voor + ')');
+      }
+    }],
+    ['Factureren: concepten houden bij versturen hun nummer, in volgorde', () => {
+      const voor = w.eval('JSON.stringify({c:kanbanState.clients,u:urenState.entries,f:factuurState.invoices,s:factuurState.settings})');
+      try {
+        /* Andere concepten tijdelijk weg: hun voorlopige nummers bepalen anders mee. */
+        w.eval("factuurState.invoices=factuurState.invoices.filter(f=>f.status!=='concept')");
+        w.eval(`kanbanState.clients.push({id:'tA',name:'Klant Noord',colorIdx:1,tarief:90},{id:'tB',name:'Klant Zuid',colorIdx:2,tarief:90},
+          {id:'tC',name:'Klant Oost',colorIdx:3,tarief:90});
+          ['tA','tB','tC'].forEach(c=>urenAddEntry({date:'2031-01-09',clientId:c,hours:1,description:'test'}));`);
+        const fs = ['tA', 'tB', 'tC'].map(c => { const f = w.factuurNieuw(c, '2031-01-01', '2031-01-31'); w.facConceptVastleggen(); return f; });
+        const nrs = fs.map(f => f.nummer);
+        const volg = s => w.factuurVolgnummerUit(s, '');
+        const oplopend = volg(nrs[1]) === volg(nrs[0]) + 1 && volg(nrs[2]) === volg(nrs[1]) + 1;
+        w.factuurMarkeerVerstuurd(fs[0].id);
+        w.factuurMarkeerVerstuurd(fs[1].id);
+        return oplopend && fs[0].nummer === nrs[0] && fs[1].nummer === nrs[1] && fs[0].nummerVast && fs[1].nummerVast;
+      } finally {
+        w.eval('(function(o){kanbanState.clients=o.c;urenState.entries=o.u;factuurState.invoices=o.f;factuurState.settings=o.s;})(' + voor + ')');
+      }
+    }],
+    ['Factureren: "Factureer" bij een klant via een partij geeft een factuur aan de partij, niet een lege', () => {
+      const voor = w.eval('JSON.stringify({c:kanbanState.clients,u:urenState.entries,f:factuurState.invoices})');
+      const oudConfirm = w.confirm, terugNaar = w.eval('activeModule');
+      const oudeStand = w.eval('JSON.stringify({v:urenView,s:urenRegScope,o:urenOffset})');
+      try {
+        const vandaag = w.urenToday();
+        w.eval(`kanbanState.clients.push({id:'tP',name:'Acme Data B.V.',colorIdx:0,tarief:90},{id:'tA',name:'Klant Noord',colorIdx:1,factuurPartijId:'tP'});
+          urenAddEntry({date:'${vandaag}',clientId:'tA',hours:3,description:'test'});`);
+        w.confirm = () => true;
+        w.eval("urenView='reg';urenRegScope='month';urenOffset.month=0;urenOffset.week=0;");
+        w.urenInvoiceClient('tA');
+        const f = w.eval('facConcept');
+        return !!f && f.clientId === 'tP' && f.regels.length === 1 && f.regels[0].klantId === 'tA' && f.regels[0].aantal === 3;
+      } finally {
+        w.confirm = oudConfirm;
+        w.eval('(function(o){urenView=o.v;urenRegScope=o.s;urenOffset=o.o;})(' + oudeStand + ')');
+        w.eval('facConcept=null;facEditId=null');
+        try { w.closeFacEditor(); } catch (_) {}
+        w.eval('(function(o){kanbanState.clients=o.c;urenState.entries=o.u;factuurState.invoices=o.f;})(' + voor + ')');
+        w.switchModule(terugNaar || 'dashboard');
+      }
+    }],
+    ['Chat: Nieuw gesprek is een + in de kop, uit zonder gesprek, en maakt het gesprek leeg', async () => {
+      const knop = d.getElementById('aiChatNieuwBtn');
+      if (!knop || !knop.closest('.aic-kop') || d.querySelector('.aic-voet #aiChatNieuwBtn')) return false;
+      const oud = w.eval('JSON.stringify(aiChatGesprek)');
+      try {
+        w.eval('aiChatGesprek=[]');
+        w.aiChatOpen();
+        const uitLeeg = knop.disabled;
+        w.eval('aiChatGesprek=[{rol:"user",tekst:"x"},{rol:"model",tekst:"y"}]');
+        w.aiChatToon(); w.aiChatKnoppen();
+        const aan = !knop.disabled;
+        knop.click();
+        await new Promise(r => setTimeout(r, 30));
+        return uitLeeg && aan && w.eval('aiChatGesprek.length') === 0 && knop.disabled &&
+          !!d.querySelector('#aiChatLijst .aic-leeg-titel');
+      } finally {
+        w.eval('aiChatGesprek=' + oud);
+        w.aiChatSluit();
+      }
+    }],
+    ['Zijbalk: de sparkle naast de wisselaar opent Vraag het je app, en sluit eerst de lade op een telefoon', async () => {
+      const knop = d.getElementById('sbAiBtn'), sb = d.getElementById('sidebar');
+      if (!knop || !knop.closest('.sb-kop-rij') || knop.getAttribute('aria-label') !== 'Vraag het je app') return false;
+      try {
+        sb.classList.add('mobile-open');
+        knop.click();
+        await new Promise(r => setTimeout(r, 30));
+        return d.getElementById('aiChatModal').classList.contains('open') && !sb.classList.contains('mobile-open');
+      } finally {
+        w.aiChatSluit();
+        w.toggleSidebarMobile(false);
+      }
+    }],
     ['Claude: schema krijgt additionalProperties:false, een eigenschap "type" blijft', () => {
       const orig = {type:'object', properties:{
         type:{type:'string'},

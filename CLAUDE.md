@@ -51,7 +51,7 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 | `#notes` | Notes | Boomstructuur (folders/pages) met rich-text editor (marked.js) |
 | `#checklist` | Checklist | Taken met subtaken, filters (prio/klant/periode), vastpinnen, drag-drop, archief |
 | `#uren` | Uren | Urenregistratie per regel, week/maand, Excel export |
-| `#facturen` | Facturen | Facturen uit geschreven uren, sjabloonbouwer, debiteuren, btw-overzicht, mailen via Gmail, analyse |
+| `#facturen` | Facturen | Facturen uit geschreven uren (ook per maand in één keer: *Uren factureren*, `facMaandStart`), sjabloonbouwer, debiteuren, btw-overzicht, mailen via Gmail, analyse |
 | `#opdrachten` | Opdrachten | Opdrachten per klant (looptijd, uren per week of urenbudget, tarief, opzegtermijn, PDF van de overeenkomst) en een vooruitzicht per werkmaand |
 | `#agenda` | Agenda | Afspraken van alle gekoppelde Google-accounts (zakelijk, privé) in één beeld: dag, week of lijst. Afspraak maken, wijzigen, verwijderen. Rechtstreeks de Calendar API, niets in Drive |
 | `#mail` | Mail | Postvak van de gekoppelde Google-accounts: lezen (veilig iframe, plaatjes van buiten pas op verzoek), zoeken met de zoektaal van Gmail, archiveren/prullenbak/gelezen/ster met ongedaan maken, opruimen per afzender, AI-overzicht, samenvatting en concept-antwoord in Gmail. Versturen doet de app niet |
@@ -333,9 +333,9 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
+- **2026-10-11**: **Uren factureren per maand, klanten samenvoegen** (v2.54) — *Uren factureren* zet per ontvanger een concept klaar uit alle open uren van een maand; wie de rekening krijgt volgt "Factureren aan" en is per keer om te zetten. Uren op een concept tellen niet meer als open; concepten houden bij versturen hun nummer in volgorde. Plus: *Vraag het je app* als sparkle-tegel bovenin de zijbalk, naast de klantwisselaar, op elke pagina, en het chatvenster rustiger op een telefoon (+ voor een nieuw gesprek in de kop)
 - **2026-10-11**: **Agenda en Mail op Google-accounts** (v2.53) — meerdere accounts (zakelijk, privé) in Instellingen; Agenda (dag/week/lijst, afspraak maken) en Mail (lezen in een iframe zonder scripts, zoeken, opschonen per afzender, AI-overzicht, concept-antwoord, niet versturen) rechtstreeks op de API's van Google. De chat zoekt zelf in agenda en mail (resultaat terug naar het model, denkblok ongewijzigd mee) en stelt voor wat hij wil doen. Token per tabblad, niet op schijf
 - **2026-10-11**: **API-sleutels op de Instellingen-pagina** (v2.52) — per aanbieder een blok met veld, Opslaan, Testen (gratis: de modellenlijst) en Verwijderen; alleen de laatste vier tekens in beeld. De ⚙ API-key-knoppen en vraagvensters zijn weg; zonder sleutel een melding met de knop *Naar Instellingen* (`aiGeenSleutel`, `aiNaarSleutel`)
-- **2026-10-11**: **Verbruik van Claude en Bekijk vanuit de chat** (v2.51) — tokens uit elk antwoord → geschatte kosten per maand en model in `rawState.settings.aiVerbruik` (over apparaten heen), in Instellingen → AI en onderin de chat. Een uitgevoerde actie heeft een knop naar het resultaat; open voorstellen vervallen bij een nieuwe vraag (geen dubbele taak)
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 
@@ -420,7 +420,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 188 smoke-, sync-, model-, reken-, sorteer-, agenda- en mailtests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
+| `test.html` | 194 smoke-, sync-, model-, reken-, sorteer-, agenda- en mailtests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |
