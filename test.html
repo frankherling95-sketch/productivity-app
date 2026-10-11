@@ -768,7 +768,8 @@ async function runChecks() {
     /* ── API-sleutels op de Instellingen-pagina (2026-10-11) ── */
     ['Sleutels: geen ⚙-knop meer in de AI-vensters', () =>
       !d.querySelector('[onclick*="openAiKeyPrompt"]') &&
-      ![...d.querySelectorAll('button')].some(b => /API-key/.test(b.textContent))],
+      /* Op Instellingen heet de kopregel van een sleutelblok wel "... API-key". */
+      ![...d.querySelectorAll('button')].some(b => /API-key/.test(b.textContent) && !b.closest('#mod-instellingen'))],
     ['Sleutels: Claude invullen via het veld, testen, en de sleutel staat nergens in beeld', async () => {
       const oudFetch = w.fetch;
       let gevraagd = '';
@@ -928,6 +929,33 @@ async function runChecks() {
         w.eval('facConcept=null;facEditId=null');
         try { w.closeFacEditor(); } catch (_) {}
         w.eval('(function(o){kanbanState.clients=o.c;urenState.entries=o.u;factuurState.invoices=o.f;})(' + voor + ')');
+        w.switchModule(terugNaar || 'dashboard');
+      }
+    }],
+    ['Instellingen: een account en een sleutel klappen in met een klik, de stand blijft, en geen knop Vraag het op het Dashboard', async () => {
+      const LS = 'herling_instellingen_open';
+      const oudLS = localStorage.getItem(LS);
+      const oudAcc = w.eval('JSON.stringify(rawState.settings.googleAccounts||[])');
+      const terugNaar = w.eval('activeModule');
+      try {
+        localStorage.removeItem(LS);
+        w.eval("rawState.settings.googleAccounts=[{id:'tq1',email:'iemand@voorbeeld.nl',naam:'Zakelijk',agenda:true,mail:true}]");
+        w.switchModule('instellingen'); w.renderInstellingenModule();
+        const kop = () => d.querySelector('#instBody [data-arg1="account:tq1"]');
+        const inhoud = () => d.getElementById(kop().getAttribute('aria-controls'));
+        const dichtEerst = kop().getAttribute('aria-expanded') === 'false' && inhoud().hidden;
+        kop().click();
+        await new Promise(r => setTimeout(r, 30));
+        const open = kop().getAttribute('aria-expanded') === 'true' && !inhoud().hidden &&
+          !!inhoud().querySelector('[data-arg1="mail|tq1"]');
+        w.renderInstellingenModule();
+        const blijft = kop().getAttribute('aria-expanded') === 'true' && !inhoud().hidden;
+        const sleutel = d.querySelector('#instBody [data-arg1^="sleutel:"]');
+        const vasteKolommen = d.querySelectorAll('#instBody .inst-kolom').length === 2;
+        return dichtEerst && open && blijft && !!sleutel && vasteKolommen && !d.getElementById('aiChatBtn');
+      } finally {
+        if (oudLS == null) localStorage.removeItem(LS); else localStorage.setItem(LS, oudLS);
+        w.eval('rawState.settings.googleAccounts=' + oudAcc);
         w.switchModule(terugNaar || 'dashboard');
       }
     }],
