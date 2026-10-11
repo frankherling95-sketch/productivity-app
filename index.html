@@ -14936,12 +14936,13 @@ function beweegDuur(kort){
   const KANTEL=-15*RAD;        // breedte die recht naar je toe kijkt: de rand toont zo ~20–70° N
   const OMWENTELING=120;       // seconden voor één rondje
   const START=20;              // lengte in het midden bij t=0: Europa en Afrika
-  const BEELD=45;              // ms tussen twee beelden: op 60 Hz elk derde, dus 20/s
+  const BEELD=36;              // ms wachten na een beeld; met het frame erbij ~20 beelden/s
   const cK=Math.cos(KANTEL), sK=Math.sin(KANTEL);
 
   /* Stippen als eenheidsvectoren: x naar oost, y naar noord, z naar ons op
-     lengte 0. Rijen die bij deze kanteling nooit boven de onderrand komen,
-     slaan we over (de bit-teller loopt wel door). */
+     lengte 0. Rijen die bij deze (negatieve) kanteling nooit boven het
+     midden van de bol komen, slaan we over: dat midden ligt op of onder de
+     onderrand van het canvas (zie hoogte()). De bit-teller loopt wel door. */
   const bits=Uint8Array.from(atob(LAND),c=>c.charCodeAt(0));
   const PX=[],PY=[],PZ=[],SOORT=[],FASE=[];   // soort: 0 zee, 1 land, 2 lichtje
   const rijen=Math.round(180/STAP);
@@ -14967,12 +14968,14 @@ function beweegDuur(kort){
   const trapX=[],trapY=[],trapR=[];
   for(let b=0;b<TRAPPEN;b++){trapX.push([]);trapY.push([]);trapR.push([]);}
 
-  let W=0,H=0,R=0,cx=0,cy=0,dpr=1,verloop=null,randVerloop=null;
+  let W=0,H=0,R=0,cx=0,cy=0,dpr=0,verloop=null;
   /* Hoe ver de top boven de onderrand uitsteekt: de hoogte van de voet
      (opslagstatus en gebruiker) plus de vrije ruimte tussen Instellingen en
      die voet, met een plafond. Op een hoog scherm rijst de bol zo tot ruim
      boven de voet; op een telefoon blijft hij onder Instellingen in plaats
-     van met zijn rand dwars door een regel tekst te lopen. */
+     van met zijn rand dwars door een regel tekst te lopen. Nooit hoger dan
+     de straal: dan ligt het midden van de bol op of onder de onderrand, en
+     daar rekent het overslaan van rijen hierboven op. */
   const sb=doek.parentElement;
   const voet=sb.querySelector('.sidebar-footer'), nav=sb.querySelector('.sidebar-scroll');
   function hoogte(){
@@ -14980,13 +14983,65 @@ function beweegDuur(kort){
     const voetTop=voet?voet.getBoundingClientRect().top:onder-120;
     const laatste=nav&&nav.lastElementChild;
     const vrij=laatste?voetTop-laatste.getBoundingClientRect().bottom:110;
-    return Math.min(R*1.02,H-60,onder-voetTop+Math.min(110,Math.max(36,vrij-12)));
+    return Math.min(R,H-60,onder-voetTop+Math.min(110,Math.max(36,vrij-12)));
   }
+
+  /* Wat niet draait -- de dampkring, de donkere bol, de rand en de gloed
+     erboven -- staat op twee losse lagen die alleen opnieuw getekend worden
+     als de maat of de plek verandert. Per beeld gaan alleen de stippen. */
+  const achter=document.createElement('canvas'), voor=document.createElement('canvas');
+  function lagen(){
+    for(const l of [achter,voor]){l.width=doek.width;l.height=doek.height;}
+    let c=achter.getContext('2d'), g;
+    c.setTransform(dpr,0,0,dpr,0,0);
+    // Dampkring buiten de rand
+    g=c.createRadialGradient(cx,cy,R-2,cx,cy,R+46);
+    g.addColorStop(0,'rgba(0,229,176,.30)');
+    g.addColorStop(.35,'rgba(56,189,248,.10)');
+    g.addColorStop(1,'rgba(56,189,248,0)');
+    c.fillStyle=g;c.fillRect(0,0,W,H);
+    // De bol zelf: donker, zodat de stippen erop staan en niet op het teal
+    c.beginPath();c.arc(cx,cy,R,0,2*Math.PI);
+    c.fillStyle='rgba(5,13,32,.9)';c.fill();
+    // Licht dat aan de binnenkant van de rand strooit
+    g=c.createRadialGradient(cx,cy,R*.78,cx,cy,R);
+    g.addColorStop(0,'rgba(56,189,248,0)');
+    g.addColorStop(1,'rgba(0,229,176,.20)');
+    c.fillStyle=g;c.fill();
+
+    // Deze laag komt er met 'lighter' overheen: hij telt licht op.
+    c=voor.getContext('2d');
+    c.setTransform(dpr,0,0,dpr,0,0);
+    // De rand: een dunne lichtende lijn, het helderst in het midden
+    const breed=Math.max(W,272);
+    g=c.createLinearGradient(cx-breed/2,0,cx+breed/2,0);
+    g.addColorStop(0,'rgba(56,189,248,.45)');
+    g.addColorStop(.5,'rgba(190,255,240,.95)');
+    g.addColorStop(1,'rgba(0,229,176,.45)');
+    c.beginPath();c.arc(cx,cy,R,Math.PI,2*Math.PI);
+    c.lineWidth=1.25;c.strokeStyle=g;
+    c.shadowColor='rgba(0,229,176,.9)';c.shadowBlur=10;
+    c.stroke();
+    c.shadowBlur=0;
+    // Een zachte opkomst van licht boven de top: plat, en binnen het canvas
+    // uitgedoofd -- anders tekent de bovenrand van het canvas een streep.
+    c.translate(cx,cy-R);c.scale(1,.45);
+    g=c.createRadialGradient(0,0,0,0,0,R*.6);
+    g.addColorStop(0,'rgba(150,255,230,.16)');
+    g.addColorStop(1,'rgba(150,255,230,0)');
+    c.fillStyle=g;c.fillRect(-R,-R*1.5,2*R,3*R);
+  }
+
   function maat(){
-    dpr=Math.min(window.devicePixelRatio||1,2);
-    W=doek.clientWidth;H=doek.clientHeight;
-    if(!W||!H)return false;
-    doek.width=Math.round(W*dpr);doek.height=Math.round(H*dpr);
+    const nDpr=Math.min(window.devicePixelRatio||1,2);
+    const nW=doek.clientWidth, nH=doek.clientHeight;
+    if(!nW||!nH){W=0;return false;}
+    // Alleen een nieuwe bitmap bij een echt andere maat: een groep open- of
+    // dichtklappen verschuift alleen de plek van de bol.
+    if(nW!==W||nH!==H||nDpr!==dpr){
+      W=nW;H=nH;dpr=nDpr;
+      doek.width=Math.round(W*dpr);doek.height=Math.round(H*dpr);
+    }
     /* De straal volgt de open breedte, niet de ingeklapte: ingeklapt zie je
        zo dezelfde bol door een smalle spleet, in plaats van een knikker. */
     const breed=Math.max(W,272);
@@ -14995,39 +15050,23 @@ function beweegDuur(kort){
     cy=H-hoogte()+R;
     verloop=ctx.createLinearGradient(cx-breed/2,H,cx+breed/2,H-R);
     verloop.addColorStop(0,'#00E5B0');verloop.addColorStop(1,'#38BDF8');
-    randVerloop=ctx.createLinearGradient(cx-breed/2,0,cx+breed/2,0);
-    randVerloop.addColorStop(0,'rgba(56,189,248,.45)');
-    randVerloop.addColorStop(.5,'rgba(190,255,240,.95)');
-    randVerloop.addColorStop(1,'rgba(0,229,176,.45)');
+    lagen();
     return true;
   }
 
+  const lichtjes=[];
   function teken(t){
     if(!W)return;
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.clearRect(0,0,doek.width,doek.height);
+    ctx.drawImage(achter,0,0);
     ctx.setTransform(dpr,0,0,dpr,0,0);
-    ctx.clearRect(0,0,W,H);
-
-    // Dampkring buiten de rand
-    let g=ctx.createRadialGradient(cx,cy,R-2,cx,cy,R+46);
-    g.addColorStop(0,'rgba(0,229,176,.30)');
-    g.addColorStop(.35,'rgba(56,189,248,.10)');
-    g.addColorStop(1,'rgba(56,189,248,0)');
-    ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
-
-    // De bol zelf: donker, zodat de stippen erop staan en niet op het teal
-    ctx.beginPath();ctx.arc(cx,cy,R,0,2*Math.PI);
-    ctx.fillStyle='rgba(5,13,32,.9)';ctx.fill();
-    // Licht dat aan de binnenkant van de rand strooit
-    g=ctx.createRadialGradient(cx,cy,R*.78,cx,cy,R);
-    g.addColorStop(0,'rgba(56,189,248,0)');
-    g.addColorStop(1,'rgba(0,229,176,.20)');
-    ctx.fillStyle=g;ctx.fill();
 
     // Stippen
     const midden=(START-360*t/OMWENTELING)*RAD;
     const cL=Math.cos(midden), sL=Math.sin(midden);
     for(let b=0;b<TRAPPEN;b++){trapX[b].length=0;trapY[b].length=0;trapR[b].length=0;}
-    const lichtjes=[];
+    lichtjes.length=0;
     for(let i=0;i<AANTAL;i++){
       // draaien om de as, dan kantelen naar de kijker
       const x=PX[i]*cL-PZ[i]*sL;
@@ -15066,38 +15105,30 @@ function beweegDuur(kort){
     }
     ctx.globalAlpha=1;
 
-    // De rand: een dunne lichtende lijn, het helderst in het midden
-    ctx.save();
-    ctx.beginPath();ctx.arc(cx,cy,R,Math.PI,2*Math.PI);
-    ctx.lineWidth=1.25;ctx.strokeStyle=randVerloop;
-    ctx.shadowColor='rgba(0,229,176,.9)';ctx.shadowBlur=10;
-    ctx.stroke();
-    ctx.restore();
-    // Een zachte opkomst van licht boven de top: plat, en binnen het canvas
-    // uitgedoofd -- anders tekent de bovenrand van het canvas een streep.
-    ctx.save();
+    ctx.setTransform(1,0,0,1,0,0);
     ctx.globalCompositeOperation='lighter';
-    ctx.translate(cx,cy-R);ctx.scale(1,.45);
-    g=ctx.createRadialGradient(0,0,0,0,0,R*.6);
-    g.addColorStop(0,'rgba(150,255,230,.16)');
-    g.addColorStop(1,'rgba(150,255,230,0)');
-    ctx.fillStyle=g;ctx.fillRect(-R,-R*1.5,2*R,3*R);
-    ctx.restore();
+    ctx.drawImage(voor,0,0);
+    ctx.globalCompositeOperation='source-over';
   }
 
-  let zichtbaar=false, loopt=0, vorige=0, nu=0;
-  const tijd=ms=>ms/1000;
+  /* De lus: een timer voor het tempo en dan één animatieframe om te tekenen.
+     Alleen met requestAnimationFrame zou hij 60 tot 144 keer per seconde
+     wakker worden om er twee van de drie over te slaan. Hij loopt alleen
+     zolang het canvas in beeld is, het venster de focus heeft (staat de app
+     op een tweede scherm terwijl je elders werkt, dan staat de bol stil) en
+     "beweging beperken" uit staat. */
+  let zichtbaar=false, loopt=0, nu=0;
+  const draait=()=>zichtbaar&&!geenBeweging()&&document.hasFocus();
   function stap(ms){
     loopt=0;
-    if(!zichtbaar||geenBeweging())return;
-    loopt=requestAnimationFrame(stap);
-    if(ms-vorige<BEELD)return;
-    vorige=ms;nu=tijd(ms);
+    if(!draait())return;
+    nu=ms/1000;
     teken(nu);
+    loopt=setTimeout(()=>{loopt=requestAnimationFrame(stap);},BEELD);
   }
   function start(){
     if(!zichtbaar)return;
-    if(geenBeweging()){teken(nu);return;}
+    if(!draait()){teken(nu);return;}
     if(!loopt)loopt=requestAnimationFrame(stap);
   }
 
@@ -15107,6 +15138,15 @@ function beweegDuur(kort){
     const ro=new ResizeObserver(()=>{if(maat())teken(nu);});
     [doek,sb,voet,...sb.querySelectorAll('.nav-groep')].forEach(el=>{if(el)ro.observe(el);});
   }else if(maat())teken(nu);
+  /* Naar een scherm met een andere pixeldichtheid gesleept: de maat in CSS
+     blijft gelijk, dus de ResizeObserver zegt niets. Deze vraag geldt maar
+     voor één dichtheid en wordt daarom na elke wissel opnieuw gesteld. */
+  (function dichtheid(){
+    if(!window.matchMedia)return;
+    const mq=matchMedia('(resolution: '+(window.devicePixelRatio||1)+'dppx)');
+    if(!mq.addEventListener)return;
+    mq.addEventListener('change',()=>{if(maat())teken(nu);dichtheid();},{once:true});
+  })();
   if(window.IntersectionObserver){
     /* Het kijkvenster 1px kleiner: een dichte lade (translateX(-100%)) raakt
        de schermrand precies, en raken telt anders al als "in beeld". Dan
@@ -15116,6 +15156,7 @@ function beweegDuur(kort){
       start();
     },{rootMargin:'-1px'}).observe(doek);
   }else{zichtbaar=true;start();}
+  window.addEventListener('focus',start);
   if(MQ_MINDER_BEWEGING&&MQ_MINDER_BEWEGING.addEventListener)MQ_MINDER_BEWEGING.addEventListener('change',start);
 })();
 

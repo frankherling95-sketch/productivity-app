@@ -6289,14 +6289,24 @@ op 10% dekking). De blokken en de tekst ervoor moeten leesbaar blijven.
   3 KB base64) en inline gezet. Bij het laden gaat er geen verzoek uit.
 - De hoogte volgt de vrije ruimte tussen Instellingen en de voet
   (`hoogte()`, opnieuw bij elke maatwijziging van zijbalk, voet of groep):
-  op een bureaublad van 1000px hoog 222px boven de onderrand, op een
-  telefoon van 812px blijft de rand onder Instellingen. Achter de voet zijn
-  de stippen gedimd tot 20%.
-- Zuinig: 20 beelden per seconde (~1,7 ms per beeld in Chrome zonder GPU),
-  alleen zolang het canvas in beeld is (IntersectionObserver met
-  `intersectionRatio > 0`: een dichte lade raakt de schermrand en telt voor
-  `isIntersecting` al als zichtbaar), en bij "beweging beperken" één
-  stilstaand beeld.
+  op een bureaublad van 1000px hoog 218px boven de onderrand (nooit hoger
+  dan de straal), op een telefoon van 812px blijft de rand onder
+  Instellingen. Achter de voet zijn de stippen gedimd tot 20%.
+- Zuinig: 20 beelden per seconde via een timer plus één animatieframe (niet
+  60–144 keer per seconde wakker worden om beelden over te slaan). Wat niet
+  draait (dampkring, bol, rand, gloed) staat op twee voorgetekende lagen,
+  per beeld gaan alleen de stippen: ~0,9 ms per beeld in Chrome zonder GPU.
+  Hij draait alleen zolang het canvas in beeld is én het venster de focus
+  heeft, en bij "beweging beperken" staat hij stil.
+- "In beeld" is een IntersectionObserver met `rootMargin: '-1px'`. Een dichte
+  lade (`translateX(-100%)`) raakt de schermrand precies, en raken telt
+  anders al als zichtbaar; met een drempel op de ratio kon de laatste
+  meting tijdens het dichtschuiven op een paar pixels vallen, waarna de bol
+  onzichtbaar bleef doordraaien. Nagemeten met de echte schuifanimatie: zes
+  keer open en dicht, telkens 0 beelden in een dichte lade.
+- Een onafhankelijke review (subagent) vond niets ernstigs; de verbeteringen
+  daaruit (voorgetekende lagen, timer, focus, opnieuw meten bij een scherm
+  met een andere pixeldichtheid) zitten erin.
 
 **Waarom niet de video uit het voorbeeld.** Een externe host (de app praat
 alleen met Google), megabytes bij elke start, blauw in plaats van onze
