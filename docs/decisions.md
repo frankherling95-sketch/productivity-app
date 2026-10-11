@@ -6654,3 +6654,31 @@ boven de lijst; Uren: `urenInvoiceClient`), `test.html` (4 tests),
 versturen, want dan springt de reeks. Uren die al op een concept staan nog
 eens aanbieden. En in de maandafsluiting niets automatisch versturen: Frank
 koos expliciet voor concepten klaarzetten.
+
+## 2026-10-11 · Vraag het je app vast in de zijbalk (v2.53)
+
+**Probleem.** "Vraag het" stond alleen in de kopbalk van het Dashboard, en op
+een telefoon alleen in het ⋯-menu daarvan. Vanuit Uren, Facturen of een
+andere module moest je eerst terug naar het Dashboard. Frank wilde de knop
+vast in de navigatie, als icoon, zodat hij weinig ruimte inneemt.
+
+**Beslissing.** Een vierkante tegel van 44px rechts naast de klantwisselaar
+(`#sbAiBtn`, `.sb-ai`, in `.sb-kop-rij`). Dezelfde vulling, rand, hoek en
+hover als de wisselaar; de kleur zit alleen in het icoon, een sparkle in het
+verloop van het logo (mint → lichtblauw). Ingeklapt staat hij onder de
+wisselaar, even breed en even hoog (48×46). In de lade op een telefoon gaat
+de lade eerst dicht (`zijbalkVraagHet()`). De knop in de kopbalk van het
+Dashboard blijft staan: Frank vroeg om de zijbalkknop "ook".
+
+**Waarom daar.** De kop van de zijbalk staat op elke pagina in beeld en
+scrolt niet mee. Een rij in de lijst kost 44px hoogte en hoort bij de
+modules; de voet zit vol met opslagstatus en gebruiker. Naast de
+wisselaar is het patroon van een werkruimtekiezer met een snelknop ernaast.
+
+**Bestanden.** `index.html` (markup in `.sb-kop`, CSS bij `.sb-wissel`,
+`zijbalkVraagHet()` bij `toggleSidebarMobile()`), `test.html` (1 test),
+`docs/stijlgids.md` §13, `CLAUDE.md`.
+
+**Niet doen.** De tegel een eigen kleur of rand geven: dan vraagt hij meer
+aandacht dan de wisselaar ernaast. En niet zonder `aria-label`, want er
+staat geen tekst op.

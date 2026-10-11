@@ -509,6 +509,7 @@ beide thema's donker; de vensters die eruit opengaan volgen het thema.
 | rij in een groep (`.nav-sub`) | 12px dieper (vulling links 24px) | idem |
 | wisselaar bovenin | 60px, logo 44px, naam 15px / 700 display | naam `var(--fs-groot)` |
 | gebruiker onderin | 56px, avatar 40px, naam 14px / 600, e-mail `var(--fs-klein)` | naam `var(--fs-basis)` |
+| Vraag het je app (`.sb-ai`) | rechts naast de wisselaar: 44px in het vierkant, dezelfde tegel (vulling, rand, hoek 10px), sparkle 20px in het verloop van het logo; ingeklapt onder de wisselaar, 48×46 | idem, 44px; tikken sluit eerst de lade |
 | inklapknop | 28px rond, half over de rand, op de streep boven de gebruiker | weg |
 | pil onder de naam (`.sb-pil`) | `var(--fs-micro)` / 700, kapitalen, mint op 16% mint | idem |
 
