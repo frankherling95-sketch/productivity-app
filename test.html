@@ -516,8 +516,8 @@ async function runChecks() {
         'aiSleutel','aiModel','aiBestandFout','callAI','_streamAI','_aiSse','claudeModel',
         'claudeZetModel','_claudeSchema','_claudeBestandBlok','_claudeBerichten','_claudeBody',
         '_claudeKoppen','_claudeFetch','_claudeVraag','_claudeStroom','aiModelKeuzes','aiModelNaam',
-        'aiZetModel','aiKiesModel','aiChatModelToon','aiChatKiesModel','openAiKeyPrompt',
-        'openAiModelPrompt','openClaudeKeyPrompt','renderInstellingenModule']
+        'aiZetModel','aiKiesModel','aiChatModelToon','aiChatKiesModel','aiNaarSleutel','aiGeenSleutel',
+        'aiSleutelBewaar','aiSleutelTest','aiSleutelWeg','instSleutelBlok','openAiModelPrompt','renderInstellingenModule']
         .every(f => typeof w[f] === 'function')],
     ['Model: standaard Claude Haiku, goedkoopste eerst; het model kiest de aanbieder', () =>
       metLS({herling_ai_aanbieder: null, herling_claude_model: null}, () => {
@@ -765,6 +765,72 @@ async function runChecks() {
       return n === 1 && a.status === 'vervallen' && /niet uitgevoerd\]$/.test(tekst) && nogEens === 0 &&
         !w.eval('checklistState.items').some(i => i.text === 'Vervaltest');
     }],
+    /* ── API-sleutels op de Instellingen-pagina (2026-10-11) ── */
+    ['Sleutels: geen ⚙-knop meer in de AI-vensters', () =>
+      !d.querySelector('[onclick*="openAiKeyPrompt"]') &&
+      ![...d.querySelectorAll('button')].some(b => /API-key/.test(b.textContent))],
+    ['Sleutels: Claude invullen via het veld, testen, en de sleutel staat nergens in beeld', async () => {
+      const oudFetch = w.fetch;
+      let gevraagd = '';
+      w.fetch = async (u, opt) => { gevraagd = u + ' ' + (opt && opt.headers ? opt.headers['x-api-key'] : '');
+        return new w.Response(JSON.stringify({data: []}), {status: 200}); };
+      try {
+        return await metLS({herling_claude_api_key: null, herling_ai_aanbieder: null}, async () => {
+          const terugNaar = w.eval('activeModule');
+          w.switchModule('instellingen');
+          const veld = d.getElementById('instSleutel-claude');
+          veld.value = '  sk-ant-test-abcd1234​ ';
+          d.querySelector('#instBody [data-action="instSleutelBewaar"][data-arg1="claude"]').click();
+          await new Promise(r => setTimeout(r, 80));
+          const bewaard = w.localStorage.getItem('herling_claude_api_key');
+          const html = d.getElementById('instBody').innerHTML;
+          const stand = d.querySelector('[data-sleutel-stand="claude"]');
+          const ok = bewaard === 'sk-ant-test-abcd1234' && !html.includes('sk-ant-test-abcd') &&
+            /…1234/.test(d.querySelector('[data-sleutel="claude"] .inst-sleutel-eind').textContent) &&
+            /\/v1\/models/.test(gevraagd) && gevraagd.endsWith('sk-ant-test-abcd1234') &&
+            stand && stand.classList.contains('is-ok') && d.getElementById('instSleutel-claude').value === '';
+          w.switchModule(terugNaar || 'dashboard');
+          return ok;
+        });
+      } finally { w.fetch = oudFetch; }
+    }],
+    ['Sleutels: de sleutel van de ander in het veld wordt geweigerd', () =>
+      metLS({herling_claude_api_key: null, herling_gemini_api_key: null}, () => {
+        const a = w.aiSleutelBewaar('claude', 'AIzaSyVoorbeeld123');
+        const b = w.aiSleutelBewaar('gemini', 'sk-ant-voorbeeld');
+        const leeg = w.aiSleutelBewaar('gemini', '   ');
+        return a === false && b === false && leeg === false &&
+          w.localStorage.getItem('herling_claude_api_key') === null &&
+          w.localStorage.getItem('herling_gemini_api_key') === null;
+      })],
+    ['Sleutels: verwijderen vraagt eerst, en haalt alleen die ene weg', () =>
+      metLS({herling_claude_api_key: 'sk-ant-weg', herling_gemini_api_key: 'AIzablijft'}, async () => {
+        const vraag = w.aiSleutelWeg('claude');
+        await new Promise(r => setTimeout(r, 30));
+        const titel = d.getElementById('appDlgTitel').textContent;
+        w.appDlgBevestig();
+        const ok = await vraag;
+        return ok === true && titel === 'Sleutel verwijderen' &&
+          w.localStorage.getItem('herling_claude_api_key') === null &&
+          w.localStorage.getItem('herling_gemini_api_key') === 'AIzablijft';
+      })],
+    ['Sleutels: zonder sleutel een melding met een knop naar Instellingen', () =>
+      metLS({herling_claude_api_key: null, herling_ai_aanbieder: null}, async () => {
+        w.aiChatOpen();
+        d.getElementById('aiChatInvoer').value = 'hoeveel taken?';
+        await w.aiChatVraag();
+        d.getElementById('aiChatInvoer').value = '';
+        const knop = d.getElementById('undoToastUndoBtn');
+        const ok = knop.style.display !== 'none' && knop.textContent === 'Naar Instellingen' &&
+          w.eval('aiChatGesprek.length') === 0;
+        const terugNaar = w.eval('activeModule');
+        knop.click();
+        await new Promise(r => setTimeout(r, 120));
+        const daar = w.eval('activeModule') === 'instellingen' && !d.getElementById('aiChatModal').classList.contains('open') &&
+          d.activeElement && d.activeElement.id === 'instSleutel-claude';
+        w.switchModule(terugNaar === 'instellingen' ? 'dashboard' : (terugNaar || 'dashboard'));
+        return ok && daar;
+      })],
     ['Claude: schema krijgt additionalProperties:false, een eigenschap "type" blijft', () => {
       const orig = {type:'object', properties:{
         type:{type:'string'},

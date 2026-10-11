@@ -618,6 +618,14 @@ Op een breed scherm staan er twee kolommen (`columns: 2 400px`, maximaal
 1040px breed). Smaller dan 2 × 400px wordt het vanzelf één kolom. Op een
 telefoon gaat de topbalk weg, want de titel staat al in de mobiele balk.
 
+**Een API-sleutel** (`.inst-sleutel`) is een blok in plaats van een regel.
+Bovenaan staat de kop zoals bij een regel, met de stand rechts (een stip, en
+"in gebruik" als pil achter de naam). Daaronder staan *Eindigt op …1234* en de
+uitslag van de laatste test (stip: grijs, groen of rood), dan een veld met
+**Opslaan** ernaast, even hoog (`align-items:stretch`), en tot slot **Testen**,
+**Verwijderen** en rechts een link naar de plek waar je de sleutel aanmaakt.
+De sleutel zelf komt nooit in de pagina.
+
 Een nieuwe instelling krijgt een regel op deze pagina, ook als hij in een
 ⋯-menu van een module blijft staan. Hier zoek je, daar gebruik je.
 

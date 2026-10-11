@@ -6546,7 +6546,50 @@ te tonen. Het verbruik per apparaat in localStorage zetten: dan klopt het
 totaal nooit. En geen `box-shadow` of `background` animeren op `.cl-item`,
 want die staan op `!important`.
 
-## 2026-10-11 · Agenda en Mail op Google-accounts, en de chat kijkt mee (v2.52)
+## 2026-10-11 · API-sleutels op de Instellingen-pagina, per aanbieder (v2.52)
+
+**Probleem.** De sleutels zaten in een vraagvenster achter een knop "⚙ API-key"
+in elk AI-venster (chat, weekreview, slim toevoegen). Dat venster gold steeds
+voor de aanbieder die op dat moment gekozen was, dus de andere sleutel kon je
+niet beheren. Op de Instellingen-pagina stonden ze wel, maar ook daar alleen
+als knop naar datzelfde vraagvenster. Frank wilde beide sleutels op de pagina
+zelf, gescheiden, en allebei te beheren.
+
+**Beslissing.**
+- Per aanbieder een blok in Instellingen → AI → Sleutels en privacy
+  (`instSleutelBlok`). Het toont de stand, *Eindigt op …1234*, de uitslag van
+  de laatste test en een veld om een nieuwe sleutel te plakken. Daarbij horen
+  de knoppen **Opslaan** (ook met Enter), **Testen** en **Verwijderen** (na
+  een bevestiging), plus een link naar de plek waar je hem aanmaakt. De
+  aanbieder die nu gekozen is, krijgt de pil "in gebruik".
+- **De sleutel zelf komt nooit in de pagina.** Het veld is een
+  wachtwoordveld dat leeg blijft. Na opslaan staan alleen de laatste vier
+  tekens in beeld.
+- **Testen kost niets.** Het vraagt de lijst met modellen op
+  (`/v1/models` bij Anthropic, `geminiHaalModellen` bij Google). Dat lukt
+  alleen met een geldige sleutel. Na opslaan gebeurt het vanzelf. Alleen
+  de standregel wordt bijgewerkt, niet de hele pagina, zodat je invoer in
+  het andere veld blijft staan.
+- Plak je de sleutel van de ene aanbieder in het veld van de andere
+  (`sk-ant-…` bij Gemini, `AIza…` bij Claude), dan weigert de app hem met
+  uitleg. Spaties en onzichtbare tekens gaan er altijd af.
+- **De ⚙-knoppen en beide vraagvensters zijn weg** (`openAiKeyPrompt`,
+  `openClaudeKeyPrompt`, `openGeminiKeyPrompt`). Ontbreekt een sleutel, dan
+  verschijnt een melding met de knop **Naar Instellingen** (`aiGeenSleutel`).
+  De app springt niet zelf weg: je kunt midden in een contractvenster zitten.
+  De knop sluit de AI-vensters, opent de pagina en zet de cursor in het
+  juiste veld (`aiNaarSleutel`). Foutmeldingen zeggen "onder Instellingen →
+  AI" in plaats van "Klik op ⚙ API-key".
+
+**Bestanden.** `index.html` (blok "API-sleutels beheren" op de plek van de
+vraagvensters; Instellingen; de drie AI-vensters; foutmeldingen),
+`test.html` (5 tests), `sw.js`, `CLAUDE.md`, `docs/stijlgids.md` §15.
+
+**Niet doen.** De sleutel terugzetten in het veld of in de pagina-HTML, ook
+niet "om te kunnen kopiëren". En niet zelf naar Instellingen springen bij
+een ontbrekende sleutel: laat de knop in de melding het doen.
+
+## 2026-10-11 · Agenda en Mail op Google-accounts, en de chat kijkt mee (v2.53)
 
 **Probleem.** Frank wilde een agenda waarin zijn Google-accounts samenkomen,
 zakelijk en privé, en die hij met de AI kan combineren. Liefst ook mail:
