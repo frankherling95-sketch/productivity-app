@@ -141,14 +141,85 @@ async function runChecks() {
       }
     }
   };
+  /* ── Google-accounts voor Agenda en Mail (2026-10-11) ──
+     zonderAccounts: alsof er niets gekoppeld is (wie zelf accounts heeft,
+     mag de tests van de gewone chat niet laten falen). metGoogle: twee
+     verzonnen accounts met een token in het geheugen, en een fetch die de
+     Calendar- en de Gmail-API naspeelt. Er gaat niets naar Google, er wordt
+     niets bewaard, en na afloop staat alles terug. */
+  const accountsTerug = oud => w.eval('if(' + oud + '===null)delete rawState.settings.googleAccounts;' +
+    'else rawState.settings.googleAccounts=' + oud + ';gaccTok={};kalCache={};kalKalenders={};pvLijst=null;pvDraden={};pvOngelezen={};');
+  const zonderAccounts = async fn => {
+    const oud = w.eval('JSON.stringify((rawState.settings||{}).googleAccounts||null)');
+    w.eval('rawState.settings=rawState.settings||{};rawState.settings.googleAccounts=[]');
+    try { return await fn(); } finally { accountsTerug(oud); }
+  };
+  const metGoogle = async fn => {
+    const oud = w.eval('JSON.stringify((rawState.settings||{}).googleAccounts||null)');
+    const oudFetch = w.fetch, log = [];
+    w.eval(`rawState.settings=rawState.settings||{};rawState.settings.googleAccounts=[
+      {id:'tz',email:'test@herling-analytics.nl',naam:'Zakelijk',agenda:true,mail:true,kalKeuze:{}},
+      {id:'tp',email:'jan.jansen@voorbeeld.nl',naam:'Privé',agenda:true,mail:true,kalKeuze:{}}];
+      gaccTok={};gaccLijst().forEach(a=>{gaccTok[a.email]={token:'tok-'+a.email,tot:Date.now()+3600e3,scope:GACC_SCOPES};});
+      kalCache={};kalKalenders={};pvLijst=null;pvDraden={};pvOngelezen={};`);
+    const b64 = s => btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const nu = new Date();
+    const om = (u, m) => { const x = new Date(nu); x.setHours(u, m || 0, 0, 0); return x.toISOString(); };
+    const labels = {t1: ['INBOX', 'UNREAD'], t2: ['INBOX']};
+    const draad = (id, van, ond, uur) => ({id, messages: [{id: id + 'm', labelIds: labels[id],
+      internalDate: String(new Date(om(uur)).getTime()), snippet: 'Hallo &amp; tot ziens',
+      payload: {mimeType: 'multipart/alternative', headers: [{name: 'From', value: van}, {name: 'Subject', value: ond},
+        {name: 'Message-ID', value: '<' + id + '@voorbeeld.nl>'}],
+        parts: [{mimeType: 'text/plain', body: {data: b64('Tekst over ' + ond)}}]}}]});
+    w.fetch = async (url, o) => {
+      const u = String(url), m = (o && o.method) || 'GET';
+      if (!/googleapis\.com/.test(u)) return oudFetch(url, o);
+      const wie = ((o && o.headers && o.headers.Authorization) || '').replace('Bearer tok-', '');
+      log.push(m + ' ' + u.replace(/^https:\/\/[^/]+/, '') + ' ' + wie);
+      const antw = (b, s) => new w.Response(b == null ? null : JSON.stringify(b), {status: s || 200});
+      if (/calendarList/.test(u)) return antw({items: wie.startsWith('test')
+        ? [{id: 'k-z', summary: 'Werk', backgroundColor: '#039BE5', primary: true, accessRole: 'owner', selected: true}]
+        : [{id: 'k-p', summary: 'Prive', backgroundColor: '#8E24AA', primary: true, accessRole: 'owner', selected: true},
+           {id: 'k-uit', summary: 'Verjaardagen', backgroundColor: '#F6BF26', accessRole: 'reader', selected: false}]});
+      if (/\/events/.test(u) && m === 'GET') return antw({items: /k-z/.test(u)
+        ? [{id: 'e1', summary: 'Overleg', start: {dateTime: om(9)}, end: {dateTime: om(10)}, organizer: {self: true}},
+           {id: 'e2', summary: 'Afgezegd', start: {dateTime: om(11)}, end: {dateTime: om(12)},
+            attendees: [{self: true, email: 'test@herling-analytics.nl', responseStatus: 'declined'}]}]
+        : /k-p/.test(u) ? [{id: 'e3', summary: 'Tandarts', start: {dateTime: om(9, 30)}, end: {dateTime: om(10, 30)}, organizer: {self: true}}]
+        : [{id: 'e4', summary: 'Hoort niet zichtbaar te zijn', start: {dateTime: om(8)}, end: {dateTime: om(9)}}]});
+      if (/\/events/.test(u)) return m === 'DELETE' ? antw(null, 204) : antw({id: 'nieuw1'});
+      if (/labels\/INBOX/.test(u)) return antw({threadsUnread: wie.startsWith('test') ? 1 : 0});
+      if (/\/threads\?/.test(u)) return antw({threads: wie.startsWith('test') ? [{id: 't1'}] : [{id: 't2'}]});
+      const t = u.match(/\/threads\/(t\d)(\/modify|\/trash|\/untrash)?/);
+      if (t) {
+        if (t[2]) {
+          const b = o && o.body ? JSON.parse(o.body) : {};
+          labels[t[1]] = labels[t[1]].filter(l => !(b.removeLabelIds || []).includes(l)).concat(b.addLabelIds || []);
+          return antw({id: t[1]});
+        }
+        return antw(t[1] === 't1' ? draad('t1', 'Jan Jansen <iemand@voorbeeld.nl>', 'Offerte', 10)
+          : draad('t2', 'Voorbeeld Energie <info@voorbeeld-energie.nl>', 'Jaarafrekening', 8));
+      }
+      return antw({error: {message: 'onbekend in de test'}}, 404);
+    };
+    try { return await fn(log, labels); }
+    finally {
+      w.fetch = oudFetch;
+      accountsTerug(oud);
+      try { w.updateNavBadges(); } catch (_) {}
+    }
+  };
   const tests = [
     ['Module: Dashboard exists',           () => !!d.getElementById('mod-dashboard')],
     ['Module: Kanban is weg',              () => !d.getElementById('mod-todo')],
     ['Nav: geen todo-item meer',           () => !d.querySelector('[data-mod="todo"]')],
     ['Module: Notes exists',               () => !!d.getElementById('mod-notes')],
     ['Module: Checklist exists',           () => !!d.getElementById('mod-checklist')],
-    ['Module: Agenda is weg',              () => !d.getElementById('mod-agenda')],
-    ['Nav: geen agenda-item meer',         () => !d.querySelector('[data-mod="agenda"]')],
+    /* De iCal-agenda ging er op 2026-09-06 uit; op 2026-10-11 kwam er een
+       nieuwe voor in de plaats, op de Google-accounts, met Mail ernaast. */
+    ['Module: Agenda en Mail bestaan, met een regel in de zijbalk', () =>
+      !!d.getElementById('mod-agenda') && !!d.getElementById('mod-mail') &&
+      !!d.querySelector('.nav-item[data-mod="agenda"]') && !!d.querySelector('.nav-item[data-mod="mail"]')],
     /* Niet via w.rawState: dat is een top-level `let` en die staat niet op
        window, dus deze drie stonden altijd op rood en zeiden niets. Via de
        snapshot-functie kunnen we de state wél bereiken — en meteen
@@ -483,7 +554,7 @@ async function runChecks() {
         knop.click();
         await new Promise(r => setTimeout(r, 50));
         const vink = d.querySelector('#instBody [data-action="instModel"][aria-checked="true"]');
-        const ok = zichtbaar && kop.join('|') === 'AI|Weergave|Facturen en klanten|Uren en opdrachten|Gegevens en opslag|Meldingen|Account en app' &&
+        const ok = zichtbaar && kop.join('|') === 'AI|Agenda en mail|Weergave|Facturen en klanten|Uren en opdrachten|Gegevens en opslag|Meldingen|Account en app' &&
           w.aiModel() === 'claude-opus-5-5' && vink && vink.dataset.arg1 === 'claude-opus-5-5';
         w.switchModule(terugNaar || 'dashboard');
         return ok;
@@ -491,11 +562,20 @@ async function runChecks() {
     /* ── De chat die ook dingen doet (2026-10-11) ──
        Voorstel → jouw klik → uitvoeren → ongedaan maken. Alles via een
        nagebootste fetch of rechtstreeks op het voorstel; geen echte aanroep. */
-    ['Acties: vijf gereedschappen, strikt, elk veld verplicht', () => {
+    ['Acties: vijf gereedschappen zonder account, strikt, elk veld verplicht', () => zonderAccounts(() => {
       const g = w.aiActieGereedschap();
       return g.length === 5 && g.every(t => t.strict === true && t.input_schema.additionalProperties === false &&
         Object.keys(t.input_schema.properties).every(k => t.input_schema.required.includes(k)) && t.description);
-    }],
+    })],
+    /* Met een gekoppeld account komen er drie acties en drie keer opzoeken
+       bij, ook allemaal strikt. */
+    ['Acties: met een account ook agenda en mail, ook strikt', () => metGoogle(() => {
+      const g = w.aiActieGereedschap();
+      const namen = g.map(t => t.name);
+      return g.length === 11 && ['afspraak_maken', 'mail_opruimen', 'mail_concept', 'agenda_bekijken', 'mail_zoeken', 'mail_lezen']
+        .every(n => namen.includes(n)) && g.every(t => t.strict === true && t.input_schema.additionalProperties === false &&
+        Object.keys(t.input_schema.properties).every(k => t.input_schema.required.includes(k)));
+    })],
     ['Acties: alleen bij Claude in de systeemprompt', () =>
       metLS({herling_ai_aanbieder: null}, () => /Acties:/.test(w.aiChatSysteem()) &&
         /"klanten":\[/.test(w.aiChatSysteem())).then(c => c &&
@@ -524,10 +604,10 @@ async function runChecks() {
       const stukken = [];
       let fout = '';
       try {
-        await metLS({herling_ai_aanbieder: null, herling_claude_api_key: 'test', herling_ai_maskeren: null}, async () => {
+        await metLS({herling_ai_aanbieder: null, herling_claude_api_key: 'test', herling_ai_maskeren: null}, () => zonderAccounts(async () => {
           for await (const s of w._streamAI({system: 'klanten: ' + naam, user: 'zet een taak klaar', maskeer: true,
             gereedschap: w.aiActieGereedschap()})) stukken.push(s);
-        });
+        }));
       } catch (e) { fout = e.message; }
       finally { w.fetch = oudFetch; w._aiBumpUsage = oudTel; }
       const actie = stukken.find(s => typeof s !== 'string');
@@ -2400,6 +2480,148 @@ async function runChecks() {
           try { w.appToastHide(); w.switchModule(oudModule); } catch (_) {}
         }
       }],
+    /* ── Agenda en Mail (2026-10-11) ── */
+    ['Agenda: overlappende afspraken naast elkaar, een losse op de volle breedte', () => {
+      const r = w.kalIndeling([{id: 'a', b: 540, e: 600}, {id: 'd', b: 540, e: 560}, {id: 'b', b: 570, e: 615}, {id: 'c', b: 620, e: 660}]);
+      return r.a.kol === 0 && r.d.kol === 1 && r.b.kol === 1 && [r.a, r.b, r.d].every(x => x.kols === 2) &&
+        r.c.kol === 0 && r.c.kols === 1;
+    }],
+    ['Mail: bericht ontleden — UTF-8, html en tekst, bijlage, ingesloten plaatje', () => {
+      const b64 = s => btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      const l = w.pvLichaam({mimeType: 'multipart/mixed', parts: [
+        {mimeType: 'multipart/alternative', parts: [{mimeType: 'text/plain', body: {data: b64('Één €')}},
+          {mimeType: 'text/html', body: {data: b64('<p>Één €</p>')}}]},
+        {mimeType: 'image/png', filename: 'logo.png', headers: [{name: 'Content-ID', value: '<logo1>'}], body: {attachmentId: 'a1', size: 10}},
+        {mimeType: 'application/pdf', filename: 'offerte.pdf', headers: [{name: 'Content-Disposition', value: 'attachment'}],
+          body: {attachmentId: 'a2', size: 2048}}]});
+      return l.tekst === 'Één €' && l.html === '<p>Één €</p>' && l.bijlagen.length === 2 &&
+        l.bijlagen[0].inline === true && l.bijlagen[0].cid === 'logo1' && l.bijlagen[1].inline === false;
+    }],
+    ['Mail: afzender en fragment', () => {
+      const a = w.pvAfzender('"Jan Jansen" <Iemand@Voorbeeld.nl>'), b = w.pvAfzender('iemand@voorbeeld.nl');
+      return a.naam === 'Jan Jansen' && a.adres === 'iemand@voorbeeld.nl' && b.adres === 'iemand@voorbeeld.nl' &&
+        w.pvEntiteiten('Tom &amp; Jerry&#39;s') === "Tom & Jerry's";
+    }],
+    ['Mail: tonen zonder scripts, met CSP, plaatjes van buiten pas op verzoek', () => {
+      const html = '<p onclick="x()">Hoi <a href="javascript:alert(1)">a</a> <a href="https://voorbeeld.nl">b</a></p>' +
+        /* De tag in stukken: eerder in dit script staat <!-- in een string, en
+           daarna zou een letterlijke scripttag de HTML-parser laten denken dat
+           dit script nog niet dicht is -- dan draait de hele pagina niet. */
+        '<img src="https://track.voorbeeld.nl/p.gif"><img src="cid:logo1"><scr' + 'ipt>alert(1)</scr' + 'ipt>' +
+        '<div style="background:url(https://cdn.voorbeeld.nl/x.jpg)">z</div><form><input></form>';
+      const dicht = w.pvSrcdoc({html, cidData: {logo1: 'data:image/png;base64,AAAA'}}, false, false);
+      const open = w.pvSrcdoc({html, cidData: {}}, true, false);
+      const doc = new DOMParser().parseFromString(dicht, 'text/html');
+      const csp = (doc.querySelector('meta[http-equiv="Content-Security-Policy"]') || {}).content || '';
+      const links = [...doc.querySelectorAll('a')];
+      return !/<scr[i]pt/i.test(dicht) && !/onclick/i.test(dicht) && !doc.querySelector('form,input') &&
+        /img-src data:;/.test(csp) && /default-src 'none'/.test(csp) &&
+        !doc.querySelector('img[src^="https"]') && !!doc.querySelector('img[src^="data:image/png"]') &&
+        !/url\(\s*https/.test(dicht) && !links[0].hasAttribute('href') &&
+        links[1].getAttribute('target') === '_blank' && /noopener/.test(links[1].getAttribute('rel')) &&
+        /img-src data: https: http:/.test(open);
+    }],
+    ['Accounts: token per account, verlopen weg, niet op schijf, alleen voor wie ingelogd is', () => {
+      const oud = w.sessionStorage.getItem('herling_gacc_tokens');
+      const oudMem = w.eval('JSON.stringify(gaccTok)');
+      try {
+        w.eval('gaccTok={"a@voorbeeld.nl":{token:"x",tot:Date.now()+3600e3,scope:""},"b@voorbeeld.nl":{token:"y",tot:Date.now()-1,scope:""}};gaccTokBewaar();gaccTok={}');
+        const opgeslagen = JSON.parse(w.sessionStorage.getItem('herling_gacc_tokens'));
+        const a = w.gaccTokGeldig('a@voorbeeld.nl'), b = w.gaccTokGeldig('b@voorbeeld.nl');
+        w.sessionStorage.setItem('herling_gacc_tokens', JSON.stringify({...opgeslagen, account: 'ander@voorbeeld.nl'}));
+        w.eval('gaccTok={}');
+        const ander = w.gaccTokGeldig('a@voorbeeld.nl');
+        return !!a && a.token === 'x' && !b && !opgeslagen.tokens['b@voorbeeld.nl'] && !ander &&
+          !w.localStorage.getItem('herling_gacc_tokens');
+      } finally {
+        if (oud === null) w.sessionStorage.removeItem('herling_gacc_tokens'); else w.sessionStorage.setItem('herling_gacc_tokens', oud);
+        w.eval('gaccTok=' + oudMem);
+      }
+    }],
+    ['Agenda: afspraken van twee accounts, een uitgevinkte agenda blijft weg', () => metGoogle(async log => {
+      const van = w.kalStart(new Date()), tot = w.kalPlus(van, 1);
+      const r = await w.kalHaal(van, tot);
+      const titels = r.items.map(x => x.titel).sort().join(',');
+      const afgezegd = r.items.find(x => x.titel === 'Afgezegd');
+      return !r.fouten.length && titels === 'Afgezegd,Overleg,Tandarts' && afgezegd && afgezegd.afgewezen &&
+        r.items.find(x => x.titel === 'Tandarts').accId === 'tp' && !log.some(l => /k-uit/.test(l));
+    })],
+    ['Agenda: weekraster tekent, een klik opent de afspraak', () => metLS({herling_kal: JSON.stringify({weergave: 'week'})}, () => metGoogle(async () => {
+      const oudModule = w.activeModule;
+      w.eval('kalDatum=null');
+      w.switchModule('agenda');
+      await new Promise(r => setTimeout(r, 400));
+      const ev = d.querySelector('#kalBody .kal-ev');
+      if (ev) ev.click();
+      const open = d.getElementById('kalDetModal').classList.contains('open') && !!d.getElementById('kalDetTitel').textContent;
+      w.kalDetSluit();
+      w.switchModule(oudModule || 'dashboard');
+      return !!ev && open && d.querySelectorAll('#kalBody .kal-ev').length >= 3;
+    }))],
+    ['Mail: postvak over twee accounts op datum, openen zet op gelezen, zonder scripts', () => metLS({herling_pv: null}, () => metGoogle(async (log, labels) => {
+      const oudModule = w.activeModule;
+      w.switchModule('mail');
+      await new Promise(r => setTimeout(r, 400));
+      const rijen = [...d.querySelectorAll('#pvLijstKol .pv-rij')];
+      const knop = rijen[0] && rijen[0].querySelector('.pv-rijknop');
+      if (knop) knop.click();
+      await new Promise(r => setTimeout(r, 400));
+      const gelezen = log.some(l => /threads\/t1\/modify/.test(l)) && !labels.t1.includes('UNREAD');
+      const frame = d.querySelector('#pvBerichten iframe.pv-inhoud');
+      const sandbox = frame ? frame.getAttribute('sandbox') : 'allow-scripts';
+      w.pvSluit();
+      w.switchModule(oudModule || 'dashboard');
+      return rijen.length === 2 && /Jan Jansen/.test(rijen[0].textContent) && gelezen && !!frame && !/allow-scripts/.test(sandbox);
+    }))],
+    ['Mail: archiveren haalt uit Postvak, terugzetten zet hem terug', () => metLS({herling_pv: null}, () => metGoogle(async (log, labels) => {
+      await w.pvLaad(false);
+      await w.pvDoe(['tz|t1'], 'archiveer', true);
+      const weg = !labels.t1.includes('INBOX') && !w.eval('pvLijst.items.some(x=>x.key==="tz|t1")');
+      await w.pvDoe(['tz|t1'], 'terugInPostvak', true);
+      return weg && labels.t1.includes('INBOX');
+    }))],
+    ['Chat: opzoeken in mail gaat terug naar het model (met handtekening), daarna een voorstel', () =>
+      metLS({herling_ai_aanbieder: null, herling_claude_api_key: 'test', herling_ai_maskeren: null}, () => metGoogle(async () => {
+        const ev = (type, data) => 'event: ' + type + '\ndata: ' + JSON.stringify({type, ...data}) + '\n\n';
+        const bodies = [];
+        const googleFetch = w.fetch, oudTel = w._aiBumpUsage;
+        w._aiBumpUsage = () => {};
+        w.fetch = async (u, o) => {
+          if (!/anthropic/.test(String(u))) return googleFetch(u, o);
+          bodies.push(JSON.parse(o.body));
+          let sse = ev('message_start', {message: {}});
+          if (bodies.length === 1) sse +=
+            ev('content_block_start', {index: 0, content_block: {type: 'thinking', thinking: '', signature: ''}}) +
+            ev('content_block_delta', {index: 0, delta: {type: 'signature_delta', signature: 'HANDTEKENING'}}) +
+            ev('content_block_stop', {index: 0}) +
+            ev('content_block_start', {index: 1, content_block: {type: 'tool_use', id: 'toolu_z', name: 'mail_zoeken', input: {}}}) +
+            ev('content_block_delta', {index: 1, delta: {type: 'input_json_delta',
+              partial_json: JSON.stringify({zoekopdracht: 'offerte', account: 'Zakelijk', max: 5})}}) +
+            ev('content_block_stop', {index: 1}) + ev('message_delta', {delta: {stop_reason: 'tool_use'}});
+          else sse +=
+            ev('content_block_start', {index: 0, content_block: {type: 'text', text: ''}}) +
+            ev('content_block_delta', {index: 0, delta: {type: 'text_delta', text: 'Jan vraagt naar de offerte.'}}) +
+            ev('content_block_stop', {index: 0}) +
+            ev('content_block_start', {index: 1, content_block: {type: 'tool_use', id: 'toolu_a', name: 'mail_opruimen', input: {}}}) +
+            ev('content_block_delta', {index: 1, delta: {type: 'input_json_delta', partial_json: JSON.stringify({ids: ['tz|t1'], actie: 'archiveren'})}}) +
+            ev('content_block_stop', {index: 1}) + ev('message_delta', {delta: {stop_reason: 'tool_use'}});
+          return new w.Response(sse + ev('message_stop', {}), {status: 200, headers: {'Content-Type': 'text/event-stream'}});
+        };
+        try {
+          w.eval('aiChatGesprek=[]');
+          await w.aiChatVraag('Wat vraagt Jan over de offerte?');
+          const b2 = bodies[1] || {messages: []};
+          const rollen = b2.messages.map(m => m.role + ':' + (typeof m.content === 'string' ? 'tekst' : m.content.map(c => c.type).join(',')));
+          const slot = b2.messages[b2.messages.length - 1] || {content: []};
+          const resultaat = String((slot.content[0] || {}).content || '');
+          const laatste = w.eval('aiChatGesprek[aiChatGesprek.length-1]');
+          return bodies.length === 2 && rollen.slice(-2).join('|') === 'assistant:thinking,tool_use|user:tool_result' &&
+            JSON.stringify(b2.messages).includes('HANDTEKENING') && /Offerte/.test(resultaat) &&
+            !/iemand@voorbeeld\.nl/.test(resultaat) && JSON.stringify(bodies[0].system) === JSON.stringify(b2.system) &&
+            laatste.lees.length === 1 && !laatste.lees[0].bezig && laatste.acties.length === 1 &&
+            laatste.acties[0].status === 'voorstel' && laatste.acties[0].titel === 'Mail archiveren';
+        } finally { w.fetch = googleFetch; w._aiBumpUsage = oudTel; w.eval('aiChatGesprek=[]'); }
+      }))],
     ['No iframe console errors',           () => iframeErrors.length === 0]
   ];
 
@@ -2413,6 +2635,8 @@ async function runChecks() {
      (aiVerbruikTel). Na afloop staat het weer zoals het was. */
   const verbruikVoor = w.eval('JSON.stringify((rawState.settings||{}).aiVerbruik||null)');
   for (const [name, fn] of tests) {
+    /* Welke test er loopt: blijft er een hangen, dan zie je welke. */
+    checks.innerHTML = '<div class="check">Bezig (' + (regels.length + 1) + '/' + tests.length + '): ' + name + '</div>';
     let ok=false, err='';
     try { ok = !!(await fn()); } catch(e){ err = ' — ' + e.message; }
     if (ok) pass++; else fail++;

@@ -53,10 +53,12 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 | `#uren` | Uren | Urenregistratie per regel, week/maand, Excel export |
 | `#facturen` | Facturen | Facturen uit geschreven uren (ook per maand in één keer: *Uren factureren*, `facMaandStart`), sjabloonbouwer, debiteuren, btw-overzicht, mailen via Gmail, analyse |
 | `#opdrachten` | Opdrachten | Opdrachten per klant (looptijd, uren per week of urenbudget, tarief, opzegtermijn, PDF van de overeenkomst) en een vooruitzicht per werkmaand |
+| `#agenda` | Agenda | Afspraken van alle gekoppelde Google-accounts (zakelijk, privé) in één beeld: dag, week of lijst. Afspraak maken, wijzigen, verwijderen. Rechtstreeks de Calendar API, niets in Drive |
+| `#mail` | Mail | Postvak van de gekoppelde Google-accounts: lezen (veilig iframe, plaatjes van buiten pas op verzoek), zoeken met de zoektaal van Gmail, archiveren/prullenbak/gelezen/ster met ongedaan maken, opruimen per afzender, AI-overzicht, samenvatting en concept-antwoord in Gmail. Versturen doet de app niet |
 | `#contracten` | Contracten | Zakelijke én privécontracten (twee tabs), elk met looptijd, opzegtermijn, stilzwijgende verlenging en de PDF erbij |
 | `#instellingen` | Instellingen | Eén pagina met alles wat je instelt: AI-model en sleutels, thema, facturatie, vrije dagen, opslag en back-up, meldingen, account. Opent de bestaande vensters; bewaart zelf niets |
 
-Entry render functions: `renderDashboard()`, `renderNotesModule()`, `renderChecklistModule()`, `renderUrenModule()`, `renderFacturenModule()`, `renderOpdrachtenModule()`, `renderContractenModule()`, `renderInstellingenModule()`. `renderAll()` wordt aangeroepen na elke `loadGist()`.
+Entry render functions: `renderDashboard()`, `renderNotesModule()`, `renderChecklistModule()`, `renderUrenModule()`, `renderFacturenModule()`, `renderOpdrachtenModule()`, `renderContractenModule()`, `renderAgendaModule()`, `renderMailModule()`, `renderInstellingenModule()`. `renderAll()` wordt aangeroepen na elke `loadGist()`.
 
 ## State & persistence
 
@@ -68,13 +70,14 @@ rawState = {
   uren:     urenState,       // {entries, templates}
   opdrachten: opdrachtState, // {opdrachten, vrij (vakanties), feestdagen (ids; ontbreekt = standaard)}
   contracten: contractState, // {contracten, opruimen} — de PDF's zelf staan NIET hierin, zie Contracten hieronder
-  // agenda: verwijderd 2026-09-06; oude events blijven ongemoeid in Drive staan
-  settings: { calSources, theme, agendaMeldingen: {aan, kalenderId, checklist}, driveArchief: {aan, mapId}, externeTools, aiVerbruik: {'JJJJ-MM': {model: {n, in, uit, lees, schrijf, usd}}}, ... }
+  // agenda: verwijderd 2026-09-06; oude events blijven ongemoeid in Drive staan (de nieuwe Agenda leest Google en bewaart niets)
+  settings: { calSources, theme, googleAccounts: [Google-account], agendaMeldingen: {aan, kalenderId, checklist}, driveArchief: {aan, mapId}, externeTools, aiVerbruik: {'JJJJ-MM': {model: {n, in, uit, lees, schrijf, usd}}}, ... }
 }
 ```
 
 **Item shapes** (snelle referentie):
 - Checklist item: `{id, text, done, priority, deadline, clientId, subtasks[], archived, sortOrder, pinned}` — subtaak `{id, text, done, doorHoofd?}`; `doorHoofd` = mee afgevinkt met de hoofdtaak, gaat weer open als die terugkomt (`clZetHoofdKlaar()`)
+- Google-account (Agenda, Mail, chat): `{id, email, naam ('Zakelijk'/'Privé'/…), agenda (false = uit), mail (false = uit), kalKeuze: {kalenderId: true|false}}` — `kalKeuze` overschrijft per agenda wat Google zegt (`selected`). Het token staat er níet in: dat is per tabblad, zie `herling_gacc_tokens` (`gaccLijst()`, `gaccTokGeldig()`)
 - Notes node (recursief): `{id, type:'page'|'folder', title, content, clientId, tags, children[]}`
 - Klant: `{id, name, colorIdx, verborgen?}` — `verborgen` = opgeschoond: weg uit de klantwisselaar, Notities, Checklist en Dashboard, maar gewoon kiesbaar in Uren, Facturen, Opdrachten en Contracten (`klantVerborgen()`, `takenZichtbaar()`, `klantenVoorKeuze()`)
 - Contract: `{id, domein ('zakelijk'|'prive'; ontbreekt = zakelijk), soort, titel, clientId|null, wederpartij, opdrachtId|null, getekend, start, eind|null, opzeg, verlenging ('' of '1m'/'3m'/'6m'/'12m'), notitie, bijlagen[]}` — een bijlage is `{id, naam, grootte, hash, driveId|null}`. De PDF staat als **eigen bestand** in de Drive-`appDataFolder` (`contract-<id>.pdf`) plus een kopie in IndexedDB (`herling_bijlagen`), niet in `rawState`. Hangt een contract aan een opdracht, dan komt de looptijd uit de opdracht (`ctrLooptijd()`)
@@ -96,6 +99,9 @@ rawState = {
 | `LS_HERSTEL_KEY` = `herling_analytics_herstel` | Niet-gekozen versie na een conflict; zichtbaar in Instellingen → Versiegeschiedenis, of `herstelDownload()` |
 | `LS_ARCHIEF` = `herling_archief` | Archief in Google Drive: handtekening, tijdstip, aantal en wat er wacht of is overgeslagen bij de laatste keer bijwerken op dít apparaat (zelfde reden als `LS_AGD`) |
 | `LS_AI_AANBIEDER` = `herling_ai_aanbieder` | `gemini` als er een Gemini-model gekozen is; ontbreekt = Claude (sinds v2.49 de standaard, met `claude-haiku-5-5`). Met `LS_CLAUDE_KEY` en `LS_CLAUDE_MODEL` (en de Gemini-sleutel) per apparaat en bewust niet in `rawState`: een API-key hoort niet in Drive |
+| `LS_KAL` = `herling_kal` | Agenda: gekozen weergave (dag/week/lijst) en accountfilter, per apparaat |
+| `LS_PV` = `herling_pv` | Mail: gekozen tabblad en accountfilter, per apparaat |
+| sessionStorage `herling_gacc_tokens` | Toegangstokens van de gekoppelde Google-accounts, per account, alleen voor wie ingelogd is. Bewust sessionStorage (net als het `gmail.send`-token): met `gmail.modify` lees je de hele mailbox |
 | `LS_AGD` = `herling_agenda` | Meldingen in Google Agenda: handtekening, tijdstip en aantal van de laatste keer bijwerken op dít apparaat (bewust niet in `rawState`: anders wordt elke keer bijwerken een wijziging voor Drive) |
 
 ### Save flow
@@ -132,7 +138,7 @@ Bij toevoegen van een nieuw state-veld: voeg een hydratie-stap toe in `hydrateer
 | `updateNavBadges()` | Tellingen naast de nav-items (Checklist, Uren, Facturen) |
 | Undo systeem | Verwijderacties tonen toast met "Ongedaan maken" |
 | AI-aanroep (`callAI()`, `_streamAI()`) | Eén ingang voor alle AI-functies: maskeert, en stuurt dan naar de aanbieder van het gekozen model (`aiKiesModel()`; standaard Claude Haiku 5.5, kiezen in Instellingen of onderin Vraag het je app). Nieuwe AI-functie? Roep `callAI()` aan, nooit `_geminiVraag`/`_claudeVraag` rechtstreeks (dan slaat hij het maskeren over) |
-| AI-chat (`aiChatOpen()`) | "Vraag het je app": vragen over taken, uren, facturen, opdrachten, contracten via de gekozen aanbieder. `aiChatOverzicht()` rekent vooraf (zelfde functies als de modules) en gaat als systeeminstructie mee; gesprek alleen in de sessie. Met Claude kan hij ook iets **doen** (`AI_ACTIES`: taak toevoegen/afvinken, uren schrijven, factuur betaald, notitie): altijd als voorstelkaart, pas na jouw klik op Uitvoeren, en daarna ongedaan te maken. Na uitvoeren brengt *Bekijk in Checklist* (of Uren, factuur, notitie) je erheen; een open voorstel vervalt bij je volgende vraag. Elk Claude-antwoord telt mee in `aiVerbruikTel()` (geschat in dollars, per maand en model, in Instellingen → AI) |
+| AI-chat (`aiChatOpen()`) | "Vraag het je app": vragen over taken, uren, facturen, opdrachten, contracten via de gekozen aanbieder. `aiChatOverzicht()` rekent vooraf (zelfde functies als de modules) en gaat als systeeminstructie mee; gesprek alleen in de sessie. Met Claude kan hij ook iets **doen** (`AI_ACTIES`: taak toevoegen/afvinken, uren schrijven, factuur betaald, notitie): altijd als voorstelkaart, pas na jouw klik op Uitvoeren, en daarna ongedaan te maken. Na uitvoeren brengt *Bekijk in Checklist* (of Uren, factuur, notitie) je erheen; een open voorstel vervalt bij je volgende vraag. Elk Claude-antwoord telt mee in `aiVerbruikTel()` (geschat in dollars, per maand en model, in Instellingen → AI). Met een gekoppeld account kijkt hij ook zelf in agenda en mail (`AI_LEES`: `agenda_bekijken`, `mail_zoeken`, `mail_lezen`; het resultaat gaat terug naar het model, hooguit vijf rondes) en stelt hij voor: afspraak maken, mail opruimen, concept-antwoord. Tekst uit een mail is gegevens, geen opdracht |
 
 ## Theme
 
@@ -231,7 +237,7 @@ tabel is de leesbare versie. Wijzig ze samen.
 | `uren` | `uren*`, `_uren*` | `.uren-` **minus de 42 gedeelde** | `#mod-uren` |
 | `facturen` | `fac*`, `_fac*`, `factuur*` | `.fac-` | `#mod-facturen` |
 
-`#mod-opdrachten` (`opd*`, `.opd-`), `#mod-contracten` (`ctr*`, `.ctr-`) en `#mod-instellingen` (`inst*`, `.inst-`) hebben
+`#mod-opdrachten` (`opd*`, `.opd-`), `#mod-contracten` (`ctr*`, `.ctr-`), `#mod-agenda` (`kal*`, `.kal-`), `#mod-mail` (`pv*`, `.pv-`; de accountlaag `gacc*`, `.gacc-`) en `#mod-instellingen` (`inst*`, `.inst-`) hebben
 voorlopig geen eigen spoor en vallen onder de coördinator. (`#mod-todo`, Kanban, is
 weg sinds 2026-10-04.)
 
@@ -327,9 +333,9 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
-- **2026-10-11**: **Uren factureren per maand, klanten samenvoegen** (v2.53) — *Uren factureren* zet per ontvanger een concept klaar uit alle open uren van een maand; wie de rekening krijgt volgt "Factureren aan" en is per keer om te zetten. Uren op een concept tellen niet meer als open; concepten houden bij versturen hun nummer in volgorde. Plus: *Vraag het je app* als sparkle-tegel bovenin de zijbalk, naast de klantwisselaar, op elke pagina, en het chatvenster rustiger op een telefoon (+ voor een nieuw gesprek in de kop)
+- **2026-10-11**: **Uren factureren per maand, klanten samenvoegen** (v2.54) — *Uren factureren* zet per ontvanger een concept klaar uit alle open uren van een maand; wie de rekening krijgt volgt "Factureren aan" en is per keer om te zetten. Uren op een concept tellen niet meer als open; concepten houden bij versturen hun nummer in volgorde. Plus: *Vraag het je app* als sparkle-tegel bovenin de zijbalk, naast de klantwisselaar, op elke pagina, en het chatvenster rustiger op een telefoon (+ voor een nieuw gesprek in de kop)
+- **2026-10-11**: **Agenda en Mail op Google-accounts** (v2.53) — meerdere accounts (zakelijk, privé) in Instellingen; Agenda (dag/week/lijst, afspraak maken) en Mail (lezen in een iframe zonder scripts, zoeken, opschonen per afzender, AI-overzicht, concept-antwoord, niet versturen) rechtstreeks op de API's van Google. De chat zoekt zelf in agenda en mail (resultaat terug naar het model, denkblok ongewijzigd mee) en stelt voor wat hij wil doen. Token per tabblad, niet op schijf
 - **2026-10-11**: **API-sleutels op de Instellingen-pagina** (v2.52) — per aanbieder een blok met veld, Opslaan, Testen (gratis: de modellenlijst) en Verwijderen; alleen de laatste vier tekens in beeld. De ⚙ API-key-knoppen en vraagvensters zijn weg; zonder sleutel een melding met de knop *Naar Instellingen* (`aiGeenSleutel`, `aiNaarSleutel`)
-- **2026-10-11**: **Verbruik van Claude en Bekijk vanuit de chat** (v2.51) — tokens uit elk antwoord → geschatte kosten per maand en model in `rawState.settings.aiVerbruik` (over apparaten heen), in Instellingen → AI en onderin de chat. Een uitgevoerde actie heeft een knop naar het resultaat; open voorstellen vervallen bij een nieuwe vraag (geen dubbele taak)
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 
@@ -414,7 +420,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 184 smoke-, sync-, model-, reken- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
+| `test.html` | 194 smoke-, sync-, model-, reken-, sorteer-, agenda- en mailtests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |
@@ -427,7 +433,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 - Data in Drive `appDataFolder`: een verborgen map per gebruiker die alleen deze app kan lezen — geen URL, geen losse token
 - Geen pincode-versleuteling meer (afgeschaft 2026-08-16) — `appDataFolder` is het slot. Alleen het uitpakpad voor een oud versleuteld blok staat er nog (PBKDF2 + AES-GCM, alleen ontsleutelen)
 - Geen telemetrie, geen externe API-calls behalve Google (Drive, Gmail, Agenda, Fonts, Gemini) en — alleen als je Claude kiest onder Instellingen → AI — Anthropic (`api.anthropic.com`)
-- Google-scopes: `drive.appdata` (opslag), `drive.file` (archief: alleen wat de app zelf maakte), `gmail.send`, `calendar.app.created` — elk staat op het OAuth-scherm in de Cloud Console
+- Google-scopes: `drive.appdata` (opslag), `drive.file` (archief: alleen wat de app zelf maakte), `gmail.send`, `calendar.app.created` — elk staat op het OAuth-scherm in de Cloud Console. Voor gekoppelde accounts (Agenda en Mail) daarnaast `openid email`, `calendar.events`, `calendar.calendarlist.readonly` en `gmail.modify` (kan niets definitief verwijderen). Een gmail.com-account koppelt alleen als het OAuth-scherm op **Extern** staat (anders "Error 403: org_internal")
 - Tokens NIET in `.git/config` URL — gebruik Git Credential Manager (`git config --global credential.helper manager`)
 - **De repo is openbaar** (GitHub Free + Pages). Geen namen van klanten of relaties erin — zie *Hard rules*
 
