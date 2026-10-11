@@ -488,6 +488,128 @@ async function runChecks() {
         w.switchModule(terugNaar || 'dashboard');
         return ok;
       })],
+    /* ── De chat die ook dingen doet (2026-10-11) ──
+       Voorstel → jouw klik → uitvoeren → ongedaan maken. Alles via een
+       nagebootste fetch of rechtstreeks op het voorstel; geen echte aanroep. */
+    ['Acties: vijf gereedschappen, strikt, elk veld verplicht', () => {
+      const g = w.aiActieGereedschap();
+      return g.length === 5 && g.every(t => t.strict === true && t.input_schema.additionalProperties === false &&
+        Object.keys(t.input_schema.properties).every(k => t.input_schema.required.includes(k)) && t.description);
+    }],
+    ['Acties: alleen bij Claude in de systeemprompt', () =>
+      metLS({herling_ai_aanbieder: null}, () => /Acties:/.test(w.aiChatSysteem()) &&
+        /"klanten":\[/.test(w.aiChatSysteem())).then(c => c &&
+      metLS({herling_ai_aanbieder: 'gemini'}, () => !/Acties:/.test(w.aiChatSysteem())))],
+    ['Acties: de stroom levert een voorstel op, met de klant terugvertaald', async () => {
+      const naam = w.eval('kanbanState.clients[0].name');
+      let body = null;
+      const ev = (type, data) => 'event: ' + type + '\ndata: ' + JSON.stringify({type, ...data}) + '\n\n';
+      const oudFetch = w.fetch, oudTel = w._aiBumpUsage;
+      w._aiBumpUsage = () => {};
+      w.fetch = async (u, opt) => {
+        body = JSON.parse(opt.body);
+        const token = (body.system[0].text.match(/\{\{KLANT_\d+\}\}/) || [''])[0];
+        const json = JSON.stringify({titel: 'Offerte nalopen', deadline: '2026-10-16', klant: token, prioriteit: 'hoog', subtaken: []});
+        const sse = ev('message_start', {message: {}}) +
+          ev('content_block_start', {index: 0, content_block: {type: 'text', text: ''}}) +
+          ev('content_block_delta', {index: 0, delta: {type: 'text_delta', text: 'Ik zet het klaar.'}}) +
+          ev('content_block_stop', {index: 0}) +
+          ev('content_block_start', {index: 1, content_block: {type: 'tool_use', id: 'toolu_1', name: 'taak_toevoegen', input: {}}}) +
+          ev('content_block_delta', {index: 1, delta: {type: 'input_json_delta', partial_json: json.slice(0, 20)}}) +
+          ev('content_block_delta', {index: 1, delta: {type: 'input_json_delta', partial_json: json.slice(20)}}) +
+          ev('content_block_stop', {index: 1}) +
+          ev('message_delta', {delta: {stop_reason: 'tool_use'}}) + ev('message_stop', {});
+        return new w.Response(sse, {status: 200, headers: {'Content-Type': 'text/event-stream'}});
+      };
+      const stukken = [];
+      let fout = '';
+      try {
+        await metLS({herling_ai_aanbieder: null, herling_claude_api_key: 'test', herling_ai_maskeren: null}, async () => {
+          for await (const s of w._streamAI({system: 'klanten: ' + naam, user: 'zet een taak klaar', maskeer: true,
+            gereedschap: w.aiActieGereedschap()})) stukken.push(s);
+        });
+      } catch (e) { fout = e.message; }
+      finally { w.fetch = oudFetch; w._aiBumpUsage = oudTel; }
+      const actie = stukken.find(s => typeof s !== 'string');
+      return !fout && body.tools.length === 5 && !JSON.stringify(body).includes(naam) &&
+        stukken.filter(s => typeof s === 'string').join('') === 'Ik zet het klaar.' &&
+        actie && actie.naam === 'taak_toevoegen' && actie.input.klant === naam;
+    }],
+    ['Acties: taak toevoegen via de kaart, en ongedaan maken', async () => {
+      const naam = w.eval('kanbanState.clients[0].name');
+      const titel = 'Testtaak uit de chat ' + Date.now();
+      const voor = w.eval('checklistState.items.length');
+      w.aiChatOpen();
+      w.eval('aiChatGesprek=[{rol:"user",tekst:"zet een taak klaar"},{rol:"model",tekst:"Ik zet het klaar.",acties:[]}]');
+      const v = w.aiActieVoorstel({naam: 'taak_toevoegen', input: {titel, deadline: '2026-10-16', klant: naam, prioriteit: 'hoog', subtaken: ['stap 1']}});
+      const eerst = v.status;   /* hetzelfde object verandert straks mee */
+      w.eval('aiChatGesprek[1].acties').push(v);
+      w.aiChatToon();
+      const kaart = d.querySelector('#aiChatLijst .aic-actie');
+      const klantRegel = [...kaart.querySelectorAll('dd')].map(x => x.textContent);
+      kaart.querySelector('[data-action="aiActieDoe"]').click();
+      const item = w.eval('checklistState.items').find(i => i.text === titel);
+      const gedaan = !!item && item.priority === 'hoog' && item.deadline === '2026-10-16' &&
+        item.subtasks.length === 1 && d.querySelector('#aiChatLijst .aic-actie').dataset.status === 'gedaan';
+      d.querySelector('#aiChatLijst [data-action="aiActieTerug"]').click();
+      const terug = !w.eval('checklistState.items').some(i => i.text === titel) &&
+        w.eval('checklistState.items.length') === voor;
+      const geschiedenis = w.aiChatBeurtTekst(w.eval('aiChatGesprek[1]'));
+      w.eval('aiChatGesprek=[]'); w.aiChatSluit();
+      return eerst === 'voorstel' && klantRegel.includes(naam) && gedaan && terug &&
+        /\[Acties: Taak toevoegen \(Taak: Testtaak/.test(geschiedenis) && /ongedaan gemaakt\]$/.test(geschiedenis);
+    }],
+    ['Acties: uren — klant en aantal worden gecontroleerd, en terug is terug', () => {
+      const naam = w.eval('kanbanState.clients[0].name');
+      const V = input => w.aiActieVoorstel({naam: 'uren_schrijven', input});
+      const zonder = V({datum: '2026-10-09', uren: 6, klant: '', omschrijving: ''});
+      const onbekend = V({datum: '2026-10-09', uren: 6, klant: 'Bestaat Niet B.V.', omschrijving: ''});
+      const teVeel = V({datum: '2026-10-09', uren: 30, klant: naam, omschrijving: ''});
+      const geenDatum = V({datum: '9 oktober', uren: 6, klant: naam, omschrijving: ''});
+      const goed = V({datum: '2026-10-09', uren: 6, klant: naam, omschrijving: 'Testuren uit de chat'});
+      const voor = w.eval('urenState.entries.length');
+      const r = goed.doe();
+      const e = w.eval('urenState.entries').find(x => x.description === 'Testuren uit de chat');
+      const ok = e && e.hours === 6 && e.date === '2026-10-09' && e.clientId === w.eval('kanbanState.clients[0].id');
+      r.terug();
+      return zonder.status === 'fout' && onbekend.status === 'fout' && teVeel.status === 'fout' &&
+        geenDatum.status === 'fout' && goed.status === 'voorstel' && ok &&
+        w.eval('urenState.entries.length') === voor;
+    }],
+    ['Acties: factuur op betaald, en terug naar verstuurd', () => {
+      const f = w.eval('factuurState.invoices.find(f=>f.status==="verstuurd")');
+      if (!f) return true;   /* geen verstuurde factuur in de testgegevens */
+      const n = (f.betalingen || []).length;
+      const v = w.aiActieVoorstel({naam: 'factuur_betaald', input: {factuurnummer: f.nummer, datum: '2026-10-10'}});
+      const r = v.doe();
+      const betaald = f.status === 'betaald' && f.betalingen.length === n + 1 && f.betalingen[n].datum === '2026-10-10';
+      r.terug();
+      const nogEens = w.aiActieVoorstel({naam: 'factuur_betaald', input: {factuurnummer: 'BESTAATNIET-1', datum: ''}});
+      return v.status === 'voorstel' && betaald && f.status === 'verstuurd' && (f.betalingen || []).length === n &&
+        nogEens.status === 'fout';
+    }],
+    ['Acties: afvinken en notitie, en een onbekende actie', () => {
+      const id = 'test_afvink_' + Date.now();
+      w.eval('checklistState.items').push({id, text: 'Afvinktest', done: false, priority: 'middel', deadline: null,
+        clientId: null, subtasks: [{id: id + 's', text: 's', done: false}], archived: false, sortOrder: 9999});
+      const v = w.aiActieVoorstel({naam: 'taak_afvinken', input: {taak_id: id, titel: 'Afvinktest'}});
+      const r = v.doe();
+      const item = w.eval('checklistState.items').find(i => i.id === id);
+      const af = item.done && item.subtasks[0].done;
+      r.terug();
+      const open = !item.done && !item.subtasks[0].done;
+      w.eval('checklistState.items=checklistState.items.filter(i=>i.id!=="' + id + '")');
+      const n = w.aiActieVoorstel({naam: 'notitie_maken', input: {titel: 'Notitietest', inhoud: '# Kop\n\n- punt', klant: ''}});
+      const nr = n.doe();
+      const node = w.eval('notesState.tree').find(x => x.title === 'Notitietest');
+      const gemaakt = !!node && /<h1/.test(node.content) && /<li>/.test(node.content);
+      nr.terug();
+      const weg = !w.eval('notesState.tree').some(x => x.title === 'Notitietest');
+      const raar = w.aiActieVoorstel({naam: 'alles_wissen', input: {}});
+      const half = w.aiActieVoorstel({naam: 'taak_toevoegen', input: null});
+      return v.status === 'voorstel' && af && open && n.status === 'voorstel' && gemaakt && weg &&
+        raar.status === 'fout' && half.status === 'fout';
+    }],
     ['Claude: schema krijgt additionalProperties:false, een eigenschap "type" blijft', () => {
       const orig = {type:'object', properties:{
         type:{type:'string'},

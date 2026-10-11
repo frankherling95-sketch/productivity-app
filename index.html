@@ -8215,6 +8215,28 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
 .aic-ai { align-self: flex-start; background: var(--surface2); border: 1px solid var(--border); }
 .aic-ai.is-fout { color: var(--danger); background: var(--danger-bg, rgba(239,68,68,.08)); border-color: rgba(239,68,68,.25); }
 .aic-ai.is-fout .aic-deel { color: var(--text); margin-top: 8px; }
+/* Een voorstel van de chat (AI_ACTIES): wat er gaat gebeuren, en jij klikt.
+   Een kaart in het antwoord, in de vlakkleur erboven zodat hij loskomt van
+   de tekst; knoppen in de voet zoals in een modaal (.btn-sm). De stand
+   draagt zijn kleur in een stip, niet in de tekst (stijlgids §12). */
+.aic-actie {
+  margin: 10px 0 0; padding: 10px 12px;
+  background: var(--surface); border: 1px solid var(--border-strong); border-radius: 10px;
+}
+.aic-ai > .aic-actie:first-child { margin-top: 0; }
+.aic-actie-kop { display: flex; align-items: center; gap: 8px; font-size: var(--fs-klein); font-weight: 700; }
+.aic-actie-kop svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--mint); }
+.aic-actie-stand { margin-left: auto; font-size: var(--fs-micro); font-weight: 600; color: var(--text-muted); white-space: nowrap; }
+.aic-actie-stand::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; background: var(--text-hint); }
+.aic-actie[data-status="gedaan"] .aic-actie-stand::before { background: var(--success); }
+.aic-actie[data-status="fout"] .aic-actie-stand::before { background: var(--danger); }
+.aic-actie-regels { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 12px; margin: 8px 0 0; font-size: var(--fs-klein); }
+.aic-actie-regels dt { color: var(--text-muted); }
+.aic-actie-regels dd { margin: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.aic-actie-fout { margin-top: 8px; font-size: var(--fs-klein); color: var(--danger); }
+.aic-actie-knoppen { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.aic-actie-melding { font-size: var(--fs-klein); color: var(--text-muted); margin-right: auto; }
+.aic-actie[data-status="overgeslagen"], .aic-actie[data-status="terug"] { opacity: .65; }
 .aic-ai > :first-child { margin-top: 0; }
 .aic-ai > :last-child { margin-bottom: 0; }
 .aic-ai p { margin: 0 0 8px; }
@@ -8646,7 +8668,7 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.49</span>
+        <span class="app-versie" title="Appversie">v2.50</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -10261,7 +10283,7 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
   <div class="modal aic-modal">
     <div class="modal-kop aic-kop">
       <h3><span class="ai-spark" aria-hidden="true">✨</span>Vraag het je app</h3>
-      <p>Over je taken, uren, facturen, opdrachten en contracten</p>
+      <p>Over je taken, uren, facturen, opdrachten en contracten — en wat je vraagt, zet hij voor je klaar</p>
     </div>
     <div class="aic-lijst" id="aiChatLijst" aria-live="polite"></div>
     <form class="aic-invoer" onsubmit="event.preventDefault();aiChatVraag()">
@@ -35362,7 +35384,10 @@ function _aiJson(text){
    Weekreview en Vraag het je app. Maskeren en terugvertalen gebeurt hier,
    vóór de splitsing: de ontvanger plakt de stukken aan elkaar en rendert
    ze, en krijgt dus meteen echte namen -- welke aanbieder het ook was. */
-async function* _streamAI({system,user,temperature=0.5,maskeer=false,geschiedenis=null}){
+/* `gereedschap` (alleen Claude, zie AI_ACTIES): gebruikt het model er een,
+   dan komt er naast tekst een object {type:'actie',naam,input} uit deze
+   stroom -- met de namen erin al terugvertaald. Gemini krijgt ze niet. */
+async function* _streamAI({system,user,temperature=0.5,maskeer=false,geschiedenis=null,gereedschap=null}){
   if(!aiSleutel())throw new Error('Geen '+aiNaam()+' API-key ingesteld. Klik op ⚙ API-key.');
   const masker=(maskeer&&aiMaskerenAan())?aiMaskerder():null;
   /* Eerdere beurten van een gesprek (AI-chat): [{rol:'user'|'model',tekst}].
@@ -35376,11 +35401,18 @@ async function* _streamAI({system,user,temperature=0.5,maskeer=false,geschiedeni
     user=masker.maskeer(user);
   }
   const bron=aiAanbieder()==='claude'
-    ? _claudeStroom({system,eerder,user})
+    ? _claudeStroom({system,eerder,user,gereedschap})
     : _geminiStroom({system,eerder,user,temperature});
   const terug=masker?masker.stroom():null;
   try{
     for await (const chunk of bron){
+      if(typeof chunk!=='string'){
+        /* Een actie: eerst de tekst die nog werd vastgehouden, dan de actie
+           zelf met echte namen ({{KLANT_1}} → de klant). */
+        if(terug){const rest=terug.slot();if(rest)yield rest;}
+        yield masker?{...chunk,input:masker.ontmaskeerDiep(chunk.input)}:chunk;
+        continue;
+      }
       if(!terug){yield chunk;continue;}
       const stuk=terug.duw(chunk);
       if(stuk)yield stuk;
@@ -35593,7 +35625,7 @@ function _claudeBerichten(eerder,user,blokken){
   return uit;
 }
 
-function _claudeBody(model,{system,berichten,schema,stroom}){
+function _claudeBody(model,{system,berichten,schema,stroom,gereedschap}){
   /* max_tokens dekt ook het nadenken. Ruim, want te krap breekt een
      antwoord halverwege af; je betaalt alleen wat er werkelijk uitkomt. */
   const body={model,max_tokens:stroom?32000:16000,messages:berichten};
@@ -35605,6 +35637,9 @@ function _claudeBody(model,{system,berichten,schema,stroom}){
   if(_claudeKentEffort(model))oc.effort=stroom?'medium':'low';
   if(schema)oc.format={type:'json_schema',schema:_claudeSchema(schema)};
   if(Object.keys(oc).length)body.output_config=oc;
+  /* Gereedschap staat vóór de systeemprompt in de cache, dus de vaste lijst
+     wordt meebewaard met het overzicht. */
+  if(gereedschap&&gereedschap.length)body.tools=gereedschap;
   if(stroom)body.stream=true;
   if(_claudeKentTerugval(model))body.fallbacks='default';
   return body;
@@ -35711,17 +35746,30 @@ async function _claudeVraag({system,user,schema,bestanden}){
 }
 
 /* ─ Claude: het antwoord als stroom, nog gemaskeerd ─ */
-async function* _claudeStroom({system,eerder,user}){
+async function* _claudeStroom({system,eerder,user,gereedschap}){
   const model=claudeModel();
   const r=await _claudeFetch(_claudeBody(model,{system,
-    berichten:_claudeBerichten(eerder,user),stroom:true}));
+    berichten:_claudeBerichten(eerder,user),stroom:true,gereedschap}));
   let gekregen=false, reden='', details=null, gebruik=null, fout=null;
+  /* Een gereedschapsaanroep komt in stukjes JSON binnen, per blok; pas bij
+     het eind van het blok is hij heel. */
+  const bezig={};
   /* Alleen tekst komt in beeld. Nadenken komt als eigen blok mee (leeg, want
      de gedachten zelf geeft Claude niet terug) en wordt overgeslagen. */
   for await (const d of _aiSse(r)){
     if(d.type==='content_block_delta'&&d.delta?.type==='text_delta'&&d.delta.text){
       gekregen=true;
       yield d.delta.text;
+    }else if(d.type==='content_block_start'&&d.content_block?.type==='tool_use'){
+      bezig[d.index]={id:d.content_block.id,naam:d.content_block.name,json:''};
+    }else if(d.type==='content_block_delta'&&d.delta?.type==='input_json_delta'){
+      if(bezig[d.index])bezig[d.index].json+=d.delta.partial_json||'';
+    }else if(d.type==='content_block_stop'&&bezig[d.index]){
+      const b=bezig[d.index];delete bezig[d.index];
+      let input=null;
+      try{input=b.json?JSON.parse(b.json):{};}catch(e){/* kapot: de kaart zegt het */}
+      gekregen=true;
+      yield {type:'actie',id:b.id,naam:b.naam,input};
     }else if(d.type==='message_delta'){
       if(d.delta?.stop_reason)reden=d.delta.stop_reason;
       if(d.delta?.stop_details)details=d.delta.stop_details;
@@ -35737,8 +35785,10 @@ async function* _claudeStroom({system,eerder,user}){
   if(reden==='refusal')throw halfAf(_claudeWeigering(details));
   if(!gekregen)throw new Error('Claude stuurde geen antwoord terug'+(reden?' (reden: '+reden+')':'')+'.');
   /* Wel tekst, maar niet netjes afgesloten: dan is het een half antwoord en
-     dat mag niet als compleet in beeld blijven staan (zie _geminiStroom). */
-  if(reden!=='end_turn'&&reden!=='stop_sequence'){
+     dat mag niet als compleet in beeld blijven staan (zie _geminiStroom).
+     tool_use is wél af: het model wil een actie, en die staat als voorstel
+     in beeld. Het resultaat gaat niet terug naar het model (zie AI_ACTIES). */
+  if(reden!=='end_turn'&&reden!=='stop_sequence'&&reden!=='tool_use'){
     try{console.info('[Claude] stroom gestopt',{reden:reden||'(geen)',gebruik});}catch(_){}
     throw halfAf(reden==='max_tokens'
       ? 'Claude stopte halverwege: het antwoord paste niet in de ruimte die het model kreeg.'
@@ -36554,7 +36604,8 @@ const AI_CHAT_SUGGESTIES=[
   'Hoeveel uren heb ik deze maand geschreven, per klant?',
   'Welke contracten of opdrachten vragen binnenkort een beslissing?',
   'Hoeveel uren heb ik nog niet gefactureerd?',
-  'Wat was mijn omzet per maand dit jaar?'
+  'Wat was mijn omzet per maand dit jaar?',
+  'Zet een taak klaar: offerte nalopen, deadline vrijdag'
 ];
 let aiChatGesprek=[];                  /* [{rol:'user'|'model',tekst,fout?}] */
 
@@ -36611,7 +36662,7 @@ function aiChatOverzicht(vandaagIso){
     afgerondPerWeek:Object.keys(perWeek).sort().map(w=>({week:w,...perWeek[w]})),
     afgerondPerMaand:Object.keys(perMaand).sort().map(m=>({maand:m,aantal:perMaand[m]})),
     openLijst:open.slice().sort((a,b)=>(a.deadline||'9999').localeCompare(b.deadline||'9999')).slice(0,80)
-      .map(i=>({taak:i.text,klant:_aiChatKlant(i.clientId),deadline:i.deadline||null,prioriteit:i.priority||'middel',
+      .map(i=>({id:i.id,taak:i.text,klant:_aiChatKlant(i.clientId),deadline:i.deadline||null,prioriteit:i.priority||'middel',
         subtaken:(i.subtasks||[]).length?(i.subtasks.filter(t=>t.done).length+'/'+i.subtasks.length):undefined})),
     recentAfgerond:klaar.filter(i=>i.doneAt&&i.doneAt>=recentGrens.getTime())
       .sort((a,b)=>b.doneAt-a.doneAt).slice(0,60)
@@ -36688,7 +36739,329 @@ function aiChatOverzicht(vandaagIso){
         signalen:ctrSignalen(c,lt,vandaag).map(x=>x.tekst)};
     });
   }catch(e){uit.contracten='Kon de contracten niet lezen.';}
+  /* De namen zoals ze in je lijst staan: een actie (uren, een taak) moet
+     precies een van deze noemen. */
+  uit.klanten=((kanbanState&&kanbanState.clients)||[]).map(c=>c.name||c.bedrijfsnaam).filter(Boolean);
   return uit;
+}
+
+/* ── Acties: de chat stelt voor, jij voert uit ──────────────────────────
+   (2026-10-11) Claude krijgt een handvol gereedschappen (tool use): een taak
+   toevoegen of afvinken, uren schrijven, een factuur op betaald zetten, een
+   notitie maken. Wil hij er een gebruiken, dan verandert er nog niets: er
+   komt een kaart in het gesprek met precies wat er gaat gebeuren -- de klant
+   zoals hij in je lijst staat, de datum uitgeschreven -- en de knoppen
+   Uitvoeren en Overslaan. Pas na jouw klik verandert er iets, via dezelfde
+   wegen als in de modules zelf (urenAddEntry, factuurMarkeerBetaald,
+   clZetHoofdKlaar, …), en daarna kun je het nog ongedaan maken.
+
+   - Alleen met Claude. Gemini kent een andere vorm van gereedschap, en
+     Claude is de standaard; met Gemini beantwoordt de chat alleen vragen.
+   - Er gaat geen resultaat terug naar het model. De kaart zegt al wat er
+     gebeurd is. Bij de volgende vraag leest het model in de geschiedenis
+     wat het voorstelde en of je het uitvoerde (aiChatBeurtTekst).
+   - strict: de API houdt de invoer aan het schema. Wat het schema niet kan
+     afdwingen (bestaat die klant, is dat een echte datum, staat die factuur
+     nog open) controleert bekijk() vóór de kaart in beeld komt. */
+function _aiActieDatum(s,leegMag){
+  s=String(s||'').trim();
+  if(!s)return leegMag?{iso:'',tekst:''}:{fout:'Er staat geen datum bij.'};
+  const d=new Date(s+'T12:00:00');
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(s)||isNaN(d)||dateStr(d)!==s)return {fout:'"'+s+'" is geen geldige datum.'};
+  return {iso:s,tekst:d.toLocaleDateString('nl-NL',{weekday:'short',day:'numeric',month:'short',year:'numeric'})};
+}
+/* Precies de naam (of bedrijfsnaam) uit je klantenlijst; anders een unieke
+   gedeeltelijke treffer. Twee mogelijke klanten is geen klant: dan liever
+   de vraag terug dan uren bij de verkeerde. */
+function _aiActieKlant(naam,verplicht){
+  naam=String(naam||'').trim();
+  if(!naam)return verplicht?{fout:'Er staat geen klant bij.'}:{id:null,naam:''};
+  const kl=s=>String(s||'').trim().toLowerCase();
+  const n=kl(naam), lijst=(kanbanState&&kanbanState.clients)||[];
+  let k=lijst.find(c=>kl(c.name)===n||kl(c.bedrijfsnaam)===n);
+  if(!k){
+    const kand=lijst.filter(c=>[c.name,c.bedrijfsnaam].some(v=>kl(v).length>=3&&(kl(v).includes(n)||n.includes(kl(v)))));
+    if(kand.length===1)k=kand[0];
+    else if(kand.length>1)return {fout:'"'+naam+'" past bij meer dan één klant.'};
+  }
+  return k?{id:k.id,naam:k.name||k.bedrijfsnaam||naam}:{fout:'Klant "'+naam+'" staat niet in je klantenlijst.'};
+}
+/* Na een actie: de badges en de module die openstaat bijwerken. */
+function aiActieVernieuw(){
+  try{updateNavBadges();}catch(_){}
+  try{
+    const m=activeModule;
+    if(m==='dashboard')renderDashboard();
+    else if(m==='checklist')renderChecklistModule();
+    else if(m==='uren')urenRenderAll();
+    else if(m==='facturen')facRenderAll();
+    else if(m==='notes')renderNotesModule();
+    else if(m==='opdrachten')renderOpdrachtenModule();
+  }catch(e){console.warn('[chat] hertekenen na actie',e);}
+}
+const AI_ACTIE_VERGRENDELD='De uren- en factuurgegevens zijn op dit apparaat nog vergrendeld.';
+
+/* Per actie: het gereedschap voor het model (naam, uitleg, schema), en
+   bekijk(input) → {titel, regels:[[label,waarde]], fout?, doe()}. doe()
+   voert uit en geeft {melding, terug()} terug. */
+const AI_ACTIES={
+  taak_toevoegen:{
+    label:'Taak toevoegen',
+    uitleg:'Zet een nieuwe taak in de Checklist. Alleen als de gebruiker vraagt iets toe te voegen, te noteren of te onthouden.',
+    schema:{type:'object',additionalProperties:false,
+      required:['titel','deadline','klant','prioriteit','subtaken'],
+      properties:{
+        titel:{type:'string',description:'Korte titel, zoals de gebruiker hem zou opschrijven.'},
+        deadline:{type:'string',description:'JJJJ-MM-DD, of leeg zonder deadline.'},
+        klant:{type:'string',description:'Klantnaam precies zoals in de gegevens, of leeg.'},
+        prioriteit:{type:'string',enum:['laag','middel','hoog']},
+        subtaken:{type:'array',items:{type:'string'},description:'Losse stappen, of een lege lijst.'}}},
+    bekijk:i=>{
+      const titel=String(i.titel||'').trim();
+      const dl=_aiActieDatum(i.deadline,true), kl=_aiActieKlant(i.klant,false);
+      const prio=CL_PRIORITY_CFG[i.prioriteit]?i.prioriteit:'middel';
+      const subs=(Array.isArray(i.subtaken)?i.subtaken:[]).map(s=>String(s||'').trim()).filter(Boolean);
+      const regels=[['Taak',titel],['Klant',kl.naam||'—'],['Deadline',dl.tekst||'geen'],
+        ['Prioriteit',CL_PRIORITY_CFG[prio].label]];
+      if(subs.length)regels.push(['Subtaken',subs.join(' · ')]);
+      return {titel:'Taak toevoegen',regels,fout:!titel?'De taak heeft geen titel.':(dl.fout||kl.fout),
+        doe(){
+          if(!checklistState.items)checklistState.items=[];
+          const item={id:uid(),text:titel,done:false,priority:prio,deadline:dl.iso||null,clientId:kl.id||null,
+            subtasks:subs.map(text=>({id:uid(),text,done:false})),archived:false,
+            sortOrder:checklistState.items.length,createdAt:Date.now(),updatedAt:Date.now()};
+          checklistState.items.push(item);
+          scheduleSave();aiActieVernieuw();
+          return {melding:'Toegevoegd aan de Checklist',terug(){
+            checklistState.items=checklistState.items.filter(x=>x.id!==item.id);
+            scheduleSave();aiActieVernieuw();}};
+        }};
+    }
+  },
+  taak_afvinken:{
+    label:'Taak afvinken',
+    uitleg:'Zet een open taak op klaar. Gebruik het id uit taken.openLijst.',
+    schema:{type:'object',additionalProperties:false,required:['taak_id','titel'],
+      properties:{
+        taak_id:{type:'string',description:'Het id van de taak uit taken.openLijst.'},
+        titel:{type:'string',description:'De titel van die taak, ter controle.'}}},
+    bekijk:i=>{
+      const items=(checklistState&&checklistState.items)||[];
+      let item=items.find(x=>x.id===String(i.taak_id||'').trim());
+      /* Geen id of een verkeerd id: alleen op titel als dat er precies één is. */
+      if(!item){
+        const t=String(i.titel||'').trim().toLowerCase();
+        const kand=items.filter(x=>!x.archived&&!x.done&&String(x.text||'').trim().toLowerCase()===t);
+        if(kand.length===1)item=kand[0];
+      }
+      if(!item)return {titel:'Taak afvinken',regels:[['Taak',String(i.titel||'')]],fout:'Deze taak staat niet (meer) open.'};
+      const open=(item.subtasks||[]).filter(s=>!s.done).length;
+      const regels=[['Taak',item.text],['Klant',_aiChatKlant(item.clientId)],['Deadline',item.deadline?_aiActieDatum(item.deadline,true).tekst:'geen']];
+      if(open)regels.push(['Subtaken',open+' open, gaan mee op klaar']);
+      return {titel:'Taak afvinken',regels,fout:item.done?'Deze taak staat al op klaar.':'',
+        doe(){
+          clZetHoofdKlaar(item,true);
+          /* Een herhalende taak krijgt zijn volgende keer, net als bij afvinken
+             in de Checklist (toggleChecklistDone). */
+          let volgende=null;
+          if(item.recurrence&&item.recurrence!=='none'){
+            volgende=spawnRecurringNext(item);
+            if(volgende)checklistState.items.push(volgende);
+          }
+          scheduleSave();aiActieVernieuw();
+          return {melding:volgende?'Afgevinkt; de volgende herhaling staat erin':'Afgevinkt',terug(){
+            clZetHoofdKlaar(item,false);
+            if(volgende)checklistState.items=checklistState.items.filter(x=>x!==volgende);
+            scheduleSave();aiActieVernieuw();}};
+        }};
+    }
+  },
+  uren_schrijven:{
+    label:'Uren schrijven',
+    uitleg:'Schrijf uren op een klant, op één dag. Eén aanroep per dag; voor meerdere dagen meerdere aanroepen.',
+    schema:{type:'object',additionalProperties:false,required:['datum','uren','klant','omschrijving'],
+      properties:{
+        datum:{type:'string',description:'JJJJ-MM-DD.'},
+        uren:{type:'number',description:'Aantal uren, bijvoorbeeld 6 of 2.5.'},
+        klant:{type:'string',description:'Klantnaam precies zoals in de gegevens.'},
+        omschrijving:{type:'string',description:'Wat er gedaan is, of leeg.'}}},
+    bekijk:i=>{
+      const dl=_aiActieDatum(i.datum,false), kl=_aiActieKlant(i.klant,true);
+      const u=Number(i.uren), uren=urenClampHours(u);
+      const oms=String(i.omschrijving||'').trim();
+      const regels=[['Datum',dl.tekst||String(i.datum||'')],['Klant',kl.naam||String(i.klant||'')],
+        ['Uren',urenFmtShort(uren)],['Omschrijving',oms||'—']];
+      const fout=!geheimenKlaar()?AI_ACTIE_VERGRENDELD:dl.fout||kl.fout||
+        (!(u>0)?'Het aantal uren moet boven nul liggen.':u>24?'Meer dan 24 uur op één dag kan niet.':'');
+      return {titel:'Uren schrijven',regels,fout,
+        doe(){
+          const e=urenAddEntry({date:dl.iso,clientId:kl.id,hours:uren,description:oms});
+          aiActieVernieuw();
+          return {melding:'Geschreven bij Uren',terug(){
+            urenState.entries=urenState.entries.filter(x=>x.id!==e.id);
+            scheduleSave();aiActieVernieuw();}};
+        }};
+    }
+  },
+  factuur_betaald:{
+    label:'Factuur op betaald',
+    uitleg:'Registreer dat een verstuurde factuur volledig is betaald.',
+    schema:{type:'object',additionalProperties:false,required:['factuurnummer','datum'],
+      properties:{
+        factuurnummer:{type:'string',description:'Het nummer uit facturen.lijst.'},
+        datum:{type:'string',description:'Ontvangen op, JJJJ-MM-DD; leeg = vandaag.'}}},
+    bekijk:i=>{
+      const nr=String(i.factuurnummer||'').trim();
+      const dl=_aiActieDatum(i.datum,true);
+      const iso=dl.iso||dateStr(new Date());
+      if(!geheimenKlaar())return {titel:'Factuur op betaald',regels:[['Factuur',nr]],fout:AI_ACTIE_VERGRENDELD};
+      const f=(factuurState.invoices||[]).find(x=>String(x.nummer||'').trim().toLowerCase()===nr.toLowerCase());
+      if(!f)return {titel:'Factuur op betaald',regels:[['Factuur',nr]],fout:'Factuur '+nr+' bestaat niet.'};
+      const t=factuurTotalen(f);
+      const regels=[['Factuur',f.nummer],['Klant',(f.klant&&f.klant.naam)||_aiChatKlant(f.clientId)],
+        ['Ontvangen',factuurFmtBedrag(t.openstaand)],['Op',_aiActieDatum(iso,false).tekst]];
+      const fout=dl.fout||(f.status==='concept'?'Deze factuur is nog een concept.':
+        f.status==='betaald'||t.openstaand<=0.004?'Deze factuur is al betaald.':
+        f.status==='oninbaar'?'Deze factuur staat op oninbaar.':'');
+      return {titel:'Factuur op betaald',regels,fout,
+        doe(){
+          const voor={status:f.status,betaaldOp:f.betaaldOp,n:(f.betalingen||[]).length};
+          factuurMarkeerBetaald(f.id,null,iso);
+          aiActieVernieuw();
+          return {melding:f.nummer+' staat op betaald',terug(){
+            f.betalingen=(f.betalingen||[]).slice(0,voor.n);
+            f.status=voor.status;
+            if(voor.betaaldOp)f.betaaldOp=voor.betaaldOp;else delete f.betaaldOp;
+            f.updatedAt=Date.now();
+            scheduleSave();aiActieVernieuw();}};
+        }};
+    }
+  },
+  notitie_maken:{
+    label:'Notitie maken',
+    uitleg:'Maak een nieuwe notitie, bijvoorbeeld een verslag of een lijstje dat de gebruiker dicteert.',
+    schema:{type:'object',additionalProperties:false,required:['titel','inhoud','klant'],
+      properties:{
+        titel:{type:'string'},
+        inhoud:{type:'string',description:'De tekst in markdown.'},
+        klant:{type:'string',description:'Klantnaam precies zoals in de gegevens, of leeg.'}}},
+    bekijk:i=>{
+      const titel=String(i.titel||'').trim(), md=String(i.inhoud||'').trim();
+      const kl=_aiActieKlant(i.klant,false);
+      const kort=md.replace(/\s+/g,' ');
+      const regels=[['Titel',titel],['Klant',kl.naam||'—'],['Inhoud',kort.length>180?kort.slice(0,180)+'…':(kort||'leeg')]];
+      return {titel:'Notitie maken',regels,fout:!titel?'De notitie heeft geen titel.':kl.fout,
+        doe(){
+          const html=sanitizeNoteContent(window.marked?marked.parse(md):noteContentToHtml(md));
+          const node={id:ntuid(),type:'page',title:titel,content:html,clientId:kl.id||null,updatedAt:Date.now()};
+          notesState.tree.push(node);
+          scheduleSave();aiActieVernieuw();
+          return {melding:'Staat bij Notities',terug(){
+            const r=findNode(notesState.tree,node.id);
+            if(r)r.parentArr.splice(r.index,1);
+            if(notesState.activeId===node.id)notesState.activeId=null;
+            scheduleSave();aiActieVernieuw();}};
+        }};
+    }
+  }
+};
+/* Het gereedschap zoals de API het wil. */
+function aiActieGereedschap(){
+  return Object.keys(AI_ACTIES).map(naam=>({name:naam,description:AI_ACTIES[naam].uitleg,
+    input_schema:AI_ACTIES[naam].schema,strict:true}));
+}
+/* Een aanroep van het model → een voorstel in het gesprek. */
+function aiActieVoorstel(c){
+  const def=AI_ACTIES[c&&c.naam];
+  if(!def)return {naam:String(c&&c.naam||'?'),titel:'Onbekende actie',regels:[],status:'fout',
+    fout:'Deze actie kent de app niet.'};
+  if(!c.input||typeof c.input!=='object')return {naam:c.naam,titel:def.label,regels:[],status:'fout',
+    fout:'Het voorstel kwam half binnen; vraag het opnieuw.'};
+  let b;
+  try{b=def.bekijk(c.input);}
+  catch(e){console.warn('[chat] actie bekijken',e);b={titel:def.label,regels:[],fout:'Dit voorstel kon ik niet lezen.'};}
+  return {naam:c.naam,titel:b.titel,regels:b.regels||[],status:b.fout?'fout':'voorstel',fout:b.fout||'',doe:b.doe};
+}
+/* Hoe een voorstel in de geschiedenis staat voor de volgende vraag. */
+function aiActieSamenvatting(a){
+  const regels=(a.regels||[]).map(([k,v])=>k+': '+v).join(', ');
+  const stand={voorstel:'nog niet uitgevoerd',gedaan:'uitgevoerd',overgeslagen:'overgeslagen door de gebruiker',
+    terug:'uitgevoerd en daarna ongedaan gemaakt',fout:'kon niet: '+a.fout}[a.status]||a.status;
+  return a.titel+(regels?' ('+regels+')':'')+' — '+stand;
+}
+function aiChatBeurtTekst(b){
+  const acties=(b.acties||[]).map(aiActieSamenvatting);
+  return (b.tekst||'')+(acties.length?(b.tekst?'\n\n':'')+'[Acties: '+acties.join('; ')+']':'');
+}
+
+function _aiActie(bi,ai){
+  const b=aiChatGesprek[Number(bi)];
+  return b&&b.acties?b.acties[Number(ai)]:null;
+}
+function aiActieDoe(bi,ai,stil){
+  const a=_aiActie(bi,ai);
+  if(!a||a.status!=='voorstel'||!a.doe)return false;
+  try{
+    const r=a.doe();
+    a.status='gedaan';a.melding=r.melding;a.terug=r.terug;
+  }catch(e){
+    console.warn('[chat] actie uitvoeren',e);
+    a.status='fout';a.fout='Uitvoeren lukte niet: '+((e&&e.message)||e);
+  }
+  if(!stil)aiChatToon(true);
+  return a.status==='gedaan';
+}
+function aiActieSla(bi,ai){
+  const a=_aiActie(bi,ai);
+  if(!a||a.status!=='voorstel')return;
+  a.status='overgeslagen';
+  aiChatToon(true);
+}
+function aiActieTerug(bi,ai){
+  const a=_aiActie(bi,ai);
+  if(!a||a.status!=='gedaan'||!a.terug)return;
+  try{a.terug();a.status='terug';}
+  catch(e){console.warn('[chat] actie terugdraaien',e);appToast('Ongedaan maken lukte niet',{type:'error'});}
+  aiChatToon(true);
+}
+function aiActieAlles(bi){
+  const b=aiChatGesprek[Number(bi)];
+  if(!b||!b.acties)return;
+  const n=b.acties.reduce((t,a,i)=>t+(aiActieDoe(bi,i,true)?1:0),0);
+  aiChatToon(true);
+  if(n>1)appToast(n+' acties uitgevoerd',{type:'success',duration:2500});
+}
+Object.assign(APP_ACTIONS,{
+  aiActieDoe:(el,e,bi,ai)=>aiActieDoe(bi,ai),
+  aiActieSla:(el,e,bi,ai)=>aiActieSla(bi,ai),
+  aiActieTerug:(el,e,bi,ai)=>aiActieTerug(bi,ai),
+  aiActieAlles:(el,e,bi)=>aiActieAlles(bi)
+});
+const AI_ACTIE_STAND={gedaan:'Uitgevoerd',overgeslagen:'Overgeslagen',terug:'Ongedaan gemaakt',fout:'Kan niet'};
+function aiActieHtml(a,bi,ai){
+  const arg=' data-arg1="'+bi+'" data-arg2="'+ai+'"';
+  const regels=a.regels.length?'<dl class="aic-actie-regels">'+a.regels.map(([k,v])=>
+    '<dt>'+escapeHtml(k)+'</dt><dd>'+escapeHtml(v)+'</dd>').join('')+'</dl>':'';
+  const knoppen=a.status==='voorstel'
+    ? '<div class="aic-actie-knoppen"><button type="button" class="btn btn-sm btn-primary" data-action="aiActieDoe"'+arg+'>Uitvoeren</button>'+
+      '<button type="button" class="btn btn-sm" data-action="aiActieSla"'+arg+'>Overslaan</button></div>'
+    : a.status==='gedaan'
+    ? '<div class="aic-actie-knoppen"><span class="aic-actie-melding">'+escapeHtml(a.melding||'')+'</span>'+
+      (a.terug?'<button type="button" class="btn btn-sm" data-action="aiActieTerug"'+arg+'>Ongedaan maken</button>':'')+'</div>'
+    : '';
+  return '<div class="aic-actie" data-status="'+a.status+'">'+
+    '<div class="aic-actie-kop"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 1.8l1.3 3.6 3.6 1.3-3.6 1.3L8 11.6 6.7 8 3.1 6.7 6.7 5.4z"/></svg>'+
+    '<span>'+escapeHtml(a.titel)+'</span>'+
+    (AI_ACTIE_STAND[a.status]?'<span class="aic-actie-stand">'+AI_ACTIE_STAND[a.status]+'</span>':'')+'</div>'+
+    regels+(a.status==='fout'?'<div class="aic-actie-fout">'+escapeHtml(a.fout)+'</div>':'')+knoppen+'</div>';
+}
+/* Eén antwoord van de chat: tekst, dan de voorstellen. Twee of meer open
+   voorstellen krijgen er één knop bij om ze allemaal te doen. */
+function aiChatAntwoordHtml(b,bi){
+  const acties=b.acties||[];
+  const open=acties.filter(a=>a.status==='voorstel').length;
+  return (b.tekst?_aiChatHtml(b.tekst):'')+acties.map((a,ai)=>aiActieHtml(a,bi,ai)).join('')+
+    (open>1?'<div class="aic-actie-knoppen"><button type="button" class="btn btn-sm btn-primary" data-action="aiActieAlles" data-arg1="'+bi+'">Alles uitvoeren ('+open+')</button></div>':'');
 }
 
 function aiChatSysteem(){
@@ -36702,18 +37075,32 @@ function aiChatSysteem(){
     '- De totalen zijn vooraf berekend. Gebruik die; reken alleen zelf als het niet anders kan, en zeg dan waarop.',
     '- Bedragen als € 1.234,56. Datums als "9 okt 2026". Zeg bij een periode welke je bedoelt ("deze week" = de ISO-week van vandaag).',
     '- Namen zoals {{KLANT_1}} zijn vervangen klantnamen: neem ze precies zo over.',
+    ...(aiAanbieder()==='claude'?[
+      '',
+      'Acties:',
+      '- Je kunt ook iets dóen met je gereedschap: een taak toevoegen of afvinken, uren schrijven, een factuur op betaald zetten, een notitie maken. Alleen als de gebruiker daarom vraagt.',
+      '- Een actie gebeurt niet meteen: de gebruiker ziet een voorstel en klikt zelf op Uitvoeren. Zeg dus "ik zet het klaar", nooit "het is gedaan".',
+      '- Gebruik voor een klant precies een naam uit klanten. Weet je niet welke klant, welke datum of hoeveel uur, vraag het eerst in plaats van te gokken.',
+      '- Reken "gisteren", "vrijdag" of "volgende week maandag" om vanaf vandaag en geef datums als JJJJ-MM-DD.',
+      '- Een taak afvinken gaat met het id uit taken.openLijst; een factuur met het nummer uit facturen.lijst.',
+      '- In eerdere beurten staat tussen [Acties: …] wat je voorstelde en of het is uitgevoerd. Stel iets dat al is uitgevoerd niet nog eens voor.'
+    ]:[]),
     '',
     'GEGEVENS (JSON):',
     JSON.stringify(aiChatOverzicht())
   ].join('\n');
 }
 
-function aiChatToon(){
+/* houdPlek: na een klik op een voorstel blijft het gesprek staan waar je
+   was, in plaats van naar onderen te springen. */
+function aiChatToon(houdPlek){
   const lijst=document.getElementById('aiChatLijst');
   if(!lijst)return;
+  const plek=lijst.scrollTop;
   if(!aiChatGesprek.length){
     lijst.innerHTML=`<div class="aic-leeg">
-      <p>Stel een vraag over je taken, uren, facturen, opdrachten of contracten.</p>
+      <p>Stel een vraag over je taken, uren, facturen, opdrachten of contracten.<br>
+        Of laat iets klaarzetten: een taak, uren, een betaling, een notitie. Er gebeurt pas iets als jij op Uitvoeren klikt.</p>
       <div class="aic-suggesties">${AI_CHAT_SUGGESTIES.map((t,i)=>
         `<button type="button" class="aic-suggestie" data-action="aiChatSuggestie" data-arg1="${i}">${escapeHtml(t)}</button>`).join('')}</div>
     </div>`;
@@ -36722,9 +37109,9 @@ function aiChatToon(){
   lijst.innerHTML=aiChatGesprek.map((b,i)=>b.rol==='user'
     ?`<div class="aic-beurt aic-jij">${escapeHtml(b.tekst)}</div>`
     :`<div class="aic-beurt aic-ai${b.fout?' is-fout':''}" data-beurt="${i}">${b.fout
-        ?`⚠ ${escapeHtml(b.fout)}${b.tekst?'<div class="aic-deel">'+_aiChatHtml(b.tekst)+'</div>':''}`
-        :(b.tekst?_aiChatHtml(b.tekst):'<span class="aic-denkt"><span></span><span></span><span></span></span>')}</div>`).join('');
-  lijst.scrollTop=lijst.scrollHeight;
+        ?`⚠ ${escapeHtml(b.fout)}${(b.tekst||(b.acties||[]).length)?'<div class="aic-deel">'+aiChatAntwoordHtml(b,i)+'</div>':''}`
+        :((b.tekst||(b.acties||[]).length)?aiChatAntwoordHtml(b,i):'<span class="aic-denkt"><span></span><span></span><span></span></span>')}</div>`).join('');
+  lijst.scrollTop=houdPlek?plek:lijst.scrollHeight;
 }
 function _aiChatHtml(t){
   return (typeof marked!=='undefined'&&marked.parse)?veiligeHtml(marked.parse(t)):escapeHtml(t).replace(/\n/g,'<br>');
@@ -36736,25 +37123,31 @@ async function aiChatVraag(tekst){
   if(!vraag||_aiCalling.chat)return;
   if(!aiSleutel()){openAiKeyPrompt();return;}
   if(inp){inp.value='';aiChatInvoerHoogte();}
-  const eerder=aiChatGesprek.filter(b=>!b.fout&&b.tekst).slice(-AI_CHAT_MAX_BEURTEN)
-    .map(b=>({rol:b.rol,tekst:b.tekst}));
+  /* Een beurt met alleen voorstellen (geen tekst) telt ook mee: het model
+     moet weten wat het voorstelde en of je het deed. */
+  const eerder=aiChatGesprek.filter(b=>!b.fout&&(b.tekst||(b.acties||[]).length)).slice(-AI_CHAT_MAX_BEURTEN)
+    .map(b=>({rol:b.rol,tekst:aiChatBeurtTekst(b)}));
   aiChatGesprek.push({rol:'user',tekst:vraag});
-  const antwoord={rol:'model',tekst:''};
+  const antwoord={rol:'model',tekst:'',acties:[]};
   aiChatGesprek.push(antwoord);
+  const bi=aiChatGesprek.length-1;
   _aiCalling.chat=true;
   aiChatKnoppen();
   aiChatToon();
   const lijst=document.getElementById('aiChatLijst');
   let laatst=0;
+  const teken=()=>{
+    const el=lijst&&lijst.querySelector(`[data-beurt="${bi}"]`);
+    if(el){el.innerHTML=aiChatAntwoordHtml(antwoord,bi);lijst.scrollTop=lijst.scrollHeight;}
+  };
   try{
-    for await (const stuk of _streamAI({system:aiChatSysteem(),user:vraag,temperature:0.2,maskeer:true,geschiedenis:eerder})){
+    for await (const stuk of _streamAI({system:aiChatSysteem(),user:vraag,temperature:0.2,maskeer:true,
+      geschiedenis:eerder,gereedschap:aiAanbieder()==='claude'?aiActieGereedschap():null})){
+      /* Een actie komt meteen als kaart in beeld; tekst per 100 ms. */
+      if(typeof stuk!=='string'){antwoord.acties.push(aiActieVoorstel(stuk));teken();laatst=Date.now();continue;}
       antwoord.tekst+=stuk;
       const nu=Date.now();
-      if(nu-laatst>100){
-        const el=lijst&&lijst.querySelector(`[data-beurt="${aiChatGesprek.length-1}"]`);
-        if(el){el.innerHTML=_aiChatHtml(antwoord.tekst);lijst.scrollTop=lijst.scrollHeight;}
-        laatst=nu;
-      }
+      if(nu-laatst>100){teken();laatst=nu;}
     }
   }catch(e){
     antwoord.fout=(e&&e.message)||'Er ging iets mis.';

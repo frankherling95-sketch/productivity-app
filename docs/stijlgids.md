@@ -620,3 +620,23 @@ telefoon gaat de topbalk weg, want de titel staat al in de mobiele balk.
 
 Een nieuwe instelling krijgt een regel op deze pagina, ook als hij in een
 ⋯-menu van een module blijft staan. Hier zoek je, daar gebruik je.
+
+---
+
+## 16. Een voorstel in de chat
+
+Wil Vraag het je app iets doen, dan staat er een kaart in het antwoord
+(`.aic-actie`). Op die kaart staat wat er gaat gebeuren. Er verandert pas iets
+als je klikt.
+
+| | |
+|---|---|
+| kaart | `--surface` op het vlak van de bubbel, `1px var(--border-strong)`, radius 10px, vulling `10px 12px` |
+| kop | icoon van 16px in mint, titel `--fs-klein` / 700; rechts de stand in `--fs-micro` met een stip van 7px (grijs, groen als uitgevoerd, rood als het niet kan) |
+| regels | `dl` in twee kolommen: label muted, waarde `--text`, beide `--fs-klein`; namen en datums voluit ("vr 16 okt 2026"), zoals ze in de app staan |
+| knoppen | `.btn-sm`: **Uitvoeren** primair, **Overslaan** secundair; na uitvoeren een melding plus **Ongedaan maken** |
+| kan niet | een regel in `--danger` met de reden, zonder Uitvoeren |
+| twee of meer open | onder de kaarten één knop **Alles uitvoeren (n)** |
+
+Overgeslagen en ongedaan gemaakte kaarten blijven staan op 65% dekking. Zo
+blijft zichtbaar wat er voorgesteld is.
