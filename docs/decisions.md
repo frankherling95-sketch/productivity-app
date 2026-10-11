@@ -6884,3 +6884,23 @@ kopbalk van het Dashboard), `test.html` (1 test), `sw.js`,
 **Niet doen.** Terug naar CSS-kolommen zolang er iets inklapt. En de open
 stand niet in `rawState` zetten: dan wordt elke klik een wijziging voor
 Drive.
+
+## 2026-10-11 · Mail: per account het adres en de aantallen (v2.56)
+
+**Probleem.** In Mail stond alleen "Zakelijk" of "Privé" in een
+keuzelijst. Welk adres dat was, en hoeveel ongelezen mail er per account
+lag, zag je niet.
+
+**Beslissing.** Boven de lijst staat per account een kaartje. Daarop staan
+de naam, het adres, het aantal ongelezen (mint, zoals een teller), en een
+bijregel met wat er in Postvak IN staat, met ster en als concept. Een klik
+filtert op dat account, nog een klik zet het filter terug. De keuzelijst
+is weg. Het tabblad Ongelezen krijgt een teller: die van Contracten, in
+mint (ongelezen is geen waarschuwing). De tellers zijn drie goedkope
+`labels.get`-aanroepen per account (INBOX, STARRED, DRAFT). Ook de
+keuzelijst van Agenda en de pil boven een geopende mail tonen nu het adres.
+
+**Waarom kaartjes en geen keuzelijst.** Stijlgids §6 staat chips toe voor een
+vaste set zoals Zakelijk/Privé. Hier was het tonen van het adres en het
+aantal het hele punt, en dat past niet in een keuzelijst. Op een telefoon
+schuift de strook opzij, zodat hij één regel blijft.

@@ -2601,6 +2601,29 @@ async function runChecks() {
       w.switchModule(oudModule || 'dashboard');
       return rijen.length === 2 && /Jan Jansen/.test(rijen[0].textContent) && gelezen && !!frame && !/allow-scripts/.test(sandbox);
     }))],
+    /* Per account het adres en het aantal ongelezen, de teller bij het tabblad
+       Ongelezen, en filteren met een klik op het kaartje (2026-10-11). */
+    ['Mail: kaartje per account met adres en ongelezen, klik filtert', () => metLS({herling_pv: null}, () => metGoogle(async () => {
+      const oudModule = w.activeModule;
+      w.switchModule('mail');
+      await w.pvTelOngelezen();
+      await new Promise(r => setTimeout(r, 300));
+      const kaartjes = [...d.querySelectorAll('#pvLijstKol .pv-acc-kaart')];
+      const zak = kaartjes.find(k => /test@herling-analytics\.nl/.test(k.textContent));
+      const teller = d.querySelector('#pvTabs [data-arg1="ongelezen"] .pv-tabteller');
+      const voor = kaartjes.length === 2 && zak && /Zakelijk/.test(zak.textContent) &&
+        (zak.querySelector('.pv-acc-n') || {}).textContent === '1' && teller && teller.textContent === '1';
+      if (zak) zak.click();
+      await new Promise(r => setTimeout(r, 300));
+      const gefilterd = w.pvAccountFilter() === 'tz' &&
+        d.querySelector('#pvLijstKol .pv-acc-kaart[aria-pressed="true"]') !== null;
+      const terug = d.querySelector('#pvLijstKol .pv-acc-kaart[aria-pressed="true"]');
+      if (terug) terug.click();
+      await new Promise(r => setTimeout(r, 200));
+      const weerAlle = w.pvAccountFilter() === '';
+      w.switchModule(oudModule || 'dashboard');
+      return voor && gefilterd && weerAlle;
+    }))],
     ['Mail: archiveren haalt uit Postvak, terugzetten zet hem terug', () => metLS({herling_pv: null}, () => metGoogle(async (log, labels) => {
       await w.pvLaad(false);
       await w.pvDoe(['tz|t1'], 'archiveer', true);
