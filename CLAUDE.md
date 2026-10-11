@@ -24,6 +24,7 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 ├── index.html   ← DE app (alle wijzigingen hier)
 ├── herling_analytics_home.html, bi_checklist_kanban.html  ← redirect-stubs (oude URLs)
 ├── over.html, privacy.html, voorwaarden.html  ← openbare pagina's voor het OAuth-scherm van Google (geen namen of adressen erin)
+├── _config.yml                   ← Pages/Jekyll: houdt CLAUDE.md, docs/, test.html en hulpscripts van de live site
 ├── herling-icon.svg              ← open-ring-logo op donkere tegel, stilstaand (manifest)
 ├── herling-favicon-16/32.png     ← tabblad
 ├── herling-ring-48.png           ← regel "Alle klanten" in de klantwisselaar; het logo met tekst linksboven staat inline in index.html
@@ -363,6 +364,8 @@ Gebruik altijd deze verzonnen namen:
 | gemeente / instelling | Gemeente Puren, Bibliotheek Noordstad, Bibliotheek Zuidstad |
 | overig bedrijf | Voorbeeld B.V., Voorbeeld Energie, Voorbeeld Telecom |
 | persoon | Jan Jansen, iemand@voorbeeld.nl |
+
+Hetzelfde geldt voor de eigen naam en e-mailadressen van de gebruiker in alles wat de site serveert (`index.html`, de openbare pagina's): lees die uit de eigen gegevens (`gebruikerOndertekening()`), niet als vaste tekst. Commits gaan onder het noreply-adres van GitHub (repo-config).
 
 Wat Frank zelf invult (klanten, links naar portalen van relaties) hoort in zijn
 eigen gegevens in Drive, niet in de code — zie Externe tools

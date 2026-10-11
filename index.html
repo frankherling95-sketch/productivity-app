@@ -3209,7 +3209,7 @@ iframe.pv-inhoud{display:block;width:100%;height:120px;border:0;background:trans
   --radius-lg:       14px;
   /* Zijbalk: 272 open, 72 ingeklapt (icoon van 20 in een rij van 48). Was 236:
      de klantwisselaar en het gebruikersblok hebben een naam én een tweede
-     regel, en daar viel een adres als frank@herling-analytics.nl halverwege
+     regel, en daar viel een adres als iemand@voorbeeld.nl halverwege
      weg. Op 272 past het precies. */
   --sidebar-w:       272px;
   --sidebar-w-dicht: 72px;
@@ -3331,7 +3331,7 @@ h1, h2, h3, h4, h5 {
 ::-webkit-scrollbar-thumb:hover { background: var(--text-hint); }
 
 /* ─── Sidebar ───────────────────────────────────────────────────────────────
-   Opgezet naar het voorbeeld dat Frank aanleverde (2026-09-16): grotere,
+   Opgezet naar een aangeleverd voorbeeld (2026-09-16): grotere,
    vettere regels, groepen die in de lijst uitklappen, een klantwisselaar
    bovenin, de gebruiker onderin en een ronde inklapknop op de rand. De kleuren
    zijn de onze: de zijbalk blijft het navy-teal verloop in beide thema's, en
@@ -8104,7 +8104,7 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
    altijd donker, dit venster volgt licht/donker): wie je nu bekijkt, zoeken,
    de lijst met een vinkje, en de sneltoets.
 
-   Zelfde maat als het venster van Externe tools (2026-09-16, op Franks
+   Zelfde maat als het venster van Externe tools (2026-09-16, op
    verzoek -- de eerste versie was 360px met regels van 52px en voelde te
    groot): 320px breed, 6px binnenrand, regels van 48px met een blokje van
    22px, naam 13px/600, bijregel 10,5px. Zet hier geen eigen maat neer; houd
@@ -9173,7 +9173,7 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.56</span>
+        <span class="app-versie" title="Appversie">v2.57</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -11809,7 +11809,7 @@ function hydrateerStateIntern(){
   if(!kanbanState.clients)kanbanState.clients=[];
   notesState=rawState.notes||{tree:[],activeId:null,collapsed:{}};
   if(!notesState.tree)notesState.tree=[];
-  /* Standaard 'Laatst gewijzigd' (Frank, 2026-10-05). Een opgeslagen
+  /* Standaard 'Laatst gewijzigd' (2026-10-05). Een opgeslagen
      'handmatig' zonder sortGekozen was de oude standaard en geen keuze --
      die gaat om. Wie in het ⋯-menu zelf iets kiest, houdt dat. */
   if(!['gewijzigd','handmatig','naam'].includes(notesState.sortBy)||(!notesState.sortGekozen&&notesState.sortBy==='handmatig'))
@@ -11848,7 +11848,7 @@ function hydrateerStateIntern(){
     pinVergrendeld=true;
     geheimenGeladen=false;
     /* Onthoudt dit apparaat de sleutel nog, dan gaat het uitpakken vanzelf
-       en merkt Frank er niets van. Zo niet, dan vraagt de modaal er één
+       en merk je er niets van. Zo niet, dan vraagt de modaal er één
        keer om zodra hij Facturen of Uren opent. */
     pinLeesBewaardeSleutel().then(async(bewaard)=>{
       if(!bewaard)return;
@@ -12501,7 +12501,7 @@ async function handleRestoreFile(file){
 }
 
 /* ─ Automatisch bijwerken ─
-   Frank werkt vanaf meerdere computers, nooit tegelijk. Wat er dan misgaat
+   De gebruiker werkt vanaf meerdere computers, nooit tegelijk. Wat er dan misgaat
    is geen botsing maar een oud scherm: je opent de app op de andere pc en
    kijkt naar de stand van gisteren tot je op ↻ klikt. Dat klikken hoort
    niet nodig te zijn.
@@ -12839,6 +12839,20 @@ function sluitZijbalkVensters(){
 /* ─ Gebruiker onderin ──────────────────────────────────────────────────────
    Naam en e-mail komen uit de Google-login (LS_LOGIN). Geen profielfoto: die
    staat op een Google-server en initialen zeggen hier hetzelfde. */
+/* Naam en bedrijf voor een ondertekening of een AI-instructie: uit je
+   Google-login en je eerste factuurbedrijf. Leest alleen; maakt geen
+   instellingen aan (de factuurgegevens kunnen nog dicht zijn). */
+function gebruikerOndertekening(){
+  const g=ingelogdeGebruiker();
+  const naam=g&&g.naam?String(g.naam).trim():'';
+  let bedrijf='';
+  try{
+    const s=typeof factuurState!=='undefined'&&factuurState&&factuurState.settings;
+    const b=s&&Array.isArray(s.bedrijven)&&(s.bedrijven.find(x=>x.id===s.standaardBedrijf)||s.bedrijven[0]);
+    bedrijf=b&&b.naam&&b.naam!=='Mijn bedrijf'?String(b.naam).trim():'';
+  }catch(_){}
+  return {naam,bedrijf};
+}
 function gebruikerNaam(g){
   const naam=String(g&&g.naam||'').trim();
   if(naam)return naam;
@@ -16404,13 +16418,19 @@ const NOTE_TEMPLATES=[
     desc:'Geadresseerd bericht in formele toon',
     icon:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3.5" width="12" height="9" rx="1"/><polyline points="2.5 4 8 8.5 13.5 4"/></svg>',
     title:'Klantbrief',
-    html:`<p style="text-align:right">${new Date().toLocaleDateString('nl-NL',{day:'numeric',month:'long',year:'numeric'})}</p>
+    /* Een getter: datum, naam en bedrijf op het moment dat je het sjabloon
+       kiest. De naam komt uit je Google-login, het bedrijf uit je
+       factuurgegevens -- allebei uit je eigen gegevens, niet uit de code
+       (de code is openbaar). */
+    get html(){
+      const {naam,bedrijf}=gebruikerOndertekening();
+      return `<p style="text-align:right">${new Date().toLocaleDateString('nl-NL',{day:'numeric',month:'long',year:'numeric'})}</p>
 <p>Geachte heer/mevrouw,</p>
 <p></p>
 <p>Met vriendelijke groet,</p>
 <p><br></p>
-<p>Frank Herling<br>
-Herling Analytics</p>`
+<p>${escapeHtml(naam)}${naam&&bedrijf?'<br>\n':''}${escapeHtml(bedrijf)}</p>`;
+    }
   }
 ];
 
@@ -23785,7 +23805,7 @@ function factuurSettings(){
     const oud=s.bedrijf;
     s.bedrijven=[{
       id:'bd_eerste',
-      naam:(oud&&oud.naam)||'Herling Analytics B.V.',
+      naam:(oud&&oud.naam)||'Mijn bedrijf',
       adres:(oud&&oud.adres)||'', postcode:(oud&&oud.postcode)||'',
       plaats:(oud&&oud.plaats)||'', btwNummer:(oud&&oud.btwNummer)||'',
       kvk:(oud&&oud.kvk)||'', tel:(oud&&oud.tel)||'', email:(oud&&oud.email)||'',
@@ -24236,7 +24256,7 @@ function facBedrijfFacturen(){
 }
 /* Korte schrijfwijze voor een tabelcel of een knop: de rechtsvorm eraf,
    want die is bij alle bedrijven hetzelfde en kost alleen breedte.
-   'Herling Analytics B.V.' → 'Herling Analytics'. */
+   'Voorbeeld B.V.' → 'Voorbeeld'. */
 function facBedrijfKort(naam){
   const s=String(naam||'').trim();
   return s.replace(/[\s,]+(B\.?\s?V\.?|N\.?\s?V\.?|V\.?O\.?F\.?)$/i,'').trim()||s;
@@ -33430,7 +33450,7 @@ function ctrLooptijdTekst(c,i,vandaag){
   if(i.status==='gepland')return 'begint over '+opdDuur(opdDagenTussen(vandaag,lt.start));
   if(i.status==='afgelopen')return 'afgelopen';
   /* Ook bij stilzwijgende verlenging eerst hoe lang de lopende periode nog
-     duurt: dat wil je weten (Frank, 2026-09-29). lt.eind schuift na afloop
+     duurt: dat wil je weten (2026-09-29). lt.eind schuift na afloop
      vanzelf een periode op, dus bij een maandverlenging telt dit daarna
      steeds af naar het eerstvolgende maandeinde. */
   if(lt.verlengt){
@@ -33593,7 +33613,7 @@ function ctrKaart(c,d){
   const eindklant=ctrEindklant(c);
   /* Dat hij stilzwijgend verlengt staat links in de metaregel; rechts staat
      hoe lang de lopende periode nog duurt. Stond eerst rechts "verlengt per
-     maand" en dan zag je niet wanneer hij afliep (Frank, 2026-09-29). */
+     maand" en dan zag je niet wanneer hij afliep (2026-09-29). */
   const verlengt=lt.verlengt&&i.status==='lopend';
   const meta=[ctrSoortLabel(c.soort),eindklant?'voor '+eindklant:null,
     verlengt?'verlengt '+(CTR_VERLENG_KORT[c.verlenging]||'vanzelf'):null,
@@ -34268,7 +34288,12 @@ const CTR_AI_SCHEMA={
 };
 function ctrAiPrompt(soort){
   const klanten=(kanbanState.clients||[]).map(c=>'- '+c.name+(c.bedrijfsnaam&&c.bedrijfsnaam!==c.name?' ('+c.bedrijfsnaam+')':'')).join('\n');
-  const samen=`Je leest dit voor Frank Herling (Herling Analytics), een zelfstandig BI-consultant. "Wij" in de tekst is hij.
+  /* Wie "wij" is, uit je Google-login en je factuurgegevens: de AI moet
+     weten welke partij jij bent, maar de code is openbaar. */
+  const {naam,bedrijf}=gebruikerOndertekening();
+  const wie=(naam||'de gebruiker')+(bedrijf?' ('+bedrijf+')':'');
+  const zelf=naam||'de gebruiker';
+  const samen=`Je leest dit voor ${wie}, een zelfstandig BI-consultant. "Wij" in de tekst is ${zelf}.
 Regels:
 - Vul alleen in wat er echt in het document staat. Staat iets er niet in, geef dan een lege string (bij getallen 0).
 - Datums als JJJJ-MM-DD.
@@ -34278,9 +34303,9 @@ Regels:
 - Bekende klanten (gebruik zo mogelijk precies deze schrijfwijze):
 ${klanten||'- (nog geen klanten)'}
 Antwoord met uitsluitend JSON volgens het schema.`;
-  if(soort==='opdracht')return `Je leest een overeenkomst van opdracht: een opdracht of inhuur waarin Frank tegen een uurtarief werk doet.
+  if(soort==='opdracht')return `Je leest een overeenkomst van opdracht: een opdracht of inhuur waarin ${zelf} tegen een uurtarief werk doet.
 ${samen}
-- klant: de opdrachtgever of eindklant voor wie het werk is (niet een bemiddelingsbureau en niet Frank zelf).
+- klant: de opdrachtgever of eindklant voor wie het werk is (niet een bemiddelingsbureau en niet ${zelf} zelf).
 - omschrijving: een korte naam voor de opdracht, zoals het document hem noemt, hooguit 60 tekens.
 - uurtarief: het tarief per uur exclusief btw, als getal.
 - urenPerWeek: het aantal uur per week; "3 dagen per week" is 24. 0 als het er niet staat.
@@ -34288,8 +34313,8 @@ ${samen}
   return `Je leest een overeenkomst: een contract, polis of abonnement.
 ${samen}
 - verlenging: wordt het stilzwijgend verlengd, geef dan de periode waarmee: "1 maand" (ook bij "daarna maandelijks opzegbaar" of "voor onbepaalde tijd, per maand opzegbaar"), "3 maanden", "12 maanden". "geen" als het afloopt op de einddatum.
-- soort: één van klant (Frank levert diensten aan de wederpartij), bemiddelaar (een bureau dat Frank bij een eindklant plaatst), leverancier (Frank neemt een product of dienst af), verzekering, abonnement, overig.
-- wederpartij: de naam van de andere partij, niet Frank of Herling Analytics zelf.
+- soort: één van klant (${zelf} levert diensten aan de wederpartij), bemiddelaar (een bureau dat ${zelf} bij een eindklant plaatst), leverancier (${zelf} neemt een product of dienst af), verzekering, abonnement, overig.
+- wederpartij: de naam van de andere partij, niet ${wie} zelf.
 - klant: bij soort klant of bemiddelaar de klant of eindklant voor wie het werk is; anders leeg.
 - omschrijving: een korte naam voor het contract, zoals het document hem noemt, hooguit 60 tekens.
 - getekend: de datum van ondertekening, als die er staat.`;
@@ -36029,7 +36054,7 @@ function pvOngelezenNu(){
 }
 
 /* ── Een kaartje per account: welk adres, hoeveel ongelezen ──
-   Boven de lijst, zodat je ziet om welk adres het gaat (Frank zag eerst
+   Boven de lijst, zodat je ziet om welk adres het gaat (eerst stond er
    alleen "Zakelijk" in een keuzelijst). Een klik zet het filter op dat
    account, nog een klik zet het terug op alle. Op een telefoon schuift de
    strook opzij in plaats van onder elkaar te stapelen. */
@@ -36914,11 +36939,11 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){kalSluitMenu();pvSl
 /* ═══════════════════════════════════════════════════
    MELDINGEN IN GOOGLE AGENDA — aflopende contracten en opdrachten
    ───────────────────────────────────────────────────
-   Frank wil een seintje als iets afloopt, op tijd om er een nieuw contract
+   De gebruiker wil een seintje als iets afloopt, op tijd om er een nieuw contract
    voor af te sluiten: bij contracten 4 weken, 2 weken, 1 week en 3 dagen
    van tevoren, bij opdrachten daarbovenop al 2 maanden van tevoren.
 
-   Waarom via Google Agenda (keuze van Frank, 2026-09-29): de app heeft
+   Waarom via Google Agenda (eigen keuze, 2026-09-29): de app heeft
    geen server, en een pushmelding die komt terwijl de app dicht is moet
    ergens vandaan worden verstuurd. Google Agenda doet dat al -- als melding
    via de Agenda-app op de telefoon en als mail -- en blijft dat doen als
@@ -36930,7 +36955,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){kalSluitMenu();pvSl
      agenda's die hij zelf maakte, niet je gewone agenda.
    - Per contract en per opdracht één afspraak, een hele dag, op de
      teldatum: de opzegdatum, en zonder opzegtermijn het einde (ook een
-     keuze van Frank). Herinneringen om 09:00: een melding 4 weken, 2
+     eigen keuze). Herinneringen om 09:00: een melding 4 weken, 2
      weken, 1 week en 3 dagen vooraf, plus een mail bij 4 weken. Google
      staat er per afspraak hooguit vijf toe, en een herinnering hooguit 4
      weken vooraf; "een maand" is daarom 4 weken.
@@ -37064,7 +37089,7 @@ function agdGewenst(vandaag){
       lt.opzegVoor?'Opzeggen uiterlijk '+opdFmtDatum(lt.opzegVoor):''].filter(Boolean);
     uit.push(agdDagAfspraak('ctr:'+c.id,wie+' — '+wat,datum,regels,'contracten'));
   });
-  /* Taken uit Checklist met een deadline (Frank, 2026-10-04): een hele dag
+  /* Taken uit Checklist met een deadline (2026-10-04): een hele dag
      op de deadline, met één melding de dag ervoor om 09:00. Op de dag zelf
      kan niet -- een herinnering valt altijd vóór het begin van een hele dag.
      Afgevinkt, gearchiveerd of verlopen: dan staat hij er niet (meer) in.
@@ -37220,7 +37245,7 @@ function agdStatusUitFout(e){
       tekst:'De Google Calendar API staat nog niet aan in het Cloud-project van de app. Zet hem aan en tik daarna hier op Nu bijwerken — het kan een paar minuten duren voordat Google het doorheeft.'};
   else agdStatus={fase:'fout',tekst:'Bijwerken lukte niet: '+((e&&e.message)||'onbekende fout')+'.'};
 }
-/* Waar je de Calendar API aanzet, als link in de melding (Frank, 2026-09-29:
+/* Waar je de Calendar API aanzet, als link in de melding (2026-09-29:
    met alleen de menuweg erin zocht hij het op zijn telefoon zelf uit).
    Google noemt het adres in zijn eigen foutmelding; dat nemen we over, maar
    alleen als het naar de Cloud Console wijst. Anders bouwen we het op uit
@@ -37358,7 +37383,7 @@ Object.assign(APP_ACTIONS,{
 /* ═══════════════════════════════════════════════════
    ARCHIEF IN GOOGLE DRIVE — facturen en PDF's als gewone bestanden
    ───────────────────────────────────────────────────
-   Frank wil alle facturen en contracten ook gewoon in zijn Drive hebben
+   De gebruiker wil alle facturen en contracten ook gewoon in zijn Drive hebben
    (2026-10-04): terug te vinden zonder de app, te delen met de boekhouder,
    en een tweede kopie naast de verborgen app-map.
 

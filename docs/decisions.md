@@ -6904,3 +6904,31 @@ keuzelijst van Agenda en de pil boven een geopende mail tonen nu het adres.
 vaste set zoals Zakelijk/Privé. Hier was het tonen van het adres en het
 aantal het hele punt, en dat past niet in een keuzelijst. Op een telefoon
 schuift de strook opzij, zodat hij één regel blijft.
+
+## 2026-10-11 · Anoniemer: geen eigen naam in de code, documentatie niet op de site (v2.57)
+
+**Probleem.** De repo is openbaar, en GitHub Pages zette alles uit de repo
+online. Daardoor waren `CLAUDE.md`, `docs/` en `test.html` via
+app.herling-analytics.nl te lezen. Verder stond de volledige naam van de
+gebruiker in `index.html`, die iedereen via de site kan opvragen: in het
+briefsjabloon, in de AI-instructie voor contracten en in een stuk of achttien
+opmerkingen. Commits gingen bovendien onder een persoonlijk adres de
+historie in.
+
+**Beslissing.**
+- `_config.yml` sluit documentatie, tests en hulpscripts uit van de
+  Pages-build. In de repo staan ze nog wel.
+- Het briefsjabloon en de AI-instructie halen naam en bedrijf op het moment
+  van gebruik uit de Google-login en het eerste factuurbedrijf
+  (`gebruikerOndertekening()`). Die staan in Drive, niet in de code. De
+  standaardbedrijfsnaam is nu "Mijn bedrijf". Opmerkingen noemen "de
+  gebruiker" of alleen een datum.
+- Nieuwe commits gaan onder het noreply-adres van GitHub (repo-config).
+
+**Nog open.** De bestaande git-historie en de documentatie in de repo
+noemen naam en adressen nog. Dat lost alleen een privérepo op, of het
+herschrijven van de historie. Dat is een keuze van de gebruiker, voor
+later.
+
+**Niet doen.** Een eigen naam, e-mailadres of bedrijfsnaam als vaste tekst
+in een bestand dat de site serveert. Lees zoiets uit de eigen gegevens.

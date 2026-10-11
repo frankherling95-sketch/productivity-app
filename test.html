@@ -2603,6 +2603,16 @@ async function runChecks() {
     }))],
     /* Per account het adres en het aantal ongelezen, de teller bij het tabblad
        Ongelezen, en filteren met een klik op het kaartje (2026-10-11). */
+    /* De eigen naam staat niet in de (openbare) code: het briefsjabloon en de
+       AI-instructie voor contracten lezen hem uit de login (2026-10-11). */
+    ['Anoniem: briefsjabloon en contract-AI nemen de naam uit je login', () => {
+      const g = w.ingelogdeGebruiker();
+      const brief = w.eval('NOTE_TEMPLATES.find(t=>t.id==="klantbrief").html');
+      const prompt = w.ctrAiPrompt('opdracht');
+      const naam = g && g.naam ? g.naam : '';
+      return naam ? brief.includes(w.escapeHtml(naam)) && prompt.includes(naam)
+        : !/<p>\s*<\/p>\s*$/.test(brief) && /de gebruiker/.test(prompt);
+    }],
     ['Mail: kaartje per account met adres en ongelezen, klik filtert', () => metLS({herling_pv: null}, () => metGoogle(async () => {
       const oudModule = w.activeModule;
       w.switchModule('mail');
