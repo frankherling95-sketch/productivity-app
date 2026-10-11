@@ -2157,7 +2157,7 @@ button.uren-mpiv-row:active{background:var(--surface2)}
 .ctr-geenpdf{font-size:var(--fs-klein);color:var(--text-hint)}
 /* Tellertje op de tab van het andere domein: hoeveel daar om aandacht
    vraagt. De tint draagt het signaal, de tekst blijft --text (stijlgids §12). */
-.ctr-tabteller{display:inline-block;min-width:17px;margin-left:6px;padding:0 5px;border-radius:999px;
+.ctr-tabteller,.pv-tabteller{display:inline-block;min-width:17px;margin-left:6px;padding:0 5px;border-radius:999px;
   background:var(--warning-bg);box-shadow:inset 0 0 0 1px rgba(217,119,6,.55);color:var(--text);
   font-size:var(--fs-micro);font-weight:700;line-height:17px;text-align:center;font-variant-numeric:tabular-nums}
 
@@ -2383,12 +2383,12 @@ button.inst-rij:focus-visible{outline:2px solid var(--mint);outline-offset:-2px}
 #mod-agenda,#mod-mail{flex-direction:column;--uren-ui:12.5px;position:relative}
 #mod-agenda [hidden],#mod-mail [hidden],#kalEdModal [hidden],#kalDetModal [hidden],
 #pvConModal [hidden],#pvOprModal [hidden],#kalKalModal [hidden]{display:none}
-.kal-acc,.pv-acc{
-  height:32px;max-width:200px;padding:0 8px;box-sizing:border-box;cursor:pointer;
+.kal-acc{
+  height:32px;max-width:340px;padding:0 8px;box-sizing:border-box;cursor:pointer;
   background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--radius);
   color:var(--text);font-family:var(--font-body);font-size:var(--uren-ui,12.5px);font-weight:600;
 }
-.kal-acc:focus-visible,.pv-acc:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
+.kal-acc:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
 
 /* Een account zonder verbinding: het meldingsblok (stijlgids §12) met de knop erin. */
 .gacc-meldingen{display:flex;flex-direction:column;gap:var(--sp-2);margin:0 0 var(--sp-3)}
@@ -2523,6 +2523,31 @@ button.inst-rij:focus-visible{outline:2px solid var(--mint);outline-offset:-2px}
 .pv-wrap{flex:1;min-height:0;display:grid;grid-template-columns:minmax(320px,38%) minmax(0,1fr)}
 .pv-lijstkolom{min-height:0;overflow:auto;background:var(--surface);border-right:0.5px solid var(--border);padding:10px 0 16px}
 .pv-lijstkolom > .gacc-meldingen{margin:0 12px 10px}
+/* Een kaartje per account (2026-10-11, v2.54): naam, adres, ongelezen, en wat
+   er in Postvak IN staat. Streepje links in de kleur van het account, zoals
+   op een mail in de lijst. Gekozen = mint, zoals een keuzechip (§6). */
+.pv-accs{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(210px,1fr);gap:8px;padding:0 12px 10px;
+  overflow-x:auto;scrollbar-width:none}
+.pv-accs::-webkit-scrollbar{display:none}
+.pv-acc-kaart{position:relative;display:flex;flex-direction:column;gap:1px;min-width:0;box-sizing:border-box;
+  padding:8px 10px 8px 13px;text-align:left;background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-md);color:var(--text);font-family:var(--font-body)}
+.pv-acc-kaart::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:0 2px 2px 0;background:var(--c)}
+button.pv-acc-kaart{cursor:pointer}
+button.pv-acc-kaart:hover{background:var(--surface2)}
+button.pv-acc-kaart:focus-visible{outline:2px solid var(--mint);outline-offset:1px}
+.pv-acc-kaart[aria-pressed="true"]{border-color:var(--mint);background:var(--mint-soft)}
+.pv-accs.is-gefilterd .pv-acc-kaart[aria-pressed="false"]{opacity:.6}
+.pv-acc-kop{display:flex;align-items:center;gap:6px;min-width:0}
+.pv-acc-kop b{flex:1;min-width:0;font-size:var(--fs-basis);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pv-acc-n{flex:none;min-width:20px;height:20px;box-sizing:border-box;padding:0 6px;border-radius:999px;background:var(--mint);
+  color:var(--navy);font-family:var(--font-cijfer);font-size:var(--fs-micro);font-weight:700;line-height:20px;text-align:center;
+  font-variant-numeric:tabular-nums}
+.pv-acc-n.is-nul{background:var(--surface2);color:var(--text-muted)}
+.pv-acc-adres,.pv-acc-meta{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pv-acc-adres{font-size:var(--fs-klein);color:var(--text-muted)}
+.pv-acc-meta{font-size:var(--fs-micro);color:var(--text-muted);font-variant-numeric:tabular-nums}
+.pv-tabteller{background:var(--mint-soft);box-shadow:inset 0 0 0 1px var(--mint)}
 .pv-lijstkop{display:flex;align-items:center;gap:8px;padding:0 12px 8px 4px}
 .pv-lijsttitel{flex:1;min-width:0;font-family:var(--font-display);font-size:var(--fs-groot);font-weight:700;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -2651,7 +2676,7 @@ iframe.pv-inhoud{display:block;width:100%;height:120px;border:0;background:trans
   #mod-mail .pv-topknop{display:none !important}
   #mod-mail .uren-topbar{padding:0 !important;min-height:0 !important;border-bottom:0 !important;gap:0 !important}
   /* De accountkeuze staat op een telefoon in het ⋯-menu: een eigen regel van 44px voor een keuze die je zelden wisselt is te duur. */
-  .kal-acc,.pv-acc{display:none !important}
+  .kal-acc{display:none !important}
   .kal-body{padding:8px 8px 0}
   .kal-raster{--kal-uur:52px;--kal-tijd:44px}
   /* Week op een telefoon: elke dag minstens 100px en het raster schuift
@@ -2675,6 +2700,8 @@ iframe.pv-inhoud{display:block;width:100%;height:120px;border:0;background:trans
   .pv-balk .uren-tab{flex:1 1 0}
   .pv-zoek{flex:1 1 100%;max-width:none;margin-left:0;height:var(--tap)}
   .pv-zoek input{font-size:16px}   /* 16px: anders zoomt Safari in bij focus */
+  .pv-accs{grid-auto-columns:minmax(240px,82%)}
+  .pv-acc-kaart{min-height:var(--tap)}
   .pv-wrap{display:block}
   .pv-lijstkolom{height:100%;border-right:0;padding-bottom:24px}
   .pv-lezer{display:none}
@@ -9183,7 +9210,7 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.55</span>
+        <span class="app-versie" title="Appversie">v2.56</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -9750,7 +9777,6 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
           <button class="uren-tab" role="tab" data-action="pvZetTab" data-arg1="ster">Met ster</button>
           <button class="uren-tab" role="tab" data-action="pvZetTab" data-arg1="verzonden">Verzonden</button>
         </div>
-        <select class="pv-acc" id="pvAcc" data-change="pvKiesAccount" aria-label="Account" hidden></select>
         <label class="pv-zoek"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.3"/><path d="M10.2 10.2 13.5 13.5"/></svg>
           <input type="search" id="pvZoekInp" placeholder="Zoek in mail, bijv. from:jan factuur" enterkeyhint="search" autocomplete="off" aria-label="Zoek in mail"></label>
       </div>
@@ -35286,7 +35312,7 @@ function kalAccountKiezer(){
   sel.hidden=lijst.length<2;
   const nu=kalAccountFilter();
   sel.innerHTML='<option value="">Alle accounts</option>'+lijst.map(a=>
-    '<option value="'+escapeHtml(a.id)+'"'+(a.id===nu?' selected':'')+'>'+escapeHtml(gaccNaam(a))+'</option>').join('');
+    '<option value="'+escapeHtml(a.id)+'"'+(a.id===nu?' selected':'')+'>'+escapeHtml(gaccNaam(a)+' — '+a.email)+'</option>').join('');
 }
 
 /* Dag en week: een uurraster. Kop en hele-dagregel blijven staan als je
@@ -35443,7 +35469,7 @@ function gaccMenuKeuze(wat,actie,nu){
   if(MQ_BUREAUBLAD.matches||accs.length<2)return '';
   return '<div class="uren-menu-lab">Account</div>'+[{id:'',naam:'Alle accounts'},...accs].map(a=>{
     const aan=(a.id||'')===(nu||'');
-    return '<button class="uren-menu-item'+(aan?' active':'')+'" role="menuitemradio" aria-checked="'+aan+'" data-action="'+actie+'" data-arg1="acc|'+escapeHtml(a.id)+'"><span class="ic" aria-hidden="true">'+(aan?'&#10003;':'')+'</span><span>'+escapeHtml(a.naam||gaccNaam(a))+'</span></button>';
+    return '<button class="uren-menu-item'+(aan?' active':'')+'" role="menuitemradio" aria-checked="'+aan+'" data-action="'+actie+'" data-arg1="acc|'+escapeHtml(a.id)+'"><span class="ic" aria-hidden="true">'+(aan?'&#10003;':'')+'</span><span>'+escapeHtml(a.naam||gaccNaam(a))+(a.email?'<small>'+escapeHtml(a.email)+'</small>':'')+'</span></button>';
   }).join('')+'<div class="uren-menu-sep"></div>';
 }
 /* ⋯-menu */
@@ -36012,21 +36038,86 @@ async function pvLaad(meer){
 /* Het getal naast Mail in de zijbalk: ongelezen gesprekken in Postvak IN,
    over alle accounts met Mail aan. Alleen als er een token is; zonder
    verbinding blijft het getal weg in plaats van fout te staan. */
+/* Per account ook wat er in Postvak IN staat, met ster en als concept
+   (2026-10-11, v2.54): drie labels per account, elk één goedkope aanroep.
+   Dat staat op de accountkaartjes boven de lijst (pvAccountsHtml). */
 let pvTelBezig=false;
+let pvTellers={};        /* account-id -> {ongelezen, postvak, ster, concepten, op} */
 async function pvTelOngelezen(){
   if(pvTelBezig)return;
   pvTelBezig=true;
+  const weg=id=>{delete pvOngelezen[id];delete pvTellers[id];};
   try{
     await Promise.all(gaccVoor('mail').map(async a=>{
-      if(!gaccTokGeldig(a.email)){delete pvOngelezen[a.id];return;}
-      try{const l=await gaccApi(a,PV_API+'/labels/INBOX');pvOngelezen[a.id]=Number(l&&l.threadsUnread)||0;}
-      catch(_){delete pvOngelezen[a.id];}
+      if(!gaccTokGeldig(a.email)){weg(a.id);return;}
+      try{
+        const [inbox,ster,concept]=await Promise.all(['INBOX','STARRED','DRAFT'].map(l=>
+          gaccApi(a,PV_API+'/labels/'+l).catch(e=>{if(l==='INBOX')throw e;return null;})));
+        pvOngelezen[a.id]=Number(inbox&&inbox.threadsUnread)||0;
+        pvTellers[a.id]={ongelezen:pvOngelezen[a.id],postvak:Number(inbox&&inbox.threadsTotal)||0,
+          ster:ster?Number(ster.threadsTotal)||0:null,concepten:concept?Number(concept.messagesTotal)||0:null,op:Date.now()};
+      }catch(_){weg(a.id);}
     }));
   }finally{pvTelBezig=false;}
-  Object.keys(pvOngelezen).forEach(id=>{const a=gaccVind(id);if(!a||a.mail===false)delete pvOngelezen[id];});
+  Object.keys(pvOngelezen).forEach(id=>{const a=gaccVind(id);if(!a||a.mail===false)weg(id);});
   try{updateNavBadges();}catch(_){}
+  if(activeModule==='mail'){pvTekenTabs();pvTekenAccounts();}
 }
 function pvOngelezenTotaal(){return Object.values(pvOngelezen).reduce((s,n)=>s+n,0);}
+function pvGetal(n){return Number(n||0).toLocaleString('nl-NL');}
+/* Ongelezen voor wat je nu bekijkt: één account, of alle samen. */
+function pvOngelezenNu(){
+  const f=pvAccountFilter();
+  return f?(pvOngelezen[f]||0):pvOngelezenTotaal();
+}
+
+/* ── Een kaartje per account: welk adres, hoeveel ongelezen ──
+   Boven de lijst, zodat je ziet om welk adres het gaat (Frank zag eerst
+   alleen "Zakelijk" in een keuzelijst). Een klik zet het filter op dat
+   account, nog een klik zet het terug op alle. Op een telefoon schuift de
+   strook opzij in plaats van onder elkaar te stapelen. */
+function pvAccountsHtml(){
+  const lijst=gaccVoor('mail');
+  if(!lijst.length)return '';
+  const f=pvAccountFilter(), kan=lijst.length>1;
+  return '<div class="pv-accs'+(f?' is-gefilterd':'')+'" role="group" aria-label="Accounts">'+lijst.map(a=>{
+    const t=pvTellers[a.id], verbonden=!!gaccTokGeldig(a.email);
+    const n=t?t.ongelezen:null;
+    const meta=!verbonden?'Niet verbonden':!t?'Tellen…':[pvGetal(t.postvak)+' in Postvak',
+      t.ster?pvGetal(t.ster)+' met ster':'',t.concepten?pvGetal(t.concepten)+(t.concepten===1?' concept':' concepten'):''].filter(Boolean).join(' · ');
+    const binnen='<span class="pv-acc-kop"><b>'+escapeHtml(gaccNaam(a))+'</b>'+
+      (n!=null?'<span class="pv-acc-n'+(n?'':' is-nul')+'" aria-label="'+n+' ongelezen">'+(n>999?'999+':n)+'</span>':'')+'</span>'+
+      '<span class="pv-acc-adres">'+escapeHtml(a.email)+'</span><span class="pv-acc-meta">'+escapeHtml(meta)+'</span>';
+    const stijl=' style="--c:'+escapeHtml(gaccKleur(a))+'"';
+    return kan
+      ?'<button type="button" class="pv-acc-kaart" data-action="pvKiesAcc" data-arg1="'+escapeHtml(a.id)+'" aria-pressed="'+(f===a.id)+'"'+
+        stijl+' title="'+escapeHtml(f===a.id?'Weer alle accounts tonen':'Alleen '+a.email+' tonen')+'">'+binnen+'</button>'
+      :'<div class="pv-acc-kaart"'+stijl+'>'+binnen+'</div>';
+  }).join('')+'</div>';
+}
+function pvTekenAccounts(){
+  const oud=document.querySelector('#pvLijstKol .pv-accs');
+  if(!oud)return;
+  const tmp=document.createElement('div');
+  tmp.innerHTML=pvAccountsHtml();
+  if(tmp.firstChild)oud.replaceWith(tmp.firstChild);
+}
+/* De tabs, met het aantal ongelezen bij Ongelezen. */
+function pvTekenTabs(){
+  const tab=pvTab(), n=pvOngelezenNu();
+  document.querySelectorAll('#pvTabs .uren-tab').forEach(t=>{
+    const aan=!pvZoek&&t.dataset.arg1===tab;
+    t.classList.toggle('active',aan);
+    t.setAttribute('aria-selected',aan?'true':'false');
+    const label=PV_TABS[t.dataset.arg1].label;
+    const teller=t.dataset.arg1==='ongelezen'&&n;
+    t.setAttribute('aria-label',label+(teller?', '+n+' ongelezen':''));
+    t.innerHTML=escapeHtml(label)+(teller?'<span class="pv-tabteller" aria-hidden="true">'+(n>999?'999+':n)+'</span>':'');
+  });
+}
+function pvKiesAcc(id){
+  pvKiesAccount({value:pvAccountFilter()===id?'':id});
+}
 
 /* ── Tekenen ── */
 function renderMailModule(){
@@ -36037,19 +36128,7 @@ function renderMailModule(){
 function pvTeken(){
   const box=document.getElementById('pvBody');
   if(!box)return;
-  const tab=pvTab();
-  document.querySelectorAll('#pvTabs .uren-tab').forEach(t=>{
-    const aan=!pvZoek&&t.dataset.arg1===tab;
-    t.classList.toggle('active',aan);
-    t.setAttribute('aria-selected',aan?'true':'false');
-  });
-  const sel=document.getElementById('pvAcc');
-  if(sel){
-    const lijst=gaccVoor('mail'), nu=pvAccountFilter();
-    sel.hidden=lijst.length<2;
-    sel.innerHTML='<option value="">Alle accounts</option>'+lijst.map(a=>
-      '<option value="'+escapeHtml(a.id)+'"'+(a.id===nu?' selected':'')+'>'+escapeHtml(gaccNaam(a))+'</option>').join('');
-  }
+  pvTekenTabs();
   const inp=document.getElementById('pvZoekInp');
   if(inp&&document.activeElement!==inp)inp.value=pvZoek;
   if(!gaccVoor('mail').length){box.innerHTML=gaccLeegHtml('mail');pvOpenKey=null;return;}
@@ -36084,7 +36163,7 @@ function pvTekenLijst(){
     pvTab()==='ongelezen'?'Alles gelezen.':'Hier staat niets.')+'</div>';
   else lijst='<div class="pv-lijst" role="list">'+items.map(pvRijHtml).join('')+'</div>';
   const meer=Object.keys(L.volgende||{}).some(id=>L.volgende[id]&&!L.klaar[id]);
-  kol.innerHTML=melding+kop+lijst+(items.length&&meer?'<div class="pv-meer"><button type="button" class="uren-btn" data-action="pvMeer"'+
+  kol.innerHTML=pvAccountsHtml()+melding+kop+lijst+(items.length&&meer?'<div class="pv-meer"><button type="button" class="uren-btn" data-action="pvMeer"'+
     (L.laadt?' disabled':'')+'>'+(L.laadt?'Ophalen…':'Meer laden')+'</button></div>':'');
 }
 function pvRijHtml(m){
@@ -36101,7 +36180,7 @@ function pvRijHtml(m){
       (m.bijlage?'<span class="pv-clip" aria-label="Met bijlage">'+PV_IC.clip+'</span>':'')+
       '<span class="pv-datum">'+escapeHtml(pvDatumKort(m.datum))+'</span></span>'+
       '<span class="pv-r2">'+escapeHtml(m.onderwerp)+'</span>'+
-      '<span class="pv-r3">'+(toonAcc?'<i class="pv-accnaam">'+escapeHtml(gaccNaam(a))+'</i>':'')+escapeHtml(m.fragment)+'</span>'+
+      '<span class="pv-r3">'+(toonAcc?'<i class="pv-accnaam" title="'+escapeHtml(a.email)+'">'+escapeHtml(gaccNaam(a))+'</i>':'')+escapeHtml(m.fragment)+'</span>'+
     '</button></div>';
 }
 const PV_IC={
@@ -36144,7 +36223,7 @@ function pvTekenLezer(){
       knop('pvAiSamenvat',PV_IC.ai,'Samenvatten')+
       '<button type="button" class="uren-btn uren-btn-primary pv-lknop" data-action="pvConceptOpen">'+PV_IC.ai+'<span>Antwoord</span></button>'+
     '</div></div>'+
-    '<h2 class="pv-onderwerp">'+escapeHtml(onderwerp)+(a&&gaccLijst().length>1?' <span class="pv-accpil" style="--c:'+escapeHtml(gaccKleur(a))+'">'+escapeHtml(gaccNaam(a))+'</span>':'')+'</h2>'+
+    '<h2 class="pv-onderwerp">'+escapeHtml(onderwerp)+(a&&gaccLijst().length>1?' <span class="pv-accpil" style="--c:'+escapeHtml(gaccKleur(a))+'" title="'+escapeHtml(a.email)+'">'+escapeHtml(gaccNaam(a))+' · '+escapeHtml(a.email)+'</span>':'')+'</h2>'+
     '<div class="pv-ai" id="pvAiBox" hidden></div>'+
     '<div class="pv-berichten" id="pvBerichten">'+(d?d.berichten.map((b,i)=>pvBerichtHtml(d,b,i)).join(''):
       (d===null?'':'<div class="pv-leeg" role="status">Mail ophalen…</div>'))+'</div>';
@@ -36424,7 +36503,7 @@ function pvToggleMenu(){
   m.className='uren-menu';m.id='pvMenu';m.setAttribute('role','menu');
   const item=(arg,ic,t,s)=>`<button class="uren-menu-item" role="menuitem" data-action="pvMenuDoe" data-arg1="${arg}">
       <span class="ic" aria-hidden="true">${ic}</span><span>${t}${s?'<small>'+s+'</small>':''}</span></button>`;
-  m.innerHTML=gaccMenuKeuze('mail','pvMenuDoe',pvAccountFilter())+item('overzicht','&#10022;','Wat is er binnen?','Een overzicht met AI van de laatste drie dagen')+
+  m.innerHTML=item('overzicht','&#10022;','Wat is er binnen?','Een overzicht met AI van de laatste drie dagen')+
     item('opruimen','&#9881;','Mailbox opruimen','Per afzender: archiveren, prullenbak, afmelden')+
     item('vernieuw','&#8635;','Opnieuw ophalen','')+
     item('accounts','&#9776;','Accounts beheren','Instellingen → Agenda en mail')+
@@ -36445,7 +36524,6 @@ function pvSluitMenu(){
 }
 function pvMenuDoe(wat){
   pvSluitMenu();
-  if(String(wat).startsWith('acc|')){pvKiesAccount({value:String(wat).slice(4)});return;}
   if(wat==='overzicht')pvAiOverzicht();
   else if(wat==='opruimen')pvOpruimOpen();
   else if(wat==='vernieuw')pvVernieuw();
@@ -36853,12 +36931,12 @@ Object.assign(APP_ACTIONS,{
   pvOpruimAi:()=>pvOpruimAi(),
   pvOprDoe:(el,e,w,k)=>pvOpruimDoe(w,[k]),
   pvOprBulk:(el,e,w)=>pvOpruimDoe(w,[...pvOpr.sel]),
-  pvOprAfmeld:(el,e,k)=>pvOprAfmeld(k)
+  pvOprAfmeld:(el,e,k)=>pvOprAfmeld(k),
+  pvKiesAcc:(el,e,id)=>pvKiesAcc(id)
 });
 Object.assign(APP_CHANGE_ACTIONS,{
   pvSelecteer:(el,e,k)=>pvSelecteer(el,k),
   pvSelAlles:el=>pvSelAlles(el),
-  pvKiesAccount:el=>pvKiesAccount(el),
   pvOprSel:(el,e,k)=>pvOprSel(el,k)
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){kalSluitMenu();pvSluitMenu();}});
