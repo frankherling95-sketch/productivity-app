@@ -102,6 +102,7 @@ rawState = {
 | `LS_KAL` = `herling_kal` | Agenda: gekozen weergave (dag/week/lijst) en accountfilter, per apparaat |
 | `LS_PV` = `herling_pv` | Mail: gekozen tabblad en accountfilter, per apparaat |
 | sessionStorage `herling_gacc_tokens` | Toegangstokens van de gekoppelde Google-accounts, per account, alleen voor wie ingelogd is. Bewust sessionStorage (net als het `gmail.send`-token): met `gmail.modify` lees je de hele mailbox |
+| `LS_INST_OPEN` = `herling_instellingen_open` | Welke blokken op Instellingen open staan (accountkaarten, API-sleutels), per apparaat en bewust niet in `rawState` |
 | `LS_AGD` = `herling_agenda` | Meldingen in Google Agenda: handtekening, tijdstip en aantal van de laatste keer bijwerken op dít apparaat (bewust niet in `rawState`: anders wordt elke keer bijwerken een wijziging voor Drive) |
 
 ### Save flow
@@ -333,9 +334,9 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
+- **2026-10-11**: **Instellingen: blokken inklappen** (v2.55) — accountkaarten en API-sleutels hebben een kopregel met de stand (*Verbonden*, *Ingesteld*) die het blok open- en dichtklapt; dicht is de standaard, de stand onthoudt het apparaat (`LS_INST_OPEN`). Twee vaste kolommen in plaats van CSS-kolommen, zodat niets verspringt. De knop *Vraag het* is van het Dashboard af (staat in de zijbalk)
 - **2026-10-11**: **Uren factureren per maand, klanten samenvoegen** (v2.54) — *Uren factureren* zet per ontvanger een concept klaar uit alle open uren van een maand; wie de rekening krijgt volgt "Factureren aan" en is per keer om te zetten. Uren op een concept tellen niet meer als open; concepten houden bij versturen hun nummer in volgorde. Plus: *Vraag het je app* als sparkle-tegel bovenin de zijbalk, naast de klantwisselaar, op elke pagina, en het chatvenster rustiger op een telefoon (+ voor een nieuw gesprek in de kop)
 - **2026-10-11**: **Agenda en Mail op Google-accounts** (v2.53) — meerdere accounts (zakelijk, privé) in Instellingen; Agenda (dag/week/lijst, afspraak maken) en Mail (lezen in een iframe zonder scripts, zoeken, opschonen per afzender, AI-overzicht, concept-antwoord, niet versturen) rechtstreeks op de API's van Google. De chat zoekt zelf in agenda en mail (resultaat terug naar het model, denkblok ongewijzigd mee) en stelt voor wat hij wil doen. Token per tabblad, niet op schijf
-- **2026-10-11**: **API-sleutels op de Instellingen-pagina** (v2.52) — per aanbieder een blok met veld, Opslaan, Testen (gratis: de modellenlijst) en Verwijderen; alleen de laatste vier tekens in beeld. De ⚙ API-key-knoppen en vraagvensters zijn weg; zonder sleutel een melding met de knop *Naar Instellingen* (`aiGeenSleutel`, `aiNaarSleutel`)
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 
@@ -420,7 +421,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 194 smoke-, sync-, model-, reken-, sorteer-, agenda- en mailtests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
+| `test.html` | 195 smoke-, sync-, model-, reken-, sorteer-, agenda- en mailtests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |

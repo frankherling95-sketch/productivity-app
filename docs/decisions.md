@@ -6819,3 +6819,44 @@ tegen de thuisbalk aan.
 en soms niet is, zoek je (stijlgids §2). En de uitleg op een telefoon niet
 terugzetten: de suggesties laten zelf zien wat kan, en een voorstel heeft
 zijn eigen knop **Uitvoeren**.
+
+## 2026-10-11 · Instellingen: blokken inklappen, en Vraag het van het Dashboard af (v2.55)
+
+**Probleem.** Op Instellingen nemen de accountkaarten van Agenda en mail
+(zes regels per account) en de API-sleutels (uitleg, veld, knoppen) veel
+ruimte in. Je raakt ze zelden aan, maar je scrolt er wel elke keer langs.
+Daarnaast stond *Vraag het* nu twee keer op het Dashboard: in de kopbalk en
+in de zijbalk.
+
+**Beslissing.**
+- Een accountkaart en een API-sleutel hebben een **kopregel**
+  (`instInklapKop`, `.inst-inklap-kop`) die het blok open- en dichtklapt.
+  Rechts staat de stand: een account met naam, e-mail en *Verbonden* of
+  *Niet verbonden*; een sleutel met *Ingesteld* en de pil *in gebruik*.
+  Zo zie je ook dichtgeklapt of alles goed staat.
+- **Dicht is de standaard.** Een sleutel die nog niet is ingesteld staat
+  open, want daar moet je iets doen. Na **Opslaan** blijft het blok open
+  (`instSleutelBewaarEnToon`), zodat je meteen kunt testen.
+- Wat je zelf open- of dichtklapt onthoudt het apparaat
+  (`LS_INST_OPEN` = `herling_instellingen_open`). Het staat niet in
+  `rawState`: het is weergave, geen gegeven.
+- Klappen tekent de pagina niet opnieuw (`instInklap` zet alleen
+  `aria-expanded` en `hidden`). Een half geplakte sleutel in een ander blok
+  blijft dus staan.
+- **Twee vaste kolommen** in plaats van `columns: 2 400px`: links AI en
+  Agenda en mail, rechts de rest. CSS-kolommen verdelen opnieuw als een
+  blok van hoogte verandert; gemeten sprong *Weergave* van links naar
+  rechts zodra je een account openklapte.
+- De knop *Vraag het* in de kopbalk van het Dashboard is weg. Hij staat
+  bovenin de zijbalk (v2.53). In het ⋯-menu van het Dashboard op een
+  telefoon staat *Vraag het je app* nog wel, als menuregel.
+
+**Bestanden.** `index.html` (Instellingen: `LS_INST_OPEN`, `instIsOpen`,
+`instInklapKop`, `instInklapInhoud`, `instInklap`, `instSleutelBlok`,
+`instGroepAccounts`, `renderInstellingenModule`; CSS bij `.inst-`; de
+kopbalk van het Dashboard), `test.html` (1 test), `sw.js`,
+`docs/stijlgids.md` §15, `CLAUDE.md`.
+
+**Niet doen.** Terug naar CSS-kolommen zolang er iets inklapt. En de open
+stand niet in `rawState` zetten: dan wordt elke klik een wijziging voor
+Drive.

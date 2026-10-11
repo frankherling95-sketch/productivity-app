@@ -615,11 +615,26 @@ dan een of meer kaarten met regels.
 - **keuze uit een lijst** (`role="radio"`): een vinkje in mint rechts, en het label op 700, zoals de gekozen regel in een menu
 - **aan/uit** (`role="switch"`): een schakelaar `.inst-schakel`, 38×22 met een knop van 18px (mobiel 46×28 met 24px), mint als hij aanstaat
 
-Op een breed scherm staan er twee kolommen (`columns: 2 400px`, maximaal
-1040px breed). Smaller dan 2 × 400px wordt het vanzelf één kolom. Op een
-telefoon gaat de topbalk weg, want de titel staat al in de mobiele balk.
+Op een breed scherm staan er twee **vaste** kolommen: links AI en Agenda en
+mail, rechts de rest (een grid met `minmax(min(400px,100%),1fr)`, maximaal
+1040px breed). Smaller dan 2 × 400px wordt het vanzelf één kolom, in dezelfde
+volgorde. Geen CSS-kolommen: die verdelen opnieuw zodra een blok inklapt,
+en dan springt een groep naar de andere kant. Op een telefoon gaat de
+topbalk weg, want de titel staat al in de mobiele balk.
+
+**Inklappen.** Een accountkaart (Agenda en mail) en een API-sleutel hebben
+een kopregel (`.inst-inklap-kop`): een gewone regel met rechts de stand (stip
++ *Verbonden*, *Ingesteld*) en een pijl van 16px in `--text-hint` die
+omdraait als hij open is, zoals de cijferbalk in Facturen. Dicht is de
+standaard; een sleutel die nog niet is ingesteld staat open, en blijft
+open nadat je hem hebt opgeslagen. Wat je
+open- of dichtklapt onthoudt het apparaat (`herling_instellingen_open`).
+Onder een accountkop staat een scheidingslijn naar de regels; onder een
+sleutel niet, dat is één blok. Andere groepen klappen niet in: die zijn
+kort genoeg.
 
 **Een API-sleutel** (`.inst-sleutel`) is een blok in plaats van een regel.
+Open staat onder de kopregel eerst de uitleg (`--fs-klein` muted).
 Bovenaan staat de kop zoals bij een regel, met de stand rechts (een stip, en
 "in gebruik" als pil achter de naam). Daaronder staan *Eindigt op …1234* en de
 uitslag van de laatste test (stip: grijs, groen of rood), dan een veld met

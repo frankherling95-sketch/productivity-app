@@ -2280,11 +2280,14 @@ button.uren-mpiv-row:active{background:var(--surface2)}
    een kaart met regels: links wat het is, rechts de stand. Een regel die
    iets opent, kiest of omzet is zelf de knop -- op een telefoon is de hele
    regel het raakvlak. Op een breed scherm twee kolommen, zodat je alles in
-   één keer overziet; smaller dan twee keer 400px wordt het één kolom. */
+   één keer overziet; smaller dan twee keer 400px wordt het één kolom.
+   Vaste kolommen (zie renderInstellingenModule): blokken klappen in. */
 #mod-instellingen{flex-direction:column}
 #mod-instellingen .uren-content{padding:var(--sp-5) var(--sp-5) var(--sp-6)}
-.inst-kolommen{columns:2 400px;column-gap:var(--sp-5);max-width:1040px}
-.inst-groep{break-inside:avoid;display:flex;flex-direction:column;gap:var(--sp-2);margin:0 0 var(--sp-5)}
+.inst-kolommen{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(400px,100%),1fr));
+  column-gap:var(--sp-5);align-items:start;max-width:1040px}
+.inst-kolom{min-width:0}
+.inst-groep{display:flex;flex-direction:column;gap:var(--sp-2);margin:0 0 var(--sp-5)}
 .inst-kop{display:flex;align-items:center;gap:10px;margin:0;
   font-family:var(--font-display);font-size:var(--fs-groot);font-weight:700;color:var(--text)}
 .inst-uitleg{margin:0 0 2px;font-size:var(--fs-klein);color:var(--text-muted);line-height:1.5}
@@ -2331,9 +2334,17 @@ button.inst-rij:focus-visible{outline:2px solid var(--mint);outline-offset:-2px}
 .inst-voet{margin:0;font-size:var(--fs-micro);color:var(--text-hint)}
 /* Een API-sleutel: kop zoals een regel, daaronder wat er staat, een veld en
    de knoppen. Alleen de laatste vier tekens komen in beeld. */
-.inst-sleutel{display:flex;flex-direction:column;gap:8px;padding:12px 14px}
+.inst-sleutel{display:flex;flex-direction:column}
 .inst-sleutel + .inst-sleutel,.inst-sleutel + .inst-rij{border-top:0.5px solid var(--border)}
-.inst-sleutel-kop{display:flex;align-items:center;gap:12px}
+.inst-sleutel .inst-inklap-inhoud{display:flex;flex-direction:column;gap:8px;padding:0 14px 12px}
+.inst-sleutel-uitleg{margin:0;font-size:var(--fs-klein);color:var(--text-muted);line-height:1.4}
+/* Inklappen: de kopregel is een gewone regel (.inst-rij) met een pijl die
+   omdraait als hij open is. Onder een accountkopregel een scheidingslijn
+   naar de regels; onder een sleutel niet, dat is één blok. */
+.inst-klap{width:16px;height:16px;flex-shrink:0;color:var(--text-hint);transition:transform var(--duur) var(--ease)}
+.inst-inklap-kop[aria-expanded="true"] .inst-klap{transform:rotate(180deg)}
+.inst-inklap-inhoud[hidden]{display:none}
+.inst-kaart > .inst-inklap-inhoud{border-top:0.5px solid var(--border)}
 .inst-sleutel-in-gebruik{margin-left:6px;padding:1px 7px;border-radius:999px;vertical-align:1px;
   font-size:var(--fs-micro);font-weight:600;background:var(--mint-soft);color:var(--text)}
 .inst-sleutel-nu{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:var(--fs-klein);color:var(--text-muted)}
@@ -9135,7 +9146,7 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.54</span>
+        <span class="app-versie" title="Appversie">v2.55</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -9168,7 +9179,6 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
         </div>
         <div style="display:flex;gap:8px;align-items:center">
           <!-- Wekelijkse review (AI) -->
-          <button class="btn btn-sm btn-ai" id="aiChatBtn" onclick="aiChatOpen()" title="Stel een vraag over je taken, uren, facturen en contracten"><span class="ai-spark">✨</span>Vraag het</button>
           <button class="btn btn-sm btn-ai" id="weeklyReviewBtn" onclick="openWeeklyReviewModal()" title="AI-gegenereerde samenvatting van wat je deze week hebt afgerond"><span class="ai-spark">📊</span>Wekelijkse review</button>
           <!-- Nieuw item dropdown (global quick-add) -->
           <div class="ha-newitem" data-ha-newitem>
@@ -14808,6 +14818,9 @@ function toonLoginScherm(){
    aan als het menu deed; de pagina tekent zichzelf daarna opnieuw, zodat
    de stand klopt. */
 const INST_PIJL='<svg class="inst-pijl" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>';
+/* De pijl van een kopregel die inklapt: omlaag als hij dicht is, omhoog
+   als hij open is -- zoals de cijferbalk in Facturen (.fac-cijfers-kop). */
+const INST_KLAP='<svg class="inst-klap" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>';
 const INST_VINK='<svg class="inst-vink" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5 6.5 11.5 12.5 4.5"/></svg>';
 const INST_IC={
   ai:'<path d="M8 1.8l1.3 3.6 3.6 1.3-3.6 1.3L8 11.6 6.7 8 3.1 6.7 6.7 5.4z"/><path d="M12.6 10.6l.6 1.6 1.6.6-1.6.6-.6 1.6-.6-1.6-1.6-.6 1.6-.6z"/>',
@@ -14844,6 +14857,52 @@ function instGroep(id,tint,titel,uitleg,inhoud){
     '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">'+
     INST_IC[id]+'</svg></span>'+escapeHtml(titel)+'</h2>'+
     (uitleg?'<p class="inst-uitleg">'+escapeHtml(uitleg)+'</p>':'')+inhoud+'</section>';
+}
+/* Inklappen (2026-10-11). Een accountkaart en een API-sleutel hebben een
+   kopregel die het blok open- en dichtklapt, met de stand ernaast
+   ("Verbonden", "Ingesteld"), zodat je dicht nog ziet of alles goed staat.
+   Dicht is de standaard; een sleutel die nog niet is ingesteld staat open,
+   want daar moet je iets. Wat je zelf open- of dichtklapt onthoudt dit
+   apparaat -- bewust niet in rawState: het is weergave, geen gegeven.
+   Klappen tekent de pagina niet opnieuw, zodat een half geplakte sleutel
+   in een ander blok blijft staan. */
+const LS_INST_OPEN='herling_instellingen_open';
+function instOpenStand(){
+  try{return JSON.parse(localStorage.getItem(LS_INST_OPEN))||{};}catch(_){return {};}
+}
+function instIsOpen(id,standaard){
+  const st=instOpenStand();
+  return Object.prototype.hasOwnProperty.call(st,id)?!!st[id]:!!standaard;
+}
+function instInklapId(id){return 'instInklap-'+String(id).replace(/[^a-z0-9]/gi,'-');}
+function instInklapKop(id,open,o){
+  return '<button type="button" class="inst-rij inst-inklap-kop" aria-expanded="'+(open?'true':'false')+'" '+
+    'aria-controls="'+instInklapId(id)+'" data-action="instInklap" data-arg1="'+escapeHtml(id)+'">'+
+    '<span class="inst-tekst"><b>'+o.labelHtml+'</b>'+(o.hint?'<small>'+escapeHtml(o.hint)+'</small>':'')+'</span>'+
+    (o.waarde?'<span class="inst-waarde'+(o.toon?' is-'+o.toon:'')+'">'+escapeHtml(o.waarde)+'</span>':'')+
+    INST_KLAP+'</button>';
+}
+function instInklapInhoud(id,open,html){
+  return '<div class="inst-inklap-inhoud" id="'+instInklapId(id)+'"'+(open?'':' hidden')+'>'+html+'</div>';
+}
+function instZetOpen(id,open){
+  const st=instOpenStand();st[id]=!!open;
+  try{localStorage.setItem(LS_INST_OPEN,JSON.stringify(st));}catch(_){}
+}
+function instInklap(el,id){
+  const open=el.getAttribute('aria-expanded')!=='true';
+  el.setAttribute('aria-expanded',open?'true':'false');
+  const inhoud=document.getElementById(el.getAttribute('aria-controls'));
+  if(inhoud)inhoud.hidden=!open;
+  instZetOpen(id,open);
+}
+/* Net een sleutel bewaard: het blok blijft open, zodat je meteen op Testen
+   kunt klikken. Anders klapte het dicht, omdat een ingestelde sleutel
+   standaard dicht staat. */
+function instSleutelBewaarEnToon(a,waarde){
+  if(!aiSleutelBewaar(a,waarde))return;
+  instZetOpen('sleutel:'+a,true);
+  renderInstellingenModule();
 }
 function instKaart(rijen,sub,attr){
   return '<div class="inst-kaart"'+(attr||'')+'>'+(sub?'<div class="inst-sub">'+escapeHtml(sub)+'</div>':'')+rijen.join('')+'</div>';
@@ -14890,11 +14949,13 @@ function instVerbruikRijen(){
 function instSleutelBlok(a){
   const d=AI_SLEUTELS[a], key=aiSleutelVan(a), gekozen=aiAanbieder()===a;
   const stand=key?'Ingesteld':'Niet ingesteld';
+  const id='sleutel:'+a, open=instIsOpen(id,!key);
   return '<div class="inst-sleutel" data-sleutel="'+a+'">'+
-    '<div class="inst-sleutel-kop"><span class="inst-tekst"><b>'+d.naam+' API-key'+
-    (gekozen?' <span class="inst-sleutel-in-gebruik">in gebruik</span>':'')+'</b>'+
-    '<small>'+escapeHtml(d.uitleg)+'</small></span>'+
-    '<span class="inst-waarde'+(key?' is-aan':gekozen?' is-uit':'')+'">'+stand+'</span></div>'+
+    instInklapKop(id,open,{labelHtml:d.naam+' API-key'+
+      (gekozen?' <span class="inst-sleutel-in-gebruik">in gebruik</span>':''),
+      waarde:stand,toon:key?'aan':gekozen?'uit':''})+
+    instInklapInhoud(id,open,
+    '<p class="inst-sleutel-uitleg">'+escapeHtml(d.uitleg)+'</p>'+
     (key?'<div class="inst-sleutel-nu"><span class="inst-sleutel-eind">Eindigt op …'+escapeHtml(key.slice(-4))+'</span>'+
       instSleutelStandHtml(a)+'</div>':'')+
     '<div class="inst-sleutel-rij">'+
@@ -14907,7 +14968,7 @@ function instSleutelBlok(a){
       (key?'<button type="button" class="btn btn-sm" data-action="instSleutelTest" data-arg1="'+a+'">Testen</button>'+
         '<button type="button" class="btn btn-sm" data-action="instSleutelWeg" data-arg1="'+a+'">Verwijderen</button>':'')+
       '<a class="inst-link" href="'+d.url+'" target="_blank" rel="noopener">Sleutel aanmaken bij '+d.bedrijf+' ↗</a>'+
-    '</div></div>';
+    '</div>')+'</div>';
 }
 function instSleutelStandHtml(a){
   const st=aiSleutelStand[a];
@@ -14918,7 +14979,7 @@ document.addEventListener('keydown',e=>{
   const a=e.target&&e.target.dataset&&e.target.dataset.sleutelVeld;
   if(!a||e.key!=='Enter')return;
   e.preventDefault();
-  if(aiSleutelBewaar(a,e.target.value))renderInstellingenModule();
+  instSleutelBewaarEnToon(a,e.target.value);
 });
 function instGroepWeergave(){
   const cur=huidigThema();
@@ -15008,8 +15069,14 @@ function renderInstellingenModule(){
      anders spring je met het toetsenbord terug naar boven. */
   const f=document.activeElement&&box.contains(document.activeElement)?document.activeElement:null;
   const actie=f?f.dataset.action||'':'', arg=f?f.dataset.arg1||'':'';
-  box.innerHTML='<div class="inst-kolommen">'+[instGroepAi(),instGroepAccounts(),instGroepWeergave(),instGroepFacturen(),
-    instGroepWerk(),instGroepGegevens(),instGroepMeldingen(),instGroepAccount()].join('')+'</div>';
+  /* Twee vaste kolommen, geen CSS-kolommen: die verdelen opnieuw zodra een
+     blok in- of uitklapt, en dan sprong Weergave van links naar rechts
+     terwijl je net een account openklapte. Smaller dan 2 x 400px staan ze
+     onder elkaar, in dezelfde volgorde als hiervoor. */
+  box.innerHTML='<div class="inst-kolommen">'+
+    '<div class="inst-kolom">'+[instGroepAi(),instGroepAccounts()].join('')+'</div>'+
+    '<div class="inst-kolom">'+[instGroepWeergave(),instGroepFacturen(),instGroepWerk(),instGroepGegevens(),
+      instGroepMeldingen(),instGroepAccount()].join('')+'</div></div>';
   if(actie)box.querySelector('[data-action="'+actie+'"]'+(arg?'[data-arg1="'+CSS.escape(arg)+'"]':''))?.focus();
 }
 /* Wat elke regel doet. Dezelfde functies als het oude menu. */
@@ -15051,9 +15118,10 @@ Object.assign(APP_ACTIONS,{
   instModel:(el,e,m)=>aiKiesModel(m),
   instSleutelBewaar:(el,e,a)=>{
     const veld=document.getElementById('instSleutel-'+a);
-    if(aiSleutelBewaar(a,veld?veld.value:''))renderInstellingenModule();
+    instSleutelBewaarEnToon(a,veld?veld.value:'');
   },
   instSleutelTest:(el,e,a)=>aiSleutelTest(a),
+  instInklap:(el,e,id)=>instInklap(el,id),
   instSleutelWeg:(el,e,a)=>aiSleutelWeg(a),
   instThema:(el,e,t)=>{kiesThema(t);renderInstellingenModule();}
 });
@@ -34944,7 +35012,12 @@ function instGroepAccounts(){
     const t=gaccTokGeldig(a.email);
     const kals=kalKalenders[a.id];
     const zicht=kals?kals.lijst.filter(k=>kalZichtbaar(a,k)).length:null;
+    /* Dicht: naam, e-mail en of hij verbonden is. Open: de regels. */
+    const id='account:'+a.id, open=instIsOpen(id,false);
     return instKaart([
+      instInklapKop(id,open,{labelHtml:escapeHtml(gaccNaam(a)),hint:a.naam?a.email:'',
+        waarde:t?'Verbonden':'Niet verbonden',toon:t?'aan':'uit'}),
+      instInklapInhoud(id,open,[
       instRij({doe:'gaccDoe',arg:'naam|'+a.id,label:'Naam',hint:'Zo heet het in Agenda, Mail en de chat',waarde:gaccNaam(a)}),
       instRij({soort:'schakel',doe:'gaccDoe',arg:'agenda|'+a.id,label:'Agenda',hint:'Afspraken uit dit account tonen',aan:a.agenda!==false}),
       instRij({soort:'schakel',doe:'gaccDoe',arg:'mail|'+a.id,label:'Mail',hint:'Dit postvak tonen',aan:a.mail!==false}),
@@ -34956,7 +35029,8 @@ function instGroepAccounts(){
         waarde:t?'Verbonden':'Niet verbonden',toon:t?'aan':'uit'}),
       instRij({doe:'gaccDoe',arg:'weg|'+a.id,label:'Ontkoppelen',gevaar:true,
         hint:'Haalt het account uit de app; in Google verandert niets'})
-    ],a.email);
+      ].join(''))
+    ]);
   });
   kaarten.push(instKaart([instRij({doe:'gaccDoe',arg:'toevoegen|',label:'Account toevoegen',
     hint:'Een Google-account met agenda en mail, zakelijk of privé'})]));
