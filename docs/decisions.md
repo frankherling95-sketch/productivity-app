@@ -6321,3 +6321,65 @@ zijbalk, `zijbalkWereld()` in het blok BEWEGING), `sw.js`,
 **Niet doen.** De bol zonder `z-index: -1` neerzetten (of als `::after` zoals
 de lijn): dan ligt hij over de vlakken van een open groep en de streep, die
 geen eigen positie hebben. En geen video of afbeelding van een andere host.
+
+## 2026-10-11 · AI-aanbieder kiezen: Gemini of Claude (v2.48)
+
+**Probleem.** Alle AI-functies (slim toevoegen, weekreview, Vraag het je app,
+notities opschonen, uren uit facturen, eindklanten, factuurscanner, contract
+uitlezen) liepen hard via Gemini. De gratis laag is krap (twintig verzoeken
+per dag, een rem per minuut) en Frank heeft daarnaast maandelijks tegoed op
+de Claude API. Hij wilde zelf kunnen kiezen welk taalmodel het werk doet.
+
+**Beslissing.**
+- Eén router voor elk soort verzoek: `callAI()` (JSON terug) en
+  `_streamAI()` (tekst als stroom). Die maskeren eerst — voor beide
+  aanbieders gelijk — en kiezen dan `_geminiVraag`/`_geminiStroom` of
+  `_claudeVraag`/`_claudeStroom`. Alle aanroepers gingen van `callGemini` /
+  `_streamGemini` naar de router; hun opties bleven hetzelfde.
+- Keuze in Instellingen → AI → *AI-aanbieder* (`aiAanbieder()`, standaard
+  Gemini). Keuze, sleutel en model staan per apparaat in localStorage
+  (`herling_ai_aanbieder`, `herling_claude_api_key`, `herling_claude_model`),
+  net als de Gemini-sleutel: een API-key hoort niet in Drive, en de keuze
+  hoort bij de sleutel die op dít apparaat staat.
+- Claude via `fetch` naar de Messages API, zonder SDK (geen build-stap).
+  Kopregel `anthropic-dangerous-direct-browser-access: true` is nodig voor
+  CORS; nagemeten vanaf localhost, ook mét de beta-kopregel.
+- Standaardmodel `claude-opus-5-5`; te kiezen uit Opus 5.5, Sonnet 5.5,
+  Haiku 5.5 en Fable 5.1 (met prijzen in de lijst), of zelf intypen.
+- Geen `temperature` (de nieuwe modellen weigeren een andere waarde met een
+  400). `output_config.effort`: `low` voor uitlezen en indelen, `medium`
+  voor chat en review. Schema's gaan als `output_config.format`;
+  `_claudeSchema()` zet `additionalProperties:false` op elk object en haalt
+  grenzen als `minimum` weg. Zonder schema krijgt Claude "alleen JSON" als
+  regel in de systeemprompt en leest `_aiJson()` (was `_geminiJson`) het.
+- Bij Opus 5.x, Fable 5.x en Sonnet 5.5 `fallbacks: "default"` (beta
+  `server-side-fallback-2026-07-01`): weigert een veiligheidsfilter onterecht,
+  dan probeert Anthropic het zelf op een ander model. Een weigering die toch
+  doorkomt wordt een Nederlandse melding met de categorie.
+- In de chat krijgt de systeemprompt (het overzicht) een cachemarkering:
+  bij een vervolgvraag kost dat deel een tiende.
+- PDF gaat als `document`, foto's als `image`. HEIC/HEIF leest Claude niet;
+  `aiBestandFout()` keurt die vóór het versturen af, zodat één iPhone-foto
+  in een stapel van vijf de andere vier niet meeneemt.
+- De badge in de AI-vensters zegt nu wie er antwoordt ("Claude · 3 vandaag").
+- Meegenomen: `.app-dlg-lijst` en `.app-dlg-veldwrap` wonnen met hun
+  `display` van het `hidden`-attribuut, waardoor een vraagvenster zonder
+  veld het veld van het vorige venster liet zien. `[hidden]{display:none}`
+  ernaast, zoals elders in de app.
+
+**Waarom.** Eén router houdt de keuze op één plek: een nieuwe AI-functie
+roept `callAI()` aan en werkt meteen met beide. Gemini blijft de standaard
+omdat het niets kost; wie Claude kiest betaalt per token en krijgt geen
+dagquotum. Een eigen sleutel voor de app met een bestedingslimiet in de
+Console begrenst wat een vergissing kan kosten — dat staat in de sleutelvraag.
+
+**Bestanden.** `index.html` (blok AI INTEGRATIE: `callAI`, `_streamAI`,
+`_aiSse`, het Claude-blok, `openAiAanbiederPrompt`, Instellingen → AI,
+de teksten in Notities, Uren, Facturen en Contracten), `test.html` (9 nieuwe
+tests, alle via een nagebootste fetch), `sw.js`, `CLAUDE.md`.
+
+**Niet doen.** De Claude-sleutel of de keuze in `rawState` zetten — dan gaat
+de sleutel naar Drive. `temperature` meesturen naar Claude. De rem van
+`_geminiSlot()` op Claude zetten: die is voor de gratis laag van Google.
+En geen aanroeper meer rechtstreeks naar `_geminiVraag`/`_claudeVraag`:
+dan slaat hij het maskeren over.
