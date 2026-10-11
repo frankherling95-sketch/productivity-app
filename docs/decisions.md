@@ -6269,3 +6269,45 @@ geen venster; ↻ laadt één keer; telefoon met tik.
 **Niet doen.** Het token zonder klik blijven aanvragen in een lus (de
 browser blokkeert het toch), of `keydown` als gebaar gebruiken: dan springt
 het Google-venster tevoorschijn midden in het typen.
+
+## 2026-10-11 · Zijbalk: een draaiende wereldbol in plaats van de grafieklijn (v2.47)
+
+**Probleem.** Frank wilde onderin de zijbalk iets dat beweegt, net als het
+logo, naar het voorbeeld van een 404-pagina met de aarde vanuit de ruimte als
+achtergrondvideo. Daar stond een stilstaande grafieklijn (`.sidebar::after`,
+op 10% dekking). De blokken en de tekst ervoor moeten leesbaar blijven.
+
+**Beslissing.**
+- Een canvas `#sbWereld` achter alles in de zijbalk (`z-index: -1` binnen de
+  stapel van `.sidebar`): de aarde als stippen, zoals de H in het logo, in
+  het verloop van het logo (`#00E5B0` → `#38BDF8`), op een donkere bol met
+  een gloeiende rand als dampkring en een zachte gloed boven de top. Hij
+  draait in 120 s rond, van west naar oost; 7% van de landstippen twinkelt
+  als stadslichten.
+- Land uit Natural Earth 110m (publiek domein, via `world-atlas` 2.0.2), één
+  keer gerasterd tot een bitmasker op rijen om de 1,5° (18.330 stippen,
+  3 KB base64) en inline gezet. Bij het laden gaat er geen verzoek uit.
+- De hoogte volgt de vrije ruimte tussen Instellingen en de voet
+  (`hoogte()`, opnieuw bij elke maatwijziging van zijbalk, voet of groep):
+  op een bureaublad van 1000px hoog 222px boven de onderrand, op een
+  telefoon van 812px blijft de rand onder Instellingen. Achter de voet zijn
+  de stippen gedimd tot 20%.
+- Zuinig: 20 beelden per seconde (~1,7 ms per beeld in Chrome zonder GPU),
+  alleen zolang het canvas in beeld is (IntersectionObserver met
+  `intersectionRatio > 0`: een dichte lade raakt de schermrand en telt voor
+  `isIntersecting` al als zichtbaar), en bij "beweging beperken" één
+  stilstaand beeld.
+
+**Waarom niet de video uit het voorbeeld.** Een externe host (de app praat
+alleen met Google), megabytes bij elke start, blauw in plaats van onze
+kleuren, en een liggend 16:9-beeld in een staande strook van 272px — dan
+blijft er een smal, willekeurig stuk over. Een getekende bol schaalt mee met
+de breedte (ook ingeklapt en in de lade) en luistert naar "beweging beperken".
+
+**Bestanden.** `index.html` (`.sb-wereld`, het canvas als eerste kind van de
+zijbalk, `zijbalkWereld()` in het blok BEWEGING), `sw.js`,
+`docs/stijlgids.md` §13 en §14.
+
+**Niet doen.** De bol zonder `z-index: -1` neerzetten (of als `::after` zoals
+de lijn): dan ligt hij over de vlakken van een open groep en de streep, die
+geen eigen positie hebben. En geen video of afbeelding van een andere host.
