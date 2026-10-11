@@ -379,7 +379,7 @@ async function runChecks() {
       if (!oudKey) w.localStorage.setItem('herling_gemini_api_key', 'test');
       let uit = '';
       try {
-        await metLS({herling_ai_aanbieder: null}, async () => {
+        await metLS({herling_ai_aanbieder: 'gemini'}, async () => {
           for await (const c of w._streamAI({user:'vraag 2', geschiedenis:[
             {rol:'user', tekst:'vraag 1'}, {rol:'model', tekst:'antwoord 1'}]})) uit += c;
         });
@@ -413,7 +413,7 @@ async function runChecks() {
         if (!oudKey) w.localStorage.setItem('herling_gemini_api_key', 'test');
         let uit = '', fout = '';
         try {
-          await metLS({herling_ai_aanbieder: null}, async () => {
+          await metLS({herling_ai_aanbieder: 'gemini'}, async () => {
             for await (const c of w._streamAI({user:'x'})) uit += c;
           });
         }
@@ -444,17 +444,49 @@ async function runChecks() {
     ['Aanbieder: functies aanwezig', () => ['aiAanbieder','aiZetAanbieder','aiNaam','aiBedrijf',
         'aiSleutel','aiModel','aiBestandFout','callAI','_streamAI','_aiSse','claudeModel',
         'claudeZetModel','_claudeSchema','_claudeBestandBlok','_claudeBerichten','_claudeBody',
-        '_claudeKoppen','_claudeFetch','_claudeVraag','_claudeStroom','openAiAanbiederPrompt',
-        'openAiKeyPrompt','openAiModelPrompt','openClaudeKeyPrompt','openClaudeModelPrompt']
+        '_claudeKoppen','_claudeFetch','_claudeVraag','_claudeStroom','aiModelKeuzes','aiModelNaam',
+        'aiZetModel','aiKiesModel','aiChatModelToon','aiChatKiesModel','openAiKeyPrompt',
+        'openAiModelPrompt','openClaudeKeyPrompt','renderInstellingenModule']
         .every(f => typeof w[f] === 'function')],
-    ['Aanbieder: standaard Gemini, Claude per apparaat te kiezen', () =>
-      metLS({herling_ai_aanbieder: null}, () => {
-        const eerst = w.aiAanbieder() === 'gemini' && w.aiNaam() === 'Gemini' && w.aiModel() === w.geminiModel();
-        w.aiZetAanbieder('claude');
-        const dan = w.aiAanbieder() === 'claude' && w.aiNaam() === 'Claude' && w.aiBedrijf() === 'Anthropic' &&
-          w.aiModel() === w.claudeModel() && /^claude-/.test(w.aiModel());
-        w.aiZetAanbieder('gemini');
-        return eerst && dan && w.localStorage.getItem('herling_ai_aanbieder') === null;
+    ['Model: standaard Claude Haiku, goedkoopste eerst; het model kiest de aanbieder', () =>
+      metLS({herling_ai_aanbieder: null, herling_claude_model: null}, () => {
+        const eerst = w.aiAanbieder() === 'claude' && w.aiModel() === 'claude-haiku-5-5' &&
+          w.aiModelNaam() === 'Claude Haiku 5.5' && w.aiModelKeuzes()[0].model === 'claude-haiku-5-5';
+        const gem = w.aiZetModel('gemini-3.5-flash') && w.aiAanbieder() === 'gemini' &&
+          w.aiNaam() === 'Gemini' && w.aiModel() === 'gemini-3.5-flash';
+        const opus = w.aiZetModel('claude-opus-5-5') && w.aiAanbieder() === 'claude' && w.aiModel() === 'claude-opus-5-5';
+        const terug = w.aiZetModel('') && w.aiModel() === 'claude-haiku-5-5' &&
+          w.localStorage.getItem('herling_claude_model') === null &&
+          w.localStorage.getItem('herling_ai_aanbieder') === null;
+        const onzin = w.aiZetModel('gpt-5') === false && w.aiModel() === 'claude-haiku-5-5';
+        return eerst && gem && opus && terug && onzin;
+      })],
+    ['Model: kiezen in de chat via een echte change, en de lijst toont de keuze', async () =>
+      metLS({herling_ai_aanbieder: null, herling_claude_model: null, herling_claude_api_key: 'test'}, async () => {
+        w.aiChatOpen();
+        const sel = d.getElementById('aiChatModel');
+        const opties = [...sel.options].map(o => o.value);
+        sel.value = 'claude-sonnet-5-5';
+        sel.dispatchEvent(new w.Event('change', {bubbles: true}));
+        await new Promise(r => setTimeout(r, 50));
+        const gekozen = w.aiModel() === 'claude-sonnet-5-5' && d.getElementById('aiChatModel').value === 'claude-sonnet-5-5';
+        w.aiChatSluit();
+        return opties[0] === 'claude-haiku-5-5' && opties.length === 5 && gekozen;
+      })],
+    ['Instellingen: een pagina met alle groepen, model kiezen via een echte klik', async () =>
+      metLS({herling_ai_aanbieder: null, herling_claude_model: null, herling_claude_api_key: 'test'}, async () => {
+        const terugNaar = w.activeModule;
+        w.switchModule('instellingen');
+        const kop = [...d.querySelectorAll('#instBody .inst-kop')].map(e => e.textContent.trim());
+        const zichtbaar = d.getElementById('mod-instellingen').classList.contains('active') && location.hash !== null;
+        const knop = d.querySelector('#instBody [data-action="instModel"][data-arg1="claude-opus-5-5"]');
+        knop.click();
+        await new Promise(r => setTimeout(r, 50));
+        const vink = d.querySelector('#instBody [data-action="instModel"][aria-checked="true"]');
+        const ok = zichtbaar && kop.join('|') === 'AI|Weergave|Facturen en klanten|Uren en opdrachten|Gegevens en opslag|Meldingen|Account en app' &&
+          w.aiModel() === 'claude-opus-5-5' && vink && vink.dataset.arg1 === 'claude-opus-5-5';
+        w.switchModule(terugNaar || 'dashboard');
+        return ok;
       })],
     ['Claude: schema krijgt additionalProperties:false, een eigenschap "type" blijft', () => {
       const orig = {type:'object', properties:{
@@ -475,8 +507,8 @@ async function runChecks() {
       let heic = '';
       try { w._claudeBestandBlok({mime:'image/heic', data:'AA'}); } catch (e) { heic = e.message; }
       /* Gemini leest HEIC wel, dus daar mag niets worden tegengehouden. */
-      const gemini = await metLS({herling_ai_aanbieder: null}, () => w.aiBestandFout('image/heic') === '');
-      const claude = await metLS({herling_ai_aanbieder: 'claude'}, () =>
+      const gemini = await metLS({herling_ai_aanbieder: 'gemini'}, () => w.aiBestandFout('image/heic') === '');
+      const claude = await metLS({herling_ai_aanbieder: null}, () =>
         /HEIC/.test(w.aiBestandFout('image/heic')) && w.aiBestandFout('application/pdf') === '');
       return pdf.type === 'document' && pdf.source.media_type === 'application/pdf' &&
         jpg.type === 'image' && jpg.source.media_type === 'image/jpeg' && /HEIC/.test(heic) &&
@@ -1427,13 +1459,13 @@ async function runChecks() {
            sluiten -- anders verlies je het venster waar je in bezig was. */
         w.openFacEindModal();
         await new Promise(r => setTimeout(r, 120));
-        w.toggleAppInstellingen();
+        w.toggleGebruikerMenu();
         await new Promise(r => setTimeout(r, 120));
-        const menuVoor = !!d.getElementById('appInstelMenu');
+        const menuVoor = !!d.getElementById('gebruikerMenu');
         d.dispatchEvent(new w.KeyboardEvent('keydown',
           {key:'Escape', bubbles:true, cancelable:true}));
         await new Promise(r => setTimeout(r, 120));
-        const menuWeg = !d.getElementById('appInstelMenu');
+        const menuWeg = !d.getElementById('gebruikerMenu');
         const modaalNog = !!d.getElementById('facEindModal')?.classList.contains('open');
         d.querySelectorAll('.modal-bg.open').forEach(x => x.classList.remove('open'));
         return menuVoor && menuWeg && modaalNog;
@@ -1836,7 +1868,7 @@ async function runChecks() {
     ['PDF uitlezen: lege velden vullen, afwijkingen alleen melden, terugdraaien zet alles terug',
       async () => {
         const echt = w.callAI, echtHaal = w.ctrPdfHaal;
-        const sleutel = w.localStorage.getItem('herling_gemini_api_key');
+        const sleutel = w.localStorage.getItem('herling_claude_api_key'), gsleutel = w.localStorage.getItem('herling_gemini_api_key');
         const oud = w.eval('JSON.stringify(opdrachtState.opdrachten)');
         try {
           w.eval('opdrachtState.opdrachten=' + JSON.stringify([
@@ -1845,7 +1877,8 @@ async function runChecks() {
           w.opdOpen('pa');
           const naam0 = d.getElementById('opdNaam').value;
           w.ctrPdfHaal = async () => new w.Blob(['%PDF-1.4'], {type:'application/pdf'});
-          if (!sleutel) w.localStorage.setItem('herling_gemini_api_key', 'test');
+          if (!sleutel) w.localStorage.setItem('herling_claude_api_key', 'test');
+          if (!gsleutel) w.localStorage.setItem('herling_gemini_api_key', 'test');
           w.callAI = async () => ({klant:'', omschrijving:'Anders genoemd', ingang:'2026-10-01', einde:'2027-03-31',
             opzegtermijn:'30 dagen', uurtarief:95, urenPerWeek:24, urenBudget:0, bijzonderheden:''});
           await w.ctrAiLees('opdracht');
@@ -1860,7 +1893,8 @@ async function runChecks() {
                  verschil === 'eind,naam' && terug;
         } finally {
           w.callAI = echt; w.ctrPdfHaal = echtHaal;
-          if (!sleutel) w.localStorage.removeItem('herling_gemini_api_key');
+          if (!sleutel) w.localStorage.removeItem('herling_claude_api_key');
+          if (!gsleutel) w.localStorage.removeItem('herling_gemini_api_key');
           try { w.opdSluit(); } catch (_) {}
           w.eval('opdrachtState.opdrachten=' + oud);
         }

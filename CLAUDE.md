@@ -54,8 +54,9 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 | `#facturen` | Facturen | Facturen uit geschreven uren, sjabloonbouwer, debiteuren, btw-overzicht, mailen via Gmail, analyse |
 | `#opdrachten` | Opdrachten | Opdrachten per klant (looptijd, uren per week of urenbudget, tarief, opzegtermijn, PDF van de overeenkomst) en een vooruitzicht per werkmaand |
 | `#contracten` | Contracten | Zakelijke én privécontracten (twee tabs), elk met looptijd, opzegtermijn, stilzwijgende verlenging en de PDF erbij |
+| `#instellingen` | Instellingen | Eén pagina met alles wat je instelt: AI-model en sleutels, thema, facturatie, vrije dagen, opslag en back-up, meldingen, account. Opent de bestaande vensters; bewaart zelf niets |
 
-Entry render functions: `renderDashboard()`, `renderNotesModule()`, `renderChecklistModule()`, `renderUrenModule()`, `renderFacturenModule()`, `renderOpdrachtenModule()`, `renderContractenModule()`. `renderAll()` wordt aangeroepen na elke `loadGist()`.
+Entry render functions: `renderDashboard()`, `renderNotesModule()`, `renderChecklistModule()`, `renderUrenModule()`, `renderFacturenModule()`, `renderOpdrachtenModule()`, `renderContractenModule()`, `renderInstellingenModule()`. `renderAll()` wordt aangeroepen na elke `loadGist()`.
 
 ## State & persistence
 
@@ -94,7 +95,7 @@ rawState = {
 | IndexedDB `herling_bijlagen` | PDF's van Contracten op dit apparaat (kopie; het origineel staat als los bestand in de Drive-`appDataFolder`) |
 | `LS_HERSTEL_KEY` = `herling_analytics_herstel` | Niet-gekozen versie na een conflict; zichtbaar in Instellingen → Versiegeschiedenis, of `herstelDownload()` |
 | `LS_ARCHIEF` = `herling_archief` | Archief in Google Drive: handtekening, tijdstip, aantal en wat er wacht of is overgeslagen bij de laatste keer bijwerken op dít apparaat (zelfde reden als `LS_AGD`) |
-| `LS_AI_AANBIEDER` = `herling_ai_aanbieder` | `claude` als Claude gekozen is; ontbreekt = Gemini. Met `LS_CLAUDE_KEY` en `LS_CLAUDE_MODEL` (en de Gemini-sleutel) per apparaat en bewust niet in `rawState`: een API-key hoort niet in Drive |
+| `LS_AI_AANBIEDER` = `herling_ai_aanbieder` | `gemini` als er een Gemini-model gekozen is; ontbreekt = Claude (sinds v2.49 de standaard, met `claude-haiku-5-5`). Met `LS_CLAUDE_KEY` en `LS_CLAUDE_MODEL` (en de Gemini-sleutel) per apparaat en bewust niet in `rawState`: een API-key hoort niet in Drive |
 | `LS_AGD` = `herling_agenda` | Meldingen in Google Agenda: handtekening, tijdstip en aantal van de laatste keer bijwerken op dít apparaat (bewust niet in `rawState`: anders wordt elke keer bijwerken een wijziging voor Drive) |
 
 ### Save flow
@@ -130,7 +131,7 @@ Bij toevoegen van een nieuw state-veld: voeg een hydratie-stap toe in `hydrateer
 | `appToast(msg, opts)` | Floating toast met optionele undo-knop |
 | `updateNavBadges()` | Tellingen naast de nav-items (Checklist, Uren, Facturen) |
 | Undo systeem | Verwijderacties tonen toast met "Ongedaan maken" |
-| AI-aanroep (`callAI()`, `_streamAI()`) | Eén ingang voor alle AI-functies: maskeert, kiest dan Gemini of Claude naar Instellingen → AI → *AI-aanbieder* (`aiAanbieder()`). Nieuwe AI-functie? Roep `callAI()` aan, nooit `_geminiVraag`/`_claudeVraag` rechtstreeks (dan slaat hij het maskeren over) |
+| AI-aanroep (`callAI()`, `_streamAI()`) | Eén ingang voor alle AI-functies: maskeert, en stuurt dan naar de aanbieder van het gekozen model (`aiKiesModel()`; standaard Claude Haiku 5.5, kiezen in Instellingen of onderin Vraag het je app). Nieuwe AI-functie? Roep `callAI()` aan, nooit `_geminiVraag`/`_claudeVraag` rechtstreeks (dan slaat hij het maskeren over) |
 | AI-chat (`aiChatOpen()`) | "Vraag het je app": vragen over taken, uren, facturen, opdrachten, contracten via de gekozen aanbieder. `aiChatOverzicht()` rekent vooraf (zelfde functies als de modules) en gaat als systeeminstructie mee; gesprek alleen in de sessie |
 
 ## Theme
@@ -230,7 +231,7 @@ tabel is de leesbare versie. Wijzig ze samen.
 | `uren` | `uren*`, `_uren*` | `.uren-` **minus de 42 gedeelde** | `#mod-uren` |
 | `facturen` | `fac*`, `_fac*`, `factuur*` | `.fac-` | `#mod-facturen` |
 
-`#mod-opdrachten` (`opd*`, `.opd-`) en `#mod-contracten` (`ctr*`, `.ctr-`) hebben
+`#mod-opdrachten` (`opd*`, `.opd-`), `#mod-contracten` (`ctr*`, `.ctr-`) en `#mod-instellingen` (`inst*`, `.inst-`) hebben
 voorlopig geen eigen spoor en vallen onder de coördinator. (`#mod-todo`, Kanban, is
 weg sinds 2026-10-04.)
 
@@ -326,9 +327,9 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
+- **2026-10-11**: **Instellingen als eigen pagina, Claude Haiku standaard** (v2.49) — `#instellingen` vervangt het pop-upmenu: groepen met regels (knop, keuze met vinkje, schakelaar), twee kolommen op een breed scherm, één op een telefoon. Eén modelkeuze die ook de aanbieder bepaalt, goedkoopste eerst; ook als keuzelijst onderin Vraag het je app
 - **2026-10-11**: **AI-aanbieder kiezen: Gemini of Claude** (v2.48) — alle AI-functies via `callAI()`/`_streamAI()`, die maskeren en dan de aanbieder uit Instellingen → AI kiezen. Claude via `fetch` op de Messages API (standaard `claude-opus-5-5`, effort `low` voor uitlezen, `medium` voor chat), sleutel/keuze/model per apparaat in localStorage. Gemini blijft standaard
 - **2026-10-11**: **Wereldbol onderin de zijbalk** (v2.47) — de grafieklijn is een draaiende aarde van stippen in het logoverloop, op een canvas achter alles (`#sbWereld`, `z-index:-1`, `zijbalkWereld()`). Land: Natural Earth 110m als inline bitmasker (geen request). Hoogte volgt de vrije ruimte boven de voet, stippen achter de voet gedimd; 20 beelden/s, alleen in beeld en met focus, stil bij "beweging beperken"
-- **2026-10-07**: **Dashboard in een nieuwe stijl** (v2.36) — hero als donkere tech-tegel met de logolijn en een lichtpuls (`dashHeroPuls`), één kaartkop (getint icoon, telpil, "Alles ›"), Checklist-kaart met uitklapbare subtaken (open-stand alleen in de sessie; titel opent het taakvenster), notitieregels die díe notitie openen, voortgangsbalk bij Opdrachten & contracten
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 
@@ -413,7 +414,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 160 smoke-, sync-, model-, reken- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
+| `test.html` | 162 smoke-, sync-, model-, reken- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |

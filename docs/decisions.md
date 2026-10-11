@@ -6383,3 +6383,61 @@ de sleutel naar Drive. `temperature` meesturen naar Claude. De rem van
 `_geminiSlot()` op Claude zetten: die is voor de gratis laag van Google.
 En geen aanroeper meer rechtstreeks naar `_geminiVraag`/`_claudeVraag`:
 dan slaat hij het maskeren over.
+
+## 2026-10-11 · Instellingen als eigen pagina, Claude Haiku als standaardmodel (v2.49)
+
+**Probleem.** Twee vragen van Frank op één dag. (1) Hij wilde het model kunnen
+kiezen in Vraag het je app, met het goedkoopste als standaard (Claude Haiku)
+en een sterker model alleen als hij dat zelf kiest. (2) Instellingen moest een
+eigen scherm worden in plaats van een pop-up, met alles bij elkaar en goed
+bruikbaar op een telefoon. Het pop-upmenu groeide met elke functie een regel
+en kon alleen één bijregel tonen. Een keuze uit een lijst (model, thema) had
+telkens een tweede venster nodig. Veel van wat eigenlijk een instelling is
+(facturatie, sjabloon, mailtekst, vrije dagen, uren-sjablonen) zat in de
+⋯-menu's van losse modules en was alleen te vinden als je wist waar.
+
+**Beslissing.**
+- **Eén modelkeuze.** De aparte keuze "AI-aanbieder" uit v2.48 is weg: het
+  model bepaalt de aanbieder (`aiZetModel()`: `gemini-…` → Google, `claude-…`
+  → Anthropic). De lijst staat goedkoopst eerst (`aiModelKeuzes()`): Claude
+  Haiku 5.5, Sonnet 5.5, Opus 5.5, Fable 5.1, Gemini Flash. Een naam die er
+  niet tussen staat blijft in te typen ("Ander model…").
+- **Claude Haiku 5.5 is de standaard**, voor aanbieder én model. Wie in v2.48
+  zelf Opus had gekozen, krijgt nu Haiku: de oude standaard stond niet in
+  localStorage. `herling_ai_aanbieder` bewaart nu `gemini` in plaats van
+  `claude`.
+- **Keuzelijst onderin Vraag het je app** (`#aiChatModel`, `aiChatModelToon()`),
+  in de doos van de knop ernaast (`btn btn-sm`). Hij zet dezelfde keuze als
+  Instellingen; die geldt daarna overal. Tijdens een antwoord is hij dicht. De
+  teller ernaast zegt daar alleen "3 vandaag", want de naam staat al in de lijst.
+- **Instellingen is een module** (`#mod-instellingen`, `renderInstellingenModule()`,
+  hash `#instellingen`). De zijbalkregel opent hem als elke andere module, en
+  op een telefoon gaat "Instellingen…" in het ⋯-menu van het Dashboard er in
+  één stap heen. Zeven groepen: AI · Weergave · Facturen en klanten · Uren en
+  opdrachten · Gegevens en opslag · Meldingen · Account en app.
+- De pagina **bewaart zelf niets**. Elke regel roept de bestaande functie aan
+  (`INST_DOEN`) en tekent de pagina daarna opnieuw. De vensters van Facturen,
+  Opdrachten en Uren blijven ook in hun eigen ⋯-menu staan.
+- Vormgeving: zie stijlgids §15. De groepskop sluit aan op `.dash-kop-icoon` en
+  zijn tinten (`data-inst-tint`). Het thema gebruikt de staaltjes uit het
+  themavenster (`themaKeuzesBijwerken()` werkt nu op álle `.thema-keuze`).
+  Een stand in kleur is een stip, geen gekleurde tekst: oranje op wit haalde
+  1,85:1.
+- Weg: `toggleAppInstellingen` en zijn menu, `openAiAanbiederPrompt`,
+  `openClaudeModelPrompt`, `openGeminiModelPrompt` + `GEMINI_MODELLEN`
+  (vervangen door de ene lijst). `_geminiVolgendModel` (zelf doorstappen als
+  Google een model intrekt) blijft.
+
+**Waarom.** Eén keuze is minder uit te leggen dan twee die van elkaar
+afhangen ("aanbieder Gemini, model claude-opus" kon niet bestaan, maar moest
+wel worden afgevangen). Een pagina laat de stand zien zonder iets te openen,
+en geeft op een telefoon regels van 44px in plaats van een menu in een la.
+
+**Bestanden.** `index.html` (blok AI: modelkeuze; blok Instellingen op de plek
+van het oude menu; module-markup na Contracten; CSS na het blok Contracten),
+`test.html` (3 nieuwe tests, 4 aangepast: Gemini-tests kiezen Gemini nu zelf),
+`sw.js`, `CLAUDE.md`, `docs/stijlgids.md` §15.
+
+**Niet doen.** Een instelling alleen in een ⋯-menu zetten: zet hem ook op de
+pagina. Een kleur op de tekst van een stand: gebruik de stip. En geen tweede
+modelkeuze per functie zonder dat de pagina laat zien welke waar geldt.

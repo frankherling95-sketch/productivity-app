@@ -2274,6 +2274,73 @@ button.uren-mpiv-row:active{background:var(--surface2)}
   .ctr-ai-knop{min-height:var(--tap)}
 }
 
+/* ── Instellingen (2026-10-11) ──
+   Eén pagina in plaats van het pop-upmenu uit de zijbalk. Groepen met een
+   kop zoals de kaarten op het Dashboard (getint icoon, titel), daaronder
+   een kaart met regels: links wat het is, rechts de stand. Een regel die
+   iets opent, kiest of omzet is zelf de knop -- op een telefoon is de hele
+   regel het raakvlak. Op een breed scherm twee kolommen, zodat je alles in
+   één keer overziet; smaller dan twee keer 400px wordt het één kolom. */
+#mod-instellingen{flex-direction:column}
+#mod-instellingen .uren-content{padding:var(--sp-5) var(--sp-5) var(--sp-6)}
+.inst-kolommen{columns:2 400px;column-gap:var(--sp-5);max-width:1040px}
+.inst-groep{break-inside:avoid;display:flex;flex-direction:column;gap:var(--sp-2);margin:0 0 var(--sp-5)}
+.inst-kop{display:flex;align-items:center;gap:10px;margin:0;
+  font-family:var(--font-display);font-size:var(--fs-groot);font-weight:700;color:var(--text)}
+.inst-uitleg{margin:0 0 2px;font-size:var(--fs-klein);color:var(--text-muted);line-height:1.5}
+.inst-kaart{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-md);overflow:hidden}
+.inst-kaart + .inst-kaart{margin-top:var(--sp-1)}
+.inst-sub{padding:10px 14px 2px;font-size:var(--fs-micro);font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--text-muted)}
+.inst-rij{display:flex;align-items:center;gap:12px;width:100%;min-height:var(--tap);box-sizing:border-box;
+  padding:10px 14px;margin:0;background:transparent;border:0;border-radius:0;
+  font-family:var(--font-body);color:var(--text);text-align:left}
+.inst-rij + .inst-rij{border-top:0.5px solid var(--border)}
+button.inst-rij{cursor:pointer;transition:background var(--duur-kort) var(--ease)}
+button.inst-rij:hover{background:var(--surface2)}
+button.inst-rij:focus-visible{outline:2px solid var(--mint);outline-offset:-2px}
+.inst-tekst{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.inst-tekst b{font-size:var(--fs-basis);font-weight:600}
+.inst-tekst small{font-size:var(--fs-klein);color:var(--text-muted);line-height:1.4}
+.inst-waarde{flex-shrink:0;max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-family:var(--font-cijfer);font-variant-numeric:tabular-nums;
+  font-size:var(--fs-klein);color:var(--text-muted);text-align:right}
+/* De stand draagt zijn kleur in een stip, niet in de tekst: --warning op
+   wit is 1,85:1 (gemeten), zie stijlgids §12. */
+.inst-waarde.is-aan,.inst-waarde.is-uit{color:var(--text)}
+.inst-waarde.is-aan::before,.inst-waarde.is-uit::before{content:"";display:inline-block;width:7px;height:7px;
+  border-radius:50%;margin-right:6px;vertical-align:1px;background:var(--success)}
+.inst-waarde.is-uit::before{background:var(--warning)}
+.inst-pijl,.inst-vink{width:16px;height:16px;flex-shrink:0}
+.inst-pijl{color:var(--text-hint)}
+/* Een keuze uit een lijst (het model): het vinkje rechts, en vet, zoals de
+   gekozen regel in een menu. */
+.inst-vink{color:var(--mint);visibility:hidden}
+.inst-rij[aria-checked="true"] .inst-vink{visibility:visible}
+.inst-rij[role="radio"][aria-checked="true"] .inst-tekst b{font-weight:700}
+.inst-rij.is-gevaar .inst-tekst b{color:var(--danger)}
+/* Aan/uit: de regel is de knop (role=switch), dit is alleen de weergave. */
+.inst-schakel{position:relative;flex-shrink:0;width:38px;height:22px;border-radius:999px;
+  background:var(--border-strong);transition:background var(--duur-kort) var(--ease)}
+.inst-schakel::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;
+  background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:translate var(--duur-kort) var(--ease)}
+.inst-rij[aria-checked="true"] .inst-schakel{background:var(--mint)}
+.inst-rij[aria-checked="true"] .inst-schakel::after{translate:16px 0}
+/* Het thema: de vier staaltjes uit het themavenster, nu in de kaart. */
+.inst-kaart .thema-keuzes{padding:12px}
+.inst-voet{margin:0;font-size:var(--fs-micro);color:var(--text-hint)}
+@media (max-width:768px){
+  /* De titel staat al in de mobiele topbalk, en knoppen heeft deze kop niet. */
+  #mod-instellingen .uren-topbar{display:none}
+  #mod-instellingen .uren-content{padding:var(--sp-3) var(--sp-3) var(--sp-6)}
+  .inst-groep{margin-bottom:var(--sp-4)}
+  .inst-rij{padding:11px 14px}
+  .inst-waarde{max-width:40%}
+  .inst-schakel{width:46px;height:28px}
+  .inst-schakel::after{width:24px;height:24px}
+  .inst-rij[aria-checked="true"] .inst-schakel::after{translate:18px 0}
+}
+
 /* Mailvenster.
    Alle .modal-bg's delen z-index 200, dus zonder dit beslist de volgorde
    in de HTML wie er bovenop ligt — en dan verdween dit venster achter de
@@ -7261,7 +7328,7 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.dash-kop-icoon {
+.dash-kop-icoon, .inst-kop-ic {
   width: 30px; height: 30px;
   border-radius: 8px;
   flex-shrink: 0;
@@ -7269,15 +7336,15 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
   background: var(--dash-tint, var(--surface2));
   color: var(--dash-inkt, var(--text-muted));
 }
-.dash-kop-icoon svg { width: 16px; height: 16px; }
-[data-dash-card="checklist"] { --dash-tint: var(--mint-soft); --dash-inkt: #00936C; }
-[data-dash-card="notes"]     { --dash-tint: var(--info-bg);   --dash-inkt: var(--info); }
-[data-dash-card="afspraken"] { --dash-tint: var(--warning-bg); --dash-inkt: var(--warning); }
+.dash-kop-icoon svg, .inst-kop-ic svg { width: 16px; height: 16px; }
+[data-dash-card="checklist"], [data-inst-tint="mint"] { --dash-tint: var(--mint-soft); --dash-inkt: #00936C; }
+[data-dash-card="notes"], [data-inst-tint="info"] { --dash-tint: var(--info-bg); --dash-inkt: var(--info); }
+[data-dash-card="afspraken"], [data-inst-tint="warning"] { --dash-tint: var(--warning-bg); --dash-inkt: var(--warning); }
 /* In het donker is de echte mint leesbaar; #00936C is alleen voor licht. */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) [data-dash-card="checklist"] { --dash-inkt: var(--mint); }
+  :root:not([data-theme="light"]) :is([data-dash-card="checklist"], [data-inst-tint="mint"]) { --dash-inkt: var(--mint); }
 }
-:root[data-theme="dark"] [data-dash-card="checklist"] { --dash-inkt: var(--mint); }
+:root[data-theme="dark"] :is([data-dash-card="checklist"], [data-inst-tint="mint"]) { --dash-inkt: var(--mint); }
 /* De telpil staat op een bureaublad ook in beeld (de basisregel bovenin
    verbergt hem; op mobiel had hij al deze vorm). */
 .dash-grid .card-hdr .dash-card-count {
@@ -8195,6 +8262,11 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
 .aic-voet-l, .aic-voet-r { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 /* De mobiele .btn-regel zet display met !important en wint dan van [hidden]. */
 .aic-voet [hidden] { display: none !important; }
+/* De modelkeuze is een <select> in de doos van de knop ernaast (.btn.btn-sm),
+   zodat hij op elke breedte even hoog is. Alleen de tekstkleur: een knop is
+   gedempt tot je hem aanwijst, een keuze laat zien wat er gekozen is. */
+.aic-model { color: var(--text); max-width: 190px; cursor: pointer; padding-top: 4px; padding-bottom: 4px; }
+.aic-model option { background: var(--surface); color: var(--text); }
 @media (max-width: 768px) {
   .modal.aic-modal { height: 92vh; }
   .aic-lijst { padding: 14px; }
@@ -8559,7 +8631,7 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
       </div>
 
       <div class="sidebar-sec-lijn"></div>
-      <div class="nav-item" id="instellingenBtn" onclick="toggleAppInstellingen(event)" role="button" aria-haspopup="menu" aria-expanded="false" tabindex="0" data-titel="Instellingen">
+      <div class="nav-item" id="instellingenBtn" data-mod="instellingen" onclick="switchModule('instellingen')" role="button" tabindex="0" data-titel="Instellingen">
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span><span class="nav-label">Instellingen</span>
       </div>
     </nav>
@@ -8574,7 +8646,7 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.48</span>
+        <span class="app-versie" title="Appversie">v2.49</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -9091,6 +9163,13 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
       </div>
       <div class="uren-content" id="ctrBody"></div>
       <button class="uren-fab" data-action="ctrNieuw" aria-label="Nieuw contract">+</button>
+    </div>
+    <!-- ══ Module: Instellingen ══ zie renderInstellingenModule() -->
+    <div id="mod-instellingen" class="module">
+      <div class="uren-topbar">
+        <span class="uren-topbar-title">Instellingen</span>
+      </div>
+      <div class="uren-content" id="instBody"></div>
     </div>
   </div><!-- /main-area -->
 
@@ -10194,6 +10273,8 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
     <div class="aic-voet">
       <div class="aic-voet-l">
         <button class="btn btn-sm" type="button" onclick="openAiKeyPrompt()" title="API-key instellen" style="font-size:11px">⚙ API-key</button>
+        <!-- Welk model antwoordt. Zelfde keuze als in Instellingen → AI; zie aiChatModelToon(). -->
+        <select class="btn btn-sm aic-model" id="aiChatModel" data-change="aiChatKiesModel" aria-label="Model"></select>
         <span class="ai-quota-badge" id="aiQuotaBadgeChat" title="Aantal API-verzoeken vandaag vanaf dit apparaat"></span>
       </div>
       <div class="aic-voet-r">
@@ -11812,6 +11893,7 @@ function switchModule(mod){
   else if(mod==='facturen')renderFacturenModule();
   else if(mod==='opdrachten')renderOpdrachtenModule();
   else if(mod==='contracten')renderContractenModule();
+  else if(mod==='instellingen')renderInstellingenModule();
   else if(mod==='uren')renderUrenModule();
   /* Refresh client-filter dropdowns (each module has its own container) */
   renderClientFilters();
@@ -11980,7 +12062,6 @@ function zijbalkPlaats(pop,anker,opties){
 function sluitZijbalkVensters(){
   sluitKlantWissel();
   sluitGebruikerMenu();
-  closeAppInstellingen();
   closeExtTools();
 }
 
@@ -12215,34 +12296,12 @@ function toggleDashMobileSettings(e){
   if(willOpen&&menu)requestAnimationFrame(()=>clampDropdownToViewport(menu));
   else if(menu){menu.style.left='';menu.style.right='';}
 }
-/* "Instellingen…" in het ⋯-menu van het Dashboard deed alleen de la open. Het
-   menu dat je zoekt zit daarin, onderaan, achter een tweede tik op
-   ⚙ Instellingen -- en die eerste tik zag eruit alsof er niets gebeurde.
-   Nu doet één tik allebei.
-
-   toggleAppInstellingen() tekent zijn menu vanuit de plek van die knop
-   (zie zijbalkPlaats), en die knop schuift 0,25s lang mee met de la. Te
-   vroeg openen zet het menu dus op de plek waar de la vandaan kwam: buiten
-   beeld. Vandaar wachten op het einde van die beweging, met een klok als
-   vangnet -- staat de la al open, dan komt er geen transitionend. */
+/* "Instellingen…" in het ⋯-menu van het Dashboard. Tot v2.49 opende dit de
+   la en daarin het pop-upmenu, met een wachtlus op het inschuiven; nu is
+   Instellingen een pagina en is het één stap. */
 function openInstellingenVanafDashboard(){
   closeDashMobileSettings();
-  const sb=document.getElementById('sidebar');
-  const alOpen=!!(sb&&sb.classList.contains('mobile-open'));
-  toggleSidebarMobile(true);
-  /* toggleAppInstellingen() is een schakelaar; staat het menu er al, dan zou
-     hij het juist dichtdoen. */
-  const start=()=>{if(!document.getElementById('appInstelMenu'))toggleAppInstellingen();};
-  if(alOpen||!sb){setTimeout(start,0);return;}
-  let gedaan=false;
-  const klaar=()=>{
-    if(gedaan)return; gedaan=true;
-    sb.removeEventListener('transitionend',opTransitie);
-    start();
-  };
-  const opTransitie=e=>{if(e.target===sb&&e.propertyName==='transform')klaar();};
-  sb.addEventListener('transitionend',opTransitie);
-  setTimeout(klaar,320);   /* 0,25s overgang + marge */
+  switchModule('instellingen');
 }
 function closeDashMobileSettings(){
   const root=document.getElementById('dashMobileSettings');
@@ -12434,7 +12493,8 @@ function toggleSidebarMobile(force){
 const MOBILE_MODULE_TITLES={
   dashboard:'Dashboard',notes:'Notities',
   checklist:'Checklist',
-  uren:'Uren',facturen:'Facturen',opdrachten:'Opdrachten',contracten:'Contracten'
+  uren:'Uren',facturen:'Facturen',opdrachten:'Opdrachten',contracten:'Contracten',
+  instellingen:'Instellingen'
 };
 function updateMobileChrome(mod){
   const title=document.getElementById('mobileTopbarTitle');
@@ -12489,7 +12549,7 @@ function huidigThema(){
 }
 function themaKeuzesBijwerken(){
   const cur=huidigThema();
-  document.querySelectorAll('#themaModal .thema-keuze').forEach(b=>
+  document.querySelectorAll('.thema-keuze').forEach(b=>
     b.setAttribute('aria-checked',b.dataset.thema===cur?'true':'false'));
 }
 function openThemaModal(){
@@ -13850,7 +13910,7 @@ function renderAll(){
   try{archiefNaWijziging();}catch(_){}
 }
 
-const GELDIGE_MODULES=['dashboard','notes','checklist','uren','facturen','opdrachten','contracten'];
+const GELDIGE_MODULES=['dashboard','notes','checklist','uren','facturen','opdrachten','contracten','instellingen'];
 function moduleUitHash(){
   const h=(location.hash||'#dashboard').slice(1);
   return GELDIGE_MODULES.includes(h)?h:'dashboard';
@@ -13991,113 +14051,214 @@ function toonLoginScherm(){
     }
   },6000);
 }
-/* -- Instellingen: app-breed, vanuit elk scherm bereikbaar --
-   Opslag en beveiliging hoorden niet thuis in het facturen-menu; dat
-   gaat over de hele app. */
-function toggleAppInstellingen(e){
-  if(e)e.stopPropagation();
-  if(document.getElementById('appInstelMenu')){closeAppInstellingen();return;}
-  const btn=document.getElementById('instellingenBtn');
-  if(!btn)return;
-  const m=document.createElement('div');
-  m.className='uren-menu';m.id='appInstelMenu';m.setAttribute('role','menu');
+/* ══ Instellingen ══════════════════════════════════════════════════════
+   (2026-10-11) Een eigen pagina (#instellingen) in plaats van het
+   pop-upmenu in de zijbalk. Dat menu groeide met elke functie een regel,
+   kon niets laten zien behalve één bijregel, en een keuze uit een lijst
+   (het model, het thema) moest er telkens een tweede venster voor openen.
+   Hier staat alles bij elkaar, in groepen, met de stand erbij.
+
+   Elke regel is óf een knop die iets opent (pijl rechts), óf een keuze
+   uit een lijst (vinkje), óf een schakelaar. Ze roepen dezelfde functies
+   aan als het menu deed; de pagina tekent zichzelf daarna opnieuw, zodat
+   de stand klopt. */
+const INST_PIJL='<svg class="inst-pijl" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>';
+const INST_VINK='<svg class="inst-vink" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5 6.5 11.5 12.5 4.5"/></svg>';
+const INST_IC={
+  ai:'<path d="M8 1.8l1.3 3.6 3.6 1.3-3.6 1.3L8 11.6 6.7 8 3.1 6.7 6.7 5.4z"/><path d="M12.6 10.6l.6 1.6 1.6.6-1.6.6-.6 1.6-.6-1.6-1.6-.6 1.6-.6z"/>',
+  weergave:'<circle cx="8" cy="8" r="6"/><path d="M8 2a6 6 0 0 0 0 12z" fill="currentColor"/>',
+  gegevens:'<ellipse cx="8" cy="3.8" rx="5.2" ry="2"/><path d="M2.8 3.8v8.4c0 1.1 2.3 2 5.2 2s5.2-.9 5.2-2V3.8"/><path d="M2.8 8c0 1.1 2.3 2 5.2 2s5.2-.9 5.2-2"/>',
+  meldingen:'<path d="M4 11V7a4 4 0 0 1 8 0v4l1.2 1.5H2.8z"/><path d="M6.6 13.8a1.5 1.5 0 0 0 2.8 0"/>',
+  facturen:'<path d="M3.5 1.8h9v12.4l-2.25-1.4-2.25 1.4-2.25-1.4-2.25 1.4z"/><line x1="6" y1="5.6" x2="10" y2="5.6"/><line x1="6" y1="8.4" x2="10" y2="8.4"/>',
+  werk:'<circle cx="8" cy="8" r="6"/><path d="M8 4.5V8l2.5 1.5"/>',
+  account:'<circle cx="8" cy="5.5" r="2.7"/><path d="M2.8 14c0-2.8 2.3-4.6 5.2-4.6s5.2 1.8 5.2 4.6"/>'
+};
+
+/* Eén regel. doe/arg gaan via APP_ACTIONS (data-action), zodat de pagina
+   geen eigen klikafhandeling nodig heeft. */
+function instRij(o){
+  const tekst='<span class="inst-tekst"><b>'+escapeHtml(o.label)+'</b>'+
+    (o.hint?'<small>'+escapeHtml(o.hint)+'</small>':'')+'</span>';
+  const waarde=o.waarde?'<span class="inst-waarde'+(o.toon?' is-'+o.toon:'')+'">'+escapeHtml(o.waarde)+'</span>':'';
+  const actie=' data-action="'+o.doe+'"'+(o.arg!=null?' data-arg1="'+escapeHtml(o.arg)+'"':'');
+  const klasse='inst-rij'+(o.gevaar?' is-gevaar':'');
+  if(o.soort==='keuze')
+    return '<button type="button" class="'+klasse+'" role="radio" aria-checked="'+(o.aan?'true':'false')+'"'+actie+'>'+
+      tekst+waarde+INST_VINK+'</button>';
+  if(o.soort==='schakel')
+    return '<button type="button" class="'+klasse+'" role="switch" aria-checked="'+(o.aan?'true':'false')+'"'+actie+'>'+
+      tekst+'<span class="inst-schakel" aria-hidden="true"></span></button>';
+  return '<button type="button" class="'+klasse+'"'+actie+'>'+tekst+waarde+INST_PIJL+'</button>';
+}
+function instGroep(id,tint,titel,uitleg,inhoud){
+  return '<section class="inst-groep" aria-labelledby="instKop-'+id+'"'+(tint?' data-inst-tint="'+tint+'"':'')+'>'+
+    '<h2 class="inst-kop" id="instKop-'+id+'"><span class="inst-kop-ic" aria-hidden="true">'+
+    '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">'+
+    INST_IC[id]+'</svg></span>'+escapeHtml(titel)+'</h2>'+
+    (uitleg?'<p class="inst-uitleg">'+escapeHtml(uitleg)+'</p>':'')+inhoud+'</section>';
+}
+function instKaart(rijen,sub,attr){
+  return '<div class="inst-kaart"'+(attr||'')+'>'+(sub?'<div class="inst-sub">'+escapeHtml(sub)+'</div>':'')+rijen.join('')+'</div>';
+}
+
+function instGroepAi(){
+  const nu=aiModel();
+  const keuzes=aiModelKeuzes();
+  const modellen=keuzes.map(k=>instRij({soort:'keuze',doe:'instModel',arg:k.model,
+    label:k.naam,hint:k.uitleg,aan:k.model===nu}));
+  /* Een zelf ingetypt model staat er ook, gekozen -- anders lijkt het alsof
+     er niets gekozen is. */
+  if(!keuzes.some(k=>k.model===nu))
+    modellen.push(instRij({soort:'keuze',doe:'instModel',arg:nu,label:nu,hint:'Zelf ingetypt',aan:true}));
+  modellen.push(instRij({doe:'instDoe',arg:'aiModelTypen',label:'Ander model…',
+    hint:'Een nieuwe Claude of Gemini die hier nog niet tussen staat'}));
+  const heeft=k=>{try{return !!localStorage.getItem(k);}catch(_){return false;}};
+  const ck=heeft(LS_CLAUDE_KEY), gk=heeft(LS_GEMINI_KEY);
+  const sleutels=[
+    instRij({doe:'instDoe',arg:'claudeKey',label:'Claude API-key',hint:'Van platform.claude.com · betaald per gebruik',
+      waarde:ck?'Ingesteld':'Niet ingesteld',toon:ck?'aan':(aiAanbieder()==='claude'?'uit':'')}),
+    instRij({doe:'instDoe',arg:'geminiKey',label:'Gemini API-key',hint:'Van aistudio.google.com · gratis laag',
+      waarde:gk?'Ingesteld':'Niet ingesteld',toon:gk?'aan':(aiAanbieder()==='gemini'?'uit':'')}),
+    instRij({soort:'schakel',doe:'instDoe',arg:'maskeren',label:'Namen maskeren',aan:aiMaskerenAan(),
+      hint:'Klantnamen, adressen en KVK-nummers gaan als code de deur uit en komen hier weer terug'})
+  ];
+  return instGroep('ai','mint','AI',
+    'Voor slim toevoegen, de weekreview, Vraag het je app, notities opschonen en het uitlezen van '+
+    'facturen en contracten. Gekozen op dit apparaat; sleutels gaan niet mee naar Drive.',
+    instKaart(modellen,'Model',' role="radiogroup" aria-label="Model"')+instKaart(sleutels,'Sleutels en privacy'));
+}
+function instGroepWeergave(){
+  const cur=huidigThema();
+  const staal={auto:'auto',light:'licht',dark:'donker',schedule:'rooster'};
+  const uitleg={auto:'Volgt je systeem',light:'Altijd licht',dark:'Altijd donker',schedule:'Licht van 7 tot 19 uur'};
+  const keuzes=Object.keys(THEMA_LABELS).map(t=>
+    '<button type="button" class="thema-keuze" role="radio" data-thema="'+t+'" data-action="instThema" data-arg1="'+t+'"'+
+    ' aria-checked="'+(t===cur?'true':'false')+'"><span class="thema-staal thema-staal-'+staal[t]+'" aria-hidden="true"></span>'+
+    '<span class="thema-keuze-tekst"><b>'+THEMA_LABELS[t]+'</b><small>'+uitleg[t]+'</small></span></button>').join('');
+  /* Smal of breed is er alleen op een bureaublad; op een telefoon is de
+     zijbalk een la. */
+  const zijbalk=MQ_BUREAUBLAD.matches?instKaart([instRij({soort:'schakel',doe:'instDoe',arg:'zijbalk',
+    label:'Smalle zijbalk',hint:'Alleen de iconen; de naam verschijnt als je erop wijst',aan:!!zijbalkStand().ingeklapt})]):'';
+  return instGroep('weergave','','Weergave','Hoe de app eruitziet op dit apparaat. De zijbalk blijft donker.',
+    '<div class="inst-kaart"><div class="thema-keuzes" role="radiogroup" aria-label="Thema">'+keuzes+'</div></div>'+zijbalk);
+}
+function instGroepGegevens(){
   const dagen=facBackupLeeftijd();
-  /* Alles wat over de hele app gaat, staat hier. Het ging mis doordat het
-     ⋯-menu op het Dashboard (alleen mobiel) meer kon dan deze knop: de
-     API-key, opnieuw laden, een back-up terugzetten en notificaties zaten
-     daar wel en hier niet. Op een bureaublad waren die dus onbereikbaar. */
-  const key=aiSleutel();
-  const maskAan=aiMaskerenAan();
-  sluitZijbalkVensters();
-  m.innerHTML=`
-    <div class="uren-menu-lab">Weergave</div>
-    <button class="uren-menu-item" role="menuitem" data-app-instel="thema">
-      <span class="ic" aria-hidden="true">&#9680;</span>
-      <span>Thema<small>${escapeHtml(THEMA_LABELS[huidigThema()]||'Automatisch')}</small></span></button>
-    <div class="uren-menu-sep"></div>
-    <div class="uren-menu-lab">Gegevens</div>
-    <button class="uren-menu-item" role="menuitem" data-app-instel="verversen">
-      <span class="ic" aria-hidden="true">&#8635;</span>
-      <span>Opnieuw laden uit Drive<small>Haal de laatste versie op</small></span></button>
-    <button class="uren-menu-item" role="menuitem" data-app-instel="versies">
-      <span class="ic" aria-hidden="true">&#8634;</span>
-      <span>Versiegeschiedenis<small>Een oudere versie uit Drive terughalen</small></span></button>
-    <button class="uren-menu-item" role="menuitem" data-app-instel="backup">
-      <span class="ic" aria-hidden="true">&#9739;</span>
-      <span>Back-up downloaden<small>${dagen===null?'Nog nooit gedaan':dagen===0?'Vandaag gedaan':'Laatst '+dagen+' '+(dagen===1?'dag':'dagen')+' geleden'}</small></span></button>
-    <button class="uren-menu-item" role="menuitem" data-app-instel="herstel">
-      <span class="ic" aria-hidden="true">&#8593;</span>
-      <span>Back-up terugzetten<small>Een eerder gedownload JSON-bestand</small></span></button>
-    <button class="uren-menu-item" role="menuitem" data-app-instel="archief">
-      <span class="ic" aria-hidden="true">&#128193;</span>
-      <span>Archief in Google Drive<small>${escapeHtml(archiefMenuTekst())}</small></span></button>
-    <div class="uren-menu-sep"></div>
-    <div class="uren-menu-lab">AI</div>
-    <button class="uren-menu-item" role="menuitem" data-app-instel="aiaanbieder">
-      <span class="ic" aria-hidden="true">&#8644;</span>
-      <span>AI-aanbieder<small>${escapeHtml(aiNaam()+' ('+aiBedrijf()+')')}</small></span></button>
-    <button class="uren-menu-item" role="menuitem" data-app-instel="aikey">
-      <span class="ic" aria-hidden="true">&#9881;</span>
-      <span>${escapeHtml(aiNaam())} API-key<small>${key?'Ingesteld op dit apparaat':'Nog niet ingesteld'}</small></span></button>
-    <button class="uren-menu-item" role="menuitem" data-app-instel="aimodel">
-      <span class="ic" aria-hidden="true">&#9673;</span>
-      <span>AI-model<small>${escapeHtml(aiModel())}</small></span></button>
-    <button class="uren-menu-item" role="menuitem" data-app-instel="aimask">
-      <span class="ic" aria-hidden="true">&#9788;</span>
-      <span>Namen maskeren<small>${maskAan?'Aan — klantnamen gaan als code weg':'Uit — namen gaan onbewerkt mee'}</small></span></button>
-    <button class="uren-menu-item" role="menuitem" data-app-instel="slim">
-      <span class="ic" aria-hidden="true">&#10022;</span>
-      <span>Slim toevoegen<small>Taken uit een zin laten halen</small></span></button>
-    <button class="uren-menu-item" role="menuitem" data-app-instel="review">
-      <span class="ic" aria-hidden="true">&#9635;</span>
-      <span>Wekelijkse review<small>Samenvatting van je week</small></span></button>
-    <div class="uren-menu-sep"></div>
-    <div class="uren-menu-lab">Meldingen</div>
-    <button class="uren-menu-item" role="menuitem" data-app-instel="agenda">
-      <span class="ic" aria-hidden="true">&#128197;</span>
-      <span>Google Agenda<small>${escapeHtml(agdMenuTekst())}</small></span></button>
-    <button class="uren-menu-item" role="menuitem" data-app-instel="notif">
-      <span class="ic" aria-hidden="true">&#128276;</span>
-      <span>Notificaties inschakelen<small>Melding bij een deadline</small></span></button>
-`;
-  document.body.appendChild(m);
-  /* Naast de zijbalk op de hoogte van de knop; in de lade eronder of erboven. */
-  zijbalkPlaats(m,btn);
-  btn.classList.add('is-open');
-  btn.setAttribute('aria-expanded','true');
-  setTimeout(()=>document.addEventListener('mousedown',appInstelBuiten),20);
+  const sync=(document.getElementById('syncMsg')?.textContent||'').trim();
+  return instGroep('gegevens','info','Gegevens en opslag',
+    'Alles staat in je eigen Google Drive, in een map die alleen deze app kan lezen.',
+    instKaart([
+      /* De opslagstatus als bijregel: hij is soms een hele zin ("Niet
+         verbonden met Drive — alleen lokaal"), en rechts werd die afgekapt. */
+      instRij({doe:'instDoe',arg:'verversen',label:'Opnieuw laden uit Drive',
+        hint:sync&&sync!=='—'?sync:'Haal de laatste versie op'}),
+      instRij({doe:'instDoe',arg:'versies',label:'Versiegeschiedenis',hint:'Een oudere versie uit Drive terughalen'}),
+      instRij({doe:'instDoe',arg:'backup',label:'Back-up downloaden',hint:'Alles als één JSON-bestand',
+        waarde:dagen===null?'Nog nooit':dagen===0?'Vandaag':dagen===1?'Gisteren':dagen+' dagen geleden',
+        toon:dagen===null||dagen>30?'uit':''}),
+      instRij({doe:'instDoe',arg:'herstel',label:'Back-up terugzetten',hint:'Een eerder gedownload JSON-bestand'}),
+      instRij({doe:'instDoe',arg:'archief',label:'Archief in Google Drive',hint:archiefMenuTekst()})
+    ]));
 }
-function appInstelBuiten(e){
-  const m=document.getElementById('appInstelMenu');
-  if(m&&!m.contains(e.target)&&!e.target.closest('#instellingenBtn'))closeAppInstellingen();
+function instGroepMeldingen(){
+  const p=notifPerm();
+  return instGroep('meldingen','warning','Meldingen',
+    'Waar je hoort dat er iets afloopt of een deadline nadert.',
+    instKaart([
+      instRij({doe:'instDoe',arg:'agenda',label:'Google Agenda',hint:agdMenuTekst()}),
+      instRij({doe:'instDoe',arg:'notif',label:'Meldingen in deze browser',hint:'Bij een deadline van vandaag of een taak die te laat is',
+        waarde:!notifSupport()?'Niet mogelijk':p==='granted'?'Aan':p==='denied'?'Geblokkeerd':'Uit',
+        toon:p==='granted'?'aan':''})
+    ]));
 }
-function closeAppInstellingen(){
-  document.getElementById('appInstelMenu')?.remove();
-  const btn=document.getElementById('instellingenBtn');
-  if(btn){btn.classList.remove('is-open');btn.setAttribute('aria-expanded','false');}
-  document.removeEventListener('mousedown',appInstelBuiten);
+/* Wat in de ⋯-menu's van Facturen, Uren en Opdrachten zat en eigenlijk een
+   instelling is. Daar blijft het ook staan -- dit is de plek waar je het
+   vindt zonder te weten in welk menu het zat. */
+function instGroepFacturen(){
+  return instGroep('facturen','','Facturen en klanten','Gesynchroniseerd: geldt op elk apparaat.',
+    instKaart([
+      instRij({doe:'instDoe',arg:'facInstellingen',label:'Facturatie-instellingen',
+        hint:'Bedrijfsgegevens, factuurnummers, betaaltermijn, btw en kilometertarief'}),
+      instRij({doe:'instDoe',arg:'facSjabloon',label:'Factuursjabloon',hint:'Opmaak, logo en blokken van de factuur-PDF'}),
+      instRij({doe:'instDoe',arg:'facMail',label:'Standaardtekst mail',hint:'Onderwerp en tekst als je een factuur mailt'}),
+      instRij({doe:'instDoe',arg:'klanten',label:'Klanten beheren',hint:'Gegevens, tarief en btw per klant'}),
+      instRij({doe:'instDoe',arg:'klantNieuw',label:'Nieuwe klant'})
+    ]));
 }
-document.addEventListener('click',e=>{
-  const el=e.target.closest('[data-app-instel]');
-  if(!el)return;
-  const wat=el.dataset.appInstel;
-  closeAppInstellingen();
-  if(wat==='thema')openThemaModal();
-  if(wat==='backup')downloadBackup();
-  if(wat==='versies')openVersiesModal();
-  if(wat==='verversen')refreshGist();
-  if(wat==='herstel')document.getElementById('restoreFileInput')?.click();
-  if(wat==='aiaanbieder')openAiAanbiederPrompt();
-  if(wat==='aikey')openAiKeyPrompt();
-  if(wat==='aimask')aiMaskerenWissel();
-  if(wat==='aimodel')openAiModelPrompt();
-  if(wat==='slim')openQuickAddAI();
-  if(wat==='review')openWeeklyReviewModal();
-  if(wat==='notif')requestNotifPermission();
-  if(wat==='agenda')agdOpen();
-  if(wat==='archief')archiefOpen();
+function instGroepWerk(){
+  return instGroep('werk','','Uren en opdrachten','',
+    instKaart([
+      instRij({doe:'instDoe',arg:'vrijeDagen',label:'Vrije dagen en feestdagen',
+        hint:'Telt mee in het vooruitzicht van je opdrachten'}),
+      instRij({doe:'instDoe',arg:'urenSjablonen',label:'Uren-sjablonen en herhaling',
+        hint:'Vaste regels die je met één klik invult'})
+    ]));
+}
+function instGroepAccount(){
+  const g=ingelogdeGebruiker();
+  const versie=(document.querySelector('.app-versie')?.textContent||'').trim();
+  return instGroep('account','','Account en app','',
+    instKaart([
+      instRij({doe:'instDoe',arg:'externeTools',label:'Externe tools',hint:'De links onder Externe tools in de zijbalk'}),
+      instRij({doe:'instDoe',arg:'sneltoetsen',label:'Sneltoetsen',hint:'Alle toetscombinaties op een rij'}),
+      instRij({doe:'instDoe',arg:'herladen',label:'App opnieuw laden',
+        hint:'Na een update: twee keer, dan neemt de nieuwe versie het over',waarde:versie}),
+      instRij({doe:'instDoe',arg:'uitloggen',label:'Uitloggen',gevaar:true,
+        hint:g?gebruikerNaam(g)+' · '+g.email:'Terug naar het inlogscherm'})
+    ]));
+}
+
+function renderInstellingenModule(){
+  const box=document.getElementById('instBody');
+  if(!box)return;
+  /* De focus bewaren: na een klik tekent de pagina zichzelf opnieuw, en
+     anders spring je met het toetsenbord terug naar boven. */
+  const f=document.activeElement&&box.contains(document.activeElement)?document.activeElement:null;
+  const actie=f?f.dataset.action||'':'', arg=f?f.dataset.arg1||'':'';
+  box.innerHTML='<div class="inst-kolommen">'+[instGroepAi(),instGroepWeergave(),instGroepFacturen(),
+    instGroepWerk(),instGroepGegevens(),instGroepMeldingen(),instGroepAccount()].join('')+'</div>';
+  if(actie)box.querySelector('[data-action="'+actie+'"]'+(arg?'[data-arg1="'+CSS.escape(arg)+'"]':''))?.focus();
+}
+/* Wat elke regel doet. Dezelfde functies als het oude menu. */
+const INST_DOEN={
+  aiModelTypen:()=>openAiModelPrompt(),
+  claudeKey:()=>openClaudeKeyPrompt(),
+  geminiKey:()=>openGeminiKeyPrompt(),
+  maskeren:()=>aiMaskerenWissel(),
+  verversen:()=>refreshGist(),
+  versies:()=>openVersiesModal(),
+  backup:()=>downloadBackup(),
+  herstel:()=>document.getElementById('restoreFileInput')?.click(),
+  archief:()=>archiefOpen(),
+  agenda:()=>agdOpen(),
+  notif:()=>requestNotifPermission(),
+  zijbalk:()=>toggleSidebar(),
+  facInstellingen:()=>openFacInstellingen(),
+  facSjabloon:()=>openFacSjabloon(),
+  facMail:()=>openFacMailInstel(),
+  klanten:()=>openKlantenBeheer(),
+  klantNieuw:()=>openNewClientModal(),
+  vrijeDagen:()=>opdVrijOpen(),
+  urenSjablonen:()=>openUrenTemplatesModal(),
+  externeTools:()=>extToolsBewerk(),
+  sneltoetsen:()=>openShortcutsOverlay(),
+  herladen:()=>location.reload(),
+  uitloggen:async()=>{
+    if(await appBevestig('Uitloggen','Je gaat terug naar het inlogscherm. Wat nog niet in Drive staat, '+
+      'blijft op dit apparaat bewaard.',{ja:'Uitloggen',gevaar:true}))logUit();
+  }
+};
+async function instDoe(wat){
+  const f=INST_DOEN[wat];
+  if(!f)return;
+  await f();
+  if(activeModule==='instellingen')renderInstellingenModule();
+}
+Object.assign(APP_ACTIONS,{
+  instDoe:(el,e,wat)=>instDoe(wat),
+  instModel:(el,e,m)=>aiKiesModel(m),
+  instThema:(el,e,t)=>{kiesThema(t);renderInstellingenModule();}
 });
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeAppInstellingen();});
 
 /* ╔══════════════════════════════════════════════════════════════════╗
    ║              OPSLAG IN GOOGLE DRIVE (appDataFolder)              ║
@@ -34379,13 +34540,6 @@ const GEMINI_TERUGVAL=[
   'gemini-3.5-flash','gemini-3.6-flash','gemini-3.7-flash','gemini-3.8-flash',
   'gemini-3.5-flash-lite','gemini-3.1-flash-lite'
 ];
-/* Wat je zonder typwerk kunt kiezen, met wat het je kost of oplevert. */
-const GEMINI_MODELLEN=[
-  ['gemini-3.5-flash','een generatie terug — ruimste gratis laag van de gewone Flash'],
-  ['gemini-3.5-flash-lite','sneller en nog ruimer, iets minder nauwkeurig'],
-  ['gemini-3.6-flash','nieuwer, krappere gratis laag'],
-  ['gemini-3.8-flash','het nieuwste — krapste gratis laag']
-];
 function geminiModel(){
   try{return localStorage.getItem(LS_GEMINI_MODEL)||GEMINI_MODEL_STANDAARD;}
   catch(e){return GEMINI_MODEL_STANDAARD;}
@@ -34462,38 +34616,6 @@ async function _geminiVolgendModel(kapot){
   geminiZetModel(nieuw);
   return nieuw;
 }
-async function openGeminiModelPrompt(){
-  const nu=geminiModel();
-  let opties=GEMINI_MODELLEN.map(([m,uitleg])=>({waarde:m,naam:m,uitleg}));
-  let tekst='Hoe nieuwer het model, hoe krapper de gratis laag.';
-  try{
-    const flash=geminiFlashModellen(await geminiHaalModellen());
-    if(flash.length){
-      opties=flash.map(m=>({waarde:m,naam:m,
-        uitleg:(GEMINI_MODELLEN.find(x=>x[0]===m)||[])[1]||''}));
-      tekst='Deze Flash-modellen mag jouw sleutel gebruiken, oudste eerst. '+
-        'Hoe nieuwer het model, hoe krapper de gratis laag.';
-    }
-  }catch(e){
-    tekst='De lijst ophalen bij Google lukte niet ('+e.message+'), dus dit is de '+
-      'vaste lijst. Hoe nieuwer het model, hoe krapper de gratis laag.';
-  }
-  /* Lijst én veld: klikken vult het veld, maar een naam die er niet tussen
-     staat blijft in te typen -- Google brengt sneller een nieuw model uit dan
-     wij deze lijst bijwerken. Leeg laten doet wat het bij de prompt() ook deed. */
-  const v=await appKies({
-    titel:'Gemini-model',
-    tekst,
-    opties,
-    waarde:nu,
-    veld:{label:'Model',waarde:nu,placeholder:GEMINI_MODEL_STANDAARD},
-    voetnoot:'Leeg laten = terug naar '+GEMINI_MODEL_STANDAARD+'.',
-    ja:'Gebruiken'
-  });
-  if(v===null)return;
-  geminiZetModel((v||'').trim());
-  await _aiModelProbeer();
-}
 /* Meteen uitproberen. Een naam die niet bestaat merk je anders pas als je
    een factuur inleest, en dan lijkt het aan die factuur te liggen. */
 async function _aiModelProbeer(){
@@ -34507,29 +34629,33 @@ async function _aiModelProbeer(){
   }
 }
 
-/* ═══ Welke aanbieder: Gemini of Claude ══════════════════════════════
-   (2026-10-11) Naast Gemini kan Claude (Anthropic) het werk doen. Alle
-   AI-functies lopen via callAI() en _streamAI(); die maskeren eerst en
-   kiezen dan de aanbieder die in Instellingen → AI staat.
+/* ═══ Welk model, en daarmee welke aanbieder ═════════════════════════
+   (2026-10-11) Alle AI-functies lopen via callAI() en _streamAI(); die
+   maskeren eerst en sturen het verzoek dan naar de aanbieder van het
+   gekozen model.
 
-   Keuze, sleutel en model staan per apparaat in localStorage, net als de
-   Gemini-sleutel altijd al deed: een API-key hoort niet in Drive, en de
-   keuze hoort bij de sleutel die op dít apparaat staat. Gemini blijft de
-   standaard -- daar staat een gratis laag tegenover. Claude rekent per
-   token af van je tegoed op platform.claude.com, maar kent geen dagquotum
-   van twintig verzoeken. */
+   Er is één keuze: het model. Claude Haiku 5.5 is de standaard -- het
+   goedkoopste model, en voor uitlezen, indelen en vragen over je eigen
+   cijfers goed genoeg. Wie meer wil kiest zelf een sterker model; Gemini
+   blijft te kiezen voor de gratis laag van Google. (In v2.48 was Gemini
+   de standaard en stond de aanbieder als aparte keuze in het menu; zie
+   decisions.md.)
+
+   Keuze, sleutels en model staan per apparaat in localStorage: een API-key
+   hoort niet in Drive, en de keuze hoort bij de sleutel die op dít
+   apparaat staat. */
 const LS_AI_AANBIEDER='herling_ai_aanbieder';
 const AI_AANBIEDERS={
   gemini:{naam:'Gemini',bedrijf:'Google'},
   claude:{naam:'Claude',bedrijf:'Anthropic'}
 };
 function aiAanbieder(){
-  try{return localStorage.getItem(LS_AI_AANBIEDER)==='claude'?'claude':'gemini';}
-  catch(e){return 'gemini';}
+  try{return localStorage.getItem(LS_AI_AANBIEDER)==='gemini'?'gemini':'claude';}
+  catch(e){return 'claude';}
 }
 function aiZetAanbieder(a){
   try{
-    if(a==='claude')localStorage.setItem(LS_AI_AANBIEDER,'claude');
+    if(a==='gemini')localStorage.setItem(LS_AI_AANBIEDER,'gemini');
     else localStorage.removeItem(LS_AI_AANBIEDER);
   }catch(e){}
 }
@@ -34543,15 +34669,7 @@ function aiModel(){return aiAanbieder()==='claude'?claudeModel():geminiModel();}
 
 const LS_CLAUDE_KEY='herling_claude_api_key';
 const LS_CLAUDE_MODEL='herling_claude_model';
-const CLAUDE_MODEL_STANDAARD='claude-opus-5-5';
-/* Prijzen per miljoen tokens, invoer / uitvoer (oktober 2026). Een factuur
-   uitlezen is een paar duizend tokens in en een paar honderd uit. */
-const CLAUDE_MODELLEN=[
-  ['claude-opus-5-5','Opus 5.5 — sterk en grondig · $4 / $20 per miljoen tokens'],
-  ['claude-sonnet-5-5','Sonnet 5.5 — snel, goed voor het meeste · $2 / $10'],
-  ['claude-haiku-5-5','Haiku 5.5 — snelst en goedkoopst, prima om uit te lezen · $0,10 / $0,50'],
-  ['claude-fable-5-1','Fable 5.1 — het sterkste model, en het duurste · $10 / $50']
-];
+const CLAUDE_MODEL_STANDAARD='claude-haiku-5-5';
 function claudeModel(){
   try{return localStorage.getItem(LS_CLAUDE_MODEL)||CLAUDE_MODEL_STANDAARD;}
   catch(e){return CLAUDE_MODEL_STANDAARD;}
@@ -34563,52 +34681,106 @@ function claudeZetModel(m){
   }catch(e){}
 }
 
-async function openAiAanbiederPrompt(){
-  const nu=aiAanbieder();
-  const v=await appKies({
-    titel:'AI-aanbieder',
-    tekst:'Welk taalmodel het werk doet: slim toevoegen, de weekreview, Vraag het je app, '+
-      'notities opschonen en het uitlezen van facturen en contracten.',
-    opties:[
-      {waarde:'gemini',naam:'Gemini (Google)',
-       uitleg:'Gratis laag, maar krap: per minuut en per dag geteld.'},
-      {waarde:'claude',naam:'Claude (Anthropic)',
-       uitleg:'Betaald per gebruik van je tegoed op platform.claude.com; geen dagquotum.'}
-    ],
-    waarde:nu,
-    voetnoot:'Geldt voor dit apparaat. Elke aanbieder heeft een eigen API-key.'
-  });
-  /* Zonder klik op een optie geeft OK een lege tekst terug: niets gekozen. */
-  if(!v||v===nu)return;
-  aiZetAanbieder(v);
+/* Wat je kunt kiezen, goedkoopst eerst. Prijzen per miljoen tokens,
+   invoer / uitvoer (oktober 2026): een factuur uitlezen is een paar
+   duizend tokens in en een paar honderd uit, een chatvraag meer omdat je
+   hele overzicht meegaat. Gemini staat onderaan met het Flash-model dat
+   nu in gebruik is -- dat stapt zelf door als Google er een intrekt. */
+function aiModelKeuzes(){
+  return [
+    {model:'claude-haiku-5-5',naam:'Claude Haiku 5.5',
+     uitleg:'Standaard · snelst en goedkoopst · $0,10 / $0,50 per miljoen tokens'},
+    {model:'claude-sonnet-5-5',naam:'Claude Sonnet 5.5',
+     uitleg:'Beter in redeneren en schrijven · $2 / $10'},
+    {model:'claude-opus-5-5',naam:'Claude Opus 5.5',
+     uitleg:'Sterk en grondig · $4 / $20'},
+    {model:'claude-fable-5-1',naam:'Claude Fable 5.1',
+     uitleg:'Het sterkste model, en het duurste · $10 / $50'},
+    {model:geminiModel(),naam:'Gemini Flash',
+     uitleg:'Gratis laag van Google, maar krap: zo\'n twintig verzoeken per dag'}
+  ];
+}
+/* De naam zoals je hem leest; een zelf ingetypt model heet zoals het heet. */
+function aiModelNaam(m){
+  m=m||aiModel();
+  const k=aiModelKeuzes().find(x=>x.model===m);
+  return k?k.naam:m;
+}
+/* Het model bepaalt de aanbieder: gemini-… gaat naar Google, claude-…
+   naar Anthropic. Leeg is terug naar de standaard. False bij een naam die
+   bij geen van beide hoort. */
+function aiZetModel(m){
+  m=String(m||'').trim();
+  if(/^gemini-/i.test(m)){aiZetAanbieder('gemini');geminiZetModel(m);return true;}
+  if(!m||/^claude-/i.test(m)){aiZetAanbieder('claude');claudeZetModel(m);return true;}
+  return false;
+}
+/* Kiezen -- uit Instellingen, de chat of het venster met de lijst. Zetten,
+   overal laten zien wat het nu is, en om een sleutel vragen als die voor
+   deze aanbieder nog ontbreekt. Uitproberen alleen bij een zelf getypte
+   naam: dat kost een verzoek, en een naam uit de lijst bestaat. */
+async function aiKiesModel(m,opt){
+  const probeer=!!(opt&&opt.probeer);
+  if(!aiZetModel(m)){
+    appToast('"'+m+'" is geen model van Claude of Gemini: de naam begint met claude- of gemini-.',
+      {type:'error',duration:6000});
+    return false;
+  }
+  aiModelBijwerken();
+  if(!aiSleutel()){
+    await openAiKeyPrompt();
+    aiModelBijwerken();
+    if(!aiSleutel())return true;
+  }
+  if(probeer)await _aiModelProbeer();
+  else appToast('Model: '+aiModelNaam(),{type:'success',duration:2500});
+  return true;
+}
+/* Alles wat het gekozen model laat zien in één keer bij. */
+function aiModelBijwerken(){
   _updateAIQuotaBadges();
-  appToast('AI: '+aiNaam()+' · '+aiModel(),{type:'success',duration:3000});
-  if(!aiSleutel())openAiKeyPrompt();
+  aiChatModelToon();
+  if(typeof activeModule!=='undefined'&&activeModule==='instellingen')renderInstellingenModule();
 }
 function openAiKeyPrompt(){
   return aiAanbieder()==='claude'?openClaudeKeyPrompt():openGeminiKeyPrompt();
 }
-function openAiModelPrompt(){
-  return aiAanbieder()==='claude'?openClaudeModelPrompt():openGeminiModelPrompt();
-}
-async function openClaudeModelPrompt(){
-  const nu=claudeModel();
-  /* Lijst én veld, net als bij Gemini: een model dat hier nog niet staat
-     blijft in te typen. */
+/* De lijst als venster, mét een veld voor een model dat er (nog) niet
+   tussen staat -- een nieuwe Claude of Flash is sneller uit dan deze lijst. */
+async function openAiModelPrompt(){
+  const nu=aiModel();
   const v=await appKies({
-    titel:'Claude-model',
-    tekst:'Prijzen per miljoen tokens, invoer / uitvoer. Een vraag in de chat stuurt je '+
-      'hele overzicht mee en is dus groter dan een factuur uitlezen.',
-    opties:CLAUDE_MODELLEN.map(([m,uitleg])=>({waarde:m,naam:m,uitleg})),
+    titel:'AI-model',
+    tekst:'Goedkoopst bovenaan. Het model bepaalt ook wie het werk doet: Claude '+
+      '(Anthropic) of Gemini (Google). Geldt voor alle AI-functies op dit apparaat.',
+    opties:aiModelKeuzes().map(k=>({waarde:k.model,naam:k.naam,uitleg:k.uitleg})),
     waarde:nu,
     veld:{label:'Model',waarde:nu,placeholder:CLAUDE_MODEL_STANDAARD},
-    voetnoot:'Leeg laten = terug naar '+CLAUDE_MODEL_STANDAARD+'.',
+    voetnoot:'Staat het er niet tussen, typ dan de naam (claude-… of gemini-…). '+
+      'Leeg laten = terug naar '+aiModelNaam(CLAUDE_MODEL_STANDAARD)+'.',
     ja:'Gebruiken'
   });
   if(v===null)return;
-  claudeZetModel((v||'').trim());
-  await _aiModelProbeer();
+  const naam=String(v).trim();
+  await aiKiesModel(naam,{probeer:!!naam&&!aiModelKeuzes().some(k=>k.model===naam)});
 }
+/* De keuzelijst onderin Vraag het je app. Dezelfde keuze als in
+   Instellingen: wat je hier kiest geldt daarna overal, ook bij het
+   uitlezen van facturen. */
+function aiChatModelToon(){
+  const sel=document.getElementById('aiChatModel');
+  if(!sel)return;
+  const nu=aiModel();
+  const keuzes=aiModelKeuzes();
+  const lijst=keuzes.some(k=>k.model===nu)?keuzes:[...keuzes,{model:nu,naam:nu}];
+  sel.innerHTML=lijst.map(k=>'<option value="'+escapeHtml(k.model)+'"'+
+    (k.model===nu?' selected':'')+'>'+escapeHtml(k.naam)+'</option>').join('');
+  sel.title='Welk model antwoordt. Een sterker model kost meer per vraag.';
+}
+function aiChatKiesModel(el){aiKiesModel(el.value);}
+Object.assign(APP_CHANGE_ACTIONS,{
+  aiChatKiesModel:(el)=>aiChatKiesModel(el)
+});
 /* State */
 let _quickAddAIResult=null;        /* tijdelijke buffer tussen parse en apply */
 let _weeklyReviewMarkdown='';      /* buffer voor copy/save acties */
@@ -34643,13 +34815,15 @@ function _updateAIQuotaBadges(){
      antwoordt, zonder naar Instellingen te gaan. De teller is voor beide
      samen -- het is een indruk van vandaag, geen afrekening. */
   const text=`${aiNaam()} · ${u.count} vandaag`;
+  /* In de chat staat de modelkeuze er al naast; daar alleen de telling. */
+  const kaal=`${u.count} vandaag`;
   const titel='Aantal API-verzoeken vandaag vanaf dit apparaat. '+(aiAanbieder()==='claude'
     ?'Je verbruik en tegoed staan op platform.claude.com'
     :'Je werkelijke limiet staat op aistudio.google.com');
   const cls=u.count>=400?'high':u.count>=150?'mid':'';
   ['aiQuotaBadgeQuick','aiQuotaBadgeReview','aiQuotaBadgeChat'].forEach(id=>{
     const el=document.getElementById(id);
-    if(el){el.textContent=text;el.title=titel;el.className='ai-quota-badge '+cls;}
+    if(el){el.textContent=id==='aiQuotaBadgeChat'?kaal:text;el.title=titel;el.className='ai-quota-badge '+cls;}
   });
 }
 
@@ -36612,6 +36786,8 @@ function aiChatKnoppen(){
   const bezig=_aiCalling.chat;
   const zend=document.getElementById('aiChatZend');
   if(zend)zend.disabled=bezig;
+  const model=document.getElementById('aiChatModel');
+  if(model)model.disabled=bezig;
   const nieuw=document.getElementById('aiChatNieuwBtn');
   if(nieuw)nieuw.disabled=bezig||!aiChatGesprek.length;
   const opn=document.getElementById('aiChatOpnieuwBtn');
@@ -36630,6 +36806,7 @@ function aiChatOpen(){
   if(!m)return;
   m.classList.add('open');
   _updateAIQuotaBadges();
+  aiChatModelToon();
   aiChatToon();aiChatKnoppen();
   setTimeout(()=>document.getElementById('aiChatInvoer')?.focus(),60);
 }
@@ -36799,7 +36976,7 @@ zetModalSluitknoppen();
    openen aan de body gehangen, de popovers dragen .open. #appDlgLijst stond
    hier eerst ook -- dat is een vast onderdeel van het vraagvenster en bestaat
    dus altijd, waardoor deze test altijd waar was en Esc nooit iets sloot. */
-const ESC_MENUS=['#urenMenu','#facMenu','#opdMenu','#appInstelMenu','#gebruikerMenu','.klant-wissel.open','#facFilterPop',
+const ESC_MENUS=['#urenMenu','#facMenu','#opdMenu','#gebruikerMenu','.klant-wissel.open','#facFilterPop',
   '#urenFilterPop','.uren-filterpop',
   '.notes-overflow.open','#notesSortMenu','.cl-overflow.open','#dashMobileSettings.open',
   '.ctx-menu.open'];
@@ -36890,10 +37067,9 @@ window.closeQuickAddAI=closeQuickAddAI;
 window.parseQuickAddAI=parseQuickAddAI;
 window.applyQuickAddAI=applyQuickAddAI;
 window.openGeminiKeyPrompt=openGeminiKeyPrompt;
-window.openGeminiModelPrompt=openGeminiModelPrompt;
 window.openAiKeyPrompt=openAiKeyPrompt;
 window.openAiModelPrompt=openAiModelPrompt;
-window.openAiAanbiederPrompt=openAiAanbiederPrompt;
+window.renderInstellingenModule=renderInstellingenModule;
 window.geminiModel=geminiModel;
 /* Ook naar buiten zodat je in de console kunt kijken wat er écht weggaat:
    aiMaskerder().maskeer('rapport voor <klantnaam>') */
