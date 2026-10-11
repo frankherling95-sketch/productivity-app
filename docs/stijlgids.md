@@ -588,3 +588,35 @@ deze; geen losse `.15s` of `0.3s` meer.
   vraagt `geenBeweging()` en slaat dan over. Een nieuwe animatie moet dus de
   tokens gebruiken, anders blijft hij lopen.
 - Geen animatiebibliotheek: CSS en de Web Animations API zijn genoeg.
+
+---
+
+## 15. Instellingen
+
+Eén pagina (`#instellingen`) met groepen. Elke groep heeft een kop als een
+dashboardkaart, met een getint icoon van 30px (`.inst-kop-ic` staat in dezelfde
+regel als `.dash-kop-icoon`) en een titel in `--font-display` /
+`--fs-groot` / 700. Daaronder komt een uitlegregel in `--fs-klein` muted, en
+dan een of meer kaarten met regels.
+
+| | |
+|---|---|
+| kaart | `--surface`, `0.5px var(--border)`, `--radius-md`; tussen twee kaarten `--sp-1` |
+| label boven in een kaart (`.inst-sub`) | `--fs-micro` / 700, kapitalen, `.08em`, muted — zoals `.uren-menu-lab` |
+| regel (`.inst-rij`) | ≥ `var(--tap)`, vulling `10px 14px` (mobiel `11px 14px`), scheiding 0.5px `--border` |
+| label / bijregel | `--fs-basis` / 600 · `--fs-klein` muted |
+| stand rechts (`.inst-waarde`) | `--fs-klein`, cijferletter; een kleur draagt hij als **stip van 7px** ervoor, nooit in de tekst (§12: `--warning` op wit is 1,85:1) |
+| hover / focus | `--surface2` · 2px mint, `outline-offset:-2px` |
+
+**De regel is de knop.** Er zijn drie soorten, en het raakvlak is in alle drie de hele regel:
+
+- **opent iets**: een pijl `›` van 16px rechts, in `--text-hint`
+- **keuze uit een lijst** (`role="radio"`): een vinkje in mint rechts, en het label op 700, zoals de gekozen regel in een menu
+- **aan/uit** (`role="switch"`): een schakelaar `.inst-schakel`, 38×22 met een knop van 18px (mobiel 46×28 met 24px), mint als hij aanstaat
+
+Op een breed scherm staan er twee kolommen (`columns: 2 400px`, maximaal
+1040px breed). Smaller dan 2 × 400px wordt het vanzelf één kolom. Op een
+telefoon gaat de topbalk weg, want de titel staat al in de mobiele balk.
+
+Een nieuwe instelling krijgt een regel op deze pagina, ook als hij in een
+⋯-menu van een module blijft staan. Hier zoek je, daar gebruik je.
