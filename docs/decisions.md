@@ -6820,6 +6820,30 @@ en soms niet is, zoek je (stijlgids §2). En de uitleg op een telefoon niet
 terugzetten: de suggesties laten zelf zien wat kan, en een voorstel heeft
 zijn eigen knop **Uitvoeren**.
 
+## 2026-10-11 · Publieke pagina's voor Google: over, privacy, voorwaarden
+
+**Probleem.** Een gmail.com-account koppelen kan alleen als het OAuth-scherm
+op *Extern* staat. In *Testing* vervalt de toestemming van testgebruikers na
+ongeveer 7 dagen. Frank wil niet elke week opnieuw toestemming geven, dus de
+app moet naar *In production*. Daarvoor eist Google op de Branding-pagina
+drie publieke links op het eigen domein: een homepage, een privacyverklaring
+en gebruiksvoorwaarden.
+
+**Beslissing.** Drie statische pagina's naast de app: `over.html`
+(homepage), `privacy.html` en `voorwaarden.html`.
+- Geen naam, geen e-mailadres, geen merknaam: de app heet er "Productivity
+  App", net als op het toestemmingsscherm. Voor contact verwijzen ze naar
+  het adres dat Google op dat scherm toont. Dat adres staat in de Cloud
+  Console, niet in de repo.
+- Ze laden niets van buiten: geen lettertypes en geen favicon met de
+  merknaam erin.
+- De privacyverklaring noemt per Google-scope waarvoor hij dient en volgt
+  de *Limited Use*-eisen. Ze zegt ook dat AI-functies tekst alleen
+  doorsturen als jij die functie gebruikt en zelf een sleutel invulde.
+
+**Niet doen.** Persoonsgegevens of een privé-adres in deze pagina's zetten.
+Er een logo op het OAuth-scherm bij zetten: dat vraagt om verificatie.
+
 ## 2026-10-11 · Instellingen: blokken inklappen, en Vraag het van het Dashboard af (v2.55)
 
 **Probleem.** Op Instellingen nemen de accountkaarten van Agenda en mail

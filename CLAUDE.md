@@ -23,6 +23,7 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 .
 ├── index.html   ← DE app (alle wijzigingen hier)
 ├── herling_analytics_home.html, bi_checklist_kanban.html  ← redirect-stubs (oude URLs)
+├── over.html, privacy.html, voorwaarden.html  ← openbare pagina's voor het OAuth-scherm van Google (geen namen of adressen erin)
 ├── herling-icon.svg              ← open-ring-logo op donkere tegel, stilstaand (manifest)
 ├── herling-favicon-16/32.png     ← tabblad
 ├── herling-ring-48.png           ← regel "Alle klanten" in de klantwisselaar; het logo met tekst linksboven staat inline in index.html
