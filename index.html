@@ -8236,7 +8236,17 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
 .aic-actie-fout { margin-top: 8px; font-size: var(--fs-klein); color: var(--danger); }
 .aic-actie-knoppen { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
 .aic-actie-melding { font-size: var(--fs-klein); color: var(--text-muted); margin-right: auto; }
-.aic-actie[data-status="overgeslagen"], .aic-actie[data-status="terug"] { opacity: .65; }
+.aic-actie[data-status="overgeslagen"], .aic-actie[data-status="terug"], .aic-actie[data-status="vervallen"] { opacity: .65; }
+/* Een taak waar je vanuit de chat naartoe springt (aiNaarTaak) licht even
+   op. Met een omlijning: schaduw en vulling van .cl-item staan op
+   !important, en die winnen van een animatie. Met de duurtokens: bij
+   "beweging beperken" alleen het scrollen. */
+.cl-item.is-gevonden { outline: 2px solid transparent; outline-offset: 2px;
+  animation: ai-gevonden calc(var(--duur) * 10) var(--ease); }
+@keyframes ai-gevonden {
+  0%, 60% { outline-color: var(--mint); }
+  100% { outline-color: transparent; }
+}
 .aic-ai > :first-child { margin-top: 0; }
 .aic-ai > :last-child { margin-bottom: 0; }
 .aic-ai p { margin: 0 0 8px; }
@@ -8668,7 +8678,7 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.50</span>
+        <span class="app-versie" title="Appversie">v2.51</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -14107,6 +14117,8 @@ function instRij(o){
   if(o.soort==='keuze')
     return '<button type="button" class="'+klasse+'" role="radio" aria-checked="'+(o.aan?'true':'false')+'"'+actie+'>'+
       tekst+waarde+INST_VINK+'</button>';
+  /* Alleen ter informatie (het verbruik): geen knop, geen pijl. */
+  if(o.soort==='info')return '<div class="'+klasse+'">'+tekst+waarde+'</div>';
   if(o.soort==='schakel')
     return '<button type="button" class="'+klasse+'" role="switch" aria-checked="'+(o.aan?'true':'false')+'"'+actie+'>'+
       tekst+'<span class="inst-schakel" aria-hidden="true"></span></button>';
@@ -14147,7 +14159,21 @@ function instGroepAi(){
   return instGroep('ai','mint','AI',
     'Voor slim toevoegen, de weekreview, Vraag het je app, notities opschonen en het uitlezen van '+
     'facturen en contracten. Gekozen op dit apparaat; sleutels gaan niet mee naar Drive.',
-    instKaart(modellen,'Model',' role="radiogroup" aria-label="Model"')+instKaart(sleutels,'Sleutels en privacy'));
+    instKaart(modellen,'Model',' role="radiogroup" aria-label="Model"')+instKaart(sleutels,'Sleutels en privacy')+
+    instKaart(instVerbruikRijen(),'Verbruik van Claude (geschat)'));
+}
+/* Deze en vorige maand, per model, uit aiVerbruikTel. */
+function instVerbruikRijen(){
+  const nu=new Date(), vorig=new Date(nu.getFullYear(),nu.getMonth()-1,1);
+  const rij=(label,maand)=>{
+    const x=aiVerbruikMaand(maand);
+    const per=x.perModel.map(p=>p.naam.replace(/^Claude /,'')+' '+(p.onbekend?'prijs onbekend':aiVerbruikFmt(p.usd)));
+    return instRij({soort:'info',label,waarde:'≈ '+aiVerbruikFmt(x.usd),
+      hint:x.n?x.n+' '+(x.n===1?'verzoek':'verzoeken')+(per.length?' · '+per.join(' · '):''):'Nog niets'});
+  };
+  return [rij('Deze maand',dateStr(nu).slice(0,7)),rij('Vorige maand',dateStr(vorig).slice(0,7)),
+    instRij({doe:'instDoe',arg:'console',label:'Naar de Claude Console',
+      hint:'Wat er echt is afgerekend, en je tegoed. Deze telling is een schatting uit de tokens per antwoord.'})];
 }
 function instGroepWeergave(){
   const cur=huidigThema();
@@ -14265,6 +14291,7 @@ const INST_DOEN={
   externeTools:()=>extToolsBewerk(),
   sneltoetsen:()=>openShortcutsOverlay(),
   herladen:()=>location.reload(),
+  console:()=>{window.open('https://platform.claude.com/dashboard','_blank','noopener');},
   uitloggen:async()=>{
     if(await appBevestig('Uitloggen','Je gaat terug naar het inlogscherm. Wat nog niet in Drive staat, '+
       'blijft op dit apparaat bewaard.',{ja:'Uitloggen',gevaar:true}))logUit();
@@ -34837,15 +34864,25 @@ function _updateAIQuotaBadges(){
      antwoordt, zonder naar Instellingen te gaan. De teller is voor beide
      samen -- het is een indruk van vandaag, geen afrekening. */
   const text=`${aiNaam()} · ${u.count} vandaag`;
-  /* In de chat staat de modelkeuze er al naast; daar alleen de telling. */
-  const kaal=`${u.count} vandaag`;
-  const titel='Aantal API-verzoeken vandaag vanaf dit apparaat. '+(aiAanbieder()==='claude'
+  /* In de chat staat de modelkeuze er al naast. Daar bij Claude wat deze
+     maand kostte (geschat, zie aiVerbruikTel); bij Gemini de telling. */
+  const claude=aiAanbieder()==='claude';
+  const maand=claude?aiVerbruikMaand(dateStr(new Date()).slice(0,7)):null;
+  const kaal=claude?`≈ ${aiVerbruikFmt(maand.usd)} deze maand`:`${u.count} vandaag`;
+  const titel='Aantal API-verzoeken vandaag vanaf dit apparaat. '+(claude
     ?'Je verbruik en tegoed staan op platform.claude.com'
     :'Je werkelijke limiet staat op aistudio.google.com');
+  const titelChat=claude
+    ? 'Geschat uit de tokens van elk antwoord, alle apparaten samen ('+maand.n+' '+(maand.n===1?'verzoek':'verzoeken')+
+      ' deze maand). Wat er echt is afgerekend en je tegoed staan op platform.claude.com.'
+    : titel;
   const cls=u.count>=400?'high':u.count>=150?'mid':'';
   ['aiQuotaBadgeQuick','aiQuotaBadgeReview','aiQuotaBadgeChat'].forEach(id=>{
     const el=document.getElementById(id);
-    if(el){el.textContent=id==='aiQuotaBadgeChat'?kaal:text;el.title=titel;el.className='ai-quota-badge '+cls;}
+    if(!el)return;
+    const chat=id==='aiQuotaBadgeChat';
+    el.textContent=chat?kaal:text;el.title=chat?titelChat:titel;
+    el.className='ai-quota-badge '+(chat&&claude?'':cls);
   });
 }
 
@@ -35718,6 +35755,65 @@ function _claudeWeigering(details){
     '. Formuleer het anders, of kies Gemini onder Instellingen → AI.';
 }
 
+/* ─ Verbruik van Claude ───────────────────────────────────────────────
+   (2026-10-11) Elk antwoord van Claude zegt hoeveel tokens het kostte
+   (usage). Die tellen we per maand en per model op, en rekenen ze meteen
+   om naar dollars met de prijzen hieronder. Het blijft een schatting: wat
+   er werkelijk is afgerekend, en je tegoed, staan op platform.claude.com.
+   Daar kan de app niet bij -- dat vraagt een beheersleutel, en die hoort
+   niet in een browser.
+
+   Bewaard in rawState.settings.aiVerbruik, zodat het over je apparaten
+   heen klopt (net als de externe tools); dertien maanden, de rest valt
+   weg. Gemini telt niet mee: de gratis laag kost niets. */
+const CLAUDE_PRIJS={   /* dollar per miljoen tokens, oktober 2026 */
+  'claude-haiku-5-5':{in:0.10,uit:0.50,lees:0.01,schrijf:0.125,
+    /* Boven 100K tokens invoer in één verzoek geldt een hoger tarief. */
+    groot:{grens:100000,in:0.50,uit:2.50,lees:0.05,schrijf:0.625}},
+  'claude-sonnet-5-5':{in:2,uit:10,lees:0.20,schrijf:2.50},
+  'claude-opus-5-5':{in:4,uit:20,lees:0.20,schrijf:5},
+  'claude-fable-5-1':{in:10,uit:50,lees:0.25,schrijf:12.50}
+};
+/* Wat één antwoord kostte, of null bij een model zonder bekende prijs. */
+function aiVerbruikPrijs(model,u){
+  const p=CLAUDE_PRIJS[model]||CLAUDE_PRIJS[Object.keys(CLAUDE_PRIJS).find(k=>String(model||'').startsWith(k))];
+  if(!p)return null;
+  const inv=(u.input_tokens||0)+(u.cache_read_input_tokens||0)+(u.cache_creation_input_tokens||0);
+  const t=p.groot&&inv>p.groot.grens?p.groot:p;
+  return ((u.input_tokens||0)*t.in+(u.output_tokens||0)*t.uit+
+    (u.cache_read_input_tokens||0)*t.lees+(u.cache_creation_input_tokens||0)*t.schrijf)/1e6;
+}
+function aiVerbruikTel(model,u){
+  if(!u||!model)return;
+  const s=(rawState.settings=rawState.settings||{});
+  const v=(s.aiVerbruik&&typeof s.aiVerbruik==='object')?s.aiVerbruik:(s.aiVerbruik={});
+  const maand=dateStr(new Date()).slice(0,7);
+  const m=(v[maand]=v[maand]||{});
+  const r=(m[model]=m[model]||{n:0,in:0,uit:0,lees:0,schrijf:0,usd:0});
+  const prijs=aiVerbruikPrijs(model,u);
+  r.n++;
+  r.in+=u.input_tokens||0; r.uit+=u.output_tokens||0;
+  r.lees+=u.cache_read_input_tokens||0; r.schrijf+=u.cache_creation_input_tokens||0;
+  if(prijs==null)r.onbekend=true;else r.usd=Math.round((r.usd+prijs)*1e6)/1e6;
+  Object.keys(v).sort().slice(0,-13).forEach(k=>{delete v[k];});
+  scheduleSave();
+  try{_updateAIQuotaBadges();}catch(_){}
+}
+/* {usd, n, perModel:[{model,naam,usd,n,onbekend}]} voor 'JJJJ-MM'. */
+function aiVerbruikMaand(maand){
+  const m=((rawState.settings||{}).aiVerbruik||{})[maand]||{};
+  const perModel=Object.keys(m).map(model=>({model,naam:aiModelNaam(model),usd:m[model].usd||0,
+    n:m[model].n||0,onbekend:!!m[model].onbekend})).sort((a,b)=>b.usd-a.usd);
+  return {usd:perModel.reduce((t,x)=>t+x.usd,0),n:perModel.reduce((t,x)=>t+x.n,0),perModel};
+}
+/* Dollars zoals de Console ze toont, maar met een komma: "$0,42". Onder een
+   cent geen "$0,00" -- dat leest als gratis. */
+function aiVerbruikFmt(usd){
+  if(!usd)return '$0,00';
+  if(usd<0.01)return '< $0,01';
+  return '$'+usd.toLocaleString('nl-NL',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
 /* ─ Claude: één verzoek, het antwoord als tekst ─ */
 async function _claudeVraag({system,user,schema,bestanden}){
   const model=claudeModel();
@@ -35735,6 +35831,7 @@ async function _claudeVraag({system,user,schema,bestanden}){
   const r=await _claudeFetch(_claudeBody(model,{system:sys,
     berichten:_claudeBerichten(null,user,blokken),schema}));
   const data=await r.json();
+  aiVerbruikTel(data?.model||model,data?.usage);
   /* Eerst de stop-reden, dan pas de inhoud: bij een weigering is die leeg of
      half, en bij max_tokens is de JSON afgekapt. */
   if(data?.stop_reason==='refusal')throw new Error(_claudeWeigering(data.stop_details));
@@ -35751,6 +35848,10 @@ async function* _claudeStroom({system,eerder,user,gereedschap}){
   const r=await _claudeFetch(_claudeBody(model,{system,
     berichten:_claudeBerichten(eerder,user),stroom:true,gereedschap}));
   let gekregen=false, reden='', details=null, gebruik=null, fout=null;
+  /* Verbruik: de invoer staat in message_start, de uitvoer loopt op in
+     message_delta. Het model komt uit message_start -- bij een terugval is
+     dat een ander model dan gevraagd, en dat is wat er wordt afgerekend. */
+  let geteld=model, teller={};
   /* Een gereedschapsaanroep komt in stukjes JSON binnen, per blok; pas bij
      het eind van het blok is hij heel. */
   const bezig={};
@@ -35770,14 +35871,19 @@ async function* _claudeStroom({system,eerder,user,gereedschap}){
       try{input=b.json?JSON.parse(b.json):{};}catch(e){/* kapot: de kaart zegt het */}
       gekregen=true;
       yield {type:'actie',id:b.id,naam:b.naam,input};
+    }else if(d.type==='message_start'){
+      if(d.message?.model)geteld=d.message.model;
+      if(d.message?.usage)teller={...teller,...d.message.usage};
     }else if(d.type==='message_delta'){
       if(d.delta?.stop_reason)reden=d.delta.stop_reason;
       if(d.delta?.stop_details)details=d.delta.stop_details;
-      if(d.usage)gebruik=d.usage;
+      if(d.usage){gebruik=d.usage;teller={...teller,...d.usage};}
     }else if(d.type==='error'){
       fout=d.error||{};
     }
   }
+  /* Ook een afgebroken of geweigerd antwoord is betaald. */
+  if(Object.keys(teller).length)aiVerbruikTel(geteld,teller);
   const halfAf=msg=>{const e=new Error(msg);e.afgebroken=gekregen;return e;};
   if(fout)throw halfAf(fout.type==='overloaded_error'
     ? 'Claude raakte halverwege overbelast; het antwoord is niet compleet.'
@@ -36832,7 +36938,7 @@ const AI_ACTIES={
             sortOrder:checklistState.items.length,createdAt:Date.now(),updatedAt:Date.now()};
           checklistState.items.push(item);
           scheduleSave();aiActieVernieuw();
-          return {melding:'Toegevoegd aan de Checklist',terug(){
+          return {melding:'Toegevoegd aan de Checklist',open:{label:'Bekijk in Checklist',doe:()=>aiNaarTaak(item.id)},terug(){
             checklistState.items=checklistState.items.filter(x=>x.id!==item.id);
             scheduleSave();aiActieVernieuw();}};
         }};
@@ -36869,7 +36975,8 @@ const AI_ACTIES={
             if(volgende)checklistState.items.push(volgende);
           }
           scheduleSave();aiActieVernieuw();
-          return {melding:volgende?'Afgevinkt; de volgende herhaling staat erin':'Afgevinkt',terug(){
+          return {melding:volgende?'Afgevinkt; de volgende herhaling staat erin':'Afgevinkt',
+            open:{label:'Bekijk in Checklist',doe:()=>aiNaarTaak(volgende?volgende.id:item.id)},terug(){
             clZetHoofdKlaar(item,false);
             if(volgende)checklistState.items=checklistState.items.filter(x=>x!==volgende);
             scheduleSave();aiActieVernieuw();}};
@@ -36897,7 +37004,7 @@ const AI_ACTIES={
         doe(){
           const e=urenAddEntry({date:dl.iso,clientId:kl.id,hours:uren,description:oms});
           aiActieVernieuw();
-          return {melding:'Geschreven bij Uren',terug(){
+          return {melding:'Geschreven bij Uren',open:{label:'Bekijk bij Uren',doe:()=>{switchModule('uren');urenEditEntry(e.id);}},terug(){
             urenState.entries=urenState.entries.filter(x=>x.id!==e.id);
             scheduleSave();aiActieVernieuw();}};
         }};
@@ -36928,7 +37035,7 @@ const AI_ACTIES={
           const voor={status:f.status,betaaldOp:f.betaaldOp,n:(f.betalingen||[]).length};
           factuurMarkeerBetaald(f.id,null,iso);
           aiActieVernieuw();
-          return {melding:f.nummer+' staat op betaald',terug(){
+          return {melding:f.nummer+' staat op betaald',open:{label:'Open factuur',doe:()=>{switchModule('facturen');facOpenEditor(f.id);}},terug(){
             f.betalingen=(f.betalingen||[]).slice(0,voor.n);
             f.status=voor.status;
             if(voor.betaaldOp)f.betaaldOp=voor.betaaldOp;else delete f.betaaldOp;
@@ -36956,7 +37063,7 @@ const AI_ACTIES={
           const node={id:ntuid(),type:'page',title:titel,content:html,clientId:kl.id||null,updatedAt:Date.now()};
           notesState.tree.push(node);
           scheduleSave();aiActieVernieuw();
-          return {melding:'Staat bij Notities',terug(){
+          return {melding:'Staat bij Notities',open:{label:'Open notitie',doe:()=>{switchModule('notes');selectNote(node.id);}},terug(){
             const r=findNode(notesState.tree,node.id);
             if(r)r.parentArr.splice(r.index,1);
             if(notesState.activeId===node.id)notesState.activeId=null;
@@ -36986,7 +37093,7 @@ function aiActieVoorstel(c){
 function aiActieSamenvatting(a){
   const regels=(a.regels||[]).map(([k,v])=>k+': '+v).join(', ');
   const stand={voorstel:'nog niet uitgevoerd',gedaan:'uitgevoerd',overgeslagen:'overgeslagen door de gebruiker',
-    terug:'uitgevoerd en daarna ongedaan gemaakt',fout:'kon niet: '+a.fout}[a.status]||a.status;
+    terug:'uitgevoerd en daarna ongedaan gemaakt',vervallen:'niet uitgevoerd',fout:'kon niet: '+a.fout}[a.status]||a.status;
   return a.titel+(regels?' ('+regels+')':'')+' — '+stand;
 }
 function aiChatBeurtTekst(b){
@@ -37003,7 +37110,7 @@ function aiActieDoe(bi,ai,stil){
   if(!a||a.status!=='voorstel'||!a.doe)return false;
   try{
     const r=a.doe();
-    a.status='gedaan';a.melding=r.melding;a.terug=r.terug;
+    a.status='gedaan';a.melding=r.melding;a.terug=r.terug;a.open=r.open||null;
   }catch(e){
     console.warn('[chat] actie uitvoeren',e);
     a.status='fout';a.fout='Uitvoeren lukte niet: '+((e&&e.message)||e);
@@ -37024,6 +37131,42 @@ function aiActieTerug(bi,ai){
   catch(e){console.warn('[chat] actie terugdraaien',e);appToast('Ongedaan maken lukte niet',{type:'error'});}
   aiChatToon(true);
 }
+/* Naar wat een actie deed: de chat dicht, de module open, het ding in beeld. */
+function aiActieOpen(bi,ai){
+  const a=_aiActie(bi,ai);
+  if(!a||a.status!=='gedaan'||!a.open)return;
+  aiChatSluit();
+  a.open.doe();
+}
+/* Een voorstel dat bleef liggen terwijl je verder praatte, vervalt bij je
+   volgende vraag. Anders staat er een Uitvoeren-knop naast het verbeterde
+   voorstel, en heb je met twee klikken de taak twee keer. */
+function aiActieVervalOpen(){
+  let n=0;
+  aiChatGesprek.forEach(b=>(b.acties||[]).forEach(a=>{if(a.status==='voorstel'){a.status='vervallen';n++;}}));
+  return n;
+}
+/* Een taak in de Checklist laten zien. Eerst opzij wat hem kan verbergen:
+   het archief, een filter op prioriteit, periode of zoekterm, en een
+   klantfilter op een andere klant. Dan erheen scrollen en hem even laten
+   oplichten. */
+function aiNaarTaak(id){
+  const item=(checklistState.items||[]).find(i=>i.id===id);
+  if(!item)return;
+  checklistState.showArchived=!!item.archived;
+  clFilters.prio=null;clFilters.period=null;clFilters.search='';
+  if(activeClientFilter&&item.clientId!==activeClientFilter){activeClientFilter='';renderClientFilters();}
+  switchModule('checklist');
+  setTimeout(()=>aiFlits(document.querySelector('#clBody .cl-item[data-id="'+CSS.escape(id)+'"]')),60);
+}
+function aiFlits(el){
+  if(!el)return;
+  el.scrollIntoView({block:'center',behavior:geenBeweging()?'auto':'smooth'});
+  el.classList.remove('is-gevonden');
+  void el.offsetWidth;   /* opnieuw starten als hij er al stond */
+  el.classList.add('is-gevonden');
+  setTimeout(()=>el.classList.remove('is-gevonden'),2600);
+}
 function aiActieAlles(bi){
   const b=aiChatGesprek[Number(bi)];
   if(!b||!b.acties)return;
@@ -37035,9 +37178,10 @@ Object.assign(APP_ACTIONS,{
   aiActieDoe:(el,e,bi,ai)=>aiActieDoe(bi,ai),
   aiActieSla:(el,e,bi,ai)=>aiActieSla(bi,ai),
   aiActieTerug:(el,e,bi,ai)=>aiActieTerug(bi,ai),
-  aiActieAlles:(el,e,bi)=>aiActieAlles(bi)
+  aiActieAlles:(el,e,bi)=>aiActieAlles(bi),
+  aiActieOpen:(el,e,bi,ai)=>aiActieOpen(bi,ai)
 });
-const AI_ACTIE_STAND={gedaan:'Uitgevoerd',overgeslagen:'Overgeslagen',terug:'Ongedaan gemaakt',fout:'Kan niet'};
+const AI_ACTIE_STAND={gedaan:'Uitgevoerd',overgeslagen:'Overgeslagen',terug:'Ongedaan gemaakt',vervallen:'Vervallen',fout:'Kan niet'};
 function aiActieHtml(a,bi,ai){
   const arg=' data-arg1="'+bi+'" data-arg2="'+ai+'"';
   const regels=a.regels.length?'<dl class="aic-actie-regels">'+a.regels.map(([k,v])=>
@@ -37047,6 +37191,7 @@ function aiActieHtml(a,bi,ai){
       '<button type="button" class="btn btn-sm" data-action="aiActieSla"'+arg+'>Overslaan</button></div>'
     : a.status==='gedaan'
     ? '<div class="aic-actie-knoppen"><span class="aic-actie-melding">'+escapeHtml(a.melding||'')+'</span>'+
+      (a.open?'<button type="button" class="btn btn-sm btn-primary" data-action="aiActieOpen"'+arg+'>'+escapeHtml(a.open.label)+'</button>':'')+
       (a.terug?'<button type="button" class="btn btn-sm" data-action="aiActieTerug"'+arg+'>Ongedaan maken</button>':'')+'</div>'
     : '';
   return '<div class="aic-actie" data-status="'+a.status+'">'+
@@ -37123,6 +37268,7 @@ async function aiChatVraag(tekst){
   if(!vraag||_aiCalling.chat)return;
   if(!aiSleutel()){openAiKeyPrompt();return;}
   if(inp){inp.value='';aiChatInvoerHoogte();}
+  aiActieVervalOpen();
   /* Een beurt met alleen voorstellen (geen tekst) telt ook mee: het model
      moet weten wat het voorstelde en of je het deed. */
   const eerder=aiChatGesprek.filter(b=>!b.fout&&(b.tekst||(b.acties||[]).length)).slice(-AI_CHAT_MAX_BEURTEN)
