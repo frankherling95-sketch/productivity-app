@@ -646,3 +646,52 @@ voorstel vervalt zodra je een nieuwe vraag stelt.
 licht op met een omlijning van 2px in mint die in `10 × --duur` uitdooft
 (`.cl-item.is-gevonden`). Schaduw en vulling van `.cl-item` staan op
 `!important` en winnen van een animatie; een `outline` niet.
+
+---
+
+## 17. Agenda en Mail
+
+Twee modules met de balken die er al waren. Agenda heeft de topbalk van
+Uren (periode `‹ label ›` met het label als weg naar vandaag, `.uren-scope`
+voor Dag / Week / Lijst, `.uren-btn-vandaag`). Mail heeft de tabbalk van
+Contracten (`.uren-tabs`) met het zoekveld rechts. Op een telefoon staan
+het ⋯ en de ronde + op hun vaste plek (§8). De accountkeuze staat daar in
+het ⋯-menu en niet in de balk: een eigen regel van 44px voor een keuze die
+je zelden wisselt, is te duur.
+
+**Een kleur draagt een streepje van 3px links**, zoals de klantkleur op een
+lijstkaart (§4). In de agenda is dat de kleur van de agenda in Google; een
+afspraak met een eigen kleur (`colorId`) krijgt die. In mail is het de kleur
+van het account (`GACC_KLEUREN`, in volgorde van koppelen). De vulling van
+een afspraak is die kleur voor 20% gemengd met `--surface`. Zo blijft hij in
+beide thema's leesbaar met `--text` erop.
+
+| Agenda | |
+|---|---|
+| uur | `--kal-uur` 48px (telefoon 52px); tijdkolom 52px (44px) |
+| afspraak | titel `--fs-klein`/600, tijd `--fs-micro` cijferletter; korter dan 45 min op één regel |
+| overlap | naast elkaar (`kalIndeling`), zoals Google Agenda |
+| vandaag | in Week een mint vlak en een mint cijfer; in Dag geen kop (de balk zegt het al) |
+| nu | lijn van 2px `--danger` met een stip |
+| afgezegd | 55% dekking, doorgestreept |
+| lijstregel | `var(--tap)` hoog, tijd links in twee regels, titel `--fs-basis`/600 |
+
+| Mail | |
+|---|---|
+| lijstregel | afzender `--fs-basis`, onderwerp en fragment `--fs-klein`; ongelezen = 700 |
+| datum | `--fs-micro`: "14:20", "gisteren", "ma", "28 sep" (zoals de notitieregel op het Dashboard) |
+| leesvenster | sticky knoppenbalk; Archiveren en Prullenbak met woord, Ongelezen, Ster en Gmail als icoonknop; Samenvatten en Antwoord rechts |
+| bericht | kaart (`--surface`, `--radius-md`); ingeklapt = afzender + fragment |
+| inhoud | iframe, html-mail op wit (zo is hij ontworpen), platte tekst volgt het thema |
+| plaatjes van buiten | blokje `--surface2` met "Tonen" |
+| opruimen | per afzender een kaart met streepje, aantal rechts `--fs-groot`, knoppen eronder |
+
+Op een telefoon is Mail óf de lijst óf het leesvenster, met een terugknop
+links in de knoppenbalk. Daar staan de vaste handelingen alleen als icoon
+(44×44); de twee met AI houden hun woord en delen de tweede regel.
+
+> **Twee valkuilen uit de mobiele laag.** `.uren-viewbar` staat daar op
+> `nowrap`. Een balk met tabs én zoeken moet dat zelf terugzetten
+> (`.uren-viewbar.pv-balk`). En `.uren-btn-icon` krijgt daar
+> `margin-left:auto`, voor het ⋯ in de topbalk. Een icoonknop in een
+> knoppenrij zet dat terug op 0, anders schuift de hele rij naar rechts.
