@@ -6441,3 +6441,61 @@ van het oude menu; module-markup na Contracten; CSS na het blok Contracten),
 **Niet doen.** Een instelling alleen in een ⋯-menu zetten: zet hem ook op de
 pagina. Een kleur op de tekst van een stand: gebruik de stip. En geen tweede
 modelkeuze per functie zonder dat de pagina laat zien welke waar geldt.
+
+## 2026-10-11 · De chat doet ook dingen: voorstel, klik, ongedaan maken (v2.50)
+
+**Probleem.** Vraag het je app kon alleen antwoorden. Frank wilde er ook mee
+werken, met zinnen als "zet 6 uur op Klant Noord voor gisteren", "maak een taak
+voor vrijdag" of "zet factuur 2026-041 op betaald".
+
+**Beslissing.**
+- **Tool use, alleen met Claude.** Er zijn vijf gereedschappen in `AI_ACTIES`:
+  `taak_toevoegen`, `taak_afvinken`, `uren_schrijven`, `factuur_betaald` en
+  `notitie_maken`. Ze hebben `strict: true` en elk veld is verplicht (leeg
+  mag), zodat de invoer altijd aan het schema voldoet. Gemini kent een andere
+  vorm van gereedschap en is niet de standaard; met Gemini beantwoordt de
+  chat alleen vragen, en de systeemprompt belooft dan ook niets.
+- **Nooit meteen uitvoeren.** Een aanroep wordt een voorstelkaart in het
+  antwoord. `bekijk()` controleert eerst wat het schema niet kan afdwingen:
+  bestaat de klant (exact, of één unieke gedeeltelijke treffer), is het een
+  echte datum, staat de factuur nog open, liggen de uren tussen 0 en 24, en
+  is het slot `geheimenKlaar()` open. Wat niet klopt staat als reden op de
+  kaart, en dan is er geen Uitvoeren-knop.
+- **Via de gewone wegen.** De acties gebruiken `urenAddEntry`,
+  `factuurMarkeerBetaald`, `clZetHoofdKlaar` (met de volgende herhaling zoals
+  `toggleChecklistDone`) en dezelfde vorm als Slim toevoegen en de notities.
+  Elke actie geeft een `terug()`: **Ongedaan maken** zet precies terug wat de
+  actie deed.
+- **Geen resultaat terug naar het model.** De stroom stopt op `tool_use`, en
+  dat telt als een compleet antwoord. Bij de volgende vraag leest het model in
+  de geschiedenis wat het voorstelde en hoe het afliep
+  (`aiChatBeurtTekst`: "[Acties: Taak toevoegen (…) — uitgevoerd]"). Zo is er
+  geen tweede verzoek per actie, en geen gedoe met het terugsturen van
+  nadenkblokken.
+- **Namen blijven gemaskeerd.** Het model noemt `{{KLANT_1}}`, en `_streamAI`
+  vertaalt de invoer terug voordat de kaart hem ziet.
+- **Het overzicht kreeg twee dingen erbij:** het `id` per open taak (om af te
+  vinken) en `klanten` (de namen zoals ze in je lijst staan).
+- **Bewust geen eager input streaming.** De skill raadt dat aan bij streaming
+  met eigen gereedschap. Het zet alleen de controle van de API op de invoer
+  uit, en die invoer is hier een paar velden. Strict levert meer op.
+
+**Waarom.** Een taalmodel dat zelf je administratie wijzigt, is één verkeerd
+verstane klantnaam verwijderd van uren bij de verkeerde klant. Met een kaart
+zie je wat er gaat gebeuren, in de woorden van de app, en beslis je zelf. Met
+Ongedaan maken is ook een te snelle klik geen probleem.
+
+**Niet getest.** Een echte aanroep met gereedschap naar de API: daar is een
+sleutel voor nodig. De stroom (tekst plus `tool_use` in stukjes JSON) is
+nagebootst in `test.html`.
+
+**Bestanden.** `index.html` (Claude-laag: `gereedschap` in `_claudeBody`,
+`_claudeStroom` en `_streamAI`; chat: `AI_ACTIES`, de kaarten, de
+geschiedenis, de suggestie en de uitleg in de lege chat), `test.html`
+(7 tests), `sw.js`, `CLAUDE.md`, `docs/stijlgids.md` §16.
+
+**Niet doen.** Een actie direct uitvoeren zonder kaart, ook niet als het
+model zeker lijkt. Een gereedschap toevoegen zonder `bekijk()` dat de
+klant, datum en het bestaan van het doel controleert, of zonder `terug()`.
+En geen verwijder-gereedschap: weggooien doe je zelf, met de prullenbak en de
+undo die daar al bij horen.
