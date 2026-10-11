@@ -6588,3 +6588,69 @@ vraagvensters; Instellingen; de drie AI-vensters; foutmeldingen),
 **Niet doen.** De sleutel terugzetten in het veld of in de pagina-HTML, ook
 niet "om te kunnen kopiëren". En niet zelf naar Instellingen springen bij
 een ontbrekende sleutel: laat de knop in de melding het doen.
+
+## 2026-10-11 · Uren factureren per maand, en klanten samenvoegen op één factuur (v2.53)
+
+**Probleem.** Frank wil aan het eind of begin van de maand alle openstaande
+uren in één keer factureren, met per klant automatisch een factuur. Daarnaast
+wil hij de uren van een paar kleine klanten samenvoegen op één factuur aan één
+partij (een tussenpartij zoals Acme Data B.V.), met de regels bij elkaar. Vast
+per klant, maar per keer om te zetten. Samenvoegen bestond al
+(`factuurPartijId`, "Factureren aan"), maar alleen via de wizard, één partij
+tegelijk, en alleen voor klanten die vast aan die partij hingen.
+
+Bij het uitzoeken kwamen drie fouten boven die een maandafsluiting meteen
+zou raken:
+1. Een concept reserveert zijn uren niet (zie 2026-08-19, "Uren van één
+   klant binnen een factuurpartij kiezen", onder *Let op*). Twee concepten
+   met dezelfde uren konden allebei worden verstuurd.
+2. Concepten telden mee als gebruikte nummers. Bij drie concepten F10, F11,
+   F12 werd F10 bij het versturen F13.
+3. "Factureer" in Uren voor een klant die via een partij loopt, gaf een
+   factuur zonder regels. `factuurNieuw(klant)` zocht de klanten "van" die
+   klant en vond er geen.
+
+**Beslissing.**
+- **Uren factureren** (`facMaandStart`): een venster per maand (vanaf de
+  20e de lopende, daarvoor de vorige; ‹ › om te wisselen). Per ontvanger een
+  kaart met een vinkje, en per klant de uren, het bedrag en een keuze
+  "Eigen factuur" of "Op factuur aan …". De standaard volgt
+  `factuurPartijId`; omzetten geldt alleen voor deze keer, en de
+  klantinstelling blijft staan. **Klaarzetten** maakt per ontvanger één
+  concept en bewaart het meteen (`facConceptVastleggen`). Er zijn er
+  meerdere tegelijk, en `facConcept` kan er maar één vasthouden. Er wordt
+  niets verstuurd: nakijken en versturen gaan zoals altijd.
+- Te vinden via een **melding boven de facturenlijst** ("Uit september staan
+  nog 33 u open bij 4 klanten", `facMaandHint`), bovenaan het **⋯-menu** van
+  Facturen, en via **Factureer** per maand in Uren. Die knop zette eerst
+  alleen de status op gefactureerd, zonder factuur; dat kan nog met de
+  selectiebalk.
+- **`alleenKlanten` betekent nu "precies deze klanten"**
+  (`factuurFactuurKlanten`), ook als ze niet vast aan de ontvanger hangen.
+  Bij meerdere klanten op één factuur krijgt **elke** regel de klantnaam,
+  ook die van de ontvanger zelf. Eén regel per klant, en per afwijkend
+  tarief, zoals altijd.
+- **Uren op een bewaard concept tellen niet meer als open**
+  (`factuurUrenInConcepten`, `factuurUrenVoorKlant(…, negeerId)`). Dat geldt
+  in de wizard, de maandafsluiting en Uren ophalen. Het concept zelf houdt
+  zijn uren bij Uren ophalen (`negeerId = f.id`). Twee keer afsluiten geeft
+  dus geen dubbele concepten.
+- **Nummering bij versturen:** concepten zonder vast nummer tellen niet als
+  gebruikt (`factuurVolgendNummer(…, zonderConcepten)`, alleen vanuit
+  `factuurMarkeerVerstuurd`). F10, F11, F12 die je in volgorde verstuurt,
+  houden hun nummer. De reeks blijft doorlopend: verstuurde facturen en
+  concepten met een zelf ingetypt nummer tellen gewoon mee.
+- "Factureer" bij één klant in Uren maakt nu een factuur aan wie de rekening
+  krijgt, met alleen de uren van die klant.
+
+**Bestanden.** `index.html` (Facturen: `factuurUrenInConcepten`,
+`factuurFactuurKlanten`, `factuurRegelsUitUren`, `factuurStandaardBetreft`,
+`factuurVolgendNummer`, `factuurMarkeerVerstuurd`, `facUrenOphalen`; blok
+"Maandafsluiting" vóór `facNieuwStart`; `#facMaandModal`; ⋯-menu; melding
+boven de lijst; Uren: `urenInvoiceClient`), `test.html` (4 tests),
+`sw.js`, `CLAUDE.md`.
+
+**Niet doen.** Een concept zonder vast nummer laten meetellen bij het
+versturen, want dan springt de reeks. Uren die al op een concept staan nog
+eens aanbieden. En in de maandafsluiting niets automatisch versturen: Frank
+koos expliciet voor concepten klaarzetten.

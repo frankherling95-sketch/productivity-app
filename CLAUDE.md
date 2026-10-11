@@ -51,7 +51,7 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 | `#notes` | Notes | Boomstructuur (folders/pages) met rich-text editor (marked.js) |
 | `#checklist` | Checklist | Taken met subtaken, filters (prio/klant/periode), vastpinnen, drag-drop, archief |
 | `#uren` | Uren | Urenregistratie per regel, week/maand, Excel export |
-| `#facturen` | Facturen | Facturen uit geschreven uren, sjabloonbouwer, debiteuren, btw-overzicht, mailen via Gmail, analyse |
+| `#facturen` | Facturen | Facturen uit geschreven uren (ook per maand in één keer: *Uren factureren*, `facMaandStart`), sjabloonbouwer, debiteuren, btw-overzicht, mailen via Gmail, analyse |
 | `#opdrachten` | Opdrachten | Opdrachten per klant (looptijd, uren per week of urenbudget, tarief, opzegtermijn, PDF van de overeenkomst) en een vooruitzicht per werkmaand |
 | `#contracten` | Contracten | Zakelijke én privécontracten (twee tabs), elk met looptijd, opzegtermijn, stilzwijgende verlenging en de PDF erbij |
 | `#instellingen` | Instellingen | Eén pagina met alles wat je instelt: AI-model en sleutels, thema, facturatie, vrije dagen, opslag en back-up, meldingen, account. Opent de bestaande vensters; bewaart zelf niets |
@@ -327,9 +327,9 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
+- **2026-10-11**: **Uren factureren per maand, klanten samenvoegen** (v2.53) — *Uren factureren* zet per ontvanger een concept klaar uit alle open uren van een maand; wie de rekening krijgt volgt "Factureren aan" en is per keer om te zetten. Uren op een concept tellen niet meer als open; concepten houden bij versturen hun nummer in volgorde
 - **2026-10-11**: **API-sleutels op de Instellingen-pagina** (v2.52) — per aanbieder een blok met veld, Opslaan, Testen (gratis: de modellenlijst) en Verwijderen; alleen de laatste vier tekens in beeld. De ⚙ API-key-knoppen en vraagvensters zijn weg; zonder sleutel een melding met de knop *Naar Instellingen* (`aiGeenSleutel`, `aiNaarSleutel`)
 - **2026-10-11**: **Verbruik van Claude en Bekijk vanuit de chat** (v2.51) — tokens uit elk antwoord → geschatte kosten per maand en model in `rawState.settings.aiVerbruik` (over apparaten heen), in Instellingen → AI en onderin de chat. Een uitgevoerde actie heeft een knop naar het resultaat; open voorstellen vervallen bij een nieuwe vraag (geen dubbele taak)
-- **2026-10-11**: **De chat doet ook dingen** (v2.50) — Claude krijgt vijf gereedschappen (`AI_ACTIES`, strict tool use). Een aanroep wordt een voorstelkaart in het gesprek (wat, voor welke klant, welke datum), uitgevoerd pas na een klik, via de gewone functies van de modules, en ongedaan te maken. Geen resultaat terug naar het model; de geschiedenis zegt wat er gebeurde
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 
@@ -414,7 +414,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 178 smoke-, sync-, model-, reken- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
+| `test.html` | 182 smoke-, sync-, model-, reken- en sorteertests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |
