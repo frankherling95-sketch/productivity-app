@@ -533,6 +533,15 @@ Achter elke klant een oog (`.klant-wissel-oog`): een rij-actie, `--text-hint`,
 hover-knop. Verborgen klanten staan onderaan onder een uitklapkop *Verborgen · N*,
 met dezelfde regels als het verborgen-blok onderaan de notitieboom.
 
+**Achtergrond: de wereldbol.** Onderin draait de aarde als stippen, net als de
+H in het logo en in hetzelfde verloop (`#sbWereld`, `zijbalkWereld()`). Hij
+ligt áchter alles (`z-index: -1` binnen de stapel van `.sidebar`), dus een
+rij, een groepsvlak of tekst hoeft er geen rekening mee te houden. Straal 0,8 ×
+de open breedte (272 → 218px; ingeklapt dezelfde bol door een spleet van
+72px). De top staat tot 110px boven de voet, nooit hoger dan de straal, en
+op een laag scherm blijft hij onder Instellingen. Achter de voet zijn de
+stippen gedimd (tot 20%), zodat opslagstatus en e-mailadres leesbaar blijven.
+
 **Nieuwe module erbij?** Een regel met `data-mod` en `data-titel` (de tooltip
 als hij ingeklapt is). Hoort hij bij een andere, zet hem dan in een
 `.nav-groep` — geen kopje en geen losse streep.
@@ -564,6 +573,10 @@ deze; geen losse `.15s` of `0.3s` meer.
 - *Menu's die uit de pagina worden gehaald* (`.uren-menu`, `.uren-filterpop`):
   binnenkomen via `@starting-style`, weggaan via een kopie die uitfaded
   (`menuUitfaden()`). Daar hoef je niets voor te doen.
+- *Zijbalk*: de wereldbol onderin draait in 120 s rond, op een canvas met 20
+  beelden per seconde en alleen zolang hij in beeld is (een dichte lade telt
+  niet) en het venster de focus heeft. Bij "beweging beperken" één
+  stilstaand beeld (`geenBeweging()`).
 - *Checklist*: afvinken tekent het vinkje (`.zojuist`), klapt de taak dicht en
   hertekent daarna; elke hertekening laat de taken naar hun nieuwe plek glijden
   (FLIP in `renderChecklistModule()`).

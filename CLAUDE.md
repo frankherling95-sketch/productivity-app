@@ -324,9 +324,9 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
+- **2026-10-11**: **Wereldbol onderin de zijbalk** (v2.47) — de grafieklijn is een draaiende aarde van stippen in het logoverloop, op een canvas achter alles (`#sbWereld`, `z-index:-1`, `zijbalkWereld()`). Land: Natural Earth 110m als inline bitmasker (geen request). Hoogte volgt de vrije ruimte boven de voet, stippen achter de voet gedimd; 20 beelden/s, alleen in beeld en met focus, stil bij "beweging beperken"
 - **2026-10-07**: **Dashboard in een nieuwe stijl** (v2.36) — hero als donkere tech-tegel met de logolijn en een lichtpuls (`dashHeroPuls`), één kaartkop (getint icoon, telpil, "Alles ›"), Checklist-kaart met uitklapbare subtaken (open-stand alleen in de sessie; titel opent het taakvenster), notitieregels die díe notitie openen, voortgangsbalk bij Opdrachten & contracten
 - **2026-10-07**: **Geen namen van klanten of relaties in de repo** (v2.34) — de repo is openbaar; alle namen vervangen door vaste verzonnen namen, Externe tools uit de HTML naar `rawState.settings.externeTools`, en `validate.mjs` + de push-hooks houden namen tegen (gehashte lijst). Oude commits bevatten ze nog
-- **2026-10-07**: **Beweging** (v2.32) — tokens `--duur-kort`/`--duur`/`--ease-weg`; module faded in (geen View Transitions: die werken asynchroon), Checklist afvinken + FLIP bij elke hertekening, vensters en menu's faden ook uit (`allow-discrete`, `@starting-style`, en `menuUitfaden()` voor menu's die uit de pagina gaan). "Beweging beperken" zet alles op 0
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 
