@@ -6932,3 +6932,32 @@ later.
 
 **Niet doen.** Een eigen naam, e-mailadres of bedrijfsnaam als vaste tekst
 in een bestand dat de site serveert. Lees zoiets uit de eigen gegevens.
+
+## 2026-10-12 · Mail versturen: zelf bekijken, zelf klikken (v2.58)
+
+**Probleem.** Vanuit de app kon je alleen een concept in Gmail zetten.
+Daarna moest je naar Gmail om het te versturen, terwijl versturen juist
+makkelijk moest zijn. Tegelijk wil de gebruiker dat versturen nooit
+automatisch gebeurt, en dat hij de mail zelf eerst kan nalezen. Verder
+voerde *Alles uitvoeren* in de chat ook mail-acties mee uit.
+
+**Beslissing.**
+- Het antwoordvenster toont de hele mail: van welk account, **Aan** en
+  **Cc** (allebei aan te passen), het onderwerp, de tekst en de
+  handtekening uit Gmail (`settings/sendAs`; uit te vinken).
+- Er gaat pas iets weg na **Versturen**. Daarna wacht de app nog
+  `pvVerstuurWacht` (6 s), met **Niet versturen** in de melding. Dat zet het
+  venster precies terug zoals het was. Lukt versturen niet, dan opent
+  **Weer openen** het venster opnieuw.
+- **Opslaan als concept** blijft, voor wie het later in Gmail wil versturen.
+- De chat (`mail_concept`, nu "Antwoord klaarzetten") vult alleen dit
+  venster. Hij verstuurt nooit en maakt ook geen concept meer achter de
+  schermen.
+- Mail-acties (`nodig:'mail'`) tellen niet mee in *Alles uitvoeren*. Die
+  voer je per kaart uit (`aiActieLos`).
+- Versturen gaat via `messages/send` met `gmail.modify`. Daar is geen
+  nieuwe toestemming voor nodig.
+
+**Niet doen.** De chat een verstuur-gereedschap geven, of een mail laten
+versturen zonder dat het venster met de hele mail open heeft gestaan. Ook
+niet de wachttijd met Niet versturen weghalen.

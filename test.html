@@ -156,7 +156,7 @@ async function runChecks() {
   };
   const metGoogle = async fn => {
     const oud = w.eval('JSON.stringify((rawState.settings||{}).googleAccounts||null)');
-    const oudFetch = w.fetch, log = [];
+    const oudFetch = w.fetch, log = [], verzonden = [];
     w.eval(`rawState.settings=rawState.settings||{};rawState.settings.googleAccounts=[
       {id:'tz',email:'test@herling-analytics.nl',naam:'Zakelijk',agenda:true,mail:true,kalKeuze:{}},
       {id:'tp',email:'jan.jansen@voorbeeld.nl',naam:'Privé',agenda:true,mail:true,kalKeuze:{}}];
@@ -189,6 +189,9 @@ async function runChecks() {
         : [{id: 'e4', summary: 'Hoort niet zichtbaar te zijn', start: {dateTime: om(8)}, end: {dateTime: om(9)}}]});
       if (/\/events/.test(u)) return m === 'DELETE' ? antw(null, 204) : antw({id: 'nieuw1'});
       if (/labels\/INBOX/.test(u)) return antw({threadsUnread: wie.startsWith('test') ? 1 : 0});
+      if (/settings\/sendAs/.test(u)) return antw({sendAs: [{sendAsEmail: wie, isDefault: true, displayName: 'Test',
+        signature: '<div>Met vriendelijke groet,<br>Test</div>'}]});
+      if (/\/messages\/send/.test(u)) { verzonden.push(JSON.parse(o.body)); return antw({id: 'verzonden1'}); }
       if (/\/threads\?/.test(u)) return antw({threads: wie.startsWith('test') ? [{id: 't1'}] : [{id: 't2'}]});
       const t = u.match(/\/threads\/(t\d)(\/modify|\/trash|\/untrash)?/);
       if (t) {
@@ -202,7 +205,7 @@ async function runChecks() {
       }
       return antw({error: {message: 'onbekend in de test'}}, 404);
     };
-    try { return await fn(log, labels); }
+    try { return await fn(log, labels, verzonden); }
     finally {
       w.fetch = oudFetch;
       accountsTerug(oud);
@@ -2634,6 +2637,58 @@ async function runChecks() {
       w.switchModule(oudModule || 'dashboard');
       return voor && gefilterd && weerAlle;
     }))],
+    /* Mail-acties voer je per kaart uit, nooit via Alles uitvoeren (2026-10-12). */
+    ['Acties: Alles uitvoeren slaat mail-acties over', () => metGoogle(async () => {
+      const gedaan = [];
+      w.eval('aiChatGesprek=[]');
+      w.aiChatOpen();
+      const kaart = (naam, i) => ({naam, titel: naam, regels: [], status: 'voorstel', fout: '',
+        doe: () => { gedaan.push(i); return {melding: 'ok'}; }});
+      w.eval('aiChatGesprek=[{rol:"user",tekst:"x"},{rol:"model",tekst:"y",acties:[]}]');
+      const acties = w.eval('aiChatGesprek[1].acties');
+      acties.push(kaart('taak_toevoegen', 0), kaart('mail_opruimen', 1), kaart('uren_schrijven', 2));
+      w.aiChatToon();
+      const knop = d.querySelector('#aiChatLijst [data-action="aiActieAlles"]');
+      const label = knop ? knop.textContent : '';
+      if (knop) knop.click();
+      await new Promise(r => setTimeout(r, 50));
+      const ok = /\(2\)/.test(label) && gedaan.join(',') === '0,2' && acties[1].status === 'voorstel';
+      w.eval('aiChatGesprek=[]');
+      w.aiChatSluit();
+      return ok;
+    })],
+    /* Een antwoord gaat pas weg na Versturen, en Niet versturen houdt hem tegen. */
+    ['Mail: antwoord pas weg na Versturen, met de hele mail en Niet versturen', () => metGoogle(async (log, labels, verzonden) => {
+      const oudWacht = w.eval('pvVerstuurWacht');
+      try {
+        w.eval('pvVerstuurWacht=120');
+        await w.pvOpen('tz|t1');
+        await w.pvConceptOpen('tz|t1', 'Prima, donderdag past.');
+        const zichtbaar = d.getElementById('pvConModal').classList.contains('open') &&
+          /iemand@voorbeeld\.nl/.test(d.getElementById('pvConAan').value) &&
+          /^Re: Offerte/.test(d.getElementById('pvConOnderwerp').value) &&
+          /Met vriendelijke groet/.test(d.getElementById('pvConSig').textContent) && !verzonden.length;
+        d.getElementById('pvConVerstuur').click();
+        await new Promise(r => setTimeout(r, 30));
+        const nogNiet = !verzonden.length;
+        w.appToastUndo();                                /* Niet versturen */
+        await new Promise(r => setTimeout(r, 250));
+        const tegengehouden = !verzonden.length && d.getElementById('pvConModal').classList.contains('open') &&
+          d.getElementById('pvConTekst').value === 'Prima, donderdag past.';
+        d.getElementById('pvConVerstuur').click();
+        await new Promise(r => setTimeout(r, 400));
+        const b = verzonden[0] || {};
+        const mime = atob(String(b.raw || '').replace(/-/g, '+').replace(/_/g, '/'));
+        const lijf = decodeURIComponent(escape(atob(mime.split('\r\n\r\n')[1].replace(/\s+/g, ''))));
+        return zichtbaar && nogNiet && tegengehouden && verzonden.length === 1 && b.threadId === 't1' &&
+          /^To: Jan Jansen <iemand@voorbeeld\.nl>/m.test(mime) && /^Subject: Re: Offerte/m.test(mime) &&
+          /^In-Reply-To: <t1@voorbeeld\.nl>/m.test(mime) && /^From: Test <test@herling-analytics\.nl>/m.test(mime) &&
+          lijf.startsWith('Prima, donderdag past.') && /Met vriendelijke groet,\nTest/.test(lijf);
+      } finally {
+        w.eval('pvVerstuurWacht=' + oudWacht);
+        try { w.pvConceptSluit(); w.pvSluit(); w.appToastHide(); } catch (_) {}
+      }
+    })],
     ['Mail: archiveren haalt uit Postvak, terugzetten zet hem terug', () => metLS({herling_pv: null}, () => metGoogle(async (log, labels) => {
       await w.pvLaad(false);
       await w.pvDoe(['tz|t1'], 'archiveer', true);

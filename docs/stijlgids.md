@@ -678,7 +678,7 @@ als je klikt.
 | regels | `dl` in twee kolommen: label muted, waarde `--text`, beide `--fs-klein`; namen en datums voluit ("vr 16 okt 2026"), zoals ze in de app staan |
 | knoppen | `.btn-sm`: **Uitvoeren** primair, **Overslaan** secundair; na uitvoeren een melding, **Bekijk in …** primair (naar het resultaat) en **Ongedaan maken** |
 | kan niet | een regel in `--danger` met de reden, zonder Uitvoeren |
-| twee of meer open | onder de kaarten één knop **Alles uitvoeren (n)** |
+| twee of meer open | onder de kaarten één knop **Alles uitvoeren (n)**. Mail-acties tellen niet mee: die voer je per kaart uit, met een regel ernaast die dat zegt |
 
 Overgeslagen, ongedaan gemaakte en vervallen kaarten blijven staan op 65%
 dekking, zonder knoppen. Zo blijft zichtbaar wat er voorgesteld is. Een
