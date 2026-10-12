@@ -1059,6 +1059,63 @@ async function runChecks() {
         w.switchModule(terugNaar || 'dashboard');
       }
     }],
+    /* ── De balk in de hero is een vraag aan de chat (2026-10-12) ──
+       Met een nep-Claude: fetch geeft een vaste stroom terug. */
+    ...(() => {
+      const ev = (type, data) => 'event: ' + type + '\ndata: ' + JSON.stringify({type, ...data}) + '\n\n';
+      const stroomTaak = json => ev('message_start', {message: {}}) +
+        ev('content_block_start', {index: 0, content_block: {type: 'tool_use', id: 'toolu_b', name: 'taak_toevoegen', input: {}}}) +
+        ev('content_block_delta', {index: 0, delta: {type: 'input_json_delta', partial_json: json}}) +
+        ev('content_block_stop', {index: 0}) + ev('message_delta', {delta: {stop_reason: 'tool_use'}}) + ev('message_stop', {});
+      const stroomTekst = t => ev('message_start', {message: {}}) +
+        ev('content_block_start', {index: 0, content_block: {type: 'text', text: ''}}) +
+        ev('content_block_delta', {index: 0, delta: {type: 'text_delta', text: t}}) +
+        ev('content_block_stop', {index: 0}) + ev('message_delta', {delta: {stop_reason: 'end_turn'}}) + ev('message_stop', {});
+      const viaBalk = async (tekst, sse) => {
+        const oudFetch = w.fetch, oudTel = w._aiBumpUsage, mee = {};
+        const oud = w.eval('JSON.stringify({g:aiGesch,c:aiChatGesprek.map(aiGeschBeurt),id:aiChatId,v:rawState.settings.aiVerbruik||null})');
+        w._aiBumpUsage = () => {};
+        w.fetch = async (u, opt) => { mee.body = JSON.parse(opt.body);
+          return new w.Response(sse, {status: 200, headers: {'Content-Type': 'text/event-stream'}}); };
+        try {
+          await metLS({herling_ai_aanbieder: null, herling_claude_api_key: 'test', herling_ai_maskeren: null}, async () => {
+            w.switchModule('dashboard');
+            d.getElementById('dashQuickAddInput').value = tekst;
+            d.getElementById('dashQuickAddForm').dispatchEvent(new w.Event('submit', {bubbles: true, cancelable: true}));
+            for (let i = 0; i < 60 && (w.eval('_dashAiBezig') || !mee.body); i++) await new Promise(r => setTimeout(r, 50));
+            await new Promise(r => setTimeout(r, 50));
+            mee.na = {open: d.getElementById('aiChatModal').classList.contains('open'), veld: d.getElementById('dashQuickAddInput').value,
+              laatste: w.eval('aiChatGesprek.length?aiChatGesprek[aiChatGesprek.length-1].tekst:""'),
+              vraag: w.eval('aiChatGesprek.length?aiChatGesprek[0].tekst:""')};
+          });
+        } finally {
+          w.fetch = oudFetch; w._aiBumpUsage = oudTel;
+          mee.herstel = () => { w.eval('(function(o){aiGesch=o.g;aiChatGesprek=o.c.map(aiGeschTerug);aiChatId=o.id;rawState.settings.aiVerbruik=o.v||undefined;})(' + oud + ')'); w.aiChatSluit(); };
+        }
+        return mee;
+      };
+      return [
+        ['Dashboard-balk: een taak gaat via de chat meteen in de Checklist, met Ongedaan maken', async () => {
+          const titel = 'Balktest ' + Date.now();
+          const mee = await viaBalk('offerte nalopen, vrijdag', stroomTaak(JSON.stringify({titel, deadline: '', klant: '', prioriteit: 'middel', subtaken: ['Prijs checken']})));
+          try {
+            const item = w.eval('checklistState.items').find(i => i.text === titel);
+            const instructie = /invoerbalk op het Dashboard/.test(JSON.stringify(mee.body.messages)) && mee.na.vraag === 'offerte nalopen, vrijdag';
+            const toast = !d.getElementById('undoToast').classList.contains('hidden') && d.getElementById('undoToastMsg').textContent.includes(titel);
+            w.appToastUndo();
+            const weg = !w.eval('checklistState.items').some(i => i.text === titel);
+            return !!item && item.subtasks.length === 1 && !mee.na.open && mee.na.veld === '' && instructie && toast && weg;
+          } finally { mee.herstel(); }
+        }],
+        ['Dashboard-balk: een vraag opent de chat met het antwoord', async () => {
+          const mee = await viaBalk('hoeveel open taken heb ik?', stroomTekst('Je hebt negen open taken.'));
+          try {
+            return mee.na.open && mee.na.laatste === 'Je hebt negen open taken.' && mee.na.veld === '' &&
+              typeof w.parseQuickAdd === 'undefined' && typeof w.dashQuickAdd === 'undefined';
+          } finally { mee.herstel(); }
+        }]
+      ];
+    })(),
     /* Slim toevoegen is weg (2026-10-12): taken klaarzetten doe je in de chat. */
     ['Slim toevoegen is weg: niet op het Dashboard, niet in de Checklist, geen venster', () => {
       w.switchModule('checklist');

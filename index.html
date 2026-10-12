@@ -6159,13 +6159,12 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
      standaard voor flex-items en houdt de intrinsieke breedte vast). */
   .dash-hero-left { width: 100% !important; padding-right: 48px; }
 
-  /* ── Snel toevoegen wordt een plusje ──
-     De balk plus zijn hulpregel ("@klant koppelt klant · !datum = …")
-     kostte samen ruim 80px van de hero, voor een manier van invoeren die
-     op een telefoon nauwelijks werkt: die syntax tik je niet uit op een
-     schermtoetsenbord, en de placeholder werd toch afgekapt. Het plusje
-     rechtsboven opent hetzelfde venster waar datum, prioriteit en klant
-     gewone velden zijn. Op desktop blijft de balk staan. */
+  /* ── De balk wordt een plusje ──
+     De balk plus zijn hulpregel kostten samen ruim 80px van de hero. Het
+     plusje rechtsboven opent het taakvenster waar datum, prioriteit en
+     klant gewone velden zijn; de chat zelf zit op een telefoon in de lade
+     (de sparkle). Op desktop blijft de balk staan, sinds 2026-10-12 als
+     vraag aan de chat (dashAiVraag). */
   .dash-quickadd,
   .dash-quickadd-hint { display: none !important; }
   .dash-hero-add {
@@ -7681,12 +7680,11 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
   border-color: var(--mint);
   box-shadow: 0 0 0 4px var(--mint-soft);
 }
-.dash-quickadd-icon {
-  color: rgba(255,255,255,0.7);
-  font-size: 16px;
-  line-height: 1;
-  font-weight: 300;
-}
+.dash-quickadd-icon { display: flex; flex-shrink: 0; }
+.dash-quickadd-icon svg { width: 16px; height: 16px; display: block; }
+/* Terwijl de chat werkt: veld en knop uit, zodat er niet twee keer iets
+   in de Checklist komt. */
+.dash-quickadd.is-bezig input { opacity: .6; }
 .dash-quickadd input {
   flex: 1;
   background: transparent !important;
@@ -8986,7 +8984,7 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.65</span>
+        <span class="app-versie" title="Appversie">v2.66</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -9120,17 +9118,16 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
             <div class="dash-hero-eyebrow" id="dashHeroEyebrow">Vandaag</div>
             <div class="dash-hero-headline" id="dashHeroHeadline">Laden…</div>
             <div class="dash-hero-sub" id="dashHeroSub"></div>
-            <!-- Quick-add: parses 'tekst @klant !morgen' and creates a checklist task -->
-            <form class="dash-quickadd" id="dashQuickAddForm" onsubmit="dashQuickAdd(event)">
-              <span class="dash-quickadd-icon">＋</span>
-              <!-- Korte placeholder: het voorbeeld erin werd op telefoonbreedte
-                   toch afgekapt ("Snel toevoegen — \"Bel klant"), en de regel
-                   eronder legt de @- en !-syntax al uit. -->
-              <input type="text" id="dashQuickAddInput" placeholder="Snel toevoegen…" autocomplete="off"/>
-              <button type="submit" class="btn btn-xs btn-primary" title="Voeg toe (Enter)">Voeg toe</button>
+            <!-- De balk is een vraag aan Vraag het je app (2026-10-12; was Snel
+                 toevoegen met @klant en !datum). Een taak zet de chat meteen in
+                 de Checklist, al het andere opent de chat. Zie dashAiVraag(). -->
+            <form class="dash-quickadd" id="dashQuickAddForm" onsubmit="dashAiVraag(event)">
+              <span class="dash-quickadd-icon" aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false"><defs><linearGradient id="dashAiVerloop" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#00E5B0"/><stop offset="1" stop-color="#38BDF8"/></linearGradient></defs><g fill="url(#dashAiVerloop)"><path d="M9 3.5Q10.4 9.6 16.5 11Q10.4 12.4 9 18.5Q7.6 12.4 1.5 11Q7.6 9.6 9 3.5Z"/><path d="M15.5 1.5Q16.1 3.9 18.5 4.5Q16.1 5.1 15.5 7.5Q14.9 5.1 12.5 4.5Q14.9 3.9 15.5 1.5Z"/></g></svg></span>
+              <input type="text" id="dashQuickAddInput" placeholder="Nieuwe taak of een vraag, in gewone taal…" autocomplete="off" aria-label="Vraag het je app"/>
+              <button type="submit" class="btn btn-xs btn-primary" id="dashQuickAddBtn" title="Versturen (Enter)">Stuur</button>
             </form>
             <div class="dash-quickadd-hint">
-              <strong>@klant</strong> koppelt klant · <strong>!datum</strong> = deadline (vandaag, morgen, ma, di, …)
+              Een taak zet de AI meteen in je <strong>Checklist</strong> · een vraag opent de <strong>chat</strong>
             </div>
           </div>
           <div class="dash-hero-right">
@@ -13955,102 +13952,52 @@ function renderDashHero(){
   if(delta)delta.textContent=total7>0?`${total7} ${total7===1?'notitie':'notities'} bewerkt afgelopen 7 dagen`:'Nog geen activiteit deze week';
 }
 
-/* Quick-add parser: parses '@klantnaam' and '!deadline' tokens out of
-   the input, returns { text, clientId, deadline } so we can fire a
-   checklist item creation directly from the dashboard hero. */
-function parseQuickAdd(raw){
-  let text=raw.trim();
-  let clientId=null;
-  let deadline=null;
-  /* @client — match @ followed by chars until next space-or-end. Try to
-     match the longest client name (handles 'Gemeente Puren' if user
-     escapes spaces with underscore: @Gemeente_Puren) but also the
-     greedy substring match against client list. */
-  const clients=kanbanState?.clients||[];
-  const atRe=/@([\p{L}\d_-][\p{L}\d _-]*?)(?=\s+(?:!|@)|$|\s*$)/gu;
-  text=text.replace(atRe,(m,name)=>{
-    const norm=name.replace(/_/g,' ').trim().toLowerCase();
-    /* Find best client match: exact > startsWith > includes */
-    let best=clients.find(c=>c.name.toLowerCase()===norm)
-            ||clients.find(c=>c.name.toLowerCase().startsWith(norm))
-            ||clients.find(c=>c.name.toLowerCase().includes(norm));
-    if(best){clientId=best.id;return '';}
-    return m; /* leave unmatched @-tokens in text */
-  }).trim();
-  /* !deadline — vandaag/morgen/maandag/2025-04-15/14-04 */
-  const bangRe=/!([\p{L}\d-]+)/gu;
-  text=text.replace(bangRe,(m,token)=>{
-    const t=token.toLowerCase();
-    const today=new Date();today.setHours(0,0,0,0);
-    const dayMs=86400000;
-    let d=null;
-    if(t==='vandaag'||t==='today')d=new Date(today);
-    else if(t==='morgen'||t==='tomorrow')d=new Date(today.getTime()+dayMs);
-    else if(t==='overmorgen')d=new Date(today.getTime()+2*dayMs);
-    else {
-      /* Day-of-week names — pick the next occurrence */
-      const dows=['zondag','maandag','dinsdag','woensdag','donderdag','vrijdag','zaterdag'];
-      const shortDows=['zo','ma','di','wo','do','vr','za'];
-      let dowIdx=dows.indexOf(t);
-      if(dowIdx<0)dowIdx=shortDows.indexOf(t);
-      if(dowIdx>=0){
-        d=new Date(today);
-        const cur=today.getDay();
-        const diff=(dowIdx-cur+7)%7||7;
-        d.setDate(today.getDate()+diff);
-      }
-    }
-    /* ISO-style 2025-04-15 or DD-MM(-YYYY) */
-    if(!d){
-      const iso=t.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-      if(iso)d=new Date(+iso[1],+iso[2]-1,+iso[3]);
-    }
-    if(!d){
-      const eu=t.match(/^(\d{1,2})-(\d{1,2})(?:-(\d{2,4}))?$/);
-      if(eu){
-        const yr=eu[3]?(eu[3].length===2?2000+ +eu[3]:+eu[3]):today.getFullYear();
-        d=new Date(yr,+eu[2]-1,+eu[1]);
-      }
-    }
-    if(d&&!isNaN(d)){
-      deadline=d.toISOString().slice(0,10);
-      return '';
-    }
-    return m; /* leave unrecognised !-tokens in text */
-  }).trim();
-  text=text.replace(/\s+/g,' ').trim();
-  return{text,clientId,deadline};
+/* ── De balk in de hero: een vraag aan Vraag het je app (2026-10-12) ──
+   Was "Snel toevoegen" met @klant en !datum. Wat je nu typt, gaat als een
+   nieuw gesprek naar de chat, met een aanwijzing erbij: is het iets om te
+   doen, zet het dan klaar als taak, en vraag niets na. Komen er alleen
+   taken terug, dan voert de balk ze meteen uit -- je typte het in een balk
+   om iets toe te voegen -- met een melding en Ongedaan maken. Al het
+   andere (een antwoord, een vraag terug, een ander soort actie, een fout)
+   opent de chat, en daar beslis je zelf. Het gesprek staat daarna gewoon
+   in de geschiedenis. */
+const DASH_AI_INSTRUCTIE='[Dit komt uit de invoerbalk op het Dashboard. Is het iets om te doen of te onthouden, '+
+  'zet het dan klaar met taak_toevoegen (meer taken mag, met subtaken als dat logisch is). Vraag niets na: '+
+  'wat je niet weet, zoals klant of deadline, laat je leeg. Is het een vraag, beantwoord die dan gewoon.]';
+let _dashAiBezig=false;
+function dashAiStand(bezig){
+  const f=document.getElementById('dashQuickAddForm');
+  const inp=document.getElementById('dashQuickAddInput');
+  const knop=document.getElementById('dashQuickAddBtn');
+  if(f)f.classList.toggle('is-bezig',bezig);
+  if(inp)inp.disabled=bezig;
+  if(knop){knop.disabled=bezig;knop.textContent=bezig?'Bezig…':'Stuur';}
 }
-function dashQuickAdd(event){
+async function dashAiVraag(event){
   if(event)event.preventDefault();
   const inp=document.getElementById('dashQuickAddInput');
-  const raw=(inp?.value||'').trim();
-  if(!raw)return;
-  const {text,clientId,deadline}=parseQuickAdd(raw);
-  if(!text){
-    appToast('Vul een omschrijving in (alleen @klant of !datum is niet genoeg)',{type:'warning'});
-    return;
-  }
-  if(!checklistState.items)checklistState.items=[];
-  checklistState.items.push({
-    id:uid(),text,done:false,
-    priority:'middel',
-    deadline:deadline||null,
-    clientId:clientId||null,
-    subtasks:[],archived:false,
-    sortOrder:clNieuweSortOrder('middel'),
-    createdAt:Date.now(),updatedAt:Date.now()
-  });
-  inp.value='';
-  scheduleSave();
-  /* Refresh the dashboard widgets so the new task shows immediately */
-  renderDashKpis();renderDashChecklist();
-  /* Friendly confirmation */
-  const bits=[];
-  if(clientId){const c=clientById(clientId);if(c)bits.push(`klant ${c.name}`);}
-  if(deadline)bits.push(`deadline ${new Date(deadline).toLocaleDateString('nl-NL',{day:'numeric',month:'short'})}`);
-  const detail=bits.length?` (${bits.join(', ')})`:'';
-  appToast(`Taak toegevoegd${detail}`,{type:'success',duration:3000});
+  const tekst=(inp&&inp.value||'').trim();
+  if(!tekst||_dashAiBezig)return;
+  if(!aiSleutel()){aiGeenSleutel();return;}
+  if(_aiCalling.chat){appToast('De chat is nog bezig met een antwoord',{type:'warning'});return;}
+  _dashAiBezig=true;dashAiStand(true);
+  /* Een nieuw gesprek; het vorige staat al in de geschiedenis. */
+  aiGeschPlan();
+  aiChatGesprek=[];aiChatId=null;aiChatWeergave='gesprek';
+  try{await aiChatVraag(tekst,{instructie:DASH_AI_INSTRUCTIE});}
+  finally{_dashAiBezig=false;dashAiStand(false);}
+  if(inp)inp.value='';
+  const bi=aiChatGesprek.length-1, b=aiChatGesprek[bi];
+  const acties=(b&&b.acties)||[];
+  const alleenTaken=!!b&&!b.fout&&acties.length>0&&
+    acties.every(a=>a.naam==='taak_toevoegen'&&a.status==='voorstel');
+  if(!alleenTaken){aiChatOpen();return;}
+  const gedaan=acties.map((a,ai)=>aiActieDoe(bi,ai,true)?ai:-1).filter(ai=>ai>=0);
+  aiChatToon();aiChatKnoppen();
+  if(!gedaan.length){aiChatOpen();return;}
+  const titel=a=>((a.regels||[]).find(r=>r[0]==='Taak')||[])[1]||'';
+  appToast(gedaan.length===1?'Taak toegevoegd: '+titel(acties[gedaan[0]]):gedaan.length+' taken toegevoegd',
+    {type:'success',duration:7000,undo:()=>gedaan.forEach(ai=>aiActieTerug(bi,ai))});
 }
 
 function renderDashKpis(){
@@ -40362,7 +40309,9 @@ function _aiChatHtml(t){
   return (typeof marked!=='undefined'&&marked.parse)?veiligeHtml(marked.parse(t)):escapeHtml(t).replace(/\n/g,'<br>');
 }
 
-async function aiChatVraag(tekst){
+/* `opties.instructie`: gaat vóór de vraag mee naar het model, maar staat
+   niet in de bubbel en niet in de geschiedenis (zie dashAiVraag). */
+async function aiChatVraag(tekst,opties){
   const inp=document.getElementById('aiChatInvoer');
   const vraag=String(tekst!=null?tekst:(inp?inp.value:'')).trim();
   if(!vraag||_aiCalling.chat)return;
@@ -40400,7 +40349,7 @@ async function aiChatVraag(tekst){
       let beurt=null;
       const lezen=[];
       if(ronde&&antwoord.tekst&&!/\n\s*$/.test(antwoord.tekst))antwoord.tekst+='\n\n';
-      for await (const stuk of _streamAI({system,user:vraag,temperature:0.2,maskeer:true,masker,
+      for await (const stuk of _streamAI({system,user:(opties&&opties.instructie?opties.instructie+'\n\n':'')+vraag,temperature:0.2,maskeer:true,masker,
         geschiedenis:eerder,gereedschap,vervolg,metBeurt:claude})){
         if(typeof stuk!=='string'){
           if(stuk.type==='beurt'){beurt=stuk;continue;}

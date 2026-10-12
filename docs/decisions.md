@@ -7161,3 +7161,45 @@ dat het overal weg is), `sw.js`, `CLAUDE.md`.
 
 **Niet doen.** Het Snel toevoegen-veld weghalen omdat het op Slim toevoegen
 lijkt: het is iets anders, zonder AI en zonder sleutel.
+
+## 2026-10-12 · De balk op het Dashboard is een vraag aan de chat (v2.66)
+
+**Probleem.** Bovenin het Dashboard stond *Snel toevoegen*: een balk die
+een taak maakte uit tekst met `@klant` en `!datum`. De gebruiker wilde die
+weg, en in plaats daarvan een balk die naar de AI-chat gaat. Typt hij daar
+een taak, dan moet die zonder verdere stappen in de Checklist komen.
+
+**Beslissing.**
+- De balk (`#dashQuickAddForm`, `dashAiVraag`) stuurt wat je typt als een
+  **nieuw gesprek** naar Vraag het je app. Vóór de vraag gaat een
+  aanwijzing mee (`DASH_AI_INSTRUCTIE`): is het iets om te doen of te
+  onthouden, zet het dan klaar met `taak_toevoegen` (meer taken en
+  subtaken mogen), vraag niets na en laat leeg wat je niet weet. Is het
+  een vraag, beantwoord die dan.
+  - De aanwijzing staat niet in de bubbel en niet in de geschiedenis
+    (`aiChatVraag(tekst, {instructie})`).
+- **Alleen taken terug?** Dan voert de balk ze meteen uit en toont een
+  melding: *Taak toegevoegd: …*, met *Ongedaan maken*.
+  - Dit is een bewuste uitzondering op de regel van v2.50 dat elke actie
+    eerst een kaart is waarop je zelf klikt. Je typte het in een balk om
+    iets toe te voegen, en het geldt alleen voor `taak_toevoegen`.
+- **Al het andere opent de chat:** een antwoord, een vraag terug, een
+  ander soort actie (uren, factuur, mail) of een fout. Daar beslis je zelf.
+- Het gesprek staat daarna gewoon in de geschiedenis, met de taak als
+  uitgevoerd.
+- Tijdens het wachten staan veld en knop uit (*Bezig…*), zodat er niet
+  twee keer iets in de Checklist komt.
+- De oude parser (`parseQuickAdd`, `dashQuickAdd`) is weg.
+- Op een telefoon blijft de balk verborgen, zoals al zo was. Daar opent het
+  plusje het taakvenster, en de chat zit in de lade.
+
+**Wat het vraagt.** Een sleutel en Claude: met Gemini is er geen
+gereedschap, dus dan opent een taak de chat met een antwoord.
+
+**Bestanden.** `index.html` (balk in de hero, `dashAiVraag`, `dashAiStand`,
+`DASH_AI_INSTRUCTIE`, `aiChatVraag`, CSS `.dash-quickadd-icon`), `test.html`
+(2 tests met een nep-Claude: taak via de balk met Ongedaan maken, vraag
+opent de chat), `sw.js`, `CLAUDE.md`.
+
+**Niet doen.** Andere acties dan `taak_toevoegen` vanuit de balk zonder klik
+uitvoeren.

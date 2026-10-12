@@ -49,7 +49,7 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 
 | Hash | Module | Functie |
 |------|--------|---------|
-| `#dashboard` | Dashboard | Hero + KPI strip + kaartenraster (Notes/Checklist/Opdrachten & contracten) |
+| `#dashboard` | Dashboard | Hero (met een balk die een vraag aan de chat is: een taak komt meteen in de Checklist, `dashAiVraag`) + KPI strip + kaartenraster (Notes/Checklist/Opdrachten & contracten) |
 | `#notes` | Notes | Boomstructuur (folders/pages) met rich-text editor (marked.js) |
 | `#checklist` | Checklist | Taken met subtaken, filters (prio/klant/periode), vastpinnen, drag-drop, archief |
 | `#uren` | Uren | Urenregistratie per regel, week/maand, Excel export |
@@ -337,9 +337,9 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
+- **2026-10-12**: **De balk op het Dashboard is een vraag aan de chat** (v2.66) — *Snel toevoegen* (`@klant`, `!datum`) is weg. Wat je typt gaat als nieuw gesprek naar Vraag het je app, met een aanwijzing (`DASH_AI_INSTRUCTIE`). Alleen taken terug? Dan voert de balk ze meteen uit, met Ongedaan maken; al het andere opent de chat. Bewuste uitzondering op "eerst een kaart" (v2.50), alleen voor `taak_toevoegen`
 - **2026-10-12**: **Slim toevoegen weg** (v2.65) — ook uit de Checklist (knop *Met AI*, ⋯-menu), en daarmee het venster, de functies, de CSS `.qa-*`/`.quickadd-*`/`.btn-ai` en de foutregel met Opnieuw (`_aiSetError`). Taken klaarzetten doe je in Vraag het je app (`taak_toevoegen`, met voorstelkaart). Het niet-AI veld *Snel toevoegen* op het Dashboard blijft
 - **2026-10-12**: **Vraag het je app leest je notities** (v2.64) — `notities_zoeken` en `notitie_lezen` (alleen Claude), als platte tekst en door hetzelfde masker als de rest; zonder prullenbak en notities van verborgen klanten. Een notitie in een antwoord is een link (`[titel](#notitie-ID)`), net als een taak
-- **2026-10-12**: **Taken als link in de chat, Slim toevoegen van het Dashboard af** (v2.63) — het model zet een taak neer als `[naam](#taak-ID)` (ids uit `taken.openLijst` en `taken.recentAfgerond`); `aiChatTaakLinks` maakt daar een knop van die naar de taak in de Checklist gaat. Een onbekend id blijft tekst. Slim toevoegen staat alleen nog in de Checklist
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 
@@ -426,7 +426,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 207 smoke-, sync-, model-, reken-, sorteer-, agenda- en mailtests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
+| `test.html` | 209 smoke-, sync-, model-, reken-, sorteer-, agenda- en mailtests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |
