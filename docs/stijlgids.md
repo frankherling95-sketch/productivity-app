@@ -578,6 +578,13 @@ deze; geen losse `.15s` of `0.3s` meer.
   beelden per seconde en alleen zolang hij in beeld is (een dichte lade telt
   niet) en het venster de focus heeft. Bij "beweging beperken" één
   stilstaand beeld (`geenBeweging()`).
+- *Dashboard*: rechts in de hero loopt een lijn van stippen (`dashHeroLijn()`,
+  canvas `.dash-hero-lijn`), van mint naar cyaan. Hij begint onder het woord
+  *chat* in de hint (op een telefoon halverwege). Op de lijn staan de stippen
+  vol, eromheen twinkelen ze; een lichter stuk loopt er langzaam overheen.
+  Hooguit 30 beelden per seconde, alleen in beeld en met een zichtbaar
+  tabblad; bij "beweging beperken" één stilstaand beeld. De vorm is vast:
+  sfeer, geen gegevens.
 - *Checklist*: afvinken tekent het vinkje (`.zojuist`), klapt de taak dicht en
   hertekent daarna; elke hertekening laat de taken naar hun nieuwe plek glijden
   (FLIP in `renderChecklistModule()`).

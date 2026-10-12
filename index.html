@@ -6169,31 +6169,6 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
   .dash-quickadd input { min-width: 0; min-height: var(--tap) !important; font-size: var(--fs-basis) !important; }
   .dash-quickadd .btn { flex-shrink: 0; }
   .dash-quickadd-hint { display: none !important; }
-  .dash-hero-add {
-    /* !important omdat de basisregel (.dash-hero-add{display:none}) verderop
-       in dit bestand staat en bij gelijke specificiteit dus wint. Zelfde
-       reden als bij de andere regels in dit blok. */
-    display: flex !important;
-    align-items: center;
-    justify-content: center;
-    position: absolute;
-    top: 14px;
-    right: 14px;
-    z-index: 2;
-    width: 40px;
-    height: 40px;
-    padding: 0;
-    font-size: 22px;
-    line-height: 1;
-    font-family: inherit;
-    color: var(--navy);
-    background: #fff;
-    border: none;
-    border-radius: 50%;
-    box-shadow: 0 2px 10px rgba(10,19,48,0.28);
-    cursor: pointer;
-  }
-  .dash-hero-add:active { transform: scale(0.94); }
   /* Drie KPI's in drie gelijke kolommen. Twee-plus-één liet de derde
      alleen op een tweede rij staan; even breed naast elkaar leest als één
      strip. Labels breken netjes over twee regels, en alles is gecentreerd
@@ -7264,6 +7239,11 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
   #mod-checklist .uren-fab { display: flex; }
   #mod-notes .module-topbar .btn-primary { display: none !important; }
 
+  /* Sinds 2026-10-12 niet meer op het Dashboard: daar zet je een taak
+     neer via de balk in de hero (een vraag aan de chat). De regels
+     hieronder blijven staan voor als hij terugkomt. Op de andere pagina's
+     staat hun eigen ronde + (.uren-fab). */
+  #mod-dashboard .dash-topbar .ha-newitem { display: none !important; }
   .dash-topbar .ha-newitem {
     position: fixed !important;
     right: 17px !important;
@@ -7297,8 +7277,6 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
        (min(220px, …)) liet de AI-titel afbreken. */
     min-width: min(264px, calc(100vw - 34px)) !important;
   }
-  /* Het plusje in de hero deed hetzelfde als de ronde knop nu doet. */
-  .dash-hero-add { display: none !important; }
 
   /* ═══════════════════════════════════════════════════════════════════════
      ONDERGRENS VOOR LEESBARE TEKST
@@ -7599,10 +7577,16 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
   gap: 24px;
   position: relative;
   overflow: hidden;
+  isolation: isolate;
 }
-/* Zichtbaar vanaf de 768px-breakpoint; op een breed scherm staat de
-   snel-toevoegbalk er nog gewoon en is dit plusje overbodig. */
-.dash-hero-add { display: none; }
+/* De deeltjeslijn (2026-10-12, ontwerp "Particle line"): een canvas over de
+   hele hero, onder de tekst. Stippen zoals de H in het logo en de wereldbol
+   in de zijbalk, van mint naar cyaan; zie dashHeroLijn(). */
+#mod-dashboard .dash-hero-lijn {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  display: block; z-index: 0; pointer-events: none;
+}
 /* Raster dat naar rechts opkomt, en een lichtlijn langs de bovenrand. */
 .dash-hero::before {
   content: "";
@@ -7622,17 +7606,6 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
   height: 1px;
   pointer-events: none;
   background: linear-gradient(90deg, transparent, var(--mint) 30%, #38BDF8 70%, transparent);
-}
-.dash-hero-trace {
-  position: absolute;
-  right: 0; top: 0;
-  height: 100%;
-  width: 46%;
-  /* Breder geschaald valt het ruitje rechtsboven buiten de hero: "slice"
-     vult de breedte en snijdt boven en onder af (op 1920px 16px te hoog). */
-  max-width: 520px;
-  pointer-events: none;
-  mask-image: linear-gradient(90deg, transparent, #000 40%);
 }
 .dash-hero-left { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; position: relative; z-index: 1; }
 .dash-hero-eyebrow {
@@ -7668,10 +7641,11 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
   align-items: center;
   gap: 6px;
   margin-top: 12px;
-  /* Donker en geblurd, zodat de lijn er netjes achter langs loopt. */
-  background: rgba(5,13,28,.6);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
+  /* Donker en geblurd, en doorzichtig genoeg dat de stippenlijn er wazig
+     achter zichtbaar blijft. */
+  background: rgba(5,11,24,.4);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
   border: 1px solid rgba(255,255,255,.12);
   border-radius: 10px;
   padding: 6px 10px 6px 12px;
@@ -8986,7 +8960,7 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.67</span>
+        <span class="app-versie" title="Appversie">v2.68</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -9095,27 +9069,8 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
       <div class="dash-scroll">
         <!-- Hero -->
         <div class="dash-hero">
-          <!-- Sfeer, geen gegevens: een vaste lijn met een lichtpuls die er
-               eens in de zes seconden overheen loopt (dashHeroPuls). De
-               sparkline die hier stond telde bewerkte notities per dag; die
-               telling staat nu als tekst rechtsonder (#dashHeroDelta). -->
-          <svg class="dash-hero-trace" viewBox="0 0 400 200" preserveAspectRatio="xMaxYMid slice" fill="none" aria-hidden="true">
-            <defs>
-              <linearGradient id="dashHtg" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#00E5B0" stop-opacity="0"/><stop offset=".4" stop-color="#00E5B0" stop-opacity=".55"/><stop offset="1" stop-color="#38BDF8"/></linearGradient>
-              <filter id="dashHgl"><feGaussianBlur stdDeviation="4"/></filter>
-            </defs>
-            <path d="M0,170 H90 L120,140 H190 L215,152 L260,96 L290,108 L350,40 H400" stroke="url(#dashHtg)" stroke-width="2.5"/>
-            <path class="dash-hero-puls" d="M0,170 H90 L120,140 H190 L215,152 L260,96 L290,108 L350,40 H400" stroke="#fff" stroke-width="3" stroke-linecap="round" pathLength="1" stroke-dasharray=".06 .94" stroke-dashoffset=".06" opacity="0" filter="url(#dashHgl)"/>
-            <g transform="translate(350 40) rotate(45)"><rect x="-6" y="-6" width="12" height="12" fill="#38BDF8"/></g>
-            <g transform="translate(260 96) rotate(45)"><rect x="-4.5" y="-4.5" width="9" height="9" fill="#050D1C" stroke="#00E5B0" stroke-width="2"/></g>
-          </svg>
-          <!-- Alleen op telefoonbreedte zichtbaar. Daar vervangt dit plusje de
-               hele snel-toevoegbalk: die kostte met zijn hulpregel ruim 80px
-               en vroeg om een syntax (@klant, !morgen) die je op een telefoon
-               toch niet uittikt. Eén tik opent hetzelfde venster met datum,
-               prioriteit en klant als echte velden. -->
-          <button type="button" class="dash-hero-add" onclick="openChecklistItemModal(null)"
-            aria-label="Nieuwe taak" title="Nieuwe taak">＋</button>
+          <!-- Rechts loopt een lijn van stippen (canvas .dash-hero-lijn, gezet
+               door dashHeroLijn() in renderDashboard). Sfeer, geen gegevens. -->
           <div class="dash-hero-left">
             <div class="dash-hero-eyebrow" id="dashHeroEyebrow">Vandaag</div>
             <div class="dash-hero-headline" id="dashHeroHeadline">Laden…</div>
@@ -13830,20 +13785,80 @@ function renderDashboard(){
   renderDashAfspraken();
   dashCardsInit();
   renderDashCardCounts();
-  dashHeroPuls();
+  /* Begint onder het woord "chat" in de hint; op een telefoon staat die
+     hint er niet, dan halverwege (zie dashHeroLijn). */
+  dashHeroLijn(document.querySelector('#mod-dashboard .dash-hero'),
+    [...document.querySelectorAll('#mod-dashboard .dash-quickadd-hint strong')].pop(),
+    document.querySelector('#mod-dashboard .dash-hero-left'));
 }
 
-/* De lichtpuls over de lijn in de hero. Eén keer starten: renderDashboard()
-   loopt na elke wijziging, en een tweede animatie erbovenop zou de eerste
-   halverwege laten verspringen. 6s is bewust trager dan --duur: het is
-   sfeer, geen terugkoppeling. Bij "beweging beperken" blijft hij weg. */
-function dashHeroPuls(){
-  const pk=document.querySelector('#mod-dashboard .dash-hero-puls');
-  if(!pk||!pk.animate)return;
-  if(geenBeweging()){pk.getAnimations().forEach(a=>a.cancel());return;}
-  if(pk.getAnimations().length)return;
-  pk.animate([{strokeDashoffset:.06,opacity:0},{opacity:1,offset:.05},{opacity:1,offset:.9},{strokeDashoffset:-1,opacity:0}],
-    {duration:6000,iterations:Infinity,easing:'linear'});
+/* ── De deeltjeslijn in de hero (2026-10-12, ontwerp "A · Particle line") ──
+   Rechts in de hero loopt een lijn van stippen, zoals de H in het logo en
+   de wereldbol in de zijbalk. Op de lijn staan de stippen vol, eromheen
+   worden ze kleiner, lossen op en twinkelen zacht; een lichter stuk loopt
+   langzaam over de lijn. Van mint naar cyaan, van links naar rechts.
+   - Begint onderaan, onder het woord "chat" in de hint -- elke keer uit
+     het woord zelf gemeten, dus het schuift mee met de tekst. Staat de hint
+     er niet (telefoon), dan op 55% van de breedte.
+   - De vorm is vast: sfeer, geen gegevens.
+   - Een canvas met hooguit 30 beelden per seconde, alleen zolang de hero in
+     beeld is en het tabblad zichtbaar. Bij "beweging beperken" één
+     stilstaand beeld, zonder lichtpunt (geenBeweging).
+   - Veilig om bij elke hertekening aan te roepen: is de hero dezelfde, dan
+     tekent het alleen opnieuw; anders komt er een nieuw canvas. */
+const DASH_LIJN_1=[[0,1.08],[.04,.95],[.09,.83],[.15,.74],[.21,.69],[.27,.66],[.32,.6],[.37,.54],[.42,.52],[.47,.55],[.51,.6],[.55,.59],[.59,.52],[.64,.38],[.68,.3],[.74,.26],[.78,.24],[.805,.229]];
+const DASH_LIJN_2=[[.812,.104],[.84,.11],[.86,.155],[.91,.155],[.95,.12],[1,.13]];
+let _dashLijn=null;
+function dashHeroLijn(hero,startEl,tekstEl){
+  if(!hero||!tekstEl||typeof ResizeObserver==='undefined')return;
+  if(_dashLijn&&_dashLijn.hero===hero&&_dashLijn.cv.isConnected){_dashLijn.bouw();return;}
+  if(_dashLijn)_dashLijn.stop();
+  const cv=document.createElement('canvas');cv.className='dash-hero-lijn';cv.setAttribute('aria-hidden','true');hero.prepend(cv);
+  const ctx=cv.getContext('2d'),MINT=[0,229,176],CYAN=[56,189,248];
+  let W=0,H=0,stippen=[],raf=0,zicht=false,laatste=0;const t0=performance.now();
+  const kleur=k=>{k=Math.max(0,Math.min(1,k));return 'rgb('+MINT.map((m,i)=>Math.round(m+(CYAN[i]-m)*k)).join(',')+')';};
+  /* Catmull-Rom tussen de vaste punten, voor een vloeiende lijn. */
+  const glad=(c,n=8)=>{const o=[];for(let i=0;i<c.length-1;i++){const p0=c[i-1]||c[i],p1=c[i],p2=c[i+1],p3=c[i+2]||c[i+1];
+    for(let k=0;k<n;k++){const t=k/n,t2=t*t,t3=t2*t;o.push([0,1].map(j=>.5*(2*p1[j]+(-p0[j]+p2[j])*t+(2*p0[j]-5*p1[j]+4*p2[j]-p3[j])*t2+(-p0[j]+3*p1[j]-3*p2[j]+p3[j])*t3)));}}
+    o.push(c[c.length-1]);return o;};
+  function bouw(){
+    const hr=hero.getBoundingClientRect();W=hr.width;H=hr.height;if(!W||!H)return;
+    const dpr=Math.min(2,window.devicePixelRatio||1);cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);
+    const s=startEl&&startEl.getClientRects().length?startEl.getBoundingClientRect():null;
+    const sx=s?(s.left+s.right)/2-hr.left:W*.55, tr=tekstEl.getBoundingClientRect().right-hr.left;
+    const masker='linear-gradient(90deg,transparent '+Math.round(sx-30)+'px,#000 '+Math.round(sx+30)+'px)';
+    cv.style.webkitMaskImage=masker;cv.style.maskImage=masker;
+    const X=u=>sx+u*(W+12-sx),kaart=a=>a.map(([u,g])=>[X(u),g*H]);
+    const pts=[...glad(kaart(DASH_LIJN_1)),...glad(kaart(DASH_LIJN_2))],seg=[];let L=0;
+    for(let i=0;i<pts.length-1;i++){const [ax,ay]=pts[i],[bx,by]=pts[i+1],l=Math.hypot(bx-ax,by-ay)||1e-6;seg.push([ax,ay,bx,by,l,L]);L+=l;}
+    const afstand=(x,y)=>{let b=1e9,bu=0;for(const [ax,ay,bx,by,l,s0] of seg){const dx=bx-ax,dy=by-ay;let k=((x-ax)*dx+(y-ay)*dy)/(l*l);
+      k=Math.max(0,Math.min(1,k));const d=Math.hypot(x-(ax+dx*k),y-(ay+dy*k));if(d<b){b=d;bu=(s0+l*k)/L;}}return [b,bu];};
+    let zaad=7;const rnd=()=>(zaad=(zaad*16807)%2147483647)/2147483647;
+    const sp=11,rmax=2.8;stippen=[];let j=0;
+    for(let y=4;y<H;y+=sp*.866,j++)for(let x=sx-40+(j%2?sp/2:0);x<W+sp;x+=sp){
+      const [d,u]=afstand(x,y),R=x<tr?24:34;if(d>R)continue;
+      const r=d<sp*.45?rmax:rmax*(1-d/R)*(.45+.55*rnd());if(r<.45)continue;
+      stippen.push([x,y,r,d,u,kleur(x/W),rnd()*6.283]);}
+    teken(performance.now());
+  }
+  function teken(nu){
+    const stil=geenBeweging(),t=stil?6:(nu-t0)/1000,P=stil?null:(t*.18)%1.3;
+    ctx.clearRect(0,0,W,H);
+    for(const [x,y,r,d,u,c,ph] of stippen){
+      let a=d<5?1:(.3+.4*(.5+.5*Math.sin(t*1.7+ph)))*(1-d/46);
+      const b=P==null?0:Math.exp(-(((u-P)*9)**2));a=Math.min(1,a+b*.7);
+      ctx.globalAlpha=a;ctx.fillStyle=c;ctx.beginPath();ctx.arc(x,y,r*(1+b*.7),0,7);ctx.fill();}
+    ctx.globalAlpha=1;
+  }
+  function lus(nu){raf=requestAnimationFrame(lus);if(nu-laatste<33)return;laatste=nu;teken(nu);}
+  function start(){if(raf||geenBeweging()||!zicht||document.hidden)return;raf=requestAnimationFrame(lus);}
+  function pauze(){cancelAnimationFrame(raf);raf=0;}
+  const ro=new ResizeObserver(()=>bouw());ro.observe(hero);
+  const io=new IntersectionObserver(([e])=>{zicht=e.isIntersecting;zicht?start():pauze();});io.observe(hero);
+  const vis=()=>document.hidden?pauze():start();document.addEventListener('visibilitychange',vis);
+  if(document.fonts)document.fonts.ready.then(bouw);
+  _dashLijn={hero,cv,bouw,stop(){pauze();ro.disconnect();io.disconnect();document.removeEventListener('visibilitychange',vis);cv.remove();_dashLijn=null;}};
+  bouw();
 }
 
 /* ── Dashboard-kaarten in- en uitklappen (alleen mobiel) ──────────────────

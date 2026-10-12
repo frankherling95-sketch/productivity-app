@@ -7224,3 +7224,45 @@ gewoon een zin. De gebruiker vroeg om de balk ook op mobiel.
 
 **Bestanden.** `index.html` (de mobiele laag van de hero, placeholder),
 `sw.js`, `CLAUDE.md`.
+
+## 2026-10-12 · Deeltjeslijn in de hero; geen ronde + op het mobiele Dashboard (v2.68)
+
+**Vraag.** Frank keurde een nieuw ontwerp voor de hero goed ("A · Particle
+line", `dashboard-banner-particle-line.md`). Daarnaast moest de ronde + op
+een telefoon weg, maar alleen op het Dashboard.
+
+**Beslissing.**
+- **Deeltjeslijn.** De vaste SVG-lijn met ruitjes en een lichtpuls
+  (`.dash-hero-trace`, `dashHeroPuls`) is vervangen door een canvas met
+  stippen (`dashHeroLijn()`, `.dash-hero-lijn`). Het is dezelfde taal als de
+  H in het logo en de wereldbol in de zijbalk.
+  - De oude lijn toonde geen gegevens ("sfeer, geen gegevens"), dus er gaat
+    niets verloren.
+  - Begin: onder het woord *chat* in de hint, elke keer gemeten. Op een
+    telefoon staat die hint er niet; daar begint de lijn op 55% van de
+    breedte.
+  - Hooguit 30 beelden per seconde, alleen zolang de hero in beeld is en het
+    tabblad zichtbaar. Bij "beweging beperken" één stilstaand beeld.
+  - Veilig bij elke hertekening: is de hero dezelfde, dan tekent het alleen
+    opnieuw.
+  - Gemeten: 307 stippen op 1400px en 99 op 375px. Een beeld tekenen kost
+    ±0,04 ms; opbouwen (bij hertekenen of een andere maat) ±8 ms.
+  - De AI-balk is doorzichtiger (`rgba(5,11,24,.4)`, blur 6px), zodat de
+    lijn er wazig achter loopt.
+  - De ruimte onder de hint was al ±25px (1400px) en ±19px (375px), dus aan
+    de hoogte is niets veranderd.
+- **Ronde + op het mobiele Dashboard weg.** Op een telefoon werd het menu
+  *Nieuw item* een ronde knop rechtsonder. Op het Dashboard staat die nu op
+  `display:none` (`#mod-dashboard .dash-topbar .ha-newitem`): een taak zet
+  je daar via de balk in de hero. Op de andere pagina's blijft hun eigen +
+  (`.uren-fab`). Op desktop staat *Nieuw item* er nog gewoon.
+- **Opgeruimd:** het plusje in de hero (`.dash-hero-add`). Dat stond sinds
+  de ronde + al overal op `display:none`.
+
+**Bestanden.** `index.html` (hero-markup, CSS bij `.dash-hero`,
+`dashHeroLijn`, `renderDashboard`, de mobiele laag), `test.html` (1 test),
+`sw.js`, `docs/stijlgids.md` §14, `CLAUDE.md`.
+
+**Niet doen.** De lijn data laten tonen zonder het eerst aan Frank te vragen
+(het is sfeer). En geen tweede canvas maken bij een hertekening: tel na een
+wissel van module `.dash-hero-lijn`, dat moet er één zijn.

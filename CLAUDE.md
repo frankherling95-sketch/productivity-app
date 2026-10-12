@@ -337,9 +337,9 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
+- **2026-10-12**: **Deeltjeslijn in de hero, geen ronde + op het mobiele Dashboard** (v2.68) — de SVG-lijn met lichtpuls is vervangen door een canvas met stippen (`dashHeroLijn()`, ontwerp "Particle line"): onder het woord *chat* beginnend, 30 beelden/s, alleen in beeld, stil bij "beweging beperken". Op een telefoon staat op het Dashboard geen ronde + meer (de balk doet dat werk); op de andere pagina's wel
 - **2026-10-12**: **De balk op het Dashboard is een vraag aan de chat** (v2.66) — *Snel toevoegen* (`@klant`, `!datum`) is weg. Wat je typt gaat als nieuw gesprek naar Vraag het je app, met een aanwijzing (`DASH_AI_INSTRUCTIE`). Alleen taken terug? Dan voert de balk ze meteen uit, met Ongedaan maken; al het andere opent de chat. Bewuste uitzondering op "eerst een kaart" (v2.50), alleen voor `taak_toevoegen`. Sinds v2.67 ook op een telefoon
 - **2026-10-12**: **Slim toevoegen weg** (v2.65) — ook uit de Checklist (knop *Met AI*, ⋯-menu), en daarmee het venster, de functies, de CSS `.qa-*`/`.quickadd-*`/`.btn-ai` en de foutregel met Opnieuw (`_aiSetError`). Taken klaarzetten doe je in Vraag het je app (`taak_toevoegen`, met voorstelkaart). Het niet-AI veld *Snel toevoegen* op het Dashboard blijft
-- **2026-10-12**: **Vraag het je app leest je notities** (v2.64) — `notities_zoeken` en `notitie_lezen` (alleen Claude), als platte tekst en door hetzelfde masker als de rest; zonder prullenbak en notities van verborgen klanten. Een notitie in een antwoord is een link (`[titel](#notitie-ID)`), net als een taak
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 
@@ -426,7 +426,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 209 smoke-, sync-, model-, reken-, sorteer-, agenda- en mailtests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
+| `test.html` | 210 smoke-, sync-, model-, reken-, sorteer-, agenda- en mailtests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |
