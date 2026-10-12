@@ -7054,3 +7054,37 @@ reviews staan als notities in Notities → Reviews en blijven daar.
 `CLAUDE.md`.
 
 **Niet doen.** `doneAt` weghalen: de chat telt er afgeronde taken mee.
+
+## 2026-10-12 · Taken als link in Vraag het je app; Slim toevoegen van het Dashboard af (v2.63)
+
+**Probleem.** De chat noemt taken (bijvoorbeeld een tabel met wat er nog
+open staat voor een klant), maar je kon er niet naartoe. En *Slim toevoegen*
+stond op het Dashboard in *Nieuw item* en in het ⋯-menu. De gebruiker wil
+zulke functies in de chat hebben.
+
+**Beslissing.**
+- **Taaklinks.** In de systeeminstructie staat een nieuwe regel: noem je
+  een taak uit `taken.openLijst` of `taken.recentAfgerond`, maak de naam dan
+  een link `[naam](#taak-ID)`. `recentAfgerond` krijgt daarvoor ook het id
+  mee.
+  - Na `veiligeHtml` zet `aiChatTaakLinks` zo'n link om in een knop
+    (`data-action="aiChatNaarTaak"`). Die sluit de chat en roept
+    `aiNaarTaak` aan: filters opzij, naar de taak scrollen en hem laten
+    oplichten.
+  - Het is een knop en geen `<a>`, omdat de app op de hash routeert.
+  - Een id dat niet bestaat (verzonnen, of de taak is weg) wordt gewone
+    tekst.
+  - Dit werkt ook in eerdere gesprekken uit de geschiedenis.
+- **Slim toevoegen** is weg uit *Nieuw item* (ook de CSS van dat icoon, en
+  het menu terug naar 240px) en uit het ⋯-menu van het Dashboard. In de
+  Checklist blijft het staan: de knop *Met AI* en het ⋯-menu. In de chat
+  zet *Zet een taak klaar …* hetzelfde klaar, met voorstelkaarten.
+
+**Bestanden.** `index.html` (`aiChatTaakLinks`, `aiChatAntwoordHtml`,
+`aiChatSysteem`, `aiChatOverzicht`, `.aic-taak`; *Nieuw item* en het
+⋯-menu), `test.html` (2 tests), `sw.js`, `docs/stijlgids.md` §16,
+`CLAUDE.md`.
+
+**Niet doen.** Een taaklink als gewone `<a href="#taak-…">` laten staan:
+de hash-routering pakt hem op. En geen link maken voor een id dat niet in
+`checklistState` staat.

@@ -8436,8 +8436,7 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
-  /* 264 en niet 240: daaronder brak 'Slim toevoegen met AI' over twee regels. */
-  min-width: 264px;
+  min-width: 240px;
   background: var(--surface);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-popover);
@@ -8487,9 +8486,6 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
 .ha-newitem-option[data-kind="checklist"] .ha-newitem-option-icon {
   background-color: var(--success-bg);
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14' fill='none'><rect x='1.5' y='2.5' width='3' height='3' rx='0.5' stroke='%230A9D78' stroke-width='1.3'/><rect x='1.5' y='8.5' width='3' height='3' rx='0.5' stroke='%230A9D78' stroke-width='1.3'/><path d='M6.5 4h6M6.5 10h6' stroke='%230A9D78' stroke-width='1.4' stroke-linecap='round'/></svg>");
-}
-.ha-newitem-option[data-kind="ai"] .ha-newitem-option-icon {
-  background: linear-gradient(135deg, #00E5B0 0%, #3B5BDB 100%);
 }
 .ha-newitem-option[data-kind="note"] .ha-newitem-option-icon {
   background-color: var(--info-bg);
@@ -8703,6 +8699,16 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
 .aic-ai table { border-collapse: collapse; margin: 6px 0 10px; font-variant-numeric: tabular-nums; font-size: var(--fs-klein); }
 .aic-ai th, .aic-ai td { border: 1px solid var(--border); padding: 4px 8px; text-align: left; }
 .aic-ai th { background: var(--surface3); font-weight: 600; }
+/* Een taak als link (aiChatTaakLinks): de tekst blijft, met een mint
+   onderstreping; dikker bij hover. Geen mint tekst: op wit is dat te licht. */
+.aic-taak {
+  display: inline; padding: 0; margin: 0; border: 0; background: none;
+  font: inherit; color: inherit; text-align: left; cursor: pointer;
+  text-decoration: underline; text-decoration-color: var(--mint);
+  text-decoration-thickness: 1px; text-underline-offset: 3px;
+}
+.aic-taak:hover { text-decoration-thickness: 2px; }
+.aic-taak:focus-visible { outline: 2px solid var(--mint); outline-offset: 2px; border-radius: 3px; }
 .aic-denkt { display: inline-flex; gap: 4px; padding: 4px 0; }
 .aic-denkt span { width: 6px; height: 6px; border-radius: 50%; background: var(--text-hint); animation: aic-denk 1.2s infinite ease-in-out; }
 .aic-denkt span:nth-child(2) { animation-delay: .15s; }
@@ -9152,7 +9158,7 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.62</span>
+        <span class="app-versie" title="Appversie">v2.63</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -9221,17 +9227,6 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
                 </span>
                 <svg class="ha-newitem-option-arrow" viewBox="0 0 11 11" fill="none"><path d="M3 2L7 5.5L3 9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </button>
-              <!-- Zat alleen in de ⋯-menu's van het Dashboard en de Checklist, en
-                   die staan allebei op display:none op een bureaublad -- daar was
-                   Slim toevoegen dus nergens te vinden. Hier hoort het ook: het is
-                   een manier om items toe te voegen. -->
-              <button type="button" class="ha-newitem-option" data-kind="ai" role="menuitem">
-                <span class="ha-newitem-option-icon"></span>
-                <span class="ha-newitem-option-body">
-                  <span class="ha-newitem-option-title">Slim toevoegen met AI</span>
-                </span>
-                <svg class="ha-newitem-option-arrow" viewBox="0 0 11 11" fill="none"><path d="M3 2L7 5.5L3 9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              </button>
             </div>
           </div>
           <!-- Client filter (shared) -->
@@ -9256,7 +9251,6 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
                    je zelden midden in je werk. -->
               <button type="button" onclick="closeDashMobileSettings();openNewClientModal()">＋ Nieuwe klant</button>
               <button type="button" onclick="closeDashMobileSettings();openKlantenBeheer()">⚙ Klanten beheren</button>
-              <button type="button" onclick="closeDashMobileSettings();openQuickAddAI()">✨ Slim toevoegen</button>
               <div class="dash-mobile-settings-divider"></div>
               <!-- Opslag, de API-key en notificaties gaan over de héle app en
                    staan daarom onder Instellingen in de zijbalk, niet hier.
@@ -37932,9 +37926,6 @@ Object.assign(APP_ACTIONS,{
       const target=opt.getAttribute('data-ha-newitem-target');
       const kind=opt.getAttribute('data-kind');
       setOpen(false);
-      /* Slim toevoegen blijft waar je bent: het venster vraagt zelf wat je
-         wil en zet het daarna in de goede module. */
-      if(kind==='ai'){openQuickAddAI();return;}
       /* Navigate to the target module, then open the creation flow */
       switchModule(target);
       /* Wait a tick for the module to render, then trigger new-item flow */
@@ -39975,7 +39966,7 @@ function aiChatOverzicht(vandaagIso){
         subtaken:(i.subtasks||[]).length?(i.subtasks.filter(t=>t.done).length+'/'+i.subtasks.length):undefined})),
     recentAfgerond:klaar.filter(i=>i.doneAt&&i.doneAt>=recentGrens.getTime())
       .sort((a,b)=>b.doneAt-a.doneAt).slice(0,60)
-      .map(i=>({taak:i.text,klant:_aiChatKlant(i.clientId),afgerond:afDatum(i)}))
+      .map(i=>({id:i.id,taak:i.text,klant:_aiChatKlant(i.clientId),afgerond:afDatum(i)}))
   };
 
   if(!geheimenKlaar()){
@@ -40677,11 +40668,37 @@ function aiChatLeesHtml(b){
   return (b.lees||[]).map(l=>'<div class="aic-lees'+(l.bezig?' is-bezig':'')+(l.fout?' is-fout':'')+'">'+AI_LEES_IC+
     '<span>'+escapeHtml(l.label)+'</span></div>').join('');
 }
+/* Een taak in een antwoord (2026-10-12): het model zet [naam](#taak-ID)
+   neer, en dat wordt hier een knop die naar die taak in de Checklist gaat.
+   Geen gewone <a href="#...">: de app routeert op de hash. Alleen een id
+   dat bestaat wordt een knop; een verzonnen of inmiddels verwijderde taak
+   blijft gewone tekst. Na het opschonen (veiligeHtml), dus alleen eigen
+   attributen erbij. */
+function aiChatTaakLinks(html){
+  if(!html||html.indexOf('#taak-')<0)return html;
+  const t=document.createElement('template');
+  t.innerHTML=html;
+  t.content.querySelectorAll('a[href^="#taak-"]').forEach(a=>{
+    const id=decodeURIComponent(a.getAttribute('href').slice(6));
+    const bestaat=(checklistState.items||[]).some(i=>i.id===id);
+    if(!bestaat){a.replaceWith(...a.childNodes);return;}
+    const k=document.createElement('button');
+    k.type='button';k.className='aic-taak';
+    k.dataset.action='aiChatNaarTaak';k.dataset.arg1=id;
+    k.title='Naar deze taak in de Checklist';
+    k.append(...a.childNodes);
+    a.replaceWith(k);
+  });
+  return t.innerHTML;
+}
+Object.assign(APP_ACTIONS,{
+  aiChatNaarTaak:(el,e,id)=>{aiChatSluit();aiNaarTaak(id);}
+});
 function aiChatAntwoordHtml(b,bi){
   const acties=b.acties||[];
   const open=acties.filter(a=>a.status==='voorstel'&&!aiActieLos(a)).length;
   const mailOpen=acties.some(a=>a.status==='voorstel'&&aiActieLos(a));
-  return aiChatLeesHtml(b)+(b.tekst?_aiChatHtml(b.tekst):'')+acties.map((a,ai)=>aiActieHtml(a,bi,ai)).join('')+
+  return aiChatLeesHtml(b)+(b.tekst?aiChatTaakLinks(_aiChatHtml(b.tekst)):'')+acties.map((a,ai)=>aiActieHtml(a,bi,ai)).join('')+
     (open>1?'<div class="aic-actie-knoppen"><button type="button" class="btn btn-sm btn-primary" data-action="aiActieAlles" data-arg1="'+bi+'">Alles uitvoeren ('+open+')</button>'+
       (mailOpen?'<span class="aic-actie-melding">Mail-acties voer je per kaart uit.</span>':'')+'</div>':'');
 }
@@ -40697,6 +40714,7 @@ function aiChatSysteem(){
     '- De totalen zijn vooraf berekend. Gebruik die; reken alleen zelf als het niet anders kan, en zeg dan waarop.',
     '- Bedragen als € 1.234,56. Datums als "9 okt 2026". Zeg bij een periode welke je bedoelt ("deze week" = de ISO-week van vandaag).',
     '- Namen zoals {{KLANT_1}} zijn vervangen klantnamen: neem ze precies zo over.',
+    '- Noem je een taak uit taken.openLijst of taken.recentAfgerond, maak de taaknaam dan een link naar die taak: [naam](#taak-ID), met precies het id uit de gegevens. Ook in een tabel. Verzin nooit een id.',
     ...(aiAanbieder()==='claude'?[
       '',
       'Acties:',

@@ -1012,6 +1012,37 @@ async function runChecks() {
       return ids === 'a,b,d' && s.gesprekken[0].bijgewerkt === '2026-10-11T12:00:00Z' && !!s.weg.c &&
         veel.gesprekken.length === 100 && veel.gesprekken[0].id === 'x129' && geen;
     }],
+    ['Dashboard: geen Slim toevoegen meer (Nieuw item, ⋯-menu); in de Checklist blijft hij', () =>
+      !d.querySelector('#mod-dashboard [data-kind="ai"]') &&
+      !d.querySelector('#dashMobileSettingsMenu [onclick*="openQuickAddAI"]') && typeof w.openQuickAddAI === 'function'],
+    ['Chat: een taak in een antwoord is een link naar de Checklist; een onbekend id blijft tekst', async () => {
+      const terugNaar = w.eval('activeModule');
+      const oud = w.eval('JSON.stringify(aiChatGesprek.map(aiGeschBeurt))');
+      const id = 'linktest' + Date.now();
+      w.eval('checklistState.items').push({id, text: 'Linktest taak', done: false, priority: 'normaal', deadline: '',
+        clientId: '', subtasks: [], archived: false, sortOrder: -1, pinned: false});
+      try {
+        const regel = /#taak-/.test(w.aiChatSysteem()) && w.aiChatOverzicht().taken.openLijst.some(t => t.id === id);
+        w.aiChatOpen();
+        w.eval('aiChatGesprek=[{rol:"user",tekst:"x"},{rol:"model",tekst:' +
+          JSON.stringify('| Taak |\n|---|\n| [Linktest taak](#taak-' + id + ') |\n\nEn [Nep](#taak-bestaatniet).') + ',acties:[]}]');
+        w.aiChatToon();
+        const knop = d.querySelector('#aiChatLijst .aic-taak[data-arg1="' + id + '"]');
+        const nep = !d.querySelector('#aiChatLijst [data-arg1="bestaatniet"]') && /En Nep\./.test(d.getElementById('aiChatLijst').textContent);
+        const geenA = !d.querySelector('#aiChatLijst a[href^="#taak-"]');
+        const inTabel = !!(knop && knop.closest('td'));
+        knop.click();
+        await new Promise(r => setTimeout(r, 120));
+        const el = d.querySelector('#clBody .cl-item[data-id="' + id + '"]');
+        return regel && nep && geenA && inTabel && w.eval('activeModule') === 'checklist' &&
+          !d.getElementById('aiChatModal').classList.contains('open') && !!el && el.classList.contains('is-gevonden');
+      } finally {
+        w.eval('checklistState.items=checklistState.items.filter(i=>i.id!==' + JSON.stringify(id) + ')');
+        w.eval('aiChatGesprek=' + oud + '.map(aiGeschTerug)');
+        w.aiChatSluit();
+        w.switchModule(terugNaar || 'dashboard');
+      }
+    }],
     ['Dashboard: geen wekelijkse review meer (knop, menuregel, venster)', () =>
       !d.getElementById('weeklyReviewBtn') && !d.getElementById('weeklyReviewModal') &&
       !d.querySelector('[onclick*="WeeklyReview"]') && typeof w.openWeeklyReviewModal === 'undefined'],
