@@ -7014,3 +7014,16 @@ voerde *Alles uitvoeren* in de chat ook mail-acties mee uit.
 **Niet doen.** De chat een verstuur-gereedschap geven, of een mail laten
 versturen zonder dat het venster met de hele mail open heeft gestaan. Ook
 niet de wachttijd met Niet versturen weghalen.
+
+## 2026-10-12 · Vraag het je app ook uit het ⋯-menu van het Dashboard (v2.61)
+
+**Probleem.** Na v2.55 stond *Vraag het je app* op een telefoon nog in het
+⋯-menu van het Dashboard, naast de sparkle bovenin de zijbalk.
+
+**Beslissing.** De regel in het menu is weg (`#dashMobileSettingsMenu`). Je
+opent de chat nu op één plek: de sparkle naast de klantwisselaar, op een
+telefoon in de lade. De test op Instellingen controleert ook dit menu.
+
+**Bestanden.** `index.html`, `test.html`, `sw.js`.
+
+**Niet doen.** Een tweede ingang naar de chat terugzetten op het Dashboard.
