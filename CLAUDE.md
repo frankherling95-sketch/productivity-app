@@ -337,7 +337,7 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
-- **2026-10-12**: **De balk op het Dashboard is een vraag aan de chat** (v2.66) — *Snel toevoegen* (`@klant`, `!datum`) is weg. Wat je typt gaat als nieuw gesprek naar Vraag het je app, met een aanwijzing (`DASH_AI_INSTRUCTIE`). Alleen taken terug? Dan voert de balk ze meteen uit, met Ongedaan maken; al het andere opent de chat. Bewuste uitzondering op "eerst een kaart" (v2.50), alleen voor `taak_toevoegen`
+- **2026-10-12**: **De balk op het Dashboard is een vraag aan de chat** (v2.66) — *Snel toevoegen* (`@klant`, `!datum`) is weg. Wat je typt gaat als nieuw gesprek naar Vraag het je app, met een aanwijzing (`DASH_AI_INSTRUCTIE`). Alleen taken terug? Dan voert de balk ze meteen uit, met Ongedaan maken; al het andere opent de chat. Bewuste uitzondering op "eerst een kaart" (v2.50), alleen voor `taak_toevoegen`. Sinds v2.67 ook op een telefoon
 - **2026-10-12**: **Slim toevoegen weg** (v2.65) — ook uit de Checklist (knop *Met AI*, ⋯-menu), en daarmee het venster, de functies, de CSS `.qa-*`/`.quickadd-*`/`.btn-ai` en de foutregel met Opnieuw (`_aiSetError`). Taken klaarzetten doe je in Vraag het je app (`taak_toevoegen`, met voorstelkaart). Het niet-AI veld *Snel toevoegen* op het Dashboard blijft
 - **2026-10-12**: **Vraag het je app leest je notities** (v2.64) — `notities_zoeken` en `notitie_lezen` (alleen Claude), als platte tekst en door hetzelfde masker als de rest; zonder prullenbak en notities van verborgen klanten. Een notitie in een antwoord is een link (`[titel](#notitie-ID)`), net als een taak
 

@@ -7203,3 +7203,24 @@ opent de chat), `sw.js`, `CLAUDE.md`.
 
 **Niet doen.** Andere acties dan `taak_toevoegen` vanuit de balk zonder klik
 uitvoeren.
+
+## 2026-10-12 · De balk op het Dashboard ook op een telefoon (v2.67)
+
+**Probleem.** De balk in de hero stond niet op een telefoon (entry van v2.66).
+Dat kwam nog uit de tijd van *Snel toevoegen*: `@klant` en `!datum` tik je
+niet op een schermtoetsenbord. Nu het een vraag aan de chat is, typ je
+gewoon een zin. De gebruiker vroeg om de balk ook op mobiel.
+
+**Beslissing.**
+- De balk staat ook op een telefoon, over de volle breedte van de hero. De
+  48px rechts waren nog gereserveerd voor het plusje in de hero, dat al
+  verborgen was (de ronde + deed hetzelfde); die reservering is weg.
+- Het veld is minstens `var(--tap)` hoog, in `--fs-basis` (16px in een
+  Safari-tabblad, tegen inzoomen). Het mag krimpen (`min-width: 0`), anders
+  stak *Stuur* buiten de balk.
+- De hulpregel eronder valt op een telefoon weg: op deze breedte zijn het
+  twee regels. De placeholder is korter, "Nieuwe taak of vraag…", ook op
+  desktop. De lange versie werd op een telefoon afgekapt.
+
+**Bestanden.** `index.html` (de mobiele laag van de hero, placeholder),
+`sw.js`, `CLAUDE.md`.
