@@ -24,6 +24,7 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 ├── index.html   ← DE app (alle wijzigingen hier)
 ├── herling_analytics_home.html, bi_checklist_kanban.html  ← redirect-stubs (oude URLs)
 ├── over.html, privacy.html, voorwaarden.html  ← openbare pagina's voor het OAuth-scherm van Google (geen namen of adressen erin)
+├── _config.yml                   ← Pages/Jekyll: houdt CLAUDE.md, docs/, test.html en hulpscripts van de live site
 ├── herling-icon.svg              ← open-ring-logo op donkere tegel, stilstaand (manifest)
 ├── herling-favicon-16/32.png     ← tabblad
 ├── herling-ring-48.png           ← regel "Alle klanten" in de klantwisselaar; het logo met tekst linksboven staat inline in index.html
@@ -336,9 +337,9 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
-- **2026-10-11**: **Eerdere gesprekken van Vraag het je app** (v2.57) — bewaard in Drive in een eigen bestand (`ai-gesprekken.json`, de laatste 100, niet in `rawState`), samengevoegd per gesprek met grafstenen voor verwijderde. Klok in de kop van de chat: lijst, openen en doorvragen, verwijderen met ongedaan maken. Een open voorstel is na terugopenen vervallen; ongedaan maken kan dan niet meer. Draait het besluit "niets naar Drive" van 2026-10-09 terug, op verzoek
+- **2026-10-11**: **Eerdere gesprekken van Vraag het je app** (v2.58) — bewaard in Drive in een eigen bestand (`ai-gesprekken.json`, de laatste 100, niet in `rawState`), samengevoegd per gesprek met grafstenen voor verwijderde. Klok in de kop van de chat: lijst, openen en doorvragen, verwijderen met ongedaan maken. Een open voorstel is na terugopenen vervallen; ongedaan maken kan dan niet meer. Draait het besluit "niets naar Drive" van 2026-10-09 terug, op verzoek
+- **2026-10-11**: **Anoniemer** (v2.57) — `_config.yml` houdt docs, tests en hulpscripts van de live site; naam en bedrijf komen uit de login en de factuurgegevens (`gebruikerOndertekening()`), niet als vaste tekst; commits onder het noreply-adres van GitHub
 - **2026-10-11**: **Instellingen: blokken inklappen** (v2.55) — accountkaarten en API-sleutels hebben een kopregel met de stand (*Verbonden*, *Ingesteld*) die het blok open- en dichtklapt; dicht is de standaard, de stand onthoudt het apparaat (`LS_INST_OPEN`). Twee vaste kolommen in plaats van CSS-kolommen, zodat niets verspringt. De knop *Vraag het* is van het Dashboard af (staat in de zijbalk)
-- **2026-10-11**: **Uren factureren per maand, klanten samenvoegen** (v2.54) — *Uren factureren* zet per ontvanger een concept klaar uit alle open uren van een maand; wie de rekening krijgt volgt "Factureren aan" en is per keer om te zetten. Uren op een concept tellen niet meer als open; concepten houden bij versturen hun nummer in volgorde. Plus: *Vraag het je app* als sparkle-tegel bovenin de zijbalk, naast de klantwisselaar, op elke pagina, en het chatvenster rustiger op een telefoon (+ voor een nieuw gesprek in de kop)
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 
@@ -364,6 +365,8 @@ Gebruik altijd deze verzonnen namen:
 | gemeente / instelling | Gemeente Puren, Bibliotheek Noordstad, Bibliotheek Zuidstad |
 | overig bedrijf | Voorbeeld B.V., Voorbeeld Energie, Voorbeeld Telecom |
 | persoon | Jan Jansen, iemand@voorbeeld.nl |
+
+Hetzelfde geldt voor de eigen naam en e-mailadressen van de gebruiker in alles wat de site serveert (`index.html`, de openbare pagina's): lees die uit de eigen gegevens (`gebruikerOndertekening()`), niet als vaste tekst. Commits gaan onder het noreply-adres van GitHub (repo-config).
 
 Wat Frank zelf invult (klanten, links naar portalen van relaties) hoort in zijn
 eigen gegevens in Drive, niet in de code — zie Externe tools
