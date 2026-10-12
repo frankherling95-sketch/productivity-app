@@ -565,10 +565,10 @@ async function runChecks() {
     /* ── De chat die ook dingen doet (2026-10-11) ──
        Voorstel → jouw klik → uitvoeren → ongedaan maken. Alles via een
        nagebootste fetch of rechtstreeks op het voorstel; geen echte aanroep. */
-    /* Zonder account: vijf acties en twee keer notities (zoeken, lezen; sinds 2026-10-12). */
-    ['Acties: zeven gereedschappen zonder account, strikt, elk veld verplicht', () => zonderAccounts(() => {
+    /* Zonder account: zes acties (sinds 2026-10-12 ook project_aanmaken) en twee keer notities (zoeken, lezen). */
+    ['Acties: acht gereedschappen zonder account, strikt, elk veld verplicht', () => zonderAccounts(() => {
       const g = w.aiActieGereedschap();
-      return g.length === 7 && g.every(t => t.strict === true && t.input_schema.additionalProperties === false &&
+      return g.length === 8 && g.every(t => t.strict === true && t.input_schema.additionalProperties === false &&
         Object.keys(t.input_schema.properties).every(k => t.input_schema.required.includes(k)) && t.description);
     })],
     /* Met een gekoppeld account komen er drie acties en drie keer opzoeken
@@ -576,7 +576,7 @@ async function runChecks() {
     ['Acties: met een account ook agenda en mail, ook strikt', () => metGoogle(() => {
       const g = w.aiActieGereedschap();
       const namen = g.map(t => t.name);
-      return g.length === 13 && ['afspraak_maken', 'mail_opruimen', 'mail_concept', 'agenda_bekijken', 'mail_zoeken', 'mail_lezen']
+      return g.length === 14 && ['afspraak_maken', 'mail_opruimen', 'mail_concept', 'agenda_bekijken', 'mail_zoeken', 'mail_lezen']
         .every(n => namen.includes(n)) && g.every(t => t.strict === true && t.input_schema.additionalProperties === false &&
         Object.keys(t.input_schema.properties).every(k => t.input_schema.required.includes(k)));
     })],
@@ -615,7 +615,7 @@ async function runChecks() {
       } catch (e) { fout = e.message; }
       finally { w.fetch = oudFetch; w._aiBumpUsage = oudTel; }
       const actie = stukken.find(s => typeof s !== 'string');
-      return !fout && body.tools.length === 7 && !JSON.stringify(body).includes(naam) &&
+      return !fout && body.tools.length === 8 && !JSON.stringify(body).includes(naam) &&
         stukken.filter(s => typeof s === 'string').join('') === 'Ik zet het klaar.' &&
         actie && actie.naam === 'taak_toevoegen' && actie.input.klant === naam;
     }],
@@ -1146,6 +1146,39 @@ async function runChecks() {
             const link = /data-action="aiChatNaarProject"/.test(w.aiChatTaakLinks('<p><a href="#project-pp1">Nieuwe website</a></p>')) && /#project-/.test(w.aiChatSysteem());
             return overzicht && actie && fout && link;
           } finally { terug(); }
+        }],
+        ['Projecten in de chat: project_aanmaken met specificatie, een dubbele naam is een fout, en ongedaan maken ruimt op', () => {
+          const terug = opzet();
+          try {
+            const v = w.aiActieVoorstel({naam: 'project_aanmaken', input: {naam: 'Nieuwe propositie', klant: 'Klant Noord', specificatie: '## Doel\nMeer omzet'}});
+            const regels = JSON.stringify(v.regels);
+            const r = v.doe();
+            const pr = w.eval('checklistState.projects').find(x => x.naam === 'Nieuwe propositie');
+            const note = pr && w.eval('findNode(notesState.tree,' + JSON.stringify(pr.noteId) + ')');
+            const gemaakt = v.status === 'voorstel' && /Klant Noord/.test(regels) && !!pr && pr.clientId === 'tp1' &&
+              !!note && /<h2[^>]*>Doel<\/h2>/.test(note.node.content) && note.node.clientId === 'tp1';
+            const dubbel = w.aiActieVoorstel({naam: 'project_aanmaken', input: {naam: 'nieuwe website', klant: 'Klant Noord', specificatie: ''}}).status === 'fout';
+            const zonderKlant = w.aiActieVoorstel({naam: 'project_aanmaken', input: {naam: 'Los', klant: '', specificatie: ''}}).status === 'fout';
+            r.terug();
+            const weg = !w.eval('checklistState.projects').some(x => x.naam === 'Nieuwe propositie') && !w.eval('findNode(notesState.tree,' + JSON.stringify(pr.noteId) + ')');
+            return gemaakt && dubbel && zonderKlant && weg;
+          } finally { terug(); }
+        }],
+        ['Projecten in de chat: een project en zijn taken in één antwoord, uitgevoerd met Alles uitvoeren', () => {
+          const terug = opzet();
+          const oudG = w.eval('JSON.stringify(aiChatGesprek.map(aiGeschBeurt))');
+          try {
+            w.eval('aiChatGesprek=[{rol:"user",tekst:"maak een project met taken"},{rol:"model",tekst:"",acties:[]}]');
+            const acties = w.eval('aiChatGesprek[1].acties');
+            acties.push(w.aiActieVoorstel({naam: 'project_aanmaken', input: {naam: 'Klantportaal', klant: 'Klant Noord', specificatie: ''}}));
+            acties.push(w.aiActieVoorstel({naam: 'taak_toevoegen', input: {titel: 'Wireframes maken', deadline: '', klant: '', prioriteit: 'middel', subtaken: [], project: 'Klantportaal'}}));
+            const taakVoorstel = acties[1].status === 'voorstel' && /Klantportaal \(nieuw\)/.test(JSON.stringify(acties[1].regels));
+            w.aiActieAlles(1);
+            const pr = w.eval('checklistState.projects').find(x => x.naam === 'Klantportaal');
+            const taak = w.eval('checklistState.items').find(i => i.text === 'Wireframes maken');
+            return taakVoorstel && !!pr && !!taak && taak.projectId === pr.id && taak.clientId === 'tp1' &&
+              acties.every(a => a.status === 'gedaan');
+          } finally { w.eval('aiChatGesprek=' + oudG + '.map(aiGeschTerug)'); terug(); }
         }],
         ['Projecten: samenvoegen bij een schrijfbotsing neemt projecten van beide kanten mee', () => {
           const r = w.voegStateSamen({checklist: {items: [], projects: [{id: 'pa'}, {id: 'pb'}]}}, {checklist: {items: [], projects: [{id: 'pb'}, {id: 'pc'}]}});

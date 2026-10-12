@@ -8990,7 +8990,7 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.69</span>
+        <span class="app-versie" title="Appversie">v2.70</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -39820,7 +39820,18 @@ function _aiActieProject(naam,klantId){
     if(kand.length===1)pr=kand[0];
     else if(kand.length>1)return {fout:'"'+naam+'" past bij meer dan één project.'};
   }
-  if(!pr)return {fout:'Project "'+naam+'" bestaat niet, of is afgerond.'};
+  if(!pr){
+    /* Nog niet aangemaakt, maar in dit gesprek voorgesteld (project_aanmaken,
+       met "maak een project met deze taken"): dan mag een taak ernaar
+       verwijzen. Bij uitvoeren zoekt de taak het project opnieuw op. */
+    const plan=(aiChatGesprek||[]).flatMap(b=>b.acties||[]).find(a=>a.naam==='project_aanmaken'&&
+      (a.status==='voorstel'||a.status==='bezig')&&a.meta&&kl(a.meta.naam)===n);
+    if(plan){
+      if(klantId&&plan.meta.clientId!==klantId)return {fout:'Project "'+plan.meta.naam+'" hoort bij een andere klant.'};
+      return {id:null,naam:plan.meta.naam,clientId:plan.meta.clientId,nieuw:true};
+    }
+    return {fout:'Project "'+naam+'" bestaat niet, of is afgerond.'};
+  }
   if(klantId&&pr.clientId!==klantId)return {fout:'Project "'+pr.naam+'" hoort bij een andere klant.'};
   return {id:pr.id,naam:pr.naam,clientId:pr.clientId};
 }
@@ -39861,17 +39872,20 @@ const AI_ACTIES={
       const titel=String(i.titel||'').trim();
       const dl=_aiActieDatum(i.deadline,true), kl0=_aiActieKlant(i.klant,false), pr=_aiActieProject(i.project,kl0.id);
       /* Een project hoort bij een klant: staat er geen klant bij, dan die van het project. */
-      const kl=(!kl0.fout&&!kl0.id&&pr.clientId)?{id:pr.clientId,naam:clProjectKlantNaam(clProject(pr.id))}:kl0;
+      const kl=(!kl0.fout&&!kl0.id&&pr.clientId)?{id:pr.clientId,naam:_aiChatKlant(pr.clientId)}:kl0;
       const prio=CL_PRIORITY_CFG[i.prioriteit]?i.prioriteit:'middel';
       const subs=(Array.isArray(i.subtaken)?i.subtaken:[]).map(s=>String(s||'').trim()).filter(Boolean);
       const regels=[['Taak',titel],['Klant',kl.naam||'—']];
-      if(pr.id)regels.push(['Project',pr.naam]);
+      if(pr.naam)regels.push(['Project',pr.naam+(pr.nieuw?' (nieuw)':'')]);
       regels.push(['Deadline',dl.tekst||'geen'],['Prioriteit',CL_PRIORITY_CFG[prio].label]);
       if(subs.length)regels.push(['Subtaken',subs.join(' · ')]);
       return {titel:'Taak toevoegen',regels,fout:!titel?'De taak heeft geen titel.':(dl.fout||kl.fout||pr.fout),
         doe(){
           if(!checklistState.items)checklistState.items=[];
-          const item={id:uid(),text:titel,done:false,priority:prio,deadline:dl.iso||null,clientId:kl.id||null,projectId:pr.id||null,
+          /* Een project uit hetzelfde antwoord moet nu wel bestaan. */
+          const prNu=pr.nieuw?_aiActieProject(pr.naam,kl.id):pr;
+          if(pr.nieuw&&!prNu.id)throw new Error('voer eerst "Project aanmaken" uit');
+          const item={id:uid(),text:titel,done:false,priority:prio,deadline:dl.iso||null,clientId:kl.id||null,projectId:prNu.id||null,
             subtasks:subs.map(text=>({id:uid(),text,done:false})),archived:false,
             sortOrder:checklistState.items.length,createdAt:Date.now(),updatedAt:Date.now()};
           checklistState.items.push(item);
@@ -39879,6 +39893,54 @@ const AI_ACTIES={
           return {melding:'Toegevoegd aan de Checklist',open:{label:'Bekijk in Checklist',doe:()=>aiNaarTaak(item.id)},terug(){
             checklistState.items=checklistState.items.filter(x=>x.id!==item.id);
             scheduleSave();aiActieVernieuw();}};
+        }};
+    }
+  },
+  /* Een project aanmaken (2026-10-12): altijd bij een klant, met desgewenst
+     meteen een eerste specificatie (een notitie in Notities). Ongedaan maken
+     haalt het project weg, de taken erin houden geen project, en de
+     specificatie die deze actie maakte gaat ook weg. */
+  project_aanmaken:{
+    label:'Project aanmaken',
+    uitleg:'Maak een nieuw project in de Checklist, bij een klant. Alleen als de gebruiker daarom vraagt. '+
+      'Met specificatie geef je meteen de eerste tekst van de specificatie mee (markdown), of laat je die leeg.',
+    schema:{type:'object',additionalProperties:false,required:['naam','klant','specificatie'],
+      properties:{
+        naam:{type:'string',description:'Korte naam van het project.'},
+        klant:{type:'string',description:'Klantnaam precies zoals in de gegevens. Verplicht: een project hoort bij een klant.'},
+        specificatie:{type:'string',description:'Eerste tekst voor de specificatie (markdown), of leeg.'}}},
+    bekijk:i=>{
+      const naam=String(i.naam||'').trim();
+      const kl=_aiActieKlant(i.klant,true);
+      const spec=String(i.specificatie||'').trim();
+      const dubbel=!!(naam&&kl.id&&clProjectenVan(kl.id,false).some(x=>String(x.naam).trim().toLowerCase()===naam.toLowerCase()));
+      const regels=[['Project',naam],['Klant',kl.naam||'—']];
+      /* Op de kaart als leesbare regel: zonder # en *, regels met een punt ertussen. */
+      const kort=spec.replace(/^#+\s*/gm,'').replace(/[*_`>]/g,'').replace(/\s*\n+\s*/g,' · ').trim();
+      if(spec)regels.push(['Specificatie',kort.length>120?kort.slice(0,117)+'…':kort]);
+      return {titel:'Project aanmaken',regels,meta:{naam,clientId:kl.id||null},
+        fout:!naam?'Het project heeft geen naam.':(kl.fout||(dubbel?'Bij deze klant bestaat al een project "'+naam+'".':'')),
+        doe(){
+          const pr={id:uid(),naam,clientId:kl.id,noteId:null,status:'actief',createdAt:Date.now(),updatedAt:Date.now()};
+          let noteId=null;
+          if(spec){
+            const html=(typeof marked!=='undefined'&&marked.parse)?veiligeHtml(marked.parse(spec))
+              :'<p>'+escapeHtml(spec).replace(/\n/g,'<br>')+'</p>';
+            noteId=ntuid();
+            notesState.tree.push({id:noteId,type:'page',title:naam+' — specificatie',content:html,clientId:kl.id,
+              tags:[],children:[],createdAt:Date.now(),updatedAt:Date.now()});
+            pr.noteId=noteId;
+          }
+          clProjecten().push(pr);
+          scheduleSave();aiActieVernieuw();
+          return {melding:'Project aangemaakt'+(noteId?', met de specificatie in Notities':''),
+            open:{label:'Bekijk in Checklist',doe:()=>aiNaarProject(pr.id)},
+            terug(){
+              checklistState.projects=clProjecten().filter(x=>x.id!==pr.id);
+              (checklistState.items||[]).forEach(t=>{if(t.projectId===pr.id)t.projectId=null;});
+              if(noteId){const r=findNode(notesState.tree||[],noteId);if(r)r.parentArr.splice(r.index,1);}
+              if(clFilters.projectId===pr.id)clFilters.projectId=null;
+              scheduleSave();aiActieVernieuw();}};
         }};
     }
   },
@@ -40338,7 +40400,7 @@ function aiActieVoorstel(c){
   let b;
   try{b=def.bekijk(c.input);}
   catch(e){console.warn('[chat] actie bekijken',e);b={titel:def.label,regels:[],fout:'Dit voorstel kon ik niet lezen.'};}
-  return {naam:c.naam,titel:b.titel,regels:b.regels||[],status:b.fout?'fout':'voorstel',fout:b.fout||'',doe:b.doe};
+  return {naam:c.naam,titel:b.titel,regels:b.regels||[],status:b.fout?'fout':'voorstel',fout:b.fout||'',doe:b.doe,meta:b.meta};
 }
 /* Hoe een voorstel in de geschiedenis staat voor de volgende vraag. */
 function aiActieSamenvatting(a){
@@ -40527,16 +40589,16 @@ Object.assign(APP_ACTIONS,{
   aiChatNaarNotitie:(el,e,id)=>{aiChatSluit();dashNotitieOpen(id);},
   /* Naar de Checklist met alleen dit project: andere filters opzij, en een
      klantfilter op een andere klant ook. */
-  aiChatNaarProject:(el,e,id)=>{
-    aiChatSluit();
-    const pr=clProject(id);if(!pr)return;
-    clFilters.prio=null;clFilters.period=null;clFilters.search='';
-    if(activeClientFilter&&activeClientFilter!==pr.clientId){activeClientFilter='';renderClientFilters();}
-    checklistState.showArchived=false;
-    clFilters.projectId=pr.id;
-    switchModule('checklist');
-  }
+  aiChatNaarProject:(el,e,id)=>{aiChatSluit();aiNaarProject(id);}
 });
+function aiNaarProject(id){
+  const pr=clProject(id);if(!pr)return;
+  clFilters.prio=null;clFilters.period=null;clFilters.search='';
+  if(activeClientFilter&&activeClientFilter!==pr.clientId){activeClientFilter='';renderClientFilters();}
+  checklistState.showArchived=false;
+  clFilters.projectId=pr.id;
+  switchModule('checklist');
+}
 function aiChatAntwoordHtml(b,bi){
   const acties=b.acties||[];
   const open=acties.filter(a=>a.status==='voorstel'&&!aiActieLos(a)).length;
@@ -40567,6 +40629,7 @@ function aiChatSysteem(){
       '- Gebruik voor een klant precies een naam uit klanten. Weet je niet welke klant, welke datum of hoeveel uur, vraag het eerst in plaats van te gokken.',
       '- Reken "gisteren", "vrijdag" of "volgende week maandag" om vanaf vandaag en geef datums als JJJJ-MM-DD.',
       '- Een taak afvinken gaat met het id uit taken.openLijst; een factuur met het nummer uit facturen.lijst.',
+      '- Een project maak je met project_aanmaken, altijd bij een klant. Vraagt de gebruiker om een project met taken, stel dan eerst het project voor en daarna de taken met dat project (veld project): ze worden in die volgorde uitgevoerd.',
       '- In eerdere beurten staat tussen [Acties: …] wat je voorstelde en of het is uitgevoerd. Stel iets dat al is uitgevoerd niet nog eens voor.'
     ]:[]),
     ...(aiAanbieder()==='claude'&&gaccLijst().some(a=>a.agenda!==false||a.mail!==false)?[

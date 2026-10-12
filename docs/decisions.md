@@ -7333,3 +7333,42 @@ specificatie per project. De chat moet er ook mee kunnen werken.
 **Niet doen.** Een project zonder klant toestaan zonder het eerst aan de
 gebruiker te vragen. En de specificatie als los tekstveld in het project
 zetten: dan staat het buiten Notities, en kan de chat het niet lezen.
+
+## 2026-10-12 · De chat maakt projecten aan (v2.70)
+
+**Vraag.** De gebruiker wil dat de chat ook projecten kan aanmaken (v2.69
+kon alleen taken in een bestaand project zetten).
+
+**Beslissing.**
+- Een nieuwe actie **`project_aanmaken`** in `AI_ACTIES`, met de velden
+  `naam`, `klant` (verplicht, want een project hoort bij een klant) en
+  `specificatie` (markdown, of leeg). Net als de andere acties is het een
+  voorstelkaart, en er gebeurt pas iets na *Uitvoeren*.
+  - Is er een specificatie, dan maakt de actie een notitie bij de klant
+    (`naam — specificatie`) en koppelt die. Op de kaart staat de tekst als
+    één leesbare regel, zonder `#` en `*`.
+  - Een dubbele naam bij dezelfde klant geeft een fout, net als een
+    ontbrekende klant.
+  - *Ongedaan maken* haalt het project weg. Taken die erin stonden houden
+    geen project, en de specificatie die deze actie maakte gaat ook weg.
+  - *Bekijk in Checklist* gaat naar de Checklist met dat project
+    (`aiNaarProject`, dezelfde functie als de projectlink in een antwoord).
+- **Project en taken in één antwoord** ("maak een project X met deze
+  taken"): een `taak_toevoegen` mag verwijzen naar een project dat in
+  hetzelfde gesprek als voorstel klaarstaat (`_aiActieProject` kijkt naar
+  `project_aanmaken`-voorstellen; het voorstel draagt daarvoor `meta`).
+  - Op de kaart staat dan *Klantportaal (nieuw)*.
+  - Bij uitvoeren zoekt de taak het project opnieuw op. Bestaat het dan
+    nog niet, dan zegt de kaart "voer eerst Project aanmaken uit".
+  - De instructie vraagt het model om eerst het project voor te stellen en
+    dan de taken; *Alles uitvoeren* doet ze in die volgorde.
+- De balk op het Dashboard voert alleen `taak_toevoegen` zelf uit (v2.66).
+  Stelt de chat ook een project voor, dan gaat de chat open en klik je zelf.
+
+**Bestanden.** `index.html` (`AI_ACTIES.project_aanmaken`,
+`aiActieVoorstel` (meta), `_aiActieProject`, `AI_ACTIES.taak_toevoegen`,
+`aiNaarProject`, `aiChatSysteem`), `test.html` (2 nieuwe tests; de
+tellingen van het gereedschap 8 en 14), `sw.js`, `CLAUDE.md`.
+
+**Niet doen.** Een project zonder klant aanmaken. En `project_aanmaken`
+vanuit de Dashboard-balk zonder klik uitvoeren.
