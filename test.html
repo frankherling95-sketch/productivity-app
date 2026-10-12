@@ -1059,9 +1059,16 @@ async function runChecks() {
         w.switchModule(terugNaar || 'dashboard');
       }
     }],
-    ['Dashboard: geen Slim toevoegen meer (Nieuw item, ⋯-menu); in de Checklist blijft hij', () =>
-      !d.querySelector('#mod-dashboard [data-kind="ai"]') &&
-      !d.querySelector('#dashMobileSettingsMenu [onclick*="openQuickAddAI"]') && typeof w.openQuickAddAI === 'function'],
+    /* Slim toevoegen is weg (2026-10-12): taken klaarzetten doe je in de chat. */
+    ['Slim toevoegen is weg: niet op het Dashboard, niet in de Checklist, geen venster', () => {
+      w.switchModule('checklist');
+      const knop = [...d.querySelectorAll('#mod-checklist button')].some(b => /Met AI|Slim toevoegen/.test(b.textContent));
+      w.renderClOverflowMenu && w.renderClOverflowMenu();
+      const menu = !d.querySelector('[data-action="clOvfQuickAdd"]');
+      w.switchModule('dashboard');
+      return !knop && menu && !d.querySelector('#mod-dashboard [data-kind="ai"]') && !d.getElementById('quickAddAIModal') &&
+        typeof w.openQuickAddAI === 'undefined';
+    }],
     ['Chat: een taak in een antwoord is een link naar de Checklist; een onbekend id blijft tekst', async () => {
       const terugNaar = w.eval('activeModule');
       const oud = w.eval('JSON.stringify(aiChatGesprek.map(aiGeschBeurt))');

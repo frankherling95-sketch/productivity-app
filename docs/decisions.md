@@ -7131,3 +7131,33 @@ aangepast: 7 en 13 gereedschappen), `sw.js`, `docs/stijlgids.md`,
 
 **Niet doen.** Alle notities in het overzicht stoppen dat elke vraag
 meegaat. En notities van verborgen klanten of uit de prullenbak laten zien.
+
+## 2026-10-12 · Slim toevoegen weg (v2.65)
+
+**Probleem.** *Slim toevoegen* (taken uit vrije tekst, met een
+bewerkbare preview) stond na v2.63 alleen nog in de Checklist: de knop
+*Met AI* en een regel in het ⋯-menu. De gebruiker wil dit soort functies in
+de chat hebben, en vroeg om het ook daar weg te halen. Daarmee had het geen
+ingang meer.
+
+**Beslissing.** De functie is helemaal weg, net als de weekreview (v2.62):
+- het venster `#quickAddAIModal`;
+- `openQuickAddAI`, `parseQuickAddAI`, `applyQuickAddAI` en de hulpen voor
+  de preview;
+- de CSS `.qa-*`, `.quickadd-*`, `#quickAddAIInput` en `.btn-ai`;
+- de teller `aiQuotaBadgeQuick` en `_aiCalling.quickAdd`;
+- de foutregel met *Opnieuw proberen* (`_aiSetError`, `_aiShouldShowRetry`,
+  `.ai-retry-btn`): alleen Slim toevoegen en de weekreview gebruikten die
+  nog.
+
+**Alternatief.** *Vraag het je app* zet taken klaar met `taak_toevoegen`
+(titel, deadline, klant, prioriteit, subtaken), ook meerdere tegelijk, als
+voorstelkaart met *Uitvoeren* en *Alles uitvoeren*. Het veld *Snel
+toevoegen* in de hero van het Dashboard (`dashQuickAdd`, met `@klant` en
+`!datum`) gebruikt geen AI en blijft staan.
+
+**Bestanden.** `index.html`, `test.html` (de test van v2.63 controleert nu
+dat het overal weg is), `sw.js`, `CLAUDE.md`.
+
+**Niet doen.** Het Snel toevoegen-veld weghalen omdat het op Slim toevoegen
+lijkt: het is iets anders, zonder AI en zonder sleutel.

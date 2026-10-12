@@ -183,7 +183,7 @@ verschillende maten kreeg en de filterknop twee.
 | Library | Versie | Doel |
 |---------|--------|------|
 | SheetJS `xlsx` (cdn.sheetjs.com) | 0.20.3 | Excel-export (Uren, Facturen) en -import (taken) — npm wordt niet meer bijgewerkt |
-| `marked` (jsdelivr, `lib/marked.umd.js`) | 18.0.14 | Markdown → HTML (AI-opschoning, slim toevoegen, Vraag het je app) |
+| `marked` (jsdelivr, `lib/marked.umd.js`) | 18.0.14 | Markdown → HTML (AI-opschoning, Vraag het je app) |
 | `dompurify` (jsdelivr) | 3.4.16 | Sanitizer voor alle HTML die met innerHTML de pagina in gaat (`veiligeHtml()`) |
 | `jspdf` (jsdelivr) | 4.2.1 | Factuur-PDF's |
 | Google Identity Services | — | Inloggen |
@@ -337,9 +337,9 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
+- **2026-10-12**: **Slim toevoegen weg** (v2.65) — ook uit de Checklist (knop *Met AI*, ⋯-menu), en daarmee het venster, de functies, de CSS `.qa-*`/`.quickadd-*`/`.btn-ai` en de foutregel met Opnieuw (`_aiSetError`). Taken klaarzetten doe je in Vraag het je app (`taak_toevoegen`, met voorstelkaart). Het niet-AI veld *Snel toevoegen* op het Dashboard blijft
 - **2026-10-12**: **Vraag het je app leest je notities** (v2.64) — `notities_zoeken` en `notitie_lezen` (alleen Claude), als platte tekst en door hetzelfde masker als de rest; zonder prullenbak en notities van verborgen klanten. Een notitie in een antwoord is een link (`[titel](#notitie-ID)`), net als een taak
 - **2026-10-12**: **Taken als link in de chat, Slim toevoegen van het Dashboard af** (v2.63) — het model zet een taak neer als `[naam](#taak-ID)` (ids uit `taken.openLijst` en `taken.recentAfgerond`); `aiChatTaakLinks` maakt daar een knop van die naar de taak in de Checklist gaat. Een onbekend id blijft tekst. Slim toevoegen staat alleen nog in de Checklist
-- **2026-10-12**: **Wekelijkse review weg** (v2.62) — venster, functies, CSS `.wr-*`, de knop op het Dashboard en de regel in het ⋯-menu. Vraag het je app beantwoordt hoeveel taken je deze week afrondde (uit `doneAt`, dat blijft). Vraag het je app staat alleen nog in de zijbalk (v2.61)
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 
