@@ -7372,3 +7372,30 @@ tellingen van het gereedschap 8 en 14), `sw.js`, `CLAUDE.md`.
 
 **Niet doen.** Een project zonder klant aanmaken. En `project_aanmaken`
 vanuit de Dashboard-balk zonder klik uitvoeren.
+
+## 2026-10-12 · Geen gekleurde laag achter de mobiele lade (v2.71)
+
+**Vraag.** Met de lade open had de pagina rechts op een telefoon een andere
+kleur dan op de webversie.
+
+**Probleem.** Achter de lade lag `.mobile-backdrop` met
+`rgba(15,27,61,.5)`: 50% `--surface` uit het donkere thema. Op een
+lichte pagina dimt dat, maar op de donkere achtergrond (`#0A1330`) is die
+laag líchter. De pagina werd daardoor blauwer en vlakker (`#0D1737` in
+plaats van `#0A1330`). De kleuren zelf waren op telefoon en bureaublad
+gelijk; alleen deze laag verschilde.
+
+**Beslissing.** De laag blijft, maar doorzichtig. Hij vangt nog de tik
+naast de lade (die sluit hem), maar kleurt niets. De rand van de lade komt
+van zijn eigen verloop en de schaduw van `.sidebar`. Dat geldt voor beide
+thema's: ook licht toont de pagina rechts nu zijn eigen kleuren.
+
+**Waarom.** Rechts van de lade staat dezelfde pagina als op een
+bureaublad, dus hoort hij er ook zo uit te zien. Een zwarte laag zou de
+tint houden maar de pagina nog steeds donkerder maken dan op de webversie.
+
+**Bestanden.** `index.html` (`.mobile-backdrop` in de mobiele laag),
+`sw.js`.
+
+**Niet doen.** De laag weer een kleur geven. En hem weghalen: dan sluit
+een tik naast de lade hem niet meer.
