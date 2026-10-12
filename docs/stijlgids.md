@@ -257,6 +257,8 @@ balk. Op een bureaublad blijft het een tabel; beide in de DOM, de CSS kiest.
 | meta-regel | 11px |
 | voortgang subtaken | ring van 11px ín de meta-regel, baan `--surface2`, vulling `--mint` — alleen bij een taak mét subtaken, en nergens anders op de kaart |
 | acties | mobiel achter één ⋯ rechts naast de titel; desktop een rij icoontjes |
+| project | label `.cl2-project-tag` ná het klantlabel, dezelfde vorm (10,5px / 600, radius 4px), neutraal: `--surface2` met `--text-muted` en een mapje van 11px — de kleur hoort bij de klant. Het is een knop: een tik toont alleen dat project |
+| projectbalk | onder de filterbalk als er een project gekozen is (`.cl2-projectbalk`): naam (`--fs-basis` / 600), klant en voortgang (`--fs-klein` muted), dan *Specificatie* (primair), *Afronden* en ⋯, en een ✕. Op een telefoon het ✕ naast de naam en de knoppen eronder |
 
 ### Lijstkaart op mobiel — `.uren-mcard` en `.fac-mcard`
 

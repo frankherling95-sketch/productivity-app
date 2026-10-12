@@ -51,7 +51,7 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 |------|--------|---------|
 | `#dashboard` | Dashboard | Hero (met een balk die een vraag aan de chat is: een taak komt meteen in de Checklist, `dashAiVraag`) + KPI strip + kaartenraster (Notes/Checklist/Opdrachten & contracten) |
 | `#notes` | Notes | Boomstructuur (folders/pages) met rich-text editor (marked.js) |
-| `#checklist` | Checklist | Taken met subtaken, filters (prio/klant/periode), vastpinnen, drag-drop, archief |
+| `#checklist` | Checklist | Taken met subtaken, filters (prio/klant/periode/project), projecten met een specificatie-notitie, vastpinnen, drag-drop, archief |
 | `#uren` | Uren | Urenregistratie per regel, week/maand, Excel export |
 | `#facturen` | Facturen | Facturen uit geschreven uren (ook per maand in één keer: *Uren factureren*, `facMaandStart`), sjabloonbouwer, debiteuren, btw-overzicht, mailen via Gmail, analyse |
 | `#opdrachten` | Opdrachten | Opdrachten per klant (looptijd, uren per week of urenbudget, tarief, opzegtermijn, PDF van de overeenkomst) en een vooruitzicht per werkmaand |
@@ -68,7 +68,7 @@ Entry render functions: `renderDashboard()`, `renderNotesModule()`, `renderCheck
 rawState = {
   tasks:    kanbanState,     // {clients} — heet zo uit de tijd van Kanban (weg 2026-10-04); oude projects blijven ongemoeid in Drive
   notes:    notesState,      // {tree, activeId, collapsed, clientGroupCollapsed, recentIds, sortBy ('gewijzigd' standaard|'handmatig'|'naam'), sortGekozen, prullenbak, verborgenKlanten (leeg sinds 2026-10-05, zie Klant.verborgen)}
-  checklist: checklistState, // {items, showArchived, sortBy, groupByPriority}
+  checklist: checklistState, // {items, projects, showArchived, sortBy, groupByPriority}
   uren:     urenState,       // {entries, templates}
   opdrachten: opdrachtState, // {opdrachten, vrij (vakanties), feestdagen (ids; ontbreekt = standaard)}
   contracten: contractState, // {contracten, opruimen} — de PDF's zelf staan NIET hierin, zie Contracten hieronder
@@ -78,8 +78,9 @@ rawState = {
 ```
 
 **Item shapes** (snelle referentie):
-- Checklist item: `{id, text, done, priority, deadline, clientId, subtasks[], archived, sortOrder, pinned}` — subtaak `{id, text, done, doorHoofd?}`; `doorHoofd` = mee afgevinkt met de hoofdtaak, gaat weer open als die terugkomt (`clZetHoofdKlaar()`)
+- Checklist item: `{id, text, done, priority, deadline, clientId, projectId?, subtasks[], archived, sortOrder, pinned}` — subtaak `{id, text, done, doorHoofd?}`; `doorHoofd` = mee afgevinkt met de hoofdtaak, gaat weer open als die terugkomt (`clZetHoofdKlaar()`)
 - Google-account (Agenda, Mail, chat): `{id, email, naam ('Zakelijk'/'Privé'/…), agenda (false = uit), mail (false = uit), kalKeuze: {kalenderId: true|false}}` — `kalKeuze` overschrijft per agenda wat Google zegt (`selected`). Het token staat er níet in: dat is per tabblad, zie `herling_gacc_tokens` (`gaccLijst()`, `gaccTokGeldig()`)
+- Project (Checklist): `{id, naam, clientId, noteId|null, status ('actief'|'afgerond'), createdAt, updatedAt}` — hoort altijd bij een klant; een taak hoort bij hooguit één project (`projectId`, optioneel). De specificatie is een gewone notitie in Notities (`noteId`, `clProjectSpec()`)
 - Notes node (recursief): `{id, type:'page'|'folder', title, content, clientId, tags, children[]}`
 - Klant: `{id, name, colorIdx, verborgen?}` — `verborgen` = opgeschoond: weg uit de klantwisselaar, Notities, Checklist en Dashboard, maar gewoon kiesbaar in Uren, Facturen, Opdrachten en Contracten (`klantVerborgen()`, `takenZichtbaar()`, `klantenVoorKeuze()`)
 - Contract: `{id, domein ('zakelijk'|'prive'; ontbreekt = zakelijk), soort, titel, clientId|null, wederpartij, opdrachtId|null, getekend, start, eind|null, opzeg, verlenging ('' of '1m'/'3m'/'6m'/'12m'), notitie, bijlagen[]}` — een bijlage is `{id, naam, grootte, hash, driveId|null}`. De PDF staat als **eigen bestand** in de Drive-`appDataFolder` (`contract-<id>.pdf`) plus een kopie in IndexedDB (`herling_bijlagen`), niet in `rawState`. Hangt een contract aan een opdracht, dan komt de looptijd uit de opdracht (`ctrLooptijd()`)
@@ -337,9 +338,9 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
+- **2026-10-12**: **Projecten in de Checklist** (v2.69) — `checklistState.projects` (altijd bij een klant), een taak optioneel in een project (`projectId`). Filter in de filterbalk, label op de taak, een balk met Specificatie (een gekoppelde notitie), Afronden en ⋯. Ook in de chat: `taken.projecten` met de stand, `taak_toevoegen` met `project`, links `[naam](#project-ID)`
 - **2026-10-12**: **Deeltjeslijn in de hero, geen ronde + op het mobiele Dashboard** (v2.68) — de SVG-lijn met lichtpuls is vervangen door een canvas met stippen (`dashHeroLijn()`, ontwerp "Particle line"): onder het woord *chat* beginnend, 30 beelden/s, alleen in beeld, stil bij "beweging beperken". Op een telefoon staat op het Dashboard geen ronde + meer (de balk doet dat werk); op de andere pagina's wel
 - **2026-10-12**: **De balk op het Dashboard is een vraag aan de chat** (v2.66) — *Snel toevoegen* (`@klant`, `!datum`) is weg. Wat je typt gaat als nieuw gesprek naar Vraag het je app, met een aanwijzing (`DASH_AI_INSTRUCTIE`). Alleen taken terug? Dan voert de balk ze meteen uit, met Ongedaan maken; al het andere opent de chat. Bewuste uitzondering op "eerst een kaart" (v2.50), alleen voor `taak_toevoegen`. Sinds v2.67 ook op een telefoon
-- **2026-10-12**: **Slim toevoegen weg** (v2.65) — ook uit de Checklist (knop *Met AI*, ⋯-menu), en daarmee het venster, de functies, de CSS `.qa-*`/`.quickadd-*`/`.btn-ai` en de foutregel met Opnieuw (`_aiSetError`). Taken klaarzetten doe je in Vraag het je app (`taak_toevoegen`, met voorstelkaart). Het niet-AI veld *Snel toevoegen* op het Dashboard blijft
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 
@@ -426,7 +427,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 210 smoke-, sync-, model-, reken-, sorteer-, agenda- en mailtests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
+| `test.html` | 215 smoke-, sync-, model-, reken-, sorteer-, agenda- en mailtests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |

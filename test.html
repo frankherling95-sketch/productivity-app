@@ -1059,6 +1059,100 @@ async function runChecks() {
         w.switchModule(terugNaar || 'dashboard');
       }
     }],
+    /* ── Projecten in de Checklist (2026-10-12) ──
+       Met een tijdelijke klant, een project en drie taken; na afloop terug. */
+    ...(() => {
+      const opzet = () => {
+        const oud = w.eval('JSON.stringify({c:kanbanState.clients,i:checklistState.items,p:checklistState.projects||[],t:notesState.tree,a:notesState.activeId,f:activeClientFilter,m:activeModule})');
+        w.eval(`kanbanState.clients.push({id:'tp1',name:'Klant Noord',colorIdx:1});
+          checklistState.projects=(checklistState.projects||[]).concat([{id:'pp1',naam:'Nieuwe website',clientId:'tp1',noteId:null,status:'actief',createdAt:1,updatedAt:1}]);
+          checklistState.items.push(
+            {id:'pta',text:'Projtaak A',done:false,priority:'hoog',deadline:'',clientId:'tp1',projectId:'pp1',subtasks:[],archived:false,sortOrder:-9,createdAt:Date.now(),updatedAt:Date.now()},
+            {id:'ptb',text:'Projtaak B',done:true,priority:'middel',deadline:'',clientId:'tp1',projectId:'pp1',subtasks:[],archived:false,sortOrder:-8,createdAt:Date.now(),updatedAt:Date.now()},
+            {id:'ptc',text:'Losse taak X',done:false,priority:'middel',deadline:'',clientId:'',projectId:null,subtasks:[],archived:false,sortOrder:-7,createdAt:Date.now(),updatedAt:Date.now()});
+          activeClientFilter='';clFilters.projectId=null;`);
+        return () => { w.eval('(function(o){kanbanState.clients=o.c;checklistState.items=o.i;checklistState.projects=o.p;notesState.tree=o.t;notesState.activeId=o.a;activeClientFilter=o.f;clFilters.projectId=null;clNewDraft.title="";})(' + oud + ')');
+          w.switchModule(JSON.parse(oud).m || 'dashboard'); };
+      };
+      const zichtbaar = id => !!d.querySelector('#clBody .cl-item[data-id="' + id + '"]');
+      return [
+        ['Projecten: filter via de keuzelijst, label op de taak, balk met voortgang; een nieuwe taak komt in het project', async () => {
+          const terug = opzet();
+          try {
+            w.switchModule('checklist');
+            const sel = d.querySelector('#clFilterRow .cl2-filter-project');
+            sel.value = 'pp1'; sel.dispatchEvent(new w.Event('change', {bubbles: true}));
+            await new Promise(r => setTimeout(r, 30));
+            const filter = zichtbaar('pta') && !zichtbaar('ptc') && w.eval('clFilters.projectId') === 'pp1';
+            const label = !!d.querySelector('#clBody .cl-item[data-id="pta"] .cl2-project-tag[data-arg1="pp1"]');
+            const balk = d.getElementById('clProjectBalk');
+            const balkOk = !balk.hidden && /Nieuwe website/.test(balk.textContent) && /1 van 2 taken af/.test(balk.textContent);
+            const hero = /Nieuwe website/.test(d.querySelector('#clHero .cl2-hero-eyebrow').textContent);
+            w.eval("clNewDraft.title='Inline in project'"); w.clAddInlineItem();
+            const nieuw = w.eval('checklistState.items').find(i => i.text === 'Inline in project');
+            const inProject = !!nieuw && nieuw.projectId === 'pp1' && nieuw.clientId === 'tp1';
+            d.getElementById('clProjectBalk').querySelector('[data-action="clToonProject"]').click();
+            await new Promise(r => setTimeout(r, 30));
+            const terugAlles = zichtbaar('ptc') && d.getElementById('clProjectBalk').hidden;
+            return filter && label && balkOk && hero && inProject && terugAlles;
+          } finally { terug(); }
+        }],
+        ['Projecten: de specificatie is een notitie bij de klant, en de tweede keer dezelfde', () => {
+          const terug = opzet();
+          try {
+            w.clProjectSpec('pp1');
+            const pr = w.eval('checklistState.projects').find(x => x.id === 'pp1');
+            const eerste = pr.noteId;
+            const note = w.eval('findNode(notesState.tree,' + JSON.stringify(eerste) + ')');
+            const ok = !!note && note.node.clientId === 'tp1' && /Nieuwe website/.test(note.node.title) &&
+              w.eval('activeModule') === 'notes' && w.eval('notesState.activeId') === eerste;
+            w.clProjectSpec('pp1');
+            return ok && pr.noteId === eerste;
+          } finally { terug(); }
+        }],
+        ['Projecten: in het taakvenster vult een project de klant in, een andere klant haalt het weg, en opslaan bewaart het', async () => {
+          const terug = opzet();
+          try {
+            w.switchModule('checklist');
+            w.openChecklistItemModal(null);
+            await new Promise(r => setTimeout(r, 60));
+            const kies = (sel, v) => { const el = d.querySelector(sel + ' select'); el.value = v; el.dispatchEvent(new w.Event('change', {bubbles: true})); };
+            kies('#clProjectKies', 'pp1');
+            await new Promise(r => setTimeout(r, 20));
+            const klantIngevuld = d.getElementById('clItemClient').value === 'tp1';
+            kies('#clClientBtns', '');
+            const projectWeg = d.getElementById('clItemProject').value === '';
+            kies('#clProjectKies', 'pp1');
+            await new Promise(r => setTimeout(r, 20));
+            d.getElementById('clItemText').value = 'Uit het venster';
+            w.saveChecklistItem();
+            const it = w.eval('checklistState.items').find(i => i.text === 'Uit het venster');
+            return klantIngevuld && projectWeg && !!it && it.projectId === 'pp1' && it.clientId === 'tp1';
+          } finally { w.closeChecklistItemModal(); terug(); }
+        }],
+        ['Projecten in de chat: in het overzicht, taak_toevoegen met een project, en een project als link', () => {
+          const terug = opzet();
+          try {
+            const o = w.aiChatOverzicht();
+            const pr = (o.taken.projecten || []).find(x => x.id === 'pp1');
+            const overzicht = !!pr && pr.project === 'Nieuwe website' && pr.open === 1 && pr.afgerond === 1 && pr.klant === 'Klant Noord' &&
+              o.taken.openLijst.some(t => t.id === 'pta' && t.project === 'Nieuwe website');
+            const v = w.aiActieVoorstel({naam: 'taak_toevoegen', input: {titel: 'Via chat', deadline: '', klant: '', prioriteit: 'middel', subtaken: [], project: 'nieuwe website'}});
+            const regels = JSON.stringify(v.regels);
+            v.doe();
+            const it = w.eval('checklistState.items').find(i => i.text === 'Via chat');
+            const actie = v.status === 'voorstel' && /Nieuwe website/.test(regels) && /Klant Noord/.test(regels) && !!it && it.projectId === 'pp1' && it.clientId === 'tp1';
+            const fout = w.aiActieVoorstel({naam: 'taak_toevoegen', input: {titel: 'x', deadline: '', klant: '', prioriteit: 'middel', subtaken: [], project: 'Bestaat niet'}}).status === 'fout';
+            const link = /data-action="aiChatNaarProject"/.test(w.aiChatTaakLinks('<p><a href="#project-pp1">Nieuwe website</a></p>')) && /#project-/.test(w.aiChatSysteem());
+            return overzicht && actie && fout && link;
+          } finally { terug(); }
+        }],
+        ['Projecten: samenvoegen bij een schrijfbotsing neemt projecten van beide kanten mee', () => {
+          const r = w.voegStateSamen({checklist: {items: [], projects: [{id: 'pa'}, {id: 'pb'}]}}, {checklist: {items: [], projects: [{id: 'pb'}, {id: 'pc'}]}});
+          return r.state.checklist.projects.map(x => x.id).join() === 'pb,pc,pa';
+        }]
+      ];
+    })(),
     ['Dashboard: de hero heeft één deeltjeslijn (canvas), ook na opnieuw tekenen; de oude lijn en het plusje zijn weg', () => {
       w.switchModule('notes'); w.switchModule('dashboard'); w.renderDashboard(); w.renderDashboard();
       return d.querySelectorAll('#mod-dashboard .dash-hero-lijn').length === 1 && !d.querySelector('.dash-hero-trace') &&

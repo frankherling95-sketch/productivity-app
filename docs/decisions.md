@@ -7266,3 +7266,70 @@ een telefoon weg, maar alleen op het Dashboard.
 **Niet doen.** De lijn data laten tonen zonder het eerst aan Frank te vragen
 (het is sfeer). En geen tweede canvas maken bij een hertekening: tel na een
 wissel van module `.dash-hero-lijn`, dat moet er één zijn.
+
+## 2026-10-12 · Projecten in de Checklist (v2.69)
+
+**Vraag.** De gebruiker wil taken groeperen onder één noemer, zoals een
+nieuw product, een website of een propositie voor een klant, met een
+specificatie per project. De chat moet er ook mee kunnen werken.
+
+**Keuzes van de gebruiker.**
+- De specificatie is een gekoppelde notitie.
+- Een project hoort altijd bij een klant.
+- In de Checklist komen een filter en een label.
+- Een taak hoeft niet in een project.
+
+**Beslissing.**
+- **Gegevens:** `checklistState.projects` =
+  `{id, naam, clientId, noteId|null, status, createdAt, updatedAt}`, en een
+  taak krijgt `projectId|null`.
+  - Hydratie in `hydrateerStateIntern` (`[]` als het ontbreekt).
+  - `voegStateSamen` vult projecten aan op id. Er staat geen telling in het
+    rapport.
+- **Waarom projecten en geen tags.** Een project heeft een klant, een
+  specificatie en een stand. Tags (meer per taak) hebben dat niet, en
+  maken filteren en de voortgang onduidelijk.
+- **Checklist:**
+  - **Filter:** een keuzelijst *Project* in de filterbalk
+    (`clProjectFilterHtml`). Zonder gekozen klant staan de projecten per
+    klant, afgeronde projecten onderaan, en er is een regel *Nieuw
+    project…*.
+  - **Label:** op de taak, ná het klantlabel (`.cl2-project-tag`). Een tik
+    toont alleen dat project.
+  - **Projectbalk** (`renderClProjectBalk`): naam, klant, voortgang,
+    *Specificatie*, *Afronden*/*Heropenen*, ⋯ (hernoemen, verwijderen) en
+    ✕.
+  - **Voortgangskaart:** telt binnen het gekozen project.
+  - **Nieuwe taak:** komt in het gekozen project, met diens klant. Dat
+    geldt voor de regel bovenaan, voor het taakvenster en voor de ronde +.
+  - Een project van een andere klant dan het klantfilter filtert niet.
+- **Taakvenster:** het veld *Project* onder *Klant*
+  (`renderClProjectKies`). Een project kiezen vult de klant in. Een andere
+  klant kiezen haalt een project van een andere klant weg.
+- **Specificatie:** `clProjectSpec` opent de gekoppelde notitie in Notities.
+  Is er nog geen notitie (of ligt hij in de prullenbak), dan maakt hij er
+  een bij de klant met de koppen Doel, Wat er moet komen, Afspraken en Open
+  vragen.
+- **Verwijderen:** de taken blijven, zonder project; de specificatie blijft
+  in Notities. Met *Ongedaan maken*.
+- **Chat:**
+  - `taken.projecten` in het overzicht: per project de klant, de status,
+    hoeveel taken open, afgerond en te laat zijn, en het notitie-id van de
+    specificatie, die de chat met `notitie_lezen` leest.
+  - Taken in `openLijst` en `recentAfgerond` hebben een veld `project`.
+  - `taak_toevoegen` heeft een `project` (op naam, `_aiActieProject`).
+    Zonder klant wordt het die van het project; bij een andere klant geeft
+    het een fout.
+  - Een project in een antwoord wordt een link `[naam](#project-ID)`, die
+    naar de Checklist met dat project gaat.
+
+**Bestanden.** `index.html` (Checklist: `clProject*`, `renderClFilterBar`,
+`renderChecklistModule`, `clItemHtml`, `renderChecklistNewItem`,
+`clAddInlineItem`, het taakvenster; state: `hydrateerStateIntern`,
+`voegStateSamen`; chat: `aiChatOverzicht`, `aiChatSysteem`,
+`AI_ACTIES.taak_toevoegen`, `_aiActieProject`, `AI_CHAT_LINKS`), `test.html`
+(5 tests), `sw.js`, `docs/stijlgids.md` §4, `CLAUDE.md`.
+
+**Niet doen.** Een project zonder klant toestaan zonder het eerst aan de
+gebruiker te vragen. En de specificatie als los tekstveld in het project
+zetten: dan staat het buiten Notities, en kan de chat het niet lezen.
