@@ -148,7 +148,8 @@ async function runChecks() {
      Calendar- en de Gmail-API naspeelt. Er gaat niets naar Google, er wordt
      niets bewaard, en na afloop staat alles terug. */
   const accountsTerug = oud => w.eval('if(' + oud + '===null)delete rawState.settings.googleAccounts;' +
-    'else rawState.settings.googleAccounts=' + oud + ';gaccTok={};kalCache={};kalKalenders={};pvLijst=null;pvDraden={};pvOngelezen={};');
+    'else rawState.settings.googleAccounts=' + oud + ';gaccTok={};kalCache={};kalKalenders={};pvLijst=null;pvDraden={};pvOngelezen={};' +
+    'clearTimeout(gaccVerversTimer);gaccVerversTimer=null;if(gaccGebaarAf)gaccGebaarAf();for(const k in gaccRust)delete gaccRust[k];');
   const zonderAccounts = async fn => {
     const oud = w.eval('JSON.stringify((rawState.settings||{}).googleAccounts||null)');
     w.eval('rawState.settings=rawState.settings||{};rawState.settings.googleAccounts=[]');
@@ -2939,6 +2940,33 @@ async function runChecks() {
         w.eval('gaccTok=' + oudMem);
       }
     }],
+    ['Accounts: vooraf vernieuwen, een kwartier voor het verlopen, bij een echte klik', () => metGoogle(async () => {
+      /* Geen venster in een test: het token-venster is nagespeeld en een
+         klik zonder gebruiker (zoals hier) mag er geen openen. */
+      const oudNieuw = w.gaccNieuwToken;
+      let gevraagd = 0;
+      w.gaccNieuwToken = () => { gevraagd++; return Promise.reject(Object.assign(new Error('test'), {type: 'popup_failed_to_open'})); };
+      Object.defineProperty(w.navigator, 'userActivation', {value: {isActive: false}, configurable: true});
+      try {
+        w.eval('if(gaccGebaarAf)gaccGebaarAf();for(const k in gaccRust)delete gaccRust[k];');
+        w.eval('gaccLijst().forEach(a=>{gaccTok[a.email].tot=Date.now()+50*60000;});gaccPlanVerversing();');
+        const rustig = w.eval('gaccTeVernieuwen().length===0&&!gaccGebaarGewapend&&gaccVerversTimer!==null');
+        w.eval('gaccTok["test@herling-analytics.nl"].tot=Date.now()+10*60000;gaccPlanVerversing();');
+        const klaar = w.eval('gaccTeVernieuwen().map(a=>a.id).join()') === 'tz' && w.eval('gaccGebaarGewapend');
+        w.document.body.click();
+        await new Promise(r => setTimeout(r, 50));
+        const geduld = gevraagd === 0 && w.eval('gaccGebaarGewapend');
+        w.eval('gaccRust["test@herling-analytics.nl"]=Date.now()+60000');
+        const rust = w.eval('gaccTeVernieuwen().length') === 0;
+        w.eval('delete gaccRust["test@herling-analytics.nl"];gaccVind("tz").agenda=false;gaccVind("tz").mail=false');
+        const uit = w.eval('gaccTeVernieuwen().length') === 0;
+        return rustig && klaar && geduld && rust && uit;
+      } finally {
+        w.gaccNieuwToken = oudNieuw;
+        delete w.navigator.userActivation;
+        w.eval('if(gaccGebaarAf)gaccGebaarAf();clearTimeout(gaccVerversTimer);gaccVerversTimer=null;');
+      }
+    })],
     ['Agenda: afspraken van twee accounts, een uitgevinkte agenda blijft weg', () => metGoogle(async log => {
       const van = w.kalStart(new Date()), tot = w.kalPlus(van, 1);
       const r = await w.kalHaal(van, tot);

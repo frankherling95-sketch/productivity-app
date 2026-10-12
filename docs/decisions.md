@@ -7432,3 +7432,57 @@ regel bij `#dashChecklistBody`), `test.html` (1 nieuwe test),
 **Niet doen.** De metaregel weer laten breken (`flex-wrap: wrap`): dan
 komt de losse `·` terug. En het project een eigen kleur geven: de kleur
 hoort bij de klant, net als bij het label in de Checklist.
+
+## 2026-10-12 · Mail en Agenda vernieuwen hun toegang vooraf (v2.73)
+
+**Vraag.** "Kan je dit niet standaard accepteren?" Bij Mail en Agenda stond
+na een uur, en na elk nieuw tabblad, een oranje kaart per account: *Zakelijk
+is niet verbonden*, met een knop Verbinden.
+
+**Wat niet kan.** Google geeft een app in de browser een toegangstoken voor
+een uur, zonder refresh token. Een nieuw token komt alleen via een venster
+van Google, en dat staat de browser alleen toe direct na een klik. Nul
+vensters vraagt een eigen server die een refresh token bewaart (zie ook
+2026-09-10). Frank koos daar niet voor, en ook niet voor het token op schijf
+(`localStorage`): met `gmail.modify` lees je de hele mailbox.
+
+**Beslissing.** Wat Drive al deed, nu ook voor de gekoppelde accounts:
+- Een kwartier voor het verlopen (`GACC_TOKEN_MARGE`) staat een account
+  klaar, en je eerstvolgende klik waar dan ook in de app vraagt een nieuw
+  token. Na het openen geldt hetzelfde voor accounts zonder token. De
+  toestemming is er al, dus het venster flitst alleen even.
+  `gaccPlanVerversing()` draait na elk laden (`renderAll`) en na elke
+  wijziging aan de accounts (`gaccNaWijziging`).
+- Eén account per klik, want de browser staat per klik één venster toe.
+  Wat je bekijkt gaat voor: in Mail of Agenda het account dat daar mist.
+- De luisteraar zit op `click`, niet op `pointerdown` zoals bij Drive.
+  De knop onder je vinger gaat dan voor. Opende die al een venster (of
+  deed Drive dat bij het indrukken), dan is de gebruikersactivatie op
+  (`navigator.userActivation.isActive`) en wacht dit op de volgende klik.
+  Zo pakt het nooit het venster af van Verbinden, ↻ of mailen.
+- Sloot je het venster zelf, of ging het anders mis, dan vijf minuten rust
+  voor dat account (`gaccRust`). Je krijgt dan niet bij elke klik een
+  venster.
+- Had het account nog een geldig token, dan wordt er niets hertekend. Was
+  het weg, dan wel, net als na Verbinden.
+- Drive wachtte ook op de klik op een knop Verbinden, en dan hield de
+  browser het venster van die knop tegen. Drive slaat `[data-gacc-zelf]`
+  nu over en wacht op de klik erna.
+
+De oranje kaart blijft voor het geval dat het niet lukte, of als je Mail
+opent als allereerste klik. De tekst zegt nu wat er gebeurt: je volgende
+klik vernieuwt de toegang.
+
+**Waarom.** Het venster is onvermijdelijk, de kaart niet. Bij Drive merk je
+er weinig van omdat het vooraf gebeurt. Bij Mail en Agenda gebeurde het pas
+als een aanvraag al mislukt was.
+
+**Bestanden.** `index.html` (`gaccTeVernieuwen`, `gaccPlanVerversing`,
+`gaccVerbindBijGebaar`, `gaccRust`, `gaccAllesVergeten`,
+`gaccNaWijziging`, `renderAll`, `gaccMeldingHtml`, `driveVerbindBijGebaar`),
+`test.html` (1 nieuwe test), `sw.js`.
+
+**Niet doen.** Het token alsnog naar `localStorage` zetten, of een venster
+openen zonder klik ervoor: dan houdt de browser het tegen (en meldt dat in
+de adresbalk). De luisteraar niet terugzetten naar `pointerdown`: dan pakt
+hij het venster af van een knop die er zelf een opent.

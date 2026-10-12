@@ -9018,7 +9018,7 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.72</span>
+        <span class="app-versie" title="Appversie">v2.73</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -14490,6 +14490,8 @@ function renderAll(){
   try{archiefNaWijziging();}catch(_){}
   /* Het getal naast Mail, als er al een verbinding is (geen venster). */
   try{pvTelOngelezen();}catch(_){}
+  /* Mail en Agenda: ontbreekt een token, dan haalt je eerste klik het. */
+  try{gaccPlanVerversing();}catch(_){}
 }
 
 const GELDIGE_MODULES=['dashboard','notes','checklist','agenda','mail','uren','facturen','opdrachten','contracten','instellingen'];
@@ -15188,6 +15190,9 @@ function driveVerbindBijGebaar(){
     document.removeEventListener('touchend',opVinger,opties);
   };
   const doe=e=>{
+    /* Verbinden van een Google-account opent zelf een venster: deze klik
+       is van die knop, Drive wacht op de volgende. */
+    if(e.target&&e.target.closest&&e.target.closest('[data-gacc-zelf]'))return;
     if(e.target&&e.target.closest&&e.target.closest('[onclick*="refreshGist"]')){af();return;}
     af();
     if(!driveGelezen){refreshGist();return;}
@@ -34768,6 +34773,8 @@ function gaccTokGeldig(email){
 function gaccTokVergeet(email){delete gaccTok[email];gaccTokBewaar();}
 function gaccAllesVergeten(){
   gaccTok={};
+  clearTimeout(gaccVerversTimer);gaccVerversTimer=null;
+  if(gaccGebaarAf)gaccGebaarAf();
   try{sessionStorage.removeItem(GACC_TOKENS);}catch(_){}
 }
 /* Mag dit token mail of agenda? Bij het toestemmingsscherm van Google kun
@@ -34829,6 +34836,7 @@ async function gaccVerbind(id){
     if(wie&&wie!==a.email)throw new Error('Je koos '+wie+'; dit is de koppeling voor '+a.email+'.');
     gaccTok[a.email]=t;
     gaccTokBewaar();
+    delete gaccRust[a.email];
     return true;
   })();
   try{return await gaccBezig[a.email];}
@@ -34898,6 +34906,7 @@ function gaccWissel(id,wat){
 /* Na koppelen, verbinden of een keuze: wat openstaat opnieuw tekenen. */
 function gaccNaWijziging(opnieuwLaden){
   if(opnieuwLaden){kalCache={};pvLijst=null;}
+  gaccPlanVerversing();
   try{
     if(activeModule==='instellingen')renderInstellingenModule();
     else if(activeModule==='agenda')renderAgendaModule();
@@ -34915,38 +34924,84 @@ function gaccFoutMelding(e,a){
   appToast(msg,{type:'error',duration:10000});
 }
 
-/* ── Opnieuw verbinden bij je volgende klik ──
-   Hetzelfde idee als driveVerbindBijGebaar: een token is een uur geldig en
-   een nieuw token komt via een venster dat de browser alleen na een klik
-   toestaat. Staat Agenda of Mail open met een account zonder token, dan
-   vraagt de eerstvolgende klik er één aan -- één account per klik, want
-   de browser staat per klik maar één venster toe. Een klik op een knop
-   "Verbinden" doet het zelf al, die slaat dit over. */
+/* ── Vooraf vernieuwen, bij je volgende klik (2026-10-12) ──
+   Een token is een uur geldig, en een nieuw token komt alleen via een
+   venster van Google dat de browser pas na een klik toestaat. Eerst wachtte
+   de app tot een aanvraag mislukte; dan stond er een oranje kaart per
+   account. Nu doet hij wat Drive al deed: een kwartier voor het verlopen
+   (GACC_TOKEN_MARGE), en meteen na het openen als er geen token is, vraagt
+   je eerstvolgende klik waar dan ook een nieuw token aan. De toestemming is
+   er al, dus het venster flitst alleen even. Eén account per klik: de
+   browser staat per klik maar één venster toe.
+   - Op 'click', niet op 'pointerdown': de knop onder je vinger gaat voor.
+     Opende die zelf al een venster van Google (Verbinden, ↻, mailen), of
+     deed Drive dat bij het indrukken, dan is de klik op
+     (navigator.userActivation) en wacht dit op de volgende.
+   - Wat je bekijkt eerst: in Mail of Agenda het account dat daar ontbreekt.
+   - Sloot je het venster zelf, of ging het anders mis, dan vijf minuten
+     rust voor dat account (gaccRust), geen venster bij elke klik.
+   - Had het account nog een geldig token, dan wordt er niets hertekend;
+     was het weg, dan wel (zoals na Verbinden).
+   Nul vensters kan alleen met een eigen server; zie docs/decisions.md. */
+const GACC_TOKEN_MARGE=15*60000;
+const GACC_RUST=5*60000;
+const gaccRust={};          /* e-mail -> tijdstip tot wanneer niet vragen */
+let gaccVerversTimer=null;
 let gaccGebaarGewapend=false;
+let gaccGebaarAf=null;
+/* Welke accounts nu een nieuw token nodig hebben: aan voor agenda of mail,
+   zonder token of binnen de marge, en niet in rust. */
+function gaccTeVernieuwen(nu){
+  nu=nu||Date.now();
+  return gaccLijst().filter(a=>{
+    if(a.agenda===false&&a.mail===false)return false;
+    if((gaccRust[a.email]||0)>nu)return false;
+    const t=gaccTokGeldig(a.email);
+    return !t||t.tot-GACC_TOKEN_MARGE<=nu;
+  });
+}
+/* Na elk laden en na elke wijziging aan de accounts: is er nu iets nodig,
+   dan wacht de volgende klik; anders een wekker op het eerste moment dat
+   er iets nodig wordt. */
+function gaccPlanVerversing(){
+  clearTimeout(gaccVerversTimer);gaccVerversTimer=null;
+  if(!ingelogdeGebruiker())return;
+  const lijst=gaccLijst().filter(a=>a.agenda!==false||a.mail!==false);
+  if(!lijst.length)return;
+  const nu=Date.now();
+  if(gaccTeVernieuwen(nu).length){gaccVerbindBijGebaar();return;}
+  const momenten=lijst.map(a=>{
+    const t=gaccTokGeldig(a.email);
+    return Math.max(t?t.tot-GACC_TOKEN_MARGE:nu,gaccRust[a.email]||0);
+  });
+  gaccVerversTimer=setTimeout(gaccPlanVerversing,Math.max(60000,Math.min(...momenten)-nu));
+}
 function gaccVerbindBijGebaar(){
   if(gaccGebaarGewapend)return;
   gaccGebaarGewapend=true;
-  const opties={capture:true,passive:true};
   const af=()=>{
-    gaccGebaarGewapend=false;
-    document.removeEventListener('pointerdown',opMuis,opties);
-    document.removeEventListener('touchend',opVinger,opties);
+    gaccGebaarGewapend=false;gaccGebaarAf=null;
+    document.removeEventListener('click',doe);
   };
   const doe=e=>{
     af();
-    if(e.target&&e.target.closest&&e.target.closest('[data-gacc-zelf]'))return;
+    const doel=e.target&&e.target.closest?e.target:null;
+    const ua=navigator.userActivation;
+    if((doel&&doel.closest('[data-gacc-zelf]'))||(ua&&!ua.isActive)){gaccVerbindBijGebaar();return;}
     const wat=activeModule==='agenda'?'agenda':activeModule==='mail'?'mail':'';
-    if(!wat)return;
-    const a=gaccVoor(wat).find(x=>!gaccTokGeldig(x.email));
-    if(!a)return;
-    gaccVerbind(a.id).then(()=>gaccNaWijziging(true)).catch(err=>{
-      if(err&&err.type!=='popup_failed_to_open')console.warn('[accounts] verbinden bij klik',err);
-    });
+    const nodig=gaccTeVernieuwen();
+    const a=(wat&&nodig.find(x=>x[wat]!==false))||nodig[0];
+    if(!a){gaccPlanVerversing();return;}
+    const wasWeg=!gaccTokGeldig(a.email);
+    gaccVerbind(a.id).then(()=>{if(wasWeg)gaccNaWijziging(true);}).catch(err=>{
+      if(!err||err.type!=='popup_failed_to_open'){
+        gaccRust[a.email]=Date.now()+GACC_RUST;
+        console.warn('[accounts] vernieuwen bij klik',err);
+      }
+    }).finally(gaccPlanVerversing);
   };
-  const opMuis=e=>{if(e.pointerType==='mouse'||e.pointerType==='pen')doe(e);};
-  const opVinger=e=>doe(e);
-  document.addEventListener('pointerdown',opMuis,opties);
-  document.addEventListener('touchend',opVinger,opties);
+  gaccGebaarAf=af;
+  document.addEventListener('click',doe);
 }
 
 /* ── Eén ingang voor de API's van Google ──
@@ -35017,7 +35072,7 @@ function gaccMeldingHtml(wat,fouten){
   const zonder=gaccVoor(wat).filter(a=>!gaccTokGeldig(a.email));
   const regels=zonder.map(a=>
     '<div class="fac-btw-let gacc-let"><span><b>'+escapeHtml(gaccNaam(a))+' is niet verbonden</b>'+
-    escapeHtml(a.email)+' · Google vraagt na een uur opnieuw om toestemming; een klik is genoeg.</span>'+
+    escapeHtml(a.email)+' · Google geeft een uur toegang; je volgende klik in de app vernieuwt die.</span>'+
     '<button type="button" class="uren-btn uren-btn-primary" data-gacc-zelf="1" data-action="gaccVerbind" data-arg1="'+
     escapeHtml(a.id)+'">Verbinden</button></div>');
   (fouten||[]).filter(f=>f&&f.fout&&!f.fout.verbinden).forEach(f=>regels.push(
