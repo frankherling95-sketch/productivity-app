@@ -650,9 +650,19 @@ Een nieuwe instelling krijgt een regel op deze pagina, ook als hij in een
 ## 16. Vraag het je app
 
 **Het venster.** Een kop op de band met de sparkle (in het verloop van het
-logo, geen emoji), de titel en rechts een **+** voor een nieuw gesprek: een
-icoonknop zoals in §2, uit (`.35`) zolang er nog geen gesprek is. Daaronder
+logo, geen emoji), de titel en rechts twee icoonknoppen zoals in §2: de
+**klok** voor eerdere gesprekken (aan: mint met een vlak van 12% wit) en de
+**+** voor een nieuw gesprek, uit (`.35`) zolang er nog geen gesprek is. Daaronder
 het gesprek, het invoerveld en een voet met het model en het verbruik.
+
+**Eerdere gesprekken** staan in het venster zelf, op de plek van het gesprek:
+een kop (`--fs-groot` / 700 display) met een regel over waar ze staan, en per
+gesprek een regel van minstens `var(--tap)` met de eerste vraag (`--fs-basis` /
+600, op één regel afgekapt) en daaronder *vandaag 14:05 · 3 vragen* in
+`--fs-klein` muted. Het open gesprek krijgt een mint stip met *Nu open*. De
+prullenbak erachter is een rij-actie zoals het oog in de klantwisselaar:
+`--text-hint`, 32px (telefoon `var(--tap)`), altijd zichtbaar, rood bij hover.
+Verwijderen geeft een toast met *Ongedaan maken*.
 
 | | Bureaublad | Telefoon |
 |---|---|---|

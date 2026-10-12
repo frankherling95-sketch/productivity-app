@@ -8652,6 +8652,41 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
   background: transparent; border: 0; border-radius: var(--radius); cursor: pointer;
 }
 .aic-nieuw:disabled { opacity: .35; cursor: default; background: transparent !important; }
+/* Eerdere gesprekken (de klok): dezelfde icoonknop. Staat de lijst open,
+   dan mint met een vlak eronder, zoals een knop die aanstaat. */
+.aic-gesch-knop[aria-pressed="true"] { color: var(--mint) !important; background: rgba(255,255,255,0.12) !important; }
+.aic-kop h3 { min-width: 0; }
+/* De lijst met eerdere gesprekken, in het venster zelf. Een regel opent het
+   gesprek; de prullenbak erachter is een rij-actie zoals het oog in de
+   klantwisselaar: --text-hint, 32px (telefoon --tap), altijd zichtbaar. */
+.aic-gesch { display: flex; flex-direction: column; }
+.aic-gesch-kop { display: flex; flex-direction: column; gap: 2px; margin: 0 0 10px; }
+.aic-gesch-kop b { font-family: var(--font-display); font-size: var(--fs-groot); font-weight: 700; color: var(--text); }
+.aic-gesch-kop small { font-size: var(--fs-klein); color: var(--text-muted); }
+.aic-gesch-link { padding: 0; border: 0; background: none; font: inherit; color: var(--text); text-decoration: underline; cursor: pointer; }
+.aic-gesch-rij { display: flex; align-items: center; gap: 4px; border-bottom: 0.5px solid var(--border); }
+.aic-gesch-rij:last-child { border-bottom: 0; }
+.aic-gesch-open {
+  flex: 1; min-width: 0; min-height: var(--tap);
+  display: flex; flex-direction: column; justify-content: center; gap: 2px;
+  padding: 9px 8px; margin: 2px 0; background: transparent; border: 0; border-radius: 8px;
+  font-family: var(--font-body); text-align: left; color: var(--text); cursor: pointer;
+  transition: background var(--duur-kort) var(--ease);
+}
+.aic-gesch-open:hover { background: var(--surface2); }
+.aic-gesch-open:focus-visible, .aic-gesch-weg:focus-visible { outline: 2px solid var(--mint); outline-offset: -2px; }
+.aic-gesch-titel { font-size: var(--fs-basis); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aic-gesch-meta { font-size: var(--fs-klein); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.aic-gesch-nu { color: var(--text); }
+.aic-gesch-nu::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; background: var(--mint); }
+.aic-gesch-weg {
+  width: 32px; height: 32px; flex: none; padding: 0;
+  display: grid; place-items: center;
+  background: transparent; border: 0; border-radius: 8px; color: var(--text-hint); cursor: pointer;
+}
+.aic-gesch-weg:hover { color: var(--danger); background: var(--surface2); }
+.aic-gesch-weg svg { width: 16px; height: 16px; }
+.aic-gesch-leeg { margin: 24px 0; text-align: center; color: var(--text-muted); font-size: var(--fs-basis); }
 .aic-lijst {
   flex: 1; min-height: 0; overflow-y: auto;
   padding: 18px 20px; display: flex; flex-direction: column; gap: 12px;
@@ -8768,8 +8803,10 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
   .ios-tab .aic-invoer textarea { font-size: 16px !important; }
   /* Rustiger op een telefoon (2026-10-11). De kop is één regel: titel, +
      en het kruisje. De ondertitel herhaalde wat de lege stand al zegt. */
-  .aic-kop { padding-top: 10px; padding-bottom: 10px; }
+  .aic-kop { padding-top: 10px; padding-bottom: 10px; gap: 0; }
   .aic-kop p { display: none; }
+  .aic-kop h3 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .aic-gesch-weg { width: var(--tap); height: var(--tap); }
   /* Lege stand onderin, bij je duim en het invoerveld: één vraag als kop
      en vier suggesties als gelijke regels, links uitgelijnd. Geen uitleg
      -- de suggesties laten zelf zien wat kan. */
@@ -9179,7 +9216,7 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.58</span>
+        <span class="app-versie" title="Appversie">v2.59</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -11049,6 +11086,12 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
            zetModalSluitknoppen() op een telefoon toevoegt). Stond als
            tekstknop in de voet en zakte daar op een telefoon naar een
            eigen regel. Uit (niet weg) zolang er nog geen gesprek is. -->
+      <!-- Eerdere gesprekken: de lijst komt in het venster zelf, op de plek
+           van het gesprek. Zie aiGeschToon(). -->
+      <button type="button" class="aic-nieuw aic-gesch-knop" id="aiChatGeschBtn" onclick="aiGeschToon()"
+        aria-label="Eerdere gesprekken" title="Eerdere gesprekken" aria-pressed="false">
+        <svg class="icoon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.6 8a5.4 5.4 0 1 0 1.6-3.8"/><path d="M2.4 2.6v2.7h2.7"/><path d="M8 5.2V8l2 1.3"/></svg>
+      </button>
       <button type="button" class="aic-nieuw" id="aiChatNieuwBtn" onclick="aiChatNieuw()"
         aria-label="Nieuw gesprek" title="Nieuw gesprek">
         <svg class="icoon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>
@@ -41117,8 +41160,10 @@ function aiChatSysteem(){
 /* houdPlek: na een klik op een voorstel blijft het gesprek staan waar je
    was, in plaats van naar onderen te springen. */
 function aiChatToon(houdPlek){
+  aiGeschPlan();
   const lijst=document.getElementById('aiChatLijst');
   if(!lijst)return;
+  if(aiChatWeergave==='lijst'){lijst.innerHTML=aiGeschLijstHtml();return;}
   const plek=lijst.scrollTop;
   if(!aiChatGesprek.length){
     lijst.innerHTML=`<div class="aic-leeg">
@@ -41147,6 +41192,7 @@ async function aiChatVraag(tekst){
   if(!vraag||_aiCalling.chat)return;
   if(!aiSleutel()){aiGeenSleutel();return;}
   if(inp){inp.value='';aiChatInvoerHoogte();}
+  aiChatWeergave='gesprek';
   aiActieVervalOpen();
   /* Een beurt met alleen voorstellen (geen tekst) telt ook mee: het model
      moet weten wat het voorstelde en of je het deed. */
@@ -41241,7 +41287,8 @@ function aiChatOpnieuw(){
 }
 function aiChatNieuw(){
   if(_aiCalling.chat)return;
-  aiChatGesprek=[];
+  aiGeschPlan();        /* het vorige staat al in de geschiedenis; voor de zekerheid */
+  aiChatGesprek=[];aiChatId=null;aiChatWeergave='gesprek';
   aiChatToon();aiChatKnoppen();
   document.getElementById('aiChatInvoer')?.focus();
 }
@@ -41252,7 +41299,9 @@ function aiChatKnoppen(){
   const model=document.getElementById('aiChatModel');
   if(model)model.disabled=bezig;
   const nieuw=document.getElementById('aiChatNieuwBtn');
-  if(nieuw)nieuw.disabled=bezig||!aiChatGesprek.length;
+  if(nieuw)nieuw.disabled=bezig||(!aiChatGesprek.length&&aiChatWeergave!=='lijst');
+  const gesch=document.getElementById('aiChatGeschBtn');
+  if(gesch){gesch.disabled=bezig;gesch.setAttribute('aria-pressed',aiChatWeergave==='lijst'?'true':'false');}
   const opn=document.getElementById('aiChatOpnieuwBtn');
   const laatste=aiChatGesprek[aiChatGesprek.length-1];
   if(opn)opn.hidden=bezig||!(laatste&&laatste.fout);
@@ -41270,11 +41319,266 @@ function aiChatOpen(){
   m.classList.add('open');
   _updateAIQuotaBadges();
   aiChatModelToon();
+  aiGeschLaad();
+  if(_aiGeschVuil)aiGeschPlanSchrijf();
   aiChatToon();aiChatKnoppen();
   setTimeout(()=>document.getElementById('aiChatInvoer')?.focus(),60);
 }
 function aiChatSluit(){
   document.getElementById('aiChatModal')?.classList.remove('open');
+}
+
+/* ══ Geschiedenis van Vraag het je app (2026-10-11) ══
+   Tot nu toe bleef een gesprek alleen in het geheugen van de sessie (zie
+   2026-10-09). Nu bewaart de app ze in een eigen bestand in de verborgen
+   app-map in Drive, ai-gesprekken.json -- bewust niet in rawState: dat gaat
+   in zijn geheel naar Drive bij elke wijziging, en als vangnet in
+   localStorage, waar maar zo'n 5 MB in past.
+
+   - Wat er bewaard wordt: per beurt de tekst, wat er is opgezocht, en van
+     elk voorstel titel, regels en stand. Niet de functies erachter: een
+     voorstel dat nog openstond is na terugopenen vervallen, en ongedaan
+     maken kan dan niet meer.
+   - Hooguit AI_GESCH_MAX gesprekken; het oudste valt eraf.
+   - Twee computers: vóór het schrijven kijkt de app of het bestand
+     intussen veranderd is, en voegt dan per gesprek samen (de nieuwste
+     wint). Een verwijderd gesprek laat een grafsteen achter (weg), zodat
+     het niet terugkomt uit een oudere kopie; die blijft 60 dagen staan.
+   - Zonder Drive (nog niet gelezen deze sessie, of localhost) staat de
+     geschiedenis alleen in het geheugen. */
+const AI_GESCH_BESTAND='ai-gesprekken.json';
+const AI_GESCH_MAX=100;
+const AI_GESCH_WEG_DAGEN=60;
+let aiGesch={versie:1,gesprekken:[],weg:{}};
+let aiGeschTijd=null;          /* modifiedTime van de versie in Drive die we kennen */
+let aiGeschStand='nog';        /* nog | laden | klaar | fout | geen (geen Drive) */
+let _aiGeschLaden=null, _aiGeschTimer=null, _aiGeschVuil=false, _aiGeschSchrijft=false, _aiGeschNogEens=false;
+let aiChatId=null;             /* het gesprek dat nu open staat */
+let aiChatWeergave='gesprek';  /* of 'lijst': de eerdere gesprekken */
+
+/* De opslag apart, zodat de tests een nep-Drive kunnen geven. */
+const aiGeschOpslag={
+  zoek:async()=>{
+    const r=await driveApi('drive/v3/files?spaces=appDataFolder'+
+      '&q='+encodeURIComponent("name='"+AI_GESCH_BESTAND+"'")+
+      '&fields=files(id,modifiedTime)&orderBy=modifiedTime desc');
+    return ((await r.json()).files||[])[0]||null;
+  },
+  lees:async(b)=>{
+    const r=await driveApi('drive/v3/files/'+b.id+'?alt=media');
+    return JSON.parse(await r.text());
+  },
+  schrijf:async(b,obj)=>{
+    const grens='herling'+Math.random().toString(36).slice(2);
+    const meta=b?{name:AI_GESCH_BESTAND}:{name:AI_GESCH_BESTAND,parents:['appDataFolder']};
+    const body='--'+grens+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify(meta)+'\r\n'+
+      '--'+grens+'\r\nContent-Type: application/json\r\n\r\n'+JSON.stringify(obj)+'\r\n--'+grens+'--';
+    const r=await driveApi('upload/drive/v3/files'+(b?'/'+b.id:'')+'?uploadType=multipart&fields=id,modifiedTime',{
+      method:b?'PATCH':'POST',headers:{'Content-Type':'multipart/related; boundary='+grens},body});
+    return r.json();
+  }
+};
+
+/* Per gesprek samenvoegen: de nieuwste versie wint, grafstenen blijven. */
+function aiGeschSamen(a,b){
+  const weg={...((a&&a.weg)||{})};
+  Object.entries((b&&b.weg)||{}).forEach(([id,t])=>{if(!weg[id]||t>weg[id])weg[id]=t;});
+  const per=new Map();
+  [...((a&&a.gesprekken)||[]),...((b&&b.gesprekken)||[])].forEach(g=>{
+    if(!g||!g.id||!Array.isArray(g.beurten))return;
+    const al=per.get(g.id);
+    if(!al||String(g.bijgewerkt)>String(al.bijgewerkt))per.set(g.id,g);
+  });
+  return aiGeschOpruim({gesprekken:[...per.values()],weg});
+}
+function aiGeschOpruim(h){
+  const grens=new Date(Date.now()-AI_GESCH_WEG_DAGEN*86400000).toISOString();
+  const weg={};
+  Object.entries(h.weg||{}).forEach(([id,t])=>{if(t>=grens)weg[id]=t;});
+  const gesprekken=(h.gesprekken||[]).filter(g=>!(weg[g.id]&&weg[g.id]>=String(g.bijgewerkt)))
+    .sort((x,y)=>String(y.bijgewerkt).localeCompare(String(x.bijgewerkt))).slice(0,AI_GESCH_MAX);
+  return {versie:1,gesprekken,weg};
+}
+
+/* Eén beurt zoals hij bewaard wordt. Een voorstel dat nog openstaat gaat
+   als vervallen de deur uit: zo staat het er ook als je het later opent,
+   en verandert terugopenen het gesprek niet (anders sprong het naar boven). */
+function aiGeschBeurt(b){
+  const o={rol:b.rol,tekst:b.tekst||''};
+  if(b.fout)o.fout=b.fout;
+  const lees=(b.lees||[]).filter(l=>!l.bezig).map(l=>({label:l.label,fout:!!l.fout}));
+  if(lees.length)o.lees=lees;
+  if((b.acties||[]).length)o.acties=b.acties.map(a=>({naam:a.naam,titel:a.titel,regels:a.regels||[],
+    status:a.status==='voorstel'||a.status==='bezig'?'vervallen':a.status,fout:a.fout||'',melding:a.melding||''}));
+  return o;
+}
+/* Terug uit de geschiedenis: zonder functies, dus zonder Uitvoeren,
+   Ongedaan maken en Bekijk. */
+function aiGeschTerug(b){
+  const o={rol:b.rol,tekst:b.tekst||''};
+  if(b.fout)o.fout=b.fout;
+  if(b.lees)o.lees=b.lees.map(l=>({label:l.label,fout:!!l.fout}));
+  if(b.rol!=='user')o.acties=(b.acties||[]).map(a=>({naam:a.naam,titel:a.titel,regels:a.regels||[],
+    status:a.status,fout:a.fout||'',melding:a.melding||''}));
+  return o;
+}
+/* Het open gesprek in de geschiedenis zetten. Geeft true als er iets
+   veranderde. Niet tijdens een antwoord: dan is het nog niet af. */
+function aiGeschOnthoud(){
+  if(_aiCalling.chat)return false;
+  const beurten=aiChatGesprek.filter(b=>b.rol==='user'||b.tekst||b.fout||(b.acties||[]).length).map(aiGeschBeurt);
+  const eerste=beurten.find(b=>b.rol==='user');
+  if(!eerste)return false;
+  if(!aiChatId)aiChatId='g'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  let g=aiGesch.gesprekken.find(x=>x.id===aiChatId);
+  if(g&&JSON.stringify(g.beurten)===JSON.stringify(beurten))return false;
+  const nu=new Date().toISOString();
+  if(!g){g={id:aiChatId,start:nu};aiGesch.gesprekken.push(g);}
+  g.titel=String(eerste.tekst).replace(/\s+/g,' ').slice(0,120);
+  g.bijgewerkt=nu;
+  g.beurten=beurten;
+  aiGesch=aiGeschOpruim(aiGesch);
+  return true;
+}
+function aiGeschPlan(){
+  if(aiGeschOnthoud())_aiGeschVuil=true;
+  if(_aiGeschVuil)aiGeschPlanSchrijf();
+}
+function aiGeschPlanSchrijf(){
+  _aiGeschVuil=true;
+  clearTimeout(_aiGeschTimer);
+  _aiGeschTimer=setTimeout(aiGeschBewaar,1500);
+}
+function aiGeschLaad(opnieuw){
+  if(!driveGelezen){if(aiGeschStand!=='klaar')aiGeschStand='geen';return Promise.resolve();}
+  if(_aiGeschLaden&&!opnieuw)return _aiGeschLaden;
+  aiGeschStand='laden';
+  _aiGeschLaden=(async()=>{
+    try{
+      const b=await aiGeschOpslag.zoek();
+      if(b){aiGesch=aiGeschSamen(aiGesch,await aiGeschOpslag.lees(b));aiGeschTijd=b.modifiedTime;}
+      aiGeschStand='klaar';
+    }catch(e){
+      console.warn('[chat] geschiedenis ophalen',e);
+      aiGeschStand='fout';_aiGeschLaden=null;
+    }
+    if(aiChatWeergave==='lijst'&&document.getElementById('aiChatModal')?.classList.contains('open'))aiChatToon();
+  })();
+  return _aiGeschLaden;
+}
+async function aiGeschBewaar(){
+  clearTimeout(_aiGeschTimer);_aiGeschTimer=null;
+  if(!_aiGeschVuil||!driveGelezen)return;
+  if(_aiGeschSchrijft){_aiGeschNogEens=true;return;}
+  _aiGeschSchrijft=true;
+  try{
+    /* Eerst lezen: anders schrijft een lege lijst over wat er al stond. */
+    await aiGeschLaad();
+    if(aiGeschStand!=='klaar')throw new Error('Geschiedenis niet opgehaald');
+    const b=await aiGeschOpslag.zoek();
+    if(b&&b.modifiedTime!==aiGeschTijd)aiGesch=aiGeschSamen(aiGesch,await aiGeschOpslag.lees(b));
+    _aiGeschVuil=false;
+    const r=await aiGeschOpslag.schrijf(b,aiGesch);
+    aiGeschTijd=(r&&r.modifiedTime)||null;
+  }catch(e){
+    console.warn('[chat] geschiedenis bewaren',e);
+    _aiGeschVuil=true;
+  }finally{
+    _aiGeschSchrijft=false;
+    if(_aiGeschNogEens){_aiGeschNogEens=false;aiGeschBewaar();}
+  }
+}
+/* Een wachtende schrijfactie niet laten liggen als je het tabblad wegklikt. */
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='hidden'&&_aiGeschTimer)aiGeschBewaar();
+});
+
+function aiGeschToon(){
+  if(_aiCalling.chat)return;
+  aiChatWeergave=aiChatWeergave==='lijst'?'gesprek':'lijst';
+  if(aiChatWeergave==='lijst'&&aiGeschStand!=='klaar'&&aiGeschStand!=='laden')aiGeschLaad();
+  aiChatToon();aiChatKnoppen();
+  const l=document.getElementById('aiChatLijst');
+  if(l)l.scrollTop=aiChatWeergave==='lijst'?0:l.scrollHeight;
+}
+function aiGeschOpen(id){
+  if(_aiCalling.chat)return;
+  if(id!==aiChatId){
+    const g=aiGesch.gesprekken.find(x=>x.id===id);
+    if(!g)return;
+    aiGeschPlan();
+    aiChatGesprek=g.beurten.map(aiGeschTerug);
+    aiChatId=id;
+  }
+  aiChatWeergave='gesprek';
+  aiChatToon();aiChatKnoppen();
+  const l=document.getElementById('aiChatLijst');
+  if(l)l.scrollTop=l.scrollHeight;
+  document.getElementById('aiChatInvoer')?.focus();
+}
+function aiGeschWeg(id){
+  const i=aiGesch.gesprekken.findIndex(g=>g.id===id);
+  if(i<0)return;
+  const g=aiGesch.gesprekken.splice(i,1)[0];
+  aiGesch.weg[id]=new Date().toISOString();
+  const wasOpen=id===aiChatId;
+  if(wasOpen){aiChatGesprek=[];aiChatId=null;}
+  aiGeschPlanSchrijf();
+  aiChatToon();aiChatKnoppen();
+  appToast('Gesprek verwijderd',{type:'success',undo:()=>{
+    delete aiGesch.weg[id];
+    g.bijgewerkt=new Date().toISOString();
+    aiGesch=aiGeschOpruim({gesprekken:aiGesch.gesprekken.concat(g),weg:aiGesch.weg});
+    if(wasOpen&&!aiChatGesprek.length){aiChatGesprek=g.beurten.map(aiGeschTerug);aiChatId=id;}
+    aiGeschPlanSchrijf();
+    aiChatToon();aiChatKnoppen();
+  }});
+}
+Object.assign(APP_ACTIONS,{
+  aiGeschOpen:(el,e,id)=>aiGeschOpen(id),
+  aiGeschWeg:(el,e,id)=>aiGeschWeg(id),
+  aiGeschOpnieuw:()=>{aiGeschLaad(true);aiChatToon();}
+});
+
+/* "vandaag 14:05", "gisteren 09:12", "ma 6 okt", "3 sep 2025". */
+function aiGeschWanneer(iso){
+  const d=new Date(iso);
+  if(isNaN(d))return '';
+  const nu=new Date();
+  const dag=x=>new Date(x.getFullYear(),x.getMonth(),x.getDate()).getTime();
+  const verschil=Math.round((dag(nu)-dag(d))/86400000);
+  const tijd=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  const mnd=['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'][d.getMonth()];
+  if(verschil===0)return 'vandaag '+tijd;
+  if(verschil===1)return 'gisteren '+tijd;
+  if(verschil>1&&verschil<7)return ['zo','ma','di','wo','do','vr','za'][d.getDay()]+' '+d.getDate()+' '+mnd;
+  return d.getDate()+' '+mnd+(d.getFullYear()!==nu.getFullYear()?' '+d.getFullYear():'');
+}
+const AI_GESCH_WEG_IC='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4.5h11"/><path d="M6 4.5V3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5"/><path d="M4 4.5l.7 8.6a1 1 0 0 0 1 .9h4.6a1 1 0 0 0 1-.9l.7-8.6"/></svg>';
+function aiGeschLijstHtml(){
+  const uitleg={
+    laden:'Ophalen uit je Google Drive…',
+    fout:'Ophalen uit je Google Drive lukte niet.',
+    geen:'Niet verbonden met Drive: wat je nu vraagt, staat alleen in dit venster.'
+  }[aiGeschStand]||'Bewaard in je Google Drive, de laatste '+AI_GESCH_MAX+'.';
+  const kop='<div class="aic-gesch-kop"><b>Eerdere gesprekken</b><small>'+escapeHtml(uitleg)+
+    (aiGeschStand==='fout'?' <button type="button" class="aic-gesch-link" data-action="aiGeschOpnieuw">Opnieuw</button>':'')+'</small></div>';
+  const lijst=aiGesch.gesprekken;
+  if(!lijst.length)return '<div class="aic-gesch">'+kop+
+    (aiGeschStand==='laden'?'':'<p class="aic-gesch-leeg">Nog geen eerdere gesprekken.</p>')+'</div>';
+  return '<div class="aic-gesch">'+kop+lijst.map(g=>{
+    const n=g.beurten.filter(b=>b.rol==='user').length;
+    const nu=g.id===aiChatId;
+    return '<div class="aic-gesch-rij'+(nu?' is-nu':'')+'">'+
+      '<button type="button" class="aic-gesch-open" data-action="aiGeschOpen" data-arg1="'+escapeHtml(g.id)+'">'+
+        '<span class="aic-gesch-titel">'+escapeHtml(g.titel||'Gesprek')+'</span>'+
+        '<span class="aic-gesch-meta">'+(nu?'<span class="aic-gesch-nu">Nu open</span> · ':'')+
+          escapeHtml(aiGeschWanneer(g.bijgewerkt))+' · '+n+' '+(n===1?'vraag':'vragen')+'</span>'+
+      '</button>'+
+      '<button type="button" class="aic-gesch-weg" data-action="aiGeschWeg" data-arg1="'+escapeHtml(g.id)+'" '+
+        'aria-label="Gesprek verwijderen" title="Verwijderen">'+AI_GESCH_WEG_IC+'</button>'+
+    '</div>';
+  }).join('')+'</div>';
 }
 (function aiChatInit(){
   const inp=document.getElementById('aiChatInvoer');

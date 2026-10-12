@@ -935,6 +935,83 @@ async function runChecks() {
         w.switchModule(terugNaar || 'dashboard');
       }
     }],
+    /* ── Geschiedenis van Vraag het je app (2026-10-11) ──
+       Met een nep-Drive in het geheugen: aiGeschOpslag krijgt eigen zoek,
+       lees en schrijf; na afloop staat alles terug. */
+    ['Geschiedenis: een gesprek gaat naar Drive, komt terug via de lijst, en verwijderen kan met ongedaan maken', async () => {
+      const opslag = w.eval('aiGeschOpslag');
+      const echt = {zoek: opslag.zoek, lees: opslag.lees, schrijf: opslag.schrijf};
+      const oud = w.eval('JSON.stringify({g:aiGesch,t:aiGeschTijd,s:aiGeschStand,id:aiChatId,v:aiChatWeergave,d:driveGelezen,c:aiChatGesprek.map(aiGeschBeurt)})');
+      let bestand = null, geschreven = 0;
+      opslag.zoek = async () => bestand ? {id: 'f1', modifiedTime: bestand.t} : null;
+      opslag.lees = async () => JSON.parse(bestand.json);
+      opslag.schrijf = async (b, obj) => { geschreven++; bestand = {json: JSON.stringify(obj), t: 't' + geschreven};
+        return {id: 'f1', modifiedTime: bestand.t}; };
+      try {
+        w.eval("driveGelezen=true;aiGesch={versie:1,gesprekken:[],weg:{}};aiGeschTijd=null;aiGeschStand='nog';" +
+          "_aiGeschLaden=null;_aiGeschVuil=false;aiChatId=null;aiChatWeergave='gesprek';aiChatGesprek=[];");
+        w.aiChatOpen();
+        await new Promise(r => setTimeout(r, 30));
+        w.eval('aiChatGesprek=[{rol:"user",tekst:"Zet een taak klaar"},{rol:"model",tekst:"Ik zet het klaar.",acties:[]}]');
+        const acties = w.eval('aiChatGesprek[1].acties');
+        acties.push({naam: 'taak_toevoegen', titel: 'Taak toevoegen', regels: [['Titel', 'Offerte']], status: 'voorstel', doe: () => {}});
+        acties.push({naam: 'uren_schrijven', titel: 'Uren schrijven', regels: [], status: 'gedaan', melding: 'Geschreven',
+          terug: () => {}, open: {label: 'Bekijk in Uren', doe: () => {}}});
+        /* Zoals na een antwoord: tekenen en de knoppen bijwerken. */
+        w.aiChatToon(); w.aiChatKnoppen();
+        await w.aiGeschBewaar();
+        const inDrive = JSON.parse(bestand.json);
+        const g0 = inDrive.gesprekken[0] || {};
+        const bewaard = inDrive.gesprekken.length === 1 && g0.titel === 'Zet een taak klaar' &&
+          g0.beurten[1].acties.map(a => a.status).join() === 'vervallen,gedaan' && !('terug' in g0.beurten[1].acties[1]);
+        /* Nieuw gesprek met de +, dan via de klok terug naar het eerste. */
+        d.getElementById('aiChatNieuwBtn').click();
+        const leeg = w.eval('aiChatGesprek.length') === 0 && w.eval('aiChatId') === null;
+        d.getElementById('aiChatGeschBtn').click();
+        const rijen = d.querySelectorAll('#aiChatLijst .aic-gesch-rij');
+        const lijst = rijen.length === 1 && d.getElementById('aiChatGeschBtn').getAttribute('aria-pressed') === 'true' &&
+          /Zet een taak klaar/.test(rijen[0].textContent) && /1 vraag/.test(rijen[0].textContent);
+        rijen[0].querySelector('.aic-gesch-open').click();
+        const terug = w.eval('aiChatGesprek.length') === 2 && w.eval('aiChatWeergave') === 'gesprek' &&
+          w.eval('aiChatGesprek[1].acties[0].status') === 'vervallen' &&
+          !d.querySelector('#aiChatLijst [data-action="aiActieDoe"]') &&
+          !d.querySelector('#aiChatLijst [data-action="aiActieTerug"]');
+        /* Terugopenen verandert het gesprek niet: geen nieuwe schrijfactie. */
+        const geenWijziging = !w.eval('aiGeschOnthoud()');
+        /* Verwijderen in de lijst, en ongedaan maken. */
+        d.getElementById('aiChatGeschBtn').click();
+        d.querySelector('#aiChatLijst .aic-gesch-weg').click();
+        const weg = d.querySelectorAll('#aiChatLijst .aic-gesch-rij').length === 0 &&
+          Object.keys(w.eval('aiGesch.weg')).length === 1 && w.eval('aiChatGesprek.length') === 0;
+        w.appToastUndo();
+        const hersteld = d.querySelectorAll('#aiChatLijst .aic-gesch-rij').length === 1 &&
+          Object.keys(w.eval('aiGesch.weg')).length === 0;
+        return bewaard && leeg && lijst && terug && geenWijziging && weg && hersteld;
+      } finally {
+        Object.assign(opslag, echt);
+        w.eval('clearTimeout(_aiGeschTimer);_aiGeschTimer=null;');
+        w.eval('(function(o){aiGesch=o.g;aiGeschTijd=o.t;aiGeschStand=o.s;aiChatId=o.id;aiChatWeergave=o.v;driveGelezen=o.d;' +
+          '_aiGeschLaden=null;_aiGeschVuil=false;aiChatGesprek=o.c.map(aiGeschTerug);})(' + oud + ')');
+        w.aiChatSluit();
+      }
+    }],
+    ['Geschiedenis: samenvoegen per gesprek, de nieuwste wint, en een verwijderd gesprek komt niet terug', () => {
+      const g = (id, t) => ({id, titel: id, start: t, bijgewerkt: t, beurten: [{rol: 'user', tekst: id}]});
+      const hier = {gesprekken: [g('a', '2026-10-11T10:00:00Z'), g('b', '2026-10-11T09:00:00Z')], weg: {c: '2026-10-11T11:00:00Z'}};
+      const daar = {gesprekken: [g('a', '2026-10-11T12:00:00Z'), g('c', '2026-10-11T08:00:00Z'), g('d', '2026-10-10T08:00:00Z')], weg: {}};
+      const s = w.aiGeschSamen(hier, daar);
+      const ids = s.gesprekken.map(x => x.id).join();
+      const veel = w.aiGeschOpruim({gesprekken: Array.from({length: 130}, (_, i) =>
+        g('x' + i, new Date(Date.UTC(2026, 0, 1, 0, i)).toISOString())), weg: {}});
+      /* Zonder Drive: niets ophalen, stand "geen". */
+      const oudD = w.eval('driveGelezen'), oudS = w.eval('aiGeschStand');
+      w.eval("driveGelezen=false;aiGeschStand='nog'");
+      w.aiGeschLaad();
+      const geen = w.eval('aiGeschStand') === 'geen';
+      w.eval('driveGelezen=' + oudD + ';aiGeschStand=' + JSON.stringify(oudS));
+      return ids === 'a,b,d' && s.gesprekken[0].bijgewerkt === '2026-10-11T12:00:00Z' && !!s.weg.c &&
+        veel.gesprekken.length === 100 && veel.gesprekken[0].id === 'x129' && geen;
+    }],
     ['Instellingen: een account en een sleutel klappen in met een klik, de stand blijft, en geen knop Vraag het op het Dashboard', async () => {
       const LS = 'herling_instellingen_open';
       const oudLS = localStorage.getItem(LS);

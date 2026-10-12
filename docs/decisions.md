@@ -6933,7 +6933,60 @@ later.
 **Niet doen.** Een eigen naam, e-mailadres of bedrijfsnaam als vaste tekst
 in een bestand dat de site serveert. Lees zoiets uit de eigen gegevens.
 
-## 2026-10-12 · Mail versturen: zelf bekijken, zelf klikken (v2.58)
+## 2026-10-11 · Eerdere gesprekken van Vraag het je app, in Drive (v2.58)
+
+**Probleem.** Frank wil zijn eerdere gesprekken met de chat terugzien. Tot
+nu toe bleef een gesprek alleen in het geheugen van de sessie (entry van
+2026-10-09: "niets naar Drive"). Sluit je het venster of herlaad je de app,
+dan is het weg.
+
+**Beslissing.**
+- Gesprekken gaan naar een **eigen bestand** in de verborgen app-map:
+  `ai-gesprekken.json` (`AI_GESCH_BESTAND`), naast `herling-analytics.json`.
+  Ze gaan **niet** in `rawState`; dat deel van het besluit van 2026-10-09
+  blijft staan. `rawState` gaat bij elke wijziging in zijn geheel naar
+  Drive en als vangnet naar localStorage, en daar past maar zo'n 5 MB in.
+- **Omvang.** Alleen tekst. Een gesprek is een paar kB, honderd gesprekken
+  zijn hooguit een paar honderd kB tot 1 MB. De app houdt de laatste 100
+  (`AI_GESCH_MAX`); het oudste valt eraf.
+- **Wat er bewaard wordt.** Per beurt de tekst, wat er is opgezocht, en van
+  elk voorstel titel, regels en stand. De functies erachter (uitvoeren,
+  ongedaan maken, bekijk) gaan niet mee. Een voorstel dat nog openstond,
+  is na terugopenen vervallen. Ongedaan maken kan na terugopenen niet meer.
+  Een open voorstel wordt meteen als vervallen bewaard, zodat terugopenen
+  het gesprek niet verandert en het niet bovenaan de lijst springt.
+- **Twee computers.** Vóór het schrijven kijkt de app of het bestand
+  intussen veranderd is (`modifiedTime`). Zo ja, dan voegt hij samen per
+  gesprek, en de nieuwste versie wint (`aiGeschSamen`). Een verwijderd
+  gesprek laat een grafsteen achter (`weg`, 60 dagen), zodat het niet
+  terugkomt uit een oudere kopie.
+- **Wanneer.** Ophalen gebeurt bij het openen van de chat, één keer per
+  sessie. Bewaren gebeurt 1,5 s na elke verandering (een antwoord, een
+  uitgevoerd voorstel) en meteen als je het tabblad wegklikt. Mislukt het,
+  dan probeert de app het bij de volgende verandering opnieuw.
+  - Eerst lezen, dan schrijven: een lege lijst schrijft nooit over wat er
+    al stond.
+  - Zonder Drive (nog niet gelezen deze sessie, of localhost) staat de
+    geschiedenis alleen in het geheugen, en zegt de lijst dat.
+- **Bediening.** Een klok in de kop van de chat, links van de **+**. Die
+  toont de lijst in het venster zelf: eerste vraag, wanneer, en het aantal
+  vragen. Klik op een regel om het gesprek te openen en verder te vragen.
+  De prullenbak verwijdert het gesprek, met *Ongedaan maken*.
+- **Privacy.** De gesprekken staan in dezelfde verborgen map als de rest:
+  alleen deze app kan erbij. Ze bevatten de echte namen (zoals je ze in
+  beeld zag), ook wat de chat uit agenda of mail haalde. Naar het model
+  gaat dezelfde maskering als altijd.
+
+**Bestanden.** `index.html` (`aiGesch*`, `aiChatId`, `aiChatWeergave`,
+`aiChatToon`, `aiChatNieuw`, `aiChatKnoppen`, `aiChatOpen`, `aiChatVraag`;
+kop van `#aiChatModal`; CSS bij `.aic-`), `test.html` (2 tests), `sw.js`,
+`docs/stijlgids.md` §16, `CLAUDE.md`.
+
+**Niet doen.** De gesprekken in `rawState` zetten. Zonder eerst te lezen
+naar `ai-gesprekken.json` schrijven. De grafstenen weglaten: dan komt een
+verwijderd gesprek terug zodra een andere computer schrijft.
+
+## 2026-10-12 · Mail versturen: zelf bekijken, zelf klikken (v2.59)
 
 **Probleem.** Vanuit de app kon je alleen een concept in Gmail zetten.
 Daarna moest je naar Gmail om het te versturen, terwijl versturen juist
