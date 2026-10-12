@@ -7027,3 +7027,30 @@ telefoon in de lade. De test op Instellingen controleert ook dit menu.
 **Bestanden.** `index.html`, `test.html`, `sw.js`.
 
 **Niet doen.** Een tweede ingang naar de chat terugzetten op het Dashboard.
+
+## 2026-10-12 · Wekelijkse review weg (v2.62)
+
+**Probleem.** De wekelijkse review (een AI-samenvatting van de taken die je
+in een week afrondde, met weeknavigatie en *Opslaan als notitie*) was alleen
+vanaf het Dashboard te openen: een knop in de kopbalk en een regel in het
+⋯-menu op mobiel. De gebruiker wilde hem van het Dashboard af. Er was geen
+andere plek, en de gebruiker koos ervoor de functie helemaal weg te halen,
+in plaats van hem te verhuizen naar de Checklist of de chat.
+
+**Beslissing.** De functie is weg:
+- het venster `#weeklyReviewModal`;
+- de functies (`openWeeklyReviewModal`, `generateWeeklyReview`,
+  `_collectWeeklyReviewData`, …) met hun `window.`-exports;
+- de CSS `.wr-*`;
+- de knop en de menuregel;
+- de teller `aiQuotaBadgeReview` en `_aiCalling.weeklyReview`.
+
+**Alternatief.** *Vraag het je app* beantwoordt "Hoeveel taken heb ik deze
+week afgerond?" uit hetzelfde gegeven: `doneAt`, afgerond per ISO-week in
+`aiChatOverzicht()`. Dat veld blijft dus gewoon bestaan. Eerder opgeslagen
+reviews staan als notities in Notities → Reviews en blijven daar.
+
+**Bestanden.** `index.html`, `test.html` (een opmerking), `sw.js`,
+`CLAUDE.md`.
+
+**Niet doen.** `doneAt` weghalen: de chat telt er afgeronde taken mee.

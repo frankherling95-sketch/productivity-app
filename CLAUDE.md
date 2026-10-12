@@ -183,7 +183,7 @@ verschillende maten kreeg en de filterknop twee.
 | Library | Versie | Doel |
 |---------|--------|------|
 | SheetJS `xlsx` (cdn.sheetjs.com) | 0.20.3 | Excel-export (Uren, Facturen) en -import (taken) — npm wordt niet meer bijgewerkt |
-| `marked` (jsdelivr, `lib/marked.umd.js`) | 18.0.14 | Markdown → HTML (AI-opschoning, slim toevoegen, wekelijkse review) |
+| `marked` (jsdelivr, `lib/marked.umd.js`) | 18.0.14 | Markdown → HTML (AI-opschoning, slim toevoegen, Vraag het je app) |
 | `dompurify` (jsdelivr) | 3.4.16 | Sanitizer voor alle HTML die met innerHTML de pagina in gaat (`veiligeHtml()`) |
 | `jspdf` (jsdelivr) | 4.2.1 | Factuur-PDF's |
 | Google Identity Services | — | Inloggen |
@@ -337,9 +337,9 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
+- **2026-10-12**: **Wekelijkse review weg** (v2.62) — venster, functies, CSS `.wr-*`, de knop op het Dashboard en de regel in het ⋯-menu. Vraag het je app beantwoordt hoeveel taken je deze week afrondde (uit `doneAt`, dat blijft). Vraag het je app staat alleen nog in de zijbalk (v2.61)
 - **2026-10-12**: **Mail versturen: zelf bekijken, zelf klikken** (v2.59) — het antwoordvenster toont de hele mail (aan en cc aan te passen, handtekening uit Gmail) en verstuurt pas na *Versturen*, met nog even *Niet versturen*. De chat zet alleen klaar; mail-acties staan niet onder *Alles uitvoeren*
 - **2026-10-11**: **Eerdere gesprekken van Vraag het je app** (v2.58) — bewaard in Drive in een eigen bestand (`ai-gesprekken.json`, de laatste 100, niet in `rawState`), samengevoegd per gesprek met grafstenen voor verwijderde. Klok in de kop van de chat: lijst, openen en doorvragen, verwijderen met ongedaan maken. Een open voorstel is na terugopenen vervallen; ongedaan maken kan dan niet meer. Draait het besluit "niets naar Drive" van 2026-10-09 terug, op verzoek
-- **2026-10-11**: **Anoniemer** (v2.57) — `_config.yml` houdt docs, tests en hulpscripts van de live site; naam en bedrijf komen uit de login en de factuurgegevens (`gebruikerOndertekening()`), niet als vaste tekst; commits onder het noreply-adres van GitHub
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 
@@ -426,7 +426,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 198 smoke-, sync-, model-, reken-, sorteer-, agenda- en mailtests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
+| `test.html` | 202 smoke-, sync-, model-, reken-, sorteer-, agenda- en mailtests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |
