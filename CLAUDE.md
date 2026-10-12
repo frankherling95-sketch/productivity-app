@@ -27,7 +27,7 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 ├── _config.yml                   ← Pages/Jekyll: houdt CLAUDE.md, docs/, test.html en hulpscripts van de live site
 ├── herling-icon.svg              ← open-ring-logo op donkere tegel, stilstaand (manifest)
 ├── herling-favicon-16/32.png     ← tabblad
-├── herling-ring-48.png           ← regel "Alle klanten" in de klantwisselaar; het logo met tekst linksboven staat inline in index.html
+├── herling-ring-48.png           ← regel "Alle klanten" in de klantwisselaar; het logo met tekst staat inline in index.html: linksboven in de zijbalk (versie voor donker) en op het inlogscherm (versie voor licht, `.login-logo`)
 ├── herling-icon-180/192/512.png, herling-icon-maskable-512.png  ← app-iconen (iOS, Android; maskable = teken op volle achtergrond, binnen de veilige zone)
 ├── manifest.json, sw.js          ← PWA + Service Worker (zie ⚠️ hieronder)
 ├── CLAUDE.md                     ← dit bestand
