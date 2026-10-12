@@ -1180,6 +1180,20 @@ async function runChecks() {
               acties.every(a => a.status === 'gedaan');
           } finally { w.eval('aiChatGesprek=' + oudG + '.map(aiGeschTerug)'); terug(); }
         }],
+        ['Projecten op het Dashboard: het project staat in de taakregel, en een klik toont dat project in de Checklist', async () => {
+          const terug = opzet();
+          try {
+            w.switchModule('dashboard'); w.renderDashChecklist();
+            const rij = d.querySelector('#dashChecklistBody .dash-taak[data-id="pta"]');
+            const knop = rij && rij.querySelector('.dash-taak-meta.met-project .dash-taak-project[data-arg1="pp1"]');
+            const los = d.querySelector('#dashChecklistBody .dash-taak[data-id="ptc"] .dash-taak-project');
+            const label = !!knop && knop.textContent.trim() === 'Nieuwe website' && !los;
+            knop.click();
+            await new Promise(r => setTimeout(r, 30));
+            return label && w.eval('activeModule') === 'checklist' && w.eval('clFilters.projectId') === 'pp1' &&
+              zichtbaar('pta') && !zichtbaar('ptc');
+          } finally { terug(); }
+        }],
         ['Projecten: samenvoegen bij een schrijfbotsing neemt projecten van beide kanten mee', () => {
           const r = w.voegStateSamen({checklist: {items: [], projects: [{id: 'pa'}, {id: 'pb'}]}}, {checklist: {items: [], projects: [{id: 'pb'}, {id: 'pc'}]}});
           return r.state.checklist.projects.map(x => x.id).join() === 'pb,pc,pa';

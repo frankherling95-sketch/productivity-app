@@ -338,9 +338,9 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
+- **2026-10-12**: **Projecten op de Checklist-kaart van het Dashboard** (v2.72) — in de metaregel na de klant een mapje met de projectnaam, een knop naar dat project in de Checklist (`aiNaarProject`). De metaregel is nu altijd één regel: klant en project korten in met …, de klant eerst; op een telefoon staat naast een project alleen het klantblokje
 - **2026-10-12**: **De chat maakt projecten aan** (v2.70) — actie `project_aanmaken` (naam, klant, en desgewenst een eerste specificatie als notitie), als voorstelkaart. Taken in hetzelfde antwoord mogen naar dat nog niet aangemaakte project verwijzen ("(nieuw)"); bij uitvoeren zoeken ze het opnieuw op, dus eerst het project, dan de taken (`Alles uitvoeren` doet ze in volgorde)
 - **2026-10-12**: **Projecten in de Checklist** (v2.69) — `checklistState.projects` (altijd bij een klant), een taak optioneel in een project (`projectId`). Filter in de filterbalk, label op de taak, een balk met Specificatie (een gekoppelde notitie), Afronden en ⋯. Ook in de chat: `taken.projecten` met de stand, `taak_toevoegen` met `project`, links `[naam](#project-ID)`
-- **2026-10-12**: **Deeltjeslijn in de hero, geen ronde + op het mobiele Dashboard** (v2.68) — de SVG-lijn met lichtpuls is vervangen door een canvas met stippen (`dashHeroLijn()`, ontwerp "Particle line"): onder het woord *chat* beginnend, 30 beelden/s, alleen in beeld, stil bij "beweging beperken". Op een telefoon staat op het Dashboard geen ronde + meer (de balk doet dat werk); op de andere pagina's wel
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 
@@ -427,7 +427,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 217 smoke-, sync-, model-, reken-, sorteer-, agenda- en mailtests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
+| `test.html` | 218 smoke-, sync-, model-, reken-, sorteer-, agenda- en mailtests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |

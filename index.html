@@ -6296,6 +6296,11 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
   #dashChecklistBody .dash-vink { grid-area: vink; }
   #dashChecklistBody .dash-taak-titel { grid-area: titel; }
   #dashChecklistBody .dash-taak-meta { grid-area: meta; }
+  /* Met een project alleen het klantblokje, dan het project: naast elkaar
+     bleef er van de klantnaam niets over (2026-10-12). */
+  #dashChecklistBody .dash-taak-meta.met-project > .dash-taak-klant .dash-taak-naam,
+  #dashChecklistBody .dash-taak-meta.met-project > .dash-taak-klant + .dash-taak-sep { display: none; }
+  #dashChecklistBody .dash-taak-meta.met-project > .dash-taak-klant { flex-shrink: 0; }
   #dashChecklistBody .dash-pri { grid-area: pri; }
   #dashChecklistBody .dash-exp { grid-area: exp; }
   /* Twee regels titel: op 375px blijft er naast pil en knop ±150px over. */
@@ -7933,13 +7938,32 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
 }
 .dash-taak-titel:hover { text-decoration: underline; text-decoration-color: var(--border-strong); text-underline-offset: 3px; }
 .dash-taak-meta {
-  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  display: flex; align-items: center; gap: 6px;
   font-size: var(--fs-micro); color: var(--text-muted);
   font-variant-numeric: tabular-nums;
   min-width: 0;
 }
+/* Eén regel (2026-10-12): klant en project korten in met …, de rest blijft
+   staan. Brak de regel, dan bleef er een losse · aan het eind hangen. */
+.dash-taak-meta > * { flex-shrink: 0; }
+.dash-taak-meta > .dash-taak-project { flex-shrink: 1; }
+.dash-taak-meta > .dash-taak-klant { flex-shrink: 3; }
+/* Met een project: het project is specifieker, dus de klant geeft eerst
+   ruimte op en neemt hooguit 45% van de regel. */
+.dash-taak-meta.met-project > .dash-taak-klant { max-width: 45%; }
+.dash-taak-naam { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dash-taak-sep { color: var(--text-hint); }
 .dash-taak-klant { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
+/* Het project: dezelfde regel als de klant, met een mapje van 11px in plaats
+   van het blokje. Een knop, in de kleur van de metaregel; bij hover de tekst. */
+.dash-taak-project {
+  display: inline-flex; align-items: center; gap: 4px; min-width: 0;
+  padding: 0; border: 0; background: none;
+  font: inherit; color: inherit; cursor: pointer;
+  transition: color var(--duur-kort) var(--ease);
+}
+.dash-taak-project:hover { color: var(--text); }
+.dash-taak-project svg { width: 11px; height: 11px; flex: none; }
 .dash-taak-blok { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
 .dash-notitie-klant .dash-taak-blok { border-radius: 2px; }
 .dash-taak-datum.te-laat { color: var(--danger); font-weight: 600; }
@@ -8994,7 +9018,7 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.71</span>
+        <span class="app-versie" title="Appversie">v2.72</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -14123,7 +14147,11 @@ function dashTaakHtml(item,vandaag){
   const overdue=item.deadline&&item.deadline<vandaag;
   const id=escapeHtml(item.id);
   const meta=[];
-  if(client)meta.push(`<span class="dash-taak-klant"><span class="dash-taak-blok" style="background:${col.tx}"></span>${escapeHtml(client.name)}</span>`);
+  if(client)meta.push(`<span class="dash-taak-klant" title="${escapeHtml(client.name)}"><span class="dash-taak-blok" style="background:${col.tx}"></span><span class="dash-taak-naam">${escapeHtml(client.name)}</span></span>`);
+  /* Het project (2026-10-12), na de klant: een mapje en de naam. Een tik
+     gaat naar dat project in de Checklist, net als het label daar. */
+  const proj=clProject(item.projectId);
+  if(proj)meta.push(`<button type="button" class="dash-taak-project" data-action="dashProjectOpen" data-arg1="${escapeHtml(proj.id)}" title="${escapeHtml(proj.naam)} — naar dit project in de Checklist">${CL_PROJECT_IC}<span class="dash-taak-naam">${escapeHtml(proj.naam)}</span></button>`);
   if(item.deadline)meta.push(`<span class="dash-taak-datum${overdue?' te-laat':''}">${dashTaakDeadline(item.deadline,vandaag)}</span>`);
   if(subs.length){
     const omtrek=50.27, boog=(af/subs.length)*omtrek;
@@ -14148,7 +14176,7 @@ function dashTaakHtml(item,vandaag){
       <button type="button" class="dash-vink" data-action="dashClToggle" data-arg1="${id}" aria-label="Afvinken: ${escapeHtml(item.text)}">${DASH_VINK_SVG}</button>
       <div class="dash-taak-tekst">
         <button type="button" class="dash-taak-titel" data-action="dashTaakBewerk" data-arg1="${id}" title="Bewerken">${escapeHtml(item.text)}</button>
-        ${meta.length?`<div class="dash-taak-meta">${meta.join(sep)}</div>`:''}
+        ${meta.length?`<div class="dash-taak-meta${proj?' met-project':''}">${meta.join(sep)}</div>`:''}
       </div>
       ${subs.length?`<button type="button" class="dash-exp" data-action="dashTaakOpen" data-arg1="${id}" aria-expanded="${open}" aria-controls="dashSubs-${id}" aria-label="${open?'Subtaken inklappen':'Subtaken tonen'}">${DASH_CHEV_SVG}</button>`:''}
       <span class="dash-pri" style="background:${cfg.bg};color:${cfg.tx}">${cfg.label}</span>
@@ -14487,6 +14515,7 @@ Object.assign(APP_ACTIONS,{
   dashTaakBewerk:(el,e,id)=>dashTaakBewerk(id),
   dashSubNieuw:(el,e,id)=>dashSubNieuw(id),
   dashNotitieOpen:(el,e,id)=>dashNotitieOpen(id),
+  dashProjectOpen:(el,e,id)=>aiNaarProject(id),
   dashOcOpen:(el,e,soort,id)=>dashOcOpen(soort,id),
   dashOcPrive:()=>dashOcPrive()
 });

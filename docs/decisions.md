@@ -7399,3 +7399,36 @@ tint houden maar de pagina nog steeds donkerder maken dan op de webversie.
 
 **Niet doen.** De laag weer een kleur geven. En hem weghalen: dan sluit
 een tik naast de lade hem niet meer.
+
+## 2026-10-12 · Projecten op de Checklist-kaart van het Dashboard (v2.72)
+
+**Vraag.** De gebruiker wil de projecten (v2.69) ook zien op de
+Checklist-kaart van het Dashboard.
+
+**Beslissing.**
+- In de metaregel van een taak staat na de klant het project: een mapje
+  van 11px en de naam, in de kleur van de metaregel (`--text-muted`, bij
+  hover `--text`). Het is een knop (`dashProjectOpen`) die naar de
+  Checklist gaat met alleen dat project, via `aiNaarProject` (dezelfde
+  functie als een projectlink in de chat).
+- **De metaregel is één regel.** Met het project erbij brak hij op een
+  bureaublad bij elke taak met een project, en bleef er een losse `·`
+  aan het eind van de eerste regel hangen. Op een telefoon brak hij al
+  vóór deze wijziging (de ring kwam alleen op de tweede regel). Nu:
+  - datum, ring en scheidingstekens krimpen niet;
+  - klant en project korten in met …; de klant eerst (`flex-shrink: 3`
+    tegen 1), want het project is specifieker;
+  - met een project neemt de klant hooguit 45% van de regel
+    (`.met-project`), anders duwt een lange klantnaam het project weg;
+  - op een telefoon staat naast een project alleen het klantblokje: er
+    bleef daar van de klantnaam niets leesbaars over. De volle namen
+    staan in de tooltip.
+
+**Bestanden.** `index.html` (`dashTaakHtml`, `APP_ACTIONS.dashProjectOpen`,
+`.dash-taak-meta`, `.dash-taak-naam`, `.dash-taak-project` en de mobiele
+regel bij `#dashChecklistBody`), `test.html` (1 nieuwe test),
+`docs/stijlgids.md` (Taakregel op het Dashboard), `sw.js`, `CLAUDE.md`.
+
+**Niet doen.** De metaregel weer laten breken (`flex-wrap: wrap`): dan
+komt de losse `·` terug. En het project een eigen kleur geven: de kleur
+hoort bij de klant, net als bij het label in de Checklist.

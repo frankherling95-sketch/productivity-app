@@ -236,7 +236,7 @@ rechts `--fs-micro` `--text-hint` ("14:20", "gisteren", "ma", "28 sep").
 |---|---|
 | vinkje | 20px, radius 6, 7px van de rand: zijn midden (17px) is de boomlijn |
 | titel | `--fs-basis` / 600, één regel (mobiel twee); klik = taakvenster |
-| meta | `--fs-micro`: klantblokje 8px · deadline (te laat in `--danger`) · ring 11px + `d/n` (de ring is ook de uitklapknop) |
+| meta | `--fs-micro`, **één regel**: klantblokje 8px · project (mapje 11px, een knop naar dat project in de Checklist) · deadline (te laat in `--danger`) · ring 11px + `d/n` (de ring is ook de uitklapknop). Past het niet, dan korten klant en project in met … — de klant eerst en met een project hooguit 45%; op een telefoon dan alleen het klantblokje vóór het project |
 | uitklappen | `.dash-exp` 28px (mobiel `--tap`), chevron 16px, `aria-expanded`; alleen bij subtaken |
 | prioriteit | pil `--fs-micro`/700 in de kleuren van `CL_PRIORITY_CFG`; op mobiel naast de titel |
 | open | vlak `--surface2`; subtaken 36px (mobiel `--tap`), `--fs-klein`, vinkje 16px, boomlijn 1px `--border-strong`; "+ Subtaak" `--text-hint`, hover mint |
