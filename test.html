@@ -565,9 +565,10 @@ async function runChecks() {
     /* ── De chat die ook dingen doet (2026-10-11) ──
        Voorstel → jouw klik → uitvoeren → ongedaan maken. Alles via een
        nagebootste fetch of rechtstreeks op het voorstel; geen echte aanroep. */
-    ['Acties: vijf gereedschappen zonder account, strikt, elk veld verplicht', () => zonderAccounts(() => {
+    /* Zonder account: vijf acties en twee keer notities (zoeken, lezen; sinds 2026-10-12). */
+    ['Acties: zeven gereedschappen zonder account, strikt, elk veld verplicht', () => zonderAccounts(() => {
       const g = w.aiActieGereedschap();
-      return g.length === 5 && g.every(t => t.strict === true && t.input_schema.additionalProperties === false &&
+      return g.length === 7 && g.every(t => t.strict === true && t.input_schema.additionalProperties === false &&
         Object.keys(t.input_schema.properties).every(k => t.input_schema.required.includes(k)) && t.description);
     })],
     /* Met een gekoppeld account komen er drie acties en drie keer opzoeken
@@ -575,7 +576,7 @@ async function runChecks() {
     ['Acties: met een account ook agenda en mail, ook strikt', () => metGoogle(() => {
       const g = w.aiActieGereedschap();
       const namen = g.map(t => t.name);
-      return g.length === 11 && ['afspraak_maken', 'mail_opruimen', 'mail_concept', 'agenda_bekijken', 'mail_zoeken', 'mail_lezen']
+      return g.length === 13 && ['afspraak_maken', 'mail_opruimen', 'mail_concept', 'agenda_bekijken', 'mail_zoeken', 'mail_lezen']
         .every(n => namen.includes(n)) && g.every(t => t.strict === true && t.input_schema.additionalProperties === false &&
         Object.keys(t.input_schema.properties).every(k => t.input_schema.required.includes(k)));
     })],
@@ -614,7 +615,7 @@ async function runChecks() {
       } catch (e) { fout = e.message; }
       finally { w.fetch = oudFetch; w._aiBumpUsage = oudTel; }
       const actie = stukken.find(s => typeof s !== 'string');
-      return !fout && body.tools.length === 5 && !JSON.stringify(body).includes(naam) &&
+      return !fout && body.tools.length === 7 && !JSON.stringify(body).includes(naam) &&
         stukken.filter(s => typeof s === 'string').join('') === 'Ik zet het klaar.' &&
         actie && actie.naam === 'taak_toevoegen' && actie.input.klant === naam;
     }],
@@ -1011,6 +1012,52 @@ async function runChecks() {
       w.eval('driveGelezen=' + oudD + ';aiGeschStand=' + JSON.stringify(oudS));
       return ids === 'a,b,d' && s.gesprekken[0].bijgewerkt === '2026-10-11T12:00:00Z' && !!s.weg.c &&
         veel.gesprekken.length === 100 && veel.gesprekken[0].id === 'x129' && geen;
+    }],
+    /* ── Notities in Vraag het je app (2026-10-12) ── */
+    ['Notities: zoeken vindt op tekst zonder HTML, slaat een verborgen klant over; lezen geeft platte tekst', async () => {
+      const oud = w.eval('JSON.stringify({t:notesState.tree,c:kanbanState.clients})');
+      try {
+        w.eval(`kanbanState.clients.push({id:'nv1',name:'Klant West',colorIdx:2,verborgen:true});
+          notesState.tree.push({id:'nm1',type:'folder',title:'Testmap',children:[
+            {id:'np1',type:'page',title:'Overleg oplevering',clientId:'',tags:[],children:[],updatedAt:Date.now(),
+             content:'<h2>Oplevering</h2><p>Afgesproken: &amp; demo op <b>vrijdag</b></p><ul><li>punt een</li></ul><img src="data:image/png;base64,AAAA">'},
+            {id:'np2',type:'page',title:'Verborgen',clientId:'nv1',tags:[],children:[],updatedAt:Date.now(),
+             content:'<p>demo vrijdag geheim</p>'}]});`);
+        const L = w.eval('AI_LEES');
+        const z = await L.notities_zoeken.voer({zoek: 'Demo VRIJDAG', klant: '', max: 10});
+        const r = z.data.resultaten;
+        const zoeken = r.length === 1 && r[0].id === 'np1' && r[0].map === 'Testmap' && /demo op vrijdag/.test(r[0].fragment);
+        const l = await L.notitie_lezen.voer({id: 'np1'});
+        const lezen = /^Oplevering\nAfgesproken: & demo op vrijdag\n+- punt een$/.test(l.data.tekst) && !/[<>]|base64/.test(l.data.tekst);
+        const onbekend = !!(await L.notitie_lezen.voer({id: 'np2'})).fout && !!(await L.notitie_lezen.voer({id: 'bestaatniet'})).fout;
+        return zoeken && lezen && onbekend;
+      } finally {
+        w.eval('(function(o){notesState.tree=o.t;kanbanState.clients=o.c;})(' + oud + ')');
+      }
+    }],
+    ['Notities: met Claude in het gereedschap en de instructie; met Gemini niet', () =>
+      metLS({herling_ai_aanbieder: null}, () => {
+        const namen = w.aiActieGereedschap().map(t => t.name);
+        return namen.includes('notities_zoeken') && namen.includes('notitie_lezen') && /notities_zoeken/.test(w.aiChatSysteem());
+      }).then(c => c && metLS({herling_ai_aanbieder: 'gemini'}, () => !/Notities:/.test(w.aiChatSysteem())))],
+    ['Notities: een notitie in een antwoord is een link die hem opent', async () => {
+      const terugNaar = w.eval('activeModule');
+      const oud = w.eval('JSON.stringify({t:notesState.tree,a:notesState.activeId,c:aiChatGesprek.map(aiGeschBeurt)})');
+      try {
+        w.eval(`notesState.tree.push({id:'nl1',type:'page',title:'Linknotitie',clientId:'',tags:[],children:[],content:'<p>x</p>'})`);
+        w.aiChatOpen();
+        w.eval('aiChatGesprek=[{rol:"user",tekst:"x"},{rol:"model",tekst:"Zie [Linknotitie](#notitie-nl1).",acties:[]}]');
+        w.aiChatToon();
+        const knop = d.querySelector('#aiChatLijst .aic-taak[data-action="aiChatNaarNotitie"][data-arg1="nl1"]');
+        knop.click();
+        await new Promise(r => setTimeout(r, 80));
+        return w.eval('activeModule') === 'notes' && w.eval('notesState.activeId') === 'nl1' &&
+          !d.getElementById('aiChatModal').classList.contains('open');
+      } finally {
+        w.eval('(function(o){notesState.tree=o.t;notesState.activeId=o.a;aiChatGesprek=o.c.map(aiGeschTerug);})(' + oud + ')');
+        w.aiChatSluit();
+        w.switchModule(terugNaar || 'dashboard');
+      }
     }],
     ['Dashboard: geen Slim toevoegen meer (Nieuw item, ⋯-menu); in de Checklist blijft hij', () =>
       !d.querySelector('#mod-dashboard [data-kind="ai"]') &&

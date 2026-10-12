@@ -675,7 +675,7 @@ vier, dus daar de nuttigste, met één die iets klaarzet. Met een gekoppeld
 Google-account (en Claude) gaan de agenda- en mailvraag daar nog voor
 (`aiChatSuggesties()`).
 
-**Een taak in een antwoord** is een link naar die taak in de Checklist
+**Een taak of notitie in een antwoord** is een link naar die taak in de Checklist (of die notitie)
 (`.aic-taak`): de tekst blijft staan, met een onderstreping van 1px in mint en
 3px eronder, en 2px bij hover. Geen mint tekst, want op wit is die te licht. Het is
 een knop, geen `<a href>`, omdat de app op de hash routeert.

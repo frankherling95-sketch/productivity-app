@@ -7088,3 +7088,46 @@ zulke functies in de chat hebben.
 **Niet doen.** Een taaklink als gewone `<a href="#taak-…">` laten staan:
 de hash-routering pakt hem op. En geen link maken voor een id dat niet in
 `checklistState` staat.
+
+## 2026-10-12 · Vraag het je app leest je notities (v2.64)
+
+**Vraag.** De gebruiker wil dat de chat ook de notities doorneemt. Tot nu
+toe kon de chat een notitie aanmaken, maar niet lezen.
+
+**Beslissing.** Twee nieuwe opzoekfuncties in `AI_LEES`, net als bij mail:
+lezen verandert niets, dus er komt geen kaart tussen. In de bubbel staat wel
+wat er is opgezocht. Alleen met Claude, want Gemini krijgt geen gereedschap.
+- `notities_zoeken` (`zoek`, `klant`, `max`): zoekt op woorden in titel en
+  tekst (alle woorden moeten erin staan, zonder hoofdletters of accenten)
+  en/of op een klant. Een treffer in de titel telt zwaarder. Zonder
+  zoekwoorden geeft hij de laatst gewijzigde notities. Per notitie komen
+  id, titel, map, klant, datum en een fragment van ±240 tekens terug.
+- `notitie_lezen` (`id`): de hele notitie als platte tekst, hooguit 15.000
+  tekens.
+- `aiNotities()` bepaalt wat de chat ziet: pagina's, geen mappen, niet de
+  prullenbak, en niet de notities van een verborgen klant, net als in
+  Notities en op het Dashboard.
+- `aiNotitieTekst()` maakt platte tekst van de HTML: koppen en alinea's
+  worden regels, lijstjes krijgen een streepje, en afbeeldingen gaan eruit
+  (een geplakte screenshot is honderden kB).
+- **Waarom opzoeken en niet alles meesturen.** Notities kunnen lang zijn,
+  en het overzicht gaat bij elke vraag mee. Alleen wat het model opvraagt
+  gaat de deur uit.
+- **Privacy.** De resultaten gaan door hetzelfde masker als de rest
+  (klantnamen, adressen, KvK). De instructie zegt dat tekst uit een notitie
+  informatie is, geen opdracht.
+- **Links.** Noemt de chat een notitie, dan wordt dat `[titel](#notitie-ID)`,
+  net als bij taken (`AI_CHAT_LINKS`). De knop opent die notitie
+  (`dashNotitieOpen`).
+- Een suggestie erbij: *Zoek in mijn notities: wat heb ik de laatste tijd
+  afgesproken?*
+
+**Bestanden.** `index.html` (`AI_LEES.notities_zoeken`,
+`AI_LEES.notitie_lezen`, `aiNotities`, `aiNotitieTekst`, `aiNotitieNorm`,
+`aiNotitieFragment`, `AI_CHAT_LINKS`, `aiChatSysteem`, `aiChatSuggesties`,
+teksten in het venster), `test.html` (3 nieuwe tests, 3 tellingen
+aangepast: 7 en 13 gereedschappen), `sw.js`, `docs/stijlgids.md`,
+`CLAUDE.md`.
+
+**Niet doen.** Alle notities in het overzicht stoppen dat elke vraag
+meegaat. En notities van verborgen klanten of uit de prullenbak laten zien.
