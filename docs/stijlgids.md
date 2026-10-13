@@ -593,6 +593,11 @@ de open breedte (272 → 218px; ingeklapt dezelfde bol door een spleet van
 op een laag scherm blijft hij onder Instellingen. Achter de voet zijn de
 stippen gedimd (tot 20%), zodat opslagstatus en e-mailadres leesbaar blijven.
 
+**Groepen starten dicht** (2026-10-13). Administratie (Klanten, Uren, Facturen,
+Opdrachten, Contracten) staat na elke keer laden ingeklapt, ook als je op een
+pagina daarin zit: dan kleurt alleen de kop. Binnen een sessie klapt hij open
+als je er vanaf een andere pagina heen gaat. De stand wordt niet bewaard.
+
 **Nieuwe module erbij?** Een regel met `data-mod` en `data-titel` (de tooltip
 als hij ingeklapt is). Hoort hij bij een andere, zet hem dan in een
 `.nav-groep` — geen kopje en geen losse streep.

@@ -2222,6 +2222,27 @@ async function runChecks() {
     /* ── Contracten: looptijd, verlenging en opzegdatum ──────────────────
        Zelfde afspraak als bij Opdrachten: "vandaag" gaat erin mee. 23
        september 2026 is een woensdag. */
+    ['Zijbalk: Klanten staat bovenaan in Administratie; de groep start dicht (ook op een pagina erin) en klapt open bij navigeren vanaf elders', () => {
+      const g = d.querySelector('.nav-groep[data-groep="administratie"]');
+      const terugMod = w.eval('activeModule');
+      try {
+        const plek = g.querySelector('.nav-groep-inhoud .nav-item').dataset.mod === 'klanten' &&
+          !d.querySelector('.sidebar-scroll > .nav-item[data-mod="klanten"]');
+        /* Zoals na een keer laden: nog geen route gehad, niets open. */
+        w.eval("navGroepenOpen.clear();navEersteRoute=true;activeModule='dashboard';zijbalkStandToepassen()");
+        w.switchModule('facturen');
+        const dichtBijLaden = !g.classList.contains('open') && g.classList.contains('bevat-actief');
+        w.switchModule('facturen');
+        const zelfdePagina = !g.classList.contains('open');
+        w.switchModule('dashboard'); w.switchModule('klanten');
+        const openBijNavigeren = g.classList.contains('open');
+        const nietBewaard = !/dicht/.test(w.localStorage.getItem('herling_zijbalk') || '');
+        return plek && dichtBijLaden && zelfdePagina && openBijNavigeren && nietBewaard;
+      } finally {
+        w.eval("navGroepenOpen.clear();zijbalkStandToepassen()");
+        w.switchModule(terugMod || 'dashboard');
+      }
+    }],
     ['Module: Contracten bestaat, met een regel in de zijbalk',
       () => !!d.getElementById('mod-contracten') &&
             !!d.querySelector('.nav-groep[data-groep="administratie"] [data-mod="contracten"]')],

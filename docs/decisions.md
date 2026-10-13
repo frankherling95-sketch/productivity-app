@@ -7824,3 +7824,35 @@ weg), `test.html` (2 nieuwe tests), `sw.js`, `docs/stijlgids.md` §16,
 - Het paneel op een telefoon versleepbaar maken.
 - De stand van het paneel in `rawState` zetten: het hoort bij een scherm,
   niet bij de gegevens.
+
+## 2026-10-13 · Klanten onder Administratie; de groep start altijd dicht (v2.77)
+
+**Vraag.** De gebruiker wil Klanten in de zijbalk onder Administratie, en die
+groep standaard ingeklapt: na elke keer laden dicht.
+
+**Beslissing.**
+- **Klanten is de eerste regel in de groep Administratie** (`.nav-sub`),
+  vóór Uren, Facturen, Opdrachten en Contracten. Klantgegevens horen bij de
+  administratie. Tot nu toe stond Klanten als losse regel onder Checklist
+  (2026-10-13, v2.74).
+- **Groepen worden niet meer onthouden.** De lijst `dicht` in
+  `herling_zijbalk` vervalt (een oude waarde wordt genegeerd). Alleen smal
+  of breed blijft per apparaat bewaard.
+  - Binnen een sessie houdt `navGroepenOpen` bij wat je open- of
+    dichtklapt. Na het laden is dat leeg, dus de groep is dicht. In de
+    markup staat de groep ook dicht, zodat hij niet kort openflitst.
+- **Bij het laden klapt de groep niet vanzelf open**, ook niet als je op een
+  pagina daarin zit (`navEersteRoute`). De kop kleurt dan wel mint
+  (`bevat-actief`), dus je ziet waar je bent. Laadt dezelfde pagina opnieuw
+  (na elke keer laden uit Drive, `renderAll`), dan klapt hij ook niet open.
+- **Ga je vanaf een andere pagina naar een pagina in de groep** (Klanten
+  beheren, een link, de chat), dan klapt de groep wél open, zoals voorheen.
+
+**Bestanden.** `index.html` (de zijbalk-markup, `navGroepenOpen`,
+`navEersteRoute`, `zijbalkStand`, `zijbalkStandToepassen`, `toggleNavGroep`,
+`switchModule`), `test.html` (1 nieuwe test), `docs/stijlgids.md` §13,
+`CLAUDE.md`.
+
+**Niet doen.** De groepsstand weer in localStorage zetten: dan staat hij na
+een keer openklappen voor altijd open, en dat is precies wat de gebruiker
+niet wil.
