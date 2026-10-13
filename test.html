@@ -753,9 +753,10 @@ async function runChecks() {
       const id = w.eval('checklistState.items').find(i => i.text === titel).id;
       const el = d.querySelector('#clBody .cl-item[data-id="' + id + '"]');
       const ok = label === 'Bekijk in Checklist' && w.eval('activeModule') === 'checklist' &&
-        !d.getElementById('aiChatModal').classList.contains('open') && el && el.classList.contains('is-gevonden');
+        d.getElementById('aiChatModal').classList.contains('open') === !w.aiDockMobiel() && el && el.classList.contains('is-gevonden');
       w.eval('aiChatGesprek[1].acties[0]').terug();
       w.eval('aiChatGesprek=[]');
+      w.aiChatSluit();
       w.switchModule(terugNaar || 'dashboard');
       return ok && !w.eval('checklistState.items').some(i => i.text === titel);
     }],
@@ -1053,7 +1054,7 @@ async function runChecks() {
         knop.click();
         await new Promise(r => setTimeout(r, 80));
         return w.eval('activeModule') === 'notes' && w.eval('notesState.activeId') === 'nl1' &&
-          !d.getElementById('aiChatModal').classList.contains('open');
+          d.getElementById('aiChatModal').classList.contains('open') === !w.aiDockMobiel();
       } finally {
         w.eval('(function(o){notesState.tree=o.t;notesState.activeId=o.a;aiChatGesprek=o.c.map(aiGeschTerug);})(' + oud + ')');
         w.aiChatSluit();
@@ -1294,6 +1295,131 @@ async function runChecks() {
         })()
       ];
     })(),
+    /* ── Vraag het je app als paneel dat meekijkt (2026-10-13) ──
+       Met een tijdelijke notitie; het appscherm gaat even aan, want een
+       selectie en focus bestaan alleen in iets wat in beeld is. */
+    ...(() => {
+      const opzet = () => {
+        const oud = w.eval('JSON.stringify({t:notesState.tree,a:notesState.activeId,m:activeModule,c:aiChatGesprek.map(aiGeschBeurt)})');
+        const scherm = d.getElementById('appScreen'), was = scherm.style.display;
+        scherm.style.display = 'flex';
+        w.eval(`notesState.tree.push({id:'nai',type:'page',title:'Plan van aanpak',content:'<h2>Doel</h2><p>Eerste versie van het rapport.</p><p>Tweede alinea hier.</p>',clientId:null,children:[],updatedAt:1})`);
+        w.switchModule('notes'); w.selectNote('nai');
+        return () => {
+          try { w.aiChatSluit(); w.eval("_aiSchermBijVraag=null;_aiVeld=null;_aiNoteSel=null"); } catch (_) {}
+          scherm.style.display = was;
+          w.eval('(function(o){notesState.tree=o.t;notesState.activeId=o.a;aiChatGesprek=o.c.map(aiGeschTerug);})(' + oud + ')');
+          w.switchModule(JSON.parse(oud).m || 'dashboard');
+        };
+      };
+      const node = () => w.findNode(w.eval('notesState.tree'), 'nai').node;
+      const selecteer = (tekst) => {
+        const ed = d.getElementById('noteEditor'); w.focus(); ed.focus();
+        const p = [...ed.querySelectorAll('p')].find(x => x.textContent.includes(tekst));
+        const r = d.createRange(), t = p.firstChild, i = t.textContent.indexOf(tekst);
+        r.setStart(t, i); r.setEnd(t, i + tekst.length);
+        const sel = w.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+        return new Promise(res => setTimeout(res, 30));   /* selectionchange komt als taak */
+      };
+      return [
+        ['Paneel: geen venster met achtergrond, blijft open bij een klik naar een taak (bureaublad), Escape in het paneel sluit het', () => {
+          const terug = opzet();
+          try {
+            w.aiChatOpen();
+            const m = d.getElementById('aiChatModal');
+            const paneel = m.classList.contains('open') && !m.classList.contains('modal-bg') && d.body.classList.contains('aic-open') &&
+              !d.querySelector('.modal-bg.open');
+            const e = new w.KeyboardEvent('keydown', {key: 'Escape', bubbles: true, cancelable: true});
+            d.getElementById('aiChatInvoer').dispatchEvent(e);
+            return paneel && !m.classList.contains('open') && !d.body.classList.contains('aic-open');
+          } finally { terug(); }
+        }],
+        ['Meekijken: de open notitie en je selectie gaan mee met de vraag; de schrijf-acties staan alleen dan klaar', async () => {
+          const terug = opzet();
+          try {
+            await selecteer('Tweede alinea');
+            w.aiChatOpen();
+            const s = w.aiSchermInfo();
+            const tekst = w.aiSchermTekst(s);
+            const mee = s.notitie && s.notitie.node.id === 'nai' && s.notitie.sel && s.notitie.sel.tekst === 'Tweede alinea' &&
+              /Plan van aanpak/.test(tekst) && /Geselecteerd in de notitie/.test(tekst) && /## Doel/.test(tekst);
+            const regel = /Kijkt mee: Notities · Plan van aanpak · selectie \(2 woorden\)/.test(d.getElementById('aiScherm').textContent) &&
+              d.querySelectorAll('#aiScherm .aic-chip').length === 4;
+            const namen = () => w.aiActieGereedschap().map(t => t.name);
+            const zonder = !namen().includes('notitie_bewerken');
+            w.eval('_aiSchermBijVraag=aiSchermInfo()');
+            const met = namen().includes('notitie_bewerken');
+            w.eval('_aiSchermBijVraag=null');
+            return mee && regel && zonder && met;
+          } finally { terug(); }
+        }],
+        ['notitie_bewerken: selectie vervangen, toevoegen, weigert na doortypen, en ongedaan maken', async () => {
+          const terug = opzet();
+          try {
+            await selecteer('Tweede alinea');
+            w.eval('_aiSchermBijVraag=aiSchermInfo()');
+            const sel = w.aiActieVoorstel({naam: 'notitie_bewerken', input: {soort: 'selectie', markdown: 'Herschreven stuk', uitleg: ''}});
+            const vervang = w.aiActieVoorstel({naam: 'notitie_bewerken', input: {soort: 'vervangen', markdown: '## Nieuw', uitleg: ''}});
+            w.eval('_aiSchermBijVraag=null');
+            const voor = node().content;
+            const r = sel.doe();
+            const selOk = /Herschreven stuk/.test(node().content) && !/Tweede alinea/.test(node().content) && /Eerste versie/.test(node().content);
+            r.terug();
+            const terugOk = node().content === voor;
+            /* Doorgetypt na de vraag: vervangen weigert. */
+            d.getElementById('noteEditor').insertAdjacentHTML('beforeend', '<p>Net getypt</p>');
+            let weigert = false;
+            try { vervang.doe(); } catch (e) { weigert = /intussen veranderd/.test(e.message); }
+            w.renderNoteEditor();
+            w.eval('_aiSchermBijVraag=aiSchermInfo()');
+            const erbij = w.aiActieVoorstel({naam: 'notitie_bewerken', input: {soort: 'toevoegen', markdown: 'Een nieuw slot.', uitleg: ''}});
+            w.eval('_aiSchermBijVraag=null');
+            erbij.doe();
+            const toegevoegd = /Eerste versie/.test(node().content) && /Een nieuw slot\./.test(node().content);
+            return sel.status === 'voorstel' && selOk && terugOk && weigert && toegevoegd;
+          } finally { terug(); }
+        }],
+        ['veld_invullen: vult het veld waar je stond (met input-gebeurtenis), en ongedaan maken zet het terug', () => {
+          const terug = opzet();
+          try {
+            w.openChecklistItemModal(null);
+            const veld = d.getElementById('clItemText');
+            veld.value = 'oud'; veld.focus();
+            let gemeld = 0; veld.addEventListener('input', () => gemeld++);
+            const s = w.aiSchermInfo();
+            const label = s.veld && s.veld.label === 'Omschrijving';
+            w.eval('_aiSchermBijVraag=aiSchermInfo()');
+            const k = w.aiActieVoorstel({naam: 'veld_invullen', input: {tekst: 'Offerte nalopen met de klant', modus: 'vervangen'}});
+            w.eval('_aiSchermBijVraag=null');
+            const r = k.doe();
+            const ingevuld = veld.value === 'Offerte nalopen met de klant' && gemeld === 1;
+            r.terug();
+            return label && ingevuld && veld.value === 'oud';
+          } finally { w.closeChecklistItemModal && w.closeChecklistItemModal(); terug(); }
+        }],
+        ['Snelle knop Opschonen: één vraag met vast antwoordformaat, het resultaat is een voorstel in het gesprek', async () => {
+          const terug = opzet();
+          const echt = w.callAI, sleutel = w.localStorage.getItem('herling_claude_api_key');
+          try {
+            if (!sleutel) w.localStorage.setItem('herling_claude_api_key', 'test');
+            let gevraagd = null;
+            w.callAI = async (o) => { gevraagd = o; return {soort: 'vervangen', markdown: '## Doel\nOpgeschoond.', uitleg: '- Kop gemaakt'}; };
+            w.aiChatOpen();
+            await w.aiSchermChip('opschonen');
+            const laatste = w.eval('aiChatGesprek[aiChatGesprek.length-1]');
+            const kaart = laatste.acties && laatste.acties[0];
+            return !!gevraagd && !!gevraagd.schema && gevraagd.maskeer === true && /Plan van aanpak/.test(gevraagd.user) &&
+              w.eval('aiChatGesprek[aiChatGesprek.length-2].tekst') === 'Schoon deze notitie op' &&
+              !!kaart && kaart.naam === 'notitie_bewerken' && kaart.status === 'voorstel' &&
+              !!d.querySelector('#aiChatLijst .aic-actie-voorbeeld');
+          } finally {
+            w.callAI = echt;
+            if (!sleutel) w.localStorage.removeItem('herling_claude_api_key');
+            terug();
+          }
+        }]
+      ];
+    })(),
     ['Notities: Tab springt in een opsomming in, Shift+Tab weer terug — de focus blijft in de editor', async () => {
       const oud = w.eval('JSON.stringify({t:notesState.tree,a:notesState.activeId})');
       /* Inspringen werkt alleen in een editor met focus, en een verborgen
@@ -1415,7 +1541,7 @@ async function runChecks() {
         await new Promise(r => setTimeout(r, 120));
         const el = d.querySelector('#clBody .cl-item[data-id="' + id + '"]');
         return regel && nep && geenA && inTabel && w.eval('activeModule') === 'checklist' &&
-          !d.getElementById('aiChatModal').classList.contains('open') && !!el && el.classList.contains('is-gevonden');
+          d.getElementById('aiChatModal').classList.contains('open') === !w.aiDockMobiel() && !!el && el.classList.contains('is-gevonden');
       } finally {
         w.eval('checklistState.items=checklistState.items.filter(i=>i.id!==' + JSON.stringify(id) + ')');
         w.eval('aiChatGesprek=' + oud + '.map(aiGeschTerug)');

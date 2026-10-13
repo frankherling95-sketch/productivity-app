@@ -706,11 +706,30 @@ Een nieuwe instelling krijgt een regel op deze pagina, ook als hij in een
 
 ## 16. Vraag het je app
 
-**Het venster.** Een kop op de band met de sparkle (in het verloop van het
-logo, geen emoji), de titel en rechts twee icoonknoppen zoals in §2: de
-**klok** voor eerdere gesprekken (aan: mint met een vlak van 12% wit) en de
-**+** voor een nieuw gesprek, uit (`.35`) zolang er nog geen gesprek is. Daaronder
-het gesprek, het invoerveld en een voet met het model en het verbruik.
+**Het paneel** (sinds 2026-10-13; daarvoor een venster met achtergrond). Geen
+`.modal-bg`: je werkt ernaast door, en het blijft open als je van pagina
+wisselt. Een kop op de band met de sparkle (in het verloop van het logo, geen
+emoji), de titel en rechts drie icoonknoppen zoals in §2: de **klok** voor
+eerdere gesprekken (aan: mint met een vlak van 12% wit), de **+** voor een
+nieuw gesprek (uit, `.35`, zolang er nog geen gesprek is) en het **✕**.
+Daaronder het gesprek, de regel *Kijkt mee*, het invoerveld en een voet met
+het model en het verbruik.
+
+| | Bureaublad | Telefoon |
+|---|---|---|
+| plek | rechtsonder, 24px van de randen, 420 × min(660px, scherm − 48px); boven vensters (z-index 210) | blad van onderen over de volle breedte, 88vh; onder vensters (190) |
+| openen | ronde knop rechtsonder (`.aic-starter`, 52px, `--navy`, sparkle 24px), de sparkle in de zijbalk, de sparkle in de kop van een notitie | de sparkle in de zijbalk en in de kop van een notitie — rechtsonder staat de ronde + |
+| ernaast | Notities: de editor schuift 444px op (vanaf 1100px). Een venster dat opengaat krijgt de ruimte links van het paneel | — |
+| sluiten | ✕ of Escape in het paneel; Escape elders laat het staan | ✕; een klik naar een taak of notitie sluit het blad |
+
+**Kijkt mee** (`.aic-scherm`). Eén regel boven het invoerveld: een oog en
+*Kijkt mee: Notities · Plan van aanpak · selectie (12 woorden)* in
+`--fs-micro` / 600 muted; de regel is een knop die het meekijken uit en aan
+zet (uit: doorgestreept, oog dicht). Daaronder de snelle knoppen
+(`.aic-chip`): pillen van 30px (telefoon `var(--tap)`), `--fs-klein` / 500,
+een sparkle van 13px in mint. In een notitie *Aanvullen*, *Opschonen*,
+*Advies*, *Actiepunten* (met een selectie: *Werk dit uit*, *Herschrijf dit*);
+bij een tekstveld *Schrijf "…"*; elders *Wat valt op?*.
 
 **Eerdere gesprekken** staan in het venster zelf, op de plek van het gesprek:
 een kop (`--fs-groot` / 700 display) met een regel over waar ze staan, en per
@@ -723,9 +742,9 @@ Verwijderen geeft een toast met *Ongedaan maken*.
 
 | | Bureaublad | Telefoon |
 |---|---|---|
-| kop | titel + ondertitel, **+** rechts | alleen de titel; **+** en ✕ rechts, elk `var(--tap)` |
-| lege stand | midden: kop *Waar kan ik mee helpen?* (`--fs-groot` / 700 display), uitleg `--fs-klein` muted, zeven suggesties als pillen | onderin bij het invoerveld: dezelfde kop, geen uitleg, de eerste **vier** suggesties als gelijke regels van de volle breedte (radius 12px, min. `var(--tap)`, `--fs-klein`, links uitgelijnd) |
-| voet | model als `.btn-sm`-keuze, verbruik als badge, rechts **Sluiten** | één regel: model als stille keuze (geen doos, `--fs-klein` muted), verbruik rechts als gewone tekst; onderin ruimte voor de thuisbalk |
+| kop | alleen de titel; klok, **+** en ✕ rechts | idem, elk `var(--tap)` |
+| lege stand | onderin bij het invoerveld: kop *Waar kan ik mee helpen?* (`--fs-groot` / 700 display), uitleg `--fs-klein` muted, de eerste **vier** suggesties als regels van de volle breedte (radius 10px, 36px) | dezelfde kop, geen uitleg, vier suggesties als regels (radius 12px, min. `var(--tap)`, `--fs-klein`, links uitgelijnd) |
+| voet | model als `.btn-sm`-keuze, verbruik als badge | één regel: model als stille keuze (geen doos, `--fs-klein` muted), verbruik rechts als gewone tekst; onderin ruimte voor de thuisbalk |
 
 De volgorde van de suggesties telt: op een telefoon staan alleen de eerste
 vier, dus daar de nuttigste, met één die iets klaarzet. Met een gekoppeld
@@ -751,6 +770,7 @@ als je klikt.
 | knoppen | `.btn-sm`: **Uitvoeren** primair, **Overslaan** secundair; na uitvoeren een melding, **Bekijk in …** primair (naar het resultaat) en **Ongedaan maken** |
 | kan niet | een regel in `--danger` met de reden, zonder Uitvoeren |
 | twee of meer open | onder de kaarten één knop **Alles uitvoeren (n)**. Mail-acties tellen niet mee: die voer je per kaart uit, met een regel ernaast die dat zegt |
+| met tekst | *Notitie bijwerken* en *Veld invullen*: onder de regels *Bekijk de tekst* (`details`), de tekst in een vak op `--surface2` van hooguit 240px dat zelf scrolt; koppen daarin `--fs-basis`, zonder de band van een vensterkop |
 
 Overgeslagen, ongedaan gemaakte en vervallen kaarten blijven staan op 65%
 dekking, zonder knoppen. Zo blijft zichtbaar wat er voorgesteld is. Een

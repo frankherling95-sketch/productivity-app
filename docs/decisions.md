@@ -7599,3 +7599,106 @@ geen focus.
 
 **Niet doen.** Tab laten doorlopen naar de volgende knop: in een editor
 verwacht je dat hij inspringt.
+
+## 2026-10-13 · Vraag het je app als paneel dat meekijkt (v2.75)
+
+**Vraag.** De gebruiker wil de AI beter in Notities gebruiken: aanvullen,
+advies over de tekst, opschonen. Niet als losse knoppen, maar als een chat
+die je snel tevoorschijn haalt, zoals een chatbot rechtsonder op een website.
+Later scherper: "een soort companion die op je scherm meekijkt en ziet wat je
+aan het doen bent", die advies geeft als je vastloopt en iets uitwerkt op
+het scherm waar je bent.
+
+**Keuzes van de gebruiker.**
+- Eén chat voor de hele app, die in Notities weet welke notitie open is.
+  Geen aparte notitie-assistent naast de bestaande chat.
+- Op een telefoon geen extra zwevende knop (daar staat de ronde +), maar een
+  sparkle in de kop van de notitie.
+
+**Beslissing.**
+- **Een paneel in plaats van een venster.** `#aiChatModal` is geen
+  `.modal-bg` meer maar een `.aic-dock`: rechtsonder, 420 breed, zonder
+  achtergrond, en het blijft open als je van pagina wisselt.
+  - Op een bureaublad opent een ronde knop rechtsonder het paneel
+    (`.aic-starter`), naast de sparkle in de zijbalk en in de notitiekop.
+  - Op een telefoon is het een blad van onderen. Het opent via de sparkle in
+    de zijbalk of in de kop van een notitie; daar was die knop eerst verborgen.
+  - Op een bureaublad ligt het paneel bóven de vensters (z-index 210). Zo
+    kun je vragen terwijl er een taak of factuur open staat. Het venster
+    krijgt dan de ruimte links van het paneel. In Notities schuift de editor
+    opzij (vanaf 1100px).
+  - Escape sluit het paneel alleen als je erin staat. Een klik naar een taak,
+    notitie of project laat het op een bureaublad open (`aiChatNaNavigatie`).
+  - Een open paneel houdt de automatische sync niet tegen
+    (`autoSyncVeilig` kijkt naar `.modal-bg.open`).
+- **Meekijken, alleen als je iets vraagt** (`aiSchermInfo`,
+  `aiSchermTekst`). Met je vraag gaat dan een blok OP HET SCHERM mee:
+  - de pagina, en de tekst in beeld: van de module, of van het venster dat
+    erop ligt, tot 6000 tekens;
+  - in Notities de hele notitie (tot 15.000 tekens), met je selectie of de
+    plek van je cursor;
+  - het tekstveld waar je net in stond, met het label en de huidige inhoud.
+
+  Het gaat gemaskeerd mee, zoals alles. De geschiedenis bewaart alleen je
+  vraag. Een regel boven het invoerveld zegt wat hij ziet (*Kijkt mee: …*), en
+  daarmee zet je het meekijken uit en aan. De balk op het Dashboard
+  (`opties.instructie`) stuurt het scherm niet mee.
+- **Schrijven op het scherm**, twee nieuwe acties in `AI_ACTIES`. Ze staan
+  alleen in het gereedschap als er iets in beeld is om in te schrijven
+  (`wanneer`):
+  - `notitie_bewerken` vervangt de hele notitie, voegt een stuk toe (op de
+    cursor, of onderaan) of vervangt alleen de selectie;
+  - `veld_invullen` vult het tekstveld waar je stond, met een
+    input-gebeurtenis zodat de app het oppikt.
+
+  Beide zijn een voorstelkaart, met *Bekijk de tekst* en na uitvoeren
+  *Ongedaan maken*. De kaart hoort bij de notitie of het veld van het moment
+  van de vraag (`_aiSchermBijVraag`). Heb je sinds de vraag doorgetypt, dan
+  weigert "vervangen". Is je selectie weg, dan weigert "selectie". Zo
+  overschrijft het voorstel nooit je eigen wijziging.
+- **Snelle knoppen** boven het invoerveld (`aiSchermChips`):
+  - In een notitie: *Aanvullen*, *Opschonen*, *Advies* en *Actiepunten*.
+    Met een selectie heten de eerste twee *Werk dit uit* en *Herschrijf dit*.
+  - Bij een tekstveld: *Schrijf "…"*. Elders: *Wat valt op?*.
+  - Aanvullen, opschonen en het veld schrijven gaan via één `callAI` met een
+    vast antwoordformaat. Dat werkt met Claude én Gemini, en het resultaat is
+    altijd een kaart. Advies en actiepunten zijn een gewone vraag; met Claude
+    worden actiepunten taakkaarten.
+- **Notities:**
+  - De sparkle in de kop opent het paneel.
+  - *Tekst opschonen* (het oude vergelijkingsvenster) is weg; dat is nu de
+    snelle knop.
+  - *Waar hoort dit?* staat in het menu onder de titel (*Laat AI een plek
+    voorstellen…*) en blijft in het ⋯ op een telefoon.
+
+**Waarom één chat en geen tweede.** Twee chats lopen uit elkaar:
+geschiedenis, model, acties en verbruik. De motor van de chat (stromen,
+maskeren, voorstelkaarten, ongedaan maken) bestond al; wat ontbrak was een
+plek die niet over je werk heen ligt, en weten waar je bent.
+
+**Waarom alleen bij een vraag.** Steeds meesturen kost geld en stuurt
+tekst de deur uit die je niet bedoelde. "Meekijken" betekent hier: wat je op
+het moment van de vraag ziet, en niets ertussen.
+
+**Bestanden.**
+- `index.html`:
+  - het paneel: markup, `.aic-dock`, `.aic-starter`, `.aic-scherm`,
+    `.aic-chip` en `.aic-actie-voorbeeld`;
+  - de chat: `aiChatOpen`/`aiChatSluit`, `aiChatNaNavigatie`, het meekijken
+    (`aiScherm*`, `aiVeld*`, `aiNotitieOpScherm`, `aiNotitieMd`),
+    `aiSchrijfNotitie`/`aiSchrijfVeld`/`_aiSchrijf`, `aiZetInRange`,
+    `AI_ACTIES.notitie_bewerken` en `.veld_invullen`, `aiActieGereedschap`
+    (`wanneer`), `aiActieVoorstel`/`aiActieHtml` (`voorbeeld`),
+    `aiChatVraag` en `aiChatSysteem`;
+  - Notities: de sparkle in de kop, het ⋯-menu en het menu onder de titel.
+    `notesAiMenu`, `notesAiOpschonen` en `NOTES_AI_SCHOON_SCHEMA` zijn weg.
+- `test.html` (5 nieuwe tests; 3 aangepast, omdat het paneel open blijft
+  bij navigeren), `sw.js`, `docs/stijlgids.md` §16, `docs/mobile.md`,
+  `CLAUDE.md`.
+
+**Niet doen.**
+- Het paneel weer een `.modal-bg` maken: dan ligt het over je werk, en
+  wacht de automatische sync tot het dicht is.
+- Het scherm op de achtergrond meesturen.
+- Een tweede zwevende knop rechtsonder op een telefoon.
+- Een schrijfactie direct uitvoeren zonder kaart.
