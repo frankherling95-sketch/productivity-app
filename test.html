@@ -1198,9 +1198,131 @@ async function runChecks() {
         ['Projecten: samenvoegen bij een schrijfbotsing neemt projecten van beide kanten mee', () => {
           const r = w.voegStateSamen({checklist: {items: [], projects: [{id: 'pa'}, {id: 'pb'}]}}, {checklist: {items: [], projects: [{id: 'pb'}, {id: 'pc'}]}});
           return r.state.checklist.projects.map(x => x.id).join() === 'pb,pc,pa';
-        }]
+        }],
+        /* ── Projecten in Notities en de pagina Klanten (2026-10-13) ── */
+        ...(() => {
+          /* Bovenop opzet(): twee notities bij Klant Noord, één in het project. */
+          const metNotities = () => {
+            const terug = opzet();
+            const dicht = w.eval('JSON.stringify(notesState.clientGroupCollapsed||{})');
+            w.eval(`notesState.tree.push(
+              {id:'npa',type:'page',title:'In het project',content:'<p>a</p>',clientId:'tp1',projectId:'pp1',children:[],updatedAt:Date.now()},
+              {id:'npb',type:'page',title:'Los bij de klant',content:'<p>b</p>',clientId:'tp1',children:[],updatedAt:Date.now()});
+              notesState.clientGroupCollapsed={};`);
+            return () => { w.eval('notesState.clientGroupCollapsed=' + dicht); try { w.notesPlekMenuDicht(); w.kbMenuDicht(); w.appToastHide(); } catch (_) {} terug(); };
+          };
+          const node = id => (w.findNode(w.eval('notesState.tree'), id) || {}).node;
+          return [
+            ['Projecten in Notities: per klant eerst de projecten, dan de losse notities; de specificatie hoort bij zijn project', () => {
+              const terug = metNotities();
+              try {
+                w.switchModule('notes'); w.renderNotesTree();
+                const groep = [...d.querySelectorAll('#notesTree .note-client-group')].find(g => /Klant Noord/.test(g.querySelector('.note-client-name').textContent));
+                const kop = groep && groep.querySelector('.note-proj-hdr[data-proj="pp1"]');
+                const inProject = !!kop && !!kop.parentElement.querySelector('.note-proj-body .note-node[data-id="npa"]');
+                const los = !!groep && !!groep.querySelector('.note-client-body > .note-node[data-id="npb"]');
+                const telling = !!kop && kop.querySelector('.note-client-count').textContent.trim() === '1';
+                w.clProjectSpec('pp1');
+                const spec = node(w.eval('checklistState.projects').find(x => x.id === 'pp1').noteId);
+                return inProject && los && telling && !!spec && spec.projectId === 'pp1' && spec.clientId === 'tp1';
+              } finally { terug(); }
+            }],
+            ['Projecten in Notities: toewijzen via de regel onder de titel, een andere klant haalt het project weg, en ongedaan maken', async () => {
+              const terug = metNotities();
+              try {
+                w.switchModule('notes'); w.selectNote('npb');
+                d.getElementById('notePlekBtn').click();
+                const item = d.querySelector('#notesPlekMenu [data-action="notesPlekKies"][data-arg2="pp1"]');
+                item.click();
+                await new Promise(r => setTimeout(r, 20));
+                const toegewezen = node('npb').projectId === 'pp1' && node('npb').clientId === 'tp1' &&
+                  /Nieuwe website/.test(d.getElementById('notePlekBtn').textContent) && !d.getElementById('notesPlekMenu');
+                w.notesPlekZetten('npb', '', '');
+                const weg = !('projectId' in node('npb')) && node('npb').clientId === null;
+                w.appToastUndo();
+                const terugGezet = node('npb').projectId === 'pp1' && node('npb').clientId === 'tp1';
+                return toegewezen && weg && terugGezet;
+              } finally { terug(); }
+            }],
+            ['Projecten: verwijderen laat taken en notities staan zonder project; een klant verwijderen neemt zijn projecten mee', () => {
+              const terug = metNotities();
+              try {
+                w.clProjectVerwijder('pp1');
+                const weg = !w.eval('checklistState.projects').some(x => x.id === 'pp1') && !('projectId' in node('npa')) &&
+                  w.eval('checklistState.items').find(i => i.id === 'pta').projectId === null;
+                w.appToastUndo();
+                const terugGezet = w.eval('checklistState.projects').some(x => x.id === 'pp1') && node('npa').projectId === 'pp1';
+                w.deleteClient('tp1');
+                const klantWeg = !w.eval('checklistState.projects').some(x => x.id === 'pp1') && !('projectId' in node('npa'));
+                w.appToastUndo();
+                return weg && terugGezet && klantWeg && w.eval('checklistState.projects').some(x => x.id === 'pp1') && node('npa').projectId === 'pp1';
+              } finally { terug(); }
+            }],
+            ['Klanten: een eigen pagina met per klant de projecten; Facturen heeft geen tabblad Klanten meer', async () => {
+              const terug = metNotities();
+              try {
+                w.switchModule('klanten');
+                const kaart = d.querySelector('#kbBody .kb-kaart[data-klant="tp1"]');
+                const rij = kaart && kaart.querySelector('.kb-proj[data-arg1="pp1"]');
+                const rijOk = !!rij && /Nieuwe website/.test(rij.textContent) && /1 van 2 taken af/.test(rij.textContent) && /1 notitie\b/.test(rij.textContent);
+                rij.click();
+                const menu = !!d.querySelector('#kbMenu [data-action="kbProjectActie"][data-arg1="weg"]');
+                d.querySelector('#kbMenu [data-arg1="taken"]').click();
+                await new Promise(r => setTimeout(r, 20));
+                const naarTaken = w.eval('activeModule') === 'checklist' && w.eval('clFilters.projectId') === 'pp1';
+                w.facSetView('klanten');
+                const omgeleid = w.eval('activeModule') === 'klanten' && !d.querySelector('#mod-facturen [data-fac-arg1="klanten"]');
+                return rijOk && menu && naarTaken && omgeleid;
+              } finally { w.eval('clFilters.projectId=null'); terug(); }
+            }],
+            ['Hydratie: de specificatie van een bestaand project gaat bij dat project horen', () => {
+              const bewaar = JSON.stringify(w.huidigeStateSnapshot());
+              try {
+                w.eval('rawState=' + bewaar);
+                w.eval(`rawState.tasks.clients=[{id:'hk',name:'Klant Oost',colorIdx:0}];
+                  rawState.notes.tree=[{id:'hs',type:'page',title:'Spec',content:'',clientId:'hk',children:[]},
+                    {id:'hx',type:'page',title:'Verhuisd',content:'',clientId:'anders',children:[]}];
+                  rawState.checklist.projects=[{id:'hp',naam:'Portaal',clientId:'hk',noteId:'hs',status:'actief'},
+                    {id:'hq',naam:'Ander',clientId:'hk',noteId:'hx',status:'actief'}];`);
+                w.hydrateerState();
+                return node('hs').projectId === 'hp' && !('projectId' in node('hx'));
+              } finally {
+                w.eval('rawState=' + bewaar); w.hydrateerState();
+              }
+            }]
+          ];
+        })()
       ];
     })(),
+    ['Notities: Tab springt in een opsomming in, Shift+Tab weer terug — de focus blijft in de editor', async () => {
+      const oud = w.eval('JSON.stringify({t:notesState.tree,a:notesState.activeId})');
+      /* Inspringen werkt alleen in een editor met focus, en een verborgen
+         element krijgt die niet. Zonder login staat het appscherm uit
+         (display:none), dus dat zetten we voor deze test even aan. */
+      const scherm = d.getElementById('appScreen'), was = scherm.style.display;
+      try {
+        scherm.style.display = 'flex';
+        w.eval(`notesState.tree.push({id:'ntab',type:'page',title:'Tab',content:'<ul><li>een</li><li>twee</li></ul>',clientId:null,children:[],updatedAt:Date.now()})`);
+        w.switchModule('notes'); w.selectNote('ntab');
+        w.focus();
+        const ed = d.getElementById('noteEditor');
+        ed.focus();
+        const li = ed.querySelectorAll('li')[1];
+        const sel = w.getSelection(), r = d.createRange();
+        r.setStart(li.firstChild, 1); r.collapse(true); sel.removeAllRanges(); sel.addRange(r);
+        const tab = shift => { const e = new w.KeyboardEvent('keydown', {key: 'Tab', shiftKey: shift, bubbles: true, cancelable: true}); ed.dispatchEvent(e); return e.defaultPrevented; };
+        const genestSel = 'li ul li, li ol li, ul ul li, ol ol li';
+        const tegen = tab(false);
+        const genest = !!ed.querySelector(genestSel);
+        const focus = d.activeElement === ed;
+        tab(true);
+        const terug = !ed.querySelector(genestSel) && ed.querySelectorAll('li').length === 2;
+        return tegen && genest && focus && terug;
+      } finally {
+        scherm.style.display = was;
+        w.eval('(function(o){notesState.tree=o.t;notesState.activeId=o.a;})(' + oud + ')');
+      }
+    }],
     ['Dashboard: de hero heeft één deeltjeslijn (canvas), ook na opnieuw tekenen; de oude lijn en het plusje zijn weg', () => {
       w.switchModule('notes'); w.switchModule('dashboard'); w.renderDashboard(); w.renderDashboard();
       return d.querySelectorAll('#mod-dashboard .dash-hero-lijn').length === 1 && !d.querySelector('.dash-hero-trace') &&
@@ -2611,8 +2733,8 @@ async function runChecks() {
           w.eval('notesState.tree=' + JSON.stringify([p('los', 'a'),
             {id:'map', type:'folder', title:'Map', children:[p('m1', 'a'), p('m2', 'b'),
               {id:'sub', type:'folder', title:'Sub', children:[p('m3', null)]}]}]));
-          w.notesKlantZetten('los', 'x');
-          w.notesKlantZetten('map', 'y');
+          w.notesPlekZetten('los', 'x', '');
+          w.notesPlekZetten('map', 'y', '');
           const n = id => w.findNode(w.eval('notesState.tree'), id).node;
           return n('los').clientId === 'x' && n('los').updatedAt > 5 &&
                  ['m1', 'm2', 'm3'].every(id => n(id).clientId === 'y' && n(id).updatedAt === 5) &&

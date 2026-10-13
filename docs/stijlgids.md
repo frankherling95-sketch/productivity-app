@@ -137,7 +137,7 @@ regel om aan te tikken, en die hoort de maat van een meta-regel te hebben.
 | vulling | `9–10px` horizontaal en verticaal |
 | actieve keuze | vet, met een ✓ ervoor |
 | scheiding | 1px `var(--border)`, `margin: 5px 0` |
-| gevaarlijke actie | `var(--danger)`, onder een scheiding |
+| gevaarlijke actie | `var(--danger)`, onder een scheiding — in een `.uren-menu` met `.uren-menu-item.gevaar` |
 
 **Waar het menu hangt.** Bij een knop in een balk mag het menu in de knop-
 wrapper zitten (`position: absolute`). Bij een knop in een **kaart of lijstrij**
@@ -259,6 +259,53 @@ balk. Op een bureaublad blijft het een tabel; beide in de DOM, de CSS kiest.
 | acties | mobiel achter één ⋯ rechts naast de titel; desktop een rij icoontjes |
 | project | label `.cl2-project-tag` ná het klantlabel, dezelfde vorm (10,5px / 600, radius 4px), neutraal: `--surface2` met `--text-muted` en een mapje van 11px — de kleur hoort bij de klant. Het is een knop: een tik toont alleen dat project |
 | projectbalk | onder de filterbalk als er een project gekozen is (`.cl2-projectbalk`): naam (`--fs-basis` / 600), klant en voortgang (`--fs-klein` muted), dan *Specificatie* (primair), *Afronden* en ⋯, en een ✕. Op een telefoon het ✕ naast de naam en de knoppen eronder |
+
+### Notitieboom: klant, project, notitie (Notities)
+
+Binnen een klantgroep eerst de projecten, dan de losse notities.
+
+| | |
+|---|---|
+| projectkop (`.note-proj-hdr`) | de maten van een notitieregel: vulling `7px 10px` (mobiel `10px 12px`, min. 40px), pijl 12px, icoonkolom 14px — zo staan pijl, icoon en tekst op één lijn met de notities |
+| naam | 13px / 600, loopt door op een tweede regel zoals een notitietitel |
+| icoon | het projectmapje van de Checklist (`CL_PROJECT_IC`), 14px, `--text-muted` — geen eigen kleur, die hoort bij de klant |
+| telling + knop | de telpil en de + van de klantkop (`.note-client-count`, `.note-client-actions`); de + op desktop alleen bij hover, op mobiel altijd |
+| inhoud | ingesprongen aan een lijntje van 1px `var(--border)` onder de pijl (`.note-proj-body`) |
+| afgerond | naam `--text-muted` en het woord *afgerond* in `--fs-micro` |
+| slepen | een notitie op een klant- of projectkop: vlak `--info-bg`, zoals op een groep |
+
+### Klant en project onder de titel (Notities)
+
+`.note-plek`: een regel onder de titel die ook de knop is. Blokje van 9px in
+de klantkleur, de klant in `--fs-klein` / 500 muted, `›`, het projectmapje
+(13px) en het project in 600 `--text`, en een pijl van 14px. Zonder klant
+een gestreept blokje en *Geen klant* in `--text-hint`. Begint op de lijn van
+de titeltekst (6px vulling). Op desktop 28px hoog, op mobiel `var(--tap)`.
+De knoppen rechts in de kop staan op de lijn van de titel, niet tussen titel
+en deze regel in.
+
+Het menu (`.notes-plek-menu`, een `.uren-menu` aan de body) en dezelfde lijst
+in het rechtermuisknopmenu en het ⋯: per klant een regel met een blokje van
+10px, de lopende projecten 18px ingesprongen met het mapje, en rechts een
+mint vinkje bij de huidige keuze (dan vet). Op mobiel regels van
+`var(--tap)`.
+
+### Klantkaart (Klanten)
+
+`.kb-kaart`: de doos van een lijstkaart (`--surface`, 0.5px rand,
+`radius-md`, streepje van 3px links in de klantkleur), in een raster van
+`minmax(min(380px,100%),1fr)`.
+
+| | |
+|---|---|
+| kop | blokje 10px, naam `--font-display` / `--fs-groot` / 700 op één regel met `…`; rechts het oog (`.klant-wissel-oog`, een rij-actie) en *Gegevens* als kaartknop (`.uren-btn.fac-an-kaartknop`) |
+| factuurgegevens | `--fs-klein` muted: adres op één regel (of de pil *Adresgegevens ontbreken*, `.fac-onvolledig`), factuurpartij, en *Tarief · Termijn · Omzet* met de getallen in 600 `--text` |
+| projecten | label in `--fs-micro` kapitalen; *+ Project* rechts; elke regel (`.kb-proj`) is een knop van `var(--tap)` op `--surface2` met mapje, naam (`--fs-basis` / 600) en eronder *1 van 2 taken af · 1 notitie* (`--fs-micro`), en een ⋯ — de regel opent het menu |
+| afgerond | *Afgerond · N* als uitklapregel, `--text-hint` |
+| voet | *N notities ›* en *N open taken ›* (`--fs-klein` / 600): naar die module met het klantfilter |
+| verborgen klant | onderaan onder *N klanten verborgen*, kaart op 72% |
+
+Op mobiel zijn *+ Project*, *Afgerond* en de voetlinks `var(--tap)` hoog.
 
 ### Lijstkaart op mobiel — `.uren-mcard` en `.fac-mcard`
 
@@ -392,6 +439,7 @@ om te volgen.
 | `.cl2-hero-eyebrow` | 11,5px mobiel / 13px desktop | mobiel hoort niet kleiner te zijn dan desktop |
 | menu-gewichten | 400, 500 en 600 door elkaar | één gewicht kiezen |
 | `.btn` / `.btn-sm` / `.btn-xs` | alle drie 14px op mobiel | drie trappen, of twee klassen minder |
+| `.uren-menu-item` | 34px hoog op mobiel (Uren, Facturen, sorteren in Notities, …) | `var(--tap)` — alleen het menu onder de titel in Notities en het projectmenu op Klanten hebben dat al (2026-10-13) |
 
 Wie hier iets aanpakt: doe het per familie, meet ervoor en erna, en zet een
 regel in `decisions.md`.
