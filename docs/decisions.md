@@ -7486,3 +7486,116 @@ als een aanvraag al mislukt was.
 openen zonder klik ervoor: dan houdt de browser het tegen (en meldt dat in
 de adresbalk). De luisteraar niet terugzetten naar `pointerdown`: dan pakt
 hij het venster af van een knop die er zelf een opent.
+
+## 2026-10-13 · Klanten als eigen pagina, projecten in Notities (v2.74)
+
+**Vraag.** De gebruiker wil klanten en hun projecten op één plek beheren, met een
+overzicht van wat er staat. In Notities moet de lijst per klant eerst de
+projecten tonen en daaronder wat bij geen project hoort. En hij wil een
+notitie makkelijk aan een klant of project toewijzen, ook vanuit de notitie
+zelf (hij wees de rechterbovenhoek en het eind van de opmaakbalk aan), en
+ook op een telefoon.
+
+**Beslissing.**
+- **Pagina Klanten** (`#klanten`, `renderKlantenModule`), in de zijbalk
+  onder Checklist. Per klant een kaart (`.kb-kaart`): de factuurgegevens
+  die het tabblad in Facturen liet zien (adres of *Adresgegevens
+  ontbreken*, factuurpartij, tarief, termijn, omzet over alle bedrijven),
+  de lopende projecten als regels met *1 van 2 taken af · 1 notitie*,
+  afgeronde projecten achter *Afgerond · N*, en onderaan *N notities ›* en
+  *N open taken ›* (klantfilter + die module). In de kop het oog
+  (verbergen, zoals in de klantwisselaar) en *Gegevens* (het bestaande
+  klantvenster). Verborgen klanten staan onderaan, uitklapbaar.
+  - Een projectregel is zelf de knop: een menu met *Specificatie*, *Taken
+    in de Checklist*, *Notities bekijken*, *Hernoemen*, *Naar een andere
+    klant…*, *Afronden* en *Verwijderen*. Dat zijn dezelfde
+    `clProject*`-functies als in de projectbalk van de Checklist; daar kwam
+    *Naar een andere klant* bij.
+  - **Het tabblad Klanten in Facturen is weg.** `openKlantenBeheer()` (alle
+    ⋯-menu's, de klantwisselaar, Instellingen) gaat naar de nieuwe pagina,
+    en `facSetView('klanten')` stuurt daar ook heen.
+- **Notities in een project:** een notitie krijgt optioneel `projectId`.
+  - `notePlekZet()` houdt klant en project gelijk, want een project hoort
+    bij een klant.
+  - `noteProject()` beslist of een `projectId` nog klopt: het project
+    bestaat en hoort bij dezelfde klant. Anders telt het als geen project.
+  - De specificatie krijgt bij het maken een `projectId`. De hydratie
+    koppelt de specificatie van een bestaand project, als die nog bij
+    dezelfde klant staat.
+- **De boom:** binnen een klant eerst de projecten, elk als blok dat in- en
+  uitklapt, met een + voor een nieuwe notitie erin. Daaronder de losse
+  notities. Dat geldt ook met een klantfilter.
+  - Een lopend project staat er altijd, ook zonder notities. Een afgerond
+    project alleen zolang er notities in staan.
+  - Sleep je een notitie of groep op de kop van een klant of project, dan
+    komt hij daar te staan.
+- **Onder de titel** staat waar de notitie hoort: *● Klant Noord ›
+  Datamodel*. Die regel is ook de knop (`notesPlekMenu`). Het menu toont de
+  klanten met hun lopende projecten ingesprongen, een vinkje bij de huidige
+  keuze, en *Nieuw project bij …*. Dezelfde lijst (`notesPlekLijstHtml`)
+  staat in het rechtermuisknopmenu (ook voor een groep) en in het ⋯ op een
+  telefoon.
+- Verwijder je een project, dan blijven de taken en notities staan, zonder
+  project. Verwijder je een klant, dan gaan zijn projecten mee. Beide met
+  ongedaan maken.
+- De chat ziet bij een notitie het project (`aiNotities`,
+  `notities_zoeken`, `notitie_lezen`).
+
+**Waarom een eigen pagina en niet het tabblad in Facturen.** Het log van
+2026-09-07 zegt: geen tweede beheerscherm. Dat blijft zo, want er is nog
+steeds één scherm. Het staat alleen ergens anders. Projecten horen bij
+Notities en de Checklist, niet bij facturen. En het tabblad zat zo
+verstopt dat de gebruiker "ergens een mogelijkheid" vroeg.
+
+**Waarom onder de titel en niet in de rode vakken.** De topbalk hoort bij de
+module, niet bij de notitie. Het eind van de opmaakbalk schuift op een
+telefoon buiten beeld, en op een smal bureaublad zakt het naar de tweede
+regel. Onder de titel staat het op elk scherm op dezelfde plek, naast waar
+het over gaat. Op een telefoon kost dat een regel van 44px: in de rij met
+*Opgeslagen* bleef zo'n 136px over, en dat is te weinig voor klant en
+project.
+
+**Bestanden.**
+- `index.html`:
+  - module Klanten (`kb*`, `.kb-*`), zijbalk, `GELDIGE_MODULES`,
+    `switchModule`, `rerenderActiveModule` en `deleteClient`;
+  - projecten: `clProjectHernoem`/`NaarKlant`/`Verwijder`/`Herteken`,
+    `noteProject` en `notePlekZet`;
+  - notities: `renderNotesTree`, `notesKlantInhoudHtml`,
+    `notesProjectGroepHtml`, `filterNoteTreeProject`, `notesPlekZetten`
+    (was `notesKlantZetten`), `notesPlekMenu`, `showNoteCtxMenu`,
+    `renderNotesOverflowMenu` en `onNotePlek*`;
+  - Facturen: het tabblad Klanten, `facRenderKlanten` en de CSS daarvan zijn
+    weg.
+- `test.html` (5 nieuwe tests), `sw.js`, `docs/stijlgids.md`, `CLAUDE.md`,
+  `.claude/ownership.json`.
+
+**Niet doen.**
+- Het tabblad in Facturen terugzetten náást deze pagina: dan zijn het er
+  weer twee.
+- Een notitie een project geven van een andere klant dan de zijne
+  (`notePlekZet` voorkomt dat).
+- Een verkeerde `projectId` stil opschonen bij het laden. `noteProject()`
+  negeert hem al, en opschonen zou bij elk laden een wijziging voor Drive
+  maken.
+
+## 2026-10-13 · Tab springt in in een notitie (v2.74)
+
+**Probleem.** Tab in de editor ging naar de volgende knop van de app, en de
+pagina schoof mee. De knoppen in de opmaakbalk zeiden "Inspringen (Tab)" en
+"Inspringing verkleinen (Shift+Tab)", maar de toets zelf was nergens
+aangesloten.
+
+**Beslissing.** In de editor doet Tab wat de knop *Inspringen* doet, en
+Shift+Tab wat *Inspringing verkleinen* doet (`noteExec('indent')` en
+`noteExec('outdent')`). In een opsomming wordt een punt zo een subpunt.
+Ctrl+Tab en Alt+Tab blijven van de browser en het systeem. Tijdens het
+samenstellen van een teken (IME) doet Tab niets bijzonders.
+
+**Bestanden.** `index.html` (de keydown van `#noteEditor` in
+`renderNoteEditor`), `test.html` (1 test). Die test zet `#appScreen` even
+aan: zonder login staat de app op `display:none`, en dan krijgt de editor
+geen focus.
+
+**Niet doen.** Tab laten doorlopen naar de volgende knop: in een editor
+verwacht je dat hij inspringt.

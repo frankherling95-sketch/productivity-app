@@ -50,8 +50,9 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 | Hash | Module | Functie |
 |------|--------|---------|
 | `#dashboard` | Dashboard | Hero (met een balk die een vraag aan de chat is: een taak komt meteen in de Checklist, `dashAiVraag`) + KPI strip + kaartenraster (Notes/Checklist/Opdrachten & contracten) |
-| `#notes` | Notes | Boomstructuur (folders/pages) met rich-text editor (marked.js) |
+| `#notes` | Notes | Boomstructuur per klant, met daarin eerst de projecten en dan de losse notities; rich-text editor met onder de titel klant en project (`notesPlekMenu`) |
 | `#checklist` | Checklist | Taken met subtaken, filters (prio/klant/periode/project), projecten met een specificatie-notitie, vastpinnen, drag-drop, archief |
+| `#klanten` | Klanten | Klantbeheer op één plek (was het tabblad Klanten in Facturen): per klant een kaart met factuurgegevens, de projecten (aanmaken, hernoemen, naar een andere klant, afronden, verwijderen) en de weg naar zijn notities en taken. `openKlantenBeheer()` komt hier uit |
 | `#uren` | Uren | Urenregistratie per regel, week/maand, Excel export |
 | `#facturen` | Facturen | Facturen uit geschreven uren (ook per maand in één keer: *Uren factureren*, `facMaandStart`), sjabloonbouwer, debiteuren, btw-overzicht, mailen via Gmail, analyse |
 | `#opdrachten` | Opdrachten | Opdrachten per klant (looptijd, uren per week of urenbudget, tarief, opzegtermijn, PDF van de overeenkomst) en een vooruitzicht per werkmaand |
@@ -60,7 +61,7 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 | `#contracten` | Contracten | Zakelijke én privécontracten (twee tabs), elk met looptijd, opzegtermijn, stilzwijgende verlenging en de PDF erbij |
 | `#instellingen` | Instellingen | Eén pagina met alles wat je instelt: AI-model en sleutels, thema, facturatie, vrije dagen, opslag en back-up, meldingen, account. Opent de bestaande vensters; bewaart zelf niets |
 
-Entry render functions: `renderDashboard()`, `renderNotesModule()`, `renderChecklistModule()`, `renderUrenModule()`, `renderFacturenModule()`, `renderOpdrachtenModule()`, `renderContractenModule()`, `renderAgendaModule()`, `renderMailModule()`, `renderInstellingenModule()`. `renderAll()` wordt aangeroepen na elke `loadGist()`.
+Entry render functions: `renderDashboard()`, `renderNotesModule()`, `renderChecklistModule()`, `renderKlantenModule()`, `renderUrenModule()`, `renderFacturenModule()`, `renderOpdrachtenModule()`, `renderContractenModule()`, `renderAgendaModule()`, `renderMailModule()`, `renderInstellingenModule()`. `renderAll()` wordt aangeroepen na elke `loadGist()`.
 
 ## State & persistence
 
@@ -80,8 +81,8 @@ rawState = {
 **Item shapes** (snelle referentie):
 - Checklist item: `{id, text, done, priority, deadline, clientId, projectId?, subtasks[], archived, sortOrder, pinned}` — subtaak `{id, text, done, doorHoofd?}`; `doorHoofd` = mee afgevinkt met de hoofdtaak, gaat weer open als die terugkomt (`clZetHoofdKlaar()`)
 - Google-account (Agenda, Mail, chat): `{id, email, naam ('Zakelijk'/'Privé'/…), agenda (false = uit), mail (false = uit), kalKeuze: {kalenderId: true|false}}` — `kalKeuze` overschrijft per agenda wat Google zegt (`selected`). Het token staat er níet in: dat is per tabblad, zie `herling_gacc_tokens` (`gaccLijst()`, `gaccTokGeldig()`)
-- Project (Checklist): `{id, naam, clientId, noteId|null, status ('actief'|'afgerond'), createdAt, updatedAt}` — hoort altijd bij een klant; een taak hoort bij hooguit één project (`projectId`, optioneel). De specificatie is een gewone notitie in Notities (`noteId`, `clProjectSpec()`)
-- Notes node (recursief): `{id, type:'page'|'folder', title, content, clientId, tags, children[]}`
+- Project (Checklist): `{id, naam, clientId, noteId|null, status ('actief'|'afgerond'), createdAt, updatedAt}` — hoort altijd bij een klant; een taak en een notitie horen bij hooguit één project (`projectId`, optioneel). De specificatie is een gewone notitie in Notities (`noteId`, `clProjectSpec()`), en hoort zelf ook bij het project
+- Notes node (recursief): `{id, type:'page'|'folder', title, content, clientId, projectId?, tags, children[]}` — `projectId` alleen op een pagina; zetten via `notePlekZet()` (houdt de klant gelijk aan die van het project), lezen via `noteProject()` (een project dat weg is of bij een andere klant hoort telt als geen)
 - Klant: `{id, name, colorIdx, verborgen?}` — `verborgen` = opgeschoond: weg uit de klantwisselaar, Notities, Checklist en Dashboard, maar gewoon kiesbaar in Uren, Facturen, Opdrachten en Contracten (`klantVerborgen()`, `takenZichtbaar()`, `klantenVoorKeuze()`)
 - Contract: `{id, domein ('zakelijk'|'prive'; ontbreekt = zakelijk), soort, titel, clientId|null, wederpartij, opdrachtId|null, getekend, start, eind|null, opzeg, verlenging ('' of '1m'/'3m'/'6m'/'12m'), notitie, bijlagen[]}` — een bijlage is `{id, naam, grootte, hash, driveId|null}`. De PDF staat als **eigen bestand** in de Drive-`appDataFolder` (`contract-<id>.pdf`) plus een kopie in IndexedDB (`herling_bijlagen`), niet in `rawState`. Hangt een contract aan een opdracht, dan komt de looptijd uit de opdracht (`ctrLooptijd()`)
 - Opdracht: `{id, clientId, naam, start, eind|null, opzeg ('', '2w', '1m', …), tarief|null, urenPerWeek|null, urenBudget|null, werkdagen|null ([2,3,5] = di/wo/vr; null = ma–vr), notitie, bijlagen[]}` — bijlagen zoals bij een contract, zelfde opslag en opruimlijst (`ctrAlleBijlagen()`) — uren horen erbij via klant + looptijd, niet via een veld op de urenregel
@@ -242,7 +243,7 @@ tabel is de leesbare versie. Wijzig ze samen.
 | `uren` | `uren*`, `_uren*` | `.uren-` **minus de 42 gedeelde** | `#mod-uren` |
 | `facturen` | `fac*`, `_fac*`, `factuur*` | `.fac-` | `#mod-facturen` |
 
-`#mod-opdrachten` (`opd*`, `.opd-`), `#mod-contracten` (`ctr*`, `.ctr-`), `#mod-agenda` (`kal*`, `.kal-`), `#mod-mail` (`pv*`, `.pv-`; de accountlaag `gacc*`, `.gacc-`) en `#mod-instellingen` (`inst*`, `.inst-`) hebben
+`#mod-klanten` (`kb*`, `.kb-`), `#mod-opdrachten` (`opd*`, `.opd-`), `#mod-contracten` (`ctr*`, `.ctr-`), `#mod-agenda` (`kal*`, `.kal-`), `#mod-mail` (`pv*`, `.pv-`; de accountlaag `gacc*`, `.gacc-`) en `#mod-instellingen` (`inst*`, `.inst-`) hebben
 voorlopig geen eigen spoor en vallen onder de coördinator. (`#mod-todo`, Kanban, is
 weg sinds 2026-10-04.)
 
@@ -338,8 +339,8 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
-- **2026-10-12**: **Projecten op de Checklist-kaart van het Dashboard** (v2.72) — in de metaregel na de klant een mapje met de projectnaam, een knop naar dat project in de Checklist (`aiNaarProject`). De metaregel is nu altijd één regel: klant en project korten in met …, de klant eerst; op een telefoon staat naast een project alleen het klantblokje
-- **2026-10-12**: **De chat maakt projecten aan** (v2.70) — actie `project_aanmaken` (naam, klant, en desgewenst een eerste specificatie als notitie), als voorstelkaart. Taken in hetzelfde antwoord mogen naar dat nog niet aangemaakte project verwijzen ("(nieuw)"); bij uitvoeren zoeken ze het opnieuw op, dus eerst het project, dan de taken (`Alles uitvoeren` doet ze in volgorde)
+- **2026-10-13**: **Klanten als eigen pagina, projecten in Notities** (v2.74) — `#klanten` vervangt het tabblad Klanten in Facturen (nog steeds één beheerscherm): per klant factuurgegevens, projecten (de regel opent een menu: specificatie, taken, notities, hernoemen, andere klant, afronden, verwijderen) en de weg naar notities en taken. Een notitie kan bij een project horen (`projectId`, `notePlekZet`/`noteProject`); de boom toont per klant eerst de projecten, dan de losse notities; onder de titel staat *klant › project* als knop (`notesPlekMenu`), dezelfde lijst in het rechtermuisknopmenu en het ⋯. Slepen op een klant- of projectkop wijst toe
+- **2026-10-13**: **Tab springt in in een notitie** (v2.74) — Tab/Shift+Tab doen wat de knoppen Inspringen/Inspringing verkleinen doen (een opsommingspunt wordt een subpunt); de focus blijft in de editor
 - **2026-10-12**: **Projecten in de Checklist** (v2.69) — `checklistState.projects` (altijd bij een klant), een taak optioneel in een project (`projectId`). Filter in de filterbalk, label op de taak, een balk met Specificatie (een gekoppelde notitie), Afronden en ⋯. Ook in de chat: `taken.projecten` met de stand, `taak_toevoegen` met `project`, links `[naam](#project-ID)`
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
@@ -427,7 +428,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 218 smoke-, sync-, model-, reken-, sorteer-, agenda- en mailtests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
+| `test.html` | 225 smoke-, sync-, model-, reken-, sorteer-, agenda-, mail- en projecttests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |
@@ -451,3 +452,4 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | Klant / Client | Bedrijf/opdrachtgever — kleurgecodeerd |
 | Module | Top-level sectie (Dashboard, Todo, ...) |
 | Subtaak | Onderdeel van een Checklist-item |
+| Project | Taken en notities onder één noemer, altijd bij een klant; beheer op de pagina Klanten |
