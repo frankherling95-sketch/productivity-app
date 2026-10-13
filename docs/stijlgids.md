@@ -711,16 +711,16 @@ Een nieuwe instelling krijgt een regel op deze pagina, ook als hij in een
 wisselt. Een kop op de band met de sparkle (in het verloop van het logo, geen
 emoji), de titel en rechts drie icoonknoppen zoals in §2: de **klok** voor
 eerdere gesprekken (aan: mint met een vlak van 12% wit), de **+** voor een
-nieuw gesprek (uit, `.35`, zolang er nog geen gesprek is) en het **✕**.
+nieuw gesprek (uit, `.35`, zolang er nog geen gesprek is) en de **−** (minimaliseren).
 Daaronder het gesprek, de regel *Kijkt mee*, het invoerveld en een voet met
 het model en het verbruik.
 
 | | Bureaublad | Telefoon |
 |---|---|---|
-| plek | rechtsonder, 24px van de randen, 420 × min(660px, scherm − 48px); boven vensters (z-index 210) | blad van onderen over de volle breedte, 88vh; onder vensters (190) |
+| plek | zweeft rechtsonder voor de pagina, 24px van de randen, 420 breed; de hoogte volgt de inhoud tot min(660px, scherm − 48px); boven vensters (z-index 210) | blad van onderen over de volle breedte, hoogte volgt de inhoud tot 88vh; onder vensters (190) |
 | openen | ronde knop rechtsonder (`.aic-starter`, 52px, `--navy`, sparkle 24px), de sparkle in de zijbalk, de sparkle in de kop van een notitie | de sparkle in de zijbalk en in de kop van een notitie — rechtsonder staat de ronde + |
-| ernaast | Notities: de editor schuift 444px op (vanaf 1100px). Een venster dat opengaat krijgt de ruimte links van het paneel | — |
-| sluiten | ✕ of Escape in het paneel; Escape elders laat het staan | ✕; een klik naar een taak of notitie sluit het blad |
+| ernaast | de pagina blijft staan (het paneel ligt erover). Een venster dat opengaat krijgt de ruimte links van het paneel | — |
+| minimaliseren | **−** of Escape in het paneel; het gesprek blijft staan. Komt er een antwoord terwijl het weg is, dan krijgt de ronde knop een mint stip van 12px rechtsboven (knipperend zolang het antwoord onderweg is) | **−**; een klik naar een taak of notitie minimaliseert het blad ook |
 
 **Kijkt mee** (`.aic-scherm`). Eén regel boven het invoerveld: een oog en
 *Kijkt mee: Notities · Plan van aanpak · selectie (12 woorden)* in
@@ -744,7 +744,7 @@ Verwijderen geeft een toast met *Ongedaan maken*.
 |---|---|---|
 | kop | alleen de titel; klok, **+** en ✕ rechts | idem, elk `var(--tap)` |
 | lege stand | onderin bij het invoerveld: kop *Waar kan ik mee helpen?* (`--fs-groot` / 700 display), uitleg `--fs-klein` muted, de eerste **vier** suggesties als regels van de volle breedte (radius 10px, 36px) | dezelfde kop, geen uitleg, vier suggesties als regels (radius 12px, min. `var(--tap)`, `--fs-klein`, links uitgelijnd) |
-| voet | model als `.btn-sm`-keuze, verbruik als badge | één regel: model als stille keuze (geen doos, `--fs-klein` muted), verbruik rechts als gewone tekst; onderin ruimte voor de thuisbalk |
+| voet | model als `.btn-sm`-keuze; het verbruik staat sinds v2.76 op Instellingen → AI, direct onder het model | één regel: model als stille keuze (geen doos, `--fs-klein` muted); onderin ruimte voor de thuisbalk |
 
 De volgorde van de suggesties telt: op een telefoon staan alleen de eerste
 vier, dus daar de nuttigste, met één die iets klaarzet. Met een gekoppeld

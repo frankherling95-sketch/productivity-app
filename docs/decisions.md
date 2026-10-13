@@ -7702,3 +7702,63 @@ het moment van de vraag ziet, en niets ertussen.
 - Het scherm op de achtergrond meesturen.
 - Een tweede zwevende knop rechtsonder op een telefoon.
 - Een schrijfactie direct uitvoeren zonder kaart.
+
+## 2026-10-13 · Het paneel zweeft, minimaliseren met −, verbruik naar Instellingen (v2.76)
+
+**Vraag.** Na v2.75 zag de gebruiker op een breed scherm in Notities een
+lege kolom boven het paneel. Hij wilde een popup die vóór de pagina hangt,
+met een − om hem te minimaliseren en hem met de knop weer terug te halen.
+Daarnaast moest de badge "≈ $0,06 deze maand" uit de chat. Die informatie
+hoort bij de AI-modellen op Instellingen.
+
+**Probleem.** Twee oorzaken voor de lege ruimte:
+- In Notities schoof de editor 444px opzij, over de volle hoogte, terwijl het
+  paneel alleen onderin staat.
+- Het paneel had een vaste hoogte van 660px. Een leeg gesprek liet daardoor
+  boven *Waar kan ik mee helpen?* een vlakte leeg.
+
+**Beslissing.**
+- **Het paneel zweeft voor de pagina.** De editor schuift niet meer opzij.
+  Een venster dat opengaat krijgt nog wel de ruimte links van het paneel,
+  anders ligt het paneel over *Opslaan*.
+- **De hoogte volgt de inhoud.** Op een bureaublad gaat dat tot
+  min(660px, scherm − 48px), op een telefoon tot 88vh. Leeg is het paneel
+  compact (566px); met een gesprek groeit het omhoog en scrolt het gesprek.
+- **− in plaats van ✕.** Minimaliseren laat het gesprek staan, en de ronde
+  knop haalt het paneel terug.
+  - Komt er een antwoord binnen terwijl het paneel weg is, dan krijgt de
+    knop een mint stip (*er is een nieuw antwoord*).
+  - Zolang het antwoord onderweg is, knippert de stip.
+  - Opent het paneel weer, dan is de stip weg (`aiStarterStip`).
+- **Verbruik alleen op Instellingen → AI**, in de kaart *Verbruik
+  (geschat)* direct onder *Model* (`instVerbruikKaart`). Die kaart toont:
+  - deze en vorige maand van Claude, over alle apparaten, met de
+    verdeling per model;
+  - een nieuwe regel *Vandaag*: de verzoeken vanaf dit apparaat, Claude
+    en Gemini samen. Dat getal stond bij Gemini eerst in de chat.
+
+  `_updateAIQuotaBadges` heet nu `aiVerbruikBij` en werkt alleen die kaart
+  bij als hij in beeld is. Hij tekent dan niet de hele pagina opnieuw,
+  zodat een half getypte sleutel blijft staan.
+
+**Gecontroleerd** met `getComputedStyle`, op 1908 × 1000 en 375 × 812:
+- De editor heeft rechts 0px vulling. Een venster heeft rechts 460px.
+- Escape in het paneel minimaliseert het. De stip gaat aan en weer uit.
+- Op een telefoon is het blad 375 breed met de onderkant precies op het
+  scherm, en zijn de knoppen 44px.
+
+Meet in de eindstand, met `--force-prefers-reduced-motion`. Headless Chrome
+speelt de inkomende animatie niet af, en zonder die vlag lijkt het blad
+11px buiten beeld te vallen en op 97% geschaald te zijn.
+
+**Bestanden.** `index.html` (`.aic-dock`, `.aic-starter::after`,
+`aiStarterStip`, `aiChatKnoppen`, `aiVerbruikBij`, `instGroepAi`,
+`instVerbruikKaart`, `instVerbruikRijen`; de badge en `.ai-quota-badge` zijn
+weg), `test.html` (2 nieuwe tests), `sw.js`, `docs/stijlgids.md` §16,
+`docs/mobile.md`, `CLAUDE.md`.
+
+**Niet doen.**
+- De editor weer laten opschuiven voor het paneel.
+- Het paneel een vaste hoogte geven.
+- Het verbruik terugzetten in de chat: het hoort bij de keuze van het
+  model, en die maak je op Instellingen.
