@@ -96,7 +96,7 @@ rawState = {
 | `LS_LOGIN` = `herling_login` | Ingelogde gebruiker (e-mail + geldigheid) |
 | `LS_BACKUP_KEY` = `herling_analytics_local_backup` | Volledige rawState backup |
 | `LS_SYNC_KEY` = `herling_analytics_sync` | `gewijzigdOp`/`naarDriveOp` (lokale klok) + `driveTijd` (server-klok) |
-| `LS_ZIJBALK` = `herling_zijbalk` | Zijbalk ingeklapt + welke groepen dicht staan (per apparaat, niet in Drive) |
+| `LS_ZIJBALK` = `herling_zijbalk` | Zijbalk smal of breed (per apparaat, niet in Drive). Groepen worden sinds 2026-10-13 niet onthouden: Administratie staat na elke keer laden dicht (`navGroepenOpen`) |
 | `LS_NOTES_LIJST` = `herling_notes_lijst` | Breedte van de lijst in Notities (sleepgreep tussen lijst en editor), per apparaat |
 | `LS_OPD_PERKLANT` = `herling_opdrachten_perklant` | Stand van de knop *Per klant* op Opdrachten → Vooruitzicht, per apparaat |
 | `LS_CTR_WEERGAVE` = `herling_contracten_weergave` | Welke tab van Contracten je bekijkt (zakelijk/privé), per apparaat en bewust niet in `rawState` |
@@ -108,6 +108,7 @@ rawState = {
 | `LS_PV` = `herling_pv` | Mail: gekozen tabblad en accountfilter, per apparaat |
 | sessionStorage `herling_gacc_tokens` | Toegangstokens van de gekoppelde Google-accounts, per account, alleen voor wie ingelogd is. Bewust sessionStorage (net als het `gmail.send`-token): met `gmail.modify` lees je de hele mailbox |
 | `LS_INST_OPEN` = `herling_instellingen_open` | Welke blokken op Instellingen open staan (accountkaarten, API-sleutels), per apparaat en bewust niet in `rawState` |
+| `LS_AI_PANEEL` = `herling_ai_paneel` | Plek en maat van het paneel van Vraag het je app (`{x, y, w, h|null}`), per apparaat; ontbreekt = de standaardplek rechtsonder (`aiPaneelToepas`) |
 | `LS_AGD` = `herling_agenda` | Meldingen in Google Agenda: handtekening, tijdstip en aantal van de laatste keer bijwerken op dít apparaat (bewust niet in `rawState`: anders wordt elke keer bijwerken een wijziging voor Drive) |
 
 ### Save flow
@@ -339,9 +340,9 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
+- **2026-10-13**: **Paneel verslepen en van maat veranderen; archiveren en prullenbak per mail; Klanten onder Administratie** (v2.77) — Klanten staat bovenaan in Administratie, en die groep staat na elke keer laden dicht (niet meer onthouden). Op een bureaublad sleep je het paneel aan de kop en maak je het groter of kleiner aan randen en hoeken (min. 320 × 300, binnen het scherm, onthouden per apparaat in `herling_ai_paneel`, dubbelklik = standaardplek). In Mail per regel rechtsonder Archiveren (alleen postvak) en Prullenbak, met ongedaan maken
 - **2026-10-13**: **Het paneel zweeft, minimaliseren met −, verbruik naar Instellingen** (v2.76) — het paneel hangt voor de pagina (de editor schuift niet meer op) en is zo hoog als zijn inhoud; − minimaliseert, de ronde knop haalt het terug met een stip als er een nieuw antwoord is. De verbruiksbadge is uit de chat; Instellingen → AI toont het verbruik direct onder het model
 - **2026-10-13**: **Vraag het je app als paneel dat meekijkt** (v2.75) — geen venster meer maar een paneel rechtsonder (telefoon: blad, te openen via de sparkle in de zijbalk of de notitiekop). Bij een vraag gaat mee wat je ziet (pagina, notitie met selectie, tekstveld); de chat schrijft in de open notitie (`notitie_bewerken`) of het veld (`veld_invullen`), altijd als kaart met ongedaan maken. Snelle knoppen Aanvullen, Opschonen, Advies, Actiepunten
-- **2026-10-13**: **Klanten als eigen pagina, projecten in Notities** (v2.74) — `#klanten` vervangt het tabblad Klanten in Facturen (nog steeds één beheerscherm): per klant factuurgegevens, projecten (de regel opent een menu: specificatie, taken, notities, hernoemen, andere klant, afronden, verwijderen) en de weg naar notities en taken. Een notitie kan bij een project horen (`projectId`, `notePlekZet`/`noteProject`); de boom toont per klant eerst de projecten, dan de losse notities; onder de titel staat *klant › project* als knop (`notesPlekMenu`), dezelfde lijst in het rechtermuisknopmenu en het ⋯. Slepen op een klant- of projectkop wijst toe
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 
@@ -428,7 +429,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 232 smoke-, sync-, model-, reken-, sorteer-, agenda-, mail- en projecttests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
+| `test.html` | 235 smoke-, sync-, model-, reken-, sorteer-, agenda-, mail- en projecttests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |
