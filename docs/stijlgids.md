@@ -749,7 +749,7 @@ Verwijderen geeft een toast met *Ongedaan maken*.
 | | Bureaublad | Telefoon |
 |---|---|---|
 | kop | alleen de titel; klok, **+** en ✕ rechts | idem, elk `var(--tap)` |
-| lege stand | onderin bij het invoerveld: kop *Waar kan ik mee helpen?* (`--fs-groot` / 700 display), uitleg `--fs-klein` muted, de eerste **vier** suggesties als regels van de volle breedte (radius 10px, 36px) | dezelfde kop, geen uitleg, vier suggesties als regels (radius 12px, min. `var(--tap)`, `--fs-klein`, links uitgelijnd) |
+| lege stand | bovenaan in het gesprek (een hoger paneel krijgt de ruimte eronder): kop *Waar kan ik mee helpen?* (`--fs-groot` / 700 display), uitleg `--fs-klein` muted, de eerste **vier** suggesties als regels van de volle breedte (radius 10px, 36px) | dezelfde kop, geen uitleg, vier suggesties als regels (radius 12px, min. `var(--tap)`, `--fs-klein`, links uitgelijnd) |
 | voet | model als `.btn-sm`-keuze; het verbruik staat sinds v2.76 op Instellingen → AI, direct onder het model | één regel: model als stille keuze (geen doos, `--fs-klein` muted); onderin ruimte voor de thuisbalk |
 
 De volgorde van de suggesties telt: op een telefoon staan alleen de eerste

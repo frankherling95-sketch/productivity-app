@@ -340,8 +340,8 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
+- **2026-10-13**: **De lege stand van het paneel bovenaan** (v2.78) — in het paneel van Vraag het je app staat *Waar kan ik mee helpen?* bovenaan, zodat een vergroot paneel de lege ruimte eronder krijgt (zoals Eerdere gesprekken). Op een telefoon ongewijzigd
 - **2026-10-13**: **Paneel verslepen en van maat veranderen; archiveren en prullenbak per mail; Klanten onder Administratie** (v2.77) — Klanten staat bovenaan in Administratie, en die groep staat na elke keer laden dicht (niet meer onthouden). Op een bureaublad sleep je het paneel aan de kop en maak je het groter of kleiner aan randen en hoeken (min. 320 × 300, binnen het scherm, onthouden per apparaat in `herling_ai_paneel`, dubbelklik = standaardplek). In Mail per regel rechtsonder Archiveren (alleen postvak) en Prullenbak, met ongedaan maken
-- **2026-10-13**: **Het paneel zweeft, minimaliseren met −, verbruik naar Instellingen** (v2.76) — het paneel hangt voor de pagina (de editor schuift niet meer op) en is zo hoog als zijn inhoud; − minimaliseert, de ronde knop haalt het terug met een stip als er een nieuw antwoord is. De verbruiksbadge is uit de chat; Instellingen → AI toont het verbruik direct onder het model
 - **2026-10-13**: **Vraag het je app als paneel dat meekijkt** (v2.75) — geen venster meer maar een paneel rechtsonder (telefoon: blad, te openen via de sparkle in de zijbalk of de notitiekop). Bij een vraag gaat mee wat je ziet (pagina, notitie met selectie, tekstveld); de chat schrijft in de open notitie (`notitie_bewerken`) of het veld (`veld_invullen`), altijd als kaart met ongedaan maken. Snelle knoppen Aanvullen, Opschonen, Advies, Actiepunten
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
