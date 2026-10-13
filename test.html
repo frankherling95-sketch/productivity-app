@@ -1358,6 +1358,34 @@ async function runChecks() {
             terug();
           }
         }],
+        ['Paneel verslepen en van maat veranderen: blijft binnen het scherm, wordt onthouden, dubbelklik zet het terug', () => {
+          const terug = opzet();
+          const oudLs = w.localStorage.getItem('herling_ai_paneel');
+          try {
+            w.localStorage.removeItem('herling_ai_paneel'); w.eval('aiPaneel=null');
+            w.aiChatOpen();
+            const dock = d.getElementById('aiChatModal'), m = dock.querySelector('.aic-modal'), kop = dock.querySelector('.aic-kop');
+            const pe = (t, el, x, y) => el.dispatchEvent(new w.PointerEvent(t, {clientX: x, clientY: y, button: 0, bubbles: true, cancelable: true, pointerId: 1}));
+            const r0 = m.getBoundingClientRect();
+            pe('pointerdown', kop, r0.left + 60, r0.top + 20); pe('pointermove', w, r0.left - 240, r0.top - 80); pe('pointerup', w, r0.left - 240, r0.top - 80);
+            const p1 = JSON.parse(w.localStorage.getItem('herling_ai_paneel') || 'null');
+            const verplaatst = !!p1 && Math.abs(p1.x - (r0.left - 300)) <= 2 && p1.h === null && m.style.height === '';
+            const se = dock.querySelector('.aic-greep[data-rand="se"]'), r1 = m.getBoundingClientRect();
+            pe('pointerdown', se, r1.right, r1.bottom); pe('pointermove', w, r1.right + 80, r1.bottom + 40); pe('pointerup', w, r1.right + 80, r1.bottom + 40);
+            const p2 = JSON.parse(w.localStorage.getItem('herling_ai_paneel'));
+            const groter = Math.abs(p2.w - (r1.width + 80)) <= 2 && p2.h !== null;
+            pe('pointerdown', kop, r1.left + 60, r1.top + 20); pe('pointermove', w, -900, -900); pe('pointerup', w, -900, -900);
+            const p3 = JSON.parse(w.localStorage.getItem('herling_ai_paneel'));
+            const binnen = p3.x === 8 && p3.y === 8;
+            kop.dispatchEvent(new w.MouseEvent('dblclick', {bubbles: true}));
+            const terugGezet = w.localStorage.getItem('herling_ai_paneel') === null && dock.style.left === '' && m.style.width === '';
+            return verplaatst && groter && binnen && terugGezet;
+          } finally {
+            if (oudLs) w.localStorage.setItem('herling_ai_paneel', oudLs); else w.localStorage.removeItem('herling_ai_paneel');
+            w.eval('aiPaneelLaad();aiPaneelToepas()');
+            terug();
+          }
+        }],
         ['Verbruik: niet meer in de chat, wel op Instellingen direct onder het model, en het werkt zichzelf bij', () => {
           const terug = opzet();
           try {
@@ -3182,6 +3210,29 @@ async function runChecks() {
           body: {attachmentId: 'a2', size: 2048}}]});
       return l.tekst === 'Één €' && l.html === '<p>Één €</p>' && l.bijlagen.length === 2 &&
         l.bijlagen[0].inline === true && l.bijlagen[0].cid === 'logo1' && l.bijlagen[1].inline === false;
+    }],
+    ['Mail: archiveren en prullenbak per regel — zonder de mail te openen; archiveren alleen in het postvak', async () => {
+      const oudAcc = w.eval('JSON.stringify(rawState.settings.googleAccounts||[])'), oudOpen = w.eval('pvOpenKey');
+      const echt = w.pvDoe, bak = d.createElement('div');
+      try {
+        w.eval("rawState.settings.googleAccounts=[{id:'tz',email:'iemand@voorbeeld.nl',naam:'Zakelijk'}]");
+        const m = (id, inbox) => ({key: 'tz|' + id, accId: 'tz', van: {naam: 'Voorbeeld B.V.', adres: 'x@voorbeeld.nl'}, aan: {naam: '', adres: ''},
+          onderwerp: 'Onderwerp ' + id, fragment: 'Tekst', datum: new w.Date(), ongelezen: false, ster: false, bijlage: false, n: 1, inbox, ikLaatst: false});
+        bak.innerHTML = w.pvRijHtml(m('t1', true)) + w.pvRijHtml(m('t2', false));
+        d.body.appendChild(bak);
+        const r1 = bak.children[0], r2 = bak.children[1];
+        const knoppen = r1.querySelectorAll('.pv-rijacties .pv-rijactie').length === 2 && r2.querySelectorAll('.pv-rijacties .pv-rijactie').length === 1 &&
+          !r2.querySelector('[data-arg2="archiveer"]') && !r1.querySelector('.pv-rijknop .pv-rijactie');
+        const gedaan = [];
+        w.pvDoe = async (keys, wat) => { gedaan.push(keys.join() + ':' + wat); };
+        r1.querySelector('[data-arg2="archiveer"]').click();
+        r2.querySelector('[data-arg2="prullenbak"]').click();
+        await new Promise(r => setTimeout(r, 20));
+        return knoppen && gedaan.join() === 'tz|t1:archiveer,tz|t2:prullenbak' && w.eval('pvOpenKey') === oudOpen;
+      } finally {
+        w.pvDoe = echt; bak.remove();
+        w.eval('rawState.settings.googleAccounts=' + oudAcc);
+      }
     }],
     ['Mail: afzender en fragment', () => {
       const a = w.pvAfzender('"Jan Jansen" <Iemand@Voorbeeld.nl>'), b = w.pvAfzender('iemand@voorbeeld.nl');

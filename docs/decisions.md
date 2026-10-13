@@ -7762,3 +7762,65 @@ weg), `test.html` (2 nieuwe tests), `sw.js`, `docs/stijlgids.md` §16,
 - Het paneel een vaste hoogte geven.
 - Het verbruik terugzetten in de chat: het hoort bij de keuze van het
   model, en die maak je op Instellingen.
+
+## 2026-10-13 · Het paneel verslepen en van maat veranderen; archiveren en prullenbak per mail (v2.77)
+
+**Vraag.**
+1. Het paneel van Vraag het je app heen en weer slepen, en groter en kleiner
+   maken.
+2. In Mail per regel een kleine knop om te archiveren of naar de prullenbak
+   te gooien, rechts onder de datum.
+
+**Beslissing: het paneel (alleen op een bureaublad).**
+- **Verslepen** doe je aan de kop. De knoppen in de kop blijven knoppen.
+- **Van maat veranderen** doe je aan de randen en de vier hoeken (8px
+  breed, net buiten het paneel). Rechtsonder staat een klein hoekje als
+  teken dat het kan. Het minimum is 320 × 300.
+- **Hoogte.** Na alleen verslepen blijft de hoogte de inhoud volgen, tot de
+  onderkant van het scherm. Pas na een maatwijziging is de hoogte vast.
+- **Binnen het scherm.** Het paneel blijft altijd minstens 8px binnen het
+  scherm, ook als het venster later kleiner wordt (`aiPaneelBinnen` bij
+  elke resize).
+- **Onthouden per apparaat** in `herling_ai_paneel` (`{x, y, w, h|null}`),
+  net als de breedte van de notitielijst. Dubbelklik op de kop zet het paneel
+  terug op de standaardplek en wist de stand.
+- **Een venster dat opengaat** houdt de kant vrij waar het paneel staat. Dat
+  gaat met `--aic-ruimte-l` en `--aic-ruimte-r` op `:root`, gezet door
+  `aiPaneelToepas`. Op de standaardplek blijft het 460px rechts.
+- **Op een telefoon** gebeurt niets: een blad van onderen versleep je niet.
+  De grepen zijn daar weg.
+- Slepen begint pas na 4px beweging. Een klik op de kop maakt het paneel dus
+  niet per ongeluk "versleept".
+
+**Beslissing: Mail.**
+- Elke regel krijgt rechtsonder twee icoonknoppen: *Archiveren* (alleen voor
+  wat in het postvak staat) en *Prullenbak*.
+- Het zijn rij-acties zoals het oog in de klantwisselaar: 32px, in
+  `--text-hint` en altijd zichtbaar. Op een telefoon bestaat geen hover.
+- Ze staan naast de rijknop, niet erin, dus een klik opent de mail niet.
+- Ze gebruiken `pvDoe`, met dezelfde melding en *Ongedaan maken* als de knoppen
+  in het leesvenster. Tijdens het uitvoeren staat de knop uit, zodat een
+  dubbele klik niet twee keer werkt.
+- Onderwerp en fragment korten 72px eerder in (op een telefoon 78px, met 8px
+  tussen de knoppen).
+
+**Gecontroleerd** met nagebootste pointer-gebeurtenissen op 1440 × 860:
+- verslepen naar (596, 70);
+- groter via de hoek naar 540 × 626;
+- kleiner dan het minimum: 320 × 300, terwijl de hoek rechtsonder blijft
+  staan;
+- ver buiten beeld slepen: (8, 8);
+- met het paneel links houdt een venster links 344px vrij;
+- dubbelklik zet het terug en wist de stand.
+
+**Bestanden.** `index.html` (`aiPaneel*`, `.aic-greep`, `.aic-kop` als greep,
+`--aic-ruimte-l/-r`; `pvRijHtml`, `.pv-rijacties`, `.pv-rijactie`,
+`APP_ACTIONS.pvRijDoe`), `test.html` (2 nieuwe tests), `sw.js`,
+`docs/stijlgids.md` §16 en §17, `CLAUDE.md`.
+
+**Niet doen.**
+- De knoppen per mail alleen bij hover tonen: dan zijn ze op een telefoon
+  onzichtbaar.
+- Het paneel op een telefoon versleepbaar maken.
+- De stand van het paneel in `rawState` zetten: het hoort bij een scherm,
+  niet bij de gegevens.

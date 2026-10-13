@@ -2660,6 +2660,19 @@ button.pv-acc-kaart:focus-visible{outline:2px solid var(--mint);outline-offset:1
 .pv-r3{color:var(--text-muted)}
 .pv-rij.is-ongelezen .pv-van,.pv-rij.is-ongelezen .pv-r2,.pv-rij.is-ongelezen .pv-datum{font-weight:700;color:var(--text)}
 .pv-accnaam{font-style:normal;font-weight:600;color:var(--text);margin-right:6px}
+/* Archiveren en prullenbak per regel: rechtsonder, op de hoogte van het
+   onderwerp en het fragment. Die korten daarvoor 72px eerder in. */
+.pv-rijacties{position:absolute;right:8px;bottom:6px;display:flex;gap:2px}
+.pv-rijactie{
+  width:32px;height:32px;padding:0;border:0;border-radius:8px;background:transparent;
+  display:inline-flex;align-items:center;justify-content:center;color:var(--text-hint);cursor:pointer;
+}
+.pv-rijactie svg{width:16px;height:16px}
+.pv-rijactie:hover{background:var(--surface3);color:var(--text)}
+.pv-rijactie.is-weg:hover{color:var(--danger)}
+.pv-rijactie:focus-visible{outline:2px solid var(--mint);outline-offset:-2px}
+.pv-rijactie:disabled{opacity:.35;cursor:default}
+.pv-rij .pv-r2,.pv-rij .pv-r3{padding-right:72px}
 .pv-leeg{padding:40px 20px;text-align:center;color:var(--text-muted);font-size:var(--fs-basis)}
 .pv-meer{display:flex;justify-content:center;padding:14px}
 
@@ -2807,6 +2820,10 @@ iframe.pv-inhoud{display:block;width:100%;height:120px;border:0;background:trans
   .pv-berichten{margin:12px 8px 0}
   .pv-ai{margin:10px 8px 0}
   .pv-rij{padding-right:12px}
+  /* Twee knopjes van 32px naast elkaar: met een duim wat ruimte ertussen
+     (mobile.md: 32px in een lijstrij als hij ruim omringd is). */
+  .pv-rijacties{gap:8px}
+  .pv-rij .pv-r2,.pv-rij .pv-r3{padding-right:78px}
   .pv-vink{width:var(--tap);height:var(--tap)}
   .pv-vink input{width:20px;height:20px}
   .pv-bijlage{min-height:var(--tap)}
@@ -8871,6 +8888,29 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
   box-shadow: 0 18px 50px rgba(10,19,48,.28), 0 2px 8px rgba(10,19,48,.12);
 }
 .aic-dock .aic-lijst { flex: 1 1 auto; }
+/* Verslepen en van maat veranderen (v2.77, alleen bureaublad): de kop is
+   de greep om te verplaatsen, de randen en hoeken (8px, net buiten het
+   paneel) maken hem groter of kleiner. Rechtsonder een zichtbaar hoekje,
+   zodat je ziet dát het kan. */
+.aic-dock .aic-kop { cursor: move; touch-action: none; }
+.aic-dock .aic-kop button { cursor: pointer; }
+.aic-greep { position: absolute; z-index: 2; touch-action: none; }
+.aic-greep[data-rand="n"], .aic-greep[data-rand="s"] { left: 14px; right: 14px; height: 8px; cursor: ns-resize; }
+.aic-greep[data-rand="e"], .aic-greep[data-rand="w"] { top: 14px; bottom: 14px; width: 8px; cursor: ew-resize; }
+.aic-greep[data-rand="n"] { top: -4px; } .aic-greep[data-rand="s"] { bottom: -4px; }
+.aic-greep[data-rand="e"] { right: -4px; } .aic-greep[data-rand="w"] { left: -4px; }
+.aic-greep[data-rand="ne"], .aic-greep[data-rand="nw"], .aic-greep[data-rand="se"], .aic-greep[data-rand="sw"] { width: 18px; height: 18px; }
+.aic-greep[data-rand="nw"] { top: -4px; left: -4px; cursor: nwse-resize; }
+.aic-greep[data-rand="se"] { bottom: -4px; right: -4px; cursor: nwse-resize; }
+.aic-greep[data-rand="ne"] { top: -4px; right: -4px; cursor: nesw-resize; }
+.aic-greep[data-rand="sw"] { bottom: -4px; left: -4px; cursor: nesw-resize; }
+.aic-greep[data-rand="se"]::after {
+  content: ""; position: absolute; right: 8px; bottom: 8px; width: 8px; height: 8px;
+  border-right: 2px solid var(--text-hint); border-bottom: 2px solid var(--text-hint); border-bottom-right-radius: 3px; opacity: .7;
+}
+/* Tijdens het slepen geen tekst selecteren en geen hand of tekstcursor. */
+body.aic-sleept, body.aic-sleept * { user-select: none !important; }
+body.aic-sleept .aic-dock { transition: none; }
 /* Wat hij bekijkt staat in de regel onder het gesprek; de ondertitel zei
    in algemene woorden hetzelfde en kostte twee regels. */
 .aic-dock .aic-kop p { display: none; }
@@ -8922,7 +8962,9 @@ body.aic-open .aic-starter { display: none; }
    links ervan: anders ligt het paneel over de knoppen rechtsonder in het
    venster (Opslaan). Een breed venster wordt zo nodig smaller. */
 @media (min-width: 769px) {
-  body.aic-open .modal-bg.open { padding-right: 460px; }
+  /* Versleept (aiPaneelToepas) zetten --aic-ruimte-l/-r de kant waar het
+     paneel staat; zonder die variabelen de standaardplek rechtsonder. */
+  body.aic-open .modal-bg.open { padding-right: var(--aic-ruimte-r, 460px); padding-left: var(--aic-ruimte-l, 1rem); }
 }
 /* De onderste regel van de editor (woorden, sneltoetsen) valt anders
    onder de ronde knop. */
@@ -9028,6 +9070,9 @@ body.aic-open .aic-starter { display: none; }
   .aic-scherm { padding: 0 14px 8px; }
   .aic-oog, .aic-chip { min-height: var(--tap); }
   .aic-starter { display: none; }
+  /* Een blad van onderen versleep je niet. */
+  .aic-greep { display: none; }
+  .aic-dock .aic-kop { cursor: auto; }
 }
 
 
@@ -9293,7 +9338,7 @@ body.aic-open .aic-starter { display: none; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.76</span>
+        <span class="app-versie" title="Appversie">v2.77</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -36903,7 +36948,18 @@ function pvRijHtml(m){
       '<span class="pv-datum">'+escapeHtml(pvDatumKort(m.datum))+'</span></span>'+
       '<span class="pv-r2">'+escapeHtml(m.onderwerp)+'</span>'+
       '<span class="pv-r3">'+(toonAcc?'<i class="pv-accnaam" title="'+escapeHtml(a.email)+'">'+escapeHtml(gaccNaam(a))+'</i>':'')+escapeHtml(m.fragment)+'</span>'+
-    '</button></div>';
+    '</button>'+
+    /* Archiveren en prullenbak per regel (2026-10-13): rechtsonder, onder de
+       datum, zonder de mail eerst te openen. Rij-acties zoals het oog in de
+       klantwisselaar: --text-hint, 32px, altijd zichtbaar (een telefoon kent
+       geen hover). Archiveren alleen wat nog in het postvak staat. Met
+       ongedaan maken, via pvDoe. */
+    '<span class="pv-rijacties">'+
+      (m.inbox?'<button type="button" class="pv-rijactie" data-action="pvRijDoe" data-arg1="'+escapeHtml(m.key)+'" data-arg2="archiveer" '+
+        'title="Archiveren" aria-label="Archiveren: '+escapeHtml(m.onderwerp)+'">'+PV_IC.archief+'</button>':'')+
+      '<button type="button" class="pv-rijactie is-weg" data-action="pvRijDoe" data-arg1="'+escapeHtml(m.key)+'" data-arg2="prullenbak" '+
+        'title="Naar de prullenbak" aria-label="Naar de prullenbak: '+escapeHtml(m.onderwerp)+'">'+PV_IC.prullenbak+'</button>'+
+    '</span></div>';
 }
 const PV_IC={
   kruis:'<svg class="icoon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>',
@@ -37735,6 +37791,9 @@ Object.assign(APP_ACTIONS,{
   pvBulk:(el,e,w)=>pvBulk(w),
   pvSelWis:()=>{pvSel.clear();pvTekenLijst();},
   pvLeesDoe:(el,e,w)=>pvLeesDoe(w),
+  /* Uit tot het klaar is, zodat een dubbele klik er geen twee van maakt;
+     lukte het niet, dan weer aan (bij succes is de regel weg). */
+  pvRijDoe:(el,e,key,w)=>{if(e)e.stopPropagation();el.disabled=true;Promise.resolve(pvDoe([key],w)).finally(()=>{el.disabled=false;});},
   pvGmail:()=>pvGmail(),
   pvBerichtWissel:(el,e,i)=>pvBerichtWissel(i),
   pvBeelden:(el,e,i)=>pvBeelden(i),
@@ -41688,6 +41747,7 @@ function aiChatOpen(){
   if(!m)return;
   m.classList.add('open');
   document.body.classList.add('aic-open');
+  aiPaneelToepas();
   aiStarterStip(false);
   aiVerbruikBij();
   aiChatModelToon();
@@ -41704,6 +41764,118 @@ function aiChatSluit(){
   document.body.classList.remove('aic-open');
 }
 function aiDockMobiel(){return window.matchMedia('(max-width: 768px)').matches;}
+
+/* ══ Het paneel verslepen en van maat veranderen (2026-10-13, v2.77) ══════
+   Alleen op een bureaublad. Slepen aan de kop verplaatst het paneel, de
+   randen en hoeken (.aic-greep) maken het groter of kleiner; dubbelklikken op
+   de kop zet het terug rechtsonder op de standaardmaat. De stand geldt per
+   apparaat (LS_AI_PANEEL) en blijft altijd binnen het scherm, ook als het
+   venster kleiner wordt.
+
+   aiPaneel = {x, y, w, h|null}: linksboven en breedte in px; h is null zolang
+   je alleen hebt versleept -- dan volgt de hoogte de inhoud, tot de onderkant
+   van het scherm. Null in zijn geheel = de standaardplek uit de CSS. */
+const LS_AI_PANEEL='herling_ai_paneel';
+const AI_PANEEL_MIN={w:320,h:300};
+let aiPaneel=null;
+function aiPaneelLaad(){
+  try{
+    const v=JSON.parse(localStorage.getItem(LS_AI_PANEEL)||'null');
+    aiPaneel=v&&[v.x,v.y,v.w].every(Number.isFinite)?{x:v.x,y:v.y,w:v.w,h:Number.isFinite(v.h)?v.h:null}:null;
+  }catch(_){aiPaneel=null;}
+}
+function aiPaneelBewaar(){
+  try{if(aiPaneel)localStorage.setItem(LS_AI_PANEEL,JSON.stringify(aiPaneel));else localStorage.removeItem(LS_AI_PANEEL);}catch(_){}
+}
+/* Binnen het scherm, en niet kleiner dan het minimum. */
+function aiPaneelBinnen(p){
+  const vw=window.innerWidth, vh=window.innerHeight;
+  const w=Math.round(Math.min(Math.max(p.w,AI_PANEEL_MIN.w),vw-16));
+  const h=p.h!=null?Math.round(Math.min(Math.max(p.h,AI_PANEEL_MIN.h),vh-16)):null;
+  const x=Math.round(Math.min(Math.max(p.x,8),vw-w-8));
+  const y=Math.round(Math.min(Math.max(p.y,8),vh-(h!=null?h:AI_PANEEL_MIN.h)-8));
+  return {x,y,w,h};
+}
+function aiPaneelToepas(){
+  const d=document.getElementById('aiChatModal'), m=d&&d.querySelector('.aic-modal');
+  if(!m)return;
+  const eigen=!!aiPaneel&&!aiDockMobiel();
+  const root=document.documentElement.style;
+  if(!eigen){
+    d.style.left=d.style.top=d.style.right=d.style.bottom='';
+    m.style.width=m.style.height=m.style.maxHeight='';
+    root.removeProperty('--aic-ruimte-l');root.removeProperty('--aic-ruimte-r');
+    return;
+  }
+  const p=aiPaneelBinnen(aiPaneel);
+  d.style.left=p.x+'px';d.style.top=p.y+'px';d.style.right='auto';d.style.bottom='auto';
+  m.style.width=p.w+'px';
+  m.style.height=p.h!=null?p.h+'px':'';
+  m.style.maxHeight=p.h!=null?'none':(window.innerHeight-p.y-8)+'px';
+  /* Een venster dat opengaat houdt de kant vrij waar het paneel staat. */
+  const rechts=p.x+p.w/2>window.innerWidth/2;
+  root.setProperty('--aic-ruimte-r',rechts?(window.innerWidth-p.x+16)+'px':'1rem');
+  root.setProperty('--aic-ruimte-l',rechts?'1rem':(p.x+p.w+16)+'px');
+}
+function aiPaneelHerstel(){aiPaneel=null;aiPaneelBewaar();aiPaneelToepas();}
+/* Eén plek voor slepen en van maat veranderen: rand '' = verplaatsen. */
+function aiPaneelGrijp(e,rand){
+  if(aiDockMobiel()||e.button!==0)return;
+  if(!rand&&e.target.closest('button,select,input,textarea,a,label'))return;
+  const m=document.querySelector('#aiChatModal .aic-modal');if(!m)return;
+  const r=m.getBoundingClientRect();
+  const s={px:e.clientX,py:e.clientY,x:r.left,y:r.top,w:r.width,h:r.height,
+    /* Alleen verslepen: de hoogte blijft de inhoud volgen, tenzij je al eens
+       de maat had veranderd. */
+    vasteH:!!rand||!!(aiPaneel&&aiPaneel.h!=null)};
+  let bewogen=false;
+  e.preventDefault();
+  const beweeg=ev=>{
+    const dx=ev.clientX-s.px, dy=ev.clientY-s.py;
+    if(!bewogen&&Math.abs(dx)+Math.abs(dy)<4)return;
+    bewogen=true;
+    document.body.classList.add('aic-sleept');
+    let {x,y,w,h}=s;
+    if(!rand){x+=dx;y+=dy;}
+    else{
+      if(rand.includes('e'))w=s.w+dx;
+      if(rand.includes('s'))h=s.h+dy;
+      if(rand.includes('w')){w=Math.max(AI_PANEEL_MIN.w,s.w-dx);x=s.x+s.w-w;}
+      if(rand.includes('n')){h=Math.max(AI_PANEEL_MIN.h,s.h-dy);y=s.y+s.h-h;}
+    }
+    aiPaneel={x,y,w,h:s.vasteH?h:null};
+    aiPaneelToepas();
+  };
+  const los=()=>{
+    window.removeEventListener('pointermove',beweeg);
+    window.removeEventListener('pointerup',los);
+    window.removeEventListener('pointercancel',los);
+    document.body.classList.remove('aic-sleept');
+    if(!bewogen)return;
+    aiPaneel=aiPaneelBinnen(aiPaneel);
+    aiPaneelBewaar();aiPaneelToepas();
+  };
+  window.addEventListener('pointermove',beweeg);
+  window.addEventListener('pointerup',los);
+  window.addEventListener('pointercancel',los);
+}
+(function aiPaneelKlaar(){
+  const d=document.getElementById('aiChatModal');if(!d)return;
+  ['n','s','e','w','ne','nw','se','sw'].forEach(rand=>{
+    const g=document.createElement('div');
+    g.className='aic-greep';g.dataset.rand=rand;g.setAttribute('aria-hidden','true');
+    g.addEventListener('pointerdown',e=>aiPaneelGrijp(e,rand));
+    d.appendChild(g);
+  });
+  const kop=d.querySelector('.aic-kop');
+  if(kop){
+    kop.title='Sleep om te verplaatsen · dubbelklik voor de standaardplek';
+    kop.addEventListener('pointerdown',e=>aiPaneelGrijp(e,''));
+    kop.addEventListener('dblclick',e=>{if(!e.target.closest('button')&&!aiDockMobiel())aiPaneelHerstel();});
+  }
+  aiPaneelLaad();
+  window.addEventListener('resize',()=>aiPaneelToepas());
+})();
 /* Na een klik naar een taak, notitie of project: op een bureaublad blijft
    het paneel staan (je kijkt naar het resultaat en vraagt verder), op een
    telefoon gaat het blad weg, anders zie je niets. */

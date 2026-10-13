@@ -721,6 +721,7 @@ het model en het verbruik.
 | openen | ronde knop rechtsonder (`.aic-starter`, 52px, `--navy`, sparkle 24px), de sparkle in de zijbalk, de sparkle in de kop van een notitie | de sparkle in de zijbalk en in de kop van een notitie — rechtsonder staat de ronde + |
 | ernaast | de pagina blijft staan (het paneel ligt erover). Een venster dat opengaat krijgt de ruimte links van het paneel | — |
 | minimaliseren | **−** of Escape in het paneel; het gesprek blijft staan. Komt er een antwoord terwijl het weg is, dan krijgt de ronde knop een mint stip van 12px rechtsboven (knipperend zolang het antwoord onderweg is) | **−**; een klik naar een taak of notitie minimaliseert het blad ook |
+| verslepen en maat | de kop is de greep (cursor *move*); randen en hoeken (8px, net buiten het paneel) maken hem groter of kleiner, minimaal 320 × 300; rechtsonder een hoekje van 8px als teken. Blijft binnen het scherm, onthouden per apparaat (`herling_ai_paneel`); dubbelklik op de kop = standaardplek. Een venster houdt de kant vrij waar het paneel staat | niet: een blad versleep je niet |
 
 **Kijkt mee** (`.aic-scherm`). Eén regel boven het invoerveld: een oog en
 *Kijkt mee: Notities · Plan van aanpak · selectie (12 woorden)* in
@@ -813,6 +814,7 @@ beide thema's leesbaar met `--text` erop.
 | Mail | |
 |---|---|
 | lijstregel | afzender `--fs-basis`, onderwerp en fragment `--fs-klein`; ongelezen = 700 |
+| rij-acties | rechtsonder in elke regel, onder de datum: **Archiveren** (alleen in het postvak) en **Prullenbak** als icoonknop van 32px, `--text-hint`, altijd zichtbaar; hover `--surface3`, de prullenbak dan `--danger`. Onderwerp en fragment korten daarvoor 72px eerder in (telefoon 78px, 8px tussen de knoppen). Met ongedaan maken, zonder de mail te openen |
 | datum | `--fs-micro`: "14:20", "gisteren", "ma", "28 sep" (zoals de notitieregel op het Dashboard) |
 | leesvenster | sticky knoppenbalk; Archiveren en Prullenbak met woord, Ongelezen, Ster en Gmail als icoonknop; Samenvatten en Antwoord rechts |
 | bericht | kaart (`--surface`, `--radius-md`); ingeklapt = afzender + fragment |
