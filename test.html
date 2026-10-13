@@ -1325,13 +1325,18 @@ async function runChecks() {
         ['Paneel: geen venster met achtergrond, blijft open bij een klik naar een taak (bureaublad), Escape in het paneel sluit het', () => {
           const terug = opzet();
           try {
+            w.eval('aiChatGesprek=[]');
             w.aiChatOpen();
             const m = d.getElementById('aiChatModal');
             const paneel = m.classList.contains('open') && !m.classList.contains('modal-bg') && d.body.classList.contains('aic-open') &&
               !d.querySelector('.modal-bg.open');
+            /* De lege stand staat bovenaan (v2.78): een hoger paneel krijgt de
+               ruimte eronder, niet erboven. */
+            const leeg = d.querySelector('#aiChatLijst .aic-leeg');
+            const boven = !!leeg && w.getComputedStyle(leeg).marginTop === '0px';
             const e = new w.KeyboardEvent('keydown', {key: 'Escape', bubbles: true, cancelable: true});
             d.getElementById('aiChatInvoer').dispatchEvent(e);
-            return paneel && !m.classList.contains('open') && !d.body.classList.contains('aic-open');
+            return paneel && boven && !m.classList.contains('open') && !d.body.classList.contains('aic-open');
           } finally { terug(); }
         }],
         ['Minimaliseren: het − bewaart het gesprek, een antwoord terwijl het paneel weg is zet een stip op de knop, openen haalt hem weg', async () => {

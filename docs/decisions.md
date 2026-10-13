@@ -7856,3 +7856,30 @@ groep standaard ingeklapt: na elke keer laden dicht.
 **Niet doen.** De groepsstand weer in localStorage zetten: dan staat hij na
 een keer openklappen voor altijd open, en dat is precies wat de gebruiker
 niet wil.
+
+## 2026-10-13 · De lege stand van het paneel bovenaan (v2.78)
+
+**Vraag.** Maakte de gebruiker het paneel van Vraag het je app groter, dan
+ontstond er een lege vlakte bóven *Waar kan ik mee helpen?*. Hij verwachtte
+de lege ruimte onderin, zoals bij Eerdere gesprekken.
+
+**Probleem.** De lege stand stond in het paneel onderaan
+(`margin: auto 0 0`). Dat kwam van de telefoon, waar de suggesties bij je
+duim horen. Zolang het paneel zo hoog was als zijn inhoud (v2.76), viel dat
+niet op. Met een paneel dat je groter kunt maken (v2.77) wel.
+
+**Beslissing.** In het paneel staat de lege stand bovenaan (`margin: 0`),
+net als de lijst met eerdere gesprekken en een gesprek zelf. De ruimte die
+over is valt eronder. Op een telefoon verandert er niets: het blad is daar
+zo hoog als zijn inhoud.
+
+**Gecontroleerd** met `getComputedStyle`:
+- in een paneel van 430 × 820 staat de kop 14px van de bovenkant, met 304px
+  vrij eronder;
+- op 375px blijft het blad passend: 14px boven en 14px onder.
+
+**Bestanden.** `index.html` (`.aic-dock .aic-leeg`), `test.html` (een
+controle in de paneeltest), `sw.js`, `docs/stijlgids.md` §16, `CLAUDE.md`.
+
+**Niet doen.** De lege stand in het paneel weer onderaan zetten: met een
+vergroot paneel geeft dat een lege vlakte boven de vraag.
