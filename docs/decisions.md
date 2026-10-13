@@ -7883,3 +7883,76 @@ controle in de paneeltest), `sw.js`, `docs/stijlgids.md` §16, `CLAUDE.md`.
 
 **Niet doen.** De lege stand in het paneel weer onderaan zetten: met een
 vergroot paneel geeft dat een lege vlakte boven de vraag.
+
+## 2026-10-13 · Stil vernieuwen; het Drive-token draagt geen mail meer (v2.79)
+
+**Vraag.** "Ik vind dat ik nog heel veel snelle pop-ups krijg." Liefst een
+achtergrondproces waar je niets van ziet, en alleen een venster als je echt
+iets moet bevestigen.
+
+**Probleem.** Drie tokens van een uur (Drive, Zakelijk, Privé), elk vooraf
+vernieuwd via een venster van Google (v2.73): zo'n vier flitsen per uur en
+drie na het openen. Google kent voor een app in de browser geen stille
+verversing ([token model](https://developers.google.com/identity/oauth2/web/guides/use-token-model)).
+
+**Ontdekt onderweg.** Het Drive-token werd aangevraagd met de standaard van
+Google (`include_granted_scopes`), en kreeg zo álle rechten die de app ooit
+kreeg. Sinds Zakelijk gekoppeld is (zelfde account, zelfde client) dus ook
+`gmail.modify`, en eerder al `gmail.send`. Dat token staat een uur in
+`localStorage` (2026-09-10), terwijl juist besloten was geen mailrecht op
+schijf te zetten. Agenda-meldingen en archief leunden bewust op dit gedrag.
+
+**Beslissing.**
+1. **Stil vernieuwen** (`googleStilToken`). Een frame van 0 bij 0 vraagt
+   Google met `prompt=none` om een token; Google stuurt terug naar
+   `stil.html` met het token achter de #, de app leest het daar uit en
+   haalt het frame weg. Werkt waar de browser de cookies van Google in een
+   frame meestuurt (Chrome, Edge); op Safari/iPhone niet. Lukt het niet,
+   dan een half uur niet opnieuw (per account en set rechten), en het
+   gewone venster bij je volgende klik. Een state die alleen dit verzoek
+   kent; `include_granted_scopes=false`. Voor Drive (`driveHaalToken`) en
+   de gekoppelde accounts (`gaccStil`, `gaccStilRonde`). In een klik gaat
+   het meteen naar het venster: een mislukte stille poging kost tijd, en
+   daarna telt de klik niet meer.
+2. **Een venster alleen als je het gebruikt.** Voor Mail en Agenda vraagt
+   de app pas een venster als je ze (of de chat met mail en agenda) het
+   afgelopen uur gebruikte (`gaccInGebruik`). Je opent Mail met een klik:
+   die klik opent meteen het venster voor het eerste account dat stil niet
+   lukte (`gaccBijOpenen`, `gaccZorgVoor`, `gaccTokenNu`); het volgende
+   account volgt bij de klik daarna. Het getal naast Mail is er alleen als
+   er een token is.
+3. **Drive-token zonder mail** (`driveScopes`). Precies `drive.appdata`,
+   plus `calendar.app.created` als de agenda-meldingen aan staan en
+   `drive.file` als het archief aan staat; `include_granted_scopes:false`,
+   ook bij `agdNieuwToken` en `archiefNieuwToken`. Een bewaard token
+   zonder `smal` (van daarvoor) gooit de app weg.
+4. In Instellingen → Agenda en mail staat of stil vernieuwen in deze
+   browser werkt (*Ongemerkt vernieuwen*).
+
+**Niet gedaan.** Eén venster voor Drive en Zakelijk samen. Dat token zou mail
+kunnen lezen én in `localStorage` staan, en dat wilde Frank niet. Een eigen
+server met refresh tokens (overal nul vensters) ook niet.
+
+**Waarom.** Waar het kan (de computer) is er niets meer te zien; waar het
+niet kan (de iPhone) komen er minder vensters, en alleen als je Mail of
+Agenda gebruikt. Google ondersteunt het stille frame niet officieel; stopt
+het, dan valt alles terug op het venster zonder dat er iets stukgaat.
+
+**Voor Frank.** In de Cloud Console bij de OAuth-client onder *Authorized
+redirect URIs*: `https://app.herling-analytics.nl/stil.html`. Zonder dat
+adres toont Google een foutpagina in het frame en blijft alles bij het
+venster.
+
+**Bestanden.** `index.html` (`googleStilToken`, `googleStilLees`,
+`googleInGebaar`, `driveScopes`, `driveHaalToken`, `driveTokenUitSessie`,
+`driveTokenBewaar`, `agdNieuwToken`, `archiefNieuwToken`, `gaccStil`,
+`gaccStilRonde`, `gaccPlanVerversing`, `gaccTokenNu`, `gaccZorgVoor`,
+`gaccBijOpenen`, `gaccApi`, `pvTelOngelezen`, `instGroepAccounts`, de
+chat-gereedschappen `agenda_bekijken` en `mail_zoeken`), `stil.html`,
+`test.html` (3 nieuwe tests, 1 aangepast), `sw.js`, `CLAUDE.md`.
+
+**Niet doen.** `include_granted_scopes` weer weglaten of op true zetten bij
+een token dat in `localStorage` komt: dan staat je mailbox weer op schijf.
+Geen stille poging in een klik vóór het venster zonder korte wachttijd. En
+geen frame naar Google zonder state, of een antwoord met een andere state
+accepteren.

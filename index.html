@@ -9342,7 +9342,7 @@ body.aic-open .aic-starter { display: none; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.78</span>
+        <span class="app-versie" title="Appversie">v2.79</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -15623,6 +15623,12 @@ function tokenUitOpslag(sleutel){
 }
 function driveTokenUitSessie(){
   const v=tokenUitOpslag(DRIVE_TOKEN_SESSIE);
+  /* Van vóór 2026-10-13 kon dit token ook je mailbox openen (zie
+     driveScopes). Zo'n token gebruiken we niet, we gooien het weg. */
+  if(v&&!v.smal){
+    try{localStorage.removeItem(DRIVE_TOKEN_SESSIE);sessionStorage.removeItem(DRIVE_TOKEN_SESSIE);}catch(_){}
+    return null;
+  }
   /* Een token dat nog uit de sessionStorage-tijd komt hoeft niet opnieuw
      opgehaald te worden; het verhuist gewoon mee naar de nieuwe plek. */
   if(v)driveTokenBewaar(v);
@@ -15632,7 +15638,7 @@ function driveTokenBewaar(t){
   const g=ingelogdeGebruiker();
   try{
     localStorage.setItem(DRIVE_TOKEN_SESSIE,
-      JSON.stringify({token:t.token,tot:t.tot,account:g?g.email:''}));
+      JSON.stringify({token:t.token,tot:t.tot,account:g?g.email:'',smal:1}));
     sessionStorage.removeItem(DRIVE_TOKEN_SESSIE);
   }catch(_){}
 }
@@ -15660,19 +15666,130 @@ function googleGereed(maxMs){
   });
 }
 
+/* ── Stil vernieuwen, in een onzichtbaar frame (2026-10-13) ──
+   Een nieuw toegangstoken kwam alleen via een venster van Google, en dat
+   flitste een paar keer per uur in beeld. Nu eerst onzichtbaar: een frame
+   van 0 bij 0 vraagt Google met prompt=none om een token voor dit account.
+   Ben je bij Google ingelogd en is de toestemming er, dan stuurt Google
+   meteen terug naar stil.html met het token achter de # (dat deel gaat
+   nooit naar een server), en de app leest het daar uit en haalt het frame
+   weg. Wil Google iets van je (inloggen, toestemming), dan geeft hij een
+   fout of een pagina, en volgt het gewone venster bij je volgende klik.
+   - Werkt alleen waar de browser de cookies van Google in een frame
+     meestuurt: Chrome en Edge doorgaans wel, Safari (iPhone) niet. Lukt het
+     niet, dan probeert de app het een half uur niet opnieuw
+     (GOOGLE_STIL_UIT), per account en set rechten.
+   - Google ondersteunt dit niet officieel. Stopt het, dan valt alles terug
+     op het venster; er gaat niets stuk.
+   - stil.html moet als redirect-URI bij de OAuth-client staan (Cloud
+     Console → Clients → Authorized redirect URIs). Staat hij er niet, dan
+     toont Google een foutpagina in het frame en telt het als "lukt niet".
+   - Eén frame tegelijk (googleStilRij), met een state die alleen dit
+     verzoek kent; een antwoord met een andere state telt niet.
+   - include_granted_scopes=false: het token kan precies wat gevraagd is. */
+const GOOGLE_STIL_PAGINA='stil.html';
+const GOOGLE_STIL_UIT=30*60000;
+const googleStilUit={};      /* account|rechten -> tot wanneer niet opnieuw */
+let googleStilStand=null;    /* {ok, reden, op}: de laatste poging, voor Instellingen */
+let googleStilRij=Promise.resolve();
+function googleStilSleutel(email,scopes){return email+'|'+[].concat(scopes).join(' ');}
+function googleStilMag(email,scopes){
+  return !!email&&!((googleStilUit[googleStilSleutel(email,scopes)]||0)>Date.now());
+}
+/* Zit je midden in een klik? Alleen dan staat de browser een venster toe. */
+function googleInGebaar(){const ua=navigator.userActivation;return !!(ua&&ua.isActive);}
+/* Het antwoord van Google achter de #. Los, zodat het te testen is. */
+function googleStilLees(hash,state){
+  const p=new URLSearchParams(String(hash||'').replace(/^#/,''));
+  if(!state||p.get('state')!==state)return {fout:'state'};
+  if(p.get('error'))return {fout:String(p.get('error'))};
+  const token=p.get('access_token');
+  if(!token)return {fout:'leeg'};
+  return {token,tot:Date.now()+Number(p.get('expires_in')||3600)*1000,scope:String(p.get('scope')||'')};
+}
+function googleStilToken(email,scopes,opties){
+  const o=opties||{}, sleutel=googleStilSleutel(email,scopes);
+  const poging=()=>new Promise((res,rej)=>{
+    if(!googleStilMag(email,scopes))
+      return rej(Object.assign(new Error('Stil vernieuwen lukt hier nu niet.'),{type:'stil',reden:'uit'}));
+    const st=Array.from(crypto.getRandomValues(new Uint8Array(16)),b=>b.toString(16).padStart(2,'0')).join('');
+    const p=new URLSearchParams({client_id:GOOGLE_CLIENT_ID,
+      redirect_uri:new URL(GOOGLE_STIL_PAGINA,location.origin+location.pathname).href,
+      response_type:'token',scope:[].concat(scopes).join(' '),prompt:'none',
+      include_granted_scopes:'false',login_hint:email,state:st});
+    if(o.hd)p.set('hd',o.hd);
+    const fr=document.createElement('iframe');
+    fr.setAttribute('aria-hidden','true');
+    fr.tabIndex=-1;
+    fr.style.cssText='position:fixed;left:-9999px;top:0;width:0;height:0;border:0;opacity:0;pointer-events:none';
+    let klaar=false, wekker=0;
+    const eind=(fout,t)=>{
+      if(klaar)return;
+      klaar=true;
+      clearTimeout(wekker);
+      fr.remove();
+      googleStilStand={ok:!fout,reden:fout||'',op:Date.now()};
+      if(fout){
+        googleStilUit[sleutel]=Date.now()+GOOGLE_STIL_UIT;
+        rej(Object.assign(new Error('Stil vernieuwen lukte niet ('+fout+').'),{type:'stil',reden:fout}));
+      }else{delete googleStilUit[sleutel];res(t);}
+    };
+    wekker=setTimeout(()=>eind('tijd'),o.wacht||8000);
+    fr.addEventListener('load',()=>{
+      let href='';
+      /* Een pagina van Google (of een geblokkeerd frame): niet uit te
+         lezen, dus Google wil iets van je. */
+      try{href=fr.contentWindow.location.href;}catch(_){return eind('venster');}
+      if(!href||href==='about:blank')return;
+      const r=googleStilLees(fr.contentWindow.location.hash,st);
+      eind(r.fout,r.fout?null:r);
+    });
+    fr.src='https://accounts.google.com/o/oauth2/v2/auth?'+p;
+    document.body.appendChild(fr);
+  });
+  const nu=googleStilRij.then(poging,poging);
+  googleStilRij=nu.catch(()=>{});
+  return nu;
+}
+
 /* Toegangstoken opvragen. De login levert alleen een identiteitsbewijs;
    voor Drive is een apart toegangstoken nodig. Google vernieuwt dat
    stil zolang je bent ingelogd; alleen de eerste keer is er een
    toestemmingsvenster. */
 /* Eén ruwe tokenaanvraag bij Google. Levert het tokenobject; de aanroeper
    bepaalt of het het huidige token mag vervangen. */
+/* Wat het Drive-token mag (2026-10-13). Eerst vroeg de app alleen Drive
+   aan, met de standaard van Google (include_granted_scopes): dan krijg je
+   een token voor álles wat deze app ooit kreeg. Sinds Agenda en Mail
+   gekoppeld zijn was dat ook je mailbox, en dit token staat een uur in
+   localStorage. Nu precies: Drive, plus de agenda-meldingen en het archief
+   als die aan staan (die lenen dit token, zie agdGeefToken). De try vangt
+   een aanroep vóórdat die constanten verderop gezet zijn. */
+function driveScopes(extra){
+  const s=[DRIVE_SCOPE];
+  try{if(agdAan())s.push(AGD_SCOPE);}catch(_){}
+  try{if(archiefAan())s.push(ARCHIEF_SCOPE);}catch(_){}
+  if(extra&&!s.includes(extra))s.push(extra);
+  return s;
+}
+/* Eerst onzichtbaar (googleStilToken), dan pas het venster. In een klik
+   meteen het venster: een stille poging die mislukt kost tijd, en na een
+   paar seconden telt de klik voor de browser niet meer. */
+async function driveHaalToken(interactief){
+  const g=ingelogdeGebruiker(), sc=driveScopes();
+  if(!interactief&&g&&!googleInGebaar()&&googleStilMag(g.email,sc)){
+    try{return await googleStilToken(g.email,sc,{hd:TOEGESTAAN_DOMEIN});}catch(_){}
+  }
+  return driveNieuwToken(interactief);
+}
 function driveNieuwToken(interactief){
   return new Promise((res,rej)=>{
     const gebruiker=ingelogdeGebruiker();
     try{
       driveTokenClient=google.accounts.oauth2.initTokenClient({
         client_id:GOOGLE_CLIENT_ID,
-        scope:DRIVE_SCOPE,
+        scope:driveScopes().join(' '),
+        include_granted_scopes:false,
         hint:gebruiker?gebruiker.email:undefined,
         hd:TOEGESTAAN_DOMEIN,
         callback:(r)=>{
@@ -15705,7 +15822,7 @@ async function driveVraagToken(interactief){
     if(!(await googleGereed(8000)))
       throw new Error('Google-bibliotheek kon niet geladen worden');
     let t;
-    try{t=await driveNieuwToken(interactief);}
+    try{t=await driveHaalToken(interactief);}
     catch(e){driveVerbindBijGebaar();throw e;}
     driveToken=t;
     driveTokenBewaar(t);
@@ -15749,7 +15866,7 @@ async function driveVerversToken(){
   }
   try{
     if(!(await googleGereed(8000)))return;
-    const t=await driveNieuwToken(false);
+    const t=await driveHaalToken(false);
     driveToken=t;
     driveTokenBewaar(t);
   }catch(_){
@@ -35578,6 +35695,7 @@ async function gaccVerbind(id){
     gaccTok[a.email]=t;
     gaccTokBewaar();
     delete gaccRust[a.email];
+    delete googleStilUit[googleStilSleutel(a.email,gaccScopeLijst())];
     return true;
   })();
   try{return await gaccBezig[a.email];}
@@ -35665,31 +35783,39 @@ function gaccFoutMelding(e,a){
   appToast(msg,{type:'error',duration:10000});
 }
 
-/* ── Vooraf vernieuwen, bij je volgende klik (2026-10-12) ──
-   Een token is een uur geldig, en een nieuw token komt alleen via een
-   venster van Google dat de browser pas na een klik toestaat. Eerst wachtte
-   de app tot een aanvraag mislukte; dan stond er een oranje kaart per
-   account. Nu doet hij wat Drive al deed: een kwartier voor het verlopen
-   (GACC_TOKEN_MARGE), en meteen na het openen als er geen token is, vraagt
-   je eerstvolgende klik waar dan ook een nieuw token aan. De toestemming is
-   er al, dus het venster flitst alleen even. Eén account per klik: de
-   browser staat per klik maar één venster toe.
+/* ── Vernieuwen: eerst stil, een venster alleen als het moet ──
+   Een token is een uur geldig. Op 2026-10-12 vroeg de eerstvolgende klik
+   een kwartier vóór het verlopen een nieuw token aan, via een venster van
+   Google; met drie tokens (Drive, Zakelijk, Privé) flitste dat een paar
+   keer per uur in beeld. Nu (2026-10-13):
+   - Eerst onzichtbaar (googleStilToken): na het openen voor alle accounts,
+     en weer een kwartier vóór het verlopen (GACC_TOKEN_MARGE). Waar dat
+     werkt zie je niets.
+   - Lukt dat niet (iPhone, of Google wil iets van je), dan een venster bij
+     je eerstvolgende klik, maar alleen als je Mail, Agenda of de chat met
+     mail en agenda het afgelopen uur gebruikte (gaccInGebruik). Anders
+     wacht het tot je ze opent; het getal naast Mail is dan even weg.
+   - Heb je een token nodig midden in een klik (je opent Mail), dan opent
+     die klik het venster meteen (gaccTokenNu), zonder kaart ertussen.
    - Op 'click', niet op 'pointerdown': de knop onder je vinger gaat voor.
-     Opende die zelf al een venster van Google (Verbinden, ↻, mailen), of
-     deed Drive dat bij het indrukken, dan is de klik op
-     (navigator.userActivation) en wacht dit op de volgende.
-   - Wat je bekijkt eerst: in Mail of Agenda het account dat daar ontbreekt.
+     Opende die al een venster, dan is de klik op (navigator.userActivation)
+     en wacht dit op de volgende. Eén account per klik.
    - Sloot je het venster zelf, of ging het anders mis, dan vijf minuten
-     rust voor dat account (gaccRust), geen venster bij elke klik.
-   - Had het account nog een geldig token, dan wordt er niets hertekend;
-     was het weg, dan wel (zoals na Verbinden).
-   Nul vensters kan alleen met een eigen server; zie docs/decisions.md. */
+     rust voor dat account (gaccRust).
+   Nul vensters op elk apparaat kan alleen met een eigen server; zie
+   docs/decisions.md. */
 const GACC_TOKEN_MARGE=15*60000;
 const GACC_RUST=5*60000;
-const gaccRust={};          /* e-mail -> tijdstip tot wanneer niet vragen */
+const GACC_IN_GEBRUIK=60*60000;
+const gaccRust={};          /* e-mail -> tijdstip tot wanneer geen venster */
+let gaccGebruiktOp=0;       /* laatste keer dat Mail, Agenda of de chat een account nodig had */
 let gaccVerversTimer=null;
 let gaccGebaarGewapend=false;
 let gaccGebaarAf=null;
+let gaccVensterNu=false;
+function gaccScopeLijst(){return GACC_SCOPES.split(' ');}
+function gaccInGebruik(){return Date.now()-gaccGebruiktOp<GACC_IN_GEBRUIK;}
+function gaccStilMag(a){return googleStilMag(a&&a.email,gaccScopeLijst());}
 /* Welke accounts nu een nieuw token nodig hebben: aan voor agenda of mail,
    zonder token of binnen de marge, en niet in rust. */
 function gaccTeVernieuwen(nu){
@@ -35701,21 +35827,110 @@ function gaccTeVernieuwen(nu){
     return !t||t.tot-GACC_TOKEN_MARGE<=nu;
   });
 }
-/* Na elk laden en na elke wijziging aan de accounts: is er nu iets nodig,
-   dan wacht de volgende klik; anders een wekker op het eerste moment dat
-   er iets nodig wordt. */
+/* Eén account stil vernieuwen; hetzelfde account niet twee keer tegelijk. */
+const gaccStilBezig={};
+function gaccStil(a,wacht){
+  if(gaccStilBezig[a.email])return gaccStilBezig[a.email];
+  const p=(async()=>{
+    try{
+      const t=await googleStilToken(a.email,gaccScopeLijst(),{wacht});
+      const wie=await gaccWieIsHet(t.token);
+      if(wie&&wie!==a.email){
+        googleStilUit[googleStilSleutel(a.email,gaccScopeLijst())]=Date.now()+GOOGLE_STIL_UIT;
+        throw new Error('Google gaf een token voor een ander account.');
+      }
+      gaccTok[a.email]=t;
+      gaccTokBewaar();
+      delete gaccRust[a.email];
+      return t;
+    }catch(e){
+      /* Wat er ook misging: een half uur niet opnieuw, anders start de
+         ronde zichzelf meteen weer. */
+      const k=googleStilSleutel(a.email,gaccScopeLijst());
+      if(!((googleStilUit[k]||0)>Date.now()))googleStilUit[k]=Date.now()+GOOGLE_STIL_UIT;
+      throw e;
+    }finally{delete gaccStilBezig[a.email];}
+  })();
+  gaccStilBezig[a.email]=p;
+  return p;
+}
+/* Alle accounts die het nodig hebben, stil, één voor één. Kwam er een
+   account bij dat geen token had, dan tekent wat openstaat opnieuw. */
+let gaccStilRondeBezig=false, gaccStilRondeOp=0;
+async function gaccStilRonde(){
+  if(gaccStilRondeBezig)return;
+  gaccStilRondeBezig=true;
+  gaccStilRondeOp=Date.now();
+  let nieuw=false;
+  try{
+    for(const a of gaccTeVernieuwen()){
+      if(!gaccStilMag(a))continue;
+      const wasWeg=!gaccTokGeldig(a.email);
+      try{await gaccStil(a);if(wasWeg)nieuw=true;}catch(_){}
+    }
+  }finally{gaccStilRondeBezig=false;}
+  if(nieuw)gaccNaWijziging(true);
+  else gaccPlanVerversing();
+}
+/* Na elk laden en na elke wijziging aan de accounts. */
 function gaccPlanVerversing(){
   clearTimeout(gaccVerversTimer);gaccVerversTimer=null;
   if(!ingelogdeGebruiker())return;
   const lijst=gaccLijst().filter(a=>a.agenda!==false||a.mail!==false);
   if(!lijst.length)return;
-  const nu=Date.now();
-  if(gaccTeVernieuwen(nu).length){gaccVerbindBijGebaar();return;}
+  const nu=Date.now(), nodig=gaccTeVernieuwen(nu);
+  if(nodig.some(gaccStilMag)){
+    /* Hooguit één ronde per minuut, wat Google ook terugstuurt. */
+    if(nu-gaccStilRondeOp>60000){gaccStilRonde();return;}
+    gaccVerversTimer=setTimeout(gaccPlanVerversing,60000);
+    return;
+  }
+  if(nodig.length&&gaccInGebruik())gaccVerbindBijGebaar();
+  /* De wekker: het eerste moment dat er weer iets te doen is -- een token
+     dat in de marge komt, of een stille poging die weer mag. */
   const momenten=lijst.map(a=>{
-    const t=gaccTokGeldig(a.email);
-    return Math.max(t?t.tot-GACC_TOKEN_MARGE:nu,gaccRust[a.email]||0);
+    const t=gaccTokGeldig(a.email), rust=gaccRust[a.email]||0;
+    if(t&&t.tot-GACC_TOKEN_MARGE>nu)return Math.max(t.tot-GACC_TOKEN_MARGE,rust);
+    return Math.max(googleStilUit[googleStilSleutel(a.email,gaccScopeLijst())]||0,rust);
   });
   gaccVerversTimer=setTimeout(gaccPlanVerversing,Math.max(60000,Math.min(...momenten)-nu));
+}
+/* Een token nodig op dit moment (gaccApi). Eerst stil. Zit je midden in een
+   klik, dan opent die het venster meteen; anders wacht het op je volgende
+   klik en krijgt de module de fout "niet verbonden" (de oranje kaart). Wat
+   op de achtergrond loopt (het getal naast Mail) opent nooit een venster. */
+async function gaccTokenNu(a,achtergrond){
+  if(gaccStilMag(a)){
+    try{await gaccStil(a,googleInGebaar()?3000:8000);}catch(_){}
+    const t=gaccTokGeldig(a.email);
+    if(t){gaccPlanVerversing();return t;}
+  }
+  if(!achtergrond&&googleInGebaar()&&!gaccVensterNu&&!((gaccRust[a.email]||0)>Date.now())){
+    gaccVensterNu=true;
+    try{await gaccVerbind(a.id);}
+    catch(e){if(!e||e.type!=='popup_failed_to_open')gaccRust[a.email]=Date.now()+GACC_RUST;}
+    finally{gaccVensterNu=false;}
+    const t=gaccTokGeldig(a.email);
+    if(t){gaccPlanVerversing();return t;}
+  }
+  if(!achtergrond)gaccVerbindBijGebaar();
+  throw gaccVerbindFout(a);
+}
+/* Je opent Mail of Agenda, of de chat wil erin kijken: vanaf nu "in
+   gebruik". Mail en Agenda slaan een account zonder token over (dat wordt
+   de oranje kaart), dus hier eerst: stil waar dat kan, en kwam je binnen
+   met een klik (je tikte op Mail), dan opent die klik meteen het venster
+   voor het eerste account dat stil niet lukt. De rest wacht op je
+   volgende klik. Geeft dit true, dan is er een account bij gekomen. */
+async function gaccZorgVoor(lijst){
+  gaccGebruiktOp=Date.now();
+  const zonder=(lijst||[]).filter(a=>!gaccTokGeldig(a.email));
+  if(!zonder.length)return false;
+  const r=await Promise.allSettled(zonder.map(a=>gaccTokenNu(a,false)));
+  return r.some(x=>x.status==='fulfilled');
+}
+function gaccBijOpenen(wat){
+  gaccZorgVoor(gaccVoor(wat)).then(nieuw=>{if(nieuw)gaccNaWijziging(true);},()=>{});
 }
 function gaccVerbindBijGebaar(){
   if(gaccGebaarGewapend)return;
@@ -35729,17 +35944,19 @@ function gaccVerbindBijGebaar(){
     const doel=e.target&&e.target.closest?e.target:null;
     const ua=navigator.userActivation;
     if((doel&&doel.closest('[data-gacc-zelf]'))||(ua&&!ua.isActive)){gaccVerbindBijGebaar();return;}
+    /* Alleen wat stil niet lukt, en alleen als je het gebruikt. */
     const wat=activeModule==='agenda'?'agenda':activeModule==='mail'?'mail':'';
-    const nodig=gaccTeVernieuwen();
+    const nodig=gaccInGebruik()?gaccTeVernieuwen().filter(a=>!gaccStilMag(a)):[];
     const a=(wat&&nodig.find(x=>x[wat]!==false))||nodig[0];
     if(!a){gaccPlanVerversing();return;}
     const wasWeg=!gaccTokGeldig(a.email);
+    gaccVensterNu=true;
     gaccVerbind(a.id).then(()=>{if(wasWeg)gaccNaWijziging(true);}).catch(err=>{
       if(!err||err.type!=='popup_failed_to_open'){
         gaccRust[a.email]=Date.now()+GACC_RUST;
         console.warn('[accounts] vernieuwen bij klik',err);
       }
-    }).finally(gaccPlanVerversing);
+    }).finally(()=>{gaccVensterNu=false;gaccPlanVerversing();});
   };
   gaccGebaarAf=af;
   document.addEventListener('click',doe);
@@ -35754,9 +35971,10 @@ function gaccVerbindFout(a){
   return e;
 }
 async function gaccApi(a,url,opties,_poging){
-  const t=gaccTokGeldig(a&&a.email);
-  if(!t){gaccVerbindBijGebaar();throw gaccVerbindFout(a);}
-  const o=opties||{};
+  const {achtergrond,...o}=opties||{};
+  if(!a)throw gaccVerbindFout(a);
+  if(!achtergrond)gaccGebruiktOp=Date.now();
+  const t=gaccTokGeldig(a.email)||await gaccTokenNu(a,!!achtergrond);
   const koppen={Authorization:'Bearer '+t.token,...(o.body&&typeof o.body==='string'?{'Content-Type':'application/json'}:{}),...(o.headers||{})};
   let r;
   try{r=await fetch(url,{...o,headers:koppen});}
@@ -35772,7 +35990,12 @@ async function gaccApi(a,url,opties,_poging){
     msg=String(j?.error?.message||'');
     reden=String(j?.error?.errors?.[0]?.reason||j?.error?.status||'');
   }catch(_){}
-  if(r.status===401){gaccTokVergeet(a.email);gaccVerbindBijGebaar();throw gaccVerbindFout(a);}
+  if(r.status===401){
+    gaccTokVergeet(a.email);
+    if(!_poging)return gaccApi(a,url,opties,1);
+    if(!achtergrond)gaccVerbindBijGebaar();
+    throw gaccVerbindFout(a);
+  }
   if((r.status===429||r.status>=500)&&!_poging){
     await new Promise(z=>setTimeout(z,r.status===429?2000:1000));
     return gaccApi(a,url,opties,1);
@@ -35872,15 +36095,22 @@ function instGroepAccounts(){
         hint:'Bijvoorbeeld feestdagen of een gedeelde agenda erbij of eruit',
         waarde:zicht==null?'':zicht+' van '+kals.lijst.length}),
       instRij({doe:'gaccDoe',arg:'verbind|'+a.id,label:t?'Opnieuw verbinden':'Verbinden',
-        hint:t?'Verbonden op dit apparaat':'Google vraagt per uur opnieuw; een klik is genoeg',
+        hint:t?'Verbonden op dit apparaat':'Vernieuwt vanzelf; lukt dat niet, dan bij je volgende klik',
         waarde:t?'Verbonden':'Niet verbonden',toon:t?'aan':'uit'}),
       instRij({doe:'gaccDoe',arg:'weg|'+a.id,label:'Ontkoppelen',gevaar:true,
         hint:'Haalt het account uit de app; in Google verandert niets'})
       ].join(''))
     ]);
   });
+  /* Lukt stil vernieuwen in deze browser? Zie googleStilToken. */
+  const stil=googleStilStand;
   kaarten.push(instKaart([instRij({doe:'gaccDoe',arg:'toevoegen|',label:'Account toevoegen',
-    hint:'Een Google-account met agenda en mail, zakelijk of privé'})]));
+    hint:'Een Google-account met agenda en mail, zakelijk of privé'}),
+    instRij({soort:'info',label:'Ongemerkt vernieuwen',
+      hint:!stil?'Nog niet nodig geweest sinds de app openging'
+        :stil.ok?'Google geeft in deze browser een nieuwe toegang zonder venster'
+        :'Lukt niet in deze browser; Google vraagt dan af en toe een venster',
+      waarde:!stil?'':stil.ok?'Werkt':'Niet hier',toon:stil&&stil.ok?'aan':'uit'})]));
   return instGroep('accounts','info','Agenda en mail',
     'Google-accounts voor Agenda, Mail en de chat. De lijst gaat mee naar Drive; de verbinding is per apparaat. '+
     'De app kan mail archiveren en naar de prullenbak zetten, nooit definitief verwijderen.',
@@ -36052,6 +36282,7 @@ async function kalLaad(forceer){
 
 /* ── Tekenen ── */
 function renderAgendaModule(){
+  gaccBijOpenen('agenda');
   kalTeken();
   if(gaccVoor('agenda').length)kalLaad(false);
 }
@@ -36830,7 +37061,7 @@ async function pvTelOngelezen(){
       if(!gaccTokGeldig(a.email)){weg(a.id);return;}
       try{
         const [inbox,ster,concept]=await Promise.all(['INBOX','STARRED','DRAFT'].map(l=>
-          gaccApi(a,PV_API+'/labels/'+l).catch(e=>{if(l==='INBOX')throw e;return null;})));
+          gaccApi(a,PV_API+'/labels/'+l,{achtergrond:true}).catch(e=>{if(l==='INBOX')throw e;return null;})));
         pvOngelezen[a.id]=Number(inbox&&inbox.threadsUnread)||0;
         pvTellers[a.id]={ongelezen:pvOngelezen[a.id],postvak:Number(inbox&&inbox.threadsTotal)||0,
           ster:ster?Number(ster.threadsTotal)||0:null,concepten:concept?Number(concept.messagesTotal)||0:null,op:Date.now()};
@@ -36899,6 +37130,7 @@ function pvKiesAcc(id){
 
 /* ── Tekenen ── */
 function renderMailModule(){
+  gaccBijOpenen('mail');
   pvTeken();
   const L=pvLijst;
   if(pvAccounts().length&&(!L||L.sleutel!==pvSleutel()||(!L.laadt&&Date.now()-L.op>PV_VERS)))pvLaad(false);
@@ -38034,16 +38266,16 @@ function agdNieuwToken(interactief){
     try{
       google.accounts.oauth2.initTokenClient({
         client_id:GOOGLE_CLIENT_ID,
-        scope:AGD_SCOPE,
-        include_granted_scopes:true,
+        scope:driveScopes(AGD_SCOPE).join(' '),
+        include_granted_scopes:false,
         hint:gebruiker?gebruiker.email:undefined,
         hd:TOEGESTAAN_DOMEIN,
         callback:(r)=>{
           if(r.error)return rej(new Error(r.error_description||r.error));
           const t={token:r.access_token,tot:Date.now()+(Number(r.expires_in||3600)*1000)};
           agdTok=t;
-          /* Draagt dit token ook Drive (include_granted_scopes), dan is het
-             meteen het verse Drive-token: één token voor allebei. */
+          /* Dit token draagt ook Drive (driveScopes), dus het is meteen
+             het verse Drive-token: één token voor allebei, zonder mail. */
           if(String(r.scope||'').split(' ').includes(DRIVE_SCOPE)){driveToken=t;driveTokenBewaar(t);}
           res(t.token);
         },
@@ -38447,8 +38679,8 @@ function archiefNieuwToken(){
     try{
       google.accounts.oauth2.initTokenClient({
         client_id:GOOGLE_CLIENT_ID,
-        scope:ARCHIEF_SCOPE,
-        include_granted_scopes:true,
+        scope:driveScopes(ARCHIEF_SCOPE).join(' '),
+        include_granted_scopes:false,
         hint:gebruiker?gebruiker.email:undefined,
         hd:TOEGESTAAN_DOMEIN,
         callback:(r)=>{
@@ -41022,6 +41254,7 @@ const AI_LEES={
       let tot=kalPlus(kalDatumLokaal(t.iso),1);
       if(tot<=van)return {fout:'"tot" ligt vóór "van".'};
       if((tot-van)/86400000>92)tot=kalPlus(van,92);
+      await gaccZorgVoor(acc.lijst);
       const zonder=acc.lijst.filter(a=>!gaccTokGeldig(a.email)).map(gaccNaam);
       if(zonder.length===acc.lijst.length)return {fout:'Niet verbonden: '+zonder.join(', ')+'. De gebruiker moet in Agenda op Verbinden klikken.'};
       const {items,fouten}=await kalHaal(van,tot);
@@ -41054,6 +41287,7 @@ const AI_LEES={
       const q=String(i.zoekopdracht||'').trim()||'in:inbox';
       const max=Math.max(1,Math.min(25,Math.round(Number(i.max)||10)));
       const res=[],zonder=[],fouten=[];
+      await gaccZorgVoor(acc.lijst);
       await Promise.all(acc.lijst.map(async a=>{
         if(!gaccTokGeldig(a.email)){zonder.push(gaccNaam(a));return;}
         try{

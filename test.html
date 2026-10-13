@@ -149,7 +149,9 @@ async function runChecks() {
      niets bewaard, en na afloop staat alles terug. */
   const accountsTerug = oud => w.eval('if(' + oud + '===null)delete rawState.settings.googleAccounts;' +
     'else rawState.settings.googleAccounts=' + oud + ';gaccTok={};kalCache={};kalKalenders={};pvLijst=null;pvDraden={};pvOngelezen={};' +
-    'clearTimeout(gaccVerversTimer);gaccVerversTimer=null;if(gaccGebaarAf)gaccGebaarAf();for(const k in gaccRust)delete gaccRust[k];');
+    'clearTimeout(gaccVerversTimer);gaccVerversTimer=null;if(gaccGebaarAf)gaccGebaarAf();for(const k in gaccRust)delete gaccRust[k];' +
+    'for(const k in googleStilUit)delete googleStilUit[k];gaccGebruiktOp=0;gaccStilRondeOp=0;' +
+    'if(window.__stilEcht){googleStilToken=window.__stilEcht;delete window.__stilEcht;}');
   const zonderAccounts = async fn => {
     const oud = w.eval('JSON.stringify((rawState.settings||{}).googleAccounts||null)');
     w.eval('rawState.settings=rawState.settings||{};rawState.settings.googleAccounts=[]');
@@ -162,7 +164,9 @@ async function runChecks() {
       {id:'tz',email:'test@herling-analytics.nl',naam:'Zakelijk',agenda:true,mail:true,kalKeuze:{}},
       {id:'tp',email:'jan.jansen@voorbeeld.nl',naam:'Privé',agenda:true,mail:true,kalKeuze:{}}];
       gaccTok={};gaccLijst().forEach(a=>{gaccTok[a.email]={token:'tok-'+a.email,tot:Date.now()+3600e3,scope:GACC_SCOPES};});
-      kalCache={};kalKalenders={};pvLijst=null;pvDraden={};pvOngelezen={};`);
+      kalCache={};kalKalenders={};pvLijst=null;pvDraden={};pvOngelezen={};
+      if(!window.__stilEcht)window.__stilEcht=googleStilToken;
+      googleStilToken=()=>Promise.reject(Object.assign(new Error('test'),{type:'stil',reden:'test'}));`);
     const b64 = s => btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     const nu = new Date();
     const om = (u, m) => { const x = new Date(nu); x.setHours(u, m || 0, 0, 0); return x.toISOString(); };
@@ -3301,7 +3305,7 @@ async function runChecks() {
         w.eval('gaccTok=' + oudMem);
       }
     }],
-    ['Accounts: vooraf vernieuwen, een kwartier voor het verlopen, bij een echte klik', () => metGoogle(async () => {
+    ['Accounts: vernieuwen zonder stil, een kwartier voor het verlopen, bij een echte klik als je Mail gebruikt', () => metGoogle(async () => {
       /* Geen venster in een test: het token-venster is nagespeeld en een
          klik zonder gebruiker (zoals hier) mag er geen openen. */
       const oudNieuw = w.gaccNieuwToken;
@@ -3312,7 +3316,12 @@ async function runChecks() {
         w.eval('if(gaccGebaarAf)gaccGebaarAf();for(const k in gaccRust)delete gaccRust[k];');
         w.eval('gaccLijst().forEach(a=>{gaccTok[a.email].tot=Date.now()+50*60000;});gaccPlanVerversing();');
         const rustig = w.eval('gaccTeVernieuwen().length===0&&!gaccGebaarGewapend&&gaccVerversTimer!==null');
-        w.eval('gaccTok["test@herling-analytics.nl"].tot=Date.now()+10*60000;gaccPlanVerversing();');
+        /* Stil lukt hier niet (half uur uit), en je gebruikt Mail niet: geen venster */
+        w.eval('googleStilUit[googleStilSleutel("test@herling-analytics.nl",gaccScopeLijst())]=Date.now()+60000;' +
+          'gaccGebruiktOp=0;gaccTok["test@herling-analytics.nl"].tot=Date.now()+10*60000;gaccPlanVerversing();');
+        const nietInGebruik = !w.eval('gaccGebaarGewapend') && w.eval('gaccVerversTimer!==null');
+        /* Wel in gebruik: de volgende klik */
+        w.eval('gaccGebruiktOp=Date.now();gaccPlanVerversing();');
         const klaar = w.eval('gaccTeVernieuwen().map(a=>a.id).join()') === 'tz' && w.eval('gaccGebaarGewapend');
         w.document.body.click();
         await new Promise(r => setTimeout(r, 50));
@@ -3321,13 +3330,59 @@ async function runChecks() {
         const rust = w.eval('gaccTeVernieuwen().length') === 0;
         w.eval('delete gaccRust["test@herling-analytics.nl"];gaccVind("tz").agenda=false;gaccVind("tz").mail=false');
         const uit = w.eval('gaccTeVernieuwen().length') === 0;
-        return rustig && klaar && geduld && rust && uit;
+        return rustig && nietInGebruik && klaar && geduld && rust && uit;
       } finally {
         w.gaccNieuwToken = oudNieuw;
         delete w.navigator.userActivation;
         w.eval('if(gaccGebaarAf)gaccGebaarAf();clearTimeout(gaccVerversTimer);gaccVerversTimer=null;');
       }
     })],
+    ['Accounts: stil vernieuwen geeft een token zonder venster, en tekent opnieuw', () => metGoogle(async () => {
+      const oudNieuw = w.gaccNieuwToken, oudWie = w.gaccWieIsHet;
+      let venster = 0, stil = 0;
+      w.gaccNieuwToken = () => { venster++; return Promise.reject(new Error('test')); };
+      w.gaccWieIsHet = async tok => tok.slice(5);
+      w.eval('googleStilToken=(email)=>{window.__stil=(window.__stil||0)+1;' +
+        'return Promise.resolve({token:"stil-"+email,tot:Date.now()+3600e3,scope:GACC_SCOPES});}');
+      try {
+        w.eval('window.__stil=0;delete gaccTok["jan.jansen@voorbeeld.nl"];gaccStilRondeOp=0;');
+        await w.gaccStilRonde();
+        stil = w.eval('window.__stil');
+        const t = w.gaccTokGeldig('jan.jansen@voorbeeld.nl');
+        return venster === 0 && stil === 1 && t && t.token === 'stil-jan.jansen@voorbeeld.nl' &&
+          !w.eval('gaccGebaarGewapend');
+      } finally {
+        w.gaccNieuwToken = oudNieuw; w.gaccWieIsHet = oudWie;
+        w.eval('if(gaccGebaarAf)gaccGebaarAf();clearTimeout(gaccVerversTimer);gaccVerversTimer=null;delete window.__stil;');
+      }
+    })],
+    ['Stil vernieuwen: het antwoord van Google uitlezen, een vreemde state telt niet', () => {
+      const ok = w.googleStilLees('#access_token=abc&expires_in=3599&scope=x%20y&state=s1', 's1');
+      const vreemd = w.googleStilLees('#access_token=abc&state=s2', 's1');
+      const fout = w.googleStilLees('#error=interaction_required&state=s1', 's1');
+      const leeg = w.googleStilLees('', 's1');
+      return ok.token === 'abc' && ok.scope === 'x y' && ok.tot > Date.now() + 3500e3 &&
+        vreemd.fout === 'state' && !vreemd.token && fout.fout === 'interaction_required' && leeg.fout === 'state';
+    }],
+    ['Drive-token: alleen Drive (en meldingen/archief als die aan staan), nooit mail; een oud breed token gaat weg', () => {
+      const oudLS = w.localStorage.getItem('herling_drive_token');
+      const oudMem = w.eval('JSON.stringify(driveToken)');
+      try {
+        const sc = w.driveScopes();
+        const metAgd = w.driveScopes(w.eval('AGD_SCOPE'));
+        const geenMail = !sc.concat(metAgd).some(x => /gmail|calendar\.events|calendarlist/.test(x));
+        const g = w.ingelogdeGebruiker();
+        w.localStorage.setItem('herling_drive_token', JSON.stringify({token: 'breed', tot: Date.now() + 3600e3, account: g ? g.email : ''}));
+        const weg = w.driveTokenUitSessie() === null && !w.localStorage.getItem('herling_drive_token');
+        w.driveTokenBewaar({token: 'smal', tot: Date.now() + 3600e3});
+        const terug = w.driveTokenUitSessie();
+        return sc[0] === w.eval('DRIVE_SCOPE') && metAgd.includes(w.eval('AGD_SCOPE')) && geenMail && weg &&
+          terug && terug.token === 'smal';
+      } finally {
+        if (oudLS === null) w.localStorage.removeItem('herling_drive_token'); else w.localStorage.setItem('herling_drive_token', oudLS);
+        w.eval('driveToken=' + oudMem);
+      }
+    }],
     ['Agenda: afspraken van twee accounts, een uitgevinkte agenda blijft weg', () => metGoogle(async log => {
       const van = w.kalStart(new Date()), tot = w.kalPlus(van, 1);
       const r = await w.kalHaal(van, tot);

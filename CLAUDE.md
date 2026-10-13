@@ -24,6 +24,7 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 ├── index.html   ← DE app (alle wijzigingen hier)
 ├── herling_analytics_home.html, bi_checklist_kanban.html  ← redirect-stubs (oude URLs)
 ├── over.html, privacy.html, voorwaarden.html  ← openbare pagina's voor het OAuth-scherm van Google (geen namen of adressen erin)
+├── stil.html                     ← terugkeerpagina voor stil vernieuwen (`googleStilToken`); moet als redirect-URI bij de OAuth-client staan
 ├── _config.yml                   ← Pages/Jekyll: houdt CLAUDE.md, docs/, test.html en hulpscripts van de live site
 ├── herling-icon.svg              ← open-ring-logo op donkere tegel, stilstaand (manifest)
 ├── herling-favicon-16/32.png     ← tabblad
@@ -107,6 +108,7 @@ rawState = {
 | `LS_KAL` = `herling_kal` | Agenda: gekozen weergave (dag/week/lijst) en accountfilter, per apparaat |
 | `LS_PV` = `herling_pv` | Mail: gekozen tabblad en accountfilter, per apparaat |
 | sessionStorage `herling_gacc_tokens` | Toegangstokens van de gekoppelde Google-accounts, per account, alleen voor wie ingelogd is. Bewust sessionStorage (net als het `gmail.send`-token): met `gmail.modify` lees je de hele mailbox |
+| localStorage `herling_drive_token` | Het Drive-token, een uur geldig. Alleen `drive.appdata` plus agenda-meldingen en archief als die aan staan (`driveScopes()`, `include_granted_scopes:false`), nooit mail; een token zonder `smal` (van vóór 2026-10-13) wordt weggegooid |
 | `LS_INST_OPEN` = `herling_instellingen_open` | Welke blokken op Instellingen open staan (accountkaarten, API-sleutels), per apparaat en bewust niet in `rawState` |
 | `LS_AI_PANEEL` = `herling_ai_paneel` | Plek en maat van het paneel van Vraag het je app (`{x, y, w, h|null}`), per apparaat; ontbreekt = de standaardplek rechtsonder (`aiPaneelToepas`) |
 | `LS_AGD` = `herling_agenda` | Meldingen in Google Agenda: handtekening, tijdstip en aantal van de laatste keer bijwerken op dít apparaat (bewust niet in `rawState`: anders wordt elke keer bijwerken een wijziging voor Drive) |
@@ -443,6 +445,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 - Geen pincode-versleuteling meer (afgeschaft 2026-08-16) — `appDataFolder` is het slot. Alleen het uitpakpad voor een oud versleuteld blok staat er nog (PBKDF2 + AES-GCM, alleen ontsleutelen)
 - Geen telemetrie, geen externe API-calls behalve Google (Drive, Gmail, Agenda, Fonts, Gemini) en — alleen als je Claude kiest onder Instellingen → AI — Anthropic (`api.anthropic.com`)
 - Google-scopes: `drive.appdata` (opslag), `drive.file` (archief: alleen wat de app zelf maakte), `gmail.send`, `calendar.app.created` — elk staat op het OAuth-scherm in de Cloud Console. Voor gekoppelde accounts (Agenda en Mail) daarnaast `openid email`, `calendar.events`, `calendar.calendarlist.readonly` en `gmail.modify` (kan niets definitief verwijderen). Een gmail.com-account koppelt alleen als het OAuth-scherm op **Extern** staat (anders "Error 403: org_internal")
+- Tokens worden eerst **stil** vernieuwd in een onzichtbaar frame (`googleStilToken`, `prompt=none`, terug naar `stil.html`); lukt dat niet (iPhone, of Google wil iets), dan een venster bij je volgende klik. Werkt alleen als `https://app.herling-analytics.nl/stil.html` onder *Authorized redirect URIs* van de OAuth-client staat
 - Tokens NIET in `.git/config` URL — gebruik Git Credential Manager (`git config --global credential.helper manager`)
 - **De repo is openbaar** (GitHub Free + Pages). Geen namen van klanten of relaties erin — zie *Hard rules*
 
