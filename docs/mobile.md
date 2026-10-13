@@ -89,7 +89,7 @@ Elke module ziet er op een telefoon hetzelfde uit. Twee vaste plekken:
 | `‹ jaar ›` | links in diezelfde balk, vóór de bedrijfskiezer — in **elke** weergave van Uren en Facturen, de analyse inbegrepen | 36px hoog (brede knop), het label zelf is de weg terug naar nu | — |
 | ronde + | rechtsonder, boven de tabbalk (`right: 17px`, `bottom: 80px` + safe-area) | 56×56 | 26px glyph |
 | ✕ sluiten | ín de gekleurde kopbalk van een modaal, 9px van de rechterrand | 44×44, randloos, wit op de band | `var(--icoon)` |
-| Vraag het je app | géén eigen zwevende knop (rechtsonder staat de ronde +): de sparkle in de zijbalk en in de kop van een open notitie; het paneel komt als blad van onderen (88vh) | — | — |
+| Vraag het je app | géén eigen zwevende knop (rechtsonder staat de ronde +): de sparkle in de zijbalk en in de kop van een open notitie; het paneel komt als blad van onderen (hoogte volgt de inhoud, tot 88vh), met een − om te minimaliseren | — | — |
 
 ### Eén maat voor een icoon: `--icoon`
 

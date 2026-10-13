@@ -1334,6 +1334,42 @@ async function runChecks() {
             return paneel && !m.classList.contains('open') && !d.body.classList.contains('aic-open');
           } finally { terug(); }
         }],
+        ['Minimaliseren: het − bewaart het gesprek, een antwoord terwijl het paneel weg is zet een stip op de knop, openen haalt hem weg', async () => {
+          const terug = opzet();
+          const echt = w.callAI, sleutel = w.localStorage.getItem('herling_claude_api_key');
+          try {
+            if (!sleutel) w.localStorage.setItem('herling_claude_api_key', 'test');
+            w.callAI = async () => ({soort: 'vervangen', markdown: 'Kort.', uitleg: '- ingekort'});
+            w.aiChatOpen();
+            const knop = d.querySelector('#aiChatModal .aic-dicht');
+            const min = knop.getAttribute('aria-label') === 'Minimaliseren';
+            const bezig = w.aiSchermChip('opschonen');   /* loopt nog als we minimaliseren */
+            knop.click();
+            const weg = !d.getElementById('aiChatModal').classList.contains('open');
+            await bezig;
+            const st = d.getElementById('aiStarter');
+            const stip = st.classList.contains('nieuw') && /nieuw antwoord/.test(st.getAttribute('aria-label'));
+            w.aiChatOpen();
+            const bewaard = w.eval('aiChatGesprek.length') >= 2 && !st.classList.contains('nieuw');
+            return min && weg && stip && bewaard;
+          } finally {
+            w.callAI = echt;
+            if (!sleutel) w.localStorage.removeItem('herling_claude_api_key');
+            terug();
+          }
+        }],
+        ['Verbruik: niet meer in de chat, wel op Instellingen direct onder het model, en het werkt zichzelf bij', () => {
+          const terug = opzet();
+          try {
+            const geenBadge = !d.getElementById('aiQuotaBadgeChat') && !d.querySelector('#aiChatModal .ai-quota-badge');
+            w.switchModule('instellingen');
+            const kaart = d.getElementById('instVerbruik');
+            const onderModel = !!kaart && kaart.previousElementSibling && kaart.previousElementSibling.getAttribute('role') === 'radiogroup';
+            const regels = !!kaart && /Deze maand \(Claude\)/.test(kaart.textContent) && /Vandaag/.test(kaart.textContent);
+            w.aiVerbruikBij();
+            return geenBadge && onderModel && regels && !!d.getElementById('instVerbruik');
+          } finally { terug(); }
+        }],
         ['Meekijken: de open notitie en je selectie gaan mee met de vraag; de schrijf-acties staan alleen dan klaar', async () => {
           const terug = opzet();
           try {

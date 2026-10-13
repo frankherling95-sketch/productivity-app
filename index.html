@@ -8861,12 +8861,16 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
 }
 .aic-dock.open { display: block; opacity: 1; translate: 0 0; transition-timing-function: var(--ease); }
 @starting-style { .aic-dock.open { opacity: 0; translate: 0 12px; } }
+/* De hoogte volgt de inhoud, tot 660px (2026-10-13, v2.76): leeg is het een
+   compacte popup, met een gesprek groeit hij omhoog en scrolt het gesprek.
+   Met een vaste hoogte stond er boven de lege stand een lege vlakte. */
 .aic-dock .modal.aic-modal {
   width: 420px; max-width: calc(100vw - 48px);
-  height: min(660px, calc(100vh - 48px)); max-height: none;
+  height: auto; max-height: min(660px, calc(100vh - 48px));
   border: 0.5px solid var(--border-strong);
   box-shadow: 0 18px 50px rgba(10,19,48,.28), 0 2px 8px rgba(10,19,48,.12);
 }
+.aic-dock .aic-lijst { flex: 1 1 auto; }
 /* Wat hij bekijkt staat in de regel onder het gesprek; de ondertitel zei
    in algemene woorden hetzelfde en kostte twee regels. */
 .aic-dock .aic-kop p { display: none; }
@@ -8898,11 +8902,22 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
 .aic-starter:hover { translate: 0 -2px; }
 .aic-starter:focus-visible { outline: 2px solid var(--mint); outline-offset: 3px; }
 body.aic-open .aic-starter { display: none; }
-/* In Notities schuift de editor opzij, zodat de notitie naast het paneel
-   leesbaar blijft. Op een smaller scherm ligt het paneel eroverheen. */
-@media (min-width: 1100px) {
-  body.aic-open #mod-notes .notes-editor { padding-right: 444px; }
+/* Een stip op de knop als het paneel geminimaliseerd is: knipperend zolang
+   er een antwoord onderweg is, vast als het er is en je het nog niet zag. */
+.aic-starter::after {
+  content: ""; position: absolute; top: 2px; right: 2px;
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--mint); border: 2px solid var(--navy);
+  opacity: 0; scale: .4;
+  transition: opacity var(--duur-kort) var(--ease), scale var(--duur-kort) var(--ease);
 }
+.aic-starter.nieuw::after, .aic-starter.bezig::after { opacity: 1; scale: 1; }
+.aic-starter.bezig::after { animation: aic-denk 1.2s infinite ease-in-out; }
+@media (prefers-reduced-motion: reduce) { .aic-starter.bezig::after { animation: none; } }
+/* Het paneel zweeft voor de pagina (v2.76). Tot dan schoof de editor in
+   Notities 444px opzij, over de volle hoogte -- en stond er boven het
+   paneel een lege kolom. Minimaliseren (−) is één klik, en de ronde knop
+   haalt het terug. */
 /* Een venster dat opengaat terwijl het paneel open staat, krijgt de ruimte
    links ervan: anders ligt het paneel over de knoppen rechtsonder in het
    venster (Opslaan). Een breed venster wordt zo nodig smaller. */
@@ -8998,12 +9013,13 @@ body.aic-open .aic-starter { display: none; }
     padding: 0 4px !important; font-size: var(--fs-klein) !important; color: var(--text-muted);
   }
   .ios-tab .aic-model { font-size: 16px !important; }
-  .aic-voet .ai-quota-badge { background: none; border: 0; padding: 0; font-size: var(--fs-micro); white-space: nowrap; }
   /* Het paneel als blad van onderen, over de volle breedte. Onder de
      vensters (190 tegen 200): opent de chat een venster, dan ligt dat erop.
      De knop rechtsonder is er niet: daar staat de ronde +. */
   .aic-dock { left: 0; right: 0; bottom: 0; z-index: 190; }
-  .aic-dock .modal.aic-modal { width: 100%; max-width: 100%; height: 88vh; }
+  /* Hoogte volgt de inhoud, zoals op een bureaublad; de algemene .modal-regel
+     hierboven zet 92vh met !important, dus dat moet hier ook. */
+  .aic-dock .modal.aic-modal { width: 100%; max-width: 100%; height: auto; max-height: 88vh !important; }
   .aic-dock .aic-kop { padding-top: 10px; padding-bottom: 10px; gap: 0; }
   .aic-dock .aic-lijst { padding: 14px; }
   .aic-dock .aic-invoer { margin: 0 14px; }
@@ -9014,16 +9030,6 @@ body.aic-open .aic-starter { display: none; }
   .aic-starter { display: none; }
 }
 
-/* API-quota badge (klein, onopvallend) */
-.ai-quota-badge {
-  font-size: 10.5px; color: var(--text-muted);
-  font-family: var(--font-cijfer); font-variant-numeric: tabular-nums;
-  background: var(--surface2); padding: 3px 7px; border-radius: 10px;
-  border: 1px solid var(--border); display: inline-flex; align-items: center;
-}
-.ai-quota-badge:empty { display: none; }
-.ai-quota-badge.high { color: var(--danger); border-color: rgba(220,53,69,0.3); }
-.ai-quota-badge.mid  { color: #b78900; border-color: rgba(255,193,7,0.3); }
 
 /* ═════════════════════════════════════════════════════════════════════════════
    BEWEGING (2026-10-07) — zie docs/stijlgids.md §Beweging
@@ -9287,7 +9293,7 @@ body.aic-open .aic-starter { display: none; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.75</span>
+        <span class="app-versie" title="Appversie">v2.76</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -11165,10 +11171,11 @@ body.aic-open .aic-starter { display: none; }
         aria-label="Nieuw gesprek" title="Nieuw gesprek">
         <svg class="icoon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>
       </button>
-      <!-- Dicht: het paneel gaat weg, het gesprek blijft staan. -->
+      <!-- Minimaliseren: het paneel gaat weg, het gesprek blijft staan; de
+           ronde knop (of de sparkle) haalt het terug. -->
       <button type="button" class="aic-nieuw aic-dicht" onclick="aiChatSluit()"
-        aria-label="Sluiten" title="Sluiten (Esc)">
-        <svg class="icoon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+        aria-label="Minimaliseren" title="Minimaliseren (Esc) — het gesprek blijft staan">
+        <svg class="icoon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M3.5 8h9"/></svg>
       </button>
     </div>
     <div class="aic-lijst" id="aiChatLijst" aria-live="polite"></div>
@@ -11186,7 +11193,6 @@ body.aic-open .aic-starter { display: none; }
       <div class="aic-voet-l">
         <!-- Welk model antwoordt. Zelfde keuze als in Instellingen → AI; zie aiChatModelToon(). -->
         <select class="btn btn-sm aic-model" id="aiChatModel" data-change="aiChatKiesModel" aria-label="Model"></select>
-        <span class="ai-quota-badge" id="aiQuotaBadgeChat" title="Aantal API-verzoeken vandaag vanaf dit apparaat"></span>
       </div>
       <div class="aic-voet-r">
         <button class="btn btn-sm" type="button" id="aiChatOpnieuwBtn" onclick="aiChatOpnieuw()" hidden>🔄 Opnieuw</button>
@@ -15288,19 +15294,28 @@ function instGroepAi(){
   return instGroep('ai','mint','AI',
     'Voor Vraag het je app, notities opschonen en het uitlezen van '+
     'facturen en contracten. Gekozen op dit apparaat; sleutels gaan niet mee naar Drive.',
-    instKaart(modellen,'Model',' role="radiogroup" aria-label="Model"')+instKaart(sleutels,'Sleutels en privacy')+
-    instKaart(instVerbruikRijen(),'Verbruik van Claude (geschat)'));
+    /* Het verbruik direct onder het model (2026-10-13): daar kies je, en daar
+       wil je zien wat het kost. Tot dan stond het onder de sleutels, en als
+       badge in de chat. */
+    instKaart(modellen,'Model',' role="radiogroup" aria-label="Model"')+instVerbruikKaart()+instKaart(sleutels,'Sleutels en privacy'));
 }
-/* Deze en vorige maand, per model, uit aiVerbruikTel. */
+function instVerbruikKaart(){
+  return instKaart(instVerbruikRijen(),'Verbruik (geschat)',' id="instVerbruik"');
+}
+/* Deze en vorige maand, per model, uit aiVerbruikTel; en wat dit apparaat
+   vandaag vroeg (dat stond bij Gemini in de chat). */
 function instVerbruikRijen(){
   const nu=new Date(), vorig=new Date(nu.getFullYear(),nu.getMonth()-1,1);
   const rij=(label,maand)=>{
     const x=aiVerbruikMaand(maand);
     const per=x.perModel.map(p=>p.naam.replace(/^Claude /,'')+' '+(p.onbekend?'prijs onbekend':aiVerbruikFmt(p.usd)));
-    return instRij({soort:'info',label,waarde:'≈ '+aiVerbruikFmt(x.usd),
-      hint:x.n?x.n+' '+(x.n===1?'verzoek':'verzoeken')+(per.length?' · '+per.join(' · '):''):'Nog niets'});
+    return instRij({soort:'info',label:label+' (Claude)',waarde:'≈ '+aiVerbruikFmt(x.usd),
+      hint:x.n?x.n+' '+(x.n===1?'verzoek':'verzoeken')+', alle apparaten'+(per.length?' · '+per.join(' · '):''):'Nog niets'});
   };
+  const vandaag=_aiGetUsage().count;
   return [rij('Deze maand',dateStr(nu).slice(0,7)),rij('Vorige maand',dateStr(vorig).slice(0,7)),
+    instRij({soort:'info',label:'Vandaag',waarde:vandaag+' '+(vandaag===1?'verzoek':'verzoeken'),
+      hint:'Vanaf dit apparaat, Claude en Gemini samen'}),
     instRij({doe:'instDoe',arg:'console',label:'Naar de Claude Console',
       hint:'Wat er echt is afgerekend, en je tegoed. Deze telling is een schatting uit de tokens per antwoord.'})];
 }
@@ -38958,7 +38973,7 @@ async function aiKiesModel(m,opt){
 }
 /* Alles wat het gekozen model laat zien in één keer bij. */
 function aiModelBijwerken(){
-  _updateAIQuotaBadges();
+  aiVerbruikBij();
   aiChatModelToon();
   if(typeof activeModule!=='undefined'&&activeModule==='instellingen')renderInstellingenModule();
 }
@@ -39015,39 +39030,16 @@ function _aiGetUsage(){
 function _aiBumpUsage(){
   const u=_aiGetUsage();u.count++;
   try{localStorage.setItem(LS_AI_USAGE,JSON.stringify(u));}catch(e){}
-  _updateAIQuotaBadges();
+  aiVerbruikBij();
 }
-function _updateAIQuotaBadges(){
-  const u=_aiGetUsage();
-  /* Geen "/ 1500" meer. Dat getal stond hier als feit, maar wat de gratis
-     laag per dag toestaat verschilt per model, is niet gepubliceerd (Google
-     verwijst naar AI Studio) en bleek in de praktijk veel lager. Een verzonnen
-     plafond dat op 12% staat terwijl je quotum al op is, is erger dan geen
-     plafond: dan zoek je de fout op de verkeerde plek. */
-  /* De naam van de aanbieder erbij: zo zie je in elk AI-venster wie er
-     antwoordt, zonder naar Instellingen te gaan. De teller is voor beide
-     samen -- het is een indruk van vandaag, geen afrekening. */
-  const text=`${aiNaam()} · ${u.count} vandaag`;
-  /* In de chat staat de modelkeuze er al naast. Daar bij Claude wat deze
-     maand kostte (geschat, zie aiVerbruikTel); bij Gemini de telling. */
-  const claude=aiAanbieder()==='claude';
-  const maand=claude?aiVerbruikMaand(dateStr(new Date()).slice(0,7)):null;
-  const kaal=claude?`≈ ${aiVerbruikFmt(maand.usd)} deze maand`:`${u.count} vandaag`;
-  const titel='Aantal API-verzoeken vandaag vanaf dit apparaat. '+(claude
-    ?'Je verbruik en tegoed staan op platform.claude.com'
-    :'Je werkelijke limiet staat op aistudio.google.com');
-  const titelChat=claude
-    ? 'Geschat uit de tokens van elk antwoord, alle apparaten samen ('+maand.n+' '+(maand.n===1?'verzoek':'verzoeken')+
-      ' deze maand). Wat er echt is afgerekend en je tegoed staan op platform.claude.com.'
-    : titel;
-  const cls=u.count>=400?'high':u.count>=150?'mid':'';
-  ['aiQuotaBadgeChat'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(!el)return;
-    const chat=id==='aiQuotaBadgeChat';
-    el.textContent=chat?kaal:text;el.title=chat?titelChat:titel;
-    el.className='ai-quota-badge '+(chat&&claude?'':cls);
-  });
+/* Het verbruik stond tot 2026-10-13 als badge in de voet van de chat ("≈ $0,06
+   deze maand", bij Gemini "N vandaag"). Nu staat het alleen op Instellingen,
+   bij de modelkeuze (instVerbruikRijen); deze functie werkt die kaart bij
+   als hij in beeld is -- na elk antwoord, zonder de pagina opnieuw te tekenen
+   (dan zou een half getypte sleutel verdwijnen). */
+function aiVerbruikBij(){
+  const k=document.getElementById('instVerbruik');
+  if(k)k.outerHTML=instVerbruikKaart();
 }
 
 /* ─ Gemeenschappelijke error-parser voor Gemini-responses ─ */
@@ -39962,7 +39954,7 @@ function aiVerbruikTel(model,u){
   if(prijs==null)r.onbekend=true;else r.usd=Math.round((r.usd+prijs)*1e6)/1e6;
   Object.keys(v).sort().slice(0,-13).forEach(k=>{delete v[k];});
   scheduleSave();
-  try{_updateAIQuotaBadges();}catch(_){}
+  try{aiVerbruikBij();}catch(_){}
 }
 /* {usd, n, perModel:[{model,naam,usd,n,onbekend}]} voor 'JJJJ-MM'. */
 function aiVerbruikMaand(maand){
@@ -41644,10 +41636,11 @@ async function aiChatVraag(tekst,opties){
   }finally{
     _aiSchermBijVraag=null;
     _aiCalling.chat=false;
-    _updateAIQuotaBadges();
+    aiVerbruikBij();
     aiChatToon();
     aiChatKnoppen();
     aiSchermBij();
+    aiStarterStip(true);
     if(inp)inp.focus();
   }
 }
@@ -41670,6 +41663,7 @@ function aiChatNieuw(){
 }
 function aiChatKnoppen(){
   const bezig=_aiCalling.chat;
+  document.getElementById('aiStarter')?.classList.toggle('bezig',bezig);
   const zend=document.getElementById('aiChatZend');
   if(zend)zend.disabled=bezig;
   const model=document.getElementById('aiChatModel');
@@ -41694,7 +41688,8 @@ function aiChatOpen(){
   if(!m)return;
   m.classList.add('open');
   document.body.classList.add('aic-open');
-  _updateAIQuotaBadges();
+  aiStarterStip(false);
+  aiVerbruikBij();
   aiChatModelToon();
   aiGeschLaad();
   if(_aiGeschVuil)aiGeschPlanSchrijf();
@@ -41713,6 +41708,14 @@ function aiDockMobiel(){return window.matchMedia('(max-width: 768px)').matches;}
    het paneel staan (je kijkt naar het resultaat en vraagt verder), op een
    telefoon gaat het blad weg, anders zie je niets. */
 function aiChatNaNavigatie(){if(aiDockMobiel())aiChatSluit();}
+/* De stip op de ronde knop: een antwoord kwam binnen terwijl het paneel
+   geminimaliseerd was. Weg zodra je het paneel weer opent. */
+function aiStarterStip(aan){
+  const st=document.getElementById('aiStarter');if(!st)return;
+  const nieuw=!!aan&&!document.getElementById('aiChatModal')?.classList.contains('open');
+  st.classList.toggle('nieuw',nieuw);
+  st.setAttribute('aria-label',nieuw?'Vraag het je app — er is een nieuw antwoord':'Vraag het je app');
+}
 
 /* ══ Meekijken (2026-10-13) ═══════════════════════════════════════════════
    Het paneel weet op welke pagina je bent en wat je daar ziet -- maar pas op
@@ -41971,8 +41974,9 @@ async function _aiSchrijf(vraag,s,{system,schema,kaart}){
   }finally{
     _aiSchermBijVraag=null;
     _aiCalling.chat=false;
-    _updateAIQuotaBadges();
+    aiVerbruikBij();
     aiChatToon();aiChatKnoppen();aiSchermBij();
+    aiStarterStip(true);
   }
 }
 
