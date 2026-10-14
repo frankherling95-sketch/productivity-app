@@ -8341,3 +8341,34 @@ lezen $0,20 -- per token twintig keer Haiku.
 
 **Bestanden.** `index.html` (`CLAUDE_MODEL_STANDAARD`, `aiModelKeuzes`,
 commentaar), `test.html` (twee tests), `sw.js`, `CLAUDE.md`.
+
+## 2026-10-14 · Afbeeldingen blijven staan als de chat een notitie herschrijft (v2.91)
+
+**Probleem.** Frank vroeg de chat een notitie op te schonen; de kaart zei
+"4 afbeeldingen vallen weg", en na uitvoeren waren ze weg. Het model kreeg de
+notitie als tekst waarin elke afbeelding `[afbeelding]` heette, en *vervangen*
+zette alleen de nieuwe tekst neer. Het model kon de afbeeldingen dus niet
+terugzetten, ook niet als het wilde.
+
+**Beslissing.**
+- `aiNotitieMd` nummert de afbeeldingen: `[afbeelding 1]`, `[afbeelding 2]` …
+  Bij een notitie met afbeeldingen zegt het scherm-overzicht (`aiSchermTekst`)
+  erbij: zet elke marker op een eigen regel bij de tekst waar hij hoort; de app
+  zet de afbeelding daar terug. Geldt voor de chat én de snelle knoppen
+  (*Opschonen*), die dezelfde actie gebruiken.
+- `notitie_bewerken` met *vervangen* plakt op elke marker de echte afbeelding
+  uit de notitie van het moment van de vraag (`aiNotitieMetBeelden`). Een
+  afbeelding waarvan de marker ontbreekt, komt **onderaan** -- nooit meer
+  weg. Een dubbele marker telt één keer. Bij *toevoegen* en *selectie* valt
+  een losse marker weg.
+- De kaart zegt het: *Afbeeldingen: 4 blijven staan, op hun plek*, of
+  *3 op hun plek, 1 onderaan (stond niet meer in de tekst)*. In *Bekijk de
+  tekst* staan ze klein (90px hoog).
+
+**Bestanden.** `index.html` (`aiNotitieMd`, `aiSchermTekst`,
+`aiNotitieBeelden`, `aiNotitieMetBeelden`, `notitie_bewerken`, CSS
+`.aic-actie-voorbeeld .inh img`), `test.html` (één test), `sw.js`, `CLAUDE.md`.
+
+**Niet doen.** Afbeeldingen als data-URL aan het model geven (honderden kB
+per stuk, en het model kan ze toch niet "schrijven"), of een afbeelding laten
+vallen omdat het model zijn marker vergat.

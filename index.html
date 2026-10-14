@@ -9172,6 +9172,8 @@ body.aic-open .aic-starter { display: none; }
 .aic-actie-voorbeeld .inh > :last-child { margin-bottom: 0; }
 .aic-actie-voorbeeld .inh h1, .aic-actie-voorbeeld .inh h2, .aic-actie-voorbeeld .inh h3 { font-size: var(--fs-basis); margin: 8px 0 4px; }
 .aic-actie-voorbeeld .inh p { margin: 0 0 6px; }
+/* Afbeeldingen die mee teruggaan in de notitie: klein in het voorbeeld. */
+.aic-actie-voorbeeld .inh img { display: block; max-width: 100%; max-height: 90px; width: auto; border-radius: 4px; margin: 4px 0; }
 .aic-actie-voorbeeld .inh ul, .aic-actie-voorbeeld .inh ol { margin: 0 0 6px; padding-left: 18px; }
 /* De kopband van een venster (`.modal h2:first-child`) is een
    afstammelingsregel en pakte ook een kop bovenaan een antwoord of een
@@ -9503,7 +9505,7 @@ body.aic-open .aic-starter { display: none; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.90</span>
+        <span class="app-versie" title="Appversie">v2.91</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -41896,10 +41898,18 @@ const AI_ACTIES={
       const regels=[['Notitie',titel],['Wat',{vervangen:'De hele tekst vervangen',
         toevoegen:doel.cursor?'Toevoegen op de plek van je cursor':'Toevoegen onderaan',selectie:'Je selectie vervangen'}[soort]]];
       if(String(i.uitleg||'').trim())regels.push(['Waarom',String(i.uitleg).trim()]);
-      const plaatjes=soort==='vervangen'?(doel.basis.match(/<img\b/gi)||[]).length:0;
-      if(plaatjes)regels.push(['Let op',plaatjes+(plaatjes===1?' afbeelding valt':' afbeeldingen vallen')+' weg; ongedaan maken kan']);
       const fout=!md?'Het voorstel heeft geen tekst.':(soort==='selectie'&&!doel.sel?'Er is geen tekst geselecteerd.':'');
-      const html=md?aiNotitieHtml(md):'';
+      let html=md?aiNotitieHtml(md):'';
+      /* De afbeeldingen gaan mee (2026-10-14): op hun marker, en anders
+         onderaan -- nooit meer weg. Bij toevoegen of een selectie hoort er
+         geen marker in te staan; staat er toch een, dan valt die weg. */
+      const beelden=soort==='vervangen'?aiNotitieBeelden(doel.basis):[];
+      if(beelden.length&&html){
+        const b=aiNotitieMetBeelden(html,beelden);
+        html=b.html;
+        regels.push(['Afbeeldingen',!b.onderaan?(beelden.length===1?'blijft staan, op zijn plek':beelden.length+' blijven staan, op hun plek')
+          :(b.opPlek?b.opPlek+' op hun plek, ':'')+b.onderaan+' onderaan (stond'+(b.onderaan===1?'':'en')+' niet meer in de tekst)']);
+      }else if(html)html=html.replace(/\[afbeelding\s+\d+\]/gi,'');
       const sel=doel.sel, cursor=doel.cursor;
       return {titel:'Notitie bijwerken',regels,voorbeeld:html,fout,
         doe(){
@@ -43092,7 +43102,10 @@ function aiZichtbareTekst(el){
 function aiNotitieMd(node){
   const d=document.createElement('div');
   d.innerHTML=node.content||'';
-  d.querySelectorAll('img').forEach(e=>e.replaceWith('[afbeelding]'));
+  /* Genummerd (2026-10-14): het model zet [afbeelding 2] terug waar hij
+     hoort, en de app plakt daar de echte afbeelding (aiNotitieMetBeelden). */
+  let nr=0;
+  d.querySelectorAll('img').forEach(e=>e.replaceWith('\n[afbeelding '+(++nr)+']\n'));
   d.querySelectorAll('br').forEach(b=>b.replaceWith('\n'));
   d.querySelectorAll('h1,h2,h3,h4').forEach(h=>{h.prepend('#'.repeat(Number(h.tagName[1]))+' ');h.append('\n');});
   d.querySelectorAll('li').forEach(li=>{li.prepend(li.parentElement&&li.parentElement.tagName==='OL'?'1. ':'- ');li.append('\n');});
@@ -43109,6 +43122,9 @@ function aiSchermTekst(s){
     else if(s.notitie.cursor)delen.push('De cursor staat in de notitie: iets toevoegen komt daar.');
     const md=aiNotitieMd(n);
     delen.push('Tekst van de notitie:\n"""\n'+(md.length>AI_NOTITIE_MAX?md.slice(0,AI_NOTITIE_MAX)+'\n[… ingekort]':(md||'(leeg)'))+'\n"""');
+    if(/\[afbeelding \d+\]/.test(md))delen.push('Afbeeldingen: [afbeelding 1], [afbeelding 2] … staan voor afbeeldingen in de notitie. '+
+      'Herschrijf je de notitie, zet dan elke marker precies zo op een eigen regel bij de tekst waar hij bij hoort: de app zet de afbeelding daar terug. '+
+      'Laat er alleen een weg als de gebruiker vraagt die afbeelding te verwijderen.');
   }else{
     const zicht=aiZichtbareTekst(s.venster?s.venster.querySelector('.modal'):document.getElementById('mod-'+activeModule));
     if(zicht)delen.push('Tekst in beeld:\n"""\n'+zicht+'\n"""');
@@ -43279,6 +43295,31 @@ function aiZetInRange(ed,range,html,vervang){
   const leeg=vervang&&!blok.textContent.trim()&&!blok.querySelector('img');
   blok.after(f);
   if(leeg)blok.remove();
+}
+/* Afbeeldingen bij het herschrijven van een notitie (2026-10-14). Het model
+   ziet ze als [afbeelding N] (aiNotitieMd) en zet die markers terug; hier
+   komt op elke marker de echte afbeelding uit de notitie van het moment van
+   de vraag. Een afbeelding waarvan de marker ontbreekt gaat niet verloren:
+   die komt onderaan. Een marker die twee keer staat, telt één keer. */
+function aiNotitieBeelden(html){
+  const d=document.createElement('div');
+  d.innerHTML=html||'';
+  return [...d.querySelectorAll('img')].map(im=>im.outerHTML);
+}
+function aiNotitieMetBeelden(html,beelden){
+  const gebruikt=new Set();
+  const zet=n=>{
+    const i=Number(n)-1;
+    if(!beelden[i]||gebruikt.has(i))return '';
+    gebruikt.add(i);
+    return beelden[i];
+  };
+  let uit=String(html||'')
+    .replace(/<p>\s*\[afbeelding\s+(\d+)\]\s*<\/p>/gi,(m,n)=>zet(n))
+    .replace(/\[afbeelding\s+(\d+)\]/gi,(m,n)=>zet(n));
+  const onderaan=beelden.filter((b,i)=>!gebruikt.has(i));
+  if(onderaan.length)uit+=onderaan.join('');
+  return {html:uit,opPlek:gebruikt.size,onderaan:onderaan.length};
 }
 function aiNotitieHtml(md){
   const html=(typeof marked!=='undefined'&&marked.parse)?marked.parse(md):noteContentToHtml(md);

@@ -1484,6 +1484,27 @@ async function runChecks() {
             return sel.status === 'voorstel' && selOk && terugOk && weigert && toegevoegd;
           } finally { terug(); }
         }],
+        ['notitie_bewerken: afbeeldingen gaan mee bij vervangen -- op hun marker, en wat het model vergeet komt onderaan', () => {
+          const terug = opzet();
+          try {
+            const a = '<img src="data:image/png;base64,iVBORw0KGgoAAAA1">', b = '<img src="data:image/png;base64,iVBORw0KGgoAAAA2">';
+            w.eval('findNode(notesState.tree,"nai").node.content=' + JSON.stringify('<p>Eerst</p>' + a + '<p>Dan</p>' + b + '<p>Slot</p>'));
+            w.renderNoteEditor();
+            const md = w.aiNotitieMd(node());
+            const markers = /\[afbeelding 1\]/.test(md) && /\[afbeelding 2\]/.test(md);
+            w.eval('_aiSchermBijVraag=aiSchermInfo()');
+            const uitleg = /zet de afbeelding daar terug/.test(w.aiSchermTekst(w.eval('_aiSchermBijVraag')));
+            const v = w.aiActieVoorstel({naam: 'notitie_bewerken', input: {soort: 'vervangen',
+              markdown: '## Opgeschoond\n\n[afbeelding 2]\n\nDan en eerst samen.\n\n[afbeelding 2]', uitleg: ''}});
+            w.eval('_aiSchermBijVraag=null');
+            const regel = (v.regels.find(r => r[0] === 'Afbeeldingen') || [])[1];
+            v.doe();
+            const c = node().content;
+            const p1 = c.indexOf('AAAA1'), p2 = c.indexOf('AAAA2'), tekst = c.indexOf('Dan en eerst samen');
+            return markers && uitleg && regel === '1 op hun plek, 1 onderaan (stond niet meer in de tekst)' &&
+              (c.match(/<img\b/g) || []).length === 2 && p2 > -1 && p2 < tekst && p1 > tekst && !/\[afbeelding/.test(c);
+          } finally { terug(); }
+        }],
         ['veld_invullen: vult het veld waar je stond (met input-gebeurtenis), en ongedaan maken zet het terug', () => {
           const terug = opzet();
           try {
