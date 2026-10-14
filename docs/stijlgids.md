@@ -379,6 +379,11 @@ plus een `<select>`, in dezelfde doos als het invoerveld ernaast (`--surface2`,
 het in het urenvenster; de facturen-editor doet hetzelfde met een kale
 `<select class="fac-ed-inp">`.
 
+**In het taakvenster** volgt `.klantkies` op een bureaublad de maat van de
+velden ernaast (*Herhaling*, *Herinnering*): 13px en 34px hoog. Elders blijft
+hij 15px, want daar (Opdrachten, Contracten) zijn alle velden 15px. Eén maat
+per venster, niet per soort veld (2026-10-14).
+
 **De lijst die een keuzelijst openklapt** volgt het thema met één regel voor
 alle `<select>`s: `select option, select optgroup` op `--surface` met
 `--text`. Windows tekent die lijst met de achtergrond van de select zelf; een
