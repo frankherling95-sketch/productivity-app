@@ -9425,7 +9425,7 @@ body.aic-open .aic-starter { display: none; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.83</span>
+        <span class="app-versie" title="Appversie">v2.84</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -17067,7 +17067,7 @@ const NOTE_TEMPLATES=[
 <p></p>
 <p>Met vriendelijke groet,</p>
 <p><br></p>
-<p>${escapeHtml(naam)}${naam&&bedrijf?'<br>\n':''}${escapeHtml(bedrijf)}</p>`;
+${naam||bedrijf?`<p>${escapeHtml(naam)}${naam&&bedrijf?'<br>\n':''}${escapeHtml(bedrijf)}</p>`:''}`;
     }
   }
 ];
@@ -41138,8 +41138,10 @@ function aiGeenSleutel(){
 /* Naar het veld van de sleutel op de Instellingen-pagina. */
 function aiNaarSleutel(a){
   a=AI_SLEUTELS[a]?a:aiAanbieder();
-  ['aiChatModal'].forEach(id=>
-    document.getElementById(id)?.classList.remove('open'));
+  /* aiChatSluit en niet alleen .open eraf: sinds het paneel (v2.75) hoort
+     body.aic-open erbij. Bleef die staan, dan was de ronde knop weg tot je
+     herlaadde, en hield een venster rechts ruimte vrij (2026-10-14). */
+  aiChatSluit();
   if(activeModule==='instellingen')renderInstellingenModule();
   else switchModule('instellingen');
   setTimeout(()=>{

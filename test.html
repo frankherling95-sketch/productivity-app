@@ -141,6 +141,30 @@ async function runChecks() {
       }
     }
   };
+  /* ── Wat een test van de omgeving nodig heeft (2026-10-14) ──
+     De suite moet in elke browser groen zijn, ook in een leeg profiel zonder
+     login, in een smal of onzichtbaar venster. Wie iets nodig heeft, zet het
+     hier even neer en ruimt het daarna op. */
+  /* Minstens één klant: een paar tests gebruiken "de eerste klant". */
+  const metKlant = async fn => {
+    const leeg = w.eval('kanbanState.clients.length===0');
+    if (leeg) w.eval("kanbanState.clients.push({id:'tKE',name:'Klant E',colorIdx:0})");
+    try { return await fn(); }
+    finally { if (leeg) w.eval("kanbanState.clients=kanbanState.clients.filter(c=>c.id!=='tKE')"); }
+  };
+  /* Een bureaubladbreedte: de iframe is zo breed als dit venster, en dat is
+     in een testbrowser vaak smaller dan 769px -- dan is de app een telefoon. */
+  const opBreed = async fn => {
+    const oud = iframe.style.width;
+    iframe.style.width = '1400px';
+    void iframe.offsetWidth;
+    await new Promise(r => setTimeout(r, 80));
+    try { return await fn(); }
+    finally { iframe.style.width = oud; void iframe.offsetWidth; await new Promise(r => setTimeout(r, 40)); }
+  };
+  /* Een ingelogde gebruiker (met naam), zoals Frank altijd is. */
+  const login = naam => JSON.stringify({email: 'test@herling-analytics.nl', naam, tot: Date.now() + 864e5});
+  const metLogin = (fn, naam) => metLS({herling_login: login(naam === undefined ? 'Jan Jansen' : naam)}, fn);
   /* ── Google-accounts voor Agenda en Mail (2026-10-11) ──
      zonderAccounts: alsof er niets gekoppeld is (wie zelf accounts heeft,
      mag de tests van de gewone chat niet laten falen). metGoogle: twee
@@ -589,7 +613,7 @@ async function runChecks() {
       metLS({herling_ai_aanbieder: null}, () => /Acties:/.test(w.aiChatSysteem()) &&
         /"klanten":\[/.test(w.aiChatSysteem())).then(c => c &&
       metLS({herling_ai_aanbieder: 'gemini'}, () => !/Acties:/.test(w.aiChatSysteem())))],
-    ['Acties: de stroom levert een voorstel op, met de klant terugvertaald', async () => {
+    ['Acties: de stroom levert een voorstel op, met de klant terugvertaald', () => metKlant(async () => {
       const naam = w.eval('kanbanState.clients[0].name');
       let body = null;
       const ev = (type, data) => 'event: ' + type + '\ndata: ' + JSON.stringify({type, ...data}) + '\n\n';
@@ -623,8 +647,8 @@ async function runChecks() {
       return !fout && body.tools.length === 8 && !JSON.stringify(body).includes(naam) &&
         stukken.filter(s => typeof s === 'string').join('') === 'Ik zet het klaar.' &&
         actie && actie.naam === 'taak_toevoegen' && actie.input.klant === naam;
-    }],
-    ['Acties: taak toevoegen via de kaart, en ongedaan maken', async () => {
+    })],
+    ['Acties: taak toevoegen via de kaart, en ongedaan maken', () => metKlant(async () => {
       const naam = w.eval('kanbanState.clients[0].name');
       const titel = 'Testtaak uit de chat ' + Date.now();
       const voor = w.eval('checklistState.items.length');
@@ -647,8 +671,8 @@ async function runChecks() {
       w.eval('aiChatGesprek=[]'); w.aiChatSluit();
       return eerst === 'voorstel' && klantRegel.includes(naam) && gedaan && terug &&
         /\[Acties: Taak toevoegen \(Taak: Testtaak/.test(geschiedenis) && /ongedaan gemaakt\]$/.test(geschiedenis);
-    }],
-    ['Acties: uren — klant en aantal worden gecontroleerd, en terug is terug', () => {
+    })],
+    ['Acties: uren — klant en aantal worden gecontroleerd, en terug is terug', () => metKlant(() => {
       const naam = w.eval('kanbanState.clients[0].name');
       const V = input => w.aiActieVoorstel({naam: 'uren_schrijven', input});
       const zonder = V({datum: '2026-10-09', uren: 6, klant: '', omschrijving: ''});
@@ -664,7 +688,7 @@ async function runChecks() {
       return zonder.status === 'fout' && onbekend.status === 'fout' && teVeel.status === 'fout' &&
         geenDatum.status === 'fout' && goed.status === 'voorstel' && ok &&
         w.eval('urenState.entries.length') === voor;
-    }],
+    })],
     ['Acties: factuur op betaald, en terug naar verstuurd', () => {
       const f = w.eval('factuurState.invoices.find(f=>f.status==="verstuurd")');
       if (!f) return true;   /* geen verstuurde factuur in de testgegevens */
@@ -825,8 +849,12 @@ async function runChecks() {
           w.localStorage.getItem('herling_claude_api_key') === null &&
           w.localStorage.getItem('herling_gemini_api_key') === 'AIzablijft';
       })],
-    ['Sleutels: zonder sleutel een melding met een knop naar Instellingen', () =>
+    ['Sleutels: zonder sleutel een melding met een knop naar Instellingen, en de chat gaat helemaal dicht', () =>
       metLS({herling_claude_api_key: null, herling_ai_aanbieder: null}, async () => {
+        /* Een verborgen veld krijgt geen focus; zonder login staat het appscherm uit. */
+        const scherm = d.getElementById('appScreen'), was = scherm.style.display;
+        scherm.style.display = 'flex';
+        try {
         w.aiChatOpen();
         d.getElementById('aiChatInvoer').value = 'hoeveel taken?';
         await w.aiChatVraag();
@@ -839,8 +867,11 @@ async function runChecks() {
         await new Promise(r => setTimeout(r, 120));
         const daar = w.eval('activeModule') === 'instellingen' && !d.getElementById('aiChatModal').classList.contains('open') &&
           d.activeElement && d.activeElement.id === 'instSleutel-claude';
+        /* Sinds het paneel hoort body.aic-open erbij; bleef die staan, dan was de ronde knop weg. */
+        const dicht = !d.body.classList.contains('aic-open');
         w.switchModule(terugNaar === 'instellingen' ? 'dashboard' : (terugNaar || 'dashboard'));
-        return ok && daar;
+        return ok && daar && dicht;
+        } finally { scherm.style.display = was; }
       })],
     /* ── Uren factureren: maandafsluiting en samenvoegen (2026-10-11) ──
        Met tijdelijke klanten en uren in januari 2031, zodat de demo-
@@ -1367,7 +1398,7 @@ async function runChecks() {
             terug();
           }
         }],
-        ['Paneel verslepen en van maat veranderen: blijft binnen het scherm, wordt onthouden, dubbelklik zet het terug', () => {
+        ['Paneel verslepen en van maat veranderen: blijft binnen het scherm, wordt onthouden, dubbelklik zet het terug', () => opBreed(() => {
           const terug = opzet();
           const oudLs = w.localStorage.getItem('herling_ai_paneel');
           try {
@@ -1394,7 +1425,7 @@ async function runChecks() {
             w.eval('aiPaneelLaad();aiPaneelToepas()');
             terug();
           }
-        }],
+        })],
         ['Verbruik: niet meer in de chat, wel op Instellingen direct onder het model, en het werkt zichzelf bij', () => {
           const terug = opzet();
           try {
@@ -1458,6 +1489,9 @@ async function runChecks() {
             w.openChecklistItemModal(null);
             const veld = d.getElementById('clItemText');
             veld.value = 'oud'; veld.focus();
+            /* Heeft de pagina zelf geen focus (een testbrowser op de
+               achtergrond), dan komt er geen focusin -- en daar luistert de chat naar. */
+            veld.dispatchEvent(new w.FocusEvent('focusin', {bubbles: true}));
             let gemeld = 0; veld.addEventListener('input', () => gemeld++);
             const s = w.aiSchermInfo();
             const label = s.veld && s.veld.label === 'Omschrijving';
@@ -2378,7 +2412,7 @@ async function runChecks() {
           w.eval('rawState=' + JSON.stringify(bewaard) + ';hydrateerState();');
         }
       }],
-    ['Voet: één mintknop, en dat is Betaling registreren', async () => {
+    ['Voet: één mintknop, en dat is Betaling registreren', () => opBreed(async () => {
       const f = w.factuurNieuw(null, null, null);
       w.facConceptVastleggen();                 /* pas dan telt hij niet meer als concept */
       f.status = 'verstuurd';
@@ -2409,7 +2443,7 @@ async function runChecks() {
         const i = arr.findIndex(x => x.id === f.id);
         if (i >= 0) arr.splice(i, 1);
       }
-    }],
+    })],
 
     /* Herkomst van geïmporteerde uren (2026-09-11). huidigeStateSnapshot()
        geeft de module-states zelf terug, dus wat hier wordt neergezet is wat
@@ -3424,7 +3458,7 @@ async function runChecks() {
         w.eval('gaccTok=' + oudMem);
       }
     }],
-    ['Accounts: vernieuwen zonder stil, een kwartier voor het verlopen, bij een echte klik als je Mail gebruikt', () => metGoogle(async () => {
+    ['Accounts: vernieuwen zonder stil, een kwartier voor het verlopen, bij een echte klik als je Mail gebruikt', () => metLogin(() => metGoogle(async () => {
       /* Geen venster in een test: het token-venster is nagespeeld en een
          klik zonder gebruiker (zoals hier) mag er geen openen. */
       const oudNieuw = w.gaccNieuwToken;
@@ -3455,7 +3489,7 @@ async function runChecks() {
         delete w.navigator.userActivation;
         w.eval('if(gaccGebaarAf)gaccGebaarAf();clearTimeout(gaccVerversTimer);gaccVerversTimer=null;');
       }
-    })],
+    }))],
     ['Accounts: stil vernieuwen geeft een token zonder venster, en tekent opnieuw', () => metGoogle(async () => {
       const oudNieuw = w.gaccNieuwToken, oudWie = w.gaccWieIsHet;
       let venster = 0, stil = 0;
@@ -3541,13 +3575,23 @@ async function runChecks() {
        Ongelezen, en filteren met een klik op het kaartje (2026-10-11). */
     /* De eigen naam staat niet in de (openbare) code: het briefsjabloon en de
        AI-instructie voor contracten lezen hem uit de login (2026-10-11). */
-    ['Anoniem: briefsjabloon en contract-AI nemen de naam uit je login', () => {
-      const g = w.ingelogdeGebruiker();
-      const brief = w.eval('NOTE_TEMPLATES.find(t=>t.id==="klantbrief").html');
-      const prompt = w.ctrAiPrompt('opdracht');
-      const naam = g && g.naam ? g.naam : '';
-      return naam ? brief.includes(w.escapeHtml(naam)) && prompt.includes(naam)
-        : !/<p>\s*<\/p>\s*$/.test(brief) && /de gebruiker/.test(prompt);
+    ['Anoniem: briefsjabloon en contract-AI nemen de naam uit je login; zonder naam en bedrijf geen lege slotregel', async () => {
+      const brief = () => w.eval('NOTE_TEMPLATES.find(t=>t.id==="klantbrief").html');
+      const met = await metLogin(() => {
+        const b = brief(), p = w.ctrAiPrompt('opdracht');
+        return b.includes('Jan Jansen') && p.includes('Jan Jansen');
+      });
+      /* Zonder naam, en even zonder bedrijf: dan hoort er geen lege alinea onderaan. */
+      const s = w.eval('factuurState.settings');
+      const oudB = s && s.bedrijven;
+      if (s) s.bedrijven = [];
+      try {
+        const zonder = await metLogin(() => {
+          const b = brief(), p = w.ctrAiPrompt('opdracht');
+          return !/<p>\s*<\/p>\s*$/.test(b) && /Met vriendelijke groet/.test(b) && /de gebruiker/.test(p);
+        }, '');
+        return met && zonder;
+      } finally { if (s) { if (oudB === undefined) delete s.bedrijven; else s.bedrijven = oudB; } }
     }],
     ['Mail: kaartje per account met adres en ongelezen, klik filtert', () => metLS({herling_pv: null}, () => metGoogle(async () => {
       const oudModule = w.activeModule;
