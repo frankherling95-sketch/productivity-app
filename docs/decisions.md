@@ -8000,3 +8000,75 @@ versie), `sw.js`, `CLAUDE.md`.
 
 **Niet doen.** De mintkleur terugzetten op het icoon zonder tegel (op een
 lichte taakbalk onzichtbaar), of de gestippelde H op 32–96px gebruiken.
+
+## 2026-10-14 · Herinneringen bij deadlines, en een taak uit een mail (v2.81)
+
+**Probleem.** Frank wil deadlines beter bewaken: een melding én een mail als
+een deadline nadert, per taak te kiezen, en een stok achter de deur als iets
+blijft liggen. Tot nu toe stond een taak met een deadline als hele dag in de
+agenda *Herling – aflopend*, met één melding de dag ervoor om 09:00: geen
+mail, niets op de dag zelf (bij een hele dag valt elke herinnering ervóór),
+en zodra de deadline voorbij was verdween de afspraak, zodat een taak die te
+laat was stil werd. Daarbij wilde hij een taak kunnen maken vanuit Mail.
+
+**Beslissing** (opzet op 2026-10-14 door Frank goedgekeurd).
+- **Via Google Agenda**, zoals de contracten (2026-09-29): de app heeft geen
+  server, en Google Agenda stuurt melding en mail ook als de app dicht is.
+- **Een kwartier om 09:00 op de deadline** in plaats van een hele dag
+  (`agdClAfspraak`, `agdMomentAfspraak` met eigen herinneringen en tijd).
+  Bestaande afspraken gaan bij het eerste bijwerken vanzelf mee: hun hash
+  verandert.
+- **Per taak** `item.herinnering` (`dag` op de dag, `dag1` de werkdag ervoor
+  en op de dag, `week` ook een week ervoor, `uit`) en `item.herinnerMail`.
+  Ontbreekt een van beide, dan geldt de **standaard**: `dag1` met een mail op
+  de dag (Franks keuze: standaard aan, per taak uit te zetten; mail alleen op
+  de dag zelf en in Nog open). Instelbaar in het venster *Meldingen in Google
+  Agenda* (`agendaMeldingen.clStandaard`, `clMail`).
+- **De werkdag ervoor** slaat weekend, feestdagen en vakanties over
+  (`opdVrijeDagen()`), hooguit 4 weken terug: verder staat Google niet toe.
+- **Uit** houdt de afspraak in de agenda (de deadline blijft zichtbaar), maar
+  zonder één herinnering. Zo'n taak staat ook niet in Nog open.
+- **Nog open** (`agdClOverzicht`): elke werkdag om 08:30 één afspraak met
+  melding en mail, met de taken die op die dag over hun deadline zijn.
+  Twee weken vooruit klaargezet (een dag zonder iets krijgt niets); vink je
+  iets af, dan verdwijnt het bij het volgende bijwerken uit elke dag. Uit te
+  zetten met `agendaMeldingen.clOverzicht`. Weekenden en vrije dagen niet.
+- **Kiezen** in het taakvenster (onder de kalender, met in gewone woorden
+  wanneer: "om 09:00 op do 16 okt en vr 17 okt"), met een klik op de
+  deadline in de lijst (belletje = er komt een seintje), via ⋯ op een
+  telefoon, en in de chat (`taak_toevoegen` met `herinnering`). Een herhalende
+  taak geeft zijn keuze door aan de volgende.
+- **Een link naar één taak**: `#taak-<id>` opent de Checklist bij die taak
+  (`taakUitHash`). De afspraak in Google Agenda wijst daarheen.
+- **Taak uit mail**: in het leesvenster een icoonknop (`pvTaak`) die het
+  taakvenster opent met het onderwerp zonder *Re:/Fwd:*, en `item.mail`
+  (`{acc, email, draad, onderwerp, van}`). De taak toont een label *Mail* dat
+  de mail weer opent (in Mail, of in Gmail als het account er niet meer is),
+  en de afspraak noemt de mail met een link naar Gmail.
+- Bijvangst: bij *Nieuwe taak* stonden Annuleer en Opslaan links (er was geen
+  Verwijderen om ze naar rechts te duwen). Nu rechts, alleen in dit venster.
+
+**Waarom zo.** Een mail op de dag zelf en een dagelijks overzicht van wat te
+laat is, is de kern van "bewaken": vooraf een seintje, en daarna blijft het
+knagen tot het af is. Meer mails per taak werd ruis. Het overzicht vooruit
+klaarzetten is nodig omdat de app alleen bijwerkt als hij ergens openstaat.
+
+**Grenzen.** De mail komt van Google Agenda (afzender *Google Calendar*), naar
+het account waarmee je inlogt. Een deadline heeft geen tijd, dus het is 09:00.
+Google staat hooguit 5 herinneringen per afspraak toe; het maximum hier is 4.
+Wat je afvinkt verdwijnt pas uit Nog open als de app daarna heeft bijgewerkt
+(binnen 8 seconden, op elk apparaat waar hij openstaat).
+
+**Bestanden.** `index.html` — `AGD_CL_KEUZES`, `agdCl*`, `agdIsWerkdag`,
+`agdVorigeWerkdag`, `agdGewenst`, `agdMomentAfspraak`, het venster
+(`agdVensterVernieuw`, `agdClNaKeuze`), `taakUitHash`/`moduleUitHash`/`renderAll`
+/hashchange, het taakvenster (`clHerinnerVul`, `renderClHerinner`,
+`renderClItemMail`, `saveChecklistItem`, `openChecklistItemModal(id, uitMail)`),
+de lijst (`clItemHtml`, `clHerinnerMenu`, `CL_BEL_IC`, `CL_MAIL_IC`,
+`clMailOpen`, ⋯-menu), `spawnRecurringNext`, Mail (`pvTaak`, `pvGmailUrl`,
+`PV_IC.taak`), de chat (`taak_toevoegen`). `test.html` — één test aangepast,
+drie nieuwe. `sw.js`, `CLAUDE.md`, `docs/stijlgids.md`.
+
+**Niet doen.** De afspraak weer een hele dag maken: dan kan er op de dag zelf
+niets komen. Een mail bij elke herinnering (ruis). Een taak op *uit* toch in
+Nog open zetten. Afspraak-ids in de state bewaren (zie 2026-09-29).
