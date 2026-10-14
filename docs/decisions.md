@@ -8317,3 +8317,27 @@ zijbalk.
 
 **Bestanden.** `herling-app-16.png`, `index.html` (`<head>`), `sw.js`,
 `CLAUDE.md`.
+
+## 2026-10-14 · Standaardmodel Claude Sonnet 5.5 (v2.90)
+
+**Probleem.** Sinds v2.49 was Claude Haiku 5.5 de standaard: het goedkoopste
+model. Het verbruik (Instellingen → AI) bleef ruim binnen wat Frank wil
+uitgeven, en hij wil de betere antwoorden van Sonnet als vast model.
+
+**Beslissing.** `CLAUDE_MODEL_STANDAARD` = `claude-sonnet-5-5`. De lijst blijft
+goedkoopste eerst; het label *Standaard* staat nu bij Sonnet. De keuze is per
+apparaat (`herling_claude_model`): wie niets koos -- of Haiku koos toen dat de
+standaard was, want de standaard wordt niet bewaard -- krijgt nu Sonnet; een
+expliciet gekozen Opus of Fable blijft staan.
+
+**Nagekeken voor Sonnet 5.5.** Het verzoek (`_claudeBody`) stuurt geen
+temperature, geen uitgeschakeld denken en geen afgedwongen `tool_choice` --
+alle drie een 400 op Sonnet 5.5. Effort staat expliciet (`low` voor uitlezen,
+`medium` in de chat; Sonnet zou anders `high` nemen). De terugval bij een
+weigering (`fallbacks: "default"` met de kopregel
+`server-side-fallback-2026-07-01`) ging al mee voor Sonnet 5.5. De
+verbruiksschatting kende de prijs al: $2 / $10 per miljoen tokens, cache
+lezen $0,20 -- per token twintig keer Haiku.
+
+**Bestanden.** `index.html` (`CLAUDE_MODEL_STANDAARD`, `aiModelKeuzes`,
+commentaar), `test.html` (twee tests), `sw.js`, `CLAUDE.md`.
