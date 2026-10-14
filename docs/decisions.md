@@ -8186,3 +8186,27 @@ rechts 460px vrij. Nu `aiChatSluit()`; de test controleert het.
 **Niet doen.** Een test schrijven die stilzwijgend leunt op wat er toevallig
 in de browser staat (een klant, een login, de vensterbreedte). Zet het neer
 met de hulpjes, of sla de controle over waar het gedrag bewust anders is.
+
+## 2026-10-14 · Keuzelijsten leesbaar in het donkere thema (v2.85)
+
+**Probleem.** In het taakvenster klapte de keuzelijst *Project* (en *Klant*)
+in het donkere thema open als een wit blok met lichtgrijze tekst: onleesbaar.
+Die selects (`.klantkies-sel`) hebben een doorzichtige achtergrond, zodat ze
+in hun doos opgaan. Windows tekent de opengeklapte lijst met de achtergrond
+van de select zelf, en die is dan wit; de opties erven de lichte tekstkleur
+van het thema.
+
+**Beslissing.** Eén regel voor elke keuzelijst: `select option, select
+optgroup { background-color: var(--surface); color: var(--text) }`. Hij stond
+alleen bij de modelkeuze in de chat (`.aic-model option`); die regel is
+opgegaan in de algemene. Gemeten: donker #0F1B3D met lichte tekst, licht wit
+met donkerblauwe tekst.
+
+**Niet gedaan.** `color-scheme: dark` op de hele pagina. Dat zou ook
+datumkiezers en schuifbalken donker maken, maar verandert ook hoe een iframe
+wordt geschilderd: de platte-tekstmail in Mail (doorzichtig, lichte tekst)
+zou dan op een witte ondergrond komen. Kan later, mét `color-scheme` in de
+mail-iframe.
+
+**Bestanden.** `index.html` (CSS bij `.klantkies-sel`; `.aic-model option`
+weg), `sw.js`, `docs/stijlgids.md` §6.
