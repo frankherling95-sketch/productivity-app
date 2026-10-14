@@ -787,7 +787,8 @@ als je klikt.
 | kaart | `--surface` op het vlak van de bubbel, `1px var(--border-strong)`, radius 10px, vulling `10px 12px` |
 | kop | icoon van 16px in mint, titel `--fs-klein` / 700; rechts de stand in `--fs-micro` met een stip van 7px (grijs, groen als uitgevoerd, rood als het niet kan) |
 | regels | `dl` in twee kolommen: label muted, waarde `--text`, beide `--fs-klein`; namen en datums voluit ("vr 16 okt 2026"), zoals ze in de app staan |
-| knoppen | `.btn-sm`: **Uitvoeren** primair, **Overslaan** secundair; na uitvoeren een melding, **Bekijk in …** primair (naar het resultaat) en **Ongedaan maken** |
+| knoppen | `.btn-sm`: **Uitvoeren** primair, **Aanpassen** en **Overslaan** secundair; na uitvoeren een melding, **Bekijk in …** primair (naar het resultaat) en **Ongedaan maken** |
+| aanpassen | de regels worden velden in hetzelfde raster (label links, veld rechts; op een telefoon onder elkaar), met de gewone opmaak van een invoerveld; rand van de kaart mint, stand *Aanpassen*. **Klaar** primair, **Annuleren**; Enter = Klaar (niet in een tekstvak), Escape = Annuleren zonder het paneel te sluiten. Daarna stand *Aangepast*. Ook op een kaart die niet kan: zo repareer je hem |
 | kan niet | een regel in `--danger` met de reden, zonder Uitvoeren |
 | twee of meer open | onder de kaarten één knop **Alles uitvoeren (n)**. Mail-acties tellen niet mee: die voer je per kaart uit, met een regel ernaast die dat zegt |
 | met tekst | *Notitie bijwerken* en *Veld invullen*: onder de regels *Bekijk de tekst* (`details`), de tekst in een vak op `--surface2` van hooguit 240px dat zelf scrolt; koppen daarin `--fs-basis`, zonder de band van een vensterkop |

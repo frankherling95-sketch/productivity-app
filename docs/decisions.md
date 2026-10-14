@@ -8227,3 +8227,42 @@ Gemeten op 1300px en 375px; het opdrachtvenster is pixel voor pixel gelijk.
 
 **Bestanden.** `index.html` (CSS bij `#clItemModal`, de knoppen in
 `#clItemModal`, `selectClPriority`), `sw.js`, `docs/stijlgids.md` §6.
+
+## 2026-10-14 · Een voorstel in de chat aanpassen vóór Uitvoeren (v2.87)
+
+**Probleem.** Stelde Vraag het je app een taak, project, uren of notitie
+voor, dan kon je hem alleen uitvoeren of overslaan. Een titel net anders, een
+andere klant of een toelichting erbij betekende: opnieuw vragen, of achteraf
+in de module aanpassen. Frank wil het direct op het voorstel kunnen doen.
+
+**Beslissing.**
+- Op een open voorstelkaart een knop **Aanpassen** (tussen Uitvoeren en
+  Overslaan). De regels worden velden; **Klaar** zet de waarden terug in de
+  invoer van de actie en laat `bekijk()` die opnieuw lezen. Daarmee gelden
+  dezelfde controles als bij het voorstel van het model: een klant die niet
+  bestaat blijft "kan niet".
+- Welke velden per actie staat in `AI_ACTIES[...].velden` (sleutel uit het
+  schema, label, soort): taak toevoegen (taak, klant, project, deadline,
+  prioriteit, herinnering, subtaken, toelichting), project aanmaken, uren
+  schrijven, factuur betaald (datum), notitie maken, afspraak maken. Niet bij
+  notitie bijwerken en veld invullen (die lezen het scherm op het moment van
+  de vraag), afvinken en de mail-acties.
+- Ook op een kaart die **niet kan**: zo repareer je een verkeerde klant of
+  datum zonder opnieuw te vragen. Overslaan kan daar nu ook.
+- Het voorstel bewaart zijn invoer (`input`). Na aanpassen staat er
+  *Aangepast* op de kaart, en leest het model bij de volgende vraag
+  "aangepast door de gebruiker". Een kaart die openstaat om aan te passen
+  telt niet mee in Uitvoeren of Alles uitvoeren.
+- Enter = Klaar (niet in een tekstvak), Escape = Annuleren. Die Escape
+  luistert in de vangfase, zodat hij niet ook het paneel sluit.
+- Uren als tekstveld met een cijfertoetsenbord, niet `type=number`: dan
+  werken 2,5 en 2.5 allebei.
+
+**Bijvangst.** De mailtest "antwoord pas weg na Versturen" wachtte vast
+400 ms en faalde soms in een volle pagina; hij wacht nu tot de mail weg is.
+
+**Bestanden.** `index.html` (`AI_ACTIES[...].velden`, `aiActieVoorstel`,
+`aiActieDoe`, `aiActieSla`, `aiActieHtml`, `aiActieKanBewerk`,
+`aiActieVeldHtml`, `aiActieFormHtml`, `aiActieBewerk*`,
+`aiActieSamenvatting`, CSS `.aic-actie-form`/`.aic-veld`), `test.html`
+(één test, de mailtest robuuster), `sw.js`, `CLAUDE.md`, `docs/stijlgids.md` §16.
