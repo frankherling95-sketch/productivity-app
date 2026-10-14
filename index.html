@@ -442,6 +442,20 @@ input:focus,textarea:focus,select:focus{border-color:var(--text)}
 #clItemModal .cl-herinner-mail:has(input:disabled){opacity:.45;cursor:default}
 .cl-herinner-uitleg{margin:8px 0 0;font-size:var(--fs-klein);color:var(--text-muted);line-height:1.5}
 .cl-herinner-uitleg b{color:var(--text);font-weight:600}
+/* Toelichting in het venster: een kop als de andere veldlabels, met een
+   pijl; dicht zolang hij leeg is (2026-10-14). */
+#clItemModal .cl-taak-toel{margin:-4px 0 12px}
+#clItemModal .cl-toel-kop{display:flex;align-items:center;gap:6px;align-self:flex-start;padding:4px 0;border:0;background:none;
+  cursor:pointer;font-family:inherit;font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em}
+#clItemModal .cl-toel-kop:hover{color:var(--text)}
+#clItemModal .cl-toel-kop small{font-size:11px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-hint)}
+#clItemModal .cl-toel-pijl{transition:transform var(--duur-kort) var(--ease)}
+#clItemModal .cl-toel-kop[aria-expanded="true"] .cl-toel-pijl{transform:rotate(90deg)}
+#clItemModal .cl-taak-toel textarea{font-size:13px;line-height:1.5;padding:9px 12px;resize:vertical;min-height:96px}
+@media (max-width:768px){
+  #clItemModal .cl-toel-kop{min-height:var(--tap);font-size:var(--fs-micro)}
+  #clItemModal .cl-taak-toel textarea{font-size:var(--fs-basis)}
+}
 /* De mail waar de taak uit komt, onder de omschrijving. */
 .cl-taak-mail{display:flex;align-items:center;gap:10px;margin:-2px 0 12px;padding:6px 6px 6px 12px;
   background:var(--surface2);border-radius:var(--radius);font-size:var(--fs-klein);color:var(--text-muted)}
@@ -4721,6 +4735,29 @@ button.cl2-deadline:hover { color: var(--text); }
 button.cl2-deadline.overdue:hover { color: var(--danger); text-decoration: underline; text-underline-offset: 2px; }
 button.cl2-deadline:focus-visible { outline: 2px solid var(--mint); outline-offset: 2px; border-radius: 3px; }
 .cl2-deadline .cl2-bel { flex: none; margin-left: 1px; }
+/* Toelichting op de taakkaart (2026-10-14): het label staat aan als hij
+   open is; het vak eronder lijnt uit met de titel, net als de subtaken. */
+.cl2-toel-tag.open { color: var(--text); background: var(--surface3); }
+.cl2-toel { padding: 0 14px 12px 48px; }
+.cl2-toel-tekst {
+  padding: 10px 12px; background: var(--surface2); border-radius: var(--radius);
+  font-size: var(--fs-klein); line-height: 1.55; color: var(--text); overflow-wrap: anywhere;
+}
+.cl2-toel-tekst > :first-child { margin-top: 0; }
+.cl2-toel-tekst > :last-child { margin-bottom: 0; }
+.cl2-toel-tekst p, .cl2-toel-tekst ul, .cl2-toel-tekst ol { margin: 0 0 6px; }
+.cl2-toel-tekst ul, .cl2-toel-tekst ol { padding-left: 18px; }
+.cl2-toel-tekst h1, .cl2-toel-tekst h2, .cl2-toel-tekst h3 { font-size: var(--fs-basis); margin: 8px 0 4px; }
+.cl2-toel-tekst a { color: inherit; text-decoration: underline; text-decoration-color: var(--mint); text-underline-offset: 3px; }
+.cl2-toel-bewerk {
+  margin-top: 4px; padding: 4px 2px; border: 0; background: none; cursor: pointer;
+  font-family: inherit; font-size: var(--fs-micro); font-weight: 600; color: var(--text-muted);
+}
+.cl2-toel-bewerk:hover { color: var(--text); }
+@media (max-width: 768px) {
+  .cl2-toel { padding: 0 12px 12px; }
+  .cl2-toel-bewerk { min-height: var(--tap); }
+}
 /* Het keuzemenu: een aan/uit-regel krijgt zijn vinkje in mint, zoals een
    gekozen regel; uit (bij "geen herinnering") zoals een uit-knop (§2). */
 .cl-herinner-menu { max-width: min(400px, calc(100vw - 16px)); }
@@ -9388,7 +9425,7 @@ body.aic-open .aic-starter { display: none; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.81</span>
+        <span class="app-versie" title="Appversie">v2.82</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -11027,6 +11064,17 @@ body.aic-open .aic-starter { display: none; }
     </div>
     <!-- Uit welke mail deze taak komt (2026-10-14). Inhoud uit renderClItemMail(). -->
     <div class="cl-taak-mail" id="clItemMail" hidden></div>
+    <!-- Toelichting (2026-10-14): achtergrond bij de taak. Dicht tenzij er al
+         iets staat, zodat het venster niet langer wordt voor wie het niet
+         gebruikt. Zie clToelVul(). -->
+    <div class="cl-modal-field cl-taak-toel">
+      <button type="button" class="cl-toel-kop" id="clToelKop" data-action="clToelWissel" aria-expanded="false" aria-controls="clItemToelichting">
+        <svg class="cl-toel-pijl" width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M4.5 3L7.5 6L4.5 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Toelichting</span><small id="clToelHint">optioneel</small>
+      </button>
+      <textarea id="clItemToelichting" rows="5" hidden
+        placeholder="Waar gaat dit over? Achtergrond, afspraken, links, wat je moet weten om het op te pakken. **Vet** en lijstjes met - werken."></textarea>
+    </div>
 
     <!-- Two-column: priority+client left, calendar right -->
     <div class="cl-taak-grid" style="display:grid;grid-template-columns:170px 1fr;gap:16px;margin-top:12px">
@@ -19466,7 +19514,7 @@ function renderChecklistModuleKaal(){
     if(clFilters.period==='week'){if(!i.deadline||i.deadline<weekStart||i.deadline>weekEnd)return false;}
     if(clFilters.period==='month'){if(!i.deadline||i.deadline<monthStart||i.deadline>monthEnd)return false;}
     if(searchQ){
-      const inText=(i.text||'').toLowerCase().includes(searchQ);
+      const inText=(i.text||'').toLowerCase().includes(searchQ)||(i.toelichting||'').toLowerCase().includes(searchQ);
       const inSub=(i.subtasks||[]).some(s=>(s.text||'').toLowerCase().includes(searchQ));
       if(!inText&&!inSub)return false;
     }
@@ -19768,6 +19816,12 @@ function clItemHtml(item,isArchived=false){
     metaBits.push(`<button type="button" class="cl2-project-tag cl2-mail-tag" data-action="clMailOpen" data-arg1="${item.id}"
       title="Open de mail: ${escapeHtml(item.mail.onderwerp||'')}">${CL_MAIL_IC}Mail</button>`);
   }
+  /* De toelichting: een label dat hem eronder openklapt (2026-10-14). */
+  const toelOpen=!!(item.toelichting&&clToelOpen[item.id]);
+  if(item.toelichting){
+    metaBits.push(`<button type="button" class="cl2-project-tag cl2-toel-tag${toelOpen?' open':''}" data-action="clToelLijst" data-arg1="${item.id}"
+      aria-expanded="${toelOpen}" aria-controls="clToel-${item.id}" title="${toelOpen?'Toelichting verbergen':'Toelichting tonen'}">${CL_TOEL_IC}Toelichting</button>`);
+  }
 
   return `<div class="cl-item${item.done?' done-item':''}${isArchived?' archived-item':''}${item.pinned?' pinned':''}"
     data-id="${item.id}" data-done="${item.done?'true':'false'}"
@@ -19814,6 +19868,10 @@ function clItemHtml(item,isArchived=false){
         </button>
       </div>
     </div>
+    ${toelOpen?`<div class="cl2-toel" id="clToel-${item.id}">
+      <div class="cl2-toel-tekst">${clToelHtml(item.toelichting)}</div>
+      ${isArchived?'':`<button type="button" class="cl2-toel-bewerk" data-action="clToelBewerk" data-arg1="${item.id}">Bewerken</button>`}
+    </div>`:''}
     ${showSubs||showSubsAdd?`<div class="cl2-subs">${subsHtml}</div>`:''}
   </div>`;
 }
@@ -20117,6 +20175,7 @@ function spawnRecurringNext(item){
     /* De herinnering die je bij deze taak koos, geldt ook voor de volgende. */
     ...(AGD_CL_KEUZES[item.herinnering]?{herinnering:item.herinnering}:{}),
     ...(typeof item.herinnerMail==='boolean'?{herinnerMail:item.herinnerMail}:{}),
+    ...(item.toelichting?{toelichting:item.toelichting}:{}),
     createdAt:Date.now(),updatedAt:Date.now()
   };
 }
@@ -20373,7 +20432,7 @@ function renderClFilterBar(){
     if(clFilters.clientId&&i.clientId!==clFilters.clientId)return false;
     if(clFilters.projectId&&i.projectId!==clFilters.projectId)return false;
     if(sQ){
-      const inText=(i.text||'').toLowerCase().includes(sQ);
+      const inText=(i.text||'').toLowerCase().includes(sQ)||(i.toelichting||'').toLowerCase().includes(sQ);
       const inSub=(i.subtasks||[]).some(s=>(s.text||'').toLowerCase().includes(sQ));
       if(!inText&&!inSub)return false;
     }
@@ -20452,6 +20511,8 @@ function toggleChecklistArchived(){
 const CL_PROJECT_IC='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4.2a1 1 0 0 1 1-1h3.1l1.4 1.6H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z"/></svg>';
 /* Belletje achter de deadline: deze taak geeft een herinnering (2026-10-14). */
 const CL_BEL_IC='<svg class="cl2-bel" width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M3 8.6V5.4a3 3 0 0 1 6 0v3.2l.9 1H2.1z" stroke="currentColor" stroke-width="1.15" stroke-linejoin="round"/><path d="M5 10.6a1.1 1.1 0 0 0 2 0" stroke="currentColor" stroke-width="1.15" stroke-linecap="round"/></svg>';
+/* Een blaadje met regels: er staat een toelichting bij deze taak. */
+const CL_TOEL_IC='<svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M3 1.5h4.2L9.5 3.8V10a.5.5 0 0 1-.5.5H3a.5.5 0 0 1-.5-.5V2a.5.5 0 0 1 .5-.5z" stroke="currentColor" stroke-width="1.15" stroke-linejoin="round"/><path d="M4.3 5.5h3.4M4.3 7.5h3.4" stroke="currentColor" stroke-width="1.15" stroke-linecap="round"/></svg>';
 const CL_MAIL_IC='<svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="1.5" y="2.5" width="9" height="7" rx="1" stroke="currentColor" stroke-width="1.15"/><path d="M2 3.2 6 6.4l4-3.2" stroke="currentColor" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const CL_PROJECT_SPEC_HTML='<h2>Doel</h2><p></p><h2>Wat er moet komen</h2><ul><li></li></ul><h2>Afspraken</h2><p></p><h2>Open vragen</h2><ul><li></li></ul>';
 function clProjecten(){
@@ -20737,6 +20798,7 @@ function openChecklistItemModal(id,uitMail){
     deleteBtn.style.display='';
     clItemMailRef=item.mail&&item.mail.draad?{...item.mail}:null;
     clHerinnerVul(item);
+    clToelVul(item.toelichting||'');
   } else {
     document.getElementById('clItemModalTitle').textContent=uitMail?'Taak uit mail':'Nieuwe taak';
     document.getElementById('clItemText').value=uitMail?uitMail.tekst||'':'';
@@ -20753,6 +20815,7 @@ function openChecklistItemModal(id,uitMail){
     deleteBtn.style.display='none';
     clItemMailRef=uitMail&&uitMail.mail?{...uitMail.mail}:null;
     clHerinnerVul(null);
+    clToelVul('');
   }
   renderClItemMail();
   modal.classList.add('open');
@@ -20780,16 +20843,18 @@ function saveChecklistItem(){
   const her={};
   if(herSel&&herSel.value!==herSel.dataset.start&&AGD_CL_KEUZES[herSel.value])her.herinnering=herSel.value;
   if(herMail&&String(herMail.checked)!==herMail.dataset.start)her.herinnerMail=herMail.checked;
+  const toelichting=(document.getElementById('clItemToelichting')?.value||'').trim();
   let nieuwId=null;
   if(clEditingId){
     const item=checklistState.items.find(i=>i.id===clEditingId);
     if(item){item.text=text;item.priority=priority;item.deadline=deadline;item.clientId=clientId;item.projectId=projectId;item.recurrence=recurrence;item.updatedAt=Date.now();
       Object.assign(item,her);
-      if(clItemMailRef)item.mail=clItemMailRef;else delete item.mail;}
+      if(clItemMailRef)item.mail=clItemMailRef;else delete item.mail;
+      if(toelichting)item.toelichting=toelichting;else delete item.toelichting;}
   } else {
     nieuwId=uid();
     checklistState.items.push({id:nieuwId,text,done:false,priority,deadline,clientId,projectId,subtasks:[],archived:false,sortOrder:clNieuweSortOrder(priority),recurrence,
-      ...her,...(clItemMailRef?{mail:clItemMailRef}:{}),createdAt:Date.now(),updatedAt:Date.now()});
+      ...her,...(clItemMailRef?{mail:clItemMailRef}:{}),...(toelichting?{toelichting}:{}),createdAt:Date.now(),updatedAt:Date.now()});
   }
   const uitMail=!!(nieuwId&&clItemMailRef);
   closeChecklistItemModal();
@@ -20869,6 +20934,52 @@ Object.assign(APP_CHANGE_ACTIONS,{
 Object.assign(APP_ACTIONS,{
   clMailOpen:(el,e,id)=>{if(e)e.stopPropagation();clMailOpen(id);},
   clMailLos:()=>{clItemMailRef=null;renderClItemMail();}
+});
+
+/* ── Toelichting bij een taak (2026-10-14) ──
+   Een stuk achtergrond bij een taak: waar ging dit ook alweer over, wat
+   moet je weten. In de lijst klapt het open onder de taak met het label
+   Toelichting; in het venster is het een veld dat dicht staat zolang het
+   leeg is. Markdown (vet, lijstjes, links), getekend zoals in de chat. */
+let clToelOpen={};   /* taak-id -> true: de toelichting staat open in de lijst (alleen deze sessie) */
+function clToelVul(tekst){
+  const ta=document.getElementById('clItemToelichting');
+  if(!ta)return;
+  ta.value=tekst||'';
+  clToelZet(!!tekst);
+}
+function clToelZet(open){
+  const ta=document.getElementById('clItemToelichting'), kop=document.getElementById('clToelKop'),
+    hint=document.getElementById('clToelHint');
+  if(!ta||!kop)return;
+  ta.hidden=!open;
+  kop.setAttribute('aria-expanded',open?'true':'false');
+  /* Leeg: "optioneel". Dicht met tekst erin: zeg dat er iets staat. */
+  if(hint)hint.textContent=!ta.value.trim()?'optioneel':open?'':'ingevuld';
+}
+function clToelHtml(tekst){
+  const t=String(tekst||'').trim();
+  if(!t)return '';
+  return (typeof marked!=='undefined'&&marked.parse)?veiligeHtml(marked.parse(t)):escapeHtml(t).replace(/\n/g,'<br>');
+}
+Object.assign(APP_ACTIONS,{
+  clToelWissel:()=>{
+    const ta=document.getElementById('clItemToelichting');
+    if(!ta)return;
+    clToelZet(ta.hidden);
+    if(!ta.hidden)ta.focus();
+  },
+  /* Het label op de taak: open of dicht, zonder de taak zelf open te klappen. */
+  clToelLijst:(el,e,id)=>{
+    if(e)e.stopPropagation();
+    clToelOpen[id]=!clToelOpen[id];
+    renderChecklistModule();
+  },
+  clToelBewerk:(el,e,id)=>{
+    if(e)e.stopPropagation();
+    openChecklistItemModal(id);
+    setTimeout(()=>{clToelZet(true);document.getElementById('clItemToelichting')?.focus();},40);
+  }
 });
 
 /* ── Herinnering vanuit de lijst (2026-10-14) ──
@@ -38553,6 +38664,7 @@ function agdClAfspraak(it,vrij){
     pr?'Project: '+pr.naam:'',
     open?open+' open '+(open===1?'subtaak':'subtaken'):'',
     'Deadline: '+opdFmtDatum(it.deadline),
+    it.toelichting?'\nToelichting:\n'+(String(it.toelichting).trim().length>600?String(it.toelichting).trim().slice(0,599)+'…':String(it.toelichting).trim()):'',
     m?'Uit de mail "'+(m.onderwerp||'')+'"'+(m.van?' van '+m.van:'')+': '+pvGmailUrl(m.email,m.draad):''].filter(Boolean);
   const herinner=agdClMomenten(it,vrij).map(d=>({method:'popup',minutes:opdDagenTussen(d,it.deadline)*1440}));
   if(herinner.length&&h.mail)herinner.push({method:'email',minutes:0});
@@ -41134,7 +41246,8 @@ function aiChatOverzicht(vandaagIso){
     afgerondPerMaand:Object.keys(perMaand).sort().map(m=>({maand:m,aantal:perMaand[m]})),
     openLijst:open.slice().sort((a,b)=>(a.deadline||'9999').localeCompare(b.deadline||'9999')).slice(0,80)
       .map(i=>({id:i.id,taak:i.text,klant:_aiChatKlant(i.clientId),project:_aiChatProject(i.projectId),deadline:i.deadline||null,prioriteit:i.priority||'middel',
-        subtaken:(i.subtasks||[]).length?(i.subtasks.filter(t=>t.done).length+'/'+i.subtasks.length):undefined})),
+        subtaken:(i.subtasks||[]).length?(i.subtasks.filter(t=>t.done).length+'/'+i.subtasks.length):undefined,
+        toelichting:i.toelichting?(i.toelichting.length>400?i.toelichting.slice(0,399)+'…':i.toelichting):undefined})),
     recentAfgerond:klaar.filter(i=>i.doneAt&&i.doneAt>=recentGrens.getTime())
       .sort((a,b)=>b.doneAt-a.doneAt).slice(0,60)
       .map(i=>({id:i.id,taak:i.text,klant:_aiChatKlant(i.clientId),project:_aiChatProject(i.projectId),afgerond:afDatum(i)})),
@@ -41324,7 +41437,7 @@ const AI_ACTIES={
     label:'Taak toevoegen',
     uitleg:'Zet een nieuwe taak in de Checklist. Alleen als de gebruiker vraagt iets toe te voegen, te noteren of te onthouden.',
     schema:{type:'object',additionalProperties:false,
-      required:['titel','deadline','klant','prioriteit','subtaken','project','herinnering'],
+      required:['titel','deadline','klant','prioriteit','subtaken','project','herinnering','toelichting'],
       properties:{
         titel:{type:'string',description:'Korte titel, zoals de gebruiker hem zou opschrijven.'},
         deadline:{type:'string',description:'JJJJ-MM-DD, of leeg zonder deadline.'},
@@ -41334,7 +41447,9 @@ const AI_ACTIES={
         project:{type:'string',description:'Naam van een project uit taken.projecten, of leeg. Een project hoort bij een klant; die mag dan leeg.'},
         herinnering:{type:'string',enum:['standaard','uit','dag','dag1','week'],
           description:'Melding via Google Agenda om 09:00: dag = op de dag zelf, dag1 = de werkdag ervoor en op de dag, '+
-            'week = ook een week ervoor, uit = geen. Gewoon "standaard", tenzij de gebruiker iets anders vraagt.'}}},
+            'week = ook een week ervoor, uit = geen. Gewoon "standaard", tenzij de gebruiker iets anders vraagt.'},
+        toelichting:{type:'string',description:'Achtergrond bij de taak (markdown): waar het over gaat, wat je moet weten. '+
+          'Alleen als de gebruiker die geeft of er duidelijk om vraagt; anders leeg.'}}},
     bekijk:i=>{
       const titel=String(i.titel||'').trim();
       const dl=_aiActieDatum(i.deadline,true), kl0=_aiActieKlant(i.klant,false), pr=_aiActieProject(i.project,kl0.id);
@@ -41348,6 +41463,8 @@ const AI_ACTIES={
       if(subs.length)regels.push(['Subtaken',subs.join(' · ')]);
       const her=AGD_CL_KEUZES[i.herinnering]?i.herinnering:null;
       if(dl.iso&&her)regels.push(['Herinnering',AGD_CL_KEUZES[her].label]);
+      const toel=String(i.toelichting||'').trim();
+      if(toel)regels.push(['Toelichting',toel.length>120?toel.slice(0,117).replace(/\s+/g,' ')+'…':toel.replace(/\s+/g,' ')]);
       return {titel:'Taak toevoegen',regels,fout:!titel?'De taak heeft geen titel.':(dl.fout||kl.fout||pr.fout),
         doe(){
           if(!checklistState.items)checklistState.items=[];
@@ -41356,7 +41473,7 @@ const AI_ACTIES={
           if(pr.nieuw&&!prNu.id)throw new Error('voer eerst "Project aanmaken" uit');
           const item={id:uid(),text:titel,done:false,priority:prio,deadline:dl.iso||null,clientId:kl.id||null,projectId:prNu.id||null,
             subtasks:subs.map(text=>({id:uid(),text,done:false})),archived:false,
-            sortOrder:checklistState.items.length,...(her?{herinnering:her}:{}),createdAt:Date.now(),updatedAt:Date.now()};
+            sortOrder:checklistState.items.length,...(her?{herinnering:her}:{}),...(toel?{toelichting:toel}:{}),createdAt:Date.now(),updatedAt:Date.now()};
           checklistState.items.push(item);
           scheduleSave();aiActieVernieuw();
           return {melding:'Toegevoegd aan de Checklist',open:{label:'Bekijk in Checklist',doe:()=>aiNaarTaak(item.id)},terug(){

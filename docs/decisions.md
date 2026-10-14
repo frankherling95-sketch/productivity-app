@@ -8072,3 +8072,36 @@ drie nieuwe. `sw.js`, `CLAUDE.md`, `docs/stijlgids.md`.
 **Niet doen.** De afspraak weer een hele dag maken: dan kan er op de dag zelf
 niets komen. Een mail bij elke herinnering (ruis). Een taak op *uit* toch in
 Nog open zetten. Afspraak-ids in de state bewaren (zie 2026-09-29).
+
+## 2026-10-14 · Toelichting bij een taak (v2.82)
+
+**Probleem.** Frank wil bij een taak achtergrond kunnen vastleggen: waar het
+over gaat, wat je moet weten om het op te pakken, voor als je het even kwijt
+bent. Niet als grote tekst op de pagina, maar om open te klappen.
+
+**Beslissing.**
+- `item.toelichting`: vrije tekst, getekend als markdown (vet, lijstjes,
+  links) via `marked` + `veiligeHtml`, zoals de chat (`clToelHtml`).
+- **In de lijst** een label *Toelichting* in de metaregel, in de vorm van het
+  projectlabel. Een klik klapt de tekst onder de taak open, los van het
+  uitklappen van de subtaken; met *Bewerken* eronder. Open of dicht wordt
+  niet bewaard (`clToelOpen`, alleen deze sessie): elke keer dat je de lijst
+  opent is hij weer rustig.
+- **In het taakvenster** een kop *Toelichting* met een pijl onder de
+  omschrijving, dicht zolang hij leeg is, zodat het venster niet langer wordt
+  voor wie het niet gebruikt. Leegmaken haalt het veld weg.
+- Meegenomen door: zoeken in de Checklist, de afspraak in Google Agenda
+  (hooguit 600 tekens), het overzicht voor de chat (hooguit 400), en
+  `taak_toevoegen` (alleen als je hem geeft). Een herhalende taak geeft hem
+  door aan de volgende.
+- Alleen bij taken, niet bij subtaken: eerst kijken of het zo werkt.
+
+**Bestanden.** `index.html` — `clToelVul`, `clToelZet`, `clToelHtml`,
+`clToelOpen`, `CL_TOEL_IC`, `clItemHtml`, `saveChecklistItem`,
+`openChecklistItemModal`, het zoekfilter (twee plekken), `agdClAfspraak`,
+`aiChatOverzicht`, `taak_toevoegen`, `spawnRecurringNext`, CSS
+`.cl-taak-toel`/`.cl-toel-kop`/`.cl2-toel*`. `test.html` — één test.
+
+**Niet doen.** De toelichting standaard open tonen, of bij het uitklappen
+van de taak meenemen: dan staat hij bij elke taak met prioriteit Hoog
+(standaard open) toch in beeld.

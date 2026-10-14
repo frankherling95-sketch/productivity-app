@@ -260,6 +260,7 @@ balk. Op een bureaublad blijft het een tabel; beide in de DOM, de CSS kiest.
 | project | label `.cl2-project-tag` ná het klantlabel, dezelfde vorm (10,5px / 600, radius 4px), neutraal: `--surface2` met `--text-muted` en een mapje van 11px — de kleur hoort bij de klant. Het is een knop: een tik toont alleen dat project |
 | deadline | `.cl2-deadline`: bij een open taak een `<button>` zonder rand of vulling, in rust gewoon de datum; met een belletje van 11px erachter als de taak een herinnering geeft. Een klik opent het herinneringsmenu (`.uren-menu.cl-herinner-menu`, opent vanaf de linkerrand van de deadline, regels `var(--tap)` op een telefoon; daar ook via ⋯ → *Herinnering…*). Afgevinkt of gearchiveerd: een `<span>` |
 | mail | uit een mail: een label *Mail* met een envelopje, dezelfde vorm als het projectlabel en erachter; een tik opent de mail |
+| toelichting | een label *Toelichting* met een blaadje, dezelfde vorm, als laatste in de metaregel; open = `--surface3` en `--text`. Eronder dan een vak op `--surface2`, `--fs-klein` / 1,55, ingesprongen tot de titel (48px, telefoon 12px), markdown; daaronder *Bewerken* (`--fs-micro` / 600 muted). In het taakvenster een kop als de veldlabels met een pijl, dicht zolang het leeg is |
 | projectbalk | onder de filterbalk als er een project gekozen is (`.cl2-projectbalk`): naam (`--fs-basis` / 600), klant en voortgang (`--fs-klein` muted), dan *Specificatie* (primair), *Afronden* en ⋯, en een ✕. Op een telefoon het ✕ naast de naam en de knoppen eronder |
 
 ### Notitieboom: klant, project, notitie (Notities)
