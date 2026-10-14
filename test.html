@@ -2774,8 +2774,11 @@ async function runChecks() {
           try { w.localStorage.removeItem('herling_agenda'); } catch (_) {}
         }
       }],
-    /* ── Checklist-deadlines in Google Agenda (2026-10-04) ── */
-    ['Meldingen: een open taak met een deadline komt erin, met een melding de dag ervoor om 09:00; uit te zetten',
+    /* ── Checklist-deadlines in Google Agenda (2026-10-04, herzien 2026-10-14) ──
+       Sinds 2026-10-14 een kwartier om 09:00 op de deadline, met als
+       standaard een melding de werkdag ervoor en op de dag, plus een mail
+       op de dag. 10 okt 2026 is een zaterdag: de werkdag ervoor is vr 9 okt. */
+    ['Meldingen: een open taak met een deadline komt erin, om 09:00 met de werkdag ervoor en een mail op de dag; uit te zetten',
       () => {
         const oudCl = w.eval('JSON.stringify(checklistState.items)');
         const oudS = w.eval('JSON.stringify(rawState.settings.agendaMeldingen||null)');
@@ -2793,13 +2796,90 @@ async function runChecks() {
           const alleen = g.filter(a => a.sleutel.startsWith('cl:')).length === 1;
           w.eval('rawState.settings.agendaMeldingen.checklist=false');
           const uit = !w.agdGewenst('2026-09-20').some(a => a.sleutel.startsWith('cl:'));
-          return !!t && alleen && uit && t.datum === '2026-10-10' && t.body.start.date === '2026-10-10' &&
-                 her === 'popup900' && /^Deadline: Rapport opleveren$/.test(t.titel) &&
-                 /1 open subtaak/.test(t.body.description);
+          return !!t && alleen && uit && t.datum === '2026-10-10' && t.body.start.dateTime === '2026-10-10T09:00:00' &&
+                 her === 'popup1440,popup0,email0' && /^Deadline: Rapport opleveren$/.test(t.titel) &&
+                 /1 open subtaak/.test(t.body.description) && /#taak-t1$/.test(t.body.source.url);
         } finally {
           w.eval('checklistState.items=' + oudCl);
           w.eval('rawState.settings.agendaMeldingen=' + oudS + ';if(!rawState.settings.agendaMeldingen)delete rawState.settings.agendaMeldingen;');
         }
+      }],
+    /* ── Herinneringen per taak en Nog open (2026-10-14) ── */
+    ['Herinnering: de werkdag ervoor slaat weekend en vakantie over, een week ervoor, uit zonder melding, en de standaard',
+      () => {
+        const oudCl = w.eval('JSON.stringify(checklistState.items)');
+        const oudS = w.eval('JSON.stringify(rawState.settings.agendaMeldingen||null)');
+        const oudV = w.eval('JSON.stringify(opdrachtState.vrij||[])');
+        try {
+          w.eval('checklistState.items=' + JSON.stringify([
+            {id:'ma', text:'Maandag', done:false, deadline:'2026-10-19', subtasks:[]},
+            {id:'wk', text:'Week', done:false, deadline:'2026-10-21', herinnering:'week', herinnerMail:false, subtasks:[]},
+            {id:'uit', text:'Uit', done:false, deadline:'2026-10-22', herinnering:'uit', subtasks:[]},
+            {id:'std', text:'Standaard', done:false, deadline:'2026-10-23', subtasks:[]}]));
+          w.eval("rawState.settings.agendaMeldingen={aan:true,kalenderId:''}");
+          w.eval('opdrachtState.vrij=[]');
+          const her = (g, s) => { const a = g.find(x => x.sleutel === s); return a ? a.body.reminders.overrides.map(o => o.method + o.minutes).join(',') : null; };
+          const g1 = w.agdGewenst('2026-10-14');
+          const ma = her(g1, 'cl:ma'), wk = her(g1, 'cl:wk'), uit = her(g1, 'cl:uit');
+          /* Vakantie van ma 12 t/m vr 16 okt: de werkdag vóór ma 19 is dan vr 9 okt. */
+          w.eval("opdrachtState.vrij=[{van:'2026-10-12',tot:'2026-10-16',omschrijving:'Vakantie'}]");
+          const vak = her(w.agdGewenst('2026-10-05'), 'cl:ma');
+          w.eval('opdrachtState.vrij=[]');
+          /* Een andere standaard geldt voor taken zonder eigen keuze. */
+          w.eval("rawState.settings.agendaMeldingen.clStandaard='dag';rawState.settings.agendaMeldingen.clMail=false");
+          const g2 = w.agdGewenst('2026-10-14');
+          const std = her(g2, 'cl:std'), wk2 = her(g2, 'cl:wk');
+          return ma === 'popup4320,popup0,email0' && wk === 'popup10080,popup1440,popup0' && uit === '' &&
+                 vak === 'popup14400,popup0,email0' && std === 'popup0' && wk2 === wk;
+        } finally {
+          w.eval('checklistState.items=' + oudCl);
+          w.eval('opdrachtState.vrij=' + oudV);
+          w.eval('rawState.settings.agendaMeldingen=' + oudS + ';if(!rawState.settings.agendaMeldingen)delete rawState.settings.agendaMeldingen;');
+        }
+      }],
+    ['Nog open: elke werkdag om 08:30 wat te laat is, niet in het weekend, zonder taken op uit; uit te zetten',
+      () => {
+        const oudCl = w.eval('JSON.stringify(checklistState.items)');
+        const oudS = w.eval('JSON.stringify(rawState.settings.agendaMeldingen||null)');
+        const oudV = w.eval('JSON.stringify(opdrachtState.vrij||[])');
+        try {
+          w.eval('checklistState.items=' + JSON.stringify([
+            {id:'a', text:'Te laat', done:false, deadline:'2026-10-14', subtasks:[]},
+            {id:'b', text:'Maandag', done:false, deadline:'2026-10-19', subtasks:[]},
+            {id:'c', text:'Stil', done:false, deadline:'2026-10-10', herinnering:'uit', subtasks:[]},
+            {id:'d', text:'Af', done:true, deadline:'2026-10-01', subtasks:[]}]));
+          w.eval("rawState.settings.agendaMeldingen={aan:true,kalenderId:''}");
+          w.eval('opdrachtState.vrij=[]');
+          const g = w.agdGewenst('2026-10-16');
+          const sl = Object.fromEntries(g.filter(a => a.sleutel.startsWith('clopen:')).map(a => [a.datum, a]));
+          const vr = sl['2026-10-16'], ma = sl['2026-10-19'], di = sl['2026-10-20'];
+          const goed = Object.keys(sl).length === 10 && !sl['2026-10-17'] && !sl['2026-10-18'] &&
+            vr.titel === 'Nog open: 1 taak over de deadline' && ma.titel === 'Nog open: 1 taak over de deadline' &&
+            di.titel === 'Nog open: 2 taken over de deadline' && vr.body.start.dateTime === '2026-10-16T08:30:00' &&
+            vr.body.reminders.overrides.map(o => o.method + o.minutes).join(',') === 'popup0,email0' &&
+            /Te laat — deadline 14 okt 2026 \(2 dagen te laat\)/.test(vr.body.description) && !/Stil/.test(vr.body.description);
+          w.eval('rawState.settings.agendaMeldingen.clOverzicht=false');
+          const uit = !w.agdGewenst('2026-10-16').some(a => a.sleutel.startsWith('clopen:'));
+          return goed && uit;
+        } finally {
+          w.eval('checklistState.items=' + oudCl);
+          w.eval('opdrachtState.vrij=' + oudV);
+          w.eval('rawState.settings.agendaMeldingen=' + oudS + ';if(!rawState.settings.agendaMeldingen)delete rawState.settings.agendaMeldingen;');
+        }
+      }],
+    ['Herinnering: de chat geeft hem mee bij taak toevoegen, en een link #taak-<id> wijst naar de Checklist',
+      () => {
+        const v = w.aiActieVoorstel({naam: 'taak_toevoegen', input: {titel: 'Met herinnering', deadline: '2026-10-16', klant: '',
+          prioriteit: 'laag', subtaken: [], project: '', herinnering: 'week'}});
+        const regel = (v.regels || []).find(r => r[0] === 'Herinnering');
+        const std = w.aiActieVoorstel({naam: 'taak_toevoegen', input: {titel: 'Zonder', deadline: '2026-10-16', klant: '',
+          prioriteit: 'laag', subtaken: [], project: '', herinnering: 'standaard'}});
+        const oud = w.location.hash;
+        w.history.replaceState(null, '', '#taak-abc_1');
+        const id = w.taakUitHash(), mod = w.moduleUitHash();
+        w.history.replaceState(null, '', oud || '#dashboard');
+        return v.status === 'voorstel' && !!regel && /week ervoor/.test(regel[1]) &&
+               !(std.regels || []).some(r => r[0] === 'Herinnering') && id === 'abc_1' && mod === 'checklist';
       }],
     /* ── Archief in Google Drive (2026-10-04) ───────────────────────────
        archiefGewenst leest de state; archiefSync praat met een nep-Drive. */

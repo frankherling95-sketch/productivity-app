@@ -258,6 +258,8 @@ balk. Op een bureaublad blijft het een tabel; beide in de DOM, de CSS kiest.
 | voortgang subtaken | ring van 11px ín de meta-regel, baan `--surface2`, vulling `--mint` — alleen bij een taak mét subtaken, en nergens anders op de kaart |
 | acties | mobiel achter één ⋯ rechts naast de titel; desktop een rij icoontjes |
 | project | label `.cl2-project-tag` ná het klantlabel, dezelfde vorm (10,5px / 600, radius 4px), neutraal: `--surface2` met `--text-muted` en een mapje van 11px — de kleur hoort bij de klant. Het is een knop: een tik toont alleen dat project |
+| deadline | `.cl2-deadline`: bij een open taak een `<button>` zonder rand of vulling, in rust gewoon de datum; met een belletje van 11px erachter als de taak een herinnering geeft. Een klik opent het herinneringsmenu (`.uren-menu.cl-herinner-menu`, opent vanaf de linkerrand van de deadline, regels `var(--tap)` op een telefoon; daar ook via ⋯ → *Herinnering…*). Afgevinkt of gearchiveerd: een `<span>` |
+| mail | uit een mail: een label *Mail* met een envelopje, dezelfde vorm als het projectlabel en erachter; een tik opent de mail |
 | projectbalk | onder de filterbalk als er een project gekozen is (`.cl2-projectbalk`): naam (`--fs-basis` / 600), klant en voortgang (`--fs-klein` muted), dan *Specificatie* (primair), *Afronden* en ⋯, en een ✕. Op een telefoon het ✕ naast de naam en de knoppen eronder |
 
 ### Notitieboom: klant, project, notitie (Notities)
@@ -821,7 +823,7 @@ beide thema's leesbaar met `--text` erop.
 | lijstregel | afzender `--fs-basis`, onderwerp en fragment `--fs-klein`; ongelezen = 700 |
 | rij-acties | rechtsonder in elke regel, onder de datum: **Archiveren** (alleen in het postvak) en **Prullenbak** als icoonknop van 32px, `--text-hint`, altijd zichtbaar; hover `--surface3`, de prullenbak dan `--danger`. Onderwerp en fragment korten daarvoor 72px eerder in (telefoon 78px, 8px tussen de knoppen). Met ongedaan maken, zonder de mail te openen |
 | datum | `--fs-micro`: "14:20", "gisteren", "ma", "28 sep" (zoals de notitieregel op het Dashboard) |
-| leesvenster | sticky knoppenbalk; Archiveren en Prullenbak met woord, Ongelezen, Ster en Gmail als icoonknop; Samenvatten en Antwoord rechts |
+| leesvenster | sticky knoppenbalk; Archiveren en Prullenbak met woord, Taak (vinkje in een vierkant), Ongelezen, Ster en Gmail als icoonknop; Samenvatten en Antwoord rechts. Taak met woord paste niet: dan zakten Samenvatten en Antwoord bij 1400px naar een tweede regel |
 | bericht | kaart (`--surface`, `--radius-md`); ingeklapt = afzender + fragment |
 | inhoud | iframe, html-mail op wit (zo is hij ontworpen), platte tekst volgt het thema |
 | plaatjes van buiten | blokje `--surface2` met "Tonen" |

@@ -52,13 +52,13 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 |------|--------|---------|
 | `#dashboard` | Dashboard | Hero (met een balk die een vraag aan de chat is: een taak komt meteen in de Checklist, `dashAiVraag`) + KPI strip + kaartenraster (Notes/Checklist/Opdrachten & contracten) |
 | `#notes` | Notes | Boomstructuur per klant, met daarin eerst de projecten en dan de losse notities; rich-text editor met onder de titel klant en project (`notesPlekMenu`) |
-| `#checklist` | Checklist | Taken met subtaken, filters (prio/klant/periode/project), projecten met een specificatie-notitie, vastpinnen, drag-drop, archief |
+| `#checklist` | Checklist | Taken met subtaken, filters (prio/klant/periode/project), projecten met een specificatie-notitie, vastpinnen, drag-drop, archief, herinnering per taak (klik op de deadline). `#taak-<id>` opent één taak (`taakUitHash()`) |
 | `#klanten` | Klanten | Klantbeheer op één plek (was het tabblad Klanten in Facturen): per klant een kaart met factuurgegevens, de projecten (aanmaken, hernoemen, naar een andere klant, afronden, verwijderen) en de weg naar zijn notities en taken. `openKlantenBeheer()` komt hier uit |
 | `#uren` | Uren | Urenregistratie per regel, week/maand, Excel export |
 | `#facturen` | Facturen | Facturen uit geschreven uren (ook per maand in één keer: *Uren factureren*, `facMaandStart`), sjabloonbouwer, debiteuren, btw-overzicht, mailen via Gmail, analyse |
 | `#opdrachten` | Opdrachten | Opdrachten per klant (looptijd, uren per week of urenbudget, tarief, opzegtermijn, PDF van de overeenkomst) en een vooruitzicht per werkmaand |
 | `#agenda` | Agenda | Afspraken van alle gekoppelde Google-accounts (zakelijk, privé) in één beeld: dag, week of lijst. Afspraak maken, wijzigen, verwijderen. Rechtstreeks de Calendar API, niets in Drive |
-| `#mail` | Mail | Postvak van de gekoppelde Google-accounts: lezen (veilig iframe, plaatjes van buiten pas op verzoek), zoeken met de zoektaal van Gmail, archiveren/prullenbak/gelezen/ster met ongedaan maken, opruimen per afzender, AI-overzicht, samenvatting en antwoorden: je ziet de hele mail (aan, cc, onderwerp, tekst, handtekening) en verstuurt zelf, met een paar seconden *Niet versturen*; of als concept in Gmail |
+| `#mail` | Mail | Postvak van de gekoppelde Google-accounts: lezen (veilig iframe, plaatjes van buiten pas op verzoek), zoeken met de zoektaal van Gmail, archiveren/prullenbak/gelezen/ster met ongedaan maken, opruimen per afzender, een taak maken van een mail (`pvTaak`, de taak onthoudt de mail), AI-overzicht, samenvatting en antwoorden: je ziet de hele mail (aan, cc, onderwerp, tekst, handtekening) en verstuurt zelf, met een paar seconden *Niet versturen*; of als concept in Gmail |
 | `#contracten` | Contracten | Zakelijke én privécontracten (twee tabs), elk met looptijd, opzegtermijn, stilzwijgende verlenging en de PDF erbij |
 | `#instellingen` | Instellingen | Eén pagina met alles wat je instelt: AI-model en sleutels, thema, facturatie, vrije dagen, opslag en back-up, meldingen, account. Opent de bestaande vensters; bewaart zelf niets |
 
@@ -75,12 +75,12 @@ rawState = {
   opdrachten: opdrachtState, // {opdrachten, vrij (vakanties), feestdagen (ids; ontbreekt = standaard)}
   contracten: contractState, // {contracten, opruimen} — de PDF's zelf staan NIET hierin, zie Contracten hieronder
   // agenda: verwijderd 2026-09-06; oude events blijven ongemoeid in Drive staan (de nieuwe Agenda leest Google en bewaart niets)
-  settings: { calSources, theme, googleAccounts: [Google-account], agendaMeldingen: {aan, kalenderId, checklist}, driveArchief: {aan, mapId}, externeTools, aiVerbruik: {'JJJJ-MM': {model: {n, in, uit, lees, schrijf, usd}}}, ... }
+  settings: { calSources, theme, googleAccounts: [Google-account], agendaMeldingen: {aan, kalenderId, checklist, clStandaard ('dag'|'dag1'|'week'|'uit'; ontbreekt = 'dag1'), clMail, clOverzicht}, driveArchief: {aan, mapId}, externeTools, aiVerbruik: {'JJJJ-MM': {model: {n, in, uit, lees, schrijf, usd}}}, ... }
 }
 ```
 
 **Item shapes** (snelle referentie):
-- Checklist item: `{id, text, done, priority, deadline, clientId, projectId?, subtasks[], archived, sortOrder, pinned}` — subtaak `{id, text, done, doorHoofd?}`; `doorHoofd` = mee afgevinkt met de hoofdtaak, gaat weer open als die terugkomt (`clZetHoofdKlaar()`)
+- Checklist item: `{id, text, done, priority, deadline, clientId, projectId?, subtasks[], archived, sortOrder, pinned, recurrence?, herinnering?, herinnerMail?, mail?}` — `herinnering`/`herinnerMail` ontbreken = de standaard uit `agendaMeldingen` (`agdClHerinnering()`); `mail` = `{acc, email, draad, onderwerp, van}`, de mail waar de taak uit komt (Mail → Taak). Subtaak `{id, text, done, doorHoofd?}`; `doorHoofd` = mee afgevinkt met de hoofdtaak, gaat weer open als die terugkomt (`clZetHoofdKlaar()`)
 - Google-account (Agenda, Mail, chat): `{id, email, naam ('Zakelijk'/'Privé'/…), agenda (false = uit), mail (false = uit), kalKeuze: {kalenderId: true|false}}` — `kalKeuze` overschrijft per agenda wat Google zegt (`selected`). Het token staat er níet in: dat is per tabblad, zie `herling_gacc_tokens` (`gaccLijst()`, `gaccTokGeldig()`)
 - Project (Checklist): `{id, naam, clientId, noteId|null, status ('actief'|'afgerond'), createdAt, updatedAt}` — hoort altijd bij een klant; een taak en een notitie horen bij hooguit één project (`projectId`, optioneel). De specificatie is een gewone notitie in Notities (`noteId`, `clProjectSpec()`), en hoort zelf ook bij het project
 - Notes node (recursief): `{id, type:'page'|'folder', title, content, clientId, projectId?, tags, children[]}` — `projectId` alleen op een pagina; zetten via `notePlekZet()` (houdt de klant gelijk aan die van het project), lezen via `noteProject()` (een project dat weg is of bij een andere klant hoort telt als geen)
@@ -342,9 +342,9 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
+- **2026-10-14**: **Herinneringen bij deadlines, en een taak uit een mail** (v2.81) — via de agenda *Herling – aflopend*: een taak met een deadline is een kwartier om 09:00 op die dag, standaard met een melding de werkdag ervoor en op de dag, plus een mail op de dag. Per taak te kiezen (taakvenster, klik op de deadline, ⋯ op een telefoon, de chat). Elke werkdag 08:30 *Nog open* met wat te laat is. In Mail maakt het vinkje-icoon een taak die de mail onthoudt
 - **2026-10-14**: **App-icoon zonder donkere tegel** (v2.80) — taakbalk, Startmenu en meldingen tonen alleen de ring en de H, in een dieper groen-blauw dat op een lichte én een donkere taakbalk leesbaar is. Tot 96px een volle H (de stippen worden daar een waas), vanaf 192px de gestippelde (`herling-app-*.png`). iOS, Android en het tabblad houden de tegel
 - **2026-10-13**: **De lege stand van het paneel bovenaan** (v2.78) — in het paneel van Vraag het je app staat *Waar kan ik mee helpen?* bovenaan, zodat een vergroot paneel de lege ruimte eronder krijgt (zoals Eerdere gesprekken). Op een telefoon ongewijzigd
-- **2026-10-13**: **Paneel verslepen en van maat veranderen; archiveren en prullenbak per mail; Klanten onder Administratie** (v2.77) — Klanten staat bovenaan in Administratie, en die groep staat na elke keer laden dicht (niet meer onthouden). Op een bureaublad sleep je het paneel aan de kop en maak je het groter of kleiner aan randen en hoeken (min. 320 × 300, binnen het scherm, onthouden per apparaat in `herling_ai_paneel`, dubbelklik = standaardplek). In Mail per regel rechtsonder Archiveren (alleen postvak) en Prullenbak, met ongedaan maken
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 
@@ -431,7 +431,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 235 smoke-, sync-, model-, reken-, sorteer-, agenda-, mail- en projecttests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
+| `test.html` | 241 smoke-, sync-, model-, reken-, sorteer-, agenda-, mail- en projecttests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |
