@@ -5078,13 +5078,60 @@ button.cl2-deadline:focus-visible { outline: 2px solid var(--mint); outline-offs
   vertical-align: top;
 }
 .note-editor th { background: var(--surface2); font-weight: 600; }
+/* Afbeeldingen (2026-10-14): standaard compact -- hooguit 220px hoog, in de
+   eigen verhouding -- zodat de tekst eromheen leesbaar blijft. Een klik maakt
+   hem groot (data-groot, alleen om te lezen; zie noteImgKoppel). */
 .note-editor img {
   max-width: 100%;
+  max-height: 220px;
+  width: auto;
   height: auto;
   border-radius: 6px;
   display: block;
   margin: 6px 0;
-  cursor: default;
+  cursor: zoom-in;
+}
+.note-editor img[data-groot] { max-height: none; cursor: zoom-out; }
+.note-editor img.note-img-uploading { cursor: progress; }
+/* Het knopje rechtsboven op een afbeelding: buiten de tekst van de notitie
+   (anders gaat het mee in de inhoud), boven op de editor. Donker vlak met
+   witte icoontjes, zodat het op elke afbeelding leesbaar is. */
+.notes-editor-body { position: relative; }
+.note-img-knoppen {
+  position: absolute; z-index: 5; display: flex; gap: 2px; padding: 3px;
+  background: rgba(10, 19, 48, 0.82); border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+.note-img-knoppen[hidden] { display: none; }
+.note-img-knop {
+  width: 30px; height: 30px; padding: 0; border: 0; border-radius: 6px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; color: #fff; cursor: pointer;
+  transition: background var(--duur-kort) var(--ease);
+}
+.note-img-knop:hover { background: rgba(255, 255, 255, 0.14); }
+.note-img-knop:focus-visible { outline: 2px solid var(--mint); outline-offset: -2px; }
+.note-img-knop svg { width: 16px; height: 16px; }
+/* Volledig scherm: de afbeelding zo groot als het scherm toelaat. Een klik
+   of Escape sluit. */
+.note-img-scherm {
+  position: fixed; inset: 0; z-index: 400; display: none;
+  align-items: center; justify-content: center; padding: 24px;
+  background: rgba(5, 10, 25, 0.9); cursor: zoom-out;
+}
+.note-img-scherm.open { display: flex; }
+.note-img-scherm img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 6px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5); }
+.note-img-sluit {
+  position: absolute; top: 12px; right: 12px; width: var(--tap); height: var(--tap);
+  border: 0; border-radius: 50%; background: rgba(255, 255, 255, 0.12); color: #fff;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.note-img-sluit:hover { background: rgba(255, 255, 255, 0.22); }
+.note-img-sluit svg { width: var(--icoon); height: var(--icoon); }
+@media (max-width: 768px) {
+  .note-editor img { max-height: 160px; }
+  .note-img-knop { width: var(--tap); height: var(--tap); }
+  .note-img-scherm { padding: 12px; }
 }
 .note-img-uploading {
   opacity: 0.5;
@@ -9456,7 +9503,7 @@ body.aic-open .aic-starter { display: none; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.87</span>
+        <span class="app-versie" title="Appversie">v2.88</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -17474,6 +17521,9 @@ function sanitizeNoteContent(html){
   html=veiligeHtml(html);
   /* blob: URLs zijn altijd tijdelijk — verwijder de volledige <img>-tag */
   html=html.replace(/<img\b[^>]*\bsrc="blob:[^"]*"[^>]*\/?>/gi,'');
+  /* Een vergrote afbeelding is alleen om te lezen (2026-10-14): dat gaat
+     niet mee naar de opslag, dus elke notitie opent weer compact. */
+  html=html.replace(/\sdata-groot(="[^"]*")?/gi,'');
   /* data: URLs groter dan 400 KB — vervang door placeholder.
      400KB is ruim boven wat de paste-handler produceert (~50-250KB JPEG),
      maar kapt ongecomprimeerde PNG-screenshots (500KB-5MB) af die de
@@ -18768,9 +18818,117 @@ function renderNoteEditor(){
       };
       reader.readAsDataURL(file);
     });
+    noteImgKoppel(editor);
     updateNoteWordCount(editor);
   }
 }
+
+/* ══ Afbeeldingen in een notitie: compact, en groter om te lezen (2026-10-14) ══
+   Standaard hooguit 220px hoog (telefoon 160px), zodat je de tekst eromheen
+   snel leest. Een klik op de afbeelding maakt hem groot -- de volle breedte
+   van de notitie -- en nog een klik weer klein. Bij het aanwijzen staat er
+   rechtsboven een knopje met hetzelfde, plus Volledig scherm. Groot is alleen
+   om te lezen: data-groot gaat er bij het bewaren af (sanitizeNoteContent),
+   dus vergroten telt niet als een wijziging en elke notitie opent compact. */
+const NOTE_IMG_IC={
+  groter:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 2.5h4v4M6.5 13.5h-4v-4M13.5 2.5 9 7M2.5 13.5 7 9"/></svg>',
+  kleiner:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 7H9V3M3 9h4v4M9 7l4.5-4.5M7 9l-4.5 4.5"/></svg>',
+  scherm:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10"/></svg>'
+};
+let _noteImgHuidig=null, _noteImgTimer=null;
+function noteImgKnoppen(){
+  const body=document.querySelector('#noteContent .notes-editor-body');
+  if(!body)return null;
+  let k=document.getElementById('noteImgKnoppen');
+  if(k&&k.parentElement===body)return k;
+  k?.remove();
+  k=document.createElement('div');
+  k.id='noteImgKnoppen';k.className='note-img-knoppen';k.hidden=true;
+  k.innerHTML='<button type="button" class="note-img-knop" data-action="noteImgWissel"></button>'+
+    '<button type="button" class="note-img-knop" data-action="noteImgScherm" aria-label="Volledig scherm" title="Volledig scherm">'+NOTE_IMG_IC.scherm+'</button>';
+  k.addEventListener('mouseenter',()=>clearTimeout(_noteImgTimer));
+  k.addEventListener('mouseleave',noteImgVerberg);
+  /* Geen focus weghalen uit de editor: dan zou hij bij elke klik opslaan. */
+  k.addEventListener('mousedown',e=>e.preventDefault());
+  body.appendChild(k);
+  return k;
+}
+function noteImgToon(img){
+  const k=noteImgKnoppen();
+  if(!k||!img||img.classList.contains('note-img-uploading'))return;
+  clearTimeout(_noteImgTimer);
+  _noteImgHuidig=img;
+  const groot=img.hasAttribute('data-groot'), w=k.querySelector('[data-action="noteImgWissel"]');
+  w.innerHTML=groot?NOTE_IMG_IC.kleiner:NOTE_IMG_IC.groter;
+  w.title=groot?'Verkleinen':'Vergroten';
+  w.setAttribute('aria-label',w.title);
+  k.hidden=false;
+  const rb=k.parentElement.getBoundingClientRect(), ri=img.getBoundingClientRect();
+  k.style.top=Math.max(4,ri.top-rb.top+8)+'px';
+  k.style.left=Math.max(4,ri.right-rb.left-k.offsetWidth-8)+'px';
+}
+function noteImgVerberg(){
+  clearTimeout(_noteImgTimer);
+  _noteImgTimer=setTimeout(()=>{
+    const k=document.getElementById('noteImgKnoppen');
+    if(k)k.hidden=true;
+    _noteImgHuidig=null;
+  },150);
+}
+function noteImgWissel(img){
+  img=img||_noteImgHuidig;
+  if(!img||!img.isConnected)return;
+  img.toggleAttribute('data-groot');
+  noteImgToon(img);
+}
+function noteImgScherm(img){
+  img=img||_noteImgHuidig;
+  if(!img)return;
+  let o=document.getElementById('noteImgScherm');
+  if(!o){
+    o=document.createElement('div');
+    o.id='noteImgScherm';o.className='note-img-scherm';
+    o.setAttribute('role','dialog');o.setAttribute('aria-modal','true');o.setAttribute('aria-label','Afbeelding');
+    o.innerHTML='<img alt=""><button type="button" class="note-img-sluit" aria-label="Sluiten" title="Sluiten (Esc)">'+SLUIT_SVG+'</button>';
+    o.addEventListener('click',noteImgSchermDicht);
+    document.body.appendChild(o);
+  }
+  o.querySelector('img').src=img.src;
+  o.classList.add('open');
+  o.querySelector('.note-img-sluit').focus();
+}
+function noteImgSchermDicht(){document.getElementById('noteImgScherm')?.classList.remove('open');}
+/* Escape sluit eerst het volledige scherm, en verder niets. */
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&document.getElementById('noteImgScherm')?.classList.contains('open')){
+    e.stopPropagation();e.preventDefault();noteImgSchermDicht();
+  }
+},true);
+function noteImgKoppel(editor){
+  editor.addEventListener('mouseover',e=>{
+    const img=e.target.closest&&e.target.closest('img');
+    if(img&&editor.contains(img))noteImgToon(img);
+  });
+  editor.addEventListener('mouseout',e=>{
+    if(e.target.tagName!=='IMG')return;
+    const naar=e.relatedTarget;
+    if(naar&&naar.closest&&naar.closest('#noteImgKnoppen'))return;
+    noteImgVerberg();
+  });
+  editor.addEventListener('click',e=>{
+    if(e.target.tagName!=='IMG'||e.target.classList.contains('note-img-uploading'))return;
+    noteImgWissel(e.target);
+  });
+  /* De knopjes staan boven de editor en schuiven niet mee: bij scrollen weg. */
+  editor.addEventListener('scroll',()=>{
+    const k=document.getElementById('noteImgKnoppen');
+    if(k)k.hidden=true;
+  },{passive:true});
+}
+Object.assign(APP_ACTIONS,{
+  noteImgWissel:(el,e)=>{if(e)e.stopPropagation();noteImgWissel();},
+  noteImgScherm:(el,e)=>{if(e)e.stopPropagation();noteImgScherm();}
+});
 
 function updateNoteWordCount(editor){
   const el=document.getElementById('noteWordCount');if(!el)return;

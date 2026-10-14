@@ -2915,6 +2915,33 @@ async function runChecks() {
         return v.status === 'voorstel' && !!regel && /week ervoor/.test(regel[1]) &&
                !(std.regels || []).some(r => r[0] === 'Herinnering') && id === 'abc_1' && mod === 'checklist';
       }],
+    /* ── Afbeeldingen in een notitie (2026-10-14) ── */
+    ['Notities: een afbeelding is compact, een klik maakt hem groot en weer klein, en groot gaat niet mee in de opslag', () => opBreed(async () => {
+      const scherm = d.getElementById('appScreen'), was = scherm.style.display;
+      const oud = w.eval('JSON.stringify({t:notesState.tree,a:notesState.activeId,m:activeModule})');
+      const c = d.createElement('canvas'); c.width = 1200; c.height = 800;
+      const g = c.getContext('2d'); g.fillStyle = '#0E8F73'; g.fillRect(0, 0, 1200, 800);
+      const src = c.toDataURL('image/jpeg', 0.6);
+      try {
+        scherm.style.display = 'flex';
+        w.eval(`notesState.tree.push({id:'nimg',type:'page',title:'Met plaatje',content:'<p>tekst</p><img src="${src}"><p>meer</p>',clientId:null,children:[],updatedAt:1})`);
+        w.switchModule('notes'); w.selectNote('nimg');
+        await new Promise(r => setTimeout(r, 120));
+        const im = () => d.querySelector('#noteEditor img');
+        const compact = w.getComputedStyle(im()).maxHeight === '220px' && im().getBoundingClientRect().height <= 221;
+        im().click();
+        const groot = im().hasAttribute('data-groot') && im().getBoundingClientRect().height > 230;
+        w.updateNoteContent(d.getElementById('noteEditor').innerHTML);
+        const nietBewaard = !/data-groot/.test(w.eval('findNode(notesState.tree,"nimg").node.content'));
+        im().click();
+        const weerKlein = !im().hasAttribute('data-groot');
+        return compact && groot && nietBewaard && weerKlein;
+      } finally {
+        scherm.style.display = was;
+        w.eval('(function(o){notesState.tree=o.t;notesState.activeId=o.a;})(' + oud + ')');
+        w.switchModule(JSON.parse(oud).m || 'dashboard');
+      }
+    })],
     /* ── Een voorstel in de chat aanpassen vóór Uitvoeren (2026-10-14) ── */
     ['Chat: een voorstel aanpassen vóór Uitvoeren, Escape breekt af, en een kaart die niet kan repareer je', () => metKlant(async () => {
       const naam = w.eval('kanbanState.clients[0].name');

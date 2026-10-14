@@ -8266,3 +8266,32 @@ in de module aanpassen. Frank wil het direct op het voorstel kunnen doen.
 `aiActieVeldHtml`, `aiActieFormHtml`, `aiActieBewerk*`,
 `aiActieSamenvatting`, CSS `.aic-actie-form`/`.aic-veld`), `test.html`
 (één test, de mailtest robuuster), `sw.js`, `CLAUDE.md`, `docs/stijlgids.md` §16.
+
+## 2026-10-14 · Afbeeldingen in een notitie compact, groter om te lezen (v2.88)
+
+**Probleem.** Een geplakte schermafdruk vulde de volle breedte van de
+notitie (tot 1200px breed, honderden pixels hoog). Twee screenshots in
+notulen duwden de tekst ver naar beneden; Frank las de rest niet snel meer.
+
+**Beslissing.**
+- **Standaard compact**: `.note-editor img` hooguit 220px hoog (telefoon
+  160px), in de eigen verhouding. Geldt meteen ook voor bestaande notities.
+- **Een klik** op de afbeelding maakt hem groot (de volle breedte) en weer
+  klein; de cursor zegt het (*zoom-in*, *zoom-out*). Bij aanwijzen staat er
+  rechtsboven een knopje met hetzelfde (Vergroten/Verkleinen) en **Volledig
+  scherm**: de afbeelding zo groot als het scherm toelaat, dicht met een klik
+  of Escape.
+- **Groot is alleen om te lezen**: het kenmerk `data-groot` haalt
+  `sanitizeNoteContent` eraf bij het bewaren. Vergroten is dus geen wijziging
+  (de notitie springt niet naar boven in *Laatst gewijzigd*), en elke notitie
+  opent weer compact.
+- Het knopje hangt buiten de tekst van de notitie (in `.notes-editor-body`),
+  anders zou het mee in de inhoud gaan; bij scrollen verdwijnt het. Een klik
+  erop haalt de focus niet uit de editor (dan zou hij opslaan).
+
+**Bestanden.** `index.html` (CSS bij `.note-editor img`, `.note-img-*`;
+`sanitizeNoteContent`; `noteImg*` en de koppeling in `renderNoteEditor`),
+`test.html` (één test), `sw.js`, `CLAUDE.md`, `docs/stijlgids.md`.
+
+**Niet doen.** De grootte per afbeelding bewaren in de inhoud: dan wordt
+elke klik een wijziging. Het knopje ín de editor zetten.

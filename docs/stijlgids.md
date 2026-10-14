@@ -277,6 +277,15 @@ Binnen een klantgroep eerst de projecten, dan de losse notities.
 | afgerond | naam `--text-muted` en het woord *afgerond* in `--fs-micro` |
 | slepen | een notitie op een klant- of projectkop: vlak `--info-bg`, zoals op een groep |
 
+### Afbeeldingen in een notitie
+
+| | |
+|---|---|
+| standaard | compact: hooguit 220px hoog (telefoon 160px), eigen verhouding, radius 6px, cursor *zoom-in* |
+| groot | een klik op de afbeelding (of het knopje): de volle breedte, cursor *zoom-out*. Alleen om te lezen: `data-groot` gaat niet mee naar de opslag |
+| knopje | rechtsboven op de afbeelding bij aanwijzen (`.note-img-knoppen`): donker vlak (navy 82%), radius 8px, twee icoonknoppen van 30px (telefoon `var(--tap)`) met witte iconen van 16px: *Vergroten/Verkleinen* en *Volledig scherm* |
+| volledig scherm | `.note-img-scherm`: zwart-blauw op 90%, afbeelding zo groot als het scherm toelaat; klik of Escape sluit, ✕ rechtsboven op `var(--tap)` |
+
 ### Klant en project onder de titel (Notities)
 
 `.note-plek`: een regel onder de titel die ook de knop is. Blokje van 9px in

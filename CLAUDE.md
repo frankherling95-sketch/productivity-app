@@ -51,7 +51,7 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 | Hash | Module | Functie |
 |------|--------|---------|
 | `#dashboard` | Dashboard | Hero (met een balk die een vraag aan de chat is: een taak komt meteen in Taken, `dashAiVraag`) + KPI strip + kaartenraster (Notes/Checklist/Opdrachten & contracten) |
-| `#notes` | Notes | Boomstructuur per klant, met daarin eerst de projecten en dan de losse notities; rich-text editor met onder de titel klant en project (`notesPlekMenu`) |
+| `#notes` | Notes | Boomstructuur per klant, met daarin eerst de projecten en dan de losse notities; rich-text editor met onder de titel klant en project (`notesPlekMenu`). Geplakte afbeeldingen staan compact (220px hoog); een klik vergroot, met een knopje voor volledig scherm (`noteImg*`); groot wordt niet bewaard |
 | `#taken` | Taken | Heette tot 2026-10-14 Checklist; in de code nog `checklist` (module, state, `cl*`), en `#checklist` werkt nog (`moduleNaarHash()`/`moduleUitHash()`). Taken met subtaken, filters (prio/klant/periode/project), projecten met een specificatie-notitie, vastpinnen, drag-drop, archief, herinnering per taak (klik op de deadline). `#taak-<id>` opent één taak (`taakUitHash()`) |
 | `#klanten` | Klanten | Klantbeheer op één plek (was het tabblad Klanten in Facturen): per klant een kaart met factuurgegevens, de projecten (aanmaken, hernoemen, naar een andere klant, afronden, verwijderen) en de weg naar zijn notities en taken. `openKlantenBeheer()` komt hier uit |
 | `#uren` | Uren | Urenregistratie per regel, week/maand, Excel export |
@@ -342,9 +342,9 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
+- **2026-10-14**: **Afbeeldingen in een notitie compact** (v2.88) — standaard hooguit 220px hoog (telefoon 160px); een klik maakt groot en weer klein, bij aanwijzen een knopje met ook *Volledig scherm*. Groot is alleen om te lezen: `data-groot` gaat er bij het bewaren af, dus geen wijziging en elke notitie opent compact
 - **2026-10-14**: **Een voorstel in de chat aanpassen** (v2.87) — *Aanpassen* op een voorstelkaart maakt van de regels velden (tekst, datum, klant, project, prioriteit, herinnering, subtaken, toelichting); *Klaar* laat de actie de invoer opnieuw bekijken. Werkt ook op een kaart die niet kan. Per actie in `AI_ACTIES[...].velden`; het model leest daarna "aangepast door de gebruiker"
 - **2026-10-14**: **Testsuite overal groen, en de ronde knop van de chat blijft** (v2.84) — 9 tests faalden in een lege testbrowser (geen klant, geen login, smal venster, geen focus); ze zetten nu zelf neer wat ze nodig hebben (`metKlant`, `metLogin`, `opBreed`). Echte fout: *Naar Instellingen* vanuit de chat liet `body.aic-open` staan, waardoor de ronde knop verdween (`aiNaarSleutel` → `aiChatSluit`). Briefsjabloon zonder naam en bedrijf: geen lege slotalinea meer
-- **2026-10-14**: **Checklist heet Taken** (v2.83) — overal in beeld (zijbalk, onderbalk, titel, Dashboard, meldingen, de chat, versies) en in het adres (`#taken`; `#checklist` blijft werken). In de code, de state in Drive en de sporen blijft het `checklist`: hernoemen zou een migratie van je gegevens vragen en levert niets op
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 
@@ -431,7 +431,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 244 smoke-, sync-, model-, reken-, sorteer-, agenda-, mail- en projecttests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook. **Hoort in elke browser groen te zijn**, ook headless in een leeg profiel: een test die iets van de omgeving nodig heeft zet het zelf neer en ruimt het op — `metKlant` (minstens één klant), `metLogin` (ingelogd, met naam), `opBreed` (iframe op 1400px, want onder 769px is de app een telefoon), `metLS`, `metGoogle`. Rood is dus echt rood |
+| `test.html` | 245 smoke-, sync-, model-, reken-, sorteer-, agenda-, mail- en projecttests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook. **Hoort in elke browser groen te zijn**, ook headless in een leeg profiel: een test die iets van de omgeving nodig heeft zet het zelf neer en ruimt het op — `metKlant` (minstens één klant), `metLogin` (ingelogd, met naam), `opBreed` (iframe op 1400px, want onder 769px is de app een telefoon), `metLS`, `metGoogle`. Rood is dus echt rood |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |
