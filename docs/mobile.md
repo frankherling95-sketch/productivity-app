@@ -98,7 +98,7 @@ raakvlak en het icoon erin zijn twee verschillende maten.
 
 Hetzelfde icoon hoort op elke pagina even groot te zijn. Dat ging mis omdat
 het ⋯ op twee manieren getekend werd: als tekstglyph `⋯` in Uren en
-Facturen (inkt 16×3px bij 20px/600 Inter) en als svg van 14px in Checklist en
+Facturen (inkt 16×3px bij 20px/600 Inter) en als svg van 14px in Taken en
 Dashboard (inkt 11,2×2,4px). Naast elkaar scheelde dat 43% in breedte.
 
 Nu is er één vorm — `.icoon`, een svg met drie stippen op
@@ -123,7 +123,7 @@ en bij gelijke specificiteit wint de laatste regel.
 ### Een knop met alleen een icoon
 
 Eén regel in de mobiele laag dekt ze allemaal — de trechter en het kruisje van
-de Checklist, de filterknoppen van Uren en Facturen:
+Taken, de filterknoppen van Uren en Facturen:
 
 ```css
 .cl2-filterbtn, .cl2-filterwis.zichtbaar,

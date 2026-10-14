@@ -126,7 +126,7 @@ verlaten van de regel.
 ## 3. Menu's en dropdowns
 
 **Alle menu-items zijn 13px op mobiel** (`var(--fs-klein)`), met een raakvlak
-van `var(--tap)`. Dat geldt voor het ⋯-menu van Uren, Facturen, de Checklist,
+van `var(--tap)`. Dat geldt voor het ⋯-menu van Uren, Facturen, Taken,
 Notities én het menu per taak. Een menu-item is geen kaarttitel: het is een
 regel om aan te tikken, en die hoort de maat van een meta-regel te hebben.
 
@@ -204,7 +204,7 @@ hoog. Een regel zonder uren blijft een gewone `div`.
 
 ### Strook over de volle breedte (Dashboard: Opdrachten & contracten)
 
-Op een bureaublad een kaart over beide kolommen onder Notities en Checklist
+Op een bureaublad een kaart over beide kolommen onder Notities en Taken
 (`grid-template-rows: 1fr auto`, alleen boven 900px). Regels `.dash-oc-rij`:
 `var(--tap)` hoog, `--surface2`, `radius-md`, `var(--fs-klein)`; naam 600 met
 `…`, het signaal als `.fac-pill.opd-pill-let`/`-fout`. Twee kolommen vanaf 340px
@@ -221,7 +221,7 @@ Eén kop voor alle dashboardkaarten (`.dash-grid .card-hdr`):
 | | |
 |---|---|
 | icoon | `.dash-kop-icoon` 30×30, radius 8, svg 16px; tint via `--dash-tint`/`--dash-inkt` op de kaart |
-| tinten | Checklist `--mint-soft` / #00936C (donker: `--mint`) · Notities `--info-bg` / `--info` · Opdrachten & contracten `--warning-bg` / `--warning` |
+| tinten | Taken `--mint-soft` / #00936C (donker: `--mint`) · Notities `--info-bg` / `--info` · Opdrachten & contracten `--warning-bg` / `--warning` |
 | titel | `--font-display`, `--fs-groot`, 700 |
 | telpil | `--fs-micro`, 700, 22px hoog, `--surface2`; leeg = weg |
 | rechts | `.dash-alles` "Alles ›": 30px, `--fs-klein`/600, rand `--border-strong`, hover mint. Op mobiel weg (de kop klapt daar in en uit) |
@@ -236,7 +236,7 @@ rechts `--fs-micro` `--text-hint` ("14:20", "gisteren", "ma", "28 sep").
 |---|---|
 | vinkje | 20px, radius 6, 7px van de rand: zijn midden (17px) is de boomlijn |
 | titel | `--fs-basis` / 600, één regel (mobiel twee); klik = taakvenster |
-| meta | `--fs-micro`, **één regel**: klantblokje 8px · project (mapje 11px, een knop naar dat project in de Checklist) · deadline (te laat in `--danger`) · ring 11px + `d/n` (de ring is ook de uitklapknop). Past het niet, dan korten klant en project in met … — de klant eerst en met een project hooguit 45%; op een telefoon dan alleen het klantblokje vóór het project |
+| meta | `--fs-micro`, **één regel**: klantblokje 8px · project (mapje 11px, een knop naar dat project in Taken) · deadline (te laat in `--danger`) · ring 11px + `d/n` (de ring is ook de uitklapknop). Past het niet, dan korten klant en project in met … — de klant eerst en met een project hooguit 45%; op een telefoon dan alleen het klantblokje vóór het project |
 | uitklappen | `.dash-exp` 28px (mobiel `--tap`), chevron 16px, `aria-expanded`; alleen bij subtaken |
 | prioriteit | pil `--fs-micro`/700 in de kleuren van `CL_PRIORITY_CFG`; op mobiel naast de titel |
 | open | vlak `--surface2`; subtaken 36px (mobiel `--tap`), `--fs-klein`, vinkje 16px, boomlijn 1px `--border-strong`; "+ Subtaak" `--text-hint`, hover mint |
@@ -249,7 +249,7 @@ geschreven egaal (`--gr-nu`), gepland gearceerd (§11) — en een bijregel in
 `--fs-micro`. Geen bedrag (doorlopend) = rechts `--fs-klein`/500 muted, geen
 balk. Op een bureaublad blijft het een tabel; beide in de DOM, de CSS kiest.
 
-### Taakkaart (Checklist)
+### Taakkaart (Taken)
 
 | | |
 |---|---|
@@ -271,7 +271,7 @@ Binnen een klantgroep eerst de projecten, dan de losse notities.
 |---|---|
 | projectkop (`.note-proj-hdr`) | de maten van een notitieregel: vulling `7px 10px` (mobiel `10px 12px`, min. 40px), pijl 12px, icoonkolom 14px — zo staan pijl, icoon en tekst op één lijn met de notities |
 | naam | 13px / 600, loopt door op een tweede regel zoals een notitietitel |
-| icoon | het projectmapje van de Checklist (`CL_PROJECT_IC`), 14px, `--text-muted` — geen eigen kleur, die hoort bij de klant |
+| icoon | het projectmapje van Taken (`CL_PROJECT_IC`), 14px, `--text-muted` — geen eigen kleur, die hoort bij de klant |
 | telling + knop | de telpil en de + van de klantkop (`.note-client-count`, `.note-client-actions`); de + op desktop alleen bij hover, op mobiel altijd |
 | inhoud | ingesprongen aan een lijntje van 1px `var(--border)` onder de pijl (`.note-proj-body`) |
 | afgerond | naam `--text-muted` en het woord *afgerond* in `--fs-micro` |
@@ -615,7 +615,7 @@ deze; geen losse `.15s` of `0.3s` meer.
 | Token | Waarde | Waarvoor |
 |---|---|---|
 | `--duur-kort` | 140ms | menu's, dropdowns, de kopie die uitfaded |
-| `--duur` | 220ms | vensters, wisselen van module, taken in de Checklist |
+| `--duur` | 220ms | vensters, wisselen van module, taken in de lijst van Taken |
 | `--ease` | `cubic-bezier(0.2, 0.8, 0.2, 1)` | iets komt binnen of op zijn plek (remt af) |
 | `--ease-weg` | `cubic-bezier(0.4, 0, 1, 1)` | iets gaat weg (trekt op) |
 
@@ -643,7 +643,7 @@ deze; geen losse `.15s` of `0.3s` meer.
   Hooguit 30 beelden per seconde, alleen in beeld en met een zichtbaar
   tabblad; bij "beweging beperken" één stilstaand beeld. De vorm is vast:
   sfeer, geen gegevens.
-- *Checklist*: afvinken tekent het vinkje (`.zojuist`), klapt de taak dicht en
+- *Taken*: afvinken tekent het vinkje (`.zojuist`), klapt de taak dicht en
   hertekent daarna; elke hertekening laat de taken naar hun nieuwe plek glijden
   (FLIP in `renderChecklistModule()`).
 
@@ -760,7 +760,7 @@ vier, dus daar de nuttigste, met één die iets klaarzet. Met een gekoppeld
 Google-account (en Claude) gaan de agenda- en mailvraag daar nog voor
 (`aiChatSuggesties()`).
 
-**Een taak of notitie in een antwoord** is een link naar die taak in de Checklist (of die notitie)
+**Een taak of notitie in een antwoord** is een link naar die taak in Taken (of die notitie)
 (`.aic-taak`): de tekst blijft staan, met een onderstreping van 1px in mint en
 3px eronder, en 2px bij hover. Geen mint tekst, want op wit is die te licht. Het is
 een knop, geen `<a href>`, omdat de app op de hash routeert.
