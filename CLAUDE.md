@@ -342,9 +342,9 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
+- **2026-10-14**: **Testsuite overal groen, en de ronde knop van de chat blijft** (v2.84) — 9 tests faalden in een lege testbrowser (geen klant, geen login, smal venster, geen focus); ze zetten nu zelf neer wat ze nodig hebben (`metKlant`, `metLogin`, `opBreed`). Echte fout: *Naar Instellingen* vanuit de chat liet `body.aic-open` staan, waardoor de ronde knop verdween (`aiNaarSleutel` → `aiChatSluit`). Briefsjabloon zonder naam en bedrijf: geen lege slotalinea meer
 - **2026-10-14**: **Checklist heet Taken** (v2.83) — overal in beeld (zijbalk, onderbalk, titel, Dashboard, meldingen, de chat, versies) en in het adres (`#taken`; `#checklist` blijft werken). In de code, de state in Drive en de sporen blijft het `checklist`: hernoemen zou een migratie van je gegevens vragen en levert niets op
 - **2026-10-14**: **Toelichting bij een taak** (v2.82) — `item.toelichting` (markdown). In het taakvenster een veld onder de omschrijving dat dicht staat zolang het leeg is; op de taak een label *Toelichting* dat de tekst eronder openklapt (niet bewaard, alleen deze sessie). Zoeken, de afspraak in Google Agenda en de chat nemen hem mee
-- **2026-10-14**: **Herinneringen bij deadlines, en een taak uit een mail** (v2.81) — via de agenda *Herling – aflopend*: een taak met een deadline is een kwartier om 09:00 op die dag, standaard met een melding de werkdag ervoor en op de dag, plus een mail op de dag. Per taak te kiezen (taakvenster, klik op de deadline, ⋯ op een telefoon, de chat). Elke werkdag 08:30 *Nog open* met wat te laat is. In Mail maakt het vinkje-icoon een taak die de mail onthoudt
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 
@@ -431,7 +431,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 242 smoke-, sync-, model-, reken-, sorteer-, agenda-, mail- en projecttests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
+| `test.html` | 243 smoke-, sync-, model-, reken-, sorteer-, agenda-, mail- en projecttests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook. **Hoort in elke browser groen te zijn**, ook headless in een leeg profiel: een test die iets van de omgeving nodig heeft zet het zelf neer en ruimt het op — `metKlant` (minstens één klant), `metLogin` (ingelogd, met naam), `opBreed` (iframe op 1400px, want onder 769px is de app een telefoon), `metLS`, `metGoogle`. Rood is dus echt rood |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |

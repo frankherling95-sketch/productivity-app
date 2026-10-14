@@ -8141,3 +8141,48 @@ aangepast, één nieuw), `CLAUDE.md`, `docs/stijlgids.md`, `docs/mobile.md`,
 
 **Niet doen.** `rawState.checklist` of de module-id hernoemen zonder migratie,
 of `#checklist` laten vallen: oude links en bladwijzers wijzen er nog naar.
+
+## 2026-10-14 · Testsuite in elke browser groen; de ronde knop van de chat blijft (v2.84)
+
+**Probleem.** In een verse headless browser faalden 9 van de 242 tests,
+ook op `main`. Zolang "die 9 falen altijd" normaal is, valt een echte fout
+tussen de rode regels niet op. Onderzocht per test (een agent in een eigen
+worktree, daarna nagelopen):
+- 3 × geen klant: de chat-acties pakken `kanbanState.clients[0]`, en zonder
+  login laadt de app geen gegevens.
+- 2 × te smal: de iframe volgt de breedte van de testpagina; headless is dat
+  762px, onder het mobiele breekpunt. Paneel verslepen kan dan bewust niet,
+  en de knoppen onder een factuur staan bewust in twee kolommen.
+- 1 × geen focus: een pagina op de achtergrond stuurt bij `focus()` geen
+  `focusin`, en daar luistert de chat naar (veld_invullen).
+- 1 × verborgen appscherm zonder login: een verborgen veld krijgt geen focus
+  (Sleutels).
+- 1 × geen login: tokens vernieuwen plant bewust niets zonder gebruiker.
+- 1 × de test zelf: de tak "zonder naam" verwachtte geen lege slotalinea in
+  de brief, maar het sjabloon zette die er altijd (sinds v2.57).
+Geen test was verouderd door bewust gewijzigd gedrag.
+
+**Echte fout gevonden.** `aiNaarSleutel()` (de knop *Naar Instellingen* als
+er geen API-sleutel is) sloot de chat nog zoals vóór het paneel: alleen
+`.open` eraf. `body.aic-open` bleef staan, en daarmee was de ronde knop *Vraag
+het je app* weg tot je herlaadde, en hield een venster op een bureaublad
+rechts 460px vrij. Nu `aiChatSluit()`; de test controleert het.
+
+**Beslissing.**
+- Hulpjes in `test.html`: `metKlant` (een tijdelijke *Klant E* als er geen
+  klant is), `metLogin` (een ingelogde gebruiker, met of zonder naam),
+  `opBreed` (de iframe even op 1400px). Elke test zet neer wat hij nodig
+  heeft en ruimt het op.
+- veld_invullen stuurt na `focus()` zelf een `focusin`; Sleutels zet het
+  appscherm even aan, zoals de Notities-tests al deden.
+- Het briefsjabloon laat de slotalinea weg als naam én bedrijf leeg zijn; de
+  test loopt beide takken expliciet door.
+- Nagelopen: 243/243 in een leeg headless profiel van 800px, en 243/243
+  ingelogd met gegevens in een venster van 1400px.
+
+**Bestanden.** `index.html` (`aiNaarSleutel`, `NOTE_TEMPLATES` klantbrief),
+`test.html`, `sw.js`, `CLAUDE.md`.
+
+**Niet doen.** Een test schrijven die stilzwijgend leunt op wat er toevallig
+in de browser staat (een klant, een login, de vensterbreedte). Zet het neer
+met de hulpjes, of sla de controle over waar het gedrag bewust anders is.
