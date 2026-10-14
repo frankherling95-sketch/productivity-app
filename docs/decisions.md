@@ -8295,3 +8295,25 @@ notulen duwden de tekst ver naar beneden; Frank las de rest niet snel meer.
 
 **Niet doen.** De grootte per afbeelding bewaren in de inhoud: dan wordt
 elke klik een wijziging. Het knopje ín de editor zetten.
+
+## 2026-10-14 · Ook het tabbladicoon zonder tegel (v2.89)
+
+**Probleem.** Na het app-icoon zonder tegel (v2.80) stond in een gewoon
+browsertabblad nog het oude icoon: het donkere blok. Dat was toen bewust
+blijven staan; Frank wil het ook daar gelijk.
+
+**Beslissing.** Het tabblad gebruikt de iconen van de app:
+`herling-app-32.png`, `herling-app-192.png`, en een nieuwe
+`herling-app-16.png`. Op 16px zonder de vonkjes en met een dikkere ring
+(48 op 512): met vonkjes werd het een vlek. Nieuwe bestandsnamen, want een
+browser bewaart een tabbladicoon lang onder zijn adres.
+`herling-favicon-16/32.png` en `herling-icon-192.png` waren daarna nergens
+meer in gebruik en zijn weg.
+
+**Wat blijft.** De tegel op het iOS-beginscherm (180) en Android (maskable):
+daar vult het systeem transparantie zelf in. En het kleine icoon bij *Alle
+klanten* in de klantwisselaar (`herling-ring-48.png`): dat staat op de donkere
+zijbalk.
+
+**Bestanden.** `herling-app-16.png`, `index.html` (`<head>`), `sw.js`,
+`CLAUDE.md`.

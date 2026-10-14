@@ -26,10 +26,9 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 ├── over.html, privacy.html, voorwaarden.html  ← openbare pagina's voor het OAuth-scherm van Google (geen namen of adressen erin)
 ├── stil.html                     ← terugkeerpagina voor stil vernieuwen (`googleStilToken`); moet als redirect-URI bij de OAuth-client staan
 ├── _config.yml                   ← Pages/Jekyll: houdt CLAUDE.md, docs/, test.html en hulpscripts van de live site
-├── herling-app-32/48/64/96/192/512.png  ← app-icoon zonder tegel (manifest: taakbalk, Startmenu, meldingen); tot 96px een volle H, vanaf 192px de gestippelde. Bron: herling-app-klein.svg en herling-app.svg
-├── herling-favicon-16/32.png     ← tabblad
+├── herling-app-16/32/48/64/96/192/512.png  ← icoon zonder tegel: tabblad (16, 32, 192), taakbalk, Startmenu, meldingen (manifest); tot 96px een volle H (16px zonder vonkjes, dikkere ring), vanaf 192px de gestippelde. Bron: herling-app-klein.svg en herling-app.svg
 ├── herling-ring-48.png           ← regel "Alle klanten" in de klantwisselaar; het logo met tekst staat inline in index.html: linksboven in de zijbalk (versie voor donker) en op het inlogscherm (versie voor licht, `.login-logo`)
-├── herling-icon-180/192.png, herling-icon-maskable-512.png  ← met donkere tegel: iOS-beginscherm (180; iOS vult transparant met zwart), groot tabbladicoon (192), Android (maskable = teken op volle achtergrond, binnen de veilige zone)
+├── herling-icon-180.png, herling-icon-maskable-512.png  ← met donkere tegel: iOS-beginscherm (180; iOS vult transparant met zwart), Android (maskable = teken op volle achtergrond, binnen de veilige zone)
 ├── manifest.json, sw.js          ← PWA + Service Worker (zie ⚠️ hieronder)
 ├── CLAUDE.md                     ← dit bestand
 ├── docs/decisions.md             ← append-only beslissingen-log (ADR-stijl)
