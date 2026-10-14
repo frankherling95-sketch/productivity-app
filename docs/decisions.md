@@ -8105,3 +8105,39 @@ bent. Niet als grote tekst op de pagina, maar om open te klappen.
 **Niet doen.** De toelichting standaard open tonen, of bij het uitklappen
 van de taak meenemen: dan staat hij bij elke taak met prioriteit Hoog
 (standaard open) toch in beeld.
+
+## 2026-10-14 · Checklist heet Taken (v2.83)
+
+**Probleem.** De module heette Checklist, maar is een takenlijst geworden:
+taken met subtaken, prioriteit, deadlines, herinneringen, projecten en een
+toelichting. De app noemde de inhoud al overal "taak" (*Nieuwe taak*, *1 van
+7 taken afgerond*, *Zoek in taken*); alleen de module heette anders, en op een
+telefoon stond er het afgekapte *Check*.
+
+**Beslissing** (Franks keuze uit Taken, Takenlijst, Projecten & taken, Werk,
+To-do en Actiepunten).
+- **Overal in beeld Taken**: zijbalk, onderbalk, paginatitel, de kaart op het
+  Dashboard en de balk erboven, *Taak* in het +-menu, meldingen (*verborgen in
+  Notities, Taken en Dashboard*), het venster Meldingen in Google Agenda, de
+  chat (*Bekijk in Taken*, en wat het model leest), Klanten, en de tellingen
+  bij versies en back-ups ("12 taken" in plaats van "12 checklist-items").
+- **Het adres** is `#taken` (`moduleNaarHash()`); `#checklist` blijft werken
+  (`moduleUitHash()`), net als `#taak-<id>`. Nog open in de agenda wijst naar
+  `#taken`.
+- **Intern blijft het `checklist`**: de module-id, `rawState.checklist` in
+  Drive, `checklistState`, de `cl*`-functies, `#mod-checklist` en het spoor in
+  `.claude/ownership.json`. Commentaar in de code is niet herschreven.
+
+**Waarom niet ook intern.** De gegevens staan in Drive onder `checklist`;
+hernoemen vraagt een migratie van je administratie, en de sporen, tests en
+agent-definities leunen op de naam. Dat is risico zonder iets wat je ziet.
+
+**Bestanden.** `index.html` (navigatie, `MOBILE_MODULE_TITLES`, `.cl2-title`,
+Dashboard, toasts, `agdVensterVernieuw`, `AI_ACTIES`, chatlinks,
+versie-/back-uptellingen, `moduleNaarHash`/`moduleUitHash`/`switchModule`,
+`agdClOverzicht`), `manifest.json` (beschrijving), `test.html` (één test
+aangepast, één nieuw), `CLAUDE.md`, `docs/stijlgids.md`, `docs/mobile.md`,
+`sw.js`.
+
+**Niet doen.** `rawState.checklist` of de module-id hernoemen zonder migratie,
+of `#checklist` laten vallen: oude links en bladwijzers wijzen er nog naar.

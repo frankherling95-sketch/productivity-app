@@ -741,7 +741,7 @@ async function runChecks() {
         w.eval('rawState.settings.aiVerbruik=' + oud);
       }
     }],
-    ['Acties: na uitvoeren brengt "Bekijk in Checklist" je naar de taak', async () => {
+    ['Acties: na uitvoeren brengt "Bekijk in Taken" je naar de taak', async () => {
       const titel = 'Bekijktest ' + Date.now();
       const terugNaar = w.eval('activeModule');
       w.aiChatOpen();
@@ -756,7 +756,7 @@ async function runChecks() {
       await new Promise(r => setTimeout(r, 150));
       const id = w.eval('checklistState.items').find(i => i.text === titel).id;
       const el = d.querySelector('#clBody .cl-item[data-id="' + id + '"]');
-      const ok = label === 'Bekijk in Checklist' && w.eval('activeModule') === 'checklist' &&
+      const ok = label === 'Bekijk in Taken' && w.eval('activeModule') === 'checklist' &&
         d.getElementById('aiChatModal').classList.contains('open') === !w.aiDockMobiel() && el && el.classList.contains('is-gevonden');
       w.eval('aiChatGesprek[1].acties[0]').terug();
       w.eval('aiChatGesprek=[]');
@@ -2880,6 +2880,24 @@ async function runChecks() {
         w.history.replaceState(null, '', oud || '#dashboard');
         return v.status === 'voorstel' && !!regel && /week ervoor/.test(regel[1]) &&
                !(std.regels || []).some(r => r[0] === 'Herinnering') && id === 'abc_1' && mod === 'checklist';
+      }],
+    /* ── De module heet Taken (2026-10-14); intern nog checklist ── */
+    ['Taken: zo heet de module in de zijbalk, de onderbalk en de titel; het adres is #taken en #checklist werkt nog',
+      () => {
+        const oud = w.location.hash;
+        try {
+          const zij = d.querySelector('.nav-item[data-mod="checklist"] .nav-label').textContent.trim();
+          const onder = d.querySelector('.mobile-nav-tab[data-mod="checklist"] span').textContent.trim();
+          const titel = d.querySelector('#mod-checklist .cl2-title').textContent.trim();
+          w.switchModule('checklist');
+          const adres = w.location.hash;
+          w.history.replaceState(null, '', '#checklist');
+          const oudAdres = w.moduleUitHash();
+          w.history.replaceState(null, '', '#taken');
+          const nieuwAdres = w.moduleUitHash();
+          return zij === 'Taken' && onder === 'Taken' && titel === 'Taken' && adres === '#taken' &&
+                 oudAdres === 'checklist' && nieuwAdres === 'checklist';
+        } finally { w.history.replaceState(null, '', oud || '#dashboard'); w.switchModule(w.moduleUitHash()); }
       }],
     /* ── Toelichting bij een taak (2026-10-14) ── */
     ['Toelichting: in de afspraak, in het overzicht voor de chat, mee met een herhalende taak, en als markdown getekend',
