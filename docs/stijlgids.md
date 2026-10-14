@@ -379,6 +379,12 @@ plus een `<select>`, in dezelfde doos als het invoerveld ernaast (`--surface2`,
 het in het urenvenster; de facturen-editor doet hetzelfde met een kale
 `<select class="fac-ed-inp">`.
 
+**De lijst die een keuzelijst openklapt** volgt het thema met één regel voor
+alle `<select>`s: `select option, select optgroup` op `--surface` met
+`--text`. Windows tekent die lijst met de achtergrond van de select zelf; een
+doorzichtige select (`.klantkies-sel`) gaf in het donkere thema een witte
+lijst met lichte tekst (2026-10-14). Geen eigen optie-regel per select.
+
 **Een keuzechip** (`.uren-kchip`, voor een vaste set als de drie statussen of
 Zakelijk/Privé) is op mobiel minstens `var(--tap)` hoog, net als de duurchips
 in het urenvenster. Op desktop 30px.
