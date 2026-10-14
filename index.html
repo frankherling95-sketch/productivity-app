@@ -8879,6 +8879,24 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
 .aic-actie-knoppen { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
 .aic-actie-melding { font-size: var(--fs-klein); color: var(--text-muted); margin-right: auto; }
 .aic-actie[data-status="overgeslagen"], .aic-actie[data-status="terug"], .aic-actie[data-status="vervallen"] { opacity: .65; }
+/* Een voorstel aanpassen (2026-10-14): de regels worden velden, in
+   hetzelfde raster als de regels (label links, veld rechts). De velden zelf
+   hebben de gewone opmaak van een invoerveld (13px; op een telefoon 15px en
+   var(--tap) hoog); hier alleen de breedte. Op een telefoon onder elkaar. */
+.aic-actie-form { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 12px; align-items: center; margin: 10px 0 0; font-size: var(--fs-klein); }
+.aic-veld { display: contents; }
+.aic-veld-lab { color: var(--text-muted); }
+.aic-veld.is-lang .aic-veld-lab { align-self: start; padding-top: 9px; }
+.aic-actie-form :is(input, select, textarea) { width: 100%; min-width: 0; padding: 7px 10px; }
+.aic-actie-form textarea { min-height: 64px; line-height: 1.45; }
+.aic-actie.is-bewerk { border-color: var(--mint); }
+/* Hier en niet in de mobiele laag bovenaan: die staat eerder in het bestand
+   en verliest dan van de regels hierboven. */
+@media (max-width: 768px) {
+  .aic-actie-form { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .aic-veld-lab { margin-top: 6px; }
+  .aic-veld.is-lang .aic-veld-lab { padding-top: 0; }
+}
 /* Wat de chat opzocht in agenda of mail (2026-10-11): een regel boven het antwoord. */
 .aic-lees { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; font-size: var(--fs-micro); color: var(--text-muted); }
 .aic-lees svg { width: 13px; height: 13px; flex: none; }
@@ -9438,7 +9456,7 @@ body.aic-open .aic-starter { display: none; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.86</span>
+        <span class="app-versie" title="Appversie">v2.87</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -41457,6 +41475,14 @@ const AI_ACTIE_VERGRENDELD='De uren- en factuurgegevens zijn op dit apparaat nog
 const AI_ACTIES={
   taak_toevoegen:{
     label:'Taak toevoegen',
+    /* Wat je op de kaart kunt aanpassen vóór Uitvoeren (2026-10-14); zie
+       aiActieVeldHtml. De sleutels zijn die van het schema. */
+    velden:[{sleutel:'titel',label:'Taak',soort:'tekst'},{sleutel:'klant',label:'Klant',soort:'klant'},
+      {sleutel:'project',label:'Project',soort:'project'},{sleutel:'deadline',label:'Deadline',soort:'datum'},
+      {sleutel:'prioriteit',label:'Prioriteit',soort:'keuze',opties:()=>[['hoog','Hoog'],['middel','Middel'],['laag','Laag']]},
+      {sleutel:'herinnering',label:'Herinnering',soort:'keuze',
+        opties:()=>[['standaard','Standaard']].concat(AGD_CL_VOLGORDE.map(k=>[k,AGD_CL_KEUZES[k].keuze]))},
+      {sleutel:'subtaken',label:'Subtaken',soort:'lijst'},{sleutel:'toelichting',label:'Toelichting',soort:'lang'}],
     uitleg:'Zet een nieuwe taak in Taken (de takenlijst van de app). Alleen als de gebruiker vraagt iets toe te voegen, te noteren of te onthouden.',
     schema:{type:'object',additionalProperties:false,
       required:['titel','deadline','klant','prioriteit','subtaken','project','herinnering','toelichting'],
@@ -41510,6 +41536,8 @@ const AI_ACTIES={
      specificatie die deze actie maakte gaat ook weg. */
   project_aanmaken:{
     label:'Project aanmaken',
+    velden:[{sleutel:'naam',label:'Project',soort:'tekst'},{sleutel:'klant',label:'Klant',soort:'klant'},
+      {sleutel:'specificatie',label:'Specificatie',soort:'lang'}],
     uitleg:'Maak een nieuw project in Taken, bij een klant. Alleen als de gebruiker daarom vraagt. '+
       'Met specificatie geef je meteen de eerste tekst van de specificatie mee (markdown), of laat je die leeg.',
     schema:{type:'object',additionalProperties:false,required:['naam','klant','specificatie'],
@@ -41593,6 +41621,8 @@ const AI_ACTIES={
   },
   uren_schrijven:{
     label:'Uren schrijven',
+    velden:[{sleutel:'datum',label:'Datum',soort:'datum'},{sleutel:'klant',label:'Klant',soort:'klant'},
+      {sleutel:'uren',label:'Uren',soort:'getal'},{sleutel:'omschrijving',label:'Omschrijving',soort:'tekst'}],
     uitleg:'Schrijf uren op een klant, op één dag. Eén aanroep per dag; voor meerdere dagen meerdere aanroepen.',
     schema:{type:'object',additionalProperties:false,required:['datum','uren','klant','omschrijving'],
       properties:{
@@ -41620,6 +41650,7 @@ const AI_ACTIES={
   },
   factuur_betaald:{
     label:'Factuur op betaald',
+    velden:[{sleutel:'datum',label:'Betaald op',soort:'datum'}],
     uitleg:'Registreer dat een verstuurde factuur volledig is betaald.',
     schema:{type:'object',additionalProperties:false,required:['factuurnummer','datum'],
       properties:{
@@ -41654,6 +41685,8 @@ const AI_ACTIES={
   },
   notitie_maken:{
     label:'Notitie maken',
+    velden:[{sleutel:'titel',label:'Titel',soort:'tekst'},{sleutel:'klant',label:'Klant',soort:'klant'},
+      {sleutel:'inhoud',label:'Inhoud',soort:'lang'}],
     uitleg:'Maak een nieuwe notitie, bijvoorbeeld een verslag of een lijstje dat de gebruiker dicteert.',
     schema:{type:'object',additionalProperties:false,required:['titel','inhoud','klant'],
       properties:{
@@ -41980,6 +42013,9 @@ function _aiTijd(s){
 Object.assign(AI_ACTIES,{
   afspraak_maken:{
     label:'Afspraak maken',nodig:'agenda',
+    velden:[{sleutel:'titel',label:'Afspraak',soort:'tekst'},{sleutel:'datum',label:'Datum',soort:'datum'},
+      {sleutel:'begin',label:'Begin',soort:'tijd'},{sleutel:'eind',label:'Eind',soort:'tijd'},
+      {sleutel:'locatie',label:'Locatie',soort:'tekst'},{sleutel:'beschrijving',label:'Beschrijving',soort:'lang'}],
     uitleg:'Zet een nieuwe afspraak in de agenda van de gebruiker. Alleen als de gebruiker daarom vraagt.',
     schema:{type:'object',additionalProperties:false,required:['titel','datum','begin','eind','account','locatie','beschrijving'],
       properties:{
@@ -42101,15 +42137,20 @@ function aiActieVoorstel(c){
   let b;
   try{b=def.bekijk(c.input);}
   catch(e){console.warn('[chat] actie bekijken',e);b={titel:def.label,regels:[],fout:'Dit voorstel kon ik niet lezen.'};}
+  /* De invoer blijft bij het voorstel, zodat je hem op de kaart kunt
+     aanpassen en de app hem opnieuw bekijkt (aiActieBewerkKlaar). */
+  let input=null;
+  try{input=JSON.parse(JSON.stringify(c.input));}catch(_){}
   return {naam:c.naam,titel:b.titel,regels:b.regels||[],status:b.fout?'fout':'voorstel',fout:b.fout||'',doe:b.doe,meta:b.meta,
-    voorbeeld:b.voorbeeld||''};
+    voorbeeld:b.voorbeeld||'',input};
 }
 /* Hoe een voorstel in de geschiedenis staat voor de volgende vraag. */
 function aiActieSamenvatting(a){
   const regels=(a.regels||[]).map(([k,v])=>k+': '+v).join(', ');
   const stand={voorstel:'nog niet uitgevoerd',bezig:'wordt uitgevoerd',gedaan:'uitgevoerd',overgeslagen:'overgeslagen door de gebruiker',
     terug:'uitgevoerd en daarna ongedaan gemaakt',vervallen:'niet uitgevoerd',fout:'kon niet: '+a.fout}[a.status]||a.status;
-  return a.titel+(regels?' ('+regels+')':'')+' — '+stand;
+  /* Heb je hem op de kaart aangepast, dan weet het model dat bij de volgende vraag. */
+  return a.titel+(regels?' ('+regels+')':'')+(a.aangepast?' — aangepast door de gebruiker':'')+' — '+stand;
 }
 function aiChatBeurtTekst(b){
   const acties=(b.acties||[]).map(aiActieSamenvatting);
@@ -42127,7 +42168,7 @@ function _aiActie(bi,ai){
 }
 function aiActieDoe(bi,ai,stil){
   const a=_aiActie(bi,ai);
-  if(!a||a.status!=='voorstel'||!a.doe)return false;
+  if(!a||a.status!=='voorstel'||!a.doe||a.bewerk)return false;
   const klaar=r=>{a.status='gedaan';a.melding=r.melding;a.terug=r.terug;a.open=r.open||null;};
   const mis=e=>{
     console.warn('[chat] actie uitvoeren',e);
@@ -42151,7 +42192,8 @@ function aiActieDoe(bi,ai,stil){
 }
 function aiActieSla(bi,ai){
   const a=_aiActie(bi,ai);
-  if(!a||a.status!=='voorstel')return;
+  if(!a||(a.status!=='voorstel'&&a.status!=='fout'))return;
+  a.bewerk=false;
   a.status='overgeslagen';
   aiChatToon(true);
 }
@@ -42229,13 +42271,115 @@ Object.assign(APP_ACTIONS,{
   aiActieOpen:(el,e,bi,ai)=>aiActieOpen(bi,ai)
 });
 const AI_ACTIE_STAND={bezig:'Bezig…',gedaan:'Uitgevoerd',overgeslagen:'Overgeslagen',terug:'Ongedaan gemaakt',vervallen:'Vervallen',fout:'Kan niet'};
+
+/* ══ Een voorstel aanpassen vóór Uitvoeren (2026-10-14) ══════════════════
+   Op een kaart die nog open staat (of die niet kan, om hem te repareren)
+   maakt Aanpassen van de regels velden: tekst, datum, keuzelijsten voor
+   klant, project, prioriteit en herinnering, een vak voor subtaken (één per
+   regel) en voor langere tekst. Klaar zet de waarden terug in de invoer en
+   laat de actie die opnieuw bekijken -- dezelfde controles als bij het
+   voorstel van het model, dus een klant die niet bestaat blijft "kan niet".
+   Welke velden er zijn staat per actie in AI_ACTIES[...].velden. */
+function aiActieKanBewerk(a){
+  const def=a&&AI_ACTIES[a.naam];
+  return !!(def&&def.velden&&a.input&&(a.status==='voorstel'||a.status==='fout'));
+}
+function aiActieVeldHtml(v,w){
+  const attr=' data-veld="'+v.sleutel+'" data-soort="'+v.soort+'" aria-label="'+escapeHtml(v.label)+'"';
+  const opties=(lijst,huidig)=>{
+    const l=lijst.slice();
+    /* Wat er staat, blijft kiesbaar -- ook als het (nog) niet in de lijst
+       voorkomt, zoals een project uit hetzelfde antwoord. */
+    if(huidig&&!l.some(([k])=>k===huidig))l.push([huidig,huidig]);
+    return l.map(([k,lab])=>'<option value="'+escapeHtml(k)+'"'+(k===huidig?' selected':'')+'>'+escapeHtml(lab)+'</option>').join('');
+  };
+  const s=w==null?'':String(w);
+  switch(v.soort){
+    case 'lang':return '<textarea rows="3"'+attr+'>'+escapeHtml(s)+'</textarea>';
+    case 'lijst':return '<textarea rows="3"'+attr+' placeholder="Eén per regel">'+
+      escapeHtml((Array.isArray(w)?w:[]).join('\n'))+'</textarea>';
+    case 'datum':return '<input type="date"'+attr+' value="'+escapeHtml(/^\d{4}-\d{2}-\d{2}$/.test(s)?s:'')+'">';
+    case 'tijd':return '<input type="time"'+attr+' value="'+escapeHtml(/^\d{2}:\d{2}$/.test(s)?s:'')+'">';
+    /* Tekst met een cijfertoetsenbord, geen type=number: dan werkt 2,5 net zo goed als 2.5. */
+    case 'getal':return '<input type="text" inputmode="decimal"'+attr+' value="'+escapeHtml(s.replace('.',','))+'">';
+    case 'keuze':return '<select'+attr+'>'+opties(v.opties(),s)+'</select>';
+    case 'klant':return '<select'+attr+'>'+opties([['','Geen klant']].concat(
+      klantenVoorKeuze('').map(c=>[c.name,c.name])),s)+'</select>';
+    case 'project':return '<select'+attr+'>'+opties([['','Geen project']].concat(
+      clProjecten().filter(pr=>pr.status!=='afgerond').map(pr=>[pr.naam,pr.naam+' · '+clProjectKlantNaam(pr)])),s)+'</select>';
+    default:return '<input type="text"'+attr+' value="'+escapeHtml(s)+'">';
+  }
+}
+function aiActieFormHtml(a,bi,ai){
+  const arg=' data-arg1="'+bi+'" data-arg2="'+ai+'"';
+  const def=AI_ACTIES[a.naam];
+  const velden=def.velden.map(v=>'<div class="aic-veld'+(v.soort==='lang'||v.soort==='lijst'?' is-lang':'')+'">'+
+    '<span class="aic-veld-lab">'+escapeHtml(v.label)+'</span>'+aiActieVeldHtml(v,a.input[v.sleutel])+'</div>').join('');
+  return '<div class="aic-actie is-bewerk" data-status="'+a.status+'"'+arg+'>'+
+    '<div class="aic-actie-kop"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 1.8l1.3 3.6 3.6 1.3-3.6 1.3L8 11.6 6.7 8 3.1 6.7 6.7 5.4z"/></svg>'+
+    '<span>'+escapeHtml(a.titel)+'</span><span class="aic-actie-stand">Aanpassen</span></div>'+
+    '<div class="aic-actie-form">'+velden+'</div>'+
+    '<div class="aic-actie-knoppen"><button type="button" class="btn btn-sm btn-primary" data-action="aiActieBewerkKlaar"'+arg+'>Klaar</button>'+
+    '<button type="button" class="btn btn-sm" data-action="aiActieBewerkStop"'+arg+'>Annuleren</button></div></div>';
+}
+function aiActieBewerk(bi,ai){
+  const a=_aiActie(bi,ai);
+  if(!aiActieKanBewerk(a))return;
+  a.bewerk=true;
+  aiChatToon(true);
+  const kaart=document.querySelector('#aiChatLijst .aic-actie.is-bewerk[data-arg1="'+bi+'"][data-arg2="'+ai+'"]');
+  kaart?.querySelector('[data-veld]')?.focus({preventScroll:true});
+  kaart?.scrollIntoView({block:'nearest',behavior:geenBeweging()?'auto':'smooth'});
+}
+function aiActieBewerkStop(bi,ai){
+  const a=_aiActie(bi,ai);
+  if(!a)return;
+  a.bewerk=false;
+  aiChatToon(true);
+}
+function aiActieBewerkKlaar(bi,ai){
+  const a=_aiActie(bi,ai);
+  if(!a||!a.bewerk)return;
+  const kaart=document.querySelector('#aiChatLijst .aic-actie.is-bewerk[data-arg1="'+bi+'"][data-arg2="'+ai+'"]');
+  if(!kaart)return;
+  const input={...a.input};
+  kaart.querySelectorAll('[data-veld]').forEach(el=>{
+    const k=el.dataset.veld, soort=el.dataset.soort, w=el.value;
+    input[k]=soort==='lijst'?w.split('\n').map(x=>x.trim()).filter(Boolean)
+      :soort==='getal'?(w===''?0:Number(String(w).replace(',','.')))
+      :w;
+  });
+  const nieuw=aiActieVoorstel({naam:a.naam,input});
+  Object.assign(a,nieuw,{bewerk:false,aangepast:true});
+  aiChatToon(true);
+}
+Object.assign(APP_ACTIONS,{
+  aiActieBewerk:(el,e,bi,ai)=>aiActieBewerk(bi,ai),
+  aiActieBewerkStop:(el,e,bi,ai)=>aiActieBewerkStop(bi,ai),
+  aiActieBewerkKlaar:(el,e,bi,ai)=>aiActieBewerkKlaar(bi,ai)
+});
+/* In een veld: Enter is Klaar (niet in een tekstvak, daar is het een nieuwe
+   regel), Escape is Annuleren -- en sluit dan niet het hele paneel. Daarom
+   in de vangfase: die komt vóór de Escape van het paneel. */
+document.getElementById('aiChatModal')?.addEventListener('keydown',e=>{
+  const kaart=e.target.closest&&e.target.closest('.aic-actie.is-bewerk');
+  if(!kaart)return;
+  const bi=kaart.dataset.arg1, ai=kaart.dataset.arg2;
+  if(e.key==='Escape'){e.preventDefault();e.stopPropagation();aiActieBewerkStop(bi,ai);}
+  else if(e.key==='Enter'&&e.target.tagName!=='TEXTAREA'&&!e.isComposing){e.preventDefault();aiActieBewerkKlaar(bi,ai);}
+},true);
 function aiActieHtml(a,bi,ai){
   const arg=' data-arg1="'+bi+'" data-arg2="'+ai+'"';
   const regels=a.regels.length?'<dl class="aic-actie-regels">'+a.regels.map(([k,v])=>
     '<dt>'+escapeHtml(k)+'</dt><dd>'+escapeHtml(v)+'</dd>').join('')+'</dl>':'';
+  const kanBewerk=aiActieKanBewerk(a);
+  if(a.bewerk&&kanBewerk)return aiActieFormHtml(a,bi,ai);
+  const aanpassen=kanBewerk?'<button type="button" class="btn btn-sm" data-action="aiActieBewerk"'+arg+'>Aanpassen</button>':'';
   const knoppen=a.status==='voorstel'
     ? '<div class="aic-actie-knoppen"><button type="button" class="btn btn-sm btn-primary" data-action="aiActieDoe"'+arg+'>Uitvoeren</button>'+
-      '<button type="button" class="btn btn-sm" data-action="aiActieSla"'+arg+'>Overslaan</button></div>'
+      aanpassen+'<button type="button" class="btn btn-sm" data-action="aiActieSla"'+arg+'>Overslaan</button></div>'
+    : a.status==='fout'&&kanBewerk
+    ? '<div class="aic-actie-knoppen">'+aanpassen+'<button type="button" class="btn btn-sm" data-action="aiActieSla"'+arg+'>Overslaan</button></div>'
     : a.status==='gedaan'
     ? '<div class="aic-actie-knoppen"><span class="aic-actie-melding">'+escapeHtml(a.melding||'')+'</span>'+
       (a.open?'<button type="button" class="btn btn-sm btn-primary" data-action="aiActieOpen"'+arg+'>'+escapeHtml(a.open.label)+'</button>':'')+
@@ -42244,7 +42388,8 @@ function aiActieHtml(a,bi,ai){
   return '<div class="aic-actie" data-status="'+a.status+'">'+
     '<div class="aic-actie-kop"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 1.8l1.3 3.6 3.6 1.3-3.6 1.3L8 11.6 6.7 8 3.1 6.7 6.7 5.4z"/></svg>'+
     '<span>'+escapeHtml(a.titel)+'</span>'+
-    (AI_ACTIE_STAND[a.status]?'<span class="aic-actie-stand">'+AI_ACTIE_STAND[a.status]+'</span>':'')+'</div>'+
+    (AI_ACTIE_STAND[a.status]?'<span class="aic-actie-stand">'+AI_ACTIE_STAND[a.status]+'</span>'
+      :a.aangepast&&a.status==='voorstel'?'<span class="aic-actie-stand">Aangepast</span>':'')+'</div>'+
     regels+
     /* De tekst die erin komt (notitie, veld), om te lezen vóór Uitvoeren. Al
        opgeschoond (aiNotitieHtml, escapeHtml). */

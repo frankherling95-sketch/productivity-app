@@ -2915,6 +2915,48 @@ async function runChecks() {
         return v.status === 'voorstel' && !!regel && /week ervoor/.test(regel[1]) &&
                !(std.regels || []).some(r => r[0] === 'Herinnering') && id === 'abc_1' && mod === 'checklist';
       }],
+    /* ── Een voorstel in de chat aanpassen vóór Uitvoeren (2026-10-14) ── */
+    ['Chat: een voorstel aanpassen vóór Uitvoeren, Escape breekt af, en een kaart die niet kan repareer je', () => metKlant(async () => {
+      const naam = w.eval('kanbanState.clients[0].name');
+      const titel = 'Aangepast in de chat ' + Date.now();
+      w.aiChatOpen();
+      w.eval('aiChatGesprek=[{rol:"user",tekst:"zet het klaar"},{rol:"model",tekst:"Klaar:",acties:[]}]');
+      const acties = w.eval('aiChatGesprek[1].acties');
+      acties.push(w.aiActieVoorstel({naam: 'taak_toevoegen', input: {titel: 'Oud', deadline: '', klant: '', prioriteit: 'middel',
+        subtaken: [], project: '', herinnering: 'standaard', toelichting: ''}}));
+      acties.push(w.aiActieVoorstel({naam: 'notitie_maken', input: {titel: 'Notitie', inhoud: 'tekst', klant: 'Bestaat Niet B.V.'}}));
+      w.aiChatToon();
+      const kaart = i => d.querySelectorAll('#aiChatLijst .aic-actie')[i];
+      try {
+        /* Escape in een veld: terug naar de kaart, het paneel blijft open */
+        kaart(0).querySelector('[data-action="aiActieBewerk"]').click();
+        kaart(0).querySelector('[data-veld="titel"]').dispatchEvent(new w.KeyboardEvent('keydown', {key: 'Escape', bubbles: true, cancelable: true}));
+        const escape = !kaart(0).classList.contains('is-bewerk') && d.getElementById('aiChatModal').classList.contains('open');
+        /* Aanpassen en Klaar */
+        kaart(0).querySelector('[data-action="aiActieBewerk"]').click();
+        const zet = (s, v) => { kaart(0).querySelector('[data-veld="' + s + '"]').value = v; };
+        zet('titel', titel); zet('klant', naam); zet('prioriteit', 'hoog'); zet('deadline', '2026-10-20');
+        zet('subtaken', 'Een\n\n Twee '); zet('toelichting', 'Waarom het moet');
+        /* Uitvoeren telt een kaart die openstaat niet mee */
+        const nietTijdens = w.aiActieDoe(1, 0, true) === false;
+        kaart(0).querySelector('[data-action="aiActieBewerkKlaar"]').click();
+        const stand = kaart(0).querySelector('.aic-actie-stand')?.textContent === 'Aangepast';
+        kaart(0).querySelector('[data-action="aiActieDoe"]').click();
+        const it = w.eval('checklistState.items').find(i => i.text === titel);
+        const goed = !!it && it.priority === 'hoog' && it.deadline === '2026-10-20' && it.clientId === w.eval('kanbanState.clients[0].id') &&
+          it.subtasks.map(s => s.text).join('|') === 'Een|Twee' && it.toelichting === 'Waarom het moet';
+        const leest = /aangepast door de gebruiker/.test(w.aiChatBeurtTekst(w.eval('aiChatGesprek[1]')));
+        kaart(0).querySelector('[data-action="aiActieTerug"]')?.click();
+        /* De notitie kan niet (klant bestaat niet); aanpassen repareert hem */
+        const eerstFout = kaart(1).dataset.status === 'fout';
+        kaart(1).querySelector('[data-action="aiActieBewerk"]').click();
+        kaart(1).querySelector('[data-veld="klant"]').value = naam;
+        kaart(1).querySelector('[data-action="aiActieBewerkKlaar"]').click();
+        const gerepareerd = kaart(1).dataset.status === 'voorstel';
+        return escape && nietTijdens && stand && goed && leest && eerstFout && gerepareerd &&
+          !w.eval('checklistState.items').some(i => i.text === titel);
+      } finally { w.eval('aiChatGesprek=[]'); w.aiChatSluit(); }
+    })],
     /* ── De module heet Taken (2026-10-14); intern nog checklist ── */
     ['Taken: zo heet de module in de zijbalk, de onderbalk en de titel; het adres is #taken en #checklist werkt nog',
       () => {
@@ -3646,14 +3688,17 @@ async function runChecks() {
           /^Re: Offerte/.test(d.getElementById('pvConOnderwerp').value) &&
           /Met vriendelijke groet/.test(d.getElementById('pvConSig').textContent) && !verzonden.length;
         d.getElementById('pvConVerstuur').click();
-        await new Promise(r => setTimeout(r, 30));
+        /* Meteen kijken: het wachten loopt via een timer, die kan nog niet zijn afgegaan. */
         const nogNiet = !verzonden.length;
         w.appToastUndo();                                /* Niet versturen */
         await new Promise(r => setTimeout(r, 250));
         const tegengehouden = !verzonden.length && d.getElementById('pvConModal').classList.contains('open') &&
           d.getElementById('pvConTekst').value === 'Prima, donderdag past.';
         d.getElementById('pvConVerstuur').click();
-        await new Promise(r => setTimeout(r, 400));
+        /* Wachten tot hij weg is, in plaats van een vaste 400 ms: in een volle
+           pagina duurde het soms net langer (2026-10-14). */
+        for (let i = 0; i < 60 && !verzonden.length; i++) await new Promise(r => setTimeout(r, 50));
+        await new Promise(r => setTimeout(r, 50));
         const b = verzonden[0] || {};
         const mime = atob(String(b.raw || '').replace(/-/g, '+').replace(/_/g, '/'));
         const lijf = decodeURIComponent(escape(atob(mime.split('\r\n\r\n')[1].replace(/\s+/g, ''))));
