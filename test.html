@@ -551,17 +551,18 @@ async function runChecks() {
         'aiZetModel','aiKiesModel','aiChatModelToon','aiChatKiesModel','aiNaarSleutel','aiGeenSleutel',
         'aiSleutelBewaar','aiSleutelTest','aiSleutelWeg','instSleutelBlok','openAiModelPrompt','renderInstellingenModule']
         .every(f => typeof w[f] === 'function')],
-    ['Model: standaard Claude Haiku, goedkoopste eerst; het model kiest de aanbieder', () =>
+    ['Model: standaard Claude Sonnet 5.5 (sinds v2.90), goedkoopste eerst in de lijst; het model kiest de aanbieder', () =>
       metLS({herling_ai_aanbieder: null, herling_claude_model: null}, () => {
-        const eerst = w.aiAanbieder() === 'claude' && w.aiModel() === 'claude-haiku-5-5' &&
-          w.aiModelNaam() === 'Claude Haiku 5.5' && w.aiModelKeuzes()[0].model === 'claude-haiku-5-5';
+        const eerst = w.aiAanbieder() === 'claude' && w.aiModel() === 'claude-sonnet-5-5' &&
+          w.aiModelNaam() === 'Claude Sonnet 5.5' && w.aiModelKeuzes()[0].model === 'claude-haiku-5-5' &&
+          /^Standaard/.test(w.aiModelKeuzes().find(k => k.model === 'claude-sonnet-5-5').uitleg);
         const gem = w.aiZetModel('gemini-3.5-flash') && w.aiAanbieder() === 'gemini' &&
           w.aiNaam() === 'Gemini' && w.aiModel() === 'gemini-3.5-flash';
         const opus = w.aiZetModel('claude-opus-5-5') && w.aiAanbieder() === 'claude' && w.aiModel() === 'claude-opus-5-5';
-        const terug = w.aiZetModel('') && w.aiModel() === 'claude-haiku-5-5' &&
+        const terug = w.aiZetModel('') && w.aiModel() === 'claude-sonnet-5-5' &&
           w.localStorage.getItem('herling_claude_model') === null &&
           w.localStorage.getItem('herling_ai_aanbieder') === null;
-        const onzin = w.aiZetModel('gpt-5') === false && w.aiModel() === 'claude-haiku-5-5';
+        const onzin = w.aiZetModel('gpt-5') === false && w.aiModel() === 'claude-sonnet-5-5';
         return eerst && gem && opus && terug && onzin;
       })],
     ['Model: kiezen in de chat via een echte change, en de lijst toont de keuze', async () =>
@@ -569,10 +570,10 @@ async function runChecks() {
         w.aiChatOpen();
         const sel = d.getElementById('aiChatModel');
         const opties = [...sel.options].map(o => o.value);
-        sel.value = 'claude-sonnet-5-5';
+        sel.value = 'claude-opus-5-5';
         sel.dispatchEvent(new w.Event('change', {bubbles: true}));
         await new Promise(r => setTimeout(r, 50));
-        const gekozen = w.aiModel() === 'claude-sonnet-5-5' && d.getElementById('aiChatModel').value === 'claude-sonnet-5-5';
+        const gekozen = w.aiModel() === 'claude-opus-5-5' && d.getElementById('aiChatModel').value === 'claude-opus-5-5';
         w.aiChatSluit();
         return opties[0] === 'claude-haiku-5-5' && opties.length === 5 && gekozen;
       })],
