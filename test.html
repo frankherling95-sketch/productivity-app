@@ -2881,6 +2881,27 @@ async function runChecks() {
         return v.status === 'voorstel' && !!regel && /week ervoor/.test(regel[1]) &&
                !(std.regels || []).some(r => r[0] === 'Herinnering') && id === 'abc_1' && mod === 'checklist';
       }],
+    /* ── Toelichting bij een taak (2026-10-14) ── */
+    ['Toelichting: in de afspraak, in het overzicht voor de chat, mee met een herhalende taak, en als markdown getekend',
+      () => {
+        const oudCl = w.eval('JSON.stringify(checklistState.items)');
+        const oudS = w.eval('JSON.stringify(rawState.settings.agendaMeldingen||null)');
+        try {
+          const toel = 'Bron: **omzetmodel**\n\n- per vestiging\n- vorig jaar erbij';
+          w.eval('checklistState.items=' + JSON.stringify([
+            {id:'t1', text:'Rapport', done:false, deadline:'2026-10-20', recurrence:'weekly', toelichting:toel, subtasks:[]}]));
+          w.eval("rawState.settings.agendaMeldingen={aan:true,kalenderId:''}");
+          const a = w.agdGewenst('2026-10-14').find(x => x.sleutel === 'cl:t1');
+          const chat = w.aiChatOverzicht('2026-10-14').taken.openLijst.find(x => x.id === 't1');
+          const volgende = w.spawnRecurringNext(w.eval('checklistState.items[0]'));
+          const html = w.clToelHtml(toel);
+          return /Toelichting:\nBron: \*\*omzetmodel\*\*/.test(a.body.description) && chat.toelichting === toel &&
+                 volgende.toelichting === toel && (typeof w.marked === 'undefined' || (/<strong>omzetmodel<\/strong>/.test(html) && /<li>per vestiging<\/li>/.test(html)));
+        } finally {
+          w.eval('checklistState.items=' + oudCl);
+          w.eval('rawState.settings.agendaMeldingen=' + oudS + ';if(!rawState.settings.agendaMeldingen)delete rawState.settings.agendaMeldingen;');
+        }
+      }],
     /* ── Archief in Google Drive (2026-10-04) ───────────────────────────
        archiefGewenst leest de state; archiefSync praat met een nep-Drive. */
     ['Archief: welke bestanden in welke map, zonder concepten; een betaling verandert de PDF niet',

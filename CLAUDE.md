@@ -80,7 +80,7 @@ rawState = {
 ```
 
 **Item shapes** (snelle referentie):
-- Checklist item: `{id, text, done, priority, deadline, clientId, projectId?, subtasks[], archived, sortOrder, pinned, recurrence?, herinnering?, herinnerMail?, mail?}` — `herinnering`/`herinnerMail` ontbreken = de standaard uit `agendaMeldingen` (`agdClHerinnering()`); `mail` = `{acc, email, draad, onderwerp, van}`, de mail waar de taak uit komt (Mail → Taak). Subtaak `{id, text, done, doorHoofd?}`; `doorHoofd` = mee afgevinkt met de hoofdtaak, gaat weer open als die terugkomt (`clZetHoofdKlaar()`)
+- Checklist item: `{id, text, done, priority, deadline, clientId, projectId?, subtasks[], archived, sortOrder, pinned, recurrence?, herinnering?, herinnerMail?, mail?, toelichting?}` — `toelichting` = achtergrond bij de taak (markdown), dicht in de lijst tot je op het label klikt; `herinnering`/`herinnerMail` ontbreken = de standaard uit `agendaMeldingen` (`agdClHerinnering()`); `mail` = `{acc, email, draad, onderwerp, van}`, de mail waar de taak uit komt (Mail → Taak). Subtaak `{id, text, done, doorHoofd?}`; `doorHoofd` = mee afgevinkt met de hoofdtaak, gaat weer open als die terugkomt (`clZetHoofdKlaar()`)
 - Google-account (Agenda, Mail, chat): `{id, email, naam ('Zakelijk'/'Privé'/…), agenda (false = uit), mail (false = uit), kalKeuze: {kalenderId: true|false}}` — `kalKeuze` overschrijft per agenda wat Google zegt (`selected`). Het token staat er níet in: dat is per tabblad, zie `herling_gacc_tokens` (`gaccLijst()`, `gaccTokGeldig()`)
 - Project (Checklist): `{id, naam, clientId, noteId|null, status ('actief'|'afgerond'), createdAt, updatedAt}` — hoort altijd bij een klant; een taak en een notitie horen bij hooguit één project (`projectId`, optioneel). De specificatie is een gewone notitie in Notities (`noteId`, `clProjectSpec()`), en hoort zelf ook bij het project
 - Notes node (recursief): `{id, type:'page'|'folder', title, content, clientId, projectId?, tags, children[]}` — `projectId` alleen op een pagina; zetten via `notePlekZet()` (houdt de klant gelijk aan die van het project), lezen via `noteProject()` (een project dat weg is of bij een andere klant hoort telt als geen)
@@ -342,9 +342,9 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
+- **2026-10-14**: **Toelichting bij een taak** (v2.82) — `item.toelichting` (markdown). In het taakvenster een veld onder de omschrijving dat dicht staat zolang het leeg is; op de taak een label *Toelichting* dat de tekst eronder openklapt (niet bewaard, alleen deze sessie). Zoeken, de afspraak in Google Agenda en de chat nemen hem mee
 - **2026-10-14**: **Herinneringen bij deadlines, en een taak uit een mail** (v2.81) — via de agenda *Herling – aflopend*: een taak met een deadline is een kwartier om 09:00 op die dag, standaard met een melding de werkdag ervoor en op de dag, plus een mail op de dag. Per taak te kiezen (taakvenster, klik op de deadline, ⋯ op een telefoon, de chat). Elke werkdag 08:30 *Nog open* met wat te laat is. In Mail maakt het vinkje-icoon een taak die de mail onthoudt
 - **2026-10-14**: **App-icoon zonder donkere tegel** (v2.80) — taakbalk, Startmenu en meldingen tonen alleen de ring en de H, in een dieper groen-blauw dat op een lichte én een donkere taakbalk leesbaar is. Tot 96px een volle H (de stippen worden daar een waas), vanaf 192px de gestippelde (`herling-app-*.png`). iOS, Android en het tabblad houden de tegel
-- **2026-10-13**: **De lege stand van het paneel bovenaan** (v2.78) — in het paneel van Vraag het je app staat *Waar kan ik mee helpen?* bovenaan, zodat een vergroot paneel de lege ruimte eronder krijgt (zoals Eerdere gesprekken). Op een telefoon ongewijzigd
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 
@@ -431,7 +431,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 241 smoke-, sync-, model-, reken-, sorteer-, agenda-, mail- en projecttests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
+| `test.html` | 242 smoke-, sync-, model-, reken-, sorteer-, agenda-, mail- en projecttests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |
