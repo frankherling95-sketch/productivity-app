@@ -7956,3 +7956,47 @@ een token dat in `localStorage` komt: dan staat je mailbox weer op schijf.
 Geen stille poging in een klik vóór het venster zonder korte wachttijd. En
 geen frame naar Google zonder state, of een antwoord met een andere state
 accepteren.
+
+## 2026-10-14 · App-icoon zonder donkere tegel (v2.80)
+
+**Probleem.** In de Windows-taakbalk stond het app-icoon als een zwart blok
+met een dunne blauwe rand: het viel op tussen de andere iconen en Frank vond
+het niet mooi. Gemini (alleen het teken, geen tegel) zag er beter uit.
+
+**Beslissing.**
+- De iconen van het manifest (`purpose: any`) zijn nieuw en hebben geen
+  tegel: alleen de ring, de H en de vonkjes, transparant
+  (`herling-app-32/48/64/96/192/512.png`). Ook de meldingen gebruiken ze.
+- **Kleuren dieper** (#00A887 → #1C8BDB in plaats van #00E5B0 → #38BDF8).
+  Zonder tegel ligt het teken op de taakbalk zelf; mint op een lichte
+  taakbalk heeft een contrast van ongeveer 1,3 en verdwijnt. Het diepere
+  verloop zit, net als het blauw van Gemini, rond 2,5 op licht en 5 op donker.
+- **Ring dikker** (36 in plaats van 14 op 512): op 30px was de rand 0,8px.
+- **Twee tekeningen.** Tot 96px een volle H en drie grotere vonken
+  (`herling-app-klein.svg`): de gestippelde H wordt op taakbalkmaat een waas
+  van ongeveer de halve dekking. Vanaf 192px de gestippelde
+  (`herling-app.svg`). Chrome maakt het Windows-icoon uit de kleinste PNG
+  die groot genoeg is, dus de taakbalk krijgt de 32 of de 48.
+- De SVG staat niet meer in het manifest: met `sizes: any` kan Chrome hem
+  voor elke maat kiezen, en dan krijgt de taakbalk toch de stippen.
+- Nieuwe bestandsnamen, zodat Chrome bij de manifest-controle zeker ziet dat
+  het icoon veranderd is (en geen oude kopie uit een cache haalt).
+  `herling-icon.svg` en `herling-icon-512.png` werden nergens meer gebruikt
+  en zijn weg.
+
+**Wat blijft.** Het iOS-beginscherm (`herling-icon-180.png`; iOS vult
+transparantie met zwart), Android (`herling-icon-maskable-512.png`; daar
+snijdt het systeem een vorm uit een volle achtergrond) en het tabblad
+(`herling-favicon-16/32.png`, `herling-icon-192.png`) houden de tegel.
+
+**Voor Frank.** Een geïnstalleerde app ziet het nieuwe icoon pas na de
+manifest-controle van Chrome (bij het openen, hooguit eens per dag); Chrome
+vraagt dan of het bijwerken mag. Blijft de taakbalk het oude tonen: losmaken
+en opnieuw vastmaken, of de app opnieuw installeren.
+
+**Bestanden.** `herling-app-*.png`, `herling-app.svg`,
+`herling-app-klein.svg`, `manifest.json`, `index.html` (meldingen,
+versie), `sw.js`, `CLAUDE.md`.
+
+**Niet doen.** De mintkleur terugzetten op het icoon zonder tegel (op een
+lichte taakbalk onzichtbaar), of de gestippelde H op 32–96px gebruiken.

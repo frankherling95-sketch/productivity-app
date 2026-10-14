@@ -26,10 +26,10 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 ├── over.html, privacy.html, voorwaarden.html  ← openbare pagina's voor het OAuth-scherm van Google (geen namen of adressen erin)
 ├── stil.html                     ← terugkeerpagina voor stil vernieuwen (`googleStilToken`); moet als redirect-URI bij de OAuth-client staan
 ├── _config.yml                   ← Pages/Jekyll: houdt CLAUDE.md, docs/, test.html en hulpscripts van de live site
-├── herling-icon.svg              ← open-ring-logo op donkere tegel, stilstaand (manifest)
+├── herling-app-32/48/64/96/192/512.png  ← app-icoon zonder tegel (manifest: taakbalk, Startmenu, meldingen); tot 96px een volle H, vanaf 192px de gestippelde. Bron: herling-app-klein.svg en herling-app.svg
 ├── herling-favicon-16/32.png     ← tabblad
 ├── herling-ring-48.png           ← regel "Alle klanten" in de klantwisselaar; het logo met tekst staat inline in index.html: linksboven in de zijbalk (versie voor donker) en op het inlogscherm (versie voor licht, `.login-logo`)
-├── herling-icon-180/192/512.png, herling-icon-maskable-512.png  ← app-iconen (iOS, Android; maskable = teken op volle achtergrond, binnen de veilige zone)
+├── herling-icon-180/192.png, herling-icon-maskable-512.png  ← met donkere tegel: iOS-beginscherm (180; iOS vult transparant met zwart), groot tabbladicoon (192), Android (maskable = teken op volle achtergrond, binnen de veilige zone)
 ├── manifest.json, sw.js          ← PWA + Service Worker (zie ⚠️ hieronder)
 ├── CLAUDE.md                     ← dit bestand
 ├── docs/decisions.md             ← append-only beslissingen-log (ADR-stijl)
@@ -342,9 +342,9 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
+- **2026-10-14**: **App-icoon zonder donkere tegel** (v2.80) — taakbalk, Startmenu en meldingen tonen alleen de ring en de H, in een dieper groen-blauw dat op een lichte én een donkere taakbalk leesbaar is. Tot 96px een volle H (de stippen worden daar een waas), vanaf 192px de gestippelde (`herling-app-*.png`). iOS, Android en het tabblad houden de tegel
 - **2026-10-13**: **De lege stand van het paneel bovenaan** (v2.78) — in het paneel van Vraag het je app staat *Waar kan ik mee helpen?* bovenaan, zodat een vergroot paneel de lege ruimte eronder krijgt (zoals Eerdere gesprekken). Op een telefoon ongewijzigd
 - **2026-10-13**: **Paneel verslepen en van maat veranderen; archiveren en prullenbak per mail; Klanten onder Administratie** (v2.77) — Klanten staat bovenaan in Administratie, en die groep staat na elke keer laden dicht (niet meer onthouden). Op een bureaublad sleep je het paneel aan de kop en maak je het groter of kleiner aan randen en hoeken (min. 320 × 300, binnen het scherm, onthouden per apparaat in `herling_ai_paneel`, dubbelklik = standaardplek). In Mail per regel rechtsonder Archiveren (alleen postvak) en Prullenbak, met ongedaan maken
-- **2026-10-13**: **Vraag het je app als paneel dat meekijkt** (v2.75) — geen venster meer maar een paneel rechtsonder (telefoon: blad, te openen via de sparkle in de zijbalk of de notitiekop). Bij een vraag gaat mee wat je ziet (pagina, notitie met selectie, tekstveld); de chat schrijft in de open notitie (`notitie_bewerken`) of het veld (`veld_invullen`), altijd als kaart met ongedaan maken. Snelle knoppen Aanvullen, Opschonen, Advies, Actiepunten
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 
