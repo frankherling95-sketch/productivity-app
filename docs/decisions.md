@@ -8210,3 +8210,20 @@ mail-iframe.
 
 **Bestanden.** `index.html` (CSS bij `.klantkies-sel`; `.aic-model option`
 weg), `sw.js`, `docs/stijlgids.md` §6.
+
+## 2026-10-14 · Eén lettermaat in het taakvenster (v2.86)
+
+**Probleem.** In het taakvenster waren Klant en Project 15px, Herhaling en
+Herinnering 13px, en Prioriteit 13px met cijfers van 15px en een gekozen knop
+die 3% groter werd. Frank: "nu verschilt het te veel van elkaar".
+
+**Beslissing.** Op een bureaublad alles 13px in de maat van Herinnering:
+`#clItemModal .klantkies` 34px hoog met de select op 13px (alleen in dit
+venster, want in Opdrachten en Contracten zijn alle velden 15px en past
+`.klantkies` daar wel). De cijfers in de prioriteitsknoppen 13px, en geen
+`scale(1.03)` meer op de gekozen knop: rand en schaduw zeggen al welke het is.
+Op een telefoon verandert niets (elk veld 15px en 44px, tegen inzoomen op iOS).
+Gemeten op 1300px en 375px; het opdrachtvenster is pixel voor pixel gelijk.
+
+**Bestanden.** `index.html` (CSS bij `#clItemModal`, de knoppen in
+`#clItemModal`, `selectClPriority`), `sw.js`, `docs/stijlgids.md` §6.
