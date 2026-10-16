@@ -1258,6 +1258,39 @@ async function runChecks() {
             terug();
           }
         }],
+        ['Snel toevoegen: project en toelichting gaan mee; een project vult de klant, Geen klant haalt het project weg', async () => {
+          const terug = opzet();
+          const oudDraft = w.eval('JSON.stringify(clNewDraft)');
+          try {
+            w.eval("Object.assign(clNewDraft,{title:'',clientId:'',projectId:'',toelichting:'',toelOpen:false})");
+            w.switchModule('checklist');
+            const kies = (id, v) => { const el = d.getElementById(id); el.value = v; el.dispatchEvent(new w.Event('change', {bubbles: true})); };
+            const typ = (el, v) => { el.value = v; el.dispatchEvent(new w.Event('input', {bubbles: true})); };
+            kies('clNewItemProject', 'pp1');
+            const klantGevuld = d.getElementById('clNewItemClient').value === 'tp1' && d.getElementById('clNewItemProject').value === 'pp1';
+            const knop = d.querySelector('#clNewItem .cl2-newitem-toelknop');
+            knop.click();
+            const vak = d.getElementById('clNewItemToelichting');
+            typ(vak, 'Eerst de **uren** controleren.');
+            const gevuld = d.querySelector('#clNewItem .cl2-newitem-toelknop').classList.contains('gevuld') &&
+              d.querySelector('#clNewItem .cl2-newitem-toelknop').getAttribute('aria-expanded') === 'true';
+            typ(d.getElementById('clNewItemInput'), 'Snel met project');
+            d.querySelector('#clNewItem [data-action="clAddInlineItem"]').click();
+            const taak = w.eval('checklistState.items').find(i => i.text === 'Snel met project');
+            const mee = !!taak && taak.projectId === 'pp1' && taak.clientId === 'tp1' && taak.toelichting === 'Eerst de **uren** controleren.';
+            /* De toelichting hoort bij die ene taak; klant en project blijven staan voor de volgende. */
+            const daarna = !d.getElementById('clNewItemToelichting') && w.eval('clNewDraft.toelichting') === '' &&
+              d.getElementById('clNewItemProject').value === 'pp1';
+            kies('clNewItemClient', '');
+            const projectWeg = d.getElementById('clNewItemProject').value === '' && w.eval('clNewDraft.projectId') === '';
+            /* Zonder toelichting komt er geen leeg veld op de taak. */
+            typ(d.getElementById('clNewItemInput'), 'Snel zonder alles');
+            w.clAddInlineItem();
+            const kaal = w.eval('checklistState.items').find(i => i.text === 'Snel zonder alles');
+            const kaalOk = !!kaal && !('toelichting' in kaal) && !kaal.projectId && !kaal.clientId;
+            return klantGevuld && gevuld && mee && daarna && projectWeg && kaalOk;
+          } finally { w.eval('clNewDraft=' + oudDraft); terug(); }
+        }],
         ['Projecten: in het taakvenster vult een project de klant in, een andere klant haalt het weg, en opslaan bewaart het', async () => {
           const terug = opzet();
           try {

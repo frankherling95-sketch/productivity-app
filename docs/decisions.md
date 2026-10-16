@@ -8417,3 +8417,35 @@ CSS `.cl2-pg-*`), `test.html` (drie tests), `sw.js`, `CLAUDE.md`,
 **Niet doen.** De weergave in `checklistState` zetten (dan wordt elke klik op
 een kop een wijziging voor Drive), of de klant- en projectlabels op de kaart
 laten staan naast een kop die hetzelfde zegt.
+
+## 2026-10-16 · Snel toevoegen met project en toelichting (v2.93)
+
+**Probleem.** In het snelveld boven Taken (bureaublad) kon je titel,
+prioriteit, klant en deadline kiezen, maar geen project en geen toelichting.
+Voor die twee moest je de taak daarna nog openen.
+
+**Beslissing.**
+- Het snelveld krijgt twee regels: bovenaan het titelveld en *Toevoegen*,
+  eronder prioriteit, klant, **project**, deadline en een knop
+  **Toelichting**. Op één regel paste het niet meer: bij een bureaublad van
+  1100px bleef er voor de titel nog geen 100px over.
+- Project: die van de gekozen klant, of zonder klant alle lopende projecten
+  per klant gegroepeerd; een project kiezen vult de klant, een andere klant
+  (of *Geen klant*) haalt het project weg. Onderaan *＋ Nieuw project…*.
+  Staat er een projectfilter aan, dan staat dat project vast (zoals de klant
+  al deed).
+- Toelichting: de knop klapt een tekstvak open (markdown, zoals in het
+  taakvenster); Ctrl+Enter voegt de taak toe. Gevuld = de knop in
+  `--text`.
+- Na toevoegen blijven prioriteit, klant, project en deadline staan (je voert
+  vaak een paar taken achter elkaar in voor hetzelfde project); de titel en de
+  toelichting gaan leeg en het tekstvak klapt dicht.
+- De kaart wordt bij elke wijziging in de lijst opnieuw getekend; wie erin
+  typt houdt nu zijn plek en cursor.
+
+**Bestanden.** `index.html` (`renderChecklistNewItem`, `clNewToelWissel`,
+`clAddInlineItem`, `clNewDraft`, CSS `.cl2-newitem*`), `test.html` (één
+test), `sw.js`, `CLAUDE.md`, `docs/stijlgids.md`.
+
+**Niet doen.** Het snelveld terug op één regel zetten met nog meer keuzes
+erin, of de toelichting na toevoegen laten staan (die hoort bij die ene taak).

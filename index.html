@@ -4436,9 +4436,34 @@ textarea { line-height: 1.6; resize: vertical; }
   box-shadow: var(--shadow-card);
   padding: 10px 12px;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 8px;
 }
+/* Twee regels (2026-10-16): titel + Toevoegen, en eronder de keuzes, die
+   beginnen waar het titelveld begint (slot 20px + 8px). */
+.cl2-newitem-rij { display: flex; align-items: center; gap: 8px; }
+.cl2-newitem-opties { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding-left: 28px; }
+.cl2-newitem-opties .cl2-newitem-select { max-width: 190px; text-overflow: ellipsis; }
+.cl2-newitem-toelknop {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 9px; border: 1px solid var(--border-strong); border-radius: 6px;
+  background: var(--surface); color: var(--text-hint);
+  font-family: inherit; font-size: 12px; font-weight: 500; line-height: 17px; cursor: pointer;
+  transition: border-color var(--duur-kort) var(--ease), color var(--duur-kort) var(--ease);
+}
+.cl2-newitem-toelknop:hover { border-color: var(--text-muted); color: var(--text); }
+.cl2-newitem-toelknop.gevuld, .cl2-newitem-toelknop[aria-expanded="true"] { color: var(--text); }
+.cl2-newitem-toelknop[aria-expanded="true"] { background: var(--surface2); }
+.cl2-newitem-toelknop svg { width: 12px; height: 12px; flex: none; }
+.cl2-newitem-toel { padding-left: 28px; }
+.cl2-newitem-toel textarea {
+  display: block; width: 100%; min-height: 72px; box-sizing: border-box; resize: vertical;
+  padding: 8px 10px; border: 1px solid var(--border-strong); border-radius: 8px;
+  background: var(--surface); color: var(--text);
+  font-family: inherit; font-size: 13px; line-height: 1.5; outline: none;
+}
+.cl2-newitem-toel textarea::placeholder { color: var(--text-hint); }
+.cl2-newitem-toel textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--mint-soft); }
 .cl2-newitem-slot {
   width: 20px; height: 20px;
   border: 1.5px dashed var(--border-strong);
@@ -9566,7 +9591,7 @@ body.aic-open .aic-starter { display: none; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.92</span>
+        <span class="app-versie" title="Appversie">v2.93</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -19547,7 +19572,7 @@ let clCalYear=new Date().getFullYear(),clCalMonth=new Date().getMonth(),clCalSel
 /* Per-item expand state for v3 card (HOOG default-open, others closed) */
 let clItemOpen={};
 /* New-item inline card local draft state */
-let clNewDraft={title:'',priority:'middel',clientId:'',deadline:''};
+let clNewDraft={title:'',priority:'middel',clientId:'',deadline:'',projectId:'',toelichting:'',toelOpen:false};
 
 function renderClCal(){
   const titleEl=document.getElementById('clCalTitle');
@@ -20498,52 +20523,131 @@ function renderChecklistHero({notArchived,doneItems,archivedCount,klantNaam}){
 /* ─ New-item inline card ─ */
 function renderChecklistNewItem(){
   const el=document.getElementById('clNewItem');if(!el)return;
-  /* Bij een gekozen project hoort de taak bij de klant van dat project. */
+  /* Deze kaart wordt bij elke wijziging in de lijst opnieuw getekend: wie
+     erin aan het typen is, houdt zijn plek. */
+  const act=document.activeElement;
+  const focusId=act&&el.contains(act)?act.id:null;
+  const cursor=focusId&&typeof act.selectionStart==='number'?[act.selectionStart,act.selectionEnd]:null;
+  /* Bij een gekozen project (filter) hoort de taak bij dat project en zijn klant. */
   const projF=clProject(clFilters.projectId);
   const klantKeuze=projF?projF.clientId:clNewDraft.clientId;
   const clients=klantenVoorKeuze(klantKeuze);
+  /* Het project uit het snelveld: alleen als het nog loopt en bij de klant hoort. */
+  if(!projF&&clNewDraft.projectId){
+    const p=clProject(clNewDraft.projectId);
+    if(!p||p.status==='afgerond'||klantVerborgen(p.clientId)||(klantKeuze&&p.clientId!==klantKeuze))clNewDraft.projectId='';
+  }
+  const projKeuze=projF?projF.id:clNewDraft.projectId;
   const priorityOpts=['hoog','middel','laag'].map(p=>
     `<option value="${p}"${clNewDraft.priority===p?' selected':''}>${CL_PRIORITY_CFG[p].label}</option>`).join('');
   const clientOpts='<option value="">Geen klant</option>'+
     clients.map(c=>`<option value="${c.id}"${klantKeuze===c.id?' selected':''}>${escapeHtml(c.name)}</option>`).join('');
+  /* Projecten: die van de gekozen klant, of anders allemaal per klant
+     gegroepeerd (kies je er een, dan volgt de klant). */
+  const opt=pr=>`<option value="${escapeHtml(pr.id)}"${projKeuze===pr.id?' selected':''}>${escapeHtml(pr.naam)}</option>`;
+  let projectOpts='<option value="">Geen project</option>';
+  if(projF)projectOpts=opt(projF);
+  else if(klantKeuze)projectOpts+=clProjectenVan(klantKeuze,false).map(opt).join('');
+  else{
+    const perKlant=new Map();
+    clProjectenVan('',false).forEach(pr=>{const k=clProjectKlantNaam(pr);if(!perKlant.has(k))perKlant.set(k,[]);perKlant.get(k).push(pr);});
+    projectOpts+=[...perKlant.keys()].sort((a,b)=>a.localeCompare(b,'nl'))
+      .map(k=>'<optgroup label="'+escapeHtml(k)+'">'+perKlant.get(k).map(opt).join('')+'</optgroup>').join('');
+  }
+  if(!projF)projectOpts+='<option value="__nieuw">＋ Nieuw project…</option>';
   const deadlineVal=clNewDraft.deadline||'';
+  const toelOpen=!!clNewDraft.toelOpen, toelGevuld=!!(clNewDraft.toelichting||'').trim();
+  /* Twee regels (2026-10-16): bovenaan wat je typt en Toevoegen, eronder de
+     keuzes. Met project en toelichting erbij paste het niet meer op één regel
+     -- op een smal bureaublad werd het titelveld dan een postzegel. */
   el.innerHTML=`
-    <span class="cl2-newitem-slot">+</span>
-    <input id="clNewItemInput" class="cl2-newitem-input" type="text" placeholder="${clProject(clFilters.projectId)?'Nieuwe taak in '+escapeHtml(clProject(clFilters.projectId).naam)+'…':'Nieuwe taak toevoegen...'}" value="${escapeHtml(clNewDraft.title)}"/>
-    <select id="clNewItemPriority" class="cl2-newitem-select">${priorityOpts}</select>
-    <select id="clNewItemClient" class="cl2-newitem-select"${projF?' disabled title="Hoort bij het project"':''}>${clientOpts}</select>
-    <input id="clNewItemDeadline" class="cl2-newitem-date" type="date" value="${deadlineVal}" data-set="${deadlineVal?'1':'0'}" title="Deadline (optioneel)" aria-label="Deadline"/>
-    <button type="button" class="btn btn-sm btn-primary" data-action="clAddInlineItem">Toevoegen</button>`;
+    <div class="cl2-newitem-rij">
+      <span class="cl2-newitem-slot">+</span>
+      <input id="clNewItemInput" class="cl2-newitem-input" type="text" placeholder="${projF?'Nieuwe taak in '+escapeHtml(projF.naam)+'…':'Nieuwe taak toevoegen...'}" value="${escapeHtml(clNewDraft.title)}"/>
+      <button type="button" class="btn btn-sm btn-primary" data-action="clAddInlineItem">Toevoegen</button>
+    </div>
+    <div class="cl2-newitem-opties">
+      <select id="clNewItemPriority" class="cl2-newitem-select" aria-label="Prioriteit">${priorityOpts}</select>
+      <select id="clNewItemClient" class="cl2-newitem-select" aria-label="Klant"${projF?' disabled title="Hoort bij het project"':''}>${clientOpts}</select>
+      <select id="clNewItemProject" class="cl2-newitem-select" aria-label="Project"${projF?' disabled title="Het gekozen project"':''}>${projectOpts}</select>
+      <input id="clNewItemDeadline" class="cl2-newitem-date" type="date" value="${deadlineVal}" data-set="${deadlineVal?'1':'0'}" title="Deadline (optioneel)" aria-label="Deadline"/>
+      <button type="button" class="cl2-newitem-toelknop${toelGevuld?' gevuld':''}" data-action="clNewToelWissel" aria-expanded="${toelOpen}" aria-controls="clNewItemToel"
+        title="${toelOpen?'Toelichting verbergen':'Toelichting toevoegen'}">${CL_TOEL_IC}Toelichting</button>
+    </div>
+    ${toelOpen?`<div class="cl2-newitem-toel" id="clNewItemToel">
+      <textarea id="clNewItemToelichting" rows="3" aria-label="Toelichting"
+        placeholder="Achtergrond, links, afspraken… Markdown mag. Ctrl+Enter voegt de taak toe.">${escapeHtml(clNewDraft.toelichting||'')}</textarea>
+    </div>`:''}`;
   const inp=document.getElementById('clNewItemInput');
   if(inp){
     inp.addEventListener('input',e=>{clNewDraft.title=e.target.value;});
     inp.addEventListener('keydown',e=>{if(e.key==='Enter')clAddInlineItem();});
   }
   document.getElementById('clNewItemPriority')?.addEventListener('change',e=>{clNewDraft.priority=e.target.value;});
-  document.getElementById('clNewItemClient')?.addEventListener('change',e=>{clNewDraft.clientId=e.target.value;});
+  document.getElementById('clNewItemClient')?.addEventListener('change',e=>{
+    clNewDraft.clientId=e.target.value;
+    /* Een project van een andere klant (of bij Geen klant) valt weg; de lijst
+       toont die van deze klant. */
+    const p=clProject(clNewDraft.projectId);
+    if(p&&p.clientId!==clNewDraft.clientId)clNewDraft.projectId='';
+    renderChecklistNewItem();
+  });
+  document.getElementById('clNewItemProject')?.addEventListener('change',async e=>{
+    let id=e.target.value;
+    if(id==='__nieuw'){
+      renderChecklistNewItem();
+      const pr=await clProjectNieuw(clNewDraft.clientId||null);
+      if(!pr)return;
+      id=pr.id;
+    }
+    clNewDraft.projectId=id||'';
+    const pr=clProject(id);
+    if(pr)clNewDraft.clientId=pr.clientId;
+    renderChecklistNewItem();
+  });
   document.getElementById('clNewItemDeadline')?.addEventListener('change',e=>{
     clNewDraft.deadline=e.target.value;
     /* data-set drives de :not([data-set="1"]) styling — full opacity zodra een datum staat */
     e.target.setAttribute('data-set',e.target.value?'1':'0');
   });
+  const toel=document.getElementById('clNewItemToelichting');
+  if(toel){
+    toel.addEventListener('input',e=>{
+      clNewDraft.toelichting=e.target.value;
+      el.querySelector('.cl2-newitem-toelknop')?.classList.toggle('gevuld',!!e.target.value.trim());
+    });
+    toel.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();clAddInlineItem();}});
+  }
+  if(focusId){
+    const terug=document.getElementById(focusId);
+    if(terug){terug.focus();if(cursor&&typeof terug.setSelectionRange==='function')try{terug.setSelectionRange(cursor[0],cursor[1]);}catch(_){}}
+  }
+}
+/* De toelichting in het snelveld open of dicht; open = meteen erin typen. */
+function clNewToelWissel(){
+  clNewDraft.toelOpen=!clNewDraft.toelOpen;
+  renderChecklistNewItem();
+  if(clNewDraft.toelOpen)document.getElementById('clNewItemToelichting')?.focus();
 }
 function clAddInlineItem(){
   const text=(clNewDraft.title||'').trim();
   if(!text){document.getElementById('clNewItemInput')?.focus();return;}
   const priority=clNewDraft.priority||'middel';
-  /* Staat er een project gekozen, dan komt de taak daarin, bij die klant. */
-  const proj=clProject(clFilters.projectId);
+  /* Staat er een project gekozen (filter of snelveld), dan komt de taak
+     daarin, bij die klant. */
+  const proj=clProject(clFilters.projectId)||clProject(clNewDraft.projectId);
   const clientId=proj?proj.clientId:(clNewDraft.clientId||null);
   const deadline=clNewDraft.deadline||null;
+  const toelichting=(clNewDraft.toelichting||'').trim();
   checklistState.items.push({
     id:uid(),text,done:false,priority,deadline,clientId,projectId:proj?proj.id:null,subtasks:[],archived:false,
-    sortOrder:clNieuweSortOrder(priority),
+    sortOrder:clNieuweSortOrder(priority),...(toelichting?{toelichting}:{}),
     createdAt:Date.now(),updatedAt:Date.now()
   });
-  /* Behoud priority / klant / deadline als sticky default voor de volgende taak —
-     veelal voer je meerdere taken na elkaar in met dezelfde context. Alleen
-     het title-veld wordt geleegd. */
-  clNewDraft.title='';
+  /* Behoud prioriteit / klant / project / deadline als sticky default voor de
+     volgende taak — veelal voer je meerdere taken na elkaar in met dezelfde
+     context. De titel en de toelichting horen bij deze ene taak: die gaan leeg. */
+  clNewDraft.title='';clNewDraft.toelichting='';clNewDraft.toelOpen=false;
   scheduleSave();renderChecklistModule();
   setTimeout(()=>document.getElementById('clNewItemInput')?.focus(),30);
 }
@@ -21181,6 +21285,7 @@ Object.assign(APP_ACTIONS,{
   clProjectStatus:(el,e,id)=>clProjectStatus(id),
   clProjectMeer:(el,e,id)=>clProjectMeer(id),
   clToonProject:(el,e,id)=>{if(e)e.stopPropagation();clFilters.projectId=id||null;renderChecklistModule();},
+  clNewToelWissel:()=>clNewToelWissel(),
   clZetWeergave:(el,e,w)=>{if(el&&el.closest('#clOverflow'))closeClOverflow();clZetWeergave(w);},
   clGroepWissel:(el,e,k)=>clGroepWissel(k),
   clGroepenAlles:()=>clGroepenAlles()
