@@ -263,6 +263,21 @@ balk. Op een bureaublad blijft het een tabel; beide in de DOM, de CSS kiest.
 | toelichting | een label *Toelichting* met een blaadje, dezelfde vorm, als laatste in de metaregel; open = `--surface3` en `--text`. Eronder dan een vak op `--surface2`, `--fs-klein` / 1,55, ingesprongen tot de titel (48px, telefoon 12px), markdown; daaronder *Bewerken* (`--fs-micro` / 600 muted). In het taakvenster een kop als de veldlabels met een pijl, dicht zolang het leeg is |
 | projectbalk | onder de filterbalk als er een project gekozen is (`.cl2-projectbalk`): naam (`--fs-basis` / 600), klant en voortgang (`--fs-klein` muted), dan *Specificatie* (primair), *Afronden* en ⋯, en een ✕. Op een telefoon het ✕ naast de naam en de knoppen eronder |
 
+### Taken per project
+
+De tweede weergave van Taken (*Lijst* | *Per project*, in de bovenbalk een
+`.cl2-seg`; op een telefoon in het ⋯-menu onder *Weergave*).
+
+| | |
+|---|---|
+| samenvatting | `.cl2-pg-samen`: *10 open taken · 3 projecten · 4 klanten* in `--fs-klein` muted, de getallen 600 `--text`; rechts *Projecten inklappen* (`--fs-klein` / 600 muted, tekstknop zonder rand). Op een telefoon kort: *Inklappen* — de knop *Inklappen* (subtaken) van de voortgangskaart staat daar niet |
+| klantkop | de kop van een prioriteitsgroep (`.cl2-group-hdr`: micro-kapitalen / 700, telpil, lijn), als knop die inklapt: een pijl van 12px (`--text-hint`, dicht = −90°), een stip in de klantkleur (`CLIENT_COLORS[].tx`), naam in `--text`. Zonder klant: een open stip |
+| projectkop | `.cl2-pg-proj-knop`: pijl, het mapje (14px muted) en de naam (`--fs-basis` / 600), dezelfde telpil; *Zonder project* in 500 muted met een vaag mapje; *afgerond* in `--fs-micro`. Rechts een pijl ›, een icoonknop (`.cl2-iconbtn`, op een telefoon de gedeelde regel van `var(--tap)`) die het project opent: het projectfilter met de projectbalk |
+| inspringen | projectkoppen en kaarten 20px (telefoon 8px) onder de klant |
+| kaart | zonder klant- en projectlabel: die staan in de kop |
+| hoogte | koppen 28px, op een telefoon `var(--tap)` |
+| ingeklapt | koppen dicht op elkaar (2px tussen projecten, 6px tussen klanten): dan is het een overzicht |
+
 ### Notitieboom: klant, project, notitie (Notities)
 
 Binnen een klantgroep eerst de projecten, dan de losse notities.

@@ -51,7 +51,7 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 |------|--------|---------|
 | `#dashboard` | Dashboard | Hero (met een balk die een vraag aan de chat is: een taak komt meteen in Taken, `dashAiVraag`) + KPI strip + kaartenraster (Notes/Checklist/Opdrachten & contracten) |
 | `#notes` | Notes | Boomstructuur per klant, met daarin eerst de projecten en dan de losse notities; rich-text editor met onder de titel klant en project (`notesPlekMenu`). Geplakte afbeeldingen staan compact (220px hoog); een klik vergroot, met een knopje voor volledig scherm (`noteImg*`); groot wordt niet bewaard |
-| `#taken` | Taken | Heette tot 2026-10-14 Checklist; in de code nog `checklist` (module, state, `cl*`), en `#checklist` werkt nog (`moduleNaarHash()`/`moduleUitHash()`). Taken met subtaken, filters (prio/klant/periode/project), projecten met een specificatie-notitie, vastpinnen, drag-drop, archief, herinnering per taak (klik op de deadline). `#taak-<id>` opent één taak (`taakUitHash()`) |
+| `#taken` | Taken | Heette tot 2026-10-14 Checklist; in de code nog `checklist` (module, state, `cl*`), en `#checklist` werkt nog (`moduleNaarHash()`/`moduleUitHash()`). Taken met subtaken, filters (prio/klant/periode/project), projecten met een specificatie-notitie, vastpinnen, drag-drop, archief, herinnering per taak (klik op de deadline). Twee weergaven: *Lijst* en *Per project* (klant → project, met tellingen en inklapbare koppen; `renderProjectGroepen()`, keuze per apparaat in `clWeergave`). `#taak-<id>` opent één taak (`taakUitHash()`) |
 | `#klanten` | Klanten | Klantbeheer op één plek (was het tabblad Klanten in Facturen): per klant een kaart met factuurgegevens, de projecten (aanmaken, hernoemen, naar een andere klant, afronden, verwijderen) en de weg naar zijn notities en taken. `openKlantenBeheer()` komt hier uit |
 | `#uren` | Uren | Urenregistratie per regel, week/maand, Excel export |
 | `#facturen` | Facturen | Facturen uit geschreven uren (ook per maand in één keer: *Uren factureren*, `facMaandStart`), sjabloonbouwer, debiteuren, btw-overzicht, mailen via Gmail, analyse |
@@ -99,6 +99,7 @@ rawState = {
 | `LS_ZIJBALK` = `herling_zijbalk` | Zijbalk smal of breed (per apparaat, niet in Drive). Groepen worden sinds 2026-10-13 niet onthouden: Administratie staat na elke keer laden dicht (`navGroepenOpen`) |
 | `LS_NOTES_LIJST` = `herling_notes_lijst` | Breedte van de lijst in Notities (sleepgreep tussen lijst en editor), per apparaat |
 | `LS_OPD_PERKLANT` = `herling_opdrachten_perklant` | Stand van de knop *Per klant* op Opdrachten → Vooruitzicht, per apparaat |
+| `LS_CL_WEERGAVE` = `herling_taken_weergave` | Taken: *Lijst* of *Per project*, en welke klant- en projectkoppen dicht staan (`clWeergave`), per apparaat |
 | `LS_CTR_WEERGAVE` = `herling_contracten_weergave` | Welke tab van Contracten je bekijkt (zakelijk/privé), per apparaat en bewust niet in `rawState` |
 | IndexedDB `herling_bijlagen` | PDF's van Contracten op dit apparaat (kopie; het origineel staat als los bestand in de Drive-`appDataFolder`) |
 | `LS_HERSTEL_KEY` = `herling_analytics_herstel` | Niet-gekozen versie na een conflict; zichtbaar in Instellingen → Versiegeschiedenis, of `herstelDownload()` |
@@ -341,9 +342,9 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
+- **2026-10-16**: **Taken per project** (v2.92) — naast *Lijst* een weergave *Per project*: de taken per klant en daarbinnen per project, met tellingen; koppen klappen in, *Projecten inklappen* laat alleen de tellingen staan. Klant- en projectlabel gaan dan van de kaart. Keuze per apparaat (`herling_taken_weergave`). Slepen kan daar alleen binnen een project, en volgt nu de volgorde op het scherm (een nieuwe taak sprong eerst naar onderen)
 - **2026-10-14**: **Afbeeldingen blijven bij opschonen door de chat** (v2.91) — het model ziet afbeeldingen als `[afbeelding N]` (`aiNotitieMd`) en zet die terug; bij *vervangen* komt daar de echte afbeelding (`aiNotitieMetBeelden`), en wat het vergeet komt onderaan in plaats van te verdwijnen
 - **2026-10-14**: **Afbeeldingen in een notitie compact** (v2.88) — standaard hooguit 220px hoog (telefoon 160px); een klik maakt groot en weer klein, bij aanwijzen een knopje met ook *Volledig scherm*. Groot is alleen om te lezen: `data-groot` gaat er bij het bewaren af, dus geen wijziging en elke notitie opent compact
-- **2026-10-14**: **Een voorstel in de chat aanpassen** (v2.87) — *Aanpassen* op een voorstelkaart maakt van de regels velden (tekst, datum, klant, project, prioriteit, herinnering, subtaken, toelichting); *Klaar* laat de actie de invoer opnieuw bekijken. Werkt ook op een kaart die niet kan. Per actie in `AI_ACTIES[...].velden`; het model leest daarna "aangepast door de gebruiker"
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 
@@ -430,7 +431,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 246 smoke-, sync-, model-, reken-, sorteer-, agenda-, mail- en projecttests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook. **Hoort in elke browser groen te zijn**, ook headless in een leeg profiel: een test die iets van de omgeving nodig heeft zet het zelf neer en ruimt het op — `metKlant` (minstens één klant), `metLogin` (ingelogd, met naam), `opBreed` (iframe op 1400px, want onder 769px is de app een telefoon), `metLS`, `metGoogle`. Rood is dus echt rood |
+| `test.html` | 249 smoke-, sync-, model-, reken-, sorteer-, agenda-, mail- en projecttests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook. **Hoort in elke browser groen te zijn**, ook headless in een leeg profiel: een test die iets van de omgeving nodig heeft zet het zelf neer en ruimt het op — `metKlant` (minstens één klant), `metLogin` (ingelogd, met naam), `opBreed` (iframe op 1400px, want onder 769px is de app een telefoon), `metLS`, `metGoogle`. Rood is dus echt rood |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |
