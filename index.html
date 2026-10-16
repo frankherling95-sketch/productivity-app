@@ -4629,6 +4629,59 @@ textarea { line-height: 1.6; resize: vertical; }
 /* Kopje van de vastgepinde groep: punaise in plaats van het prioriteitsbolletje */
 .cl2-group-pin { display: flex; color: var(--text); flex-shrink: 0; }
 
+/* ── Taken per project (2026-10-16) ──────────────────────────────────────────
+   De klantkop is de kop van een prioriteitsgroep (hierboven), maar dan een
+   knop die inklapt; de stip in de klantkleur. Daaronder per project een kop
+   op de maat van een kaarttitel, met het mapje en dezelfde telpil. Taken en
+   projectkoppen springen 20px in, tot onder de stip van de klant. */
+.cl2-pg-samen {
+  display: flex; align-items: center; gap: 12px;
+  margin: 0 2px; font-size: var(--fs-klein); color: var(--text-muted);
+}
+.cl2-pg-samen b { font-family: var(--font-cijfer); font-variant-numeric: tabular-nums; font-weight: 600; color: var(--text); }
+.cl2-pg-alles {
+  margin-left: auto; padding: 4px 2px; border: 0; background: none; cursor: pointer;
+  font: inherit; font-weight: 600; color: var(--text-muted);
+  transition: color var(--duur-kort) var(--ease);
+}
+.cl2-pg-alles:hover { color: var(--text); }
+.cl2-pg-alles { white-space: nowrap; }
+.cl2-pg-kort { display: none; }
+.cl2-pg-kop {
+  width: 100%; min-height: 28px; border: 0; background: none; cursor: pointer;
+  font: inherit; color: var(--text); text-align: left;
+}
+.cl2-pg-kop .cl2-group-name { color: var(--text); }
+.cl2-pg-kop:hover .cl2-group-count, .cl2-pg-proj-knop:hover .cl2-group-count { background: var(--surface3); }
+.cl2-pg-chev {
+  width: 12px; height: 12px; flex: none; color: var(--text-hint);
+  transition: transform var(--duur-kort) var(--ease);
+}
+.dicht > .cl2-pg-kop .cl2-pg-chev, .dicht > .cl2-pg-proj-kop .cl2-pg-chev { transform: rotate(-90deg); }
+/* Zonder klant: een open stip, zoals het gestreepte blokje in Notities. */
+.cl2-group-dot.cl2-pg-geen { background: transparent; box-shadow: inset 0 0 0 1.5px var(--text-hint); }
+.cl2-pg-body { padding-left: 20px; }
+.cl2-pg-proj + .cl2-pg-proj { margin-top: 12px; }
+/* Ingeklapt staan de koppen dicht op elkaar: dan is het een overzicht. */
+.cl2-pg-proj.dicht + .cl2-pg-proj { margin-top: 2px; }
+.cl2-pg-klant.dicht + .cl2-pg-klant { margin-top: 6px; }
+.cl2-pg-proj-kop { display: flex; align-items: center; gap: 4px; margin: 0 0 6px; }
+.cl2-pg-proj-knop {
+  flex: 1; min-width: 0; min-height: 28px; display: flex; align-items: center; gap: 8px;
+  padding: 0 2px; border: 0; background: none; cursor: pointer;
+  font: inherit; color: var(--text); text-align: left;
+}
+.cl2-pg-proj-ic { display: flex; color: var(--text-muted); }
+.cl2-pg-proj-ic svg { width: 14px; height: 14px; }
+.cl2-pg-proj-naam {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--fs-basis); font-weight: 600;
+}
+.cl2-pg-zonder .cl2-pg-proj-naam { color: var(--text-muted); font-weight: 500; }
+.cl2-pg-zonder .cl2-pg-proj-ic { opacity: .55; }
+.cl2-pg-proj-af { font-size: var(--fs-micro); color: var(--text-hint); }
+.cl2-pg-proj-kop .cl2-pg-open { color: var(--text-muted); }
+
 /* ── Vastgepinde taken ──────────────────────────────────────────────────────
    Mintrand om de kaart en een oplichtende knop, zodat een vastgepinde taak
    ook los van het groepskopje te herkennen is (in de platte volgorde staan
@@ -6744,6 +6797,13 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
   }
   .cl-topbar > div:last-child { flex-wrap: wrap !important; gap: 6px !important; }
   .cl2-scroll { padding: 14px 12px 24px !important; }
+  /* Per project: koppen om aan te tikken, en minder inspringen -- de kaarten
+     zijn op 375px al smal genoeg. */
+  .cl2-pg-kop, .cl2-pg-proj-knop, .cl2-pg-alles { min-height: var(--tap); }
+  .cl2-pg-lang { display: none; }
+  .cl2-pg-kort { display: inline; }
+  .cl2-pg-body { padding-left: 8px; }
+  .cl2-pg-proj-kop { margin-bottom: 4px; }
   /* ── Voortgangskaart: ring naast de tekst, niet erboven ──
      In een kolom stond de ring van 58px op een eigen regel met de halve
      kaartbreedte leeg ernaast, en groeide het blok naar ~250px -- meer
@@ -6852,7 +6912,8 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
   #kalMenuBtn,
   #pvMenuBtn,
   .client-filter-info,
-  #mod-notes .notes-groep-mob {
+  #mod-notes .notes-groep-mob,
+  .cl2-pg-proj-kop .cl2-pg-open {
     display: inline-flex !important;
     align-items: center; justify-content: center;
     width: var(--tap) !important; height: var(--tap) !important;
@@ -9505,7 +9566,7 @@ body.aic-open .aic-starter { display: none; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.91</span>
+        <span class="app-versie" title="Appversie">v2.92</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -9784,6 +9845,14 @@ body.aic-open .aic-starter { display: none; }
         <div class="cl2-title">Taken</div>
         <div style="display:flex;gap:8px;align-items:center">
           <div class="client-filter" id="checklistClientFilter"></div>
+          <!-- Lijst of Per project (2026-10-16). Op een telefoon staat dit,
+               net als de sortering, in het ⋯-menu. -->
+          <div class="cl2-seg" role="group" aria-label="Weergave">
+            <button type="button" id="clWeergaveLijst" class="cl2-seg-btn" data-action="clZetWeergave" data-arg1="lijst"
+              aria-pressed="true" title="Alle taken in één lijst">Lijst</button>
+            <button type="button" id="clWeergaveProject" class="cl2-seg-btn" data-action="clZetWeergave" data-arg1="project"
+              aria-pressed="false" title="Open taken per klant en per project">Per project</button>
+          </div>
           <select id="clSortSelect" class="cl2-sort" onchange="setChecklistSort(this.value)" title="Sorteervolgorde">
             <option value="newest">Nieuwste bovenaan</option>
             <option value="oldest">Oudste bovenaan</option>
@@ -11752,6 +11821,17 @@ let clFilters={prio:null,clientId:null,period:null,search:'',projectId:null};
    ingeklapt begint. Bewust niet bewaard: je wilt hem elke keer dicht
    openen, anders is de ruimtewinst na één keer filteren weg. */
 let clFiltersOpen=false;
+/* Weergave van Taken (2026-10-16): 'lijst' of 'project', en welke koppen in
+   de projectweergave dicht staan. Per apparaat, net als Per klant op
+   Opdrachten: een weergavekeuze hoort niet in Drive, en op een telefoon wil
+   je misschien iets anders dan op het bureaublad. */
+const LS_CL_WEERGAVE='herling_taken_weergave';
+let clWeergave=(()=>{
+  try{
+    const o=JSON.parse(localStorage.getItem(LS_CL_WEERGAVE)||'{}')||{};
+    return {weergave:o.weergave==='project'?'project':'lijst',dicht:o.dicht&&typeof o.dicht==='object'?o.dicht:{}};
+  }catch(_){return {weergave:'lijst',dicht:{}};}
+})();
 
 /* Facturatie — invoices[] plus de eigen bedrijfsgegevens en de
    nummerreeks. Een verstuurde factuur bewaart een snapshot van klant
@@ -19593,6 +19673,10 @@ function renderClSortControls(){
   if(sel&&sel.value!==clSortModus())sel.value=clSortModus();
   const btn=document.getElementById('clGroupToggle');
   if(btn)btn.classList.toggle('active',clGroepeertOpPrioriteit());
+  [['clWeergaveLijst',!clPerProject()],['clWeergaveProject',clPerProject()]].forEach(([id,aan])=>{
+    const b=document.getElementById(id);
+    if(b){b.classList.toggle('active',aan);b.setAttribute('aria-pressed',aan?'true':'false');}
+  });
 }
 
 /* ── Beweging in de lijst (2026-10-07) ──
@@ -19728,7 +19812,9 @@ function renderChecklistModuleKaal(){
       </div>`;
       return;
     }
-    body.innerHTML=clGroepeertOpPrioriteit()
+    body.innerHTML=clPerProject()
+      ?renderProjectGroepen(archived,{isArchived:true})
+      :clGroepeertOpPrioriteit()
       ?renderPriorityGroups(archived,{isArchived:true,showGroupHeaders:false})
       :archived.slice().sort(clSortCmp()).map(item=>clItemHtml(item,true)).join('');
     wireChecklistBodyEvents(body);
@@ -19753,7 +19839,9 @@ function renderChecklistModuleKaal(){
 
   /* Sorteren volgens de gekozen modus; prioriteitsgroepen als dat aanstaat */
   const display=[...activeItems];
-  if(clGroepeertOpPrioriteit()){
+  if(clPerProject()){
+    body.innerHTML=renderProjectGroepen(display,{isArchived:false});
+  } else if(clGroepeertOpPrioriteit()){
     body.innerHTML=renderPriorityGroups(display,{isArchived:false,showGroupHeaders:true});
   } else {
     display.sort(clSortCmp());
@@ -19837,6 +19925,156 @@ function renderPriorityGroups(items,{isArchived,showGroupHeaders}){
   return out;
 }
 
+/* ══ Taken per project (2026-10-16) ══
+   Een tweede weergave naast de lijst: de taken per klant, en daarbinnen per
+   project -- zodat je in één oogopslag ziet hoeveel er bij elke klant en
+   elk project openstaat. De klantkop is de kop van een prioriteitsgroep met
+   een stip in de klantkleur; daaronder per project een kop met het mapje en
+   een telling. Taken zonder project staan onder "Zonder project" (alleen als
+   de klant ook projecten heeft), taken zonder klant als laatste groep. De
+   klanten in dezelfde volgorde als in de klantwisselaar, de projecten op
+   naam, afgeronde projecten achteraan.
+
+   Klant- en projectlabel gaan van de kaart af: die staan al in de kop.
+   Binnen een project geldt de gekozen sortering, vastgepind eerst, en met
+   Prio-groepen aan eerst op prioriteit (zonder tussenkopjes). Elke kop
+   klapt in; "Projecten inklappen" laat alleen de koppen met hun tellingen
+   staan -- het overzicht. Wat dicht staat onthoudt dit apparaat. */
+function clPerProject(){return clWeergave.weergave==='project';}
+function clWeergaveBewaar(){
+  /* Koppen van klanten en projecten die er niet meer zijn ruimen we op. */
+  const klanten=new Set((kanbanState.clients||[]).map(c=>c.id)), projecten=new Set(clProjecten().map(p=>p.id));
+  Object.keys(clWeergave.dicht).forEach(k=>{
+    const [, kid, pid]=k.split(/[:|]/);
+    if((kid&&kid!=='-'&&!klanten.has(kid))||(pid&&pid!=='-'&&!projecten.has(pid)))delete clWeergave.dicht[k];
+  });
+  try{localStorage.setItem(LS_CL_WEERGAVE,JSON.stringify(clWeergave));}catch(_){}
+}
+function clZetWeergave(w){
+  clWeergave.weergave=w==='project'?'project':'lijst';
+  clWeergaveBewaar();renderChecklistModule();
+}
+/* Het project van een taak -- als dat bestaat en bij dezelfde klant hoort.
+   Anders telt hij als zonder project (zoals noteProject in Notities). */
+function clTaakProject(i){
+  const pr=clProject(i&&i.projectId);
+  return pr&&pr.clientId===i.clientId&&clientById(pr.clientId)?pr:null;
+}
+/* De klant waaronder een taak staat: '' als hij geen (bestaande) klant heeft. */
+function clTaakKlantId(i){return i.clientId&&clientById(i.clientId)?i.clientId:'';}
+/* De groep waarin een taak staat: klant|project, met '-' voor geen. */
+function clGroepVan(i){
+  const pr=clTaakProject(i);
+  return (clTaakKlantId(i)||'-')+'|'+(pr?pr.id:'-');
+}
+function clGroepWissel(k){
+  if(!k)return;
+  if(clWeergave.dicht[k])delete clWeergave.dicht[k];else clWeergave.dicht[k]=true;
+  clWeergaveBewaar();renderChecklistModule();
+}
+/* De taken verdeeld over klanten en projecten, elk al gesorteerd. */
+function clProjectIndeling(items){
+  const basis=CL_SORT_MODI[clSortModus()], prio=clGroepeertOpPrioriteit();
+  const po=p=>(CL_PRIORITY_CFG[p]||CL_PRIORITY_CFG.middel).order;
+  const cmp=(a,b)=>clVastCmp(a,b)||(prio?po(a.priority)-po(b.priority):0)||basis(a,b);
+  const perKlant=new Map();
+  items.forEach(i=>{
+    const kid=clTaakKlantId(i), pr=clTaakProject(i);
+    if(!perKlant.has(kid))perKlant.set(kid,new Map());
+    const pm=perKlant.get(kid), pid=pr?pr.id:'';
+    if(!pm.has(pid))pm.set(pid,[]);
+    pm.get(pid).push(i);
+  });
+  const volgorde=(kanbanState.clients||[]).map(c=>c.id).filter(id=>perKlant.has(id));
+  if(perKlant.has(''))volgorde.push('');
+  return volgorde.map(kid=>{
+    const pm=perKlant.get(kid);
+    const projecten=[...pm.keys()].filter(Boolean).map(clProject)
+      .sort((a,b)=>((a.status==='afgerond')-(b.status==='afgerond'))||String(a.naam).localeCompare(String(b.naam),'nl'))
+      .map(pr=>({pr,sleutel:'p:'+kid+'|'+pr.id,items:pm.get(pr.id).sort(cmp)}));
+    if(pm.has(''))projecten.push({pr:null,sleutel:'p:'+(kid||'-')+'|-',items:pm.get('').sort(cmp)});
+    return {klant:kid?clientById(kid):null,sleutel:'k:'+(kid||'-'),projecten,
+      n:projecten.reduce((s,p)=>s+p.items.length,0),
+      metProjecten:projecten.some(p=>p.pr)};
+  });
+}
+/* Welke koppen "Projecten inklappen" dichtdoet: de projecten, en de klanten
+   zonder projecten (daar staan de taken direct onder de klant). */
+function clInklapSleutels(indeling){
+  const uit=[];
+  indeling.forEach(g=>{if(g.metProjecten)g.projecten.forEach(p=>uit.push(p.sleutel));else uit.push(g.sleutel);});
+  return uit;
+}
+function clGroepenAlles(){
+  const items=checklistState.showArchived?takenZichtbaar().filter(i=>i.archived):takenZichtbaar().filter(i=>!i.archived&&!i.done);
+  const indeling=clProjectIndeling(items);
+  const sleutels=clInklapSleutels(indeling);
+  const allesDicht=sleutels.length&&sleutels.every(k=>clWeergave.dicht[k]);
+  if(allesDicht)clWeergave.dicht={};
+  else{
+    sleutels.forEach(k=>{clWeergave.dicht[k]=true;});
+    /* Een dichte klant met projecten gaat open: anders zie je de tellingen
+       per project niet. */
+    indeling.forEach(g=>{if(g.metProjecten)delete clWeergave.dicht[g.sleutel];});
+  }
+  clWeergaveBewaar();renderChecklistModule();
+}
+const CL_PG_CHEV='<svg class="cl2-pg-chev" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+function renderProjectGroepen(items,{isArchived}){
+  const indeling=clProjectIndeling(items);
+  if(!indeling.length)return '';
+  const dicht=k=>!!clWeergave.dicht[k];
+  const tel=n=>n===1?'1 '+(isArchived?'gearchiveerde taak':'open taak'):n+' '+(isArchived?'gearchiveerde taken':'open taken');
+  const kaarten=lijst=>lijst.map(i=>clItemHtml(i,isArchived,{zonderPlek:true})).join('');
+  const nProj=indeling.reduce((s,g)=>s+g.projecten.filter(p=>p.pr).length,0);
+  const nKlant=indeling.filter(g=>g.klant).length;
+  const sleutels=clInklapSleutels(indeling);
+  const allesDicht=sleutels.every(dicht);
+  let out=`<div class="cl2-pg-samen"><span><b>${items.length}</b> ${tel(items.length).replace(/^\d+ /,'')}`+
+    (nProj?` · <b>${nProj}</b> ${nProj===1?'project':'projecten'}`:'')+
+    (nKlant?` · <b>${nKlant}</b> ${nKlant===1?'klant':'klanten'}`:'')+`</span>`+
+    /* Op een telefoon kort: daar is de knop Inklappen (subtaken) van de
+       voortgangskaart er niet, dus geen verwarring -- en de regel past dan. */
+    `<button type="button" class="cl2-pg-alles" data-action="clGroepenAlles" aria-label="${allesDicht?'Projecten uitklappen':'Projecten inklappen'}">`+
+      `<span class="cl2-pg-lang">${allesDicht?'Projecten uitklappen':'Projecten inklappen'}</span><span class="cl2-pg-kort">${allesDicht?'Uitklappen':'Inklappen'}</span></button></div>`;
+  indeling.forEach(g=>{
+    const col=g.klant?CLIENT_COLORS[g.klant.colorIdx%CLIENT_COLORS.length]:null;
+    const kDicht=dicht(g.sleutel);
+    out+=`<div class="cl2-group cl2-pg-klant${kDicht?' dicht':''}">
+      <button type="button" class="cl2-group-hdr cl2-pg-kop" data-action="clGroepWissel" data-arg1="${escapeHtml(g.sleutel)}" aria-expanded="${!kDicht}">
+        ${CL_PG_CHEV}
+        <span class="cl2-group-dot${g.klant?'':' cl2-pg-geen'}"${col?` style="background:${col.tx}"`:''}></span>
+        <span class="cl2-group-name">${g.klant?escapeHtml(g.klant.name):'Zonder klant'}</span>
+        <span class="cl2-group-count" title="${tel(g.n)}">${g.n}</span>
+        <span class="cl2-group-rule"></span>
+      </button>`;
+    if(!kDicht){
+      out+='<div class="cl2-pg-body">';
+      if(!g.metProjecten)out+=kaarten(g.projecten[0].items);
+      else g.projecten.forEach(p=>{
+        const pDicht=dicht(p.sleutel);
+        out+=`<div class="cl2-pg-proj${p.pr?'':' cl2-pg-zonder'}${pDicht?' dicht':''}">
+          <div class="cl2-pg-proj-kop">
+            <button type="button" class="cl2-pg-proj-knop" data-action="clGroepWissel" data-arg1="${escapeHtml(p.sleutel)}" aria-expanded="${!pDicht}">
+              ${CL_PG_CHEV}<span class="cl2-pg-proj-ic">${CL_PROJECT_IC}</span>
+              <span class="cl2-pg-proj-naam">${p.pr?escapeHtml(p.pr.naam):'Zonder project'}</span>
+              ${p.pr&&p.pr.status==='afgerond'?'<small class="cl2-pg-proj-af">afgerond</small>':''}
+              <span class="cl2-group-count" title="${tel(p.items.length)}">${p.items.length}</span>
+            </button>
+            ${p.pr?`<button type="button" class="cl2-iconbtn cl2-pg-open" data-action="clToonProject" data-arg1="${escapeHtml(p.pr.id)}"
+              aria-label="Project openen" title="Project openen: alleen dit project, met de specificatie">
+              <svg class="icoon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg></button>`:''}
+          </div>
+          ${pDicht?'':kaarten(p.items)}
+        </div>`;
+      });
+      out+='</div>';
+    }
+    out+='</div>';
+  });
+  return out;
+}
+
 function wireChecklistBodyEvents(body){
   /* Re-focus subtask input or edit field if active */
   if(clAddingSubtaskFor){
@@ -19865,7 +20103,7 @@ function wireChecklistBodyEvents(body){
     el.addEventListener('dragover',e=>{
       /* Vastgepind en de rest zijn twee gescheiden blokken; ertussen slepen
          zou niets doen, dus geen preventDefault → de browser weigert de drop. */
-      if(!clZelfdePinGroep(clDragId,el.dataset.id))return;
+      if(!clZelfdeSleepGroep(clDragId,el.dataset.id))return;
       e.preventDefault();
       body.querySelectorAll('.cl-item').forEach(x=>x.classList.remove('drag-above','drag-below'));
       const mid=el.getBoundingClientRect().top+el.offsetHeight/2;
@@ -19875,24 +20113,28 @@ function wireChecklistBodyEvents(body){
     el.addEventListener('drop',e=>{
       e.preventDefault();
       if(!clDragId||clDragId===clDragOver?.id)return;
-      if(!clZelfdePinGroep(clDragId,clDragOver.id))return;
+      if(!clZelfdeSleepGroep(clDragId,clDragOver.id))return;
       const items=checklistState.items;
-      const fromIdx=items.findIndex(x=>x.id===clDragId);
-      const toIdx=items.findIndex(x=>x.id===clDragOver.id);
-      if(fromIdx<0||toIdx<0)return;
-      const [moved]=items.splice(fromIdx,1);
-      const insertAt=clDragOver.above?(toIdx>fromIdx?toIdx-1:toIdx):(toIdx>fromIdx?toIdx:toIdx+1);
-      items.splice(Math.max(0,insertAt),0,moved);
+      const moved=items.find(x=>x.id===clDragId), doel=items.find(x=>x.id===clDragOver.id);
+      if(!moved||!doel)return;
       /* Hernummeren binnen de groep die je op het scherm ziet: de vastgepinde
          taken vormen één blok, de rest per prioriteit als de prio-groepen
-         aanstaan en anders over de hele lijst. */
+         aanstaan en anders over de hele lijst.
+         In de volgorde zoals hij er nú staat (op sortOrder), niet in die van
+         de array: een nieuwe taak staat achteraan in de array maar bovenaan
+         op het scherm, en sprong bij de eerste keer slepen naar onderen
+         (2026-10-16). */
       const actief=items.filter(i=>!i.archived&&!i.done);
-      const hernummer=moved.pinned
+      const groep=(moved.pinned
         ?actief.filter(i=>i.pinned)
         :(clGroepeertOpPrioriteit()
           ?actief.filter(i=>!i.pinned&&i.priority===moved.priority)
-          :actief.filter(i=>!i.pinned));
-      hernummer.forEach((i,idx)=>{i.sortOrder=idx;});
+          :actief.filter(i=>!i.pinned)))
+        .sort((a,b)=>(a.sortOrder||0)-(b.sortOrder||0));
+      if(!groep.includes(doel))return;
+      const rest=groep.filter(i=>i!==moved);
+      rest.splice(rest.indexOf(doel)+(clDragOver.above?0:1),0,moved);
+      rest.forEach((i,idx)=>{i.sortOrder=idx;});
       scheduleSave();renderChecklistModule();
     });
   });
@@ -19918,7 +20160,7 @@ function formatDeadline(iso){
   return dm;
 }
 
-function clItemHtml(item,isArchived=false){
+function clItemHtml(item,isArchived=false,{zonderPlek=false}={}){
   const cfg=CL_PRIORITY_CFG[item.priority]||CL_PRIORITY_CFG.middel;
   const today=new Date().toISOString().slice(0,10);
   const overdue=item.deadline&&!item.done&&item.deadline<today;
@@ -19997,14 +20239,15 @@ function clItemHtml(item,isArchived=false){
       ${subsDone}/${subsTotal}
     </span>`);
   }
-  if(client&&clientCol){
+  /* In de projectweergave staan klant en project al in de kop erboven. */
+  if(client&&clientCol&&!zonderPlek){
     metaBits.push(`<span class="cl2-client-tag" style="background:${clientCol.bg};color:${clientCol.tx}">
       <span class="cf-dot" style="background:${clientCol.tx}"></span>${escapeHtml(client.name)}
     </span>`);
   }
   /* Het project als label; een tik toont alleen dat project. */
   const proj=clProject(item.projectId);
-  if(proj){
+  if(proj&&!(zonderPlek&&clTaakProject(item))){
     metaBits.push(`<button type="button" class="cl2-project-tag" data-action="clToonProject" data-arg1="${escapeHtml(proj.id)}" title="Alleen dit project tonen">${CL_PROJECT_IC}${escapeHtml(proj.naam)}</button>`);
   }
   /* Uit welke mail deze taak komt: een knop die de mail opent. */
@@ -20153,6 +20396,15 @@ function clZelfdePinGroep(idA,idB){
   const a=checklistState.items.find(i=>i.id===idA);
   const b=checklistState.items.find(i=>i.id===idB);
   return !!a&&!!b&&!!a.pinned===!!b.pinned;
+}
+/* Slepen kan alleen binnen een blok dat je ziet: vastgepind of niet, en in
+   de projectweergave binnen hetzelfde project. Naar een ander project slepen
+   verplaatst de taak niet; dat doe je in het taakvenster. */
+function clZelfdeSleepGroep(idA,idB){
+  if(!clZelfdePinGroep(idA,idB))return false;
+  if(!clPerProject())return true;
+  const a=checklistState.items.find(i=>i.id===idA), b=checklistState.items.find(i=>i.id===idB);
+  return clGroepVan(a)===clGroepVan(b);
 }
 
 /* Toggle item open/collapse state */
@@ -20550,6 +20802,12 @@ function renderClOverflowMenu(){
     `${m===huidig?vink:'<span class="cl-ovf-vink"></span>'}${CL_SORT_LABELS[m]}</button>`).join('');
 
   html+='<div class="cl-ovf-scheiding"></div><div class="cl-ovf-kop">Weergave</div>';
+  html+=[['lijst','Lijst'],['project','Per project']].map(([w,l])=>{
+    const aan=(w==='project')===clPerProject();
+    return `<button type="button" role="menuitemradio" aria-checked="${aan}" data-action="clZetWeergave" data-arg1="${w}"${aan?' class="aan"':''}>`+
+      `${aan?vink:'<span class="cl-ovf-vink"></span>'}${l}</button>`;
+  }).join('');
+  html+='<div class="cl-ovf-scheiding"></div>';
   html+=`<button type="button" role="menuitem" data-action="toggleClGroupByPriority"${checklistState.groupByPriority?' class="aan"':''}>`+
     `${checklistState.groupByPriority?vink:'<span class="cl-ovf-vink"></span>'}Prioriteitsgroepen</button>`;
   if(agg.withSubs.length&&!checklistState.showArchived){
@@ -20922,7 +21180,10 @@ Object.assign(APP_ACTIONS,{
   clProjectSpec:(el,e,id)=>clProjectSpec(id),
   clProjectStatus:(el,e,id)=>clProjectStatus(id),
   clProjectMeer:(el,e,id)=>clProjectMeer(id),
-  clToonProject:(el,e,id)=>{if(e)e.stopPropagation();clFilters.projectId=id||null;renderChecklistModule();}
+  clToonProject:(el,e,id)=>{if(e)e.stopPropagation();clFilters.projectId=id||null;renderChecklistModule();},
+  clZetWeergave:(el,e,w)=>{if(el&&el.closest('#clOverflow'))closeClOverflow();clZetWeergave(w);},
+  clGroepWissel:(el,e,k)=>clGroepWissel(k),
+  clGroepenAlles:()=>clGroepenAlles()
 });
 
 /* ── Klant kiezen in het taakvenster ──

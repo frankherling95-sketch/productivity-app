@@ -1148,6 +1148,116 @@ async function runChecks() {
             return ok && pr.noteId === eerste;
           } finally { terug(); }
         }],
+        /* ── Taken per project (2026-10-16) ── */
+        ['Taken per project: open taken per klant en project met tellingen, zonder labels op de kaart; de keuze blijft op dit apparaat', async () => {
+          const terug = opzet();
+          const oudW = w.eval('JSON.stringify(clWeergave)'), oudLS = w.localStorage.getItem('herling_taken_weergave');
+          try {
+            return await opBreed(async () => {
+              w.eval(`checklistState.items.push({id:'ptd',text:'Klanttaak zonder project',done:false,priority:'laag',deadline:'',clientId:'tp1',projectId:null,subtasks:[],archived:false,sortOrder:-6,createdAt:Date.now(),updatedAt:Date.now()});clWeergave.dicht={};`);
+              w.switchModule('checklist');
+              d.getElementById('clWeergaveProject').click();
+              await new Promise(r => setTimeout(r, 30));
+              const body = d.getElementById('clBody');
+              const kop = k => body.querySelector('[data-action="clGroepWissel"][data-arg1="' + k + '"]');
+              const telt = k => kop(k) && kop(k).querySelector('.cl2-group-count').textContent.trim();
+              const klant = kop('k:tp1') && kop('k:tp1').closest('.cl2-pg-klant');
+              const proj = kop('p:tp1|pp1') && kop('p:tp1|pp1').closest('.cl2-pg-proj');
+              const zonder = kop('p:tp1|-') && kop('p:tp1|-').closest('.cl2-pg-proj');
+              const indeling = !!klant && telt('k:tp1') === '2' && telt('p:tp1|pp1') === '1' && telt('p:tp1|-') === '1' &&
+                !!proj.querySelector('.cl-item[data-id="pta"]') && !!zonder.querySelector('.cl-item[data-id="ptd"]') &&
+                /Zonder project/.test(zonder.textContent) && !klant.querySelector('.cl-item[data-id="ptb"]');
+              const kaart = proj.querySelector('.cl-item[data-id="pta"]');
+              const labelsWeg = !kaart.querySelector('.cl2-client-tag') && !kaart.querySelector('.cl2-project-tag[data-action="clToonProject"]');
+              const groepen = [...body.querySelectorAll('.cl2-pg-klant')];
+              const laatste = groepen[groepen.length - 1];
+              const zonderKlantLaatst = !!laatste.querySelector('[data-arg1="k:-"]') && !!laatste.querySelector('.cl-item[data-id="ptc"]');
+              const knop = d.getElementById('clWeergaveProject');
+              const bewaard = JSON.parse(w.localStorage.getItem('herling_taken_weergave')).weergave === 'project' &&
+                knop.classList.contains('active') && knop.getAttribute('aria-pressed') === 'true';
+              /* De pijl op de projectkop: alleen dit project, met de balk. */
+              proj.querySelector('.cl2-pg-open[data-arg1="pp1"]').click();
+              await new Promise(r => setTimeout(r, 30));
+              const openen = w.eval('clFilters.projectId') === 'pp1' && !d.getElementById('clProjectBalk').hidden &&
+                !body.querySelector('[data-arg1="k:-"]') && !!body.querySelector('.cl-item[data-id="pta"]');
+              w.eval('clFilters.projectId=null');
+              d.getElementById('clWeergaveLijst').click();
+              await new Promise(r => setTimeout(r, 30));
+              const lijst = !body.querySelector('.cl2-pg-klant') && !!body.querySelector('.cl-item[data-id="pta"] .cl2-client-tag') &&
+                JSON.parse(w.localStorage.getItem('herling_taken_weergave')).weergave === 'lijst';
+              return indeling && labelsWeg && zonderKlantLaatst && bewaard && openen && lijst;
+            });
+          } finally {
+            w.eval('clWeergave=' + oudW);
+            if (oudLS === null) w.localStorage.removeItem('herling_taken_weergave'); else w.localStorage.setItem('herling_taken_weergave', oudLS);
+            terug();
+          }
+        }],
+        ['Taken per project: een kop klapt in, en Projecten inklappen laat alleen de koppen met hun tellingen staan', async () => {
+          const terug = opzet();
+          const oudW = w.eval('JSON.stringify(clWeergave)'), oudLS = w.localStorage.getItem('herling_taken_weergave');
+          try {
+            w.eval("clWeergave={weergave:'project',dicht:{}}");
+            w.switchModule('checklist');
+            const body = d.getElementById('clBody');
+            const kop = k => body.querySelector('[data-action="clGroepWissel"][data-arg1="' + k + '"]');
+            const ziet = id => !!body.querySelector('.cl-item[data-id="' + id + '"]');
+            kop('p:tp1|pp1').click();
+            const dicht = !ziet('pta') && !!kop('p:tp1|pp1') && kop('p:tp1|pp1').getAttribute('aria-expanded') === 'false' &&
+              w.eval('clWeergave.dicht["p:tp1|pp1"]') === true && ziet('ptc');
+            kop('p:tp1|pp1').click();
+            const open = ziet('pta');
+            body.querySelector('.cl2-pg-alles').click();
+            const alleenKoppen = !body.querySelector('.cl2-pg-klant .cl-item') && kop('k:tp1').getAttribute('aria-expanded') === 'true' &&
+              kop('p:tp1|pp1').querySelector('.cl2-group-count').textContent.trim() === '1' && !!kop('k:-') &&
+              /Projecten uitklappen/.test(body.querySelector('.cl2-pg-alles').textContent);
+            body.querySelector('.cl2-pg-alles').click();
+            const weerOpen = ziet('pta') && ziet('ptc') && Object.keys(w.eval('clWeergave.dicht')).length === 0;
+            return dicht && open && alleenKoppen && weerOpen;
+          } finally {
+            w.eval('clWeergave=' + oudW);
+            if (oudLS === null) w.localStorage.removeItem('herling_taken_weergave'); else w.localStorage.setItem('herling_taken_weergave', oudLS);
+            terug();
+          }
+        }],
+        ['Slepen (handmatig): een nieuwe taak blijft bovenaan, en in Per project kan het alleen binnen het project', async () => {
+          const terug = opzet();
+          const oud = w.eval('JSON.stringify({s:checklistState.sortBy,g:checklistState.groupByPriority,w:clWeergave})');
+          try {
+            return await opBreed(async () => {
+              w.eval(`checklistState.sortBy='manual';checklistState.groupByPriority=false;clWeergave={weergave:'lijst',dicht:{}};
+                (function(){
+                  const t=(id,so,o)=>Object.assign({id,text:'Sleep '+id,done:false,priority:'middel',deadline:'',clientId:'',projectId:null,subtasks:[],archived:false,pinned:false,sortOrder:so,createdAt:Date.now(),updatedAt:Date.now()},o||{});
+                  checklistState.items.push(t('sm1',-50),t('sm2',-49),t('sm0',-51),t('pte',-48,{clientId:'tp1',projectId:'pp1'}));
+                })();`);
+              w.switchModule('checklist');
+              const el = id => d.querySelector('#clBody .cl-item[data-id="' + id + '"]');
+              const volgorde = () => [...d.querySelectorAll('#clBody .cl-item[data-id^="sm"]')].map(x => x.dataset.id).join();
+              const voor = volgorde();
+              /* Altijd onder het doel neerzetten: een clientY ver onder elke kaart
+                 werkt ook als de lijst niet is opgemaakt (leeg profiel). */
+              const sleep = (van, naar, drop) => {
+                const dt = new w.DataTransfer();
+                el(van).dispatchEvent(new w.DragEvent('dragstart', {bubbles: true, cancelable: true, dataTransfer: dt}));
+                const over = new w.DragEvent('dragover', {bubbles: true, cancelable: true, clientY: 99999, dataTransfer: dt});
+                el(naar).dispatchEvent(over);
+                if (drop) el(naar).dispatchEvent(new w.DragEvent('drop', {bubbles: true, cancelable: true, clientY: 99999, dataTransfer: dt}));
+                const v = el(van); if (v) v.dispatchEvent(new w.DragEvent('dragend', {bubbles: true, dataTransfer: dt}));
+                return over.defaultPrevented;
+              };
+              sleep('sm1', 'sm2', true);
+              const na = volgorde();
+              /* Per project: tussen twee groepen niet, binnen een project wel. */
+              w.clZetWeergave('project');
+              const anderProject = sleep('pta', 'ptc', false);
+              const zelfdeProject = sleep('pta', 'pte', false);
+              return voor === 'sm0,sm1,sm2' && na === 'sm0,sm2,sm1' && !anderProject && zelfdeProject;
+            });
+          } finally {
+            w.eval('(function(o){checklistState.sortBy=o.s;checklistState.groupByPriority=o.g;clWeergave=o.w;clDragId=null;})(' + oud + ')');
+            terug();
+          }
+        }],
         ['Projecten: in het taakvenster vult een project de klant in, een andere klant haalt het weg, en opslaan bewaart het', async () => {
           const terug = opzet();
           try {

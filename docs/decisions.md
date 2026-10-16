@@ -8372,3 +8372,48 @@ terugzetten, ook niet als het wilde.
 **Niet doen.** Afbeeldingen als data-URL aan het model geven (honderden kB
 per stuk, en het model kan ze toch niet "schrijven"), of een afbeelding laten
 vallen omdat het model zijn marker vergat.
+
+## 2026-10-16 · Taken per project (v2.92)
+
+**Probleem.** De Taken-lijst ordent op prioriteit en sortering; hoeveel er per
+klant en per project openstaat, zag je alleen door te filteren, één project
+tegelijk. Frank wil dat in één oogopslag.
+
+**Beslissing.**
+- Een tweede weergave naast de lijst: *Lijst* | *Per project* in de
+  bovenbalk (op een telefoon in het ⋯-menu, zoals de sortering). Per
+  project staan de taken per klant -- in de volgorde van de klantwisselaar,
+  *Zonder klant* als laatste -- en daaronder per project, op naam, afgeronde
+  projecten achteraan en *Zonder project* onderaan. Heeft een klant geen
+  projecten, dan staan de taken direct onder de klant.
+- Elke kop heeft een telling (wat er na de filters openstaat) en klapt in;
+  *Projecten inklappen* laat alleen de koppen staan: het overzicht. Een
+  pijl op de projectkop opent het project (filter + projectbalk).
+- Klant- en projectlabel gaan in deze weergave van de kaart: die staan in de
+  kop. Binnen een project geldt de gekozen sortering, vastgepind eerst, en met
+  Prio-groepen aan eerst op prioriteit (zonder tussenkopjes). Het archief en
+  de filters werken hetzelfde; *Afgerond* blijft onderaan.
+- De keuze en wat er dicht staat bewaart dit apparaat (`herling_taken_weergave`),
+  niet Drive: een weergave is geen gegeven, en op een telefoon wil je
+  misschien iets anders (zoals *Per klant* op Opdrachten).
+- Een taak waarvan het project weg is of bij een andere klant hoort, telt als
+  zonder project (`clTaakProject`, zoals `noteProject` in Notities).
+- Slepen kan in deze weergave alleen binnen hetzelfde project
+  (`clZelfdeSleepGroep`); naar een ander project verplaatsen doe je in het
+  taakvenster.
+
+**Daarbij gevonden.** Slepen (sortering *Handmatig*) nummerde de groep op
+volgorde van de array in plaats van zoals hij op het scherm stond. Een nieuwe
+taak staat achteraan in de array maar bovenaan op het scherm (laagste
+`sortOrder`), en sprong bij de eerstvolgende sleepbeweging naar onderen. Het
+hernummeren gaat nu op `sortOrder`.
+
+**Bestanden.** `index.html` (bovenbalk, `clWeergave`, `clPerProject`,
+`clProjectIndeling`, `renderProjectGroepen`, `clGroepWissel`,
+`clGroepenAlles`, `clZelfdeSleepGroep`, `clItemHtml` met `zonderPlek`, ⋯-menu,
+CSS `.cl2-pg-*`), `test.html` (drie tests), `sw.js`, `CLAUDE.md`,
+`docs/stijlgids.md`.
+
+**Niet doen.** De weergave in `checklistState` zetten (dan wordt elke klik op
+een kop een wijziging voor Drive), of de klant- en projectlabels op de kaart
+laten staan naast een kop die hetzelfde zegt.
