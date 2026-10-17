@@ -271,8 +271,8 @@ De tweede weergave van Taken (*Lijst* | *Per project*, in de bovenbalk een
 
 | | |
 |---|---|
-| samenvatting | `.cl2-pg-samen`: *10 open taken · 3 projecten · 4 klanten* in `--fs-klein` muted, de getallen 600 `--text`; rechts *Projecten inklappen* (`--fs-klein` / 600 muted, tekstknop zonder rand). Op een telefoon kort: *Inklappen* — de knop *Inklappen* (subtaken) van de voortgangskaart staat daar niet |
-| klantkop | de kop van een prioriteitsgroep (`.cl2-group-hdr`: micro-kapitalen / 700, telpil, lijn), als knop die inklapt: een pijl van 12px (`--text-hint`, dicht = −90°), een stip in de klantkleur (`CLIENT_COLORS[].tx`), naam in `--text`. Zonder klant: een open stip |
+| samenvatting | `.cl2-pg-samen`: *10 open taken · 3 projecten · 4 klanten* in `--fs-klein` muted, de getallen 600 `--text`; rechts een `.cl2-seg` met drie niveaus: *Klanten* (alleen de klanten met hun telling), *Projecten* (klanten open, projecten dicht), *Alles*; het niveau waarin je zit licht op, na zelf klikken geen. Op een telefoon op een eigen regel over de volle breedte, zoals de schakelaars in het filterpaneel |
+| klantkop | de kop van een prioriteitsgroep (`.cl2-group-hdr`: micro-kapitalen / 700, telpil, lijn); pijl, stip en naam vormen de knop die inklapt: een pijl van 12px (`--text-hint`, dicht = −90°), een stip in de klantkleur (`CLIENT_COLORS[].tx`), naam in `--text`. Zonder klant: een open stip. Achter de lijn de klapknop voor die klant (`.cl2-pg-klapknop`, `--fs-klein` / 600 muted, zonder rand): *Alles uitklappen*, of open *Projecten inklappen* (zonder projecten: *Inklappen*, de hele klant); op een telefoon *Uitklappen* / *Inklappen* op `var(--tap)` |
 | projectkop | `.cl2-pg-proj-knop`: pijl, het mapje (14px muted) en de naam (`--fs-basis` / 600), dezelfde telpil; *Zonder project* in 500 muted met een vaag mapje; *afgerond* in `--fs-micro`. Rechts een pijl ›, een icoonknop (`.cl2-iconbtn`, op een telefoon de gedeelde regel van `var(--tap)`) die het project opent: het projectfilter met de projectbalk |
 | inspringen | projectkoppen en kaarten 20px (telefoon 8px) onder de klant |
 | kaart | zonder klant- en projectlabel: die staan in de kop |

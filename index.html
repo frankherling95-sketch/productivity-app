@@ -4660,29 +4660,33 @@ textarea { line-height: 1.6; resize: vertical; }
    op de maat van een kaarttitel, met het mapje en dezelfde telpil. Taken en
    projectkoppen springen 20px in, tot onder de stip van de klant. */
 .cl2-pg-samen {
-  display: flex; align-items: center; gap: 12px;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px;
   margin: 0 2px; font-size: var(--fs-klein); color: var(--text-muted);
 }
+.cl2-pg-niveau { margin-left: auto; }
 .cl2-pg-samen b { font-family: var(--font-cijfer); font-variant-numeric: tabular-nums; font-weight: 600; color: var(--text); }
-.cl2-pg-alles {
-  margin-left: auto; padding: 4px 2px; border: 0; background: none; cursor: pointer;
-  font: inherit; font-weight: 600; color: var(--text-muted);
+/* De knop op de klantregel: tekst zonder rand, achter de lijn. */
+.cl2-pg-klapknop {
+  flex: none; padding: 4px 2px; border: 0; background: none; cursor: pointer; white-space: nowrap;
+  font-family: inherit; font-size: var(--fs-klein); font-weight: 600; color: var(--text-muted);
   transition: color var(--duur-kort) var(--ease);
 }
-.cl2-pg-alles:hover { color: var(--text); }
-.cl2-pg-alles { white-space: nowrap; }
+.cl2-pg-klapknop:hover { color: var(--text); }
 .cl2-pg-kort { display: none; }
+/* De kop zelf (pijl, stip, naam, telling) is de knop die de klant open- en
+   dichtklapt; de lijn en de klapknop staan ernaast in .cl2-group-hdr. */
 .cl2-pg-kop {
-  width: 100%; min-height: 28px; border: 0; background: none; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 8px; min-width: 0; min-height: 28px;
+  padding: 0; border: 0; background: none; cursor: pointer;
   font: inherit; color: var(--text); text-align: left;
 }
-.cl2-pg-kop .cl2-group-name { color: var(--text); }
+.cl2-pg-kop .cl2-group-name { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cl2-pg-kop:hover .cl2-group-count, .cl2-pg-proj-knop:hover .cl2-group-count { background: var(--surface3); }
 .cl2-pg-chev {
   width: 12px; height: 12px; flex: none; color: var(--text-hint);
   transition: transform var(--duur-kort) var(--ease);
 }
-.dicht > .cl2-pg-kop .cl2-pg-chev, .dicht > .cl2-pg-proj-kop .cl2-pg-chev { transform: rotate(-90deg); }
+.dicht > .cl2-pg-klantkop .cl2-pg-chev, .dicht > .cl2-pg-proj-kop .cl2-pg-chev { transform: rotate(-90deg); }
 /* Zonder klant: een open stip, zoals het gestreepte blokje in Notities. */
 .cl2-group-dot.cl2-pg-geen { background: transparent; box-shadow: inset 0 0 0 1.5px var(--text-hint); }
 .cl2-pg-body { padding-left: 20px; }
@@ -6824,7 +6828,11 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
   .cl2-scroll { padding: 14px 12px 24px !important; }
   /* Per project: koppen om aan te tikken, en minder inspringen -- de kaarten
      zijn op 375px al smal genoeg. */
-  .cl2-pg-kop, .cl2-pg-proj-knop, .cl2-pg-alles { min-height: var(--tap); }
+  .cl2-pg-kop, .cl2-pg-proj-knop, .cl2-pg-klapknop { min-height: var(--tap); }
+  /* De drie niveaus op een eigen regel, over de volle breedte -- zoals de
+     schakelaars in het filterpaneel. */
+  .cl2-pg-niveau { flex: 1 1 100%; display: flex; margin-left: 0; }
+  .cl2-pg-niveau .cl2-seg-btn { flex: 1 1 0; }
   .cl2-pg-lang { display: none; }
   .cl2-pg-kort { display: inline; }
   .cl2-pg-body { padding-left: 8px; }
@@ -19963,8 +19971,10 @@ function renderPriorityGroups(items,{isArchived,showGroupHeaders}){
    Klant- en projectlabel gaan van de kaart af: die staan al in de kop.
    Binnen een project geldt de gekozen sortering, vastgepind eerst, en met
    Prio-groepen aan eerst op prioriteit (zonder tussenkopjes). Elke kop
-   klapt in; "Projecten inklappen" laat alleen de koppen met hun tellingen
-   staan -- het overzicht. Wat dicht staat onthoudt dit apparaat. */
+   klapt in. Bovenaan kies je hoe ver alles open staat: Klanten (alleen de
+   klanten met hun tellingen), Projecten (klanten open, projecten dicht) of
+   Alles; per klant doet een knop op de klantregel hetzelfde voor die ene
+   klant (2026-10-17). Wat dicht staat onthoudt dit apparaat. */
 function clPerProject(){return clWeergave.weergave==='project';}
 function clWeergaveBewaar(){
   /* Koppen van klanten en projecten die er niet meer zijn ruimen we op. */
@@ -20023,25 +20033,40 @@ function clProjectIndeling(items){
       metProjecten:projecten.some(p=>p.pr)};
   });
 }
-/* Welke koppen "Projecten inklappen" dichtdoet: de projecten, en de klanten
-   zonder projecten (daar staan de taken direct onder de klant). */
-function clInklapSleutels(indeling){
-  const uit=[];
-  indeling.forEach(g=>{if(g.metProjecten)g.projecten.forEach(p=>uit.push(p.sleutel));else uit.push(g.sleutel);});
-  return uit;
+/* ── Hoe ver het open staat (2026-10-17) ──
+   Drie niveaus: 'klanten' (de klant dicht), 'projecten' (de klant open, al
+   zijn projecten dicht) en 'alles'. Een klant zonder projecten heeft geen
+   projectniveau: daar staan de taken direct onder de klant, dus op
+   'projecten' staat hij dicht. Op 'klanten' gaan de projecten mee dicht,
+   zodat een klant openklikken eerst zijn projecten met hun tellingen toont. */
+function clKlantNiveau(g){
+  const d=clWeergave.dicht;
+  if(d[g.sleutel])return 'klanten';
+  if(!g.metProjecten)return 'alles';
+  const dicht=g.projecten.filter(p=>d[p.sleutel]).length;
+  return dicht===g.projecten.length?'projecten':dicht===0?'alles':'';
 }
-function clGroepenAlles(){
+/* Het niveau van de hele weergave, of '' als het per klant verschilt. */
+function clNiveau(indeling){
+  const n=indeling.map(clKlantNiveau);
+  if(n.every(x=>x==='klanten'))return 'klanten';
+  if(n.every(x=>x==='alles'))return 'alles';
+  if(indeling.every((g,i)=>n[i]===(g.metProjecten?'projecten':'klanten')))return 'projecten';
+  return '';
+}
+/* Zet alles -- of één klant (sleutel 'k:…') -- op een niveau. */
+function clZetNiveau(niveau,sleutel){
   const items=checklistState.showArchived?takenZichtbaar().filter(i=>i.archived):takenZichtbaar().filter(i=>!i.archived&&!i.done);
-  const indeling=clProjectIndeling(items);
-  const sleutels=clInklapSleutels(indeling);
-  const allesDicht=sleutels.length&&sleutels.every(k=>clWeergave.dicht[k]);
-  if(allesDicht)clWeergave.dicht={};
-  else{
-    sleutels.forEach(k=>{clWeergave.dicht[k]=true;});
-    /* Een dichte klant met projecten gaat open: anders zie je de tellingen
-       per project niet. */
-    indeling.forEach(g=>{if(g.metProjecten)delete clWeergave.dicht[g.sleutel];});
-  }
+  const d=clWeergave.dicht;
+  clProjectIndeling(items).forEach(g=>{
+    if(sleutel&&g.sleutel!==sleutel)return;
+    const projecten=g.metProjecten?g.projecten.map(p=>p.sleutel):[];
+    if(niveau==='klanten'){d[g.sleutel]=true;projecten.forEach(k=>{d[k]=true;});}
+    else if(niveau==='projecten'){
+      if(g.metProjecten){delete d[g.sleutel];projecten.forEach(k=>{d[k]=true;});}
+      else d[g.sleutel]=true;
+    }else{delete d[g.sleutel];projecten.forEach(k=>{delete d[k];});}
+  });
   clWeergaveBewaar();renderChecklistModule();
 }
 const CL_PG_CHEV='<svg class="cl2-pg-chev" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -20053,26 +20078,40 @@ function renderProjectGroepen(items,{isArchived}){
   const kaarten=lijst=>lijst.map(i=>clItemHtml(i,isArchived,{zonderPlek:true})).join('');
   const nProj=indeling.reduce((s,g)=>s+g.projecten.filter(p=>p.pr).length,0);
   const nKlant=indeling.filter(g=>g.klant).length;
-  const sleutels=clInklapSleutels(indeling);
-  const allesDicht=sleutels.every(dicht);
+  const niveau=clNiveau(indeling);
   let out=`<div class="cl2-pg-samen"><span><b>${items.length}</b> ${tel(items.length).replace(/^\d+ /,'')}`+
     (nProj?` · <b>${nProj}</b> ${nProj===1?'project':'projecten'}`:'')+
     (nKlant?` · <b>${nKlant}</b> ${nKlant===1?'klant':'klanten'}`:'')+`</span>`+
-    /* Op een telefoon kort: daar is de knop Inklappen (subtaken) van de
-       voortgangskaart er niet, dus geen verwarring -- en de regel past dan. */
-    `<button type="button" class="cl2-pg-alles" data-action="clGroepenAlles" aria-label="${allesDicht?'Projecten uitklappen':'Projecten inklappen'}">`+
-      `<span class="cl2-pg-lang">${allesDicht?'Projecten uitklappen':'Projecten inklappen'}</span><span class="cl2-pg-kort">${allesDicht?'Uitklappen':'Inklappen'}</span></button></div>`;
+    /* Hoe ver alles open staat: dezelfde schakelaar als Lijst | Per project.
+       Klik je zelf koppen open of dicht, dan licht er geen van de drie op. */
+    `<div class="cl2-seg cl2-pg-niveau" role="group" aria-label="Uitklappen tot">`+
+      [['klanten','Klanten','Alleen de klanten, met hun aantallen'],['projecten','Projecten','De klanten met hun projecten, de taken dicht'],
+       ['alles','Alles','Alles open, met de taken']].map(([w,l,uitleg])=>
+        `<button type="button" class="cl2-seg-btn${niveau===w?' active':''}" data-action="clZetNiveau" data-arg1="${w}" aria-pressed="${niveau===w}" title="${uitleg}">${l}</button>`).join('')+
+    `</div></div>`;
   indeling.forEach(g=>{
     const col=g.klant?CLIENT_COLORS[g.klant.colorIdx%CLIENT_COLORS.length]:null;
     const kDicht=dicht(g.sleutel);
     out+=`<div class="cl2-group cl2-pg-klant${kDicht?' dicht':''}">
-      <button type="button" class="cl2-group-hdr cl2-pg-kop" data-action="clGroepWissel" data-arg1="${escapeHtml(g.sleutel)}" aria-expanded="${!kDicht}">
-        ${CL_PG_CHEV}
-        <span class="cl2-group-dot${g.klant?'':' cl2-pg-geen'}"${col?` style="background:${col.tx}"`:''}></span>
-        <span class="cl2-group-name">${g.klant?escapeHtml(g.klant.name):'Zonder klant'}</span>
-        <span class="cl2-group-count" title="${tel(g.n)}">${g.n}</span>
+      <div class="cl2-group-hdr cl2-pg-klantkop">
+        <button type="button" class="cl2-pg-kop" data-action="clGroepWissel" data-arg1="${escapeHtml(g.sleutel)}" aria-expanded="${!kDicht}">
+          ${CL_PG_CHEV}
+          <span class="cl2-group-dot${g.klant?'':' cl2-pg-geen'}"${col?` style="background:${col.tx}"`:''}></span>
+          <span class="cl2-group-name">${g.klant?escapeHtml(g.klant.name):'Zonder klant'}</span>
+          <span class="cl2-group-count" title="${tel(g.n)}">${g.n}</span>
+        </button>
         <span class="cl2-group-rule"></span>
-      </button>`;
+        ${(()=>{
+          /* Per klant alles open, of terug naar zijn projecten. Een klant
+             zonder projecten klapt in zijn geheel dicht: daar staan de taken
+             direct onder de klant. Op elke klantregel staat de knop, zodat de
+             rijen gelijk ogen. */
+          const open=clKlantNiveau(g)==='alles', naar=open?(g.metProjecten?'projecten':'klanten'):'alles';
+          const lang=open?(g.metProjecten?'Projecten inklappen':'Inklappen'):'Alles uitklappen', kort=open?'Inklappen':'Uitklappen';
+          return `<button type="button" class="cl2-pg-klapknop" data-action="clZetNiveau" data-arg1="${naar}" data-arg2="${escapeHtml(g.sleutel)}"
+            aria-label="${lang}: ${escapeHtml(g.klant?g.klant.name:'Zonder klant')}"><span class="cl2-pg-lang">${lang}</span><span class="cl2-pg-kort">${kort}</span></button>`;
+        })()}
+      </div>`;
     if(!kDicht){
       out+='<div class="cl2-pg-body">';
       if(!g.metProjecten)out+=kaarten(g.projecten[0].items);
@@ -21288,7 +21327,7 @@ Object.assign(APP_ACTIONS,{
   clNewToelWissel:()=>clNewToelWissel(),
   clZetWeergave:(el,e,w)=>{if(el&&el.closest('#clOverflow'))closeClOverflow();clZetWeergave(w);},
   clGroepWissel:(el,e,k)=>clGroepWissel(k),
-  clGroepenAlles:()=>clGroepenAlles()
+  clZetNiveau:(el,e,niveau,sleutel)=>clZetNiveau(niveau,sleutel)
 });
 
 /* ── Klant kiezen in het taakvenster ──

@@ -1193,7 +1193,7 @@ async function runChecks() {
             terug();
           }
         }],
-        ['Taken per project: een kop klapt in, en Projecten inklappen laat alleen de koppen met hun tellingen staan', async () => {
+        ['Taken per project: koppen klappen in; Klanten / Projecten / Alles bovenaan, en per klant een knop op de klantregel', async () => {
           const terug = opzet();
           const oudW = w.eval('JSON.stringify(clWeergave)'), oudLS = w.localStorage.getItem('herling_taken_weergave');
           try {
@@ -1207,13 +1207,37 @@ async function runChecks() {
               w.eval('clWeergave.dicht["p:tp1|pp1"]') === true && ziet('ptc');
             kop('p:tp1|pp1').click();
             const open = ziet('pta');
-            body.querySelector('.cl2-pg-alles').click();
-            const alleenKoppen = !body.querySelector('.cl2-pg-klant .cl-item') && kop('k:tp1').getAttribute('aria-expanded') === 'true' &&
-              kop('p:tp1|pp1').querySelector('.cl2-group-count').textContent.trim() === '1' && !!kop('k:-') &&
-              /Projecten uitklappen/.test(body.querySelector('.cl2-pg-alles').textContent);
-            body.querySelector('.cl2-pg-alles').click();
-            const weerOpen = ziet('pta') && ziet('ptc') && Object.keys(w.eval('clWeergave.dicht')).length === 0;
-            return dicht && open && alleenKoppen && weerOpen;
+            const niveau = n => body.querySelector('.cl2-pg-niveau [data-arg1="' + n + '"]');
+            const klantKnop = () => body.querySelector('.cl2-pg-klapknop[data-arg2="k:tp1"]');
+            /* Klanten: alleen de klanten, met hun telling. */
+            niveau('klanten').click();
+            const alleenKlanten = !body.querySelector('.cl2-pg-klant .cl-item') && !body.querySelector('.cl2-pg-proj') &&
+              kop('k:tp1').getAttribute('aria-expanded') === 'false' && kop('k:tp1').querySelector('.cl2-group-count').textContent.trim() === '1' &&
+              kop('k:-').getAttribute('aria-expanded') === 'false' && niveau('klanten').classList.contains('active');
+            /* Een klant openklikken: eerst zijn projecten, de taken nog dicht. (Welk
+               niveau dan oplicht hangt af van de andere klanten in deze browser.) */
+            kop('k:tp1').click();
+            const projectenEerst = !!kop('p:tp1|pp1') && kop('p:tp1|pp1').getAttribute('aria-expanded') === 'false' && !ziet('pta') &&
+              !niveau('klanten').classList.contains('active');
+            /* De knop op de klantregel: alles open voor deze klant, en weer terug naar zijn projecten. */
+            const knopUit = /Alles uitklappen/.test(klantKnop().textContent);
+            klantKnop().click();
+            const klantOpen = ziet('pta') && !ziet('ptc') && /Projecten inklappen/.test(klantKnop().textContent);
+            klantKnop().click();
+            const klantTerug = !ziet('pta') && !!kop('p:tp1|pp1') && kop('k:tp1').getAttribute('aria-expanded') === 'true';
+            /* Projecten: klanten open, projecten dicht; een klant zonder projecten dicht. */
+            niveau('projecten').click();
+            const projecten = kop('k:tp1').getAttribute('aria-expanded') === 'true' && kop('p:tp1|pp1').getAttribute('aria-expanded') === 'false' &&
+              kop('k:-').getAttribute('aria-expanded') === 'false' && niveau('projecten').classList.contains('active');
+            niveau('alles').click();
+            const weerOpen = ziet('pta') && ziet('ptc') && niveau('alles').classList.contains('active') &&
+              !Object.values(w.eval('clWeergave.dicht')).some(Boolean);
+            /* Een klant zonder projecten: de knop klapt de hele klant dicht. */
+            const zonderKnop = body.querySelector('.cl2-pg-klapknop[data-arg2="k:-"]');
+            const zonderOk = !!zonderKnop && /Inklappen/.test(zonderKnop.textContent) && !/Projecten/.test(zonderKnop.textContent);
+            zonderKnop.click();
+            const zonderDicht = !ziet('ptc') && kop('k:-').getAttribute('aria-expanded') === 'false' && ziet('pta');
+            return dicht && open && alleenKlanten && projectenEerst && knopUit && klantOpen && klantTerug && projecten && weerOpen && zonderOk && zonderDicht;
           } finally {
             w.eval('clWeergave=' + oudW);
             if (oudLS === null) w.localStorage.removeItem('herling_taken_weergave'); else w.localStorage.setItem('herling_taken_weergave', oudLS);
