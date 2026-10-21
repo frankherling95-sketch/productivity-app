@@ -2041,6 +2041,28 @@ async function runChecks() {
         w.aiChatSluit();
       }
     }],
+    ['Onderbalk (telefoon): vijf modules en Herling AI, alleen iconen; het vak van Herling AI opent het paneel en staat dan aan', () => {
+      const balk = d.getElementById('mobileBottomNav');
+      const vakken = [...balk.querySelectorAll('.mobile-nav-tab')];
+      const namen = vakken.map(v => v.getAttribute('aria-label')).join();
+      const geenLabels = vakken.every(v => ![...v.querySelectorAll('span')].some(s => !s.classList.contains('mobile-nav-badge')));
+      const ai = d.getElementById('mobileNavAi');
+      const sterren = !!ai.querySelector('.sp-g') && !!ai.querySelector('.sp-k');
+      const wasOpen = d.body.classList.contains('aic-open');
+      try {
+        ai.click();
+        const open = d.body.classList.contains('aic-open');
+        /* Het tellertje van Taken volgt dat van de zijbalk, en is dan ook echt te zien. */
+        const zij = d.getElementById('navBadgeChecklist'), mob = d.getElementById('mobileNavBadgeChecklist');
+        const oudTel = zij.textContent;
+        zij.textContent = '3'; w.updateMobileNavBadges();
+        const tel = mob.textContent === '3' && w.getComputedStyle(mob).display !== 'none';
+        zij.textContent = ''; w.updateMobileNavBadges();
+        const weg = w.getComputedStyle(mob).display === 'none';
+        zij.textContent = oudTel; w.updateMobileNavBadges();
+        return namen === 'Dashboard,Notities,Taken,Uren,Facturen,Herling AI' && geenLabels && sterren && open && tel && weg;
+      } finally { if (!wasOpen) w.aiChatSluit(); }
+    }],
     ['Herling AI: de naam in de kop, op de knoppen en in de systeeminstructie; het vonkje ademt zolang hij nadenkt', () => {
       const kop = d.querySelector('#aiChatModal .aic-kop h3').textContent.trim();
       const knoppen = ['aiStarter', 'sbAiBtn'].every(id => d.getElementById(id).getAttribute('aria-label') === 'Herling AI') &&
@@ -3339,7 +3361,7 @@ async function runChecks() {
         const oud = w.location.hash;
         try {
           const zij = d.querySelector('.nav-item[data-mod="checklist"] .nav-label').textContent.trim();
-          const onder = d.querySelector('.mobile-nav-tab[data-mod="checklist"] span').textContent.trim();
+          const onder = d.querySelector('.mobile-nav-tab[data-mod="checklist"]').getAttribute('aria-label');
           const titel = d.querySelector('#mod-checklist .cl2-title').textContent.trim();
           w.switchModule('checklist');
           const adres = w.location.hash;
