@@ -596,9 +596,9 @@ async function runChecks() {
        Voorstel → jouw klik → uitvoeren → ongedaan maken. Alles via een
        nagebootste fetch of rechtstreeks op het voorstel; geen echte aanroep. */
     /* Zonder account: zes acties (sinds 2026-10-12 ook project_aanmaken) en twee keer notities (zoeken, lezen). */
-    ['Acties: acht gereedschappen zonder account, strikt, elk veld verplicht', () => zonderAccounts(() => {
+    ['Acties: negen gereedschappen zonder account, strikt, elk veld verplicht', () => zonderAccounts(() => {
       const g = w.aiActieGereedschap();
-      return g.length === 8 && g.every(t => t.strict === true && t.input_schema.additionalProperties === false &&
+      return g.length === 9 && g.every(t => t.strict === true && t.input_schema.additionalProperties === false &&
         Object.keys(t.input_schema.properties).every(k => t.input_schema.required.includes(k)) && t.description);
     })],
     /* Met een gekoppeld account komen er drie acties en drie keer opzoeken
@@ -606,7 +606,7 @@ async function runChecks() {
     ['Acties: met een account ook agenda en mail, ook strikt', () => metGoogle(() => {
       const g = w.aiActieGereedschap();
       const namen = g.map(t => t.name);
-      return g.length === 14 && ['afspraak_maken', 'mail_opruimen', 'mail_concept', 'agenda_bekijken', 'mail_zoeken', 'mail_lezen']
+      return g.length === 15 && ['afspraak_maken', 'mail_opruimen', 'mail_concept', 'agenda_bekijken', 'mail_zoeken', 'mail_lezen']
         .every(n => namen.includes(n)) && g.every(t => t.strict === true && t.input_schema.additionalProperties === false &&
         Object.keys(t.input_schema.properties).every(k => t.input_schema.required.includes(k)));
     })],
@@ -645,7 +645,7 @@ async function runChecks() {
       } catch (e) { fout = e.message; }
       finally { w.fetch = oudFetch; w._aiBumpUsage = oudTel; }
       const actie = stukken.find(s => typeof s !== 'string');
-      return !fout && body.tools.length === 8 && !JSON.stringify(body).includes(naam) &&
+      return !fout && body.tools.length === 9 && !JSON.stringify(body).includes(naam) &&
         stukken.filter(s => typeof s === 'string').join('') === 'Ik zet het klaar.' &&
         actie && actie.naam === 'taak_toevoegen' && actie.input.klant === naam;
     })],
@@ -1354,6 +1354,78 @@ async function runChecks() {
             w.eval('(function(o){clFilters.period=o.p;clFilters.search=o.s;clDoneExpanded=o.d;})(' + oud + ')');
             terug();
           }
+        }],
+        ['Toelichting ter plekke: toevoegen onder de taak, Ctrl+Enter bewaart, Bewerken past aan, Escape annuleert, ook via het ⋯-menu', async () => {
+          const terug = opzet();
+          const oud = w.eval('JSON.stringify({o:clItemOpen})');
+          try {
+            w.eval("clItemOpen={ptc:true};clToelEdit=null;clToelConcept={};");
+            w.switchModule('checklist');
+            const kaart = () => d.querySelector('#clBody .cl-item[data-id="ptc"]');
+            const vak = () => d.querySelector('[data-toel-invoer="ptc"]');
+            const taak = () => w.eval('checklistState.items').find(i => i.id === 'ptc');
+            const toets = (el, key, ctrl) => el.dispatchEvent(new w.KeyboardEvent('keydown', {key, ctrlKey: !!ctrl, bubbles: true, cancelable: true}));
+            /* 1. Nog geen toelichting: de regel onder de opengeklapte taak. */
+            kaart().querySelector('.cl2-toel-nieuw').click();
+            const open = !!vak() && vak().value === '' && !kaart().hasAttribute('draggable') && !kaart().querySelector('.cl2-toel-nieuw');
+            vak().value = 'Eerst de **uren** nalopen.'; vak().dispatchEvent(new w.Event('input', {bubbles: true}));
+            toets(vak(), 'Enter', true);
+            const bewaard = taak().toelichting === 'Eerst de **uren** nalopen.' && !vak() &&
+              !!kaart().querySelector('.cl2-toel-tekst strong') && !!kaart().querySelector('.cl2-toel-tag.open');
+            /* 2. Bewerken; Escape laat alles staan. */
+            kaart().querySelector('[data-action="clToelBewerk"]').click();
+            const metTekst = !!vak() && vak().value === 'Eerst de **uren** nalopen.';
+            vak().value = 'Iets anders'; vak().dispatchEvent(new w.Event('input', {bubbles: true}));
+            toets(vak(), 'Escape');
+            const geannuleerd = !vak() && taak().toelichting === 'Eerst de **uren** nalopen.';
+            /* 3. Leegmaken en Opslaan haalt hem weg. */
+            kaart().querySelector('[data-action="clToelBewerk"]').click();
+            vak().value = ''; vak().dispatchEvent(new w.Event('input', {bubbles: true}));
+            kaart().querySelector('[data-action="clToelOpslaan"]').click();
+            const weg = !('toelichting' in taak()) && !kaart().querySelector('.cl2-toel-tag');
+            /* 4. Het ⋯-menu biedt hem aan; Annuleren sluit het vak. */
+            w.toggleClItemMenu('ptc');
+            const menuKnop = d.querySelector('#clItemMenu [data-action="clMenuToel"]');
+            const menu = !!menuKnop && menuKnop.textContent.trim() === 'Toelichting toevoegen';
+            menuKnop.click();
+            const viaMenu = !!vak() && !d.getElementById('clItemMenu');
+            kaart().querySelector('[data-action="clToelAnnuleer"]').click();
+            const dicht = !vak() && w.eval('clToelEdit') === null;
+            return open && bewaard && metTekst && geannuleerd && weg && menu && viaMenu && dicht;
+          } finally {
+            w.eval('(function(o){clItemOpen=o.o;clToelEdit=null;clToelConcept={};closeClItemMenu();})(' + oud + ')');
+            terug();
+          }
+        }],
+        ['Chat: taak_bewerken past titel, deadline, prioriteit, project en toelichting aan, toont alleen wat verandert, en ongedaan maken zet alles terug', () => {
+          const terug = opzet();
+          try {
+            const taak = () => w.eval('checklistState.items').find(i => i.id === 'pta');
+            const stel = inv => w.aiActieVoorstel({naam: 'taak_bewerken', input: Object.assign({taak_id: 'pta', titel: 'Projtaak A', nieuwe_titel: '',
+              deadline: '', prioriteit: '', klant: '', project: '', toelichting: '', toelichting_wijze: 'vervangen'}, inv)});
+            const niets = stel({}).fout === 'Er verandert niets aan deze taak.';
+            const onbekend = stel({taak_id: 'bestaatniet', titel: 'Bestaat niet'}).fout === 'Deze taak staat niet (meer) in Taken.';
+            const v = stel({nieuwe_titel: 'Projtaak A2', deadline: '2030-01-15', prioriteit: 'laag', project: 'geen', toelichting: 'Eerste regel'});
+            const labels = v.regels.map(r => r[0]).join();
+            const kaartOk = !v.fout && labels === 'Taak,Titel,Deadline,Prioriteit,Project,Toelichting';
+            const r = v.doe();
+            const t = taak();
+            const gedaan = t.text === 'Projtaak A2' && t.deadline === '2030-01-15' && t.priority === 'laag' && t.projectId === null &&
+              t.clientId === 'tp1' && t.toelichting === 'Eerste regel';
+            r.terug();
+            const t2 = taak();
+            const terugOk = t2.text === 'Projtaak A' && t2.deadline === '' && t2.priority === 'hoog' && t2.projectId === 'pp1' && !('toelichting' in t2);
+            /* Aanvullen zet de tekst onder de bestaande; weghalen haalt hem weg. */
+            w.eval("checklistState.items.find(i=>i.id==='pta').toelichting='Oud'");
+            const va = stel({toelichting: 'Nieuw', toelichting_wijze: 'aanvullen'});
+            const plus = (va.regels.find(x => x[0] === 'Toelichting') || [])[1] === '+ Nieuw';
+            va.doe();
+            const aangevuld = taak().toelichting === 'Oud\n\nNieuw';
+            stel({toelichting_wijze: 'weghalen'}).doe();
+            const weggehaald = !('toelichting' in taak());
+            const gereedschap = w.aiActieGereedschap().some(x => x.name === 'taak_bewerken');
+            return niets && onbekend && kaartOk && gedaan && terugOk && plus && aangevuld && weggehaald && gereedschap;
+          } finally { terug(); }
         }],
         ['Projecten: in het taakvenster vult een project de klant in, een andere klant haalt het weg, en opslaan bewaart het', async () => {
           const terug = opzet();
