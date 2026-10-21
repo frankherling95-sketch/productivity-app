@@ -4456,14 +4456,14 @@ textarea { line-height: 1.6; resize: vertical; }
 .cl2-newitem-toelknop[aria-expanded="true"] { background: var(--surface2); }
 .cl2-newitem-toelknop svg { width: 12px; height: 12px; flex: none; }
 .cl2-newitem-toel { padding-left: 28px; }
-.cl2-newitem-toel textarea {
+.cl2-newitem-toel textarea, .cl2-toel-invoer {
   display: block; width: 100%; min-height: 72px; box-sizing: border-box; resize: vertical;
   padding: 8px 10px; border: 1px solid var(--border-strong); border-radius: 8px;
   background: var(--surface); color: var(--text);
   font-family: inherit; font-size: 13px; line-height: 1.5; outline: none;
 }
-.cl2-newitem-toel textarea::placeholder { color: var(--text-hint); }
-.cl2-newitem-toel textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--mint-soft); }
+.cl2-newitem-toel textarea::placeholder, .cl2-toel-invoer::placeholder { color: var(--text-hint); }
+.cl2-newitem-toel textarea:focus, .cl2-toel-invoer:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--mint-soft); }
 .cl2-newitem-slot {
   width: 20px; height: 20px;
   border: 1.5px dashed var(--border-strong);
@@ -4857,9 +4857,21 @@ button.cl2-deadline:focus-visible { outline: 2px solid var(--mint); outline-offs
   font-family: inherit; font-size: var(--fs-micro); font-weight: 600; color: var(--text-muted);
 }
 .cl2-toel-bewerk:hover { color: var(--text); }
+/* Ter plekke bewerken: het tekstvak (zie .cl2-newitem-toel textarea), met
+   Opslaan en Annuleren eronder. */
+.cl2-toel-edit { display: flex; flex-direction: column; gap: 8px; }
+.cl2-toel-invoer { min-height: 96px; }
+.cl2-toel-knoppen { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.cl2-toel-tip { margin-left: auto; font-size: var(--fs-micro); color: var(--text-hint); }
+/* Zelfde maat en kleur als "Subtaak toevoegen…" (.cl2-sub-add-input staat
+   verderop en zet de kleur op --text; vandaar de dubbele klasse). */
+.cl2-sub-add-input.cl2-toel-nieuw { color: var(--text-hint); cursor: pointer; font-family: inherit; text-align: left; }
+.cl2-sub-add-input.cl2-toel-nieuw:hover { color: var(--text); }
 @media (max-width: 768px) {
   .cl2-toel { padding: 0 12px 12px; }
   .cl2-toel-bewerk { min-height: var(--tap); }
+  .cl2-toel-invoer { font-size: var(--fs-basis); }
+  .cl2-toel-tip { display: none; }
 }
 /* Het keuzemenu: een aan/uit-regel krijgt zijn vinkje in mint, zoals een
    gekozen regel; uit (bij "geen herinnering") zoals een uit-knop (§2). */
@@ -9606,7 +9618,7 @@ body.aic-open .aic-starter { display: none; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.94</span>
+        <span class="app-versie" title="Appversie">v2.95</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -19748,6 +19760,8 @@ function renderChecklistModule(){
 }
 function renderChecklistModuleKaal(){
   const body=document.getElementById('clBody');
+  {const a=document.activeElement;
+   clToelFocus=a&&a.dataset&&a.dataset.toelInvoer?{id:a.dataset.toelInvoer,van:a.selectionStart,tot:a.selectionEnd}:null;}
   const hero=document.getElementById('clHero');
   const newItem=document.getElementById('clNewItem');
   if(!body||!hero)return;
@@ -20136,6 +20150,22 @@ function renderProjectGroepen(items,{isArchived}){
 }
 
 function wireChecklistBodyEvents(body){
+  /* De toelichting die je ter plekke bewerkt: wat je typt bewaren, Ctrl+Enter
+     bewaart, Escape annuleert (en sluit verder niets). Had het vak focus vóór
+     het hertekenen, dan krijgt het die terug, met de cursor op zijn plek. */
+  body.querySelectorAll('[data-toel-invoer]').forEach(ta=>{
+    const id=ta.dataset.toelInvoer;
+    ta.addEventListener('input',()=>{clToelConcept[id]=ta.value;});
+    ta.addEventListener('keydown',e=>{
+      if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();clToelOpslaan(id);}
+      else if(e.key==='Escape'){e.preventDefault();e.stopPropagation();clToelAnnuleer(id);}
+    });
+    if(clToelFocus&&clToelFocus.id===id){
+      ta.focus();
+      try{ta.setSelectionRange(clToelFocus.van,clToelFocus.tot);}catch(_){}
+    }
+  });
+  clToelFocus=null;
   /* Re-focus subtask input or edit field if active */
   if(clAddingSubtaskFor){
     const inp=body.querySelector(`[data-subtask-input="${clAddingSubtaskFor}"]`);
@@ -20234,7 +20264,10 @@ function clItemHtml(item,isArchived=false,{zonderPlek=false}={}){
   const showSubsAdd=isOpen; /* always allow adding when expanded */
   const client=item.clientId?kanbanState.clients.find(x=>x.id===item.clientId):null;
   const clientCol=client?CLIENT_COLORS[client.colorIdx%CLIENT_COLORS.length]:null;
-  const draggable=!item.done&&!isArchived;
+  /* Wordt de toelichting hier bewerkt, dan is de kaart niet sleepbaar: anders
+     sleep je de taak als je tekst selecteert. */
+  const toelBewerk=clToelEdit===item.id&&!isArchived;
+  const draggable=!item.done&&!isArchived&&!toelBewerk;
 
   /* Subtask list */
   let subsHtml='';
@@ -20261,6 +20294,14 @@ function clItemHtml(item,isArchived=false,{zonderPlek=false}={}){
       <span class="cl2-sub-add-slot">+</span>
       ${input}
     </div>`;
+    /* Nog geen toelichting: hier een regel om er een te schrijven, in de vorm
+       van "Subtaak toevoegen…" (2026-10-21). */
+    if(!item.toelichting&&!toelBewerk&&!isArchived&&!item.done){
+      subsHtml+=`<div class="cl2-sub-add">
+        <span class="cl2-sub-add-slot">+</span>
+        <button type="button" class="cl2-sub-add-input cl2-toel-nieuw" data-action="clToelBewerk" data-arg1="${item.id}">Toelichting toevoegen…</button>
+      </div>`;
+    }
   }
 
   /* Meta: priority pill + deadline + subtask counter + client tag */
@@ -20316,8 +20357,8 @@ function clItemHtml(item,isArchived=false,{zonderPlek=false}={}){
       title="Open de mail: ${escapeHtml(item.mail.onderwerp||'')}">${CL_MAIL_IC}Mail</button>`);
   }
   /* De toelichting: een label dat hem eronder openklapt (2026-10-14). */
-  const toelOpen=!!(item.toelichting&&clToelOpen[item.id]);
-  if(item.toelichting){
+  const toelOpen=toelBewerk||!!(item.toelichting&&clToelOpen[item.id]);
+  if(item.toelichting||toelBewerk){
     metaBits.push(`<button type="button" class="cl2-project-tag cl2-toel-tag${toelOpen?' open':''}" data-action="clToelLijst" data-arg1="${item.id}"
       aria-expanded="${toelOpen}" aria-controls="clToel-${item.id}" title="${toelOpen?'Toelichting verbergen':'Toelichting tonen'}">${CL_TOEL_IC}Toelichting</button>`);
   }
@@ -20367,7 +20408,15 @@ function clItemHtml(item,isArchived=false,{zonderPlek=false}={}){
         </button>
       </div>
     </div>
-    ${toelOpen?`<div class="cl2-toel" id="clToel-${item.id}">
+    ${toelBewerk?`<div class="cl2-toel cl2-toel-edit" id="clToel-${item.id}">
+      <textarea class="cl2-toel-invoer" data-toel-invoer="${item.id}" rows="4" aria-label="Toelichting"
+        placeholder="Waar gaat dit over? Achtergrond, afspraken, links, wat je moet weten. **Vet** en lijstjes met - werken.">${escapeHtml(clToelConcept[item.id]??item.toelichting??'')}</textarea>
+      <div class="cl2-toel-knoppen">
+        <button type="button" class="btn btn-sm btn-primary" data-action="clToelOpslaan" data-arg1="${item.id}">Opslaan</button>
+        <button type="button" class="btn btn-sm btn-ghost" data-action="clToelAnnuleer" data-arg1="${item.id}">Annuleren</button>
+        <span class="cl2-toel-tip">Ctrl+Enter bewaart · Esc annuleert</span>
+      </div>
+    </div>`:toelOpen?`<div class="cl2-toel" id="clToel-${item.id}">
       <div class="cl2-toel-tekst">${clToelHtml(item.toelichting)}</div>
       ${isArchived?'':`<button type="button" class="cl2-toel-bewerk" data-action="clToelBewerk" data-arg1="${item.id}">Bewerken</button>`}
     </div>`:''}
@@ -20412,6 +20461,7 @@ function toggleClItemMenu(id,e){
     rij('clMenuPin',id,item.pinned?'Losmaken van bovenaan':'Vastpinnen bovenaan')+
     rij('clMenuOpen',id,isOpen?'Inklappen':'Uitklappen')+
     (item.done?'':rij('clMenuBewerk',id,'Bewerken'))+
+    (item.done||item.archived?'':rij('clMenuToel',id,item.toelichting?'Toelichting bewerken':'Toelichting toevoegen'))+
     (item.done||item.archived||!item.deadline?'':rij('clMenuHerinner',id,'Herinnering…'))+
     (item.archived
       ?rij('clMenuHerstel',id,'Terug uit archief')
@@ -21583,6 +21633,10 @@ Object.assign(APP_ACTIONS,{
    Toelichting; in het venster is het een veld dat dicht staat zolang het
    leeg is. Markdown (vet, lijstjes, links), getekend zoals in de chat. */
 let clToelOpen={};   /* taak-id -> true: de toelichting staat open in de lijst (alleen deze sessie) */
+/* Ter plekke bewerken (2026-10-21): welke taak, wat er al getypt is (blijft
+   staan als je even een andere taak bewerkt), en of het vak focus had vóór
+   het hertekenen. */
+let clToelEdit=null, clToelConcept={}, clToelFocus=null;
 function clToelVul(tekst){
   const ta=document.getElementById('clItemToelichting');
   if(!ta)return;
@@ -21616,12 +21670,55 @@ Object.assign(APP_ACTIONS,{
     clToelOpen[id]=!clToelOpen[id];
     renderChecklistModule();
   },
-  clToelBewerk:(el,e,id)=>{
-    if(e)e.stopPropagation();
-    openChecklistItemModal(id);
-    setTimeout(()=>{clToelZet(true);document.getElementById('clItemToelichting')?.focus();},40);
-  }
+  /* Bewerken: ter plekke in de lijst (2026-10-21), niet meer via het venster. */
+  clToelBewerk:(el,e,id)=>{if(e)e.stopPropagation();clToelBewerk(id);},
+  clToelOpslaan:(el,e,id)=>{if(e)e.stopPropagation();clToelOpslaan(id);},
+  clToelAnnuleer:(el,e,id)=>{if(e)e.stopPropagation();clToelAnnuleer(id);},
+  clMenuToel:(el,e,id)=>{closeClItemMenu();clToelBewerk(id);}
 });
+/* ── De toelichting ter plekke bewerken (2026-10-21) ──
+   Vanuit het vak (Bewerken), de regel "Toelichting toevoegen…" onder een
+   opengeklapte taak, of het ⋯-menu. Eén vak tegelijk; wat je in een ander
+   vak al typte blijft staan tot je daar Opslaan of Annuleren kiest. */
+function clToelBewerk(id){
+  const item=(checklistState.items||[]).find(i=>i.id===id);
+  if(!item||item.archived)return;
+  clToelEdit=id;
+  if(clToelConcept[id]===undefined)clToelConcept[id]=item.toelichting||'';
+  renderChecklistModuleKaal();
+  const ta=document.querySelector('[data-toel-invoer="'+CSS.escape(id)+'"]');
+  if(ta){
+    ta.focus();
+    ta.setSelectionRange(ta.value.length,ta.value.length);
+    ta.closest('.cl-item')?.scrollIntoView({block:'nearest',behavior:geenBeweging()?'auto':'smooth'});
+  }
+}
+function clToelOpslaan(id){
+  const item=(checklistState.items||[]).find(i=>i.id===id);
+  const ta=document.querySelector('[data-toel-invoer="'+CSS.escape(id)+'"]');
+  const tekst=String(ta?ta.value:(clToelConcept[id]||'')).trim();
+  if(clToelEdit===id)clToelEdit=null;
+  delete clToelConcept[id];
+  if(!item){renderChecklistModule();return;}
+  const oud=item.toelichting||'';
+  if(tekst!==oud.trim()){
+    if(tekst)item.toelichting=tekst;else delete item.toelichting;
+    item.updatedAt=Date.now();
+    scheduleSave();
+    appToast(tekst?'Toelichting bewaard':'Toelichting weggehaald',{type:'success',undo:()=>{
+      if(oud)item.toelichting=oud;else delete item.toelichting;
+      clToelOpen[id]=!!oud;
+      scheduleSave();renderChecklistModule();
+    }});
+  }
+  clToelOpen[id]=!!tekst;
+  renderChecklistModule();
+}
+function clToelAnnuleer(id){
+  if(clToelEdit===id)clToelEdit=null;
+  delete clToelConcept[id];
+  renderChecklistModule();
+}
 
 /* ── Herinnering vanuit de lijst (2026-10-14) ──
    Een klik op de deadline van een taak opent dit keuzemenu; op een
@@ -42184,6 +42281,111 @@ const AI_ACTIES={
         }};
     }
   },
+  /* Een bestaande taak aanpassen (2026-10-21): titel, deadline, prioriteit,
+     klant, project en toelichting. Leeg = laat staan. Op de kaart alleen wat
+     er verandert; ongedaan maken zet alles terug. Op de kaart aan te passen:
+     titel, prioriteit en toelichting (deadline, klant en project kennen
+     "geen" = weghalen, en dat past niet in een datumveld of keuzelijst). */
+  taak_bewerken:{
+    label:'Taak aanpassen',
+    velden:[{sleutel:'nieuwe_titel',label:'Nieuwe titel',soort:'tekst'},
+      {sleutel:'prioriteit',label:'Prioriteit',soort:'keuze',opties:()=>[['','Ongewijzigd'],['hoog','Hoog'],['middel','Middel'],['laag','Laag']]},
+      {sleutel:'toelichting_wijze',label:'Toelichting',soort:'keuze',opties:()=>[['vervangen','Vervangen'],['aanvullen','Aanvullen'],['weghalen','Weghalen']]},
+      {sleutel:'toelichting',label:'Tekst',soort:'lang'}],
+    uitleg:'Pas een bestaande taak aan: titel, deadline, prioriteit, klant, project of toelichting. Gebruik het id uit taken.openLijst. '+
+      'Vul alleen in wat verandert en laat de rest leeg. Alleen als de gebruiker daarom vraagt.',
+    schema:{type:'object',additionalProperties:false,
+      required:['taak_id','titel','nieuwe_titel','deadline','prioriteit','klant','project','toelichting','toelichting_wijze'],
+      properties:{
+        taak_id:{type:'string',description:'Het id van de taak uit taken.openLijst.'},
+        titel:{type:'string',description:'De huidige titel van die taak, ter controle.'},
+        nieuwe_titel:{type:'string',description:'Nieuwe titel, of leeg om hem te laten staan.'},
+        deadline:{type:'string',description:'Nieuwe deadline als JJJJ-MM-DD, "geen" om de deadline weg te halen, of leeg om hem te laten staan.'},
+        prioriteit:{type:'string',enum:['','laag','middel','hoog'],description:'Nieuwe prioriteit, of leeg.'},
+        klant:{type:'string',description:'Nieuwe klant (naam precies zoals in klanten), "geen" om de klant weg te halen, of leeg.'},
+        project:{type:'string',description:'Nieuw project uit taken.projecten, "geen" om het project weg te halen, of leeg. De klant volgt het project.'},
+        toelichting:{type:'string',description:'Tekst voor de toelichting (markdown), of leeg als die niet verandert.'},
+        toelichting_wijze:{type:'string',enum:['vervangen','aanvullen','weghalen'],
+          description:'vervangen = de toelichting wordt deze tekst; aanvullen = de tekst komt onder de bestaande; weghalen = de toelichting gaat weg. '+
+            'Eindigt de toelichting in de gegevens op … (ingekort), vul dan aan in plaats van te vervangen. Verandert de toelichting niet: vervangen met een lege tekst.'}}},
+    bekijk:i=>{
+      const items=(checklistState&&checklistState.items)||[];
+      let item=items.find(x=>x.id===String(i.taak_id||'').trim()&&!x.archived);
+      if(!item){
+        const tl=String(i.titel||'').trim().toLowerCase();
+        const kand=items.filter(x=>!x.archived&&!x.done&&String(x.text||'').trim().toLowerCase()===tl);
+        if(kand.length===1)item=kand[0];
+      }
+      if(!item)return {titel:'Taak aanpassen',regels:[['Taak',String(i.titel||'')]],fout:'Deze taak staat niet (meer) in Taken.'};
+      const regels=[['Taak',item.text]], nieuw={}, fouten=[];
+      const datumTekst=iso=>iso?_aiActieDatum(iso,true).tekst||iso:'geen';
+      /* Op de kaart als leesbare regel: zonder # en *, zoals bij project_aanmaken. */
+      const kort=s=>{s=String(s).replace(/^#+\s*/gm,'').replace(/[*_`>]/g,'').replace(/\s+/g,' ').trim();return s.length>120?s.slice(0,117)+'…':s;};
+      const nt=String(i.nieuwe_titel||'').trim();
+      if(nt&&nt!==item.text){nieuw.text=nt;regels.push(['Titel','→ '+nt]);}
+      const dlIn=String(i.deadline||'').trim();
+      if(/^geen$/i.test(dlIn)){if(item.deadline){nieuw.deadline=null;regels.push(['Deadline',datumTekst(item.deadline)+' → geen']);}}
+      else if(dlIn){
+        const dl=_aiActieDatum(dlIn,false);
+        if(dl.fout)fouten.push(dl.fout);
+        else if(dl.iso!==item.deadline){nieuw.deadline=dl.iso;regels.push(['Deadline',datumTekst(item.deadline)+' → '+dl.tekst]);}
+      }
+      if(CL_PRIORITY_CFG[i.prioriteit]&&i.prioriteit!==item.priority){
+        nieuw.priority=i.prioriteit;
+        regels.push(['Prioriteit',(CL_PRIORITY_CFG[item.priority]||CL_PRIORITY_CFG.middel).label+' → '+CL_PRIORITY_CFG[i.prioriteit].label]);
+      }
+      /* Klant en project: het project bepaalt de klant; een andere klant laat
+         een project van de oude klant vallen. */
+      let clientId=item.clientId||null, projectId=item.projectId||null, prNieuw=null;
+      const kIn=String(i.klant||'').trim(), pIn=String(i.project||'').trim();
+      if(/^geen$/i.test(kIn))clientId=null;
+      else if(kIn){const kl=_aiActieKlant(kIn,false);if(kl.fout)fouten.push(kl.fout);else clientId=kl.id;}
+      if(/^geen$/i.test(pIn))projectId=null;
+      else if(pIn){
+        const pr=_aiActieProject(pIn,kIn&&!/^geen$/i.test(kIn)?clientId:null);
+        if(pr.fout)fouten.push(pr.fout);
+        else{projectId=pr.id||null;clientId=pr.clientId||clientId;if(pr.nieuw)prNieuw=pr.naam;}
+      }
+      if(projectId&&!prNieuw){const p=clProject(projectId);if(!p||p.clientId!==clientId)projectId=null;}
+      if((clientId||null)!==(item.clientId||null)){nieuw.clientId=clientId;regels.push(['Klant',_aiChatKlant(item.clientId)+' → '+_aiChatKlant(clientId)]);}
+      if(prNieuw||(projectId||null)!==(item.projectId||null)){
+        nieuw.projectId=projectId;
+        regels.push(['Project',(_aiChatProject(item.projectId)||'geen')+' → '+(prNieuw?prNieuw+' (nieuw)':(_aiChatProject(projectId)||'geen'))]);
+      }
+      /* Toelichting: vervangen, aanvullen of weghalen. */
+      const tIn=String(i.toelichting||'').trim(), wijze=i.toelichting_wijze, oud=item.toelichting||'';
+      let toel=oud;
+      if(wijze==='weghalen')toel='';
+      else if(tIn)toel=wijze==='aanvullen'&&oud?oud.replace(/\s+$/,'')+'\n\n'+tIn:tIn;
+      if(toel!==oud){
+        nieuw.toelichting=toel;
+        regels.push(['Toelichting',!toel?'weg':wijze==='aanvullen'&&oud?'+ '+kort(tIn):kort(toel)]);
+      }
+      const fout=fouten[0]||(Object.keys(nieuw).length?'':'Er verandert niets aan deze taak.');
+      return {titel:'Taak aanpassen',regels,fout,
+        doe(){
+          const voor={};
+          ['text','deadline','priority','clientId','projectId','toelichting','updatedAt'].forEach(k=>{voor[k]=item[k];});
+          const zet={...nieuw};
+          /* Een project uit hetzelfde antwoord moet nu wel bestaan. */
+          if(prNieuw){
+            const p=_aiActieProject(prNieuw,null);
+            if(!p.id)throw new Error('voer eerst "Project aanmaken" uit');
+            zet.projectId=p.id;zet.clientId=p.clientId;
+          }
+          Object.keys(zet).forEach(k=>{
+            if(k==='toelichting'){if(zet.toelichting)item.toelichting=zet.toelichting;else delete item.toelichting;}
+            else item[k]=zet[k];
+          });
+          item.updatedAt=Date.now();
+          if(item.toelichting&&'toelichting' in zet)clToelOpen[item.id]=true;
+          scheduleSave();aiActieVernieuw();
+          return {melding:'Taak aangepast',open:{label:'Bekijk in Taken',doe:()=>aiNaarTaak(item.id)},terug(){
+            Object.keys(voor).forEach(k=>{if(voor[k]===undefined)delete item[k];else item[k]=voor[k];});
+            scheduleSave();aiActieVernieuw();}};
+        }};
+    }
+  },
   taak_afvinken:{
     label:'Taak afvinken',
     uitleg:'Zet een open taak op klaar. Gebruik het id uit taken.openLijst.',
@@ -43087,11 +43289,11 @@ function aiChatSysteem(){
     ...(aiAanbieder()==='claude'?[
       '',
       'Acties:',
-      '- Je kunt ook iets dóen met je gereedschap: een taak toevoegen of afvinken, uren schrijven, een factuur op betaald zetten, een notitie maken. Alleen als de gebruiker daarom vraagt.',
+      '- Je kunt ook iets dóen met je gereedschap: een taak toevoegen, aanpassen (titel, deadline, prioriteit, klant, project, toelichting) of afvinken, uren schrijven, een factuur op betaald zetten, een notitie maken. Alleen als de gebruiker daarom vraagt.',
       '- Een actie gebeurt niet meteen: de gebruiker ziet een voorstel en klikt zelf op Uitvoeren. Zeg dus "ik zet het klaar", nooit "het is gedaan".',
       '- Gebruik voor een klant precies een naam uit klanten. Weet je niet welke klant, welke datum of hoeveel uur, vraag het eerst in plaats van te gokken.',
       '- Reken "gisteren", "vrijdag" of "volgende week maandag" om vanaf vandaag en geef datums als JJJJ-MM-DD.',
-      '- Een taak afvinken gaat met het id uit taken.openLijst; een factuur met het nummer uit facturen.lijst.',
+      '- Een taak afvinken of aanpassen gaat met het id uit taken.openLijst; een factuur met het nummer uit facturen.lijst.',
       '- Een project maak je met project_aanmaken, altijd bij een klant. Vraagt de gebruiker om een project met taken, stel dan eerst het project voor en daarna de taken met dat project (veld project): ze worden in die volgorde uitgevoerd.',
       '- In eerdere beurten staat tussen [Acties: …] wat je voorstelde en of het is uitgevoerd. Stel iets dat al is uitgevoerd niet nog eens voor.'
     ]:[]),

@@ -8515,3 +8515,45 @@ de periode nu ook mee.
 **Niet doen.** *Te laat* als losse schakelaar naast de periode zetten (dan
 kun je "te laat én deze maand" kiezen, wat niets betekent), of afgevinkte
 taken meetellen: het gaat om wat er nog openstaat.
+
+## 2026-10-21 · Toelichting aanpassen: ter plekke en via de chat (v2.95)
+
+**Probleem.** Frank kon de toelichting van een bestaande taak niet
+aanpassen. In de app kon het wel, maar verstopt: via het potlood naar het
+taakvenster, waar het veld dicht staat zolang het leeg is. Een taak zonder
+toelichting had in de lijst geen enkele weg ernaartoe. En *Vraag het je app*
+kon taken toevoegen en afvinken, maar niet aanpassen: dan zei hij "ik kan
+alleen nieuwe taken toevoegen".
+
+**Beslissing.**
+- **In de lijst, ter plekke.** *Bewerken* in het toelichtingsvak maakt er
+  een tekstvak van, met Opslaan en Annuleren (Ctrl+Enter bewaart, Escape
+  annuleert). Heeft een taak nog geen toelichting, dan staat onder de
+  opengeklapte taak *Toelichting toevoegen…* (naast *Subtaak toevoegen…*); op
+  een telefoon ook in het ⋯-menu. Opslaan meldt het met *Ongedaan maken*;
+  leegmaken haalt de toelichting weg. Het taakvenster werkt zoals het werkte.
+- Wat je typt blijft staan als de lijst hertekent (en als je intussen een
+  andere taak bewerkt) tot je Opslaan of Annuleren kiest; het vak houdt zijn
+  focus en cursor. Een kaart in bewerking is niet sleepbaar, anders sleep je
+  de taak bij het selecteren van tekst.
+- **In de chat** een actie *Taak aanpassen* (`taak_bewerken`): titel,
+  deadline, prioriteit, klant, project en toelichting (vervangen, aanvullen
+  of weghalen). Leeg = laat staan, "geen" = weghalen (deadline, klant,
+  project). Op de kaart alleen wat verandert ("oud → nieuw"); niets = kan
+  niet. Met *Aanpassen* pas je titel, prioriteit en toelichting aan op de
+  kaart; deadline, klant en project niet, omdat "geen" niet in een datumveld
+  of keuzelijst past. Het project bepaalt de klant; een andere klant laat
+  een project van de oude klant vallen.
+- Omdat de chat de toelichting ingekort ziet (400 tekens), zegt de
+  beschrijving: eindigt hij op …, vul dan aan in plaats van te vervangen.
+
+**Bestanden.** `index.html` (`clToelBewerk`, `clToelOpslaan`,
+`clToelAnnuleer`, `clItemHtml`, `wireChecklistBodyEvents`,
+`renderChecklistModuleKaal`, `toggleClItemMenu`, `AI_ACTIES.taak_bewerken`,
+de systeeminstructie, CSS `.cl2-toel-edit`, `.cl2-toel-invoer`), `test.html`
+(twee tests; het aantal gereedschappen 8 → 9 en 14 → 15), `sw.js`,
+`CLAUDE.md`, `docs/stijlgids.md`.
+
+**Niet doen.** Bij Escape of wegklikken stilletjes opslaan (dan verdwijnt
+een vergissing niet), of de chat een hele toelichting laten vervangen die
+hij alleen ingekort heeft gezien.
