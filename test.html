@@ -1315,6 +1315,46 @@ async function runChecks() {
             return klantGevuld && gevuld && mee && daarna && projectWeg && kaalOk;
           } finally { w.eval('clNewDraft=' + oudDraft); terug(); }
         }],
+        ['Te laat: alleen open taken met een deadline vóór vandaag, met het aantal in de knop; leeg = Niets te laat; de week loopt op de lokale datum', async () => {
+          const terug = opzet();
+          const oud = w.eval('JSON.stringify({p:clFilters.period,s:clFilters.search,d:clDoneExpanded})');
+          try {
+            const lok = dt => dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
+            const nu = new Date(), dag = n => { const x = new Date(nu.getFullYear(), nu.getMonth(), nu.getDate()); x.setDate(x.getDate() + n); return lok(x); };
+            const vandaag = dag(0), gisteren = dag(-1);
+            w.eval(`(function(){
+              const t=(id,text,deadline,o)=>Object.assign({id,text,done:false,priority:'middel',deadline,clientId:'tp1',projectId:null,subtasks:[],archived:false,sortOrder:-30,createdAt:Date.now(),updatedAt:Date.now()},o||{});
+              checklistState.items.push(t('tl1','Telaat gemist','${gisteren}'),t('tl2','Telaat af','${gisteren}',{done:true}),
+                t('tl3','Telaat vandaaguniek','${vandaag}'),t('tl4','Telaat zonder datum',null));
+              clFilters.period=null;clFilters.search='';clDoneExpanded=true;
+            })()`);
+            w.switchModule('checklist');
+            const ziet = id => !!d.querySelector('#clBody .cl-item[data-id="' + id + '"]');
+            const knop = () => d.querySelector('#clFilterRow [data-arg1="period"][data-arg2="telaat"]');
+            /* Het aantal in de knop: alle open taken van vóór vandaag die je ziet. */
+            const verwacht = w.eval('takenZichtbaar()').filter(i => !i.archived && !i.done && i.deadline && i.deadline < vandaag).length;
+            const tel = knop().querySelector('.cl2-seg-tel');
+            const telOk = !!tel && tel.textContent.trim() === String(verwacht) && verwacht >= 1;
+            knop().click();
+            await new Promise(r => setTimeout(r, 30));
+            const gefilterd = w.eval('clFilters.period') === 'telaat' && ziet('tl1') && !ziet('tl2') && !ziet('tl3') && !ziet('tl4') &&
+              knop().classList.contains('active') && d.getElementById('clFilterBtn').classList.contains('aan');
+            /* Niets te laat binnen een zoekterm: dat zegt de lijst ook. */
+            w.setClSearch('vandaaguniek');
+            const leeg = d.querySelector('#clBody .cl2-empty-hdr');
+            const nietsTeLaat = !!leeg && leeg.textContent.trim() === 'Niets te laat' && /binnen dit filter/.test(d.querySelector('#clBody .cl2-empty-sub').textContent);
+            w.setClSearch('');
+            /* Deze week: van maandag tot en met zondag, op de lokale datum. */
+            const wd = nu.getDay() === 0 ? 6 : nu.getDay() - 1;
+            const week = w.eval(`(function(){clFilters.period='week';const f=clPeriodeFilter();
+              return [f({deadline:'${vandaag}'}),f({deadline:'${dag(-wd)}'}),f({deadline:'${dag(6 - wd)}'}),f({deadline:'${dag(-wd - 1)}'}),f({deadline:'${dag(7 - wd)}'})];})()`);
+            const weekOk = week.join() === 'true,true,true,false,false';
+            return telOk && gefilterd && nietsTeLaat && weekOk;
+          } finally {
+            w.eval('(function(o){clFilters.period=o.p;clFilters.search=o.s;clDoneExpanded=o.d;})(' + oud + ')');
+            terug();
+          }
+        }],
         ['Projecten: in het taakvenster vult een project de klant in, een andere klant haalt het weg, en opslaan bewaart het', async () => {
           const terug = opzet();
           try {

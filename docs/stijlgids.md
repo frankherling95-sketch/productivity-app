@@ -261,6 +261,7 @@ balk. Op een bureaublad blijft het een tabel; beide in de DOM, de CSS kiest.
 | deadline | `.cl2-deadline`: bij een open taak een `<button>` zonder rand of vulling, in rust gewoon de datum; met een belletje van 11px erachter als de taak een herinnering geeft. Een klik opent het herinneringsmenu (`.uren-menu.cl-herinner-menu`, opent vanaf de linkerrand van de deadline, regels `var(--tap)` op een telefoon; daar ook via ⋯ → *Herinnering…*). Afgevinkt of gearchiveerd: een `<span>` |
 | mail | uit een mail: een label *Mail* met een envelopje, dezelfde vorm als het projectlabel en erachter; een tik opent de mail |
 | toelichting | een label *Toelichting* met een blaadje, dezelfde vorm, als laatste in de metaregel; open = `--surface3` en `--text`. Eronder dan een vak op `--surface2`, `--fs-klein` / 1,55, ingesprongen tot de titel (48px, telefoon 12px), markdown; daaronder *Bewerken* (`--fs-micro` / 600 muted). In het taakvenster een kop als de veldlabels met een pijl, dicht zolang het leeg is |
+| filter *Te laat* | vierde knop in de periodeschakelaar (`.cl2-seg`): *Altijd · Deze week · Deze maand · Te laat*, met het aantal open taken over de deadline erachter (`.cl2-seg-tel`: cijferletter, 700, `--danger`, 5px links); geen aantal bij nul. Op een telefoon korte labels (*Week*, *Maand*) zodat de vier op één regel passen. Leeg: *Niets te laat* |
 | snelveld | boven de lijst, alleen op een bureaublad (`.cl2-newitem`): twee regels. Bovenaan het slot, het titelveld (13,5px) en *Toevoegen* (`btn-sm btn-primary`); eronder, ingesprongen tot het titelveld (28px), prioriteit, klant, project (keuzelijsten van 12px / 500, h 29px, hooguit 190px breed), de deadline en *Toelichting*: een knop in dezelfde vorm met het blaadje (12px), `--text-hint`, met inhoud `--text`, open op `--surface2`. Open staat eronder een tekstvak (13px / 1,5, min. 72px, radius 8px, focus `--accent` met een mint ring) |
 | projectbalk | onder de filterbalk als er een project gekozen is (`.cl2-projectbalk`): naam (`--fs-basis` / 600), klant en voortgang (`--fs-klein` muted), dan *Specificatie* (primair), *Afronden* en ⋯, en een ✕. Op een telefoon het ✕ naast de naam en de knoppen eronder |
 
@@ -370,6 +371,14 @@ hierboven, bewust:
   span werd een lange naam hard afgesneden in plaats van met `…`.
 
 ---
+
+### Een lang en een kort label
+
+Past een knoplabel op een telefoon niet, zet dan beide in de knop:
+`<span class="cl2-lang">Deze maand</span><span class="cl2-kort">Maand</span>`.
+Op een bureaublad staat het lange, onder 769px het korte. Zo heeft een knop
+op beide breedtes één regel, en blijft het lange label in de `aria-label` of
+`title` als het korte iets weglaat.
 
 ## 5. Pillen en chips
 

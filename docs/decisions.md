@@ -8480,3 +8480,38 @@ open- en dichtklappen.
 **Niet doen.** De klapknop in de klantkop-knop zelf zetten (een knop in een
 knop), of bij *Klanten* de projecten open laten: dan klap je een klant open
 en staat er meteen een lange lijst taken.
+
+## 2026-10-21 · Filter Te laat in Taken (v2.94)
+
+**Probleem.** Welke deadlines Frank niet heeft gehaald, zag hij alleen aan
+de rode datum op een kaart, verspreid door de lijst.
+
+**Beslissing.**
+- Een vierde knop in de periodeschakelaar van het filter: **Te laat**. Die
+  toont de open taken met een deadline vóór vandaag; afgevinkte taken niet,
+  ook als ze te laat waren. Het hoort bij de periode (het is een filter op de
+  deadline), dus het sluit *Deze week* en *Deze maand* uit en werkt samen met
+  prioriteit, klant, project, zoeken en *Per project*.
+- In de knop staat het aantal (rood, `.cl2-seg-tel`), binnen klant en project
+  maar los van de andere filters: dan zie je het zonder te klikken. Bij nul
+  geen getal.
+- Lege lijst bij *Te laat*: *Niets te laat*, in plaats van "Geen taken
+  gevonden — pas je filter aan" (dat is goed nieuws, geen zoekfout).
+- Op een telefoon korte labels (*Week*, *Maand*): met vier knoppen paste de
+  rij niet meer. Daarvoor één patroon, `.cl2-lang` / `.cl2-kort`, dat ook de
+  klapknop van *Per project* gebruikt.
+
+**Daarbij gevonden.** De periodes rekenden met `toISOString()`, dus in UTC:
+op maandag tussen middernacht en twee uur 's nachts begon *Deze week* nog op
+zondag. Het rode *te laat* op de kaart had hetzelfde. Alles rekent nu op de
+lokale datum (`clPeriodeFilter`, `dateStr`). De teller in de filterbalk telt
+de periode nu ook mee.
+
+**Bestanden.** `index.html` (`clPeriodeFilter`, `clAantalTeLaat`,
+`clFilterNaastPeriode`, `renderClFilterBar`, `renderChecklistModuleKaal`,
+`clItemHtml`, CSS `.cl2-seg-tel`, `.cl2-lang`, `.cl2-kort`), `test.html`,
+`sw.js`, `CLAUDE.md`, `docs/stijlgids.md`.
+
+**Niet doen.** *Te laat* als losse schakelaar naast de periode zetten (dan
+kun je "te laat én deze maand" kiezen, wat niets betekent), of afgevinkte
+taken meetellen: het gaat om wat er nog openstaat.
