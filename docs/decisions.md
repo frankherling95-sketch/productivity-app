@@ -8596,3 +8596,33 @@ ruwe melding, `_claudeFetch`, `_claudeStrictEraf`, `_claudeZonderStrict`),
 keuzelijsten toevoegen zonder het strikte totaal na te rekenen
 (`aiActieGereedschap().filter(t=>t.strict)`).
 
+## 2026-10-21 · De assistent heet Herling AI, en het vonkje beweegt (v2.97)
+
+**Probleem.** "Vraag het je app" was een omschrijving, geen naam: lang in de
+kop van het paneel, onhandig in een zin, en de assistent wist niet hoe hij
+heette. Het vonkje stond altijd stil, ook als hij aan het nadenken was.
+
+**Beslissing.**
+- De naam is **Herling AI** (Franks keuze uit Vonk, Loods, Ling, Wijzer en
+  Herling AI): in de kop van het paneel, op de tegel in de zijbalk, de ronde
+  knop, de knop bij een notitie, het menu in Notities, Instellingen, de hint
+  op het Dashboard (het laatste vette woord, *chat*, blijft staan: daar begint
+  de stippellijn) en de systeeminstructie ("Je bent Herling AI…").
+- Het vonkje beweegt alleen als er iets gebeurt: aanwijzen (de grote ster een
+  kwartslag met een sprongetje, de kleine twinkelt erna), het paneel openen
+  (één keer), nadenken (beide ademen om de beurt, zolang `_aiCalling.chat`;
+  `is-bezig` op het paneel en de tegel, `bezig` op de ronde knop) en een nieuw
+  antwoord terwijl het paneel weg is (de kleine twee keer). Alleen
+  `transform` en `opacity`, met duren uit `--duur`, dus bij "beweging beperken"
+  staat het stil.
+
+**Bestanden.** `index.html` (alle teksten, `aiChatSysteem`, `aiChatKnoppen`,
+de sterren als `.sp-g`/`.sp-k`, CSS "Het vonkje van Herling AI beweegt"),
+`test.html` (één test, plus de naam in een bestaande), `sw.js`, `privacy.html`,
+`CLAUDE.md`, `docs/stijlgids.md`, `docs/mobile.md`. Oudere entries hierboven
+noemen de oude naam; die blijven zoals ze zijn.
+
+**Niet doen.** Het vonkje laten bewegen als er niets gebeurt (in een app waar
+je de hele dag in werkt leidt dat af), of een vaste duur gebruiken in plaats
+van de tokens.
+

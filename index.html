@@ -3545,7 +3545,7 @@ h1, h2, h3, h4, h5 {
 .sb-wissel:hover, .sb-wissel[aria-expanded="true"],
 .sb-ai:hover { background: rgba(255, 255, 255, 0.09); border-color: rgba(255, 255, 255, 0.14); }
 .sb-wissel:focus-visible, .sb-ai:focus-visible { outline: 2px solid var(--mint); outline-offset: -2px; }
-/* De rij met de wisselaar en, rechts ervan, Vraag het je app: een vierkante
+/* De rij met de wisselaar en, rechts ervan, Herling AI: een vierkante
    tegel met dezelfde vulling, rand en hoek. Het icoon draagt de kleur (het
    verloop van het logo), de tegel niet. */
 .sb-kop-rij { display: flex; gap: 8px; }
@@ -5433,7 +5433,7 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
    project met het mapje erbij. Begint op dezelfde lijn als de tekst van de
    titel (die heeft 6px vulling). */
 /* Minstens 240px voor titel en plek; is de kop smaller (het paneel van
-   Vraag het je app staat open), dan zakken de knoppen naar een eigen regel
+   Herling AI staat open), dan zakken de knoppen naar een eigen regel
    in plaats van dat de titel tot "Datam" krimpt. */
 .notes-titel-blok { flex: 1 1 240px; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
 /* Met die regel erbij is de kop twee regels hoog; de knoppen rechts horen
@@ -8945,7 +8945,7 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
 .ha-newitem-option-arrow { color: var(--text-hint); flex-shrink: 0; width: 11px; height: 11px; }
 @keyframes ha-fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
 
-/* ── Vraag het je app (AI-chat) ──
+/* ── Herling AI (AI-chat) ──
    Kop als .modal-kop (rand tot rand), daaronder het gesprek dat scrolt,
    onderin het invoerveld en de voet. Vaste hoogte: het venster springt
    niet bij elk nieuw antwoord. */
@@ -9219,6 +9219,42 @@ body.aic-sleept .aic-dock { transition: none; }
 .aic-starter:hover { translate: 0 -2px; }
 .aic-starter:focus-visible { outline: 2px solid var(--mint); outline-offset: 3px; }
 body.aic-open .aic-starter { display: none; }
+/* ── Het vonkje van Herling AI beweegt (2026-10-21) ──
+   Twee sterren: de grote (.sp-g) en de kleine (.sp-k).
+   - Aanwijzen (tegel in de zijbalk, ronde knop, knop bij een notitie): de
+     grote draait een kwartslag met een sprongetje -- na 90° is de vorm weer
+     dezelfde, dus hij landt zoals hij stond -- en de kleine twinkelt kort erna.
+   - Het paneel gaat open: het vonkje in de kop twinkelt één keer.
+   - Herling AI denkt na: beide ademen, om de beurt (paneel, tegel, ronde
+     knop, de balk op het Dashboard).
+   - Een nieuw antwoord terwijl het paneel weg is: de kleine twinkelt twee keer.
+   Alleen transform en opacity, en de duren uit de tokens: bij "beweging
+   beperken" staan ze op 0 en beweegt er niets (stijlgids §14). */
+.sp-g, .sp-k { transform-box: fill-box; transform-origin: center; }
+@keyframes sp-draai {
+  0% { transform: rotate(0deg) scale(1); }
+  45% { transform: rotate(50deg) scale(1.18); }
+  100% { transform: rotate(90deg) scale(1); }
+}
+@keyframes sp-twinkel {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  35% { transform: scale(.35); opacity: .45; }
+  70% { transform: scale(1.3); opacity: 1; }
+}
+@keyframes sp-adem { 0%, 100% { transform: scale(.86); } 50% { transform: scale(1.06); } }
+@keyframes sp-adem-k { 0%, 100% { transform: scale(1.12); opacity: 1; } 50% { transform: scale(.55); opacity: .5; } }
+:is(.sb-ai, .aic-starter, .notes-ai-knop):is(:hover, :focus-visible) .sp-g { animation: sp-draai calc(var(--duur) * 3) var(--ease); }
+:is(.sb-ai, .aic-starter, .notes-ai-knop):is(:hover, :focus-visible) .sp-k { animation: sp-twinkel calc(var(--duur) * 3) var(--ease) calc(var(--duur) * .6); }
+body.aic-open .aic-kop .sp-g { animation: sp-draai calc(var(--duur) * 3) var(--ease) var(--duur); }
+body.aic-open .aic-kop .sp-k { animation: sp-twinkel calc(var(--duur) * 3) var(--ease) calc(var(--duur) * 1.6); }
+.aic-starter.nieuw .sp-k { animation: sp-twinkel calc(var(--duur) * 3) var(--ease) 2; }
+/* Nadenken staat onderaan: dat wint van aanwijzen en openen. */
+:is(.aic-dock.is-bezig .aic-kop, .aic-starter.bezig, .sb-ai.is-bezig, .dash-quickadd.is-bezig .dash-quickadd-icon) .sp-g {
+  animation: sp-adem calc(var(--duur) * 6) ease-in-out infinite;
+}
+:is(.aic-dock.is-bezig .aic-kop, .aic-starter.bezig, .sb-ai.is-bezig, .dash-quickadd.is-bezig .dash-quickadd-icon) .sp-k {
+  animation: sp-adem-k calc(var(--duur) * 6) ease-in-out infinite;
+}
 /* Een stip op de knop als het paneel geminimaliseerd is: knipperend zolang
    er een antwoord onderweg is, vast als het er is en je het nog niet zag. */
 .aic-starter::after {
@@ -9531,7 +9567,7 @@ body.aic-open .aic-starter { display: none; }
 @keyframes th6fl{0%{opacity:0;transform:translate(0,0) scale(1)}12%{opacity:1}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(.35)}}
 @keyframes th6rg{0%{stroke-dashoffset:1}100%{stroke-dashoffset:0}}
 @media (prefers-reduced-motion:reduce){#th6m *{animation:none!important}#th6m .fl{display:none}#th6m .sf{display:inline}}]]></style><g fill="url(#th6g)"><g transform="translate(256 256) scale(.74) translate(-256 -256)"><g class="bd" style="--i:0.05s"><g class="tw" style="--d:0.00s"><circle cx="136" cy="88" r="2.1"/><circle cx="208" cy="88" r="2.1"/><circle cx="352" cy="88" r="3.1"/><circle cx="220" cy="112" r="3.1"/><circle cx="136" cy="136" r="6"/><circle cx="208" cy="136" r="4.2"/><circle cx="220" cy="160" r="3.3"/><circle cx="136" cy="184" r="5.8"/><circle cx="208" cy="184" r="8.4"/><circle cx="124" cy="208" r="2.8"/><circle cx="268" cy="208" r="3.3"/><circle cx="136" cy="232" r="5.1"/><circle cx="376" cy="280" r="6.7"/><circle cx="244" cy="304" r="2.6"/><circle cx="388" cy="304" r="3.3"/><circle cx="280" cy="328" r="1.6"/><circle cx="220" cy="352" r="3.4"/><circle cx="136" cy="376" r="4.4"/><circle cx="208" cy="376" r="6.9"/><circle cx="304" cy="376" r="4.9"/><circle cx="376" cy="376" r="5.6"/><circle cx="292" cy="400" r="3.3"/><circle cx="160" cy="424" r="1.9"/><circle cx="304" cy="424" r="2.9"/><circle cx="376" cy="424" r="2.2"/></g><g class="tw" style="--d:1.07s"><circle cx="160" cy="88" r="2.5"/><circle cx="304" cy="88" r="2.3"/><circle cx="376" cy="88" r="1.9"/><circle cx="292" cy="112" r="3.9"/><circle cx="304" cy="136" r="4.3"/><circle cx="376" cy="136" r="4.7"/><circle cx="292" cy="160" r="4.3"/><circle cx="232" cy="184" r="1.6"/><circle cx="220" cy="208" r="4.9"/><circle cx="292" cy="208" r="3.8"/><circle cx="376" cy="232" r="4.1"/><circle cx="388" cy="256" r="2.5"/><circle cx="124" cy="304" r="2.8"/><circle cx="268" cy="304" r="3"/><circle cx="136" cy="328" r="5.7"/><circle cx="208" cy="328" r="5.4"/><circle cx="304" cy="328" r="6.2"/><circle cx="376" cy="328" r="5.1"/><circle cx="292" cy="352" r="2.5"/><circle cx="232" cy="376" r="1.7"/><circle cx="124" cy="400" r="2.1"/><circle cx="388" cy="400" r="2.5"/><circle cx="184" cy="424" r="2.8"/><circle cx="328" cy="424" r="2.3"/></g><g class="tw" style="--d:2.14s"><circle cx="184" cy="88" r="2.5"/><circle cx="328" cy="88" r="2.7"/><circle cx="124" cy="112" r="1.8"/><circle cx="388" cy="112" r="2.5"/><circle cx="124" cy="160" r="3.3"/><circle cx="388" cy="160" r="3.1"/><circle cx="304" cy="184" r="6.8"/><circle cx="376" cy="184" r="3.4"/><circle cx="244" cy="208" r="3.1"/><circle cx="388" cy="208" r="3.1"/><circle cx="124" cy="256" r="2.3"/><circle cx="136" cy="280" r="3.7"/><circle cx="220" cy="304" r="3.8"/><circle cx="292" cy="304" r="3.2"/><circle cx="232" cy="328" r="1.6"/><circle cx="124" cy="352" r="3"/><circle cx="388" cy="352" r="1.7"/><circle cx="280" cy="376" r="1.5"/><circle cx="220" cy="400" r="3.8"/><circle cx="136" cy="424" r="2.1"/><circle cx="208" cy="424" r="3"/><circle cx="352" cy="424" r="1.9"/></g><circle cx="148" cy="112" r="9.5"/><circle cx="172" cy="112" r="9.5"/><circle cx="196" cy="112" r="9.5"/><circle cx="316" cy="112" r="9.5"/><circle cx="340" cy="112" r="9.5"/><circle cx="364" cy="112" r="9.5"/><circle cx="160" cy="136" r="9.5"/><circle cx="184" cy="136" r="9.5"/><circle cx="328" cy="136" r="9.5"/><circle cx="352" cy="136" r="9.5"/><circle cx="148" cy="160" r="9.5"/><circle cx="172" cy="160" r="9.5"/><circle cx="196" cy="160" r="9.5"/><circle cx="316" cy="160" r="9.5"/><circle cx="340" cy="160" r="9.5"/><circle cx="364" cy="160" r="9.5"/><circle cx="160" cy="184" r="9.5"/><circle cx="184" cy="184" r="9.5"/><circle cx="328" cy="184" r="9.5"/><circle cx="352" cy="184" r="9.5"/><circle cx="148" cy="208" r="9.5"/><circle cx="172" cy="208" r="9.5"/><circle cx="196" cy="208" r="9.5"/><circle cx="316" cy="208" r="9.5"/><circle cx="340" cy="208" r="9.5"/><circle cx="364" cy="208" r="9.5"/><circle cx="160" cy="232" r="9.5"/><circle cx="184" cy="232" r="9.5"/><circle cx="208" cy="232" r="9.5"/><circle cx="232" cy="232" r="9.5"/><circle cx="256" cy="232" r="9.5"/><circle cx="280" cy="232" r="9.5"/><circle cx="304" cy="232" r="9.5"/><circle cx="328" cy="232" r="9.5"/><circle cx="352" cy="232" r="9.5"/><circle cx="148" cy="256" r="9.5"/><circle cx="172" cy="256" r="9.5"/><circle cx="196" cy="256" r="9.5"/><circle cx="220" cy="256" r="9.5"/><circle cx="244" cy="256" r="9.5"/><circle cx="268" cy="256" r="9.5"/><circle cx="292" cy="256" r="9.5"/><circle cx="316" cy="256" r="9.5"/><circle cx="340" cy="256" r="9.5"/><circle cx="364" cy="256" r="9.5"/><circle cx="160" cy="280" r="9.5"/><circle cx="184" cy="280" r="9.5"/><circle cx="208" cy="280" r="9.5"/><circle cx="232" cy="280" r="9.5"/><circle cx="256" cy="280" r="9.5"/><circle cx="280" cy="280" r="9.5"/><circle cx="304" cy="280" r="9.5"/><circle cx="328" cy="280" r="9.5"/><circle cx="352" cy="280" r="9.5"/><circle cx="148" cy="304" r="9.5"/><circle cx="172" cy="304" r="9.5"/><circle cx="196" cy="304" r="9.5"/><circle cx="316" cy="304" r="9.5"/><circle cx="340" cy="304" r="9.5"/><circle cx="364" cy="304" r="9.5"/><circle cx="160" cy="328" r="9.5"/><circle cx="184" cy="328" r="9.5"/><circle cx="328" cy="328" r="9.5"/><circle cx="352" cy="328" r="9.5"/><circle cx="148" cy="352" r="9.5"/><circle cx="172" cy="352" r="9.5"/><circle cx="196" cy="352" r="9.5"/><circle cx="316" cy="352" r="9.5"/><circle cx="340" cy="352" r="9.5"/><circle cx="364" cy="352" r="9.5"/><circle cx="160" cy="376" r="9.5"/><circle cx="184" cy="376" r="9.5"/><circle cx="328" cy="376" r="9.5"/><circle cx="352" cy="376" r="9.5"/><circle cx="148" cy="400" r="9.5"/><circle cx="172" cy="400" r="9.5"/><circle cx="196" cy="400" r="9.5"/><circle cx="316" cy="400" r="9.5"/><circle cx="340" cy="400" r="9.5"/><circle cx="364" cy="400" r="9.5"/></g></g><circle class="fl" cx="344.7" cy="150.3" r="3.0" style="--dx:104.1px;--dy:-124.1px;--f:0.00s"/><circle class="fl" cx="358.8" cy="149.5" r="6.0" style="--dx:105.6px;--dy:-109.3px;--f:0.63s"/><circle class="fl" cx="373.4" cy="150.3" r="5.0" style="--dx:105.5px;--dy:-95.0px;--f:1.26s"/><circle class="fl" cx="364.7" cy="171.0" r="4.0" style="--dx:127.7px;--dy:-99.7px;--f:1.89s"/><circle class="fl" cx="378.7" cy="173.2" r="3.0" style="--dx:126.0px;--dy:-85.0px;--f:2.52s"/><circle class="fl" cx="392.8" cy="177.0" r="6.0" style="--dx:123.0px;--dy:-71.0px;--f:3.15s"/><circle class="fl" cx="380.0" cy="195.5" r="5.0" style="--dx:145.6px;--dy:-71.0px;--f:3.78s"/><g class="sf"><circle cx="404.7" cy="102.1" r="6"/><circle cx="434.1" cy="116.9" r="5"/><circle cx="439.6" cy="150.0" r="5.5"/><circle cx="437.3" cy="92.7" r="3.5"/><circle cx="464.9" cy="115.1" r="3"/><circle cx="468.1" cy="152.5" r="4"/><circle cx="467.2" cy="91.0" r="2.5"/><circle cx="495.0" cy="118.0" r="2"/></g></g><path class="rg" d="M446.2,194.2 A200 200 0 1 1 362.0,86.4" fill="none" stroke="url(#th6g)" stroke-width="14" stroke-linecap="round" pathLength="1" stroke-dasharray="1"/></g><text x="590" y="262" font-family="Unbounded,'Arial Black',sans-serif" font-weight="700" font-size="128" fill="#FFFFFF" textLength="860" lengthAdjust="spacing">HERLING</text><text x="594" y="340" font-family="'JetBrains Mono',ui-monospace,monospace" font-weight="500" font-size="46" fill="#00E5B0" textLength="852" lengthAdjust="spacing">ANALYTICS</text></svg></div>
-      <!-- Naast de wisselaar: Vraag het je app, op elke pagina te bereiken
+      <!-- Naast de wisselaar: Herling AI, op elke pagina te bereiken
            (2026-10-11). Een tegel zoals de wisselaar, met de sparkle in het
            verloop van het logo. Zie zijbalkVraagHet(). -->
       <div class="sb-kop-rij">
@@ -9544,8 +9580,8 @@ body.aic-open .aic-starter { display: none; }
         <svg class="sb-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
       </button>
       <button type="button" class="sb-ai" id="sbAiBtn" onclick="zijbalkVraagHet()"
-        aria-haspopup="dialog" aria-label="Vraag het je app" title="Vraag het je app">
-        <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><defs><linearGradient id="sbAiVerloop" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#00E5B0"/><stop offset="1" stop-color="#38BDF8"/></linearGradient></defs><g fill="url(#sbAiVerloop)"><path d="M9 3.5Q10.4 9.6 16.5 11Q10.4 12.4 9 18.5Q7.6 12.4 1.5 11Q7.6 9.6 9 3.5Z"/><path d="M15.5 1.5Q16.1 3.9 18.5 4.5Q16.1 5.1 15.5 7.5Q14.9 5.1 12.5 4.5Q14.9 3.9 15.5 1.5Z"/></g></svg>
+        aria-haspopup="dialog" aria-label="Herling AI" title="Herling AI">
+        <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><defs><linearGradient id="sbAiVerloop" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#00E5B0"/><stop offset="1" stop-color="#38BDF8"/></linearGradient></defs><g fill="url(#sbAiVerloop)"><path class="sp-g" d="M9 3.5Q10.4 9.6 16.5 11Q10.4 12.4 9 18.5Q7.6 12.4 1.5 11Q7.6 9.6 9 3.5Z"/><path class="sp-k" d="M15.5 1.5Q16.1 3.9 18.5 4.5Q16.1 5.1 15.5 7.5Q14.9 5.1 12.5 4.5Q14.9 3.9 15.5 1.5Z"/></g></svg>
       </button>
       </div>
     </div>
@@ -9618,7 +9654,7 @@ body.aic-open .aic-starter { display: none; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.96</span>
+        <span class="app-versie" title="Appversie">v2.97</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -9733,16 +9769,16 @@ body.aic-open .aic-starter { display: none; }
             <div class="dash-hero-eyebrow" id="dashHeroEyebrow">Vandaag</div>
             <div class="dash-hero-headline" id="dashHeroHeadline">Laden…</div>
             <div class="dash-hero-sub" id="dashHeroSub"></div>
-            <!-- De balk is een vraag aan Vraag het je app (2026-10-12; was Snel
+            <!-- De balk is een vraag aan Herling AI (2026-10-12; was Snel
                  toevoegen met @klant en !datum). Een taak zet de chat meteen in
                  de Checklist, al het andere opent de chat. Zie dashAiVraag(). -->
             <form class="dash-quickadd" id="dashQuickAddForm" onsubmit="dashAiVraag(event)">
-              <span class="dash-quickadd-icon" aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false"><defs><linearGradient id="dashAiVerloop" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#00E5B0"/><stop offset="1" stop-color="#38BDF8"/></linearGradient></defs><g fill="url(#dashAiVerloop)"><path d="M9 3.5Q10.4 9.6 16.5 11Q10.4 12.4 9 18.5Q7.6 12.4 1.5 11Q7.6 9.6 9 3.5Z"/><path d="M15.5 1.5Q16.1 3.9 18.5 4.5Q16.1 5.1 15.5 7.5Q14.9 5.1 12.5 4.5Q14.9 3.9 15.5 1.5Z"/></g></svg></span>
-              <input type="text" id="dashQuickAddInput" placeholder="Nieuwe taak of vraag…" autocomplete="off" aria-label="Vraag het je app"/>
+              <span class="dash-quickadd-icon" aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false"><defs><linearGradient id="dashAiVerloop" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#00E5B0"/><stop offset="1" stop-color="#38BDF8"/></linearGradient></defs><g fill="url(#dashAiVerloop)"><path class="sp-g" d="M9 3.5Q10.4 9.6 16.5 11Q10.4 12.4 9 18.5Q7.6 12.4 1.5 11Q7.6 9.6 9 3.5Z"/><path class="sp-k" d="M15.5 1.5Q16.1 3.9 18.5 4.5Q16.1 5.1 15.5 7.5Q14.9 5.1 12.5 4.5Q14.9 3.9 15.5 1.5Z"/></g></svg></span>
+              <input type="text" id="dashQuickAddInput" placeholder="Nieuwe taak of vraag…" autocomplete="off" aria-label="Vraag Herling AI"/>
               <button type="submit" class="btn btn-xs btn-primary" id="dashQuickAddBtn" title="Versturen (Enter)">Stuur</button>
             </form>
             <div class="dash-quickadd-hint">
-              Een taak zet de AI meteen bij je <strong>Taken</strong> · een vraag opent de <strong>chat</strong>
+              Een taak zet Herling AI meteen bij je <strong>Taken</strong> · een vraag opent de <strong>chat</strong>
             </div>
           </div>
           <div class="dash-hero-right">
@@ -10211,12 +10247,12 @@ body.aic-open .aic-starter { display: none; }
       <span>Facturen</span>
     </button>
   </nav>
-  <!-- Vraag het je app, rechtsonder op elke pagina (alleen op een bureaublad;
+  <!-- Herling AI, rechtsonder op elke pagina (alleen op een bureaublad;
        op een telefoon staat daar de ronde +, en opent de sparkle in de
        zijbalk of in de kop van een notitie hem). Weg zolang het paneel open is. -->
   <button type="button" class="aic-starter" id="aiStarter" onclick="aiChatOpen()"
-    aria-label="Vraag het je app" title="Vraag het je app — hij kijkt mee met deze pagina">
-    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><g fill="url(#sbAiVerloop)"><path d="M9 3.5Q10.4 9.6 16.5 11Q10.4 12.4 9 18.5Q7.6 12.4 1.5 11Q7.6 9.6 9 3.5Z"/><path d="M15.5 1.5Q16.1 3.9 18.5 4.5Q16.1 5.1 15.5 7.5Q14.9 5.1 12.5 4.5Q14.9 3.9 15.5 1.5Z"/></g></svg>
+    aria-label="Herling AI" title="Herling AI — kijkt mee met deze pagina">
+    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><g fill="url(#sbAiVerloop)"><path class="sp-g" d="M9 3.5Q10.4 9.6 16.5 11Q10.4 12.4 9 18.5Q7.6 12.4 1.5 11Q7.6 9.6 9 3.5Z"/><path class="sp-k" d="M15.5 1.5Q16.1 3.9 18.5 4.5Q16.1 5.1 15.5 7.5Q14.9 5.1 12.5 4.5Q14.9 3.9 15.5 1.5Z"/></g></svg>
   </button>
 </div><!-- /appScreen -->
 
@@ -11500,17 +11536,17 @@ body.aic-open .aic-starter { display: none; }
   </div>
 </div>
 
-<!-- ── Vraag het je app (AI-chat) ── zie aiChatOpen() -->
+<!-- ── Herling AI (AI-chat) ── zie aiChatOpen() -->
 <!-- Sinds 2026-10-13 een zwevend paneel in plaats van een venster: het kijkt
      mee met de pagina waar je bent en blijft open terwijl je verder werkt
      (zie aiChatOpen en "Meekijken"). Geen .modal-bg: dan zou het de pagina
      afdekken, en de automatische sync wachten tot het dicht is. Op een
      bureaublad rechtsonder, op een telefoon een blad van onderen. -->
-<div class="aic-dock" id="aiChatModal" role="dialog" aria-modal="false" aria-label="Vraag het je app">
+<div class="aic-dock" id="aiChatModal" role="dialog" aria-modal="false" aria-label="Herling AI">
   <div class="modal aic-modal">
     <div class="modal-kop aic-kop">
       <div class="aic-kop-tekst">
-        <h3><svg class="aic-spark" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><defs><linearGradient id="aicVerloop" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#00E5B0"/><stop offset="1" stop-color="#38BDF8"/></linearGradient></defs><g fill="url(#aicVerloop)"><path d="M9 3.5Q10.4 9.6 16.5 11Q10.4 12.4 9 18.5Q7.6 12.4 1.5 11Q7.6 9.6 9 3.5Z"/><path d="M15.5 1.5Q16.1 3.9 18.5 4.5Q16.1 5.1 15.5 7.5Q14.9 5.1 12.5 4.5Q14.9 3.9 15.5 1.5Z"/></g></svg>Vraag het je app</h3>
+        <h3><svg class="aic-spark" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><defs><linearGradient id="aicVerloop" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#00E5B0"/><stop offset="1" stop-color="#38BDF8"/></linearGradient></defs><g fill="url(#aicVerloop)"><path class="sp-g" d="M9 3.5Q10.4 9.6 16.5 11Q10.4 12.4 9 18.5Q7.6 12.4 1.5 11Q7.6 9.6 9 3.5Z"/><path class="sp-k" d="M15.5 1.5Q16.1 3.9 18.5 4.5Q16.1 5.1 15.5 7.5Q14.9 5.1 12.5 4.5Q14.9 3.9 15.5 1.5Z"/></g></svg>Herling AI</h3>
         <p>Over je taken, notities, uren, facturen, opdrachten, contracten, agenda en mail — en wat je vraagt, zet hij voor je klaar</p>
       </div>
       <!-- Nieuw gesprek: een icoon in de kop, links van het kruisje (dat
@@ -13129,7 +13165,7 @@ function switchModule(mod){
   renderClientFilters();
   updateNavBadges();
   updateMobileChrome(mod);
-  /* Het paneel van Vraag het je app kijkt mee: andere pagina, andere regel. */
+  /* Het paneel van Herling AI kijkt mee: andere pagina, andere regel. */
   aiSchermBijLater();
   /* Auto-close the sidebar drawer after navigating on mobile */
   toggleSidebarMobile(false);
@@ -14947,7 +14983,7 @@ function renderDashHero(){
   if(delta)delta.textContent=total7>0?`${total7} ${total7===1?'notitie':'notities'} bewerkt afgelopen 7 dagen`:'Nog geen activiteit deze week';
 }
 
-/* ── De balk in de hero: een vraag aan Vraag het je app (2026-10-12) ──
+/* ── De balk in de hero: een vraag aan Herling AI (2026-10-12) ──
    Was "Snel toevoegen" met @klant en !datum. Wat je nu typt, gaat als een
    nieuw gesprek naar de chat, met een aanwijzing erbij: is het iets om te
    doen, zet het dan klaar als taak, en vraag niets na. Komen er alleen
@@ -15683,7 +15719,7 @@ function instGroepAi(){
       hint:'Klantnamen, adressen en KVK-nummers gaan als code de deur uit en komen hier weer terug'})
   ];
   return instGroep('ai','mint','AI',
-    'Voor Vraag het je app, notities opschonen en het uitlezen van '+
+    'Voor Herling AI, notities opschonen en het uitlezen van '+
     'facturen en contracten. Gekozen op dit apparaat; sleutels gaan niet mee naar Drive.',
     /* Het verbruik direct onder het model (2026-10-13): daar kies je, en daar
        wil je zien wat het kost. Tot dan stond het onder de sleutels, en als
@@ -18002,7 +18038,7 @@ function notesAiTerugdraaien(){
 
 /* Op een bureaublad hing hier notesAiMenu: een keuzelijst met Tekst
    opschonen, Waar hoort dit? en terugdraaien. Sinds 2026-10-13 opent de
-   sparkle in de kop het paneel van Vraag het je app, dat meekijkt met de
+   sparkle in de kop het paneel van Herling AI, dat meekijkt met de
    notitie (opschonen en aanvullen staan daar als snelle knop); Waar hoort
    dit? staat in het menu onder de titel (notesPlekMenu). */
 
@@ -18031,7 +18067,7 @@ function _notesAiFout(e){
 }
 
 /* Tekst opschonen (de eerste actie hier) is sinds 2026-10-13 een snelle
-   knop in het paneel van Vraag het je app (aiSchrijfNotitie). */
+   knop in het paneel van Herling AI (aiSchrijfNotitie). */
 
 /* ── Waar hoort dit? ── */
 const NOTES_AI_PLEK_SCHEMA={type:'object',properties:{
@@ -18144,7 +18180,7 @@ function renderNotesOverflowMenu(){
     const node=r?r.node:null;
     menu.innerHTML=`
       <div class="notes-ovf-kop">Met AI</div>
-      <button class="notes-ovf-item" data-action="notesAiPaneel">Vraag het je app</button>
+      <button class="notes-ovf-item" data-action="notesAiPaneel">Herling AI</button>
       <button class="notes-ovf-item" data-action="notesAiPlek">Waar hoort dit?</button>
       ${notesAiKanTerug()?`<button class="notes-ovf-item" data-action="notesAiTerugdraaien">AI-wijziging terugdraaien</button>`:``}
       <div class="notes-ovf-scheiding"></div>
@@ -18797,8 +18833,8 @@ function renderNoteEditor(){
           Opgeslagen
         </span>
         <span class="note-ts">${ts}</span>
-        <button type="button" class="cl2-iconbtn notes-ai-knop" data-action="notesAiPaneel" title="Vraag het je app over deze notitie" aria-label="Vraag het je app over deze notitie">
-          <svg width="13" height="13" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true"><path d="M7 1l1.2 3.1L11.3 5.3 8.2 6.5 7 9.6 5.8 6.5 2.7 5.3 5.8 4.1z"/><path d="M11 8.6l.6 1.5 1.5.6-1.5.6-.6 1.5-.6-1.5-1.5-.6 1.5-.6z"/></svg>
+        <button type="button" class="cl2-iconbtn notes-ai-knop" data-action="notesAiPaneel" title="Vraag Herling AI over deze notitie" aria-label="Vraag Herling AI over deze notitie">
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true"><path class="sp-g" d="M7 1l1.2 3.1L11.3 5.3 8.2 6.5 7 9.6 5.8 6.5 2.7 5.3 5.8 4.1z"/><path class="sp-k" d="M11 8.6l.6 1.5 1.5.6-1.5.6-.6 1.5-.6-1.5-1.5-.6 1.5-.6z"/></svg>
         </button>
         <button type="button" class="cl2-iconbtn" data-action="noteClearContent" title="Inhoud legen">
           <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3.5h8M5.5 3.5V2.5a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1"/><rect x="2.5" y="3.5" width="9" height="8" rx="1"/><line x1="5.5" y1="6" x2="5.5" y2="9.5"/><line x1="8.5" y1="6" x2="8.5" y2="9.5"/></svg>
@@ -20765,7 +20801,7 @@ function toggleChecklistDone(id){
   const item=checklistState.items.find(i=>i.id===id);
   if(!item)return;
   const wasOpen=!item.done;
-  /* Zet ook doneAt (afgerond per week, in Vraag het je app) en de subtaken mee. */
+  /* Zet ook doneAt (afgerond per week, in Herling AI) en de subtaken mee. */
   clZetHoofdKlaar(item,!item.done);
   /* Recurring: when an item with .recurrence becomes done, spawn the
      next occurrence with the deadline rolled forward. */
@@ -40297,7 +40333,7 @@ Object.assign(APP_ACTIONS,{
    AI INTEGRATIE — Gemini (Google) of Claude (Anthropic)
    Features:
      • Smart Quick-Add (natuurlijke taal → taken + events)
-     • Vraag het je app (chat over je eigen gegevens)
+     • Herling AI (chat over je eigen gegevens)
    Gemeenschappelijk:
      • Bewerkbare preview (gebruiker kan AI-fouten direct fixen)
      • Streaming response (woord voor woord, voelt 5× sneller)
@@ -40561,7 +40597,7 @@ async function openAiModelPrompt(){
   const naam=String(v).trim();
   await aiKiesModel(naam,{probeer:!!naam&&!aiModelKeuzes().some(k=>k.model===naam)});
 }
-/* De keuzelijst onderin Vraag het je app. Dezelfde keuze als in
+/* De keuzelijst onderin Herling AI. Dezelfde keuze als in
    Instellingen: wat je hier kiest geldt daarna overal, ook bij het
    uitlezen van facturen. */
 function aiChatModelToon(){
@@ -41124,7 +41160,7 @@ function _aiJson(text){
 }
 
 /* ─ Eén ingang voor een antwoord dat woord voor woord binnenkomt ───────
-   Vraag het je app. Maskeren en terugvertalen gebeurt hier,
+   Herling AI. Maskeren en terugvertalen gebeurt hier,
    vóór de splitsing: de ontvanger plakt de stukken aan elkaar en rendert
    ze, en krijgt dus meteen echte namen -- welke aanbieder het ook was. */
 /* `gereedschap` (alleen Claude, zie AI_ACTIES): gebruikt het model er een,
@@ -43305,7 +43341,7 @@ function aiChatAntwoordHtml(b,bi){
 
 function aiChatSysteem(){
   return [
-    'Je bent de assistent in de productiviteitsapp van een zelfstandig BI-consultant.',
+    'Je bent Herling AI, de assistent in de productiviteitsapp van een zelfstandig BI-consultant (Herling Analytics). Vraagt de gebruiker hoe je heet: Herling AI.',
     'Je beantwoordt vragen over zijn eigen gegevens: taken, uren, facturen, opdrachten en contracten.',
     '',
     'Regels:',
@@ -43513,6 +43549,9 @@ function aiChatNieuw(){
 function aiChatKnoppen(){
   const bezig=_aiCalling.chat;
   document.getElementById('aiStarter')?.classList.toggle('bezig',bezig);
+  /* Het vonkje ademt zolang Herling AI nadenkt (zie "Het vonkje beweegt"). */
+  document.getElementById('aiChatModal')?.classList.toggle('is-bezig',bezig);
+  document.getElementById('sbAiBtn')?.classList.toggle('is-bezig',bezig);
   const zend=document.getElementById('aiChatZend');
   if(zend)zend.disabled=bezig;
   const model=document.getElementById('aiChatModel');
@@ -43676,7 +43715,7 @@ function aiStarterStip(aan){
   const st=document.getElementById('aiStarter');if(!st)return;
   const nieuw=!!aan&&!document.getElementById('aiChatModal')?.classList.contains('open');
   st.classList.toggle('nieuw',nieuw);
-  st.setAttribute('aria-label',nieuw?'Vraag het je app — er is een nieuw antwoord':'Vraag het je app');
+  st.setAttribute('aria-label',nieuw?'Herling AI — er is een nieuw antwoord':'Herling AI');
 }
 
 /* ══ Meekijken (2026-10-13) ═══════════════════════════════════════════════
@@ -44018,7 +44057,7 @@ document.getElementById('aiChatModal')?.addEventListener('keydown',e=>{
   aiChatSluit();
 });
 
-/* ══ Geschiedenis van Vraag het je app (2026-10-11) ══
+/* ══ Geschiedenis van Herling AI (2026-10-11) ══
    Tot nu toe bleef een gesprek alleen in het geheugen van de sessie (zie
    2026-10-09). Nu bewaart de app ze in een eigen bestand in de verborgen
    app-map in Drive, ai-gesprekken.json -- bewust niet in rawState: dat gaat

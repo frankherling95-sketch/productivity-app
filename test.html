@@ -461,7 +461,7 @@ async function runChecks() {
       w._geminiTekst({candidates:[{content:{parts:[
         {text:'even nadenken', thought:true},{text:'{"a":1}'}]}}]}) === '{"a":1}' &&
       w._geminiTekst({candidates:[{content:{parts:[{text:'{"a":'},{text:'1}'}]}}]}) === '{"a":1}'],
-    /* ── Vraag het je app (AI-chat) ──
+    /* ── Herling AI (AI-chat) ──
        Het overzicht dat met elke vraag meegaat, en het gesprek: eerdere
        beurten gaan mee als user/model, in volgorde, vóór de nieuwe vraag. */
     ['Chat: overzicht heeft alle onderdelen', () => {
@@ -1006,7 +1006,7 @@ async function runChecks() {
         w.switchModule(terugNaar || 'dashboard');
       }
     }],
-    /* ── Geschiedenis van Vraag het je app (2026-10-11) ──
+    /* ── Geschiedenis van Herling AI (2026-10-11) ──
        Met een nep-Drive in het geheugen: aiGeschOpslag krijgt eigen zoek,
        lees en schrijf; na afloop staat alles terug. */
     ['Geschiedenis: een gesprek gaat naar Drive, komt terug via de lijst, en verwijderen kan met ongedaan maken', async () => {
@@ -1083,7 +1083,7 @@ async function runChecks() {
       return ids === 'a,b,d' && s.gesprekken[0].bijgewerkt === '2026-10-11T12:00:00Z' && !!s.weg.c &&
         veel.gesprekken.length === 100 && veel.gesprekken[0].id === 'x129' && geen;
     }],
-    /* ── Notities in Vraag het je app (2026-10-12) ── */
+    /* ── Notities in Herling AI (2026-10-12) ── */
     ['Notities: zoeken vindt op tekst zonder HTML, slaat een verborgen klant over; lezen geeft platte tekst', async () => {
       const oud = w.eval('JSON.stringify({t:notesState.tree,c:kanbanState.clients})');
       try {
@@ -1642,7 +1642,7 @@ async function runChecks() {
         })()
       ];
     })(),
-    /* ── Vraag het je app als paneel dat meekijkt (2026-10-13) ──
+    /* ── Herling AI als paneel dat meekijkt (2026-10-13) ──
        Met een tijdelijke notitie; het appscherm gaat even aan, want een
        selectie en focus bestaan alleen in iets wat in beeld is. */
     ...(() => {
@@ -2041,9 +2041,25 @@ async function runChecks() {
         w.aiChatSluit();
       }
     }],
-    ['Zijbalk: de sparkle naast de wisselaar opent Vraag het je app, en sluit eerst de lade op een telefoon', async () => {
+    ['Herling AI: de naam in de kop, op de knoppen en in de systeeminstructie; het vonkje ademt zolang hij nadenkt', () => {
+      const kop = d.querySelector('#aiChatModal .aic-kop h3').textContent.trim();
+      const knoppen = ['aiStarter', 'sbAiBtn'].every(id => d.getElementById(id).getAttribute('aria-label') === 'Herling AI') &&
+        d.getElementById('aiChatModal').getAttribute('aria-label') === 'Herling AI';
+      const systeem = /^Je bent Herling AI,/.test(w.aiChatSysteem());
+      const sterren = ['#aiStarter', '#sbAiBtn', '#aiChatModal .aic-kop'].every(s => d.querySelector(s + ' .sp-g') && d.querySelector(s + ' .sp-k'));
+      const oud = w.eval('_aiCalling.chat');
+      try {
+        w.eval('_aiCalling.chat=true'); w.aiChatKnoppen();
+        const bezig = d.getElementById('aiChatModal').classList.contains('is-bezig') && d.getElementById('sbAiBtn').classList.contains('is-bezig') &&
+          d.getElementById('aiStarter').classList.contains('bezig');
+        w.eval('_aiCalling.chat=false'); w.aiChatKnoppen();
+        const klaar = !d.getElementById('aiChatModal').classList.contains('is-bezig') && !d.getElementById('sbAiBtn').classList.contains('is-bezig');
+        return kop === 'Herling AI' && knoppen && systeem && sterren && bezig && klaar && !/Vraag het je app/.test(d.body.innerHTML);
+      } finally { w.eval('_aiCalling.chat=' + JSON.stringify(oud)); w.aiChatKnoppen(); }
+    }],
+    ['Zijbalk: de sparkle naast de wisselaar opent Herling AI, en sluit eerst de lade op een telefoon', async () => {
       const knop = d.getElementById('sbAiBtn'), sb = d.getElementById('sidebar');
-      if (!knop || !knop.closest('.sb-kop-rij') || knop.getAttribute('aria-label') !== 'Vraag het je app') return false;
+      if (!knop || !knop.closest('.sb-kop-rij') || knop.getAttribute('aria-label') !== 'Herling AI') return false;
       try {
         sb.classList.add('mobile-open');
         knop.click();
