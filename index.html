@@ -4596,6 +4596,11 @@ textarea { line-height: 1.6; resize: vertical; }
   font-family: inherit;
 }
 .cl2-seg-btn:hover { color: var(--text); }
+/* Een aantal in een schakelaarknop (Te laat): rood, in de cijferletter. */
+.cl2-seg-tel {
+  margin-left: 5px; font-family: var(--font-cijfer); font-variant-numeric: tabular-nums;
+  font-weight: 700; color: var(--danger);
+}
 .cl2-seg-btn.active {
   background: var(--surface);
   color: var(--text);
@@ -4672,7 +4677,9 @@ textarea { line-height: 1.6; resize: vertical; }
   transition: color var(--duur-kort) var(--ease);
 }
 .cl2-pg-klapknop:hover { color: var(--text); }
-.cl2-pg-kort { display: none; }
+/* Een lang en een kort label in één knop: het korte op een telefoon
+   (Projecten inklappen → Inklappen, Deze maand → Maand). */
+.cl2-kort { display: none; }
 /* De kop zelf (pijl, stip, naam, telling) is de knop die de klant open- en
    dichtklapt; de lijn en de klapknop staan ernaast in .cl2-group-hdr. */
 .cl2-pg-kop {
@@ -6833,8 +6840,8 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
      schakelaars in het filterpaneel. */
   .cl2-pg-niveau { flex: 1 1 100%; display: flex; margin-left: 0; }
   .cl2-pg-niveau .cl2-seg-btn { flex: 1 1 0; }
-  .cl2-pg-lang { display: none; }
-  .cl2-pg-kort { display: inline; }
+  .cl2-lang { display: none; }
+  .cl2-kort { display: inline; }
   .cl2-pg-body { padding-left: 8px; }
   .cl2-pg-proj-kop { margin-bottom: 4px; }
   /* ── Voortgangskaart: ring naast de tekst, niet erboven ──
@@ -9599,7 +9606,7 @@ body.aic-open .aic-starter { display: none; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.93</span>
+        <span class="app-versie" title="Appversie">v2.94</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -19807,25 +19814,13 @@ function renderChecklistModuleKaal(){
   }
 
   /* Apply filters to active items */
-  const now=new Date();
-  let weekStart=null,weekEnd=null,monthStart=null,monthEnd=null;
-  if(clFilters.period==='week'){
-    const d=new Date(now);d.setHours(0,0,0,0);
-    const dow=d.getDay();d.setDate(d.getDate()-(dow===0?6:dow-1));
-    weekStart=d.toISOString().slice(0,10);
-    const we=new Date(d);we.setDate(d.getDate()+6);weekEnd=we.toISOString().slice(0,10);
-  } else if(clFilters.period==='month'){
-    monthStart=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
-    const last=new Date(now.getFullYear(),now.getMonth()+1,0);
-    monthEnd=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(last.getDate()).padStart(2,'0')}`;
-  }
+  const inPeriode=clPeriodeFilter();
   const searchQ=(clFilters.search||'').trim().toLowerCase();
   function passes(i){
     if(clFilters.prio&&i.priority!==clFilters.prio)return false;
     if(clFilters.clientId&&i.clientId!==clFilters.clientId)return false;
     if(clFilters.projectId&&i.projectId!==clFilters.projectId)return false;
-    if(clFilters.period==='week'){if(!i.deadline||i.deadline<weekStart||i.deadline>weekEnd)return false;}
-    if(clFilters.period==='month'){if(!i.deadline||i.deadline<monthStart||i.deadline>monthEnd)return false;}
+    if(!inPeriode(i))return false;
     if(searchQ){
       const inText=(i.text||'').toLowerCase().includes(searchQ)||(i.toelichting||'').toLowerCase().includes(searchQ);
       const inSub=(i.subtasks||[]).some(s=>(s.text||'').toLowerCase().includes(searchQ));
@@ -19863,9 +19858,10 @@ function renderChecklistModuleKaal(){
     return;
   }
   if(!activeItems.length&&!doneItems.filter(passes).length){
+    const nietsTeLaat=clFilters.period==='telaat';
     body.innerHTML=`<div class="cl2-empty">
-      <div class="cl2-empty-hdr">Geen taken gevonden</div>
-      <div class="cl2-empty-sub">Pas je filter aan of voeg een nieuwe taak toe.</div>
+      <div class="cl2-empty-hdr">${nietsTeLaat?'Niets te laat':'Geen taken gevonden'}</div>
+      <div class="cl2-empty-sub">${nietsTeLaat?'Geen open taak'+(clFilterNaastPeriode()?' binnen dit filter':'')+' heeft een deadline die al voorbij is.':'Pas je filter aan of voeg een nieuwe taak toe.'}</div>
     </div>`+clVerborgenRegel();
     return;
   }
@@ -20109,7 +20105,7 @@ function renderProjectGroepen(items,{isArchived}){
           const open=clKlantNiveau(g)==='alles', naar=open?(g.metProjecten?'projecten':'klanten'):'alles';
           const lang=open?(g.metProjecten?'Projecten inklappen':'Inklappen'):'Alles uitklappen', kort=open?'Inklappen':'Uitklappen';
           return `<button type="button" class="cl2-pg-klapknop" data-action="clZetNiveau" data-arg1="${naar}" data-arg2="${escapeHtml(g.sleutel)}"
-            aria-label="${lang}: ${escapeHtml(g.klant?g.klant.name:'Zonder klant')}"><span class="cl2-pg-lang">${lang}</span><span class="cl2-pg-kort">${kort}</span></button>`;
+            aria-label="${lang}: ${escapeHtml(g.klant?g.klant.name:'Zonder klant')}"><span class="cl2-lang">${lang}</span><span class="cl2-kort">${kort}</span></button>`;
         })()}
       </div>`;
     if(!kDicht){
@@ -20226,7 +20222,7 @@ function formatDeadline(iso){
 
 function clItemHtml(item,isArchived=false,{zonderPlek=false}={}){
   const cfg=CL_PRIORITY_CFG[item.priority]||CL_PRIORITY_CFG.middel;
-  const today=new Date().toISOString().slice(0,10);
+  const today=dateStr(new Date());
   const overdue=item.deadline&&!item.done&&item.deadline<today;
   const subs=item.subtasks||[];
   const subsDone=subs.filter(s=>s.done).length;
@@ -20913,6 +20909,39 @@ function toggleClGroupByPriority(){
   checklistState.groupByPriority=!clGroepeertOpPrioriteit();
   scheduleSave();renderChecklistModule();
 }
+/* ── De periodefilter (2026-10-21) ──
+   Deze week, deze maand -- op de deadline -- of Te laat: open taken met een
+   deadline vóór vandaag, de deadlines die je niet hebt gehaald. Altijd op de
+   lokale datum: toISOString gaf de datum in UTC, en dan begon "deze week" op
+   maandag tussen middernacht en twee uur 's nachts al op zondag. */
+function clPeriodeFilter(){
+  const p=clFilters.period;
+  if(!p)return ()=>true;
+  const nu=new Date();
+  if(p==='telaat'){const vandaag=dateStr(nu);return i=>!i.done&&!!i.deadline&&i.deadline<vandaag;}
+  let van,tot;
+  if(p==='week'){
+    const d=new Date(nu.getFullYear(),nu.getMonth(),nu.getDate());
+    d.setDate(d.getDate()-(d.getDay()===0?6:d.getDay()-1));
+    const e=new Date(d);e.setDate(d.getDate()+6);
+    van=dateStr(d);tot=dateStr(e);
+  }else if(p==='month'){
+    van=dateStr(new Date(nu.getFullYear(),nu.getMonth(),1));
+    tot=dateStr(new Date(nu.getFullYear(),nu.getMonth()+1,0));
+  }else return ()=>true;
+  return i=>!!i.deadline&&i.deadline>=van&&i.deadline<=tot;
+}
+/* Hoeveel open taken te laat zijn, binnen klant en project (wat er op het
+   scherm staat, zonder de andere filters): de telling in de knop Te laat. */
+function clAantalTeLaat(){
+  const vandaag=dateStr(new Date());
+  return takenZichtbaar().filter(i=>!i.archived&&!i.done&&i.deadline&&i.deadline<vandaag&&
+    (!clFilters.clientId||i.clientId===clFilters.clientId)&&(!clFilters.projectId||i.projectId===clFilters.projectId)).length;
+}
+/* Staat er naast de periode nog een filter aan (prioriteit, project, zoeken)? */
+function clFilterNaastPeriode(){
+  return !!(clFilters.prio||clFilters.projectId||(clFilters.search||'').trim());
+}
 function setClFilter(type,val){
   clFilters[type]=(clFilters[type]===val)?null:val;
   renderChecklistModule();
@@ -21023,8 +21052,10 @@ function renderClFilterBar(){
 
   /* Count visible items for the right-aligned counter (honours all filters incl. search) */
   const sQ=(clFilters.search||'').trim().toLowerCase();
+  const inPeriode=clPeriodeFilter();
   const visible=takenZichtbaar().filter(i=>{
     if(i.archived)return false;
+    if(!inPeriode(i))return false;
     if(clFilters.prio&&i.priority!==clFilters.prio)return false;
     if(clFilters.clientId&&i.clientId!==clFilters.clientId)return false;
     if(clFilters.projectId&&i.projectId!==clFilters.projectId)return false;
@@ -21044,10 +21075,17 @@ function renderClFilterBar(){
     return `<button type="button" class="cl2-seg-btn${active?' active':''}" data-action="setClFilter" data-arg1="prio" data-arg2="${s.v===null?'':s.v}">${s.l}</button>`;
   }).join('');
 
-  const periodSegs=[{v:null,l:'Altijd'},{v:'week',l:'Deze week'},{v:'month',l:'Deze maand'}];
+  /* Te laat (2026-10-21): de open taken waarvan de deadline al voorbij is,
+     met het aantal erbij in rood -- dan zie je het ook zonder te klikken. */
+  const teLaat=clAantalTeLaat();
+  /* Op een telefoon kort (Week, Maand): met Te laat erbij paste de rij niet meer. */
+  const periodSegs=[{v:null,l:'Altijd'},{v:'week',l:'Deze week',k:'Week'},{v:'month',l:'Deze maand',k:'Maand'},{v:'telaat',l:'Te laat'}];
   const periodHtml=periodSegs.map(s=>{
     const active=(clFilters.period||null)===s.v;
-    return `<button type="button" class="cl2-seg-btn${active?' active':''}" data-action="setClFilter" data-arg1="period" data-arg2="${s.v===null?'':s.v}">${s.l}</button>`;
+    const tel=s.v==='telaat'&&teLaat?`<span class="cl2-seg-tel" aria-label="${teLaat} te laat">${teLaat}</span>`:'';
+    return `<button type="button" class="cl2-seg-btn${active?' active':''}" data-action="setClFilter" data-arg1="period" data-arg2="${s.v===null?'':s.v}"`+
+      `${s.v==='telaat'?' title="Open taken met een deadline die al voorbij is"':''}>`+
+      `${s.k?`<span class="cl2-lang">${s.l}</span><span class="cl2-kort">${s.k}</span>`:s.l}${tel}</button>`;
   }).join('');
 
   /* ── Staat er een filter aan? ──
