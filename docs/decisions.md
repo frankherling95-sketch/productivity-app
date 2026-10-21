@@ -8557,3 +8557,42 @@ de systeeminstructie, CSS `.cl2-toel-edit`, `.cl2-toel-invoer`), `test.html`
 **Niet doen.** Bij Escape of wegklikken stilletjes opslaan (dan verdwijnt
 een vergissing niet), of de chat een hele toelichting laten vervangen die
 hij alleen ingekort heeft gezien.
+
+## 2026-10-21 · Chat: "Schema is too complex" — strikt alleen wat het nodig heeft (v2.96)
+
+**Probleem.** Na v2.95 gaf *Vraag het je app* op de telefoon "Claude API fout
+400: Schema is too complex". Het gereedschap ging allemaal mee met
+`strict: true`; de API zet al die schema's samen om in één grammatica, en
+die heeft een interne grens die niet gepubliceerd is (alleen de harde
+grenzen: 20 strikte tools, 24 optionele velden, 16 union-velden -- daar
+bleven we ver onder). Met *Taak aanpassen* (negen velden, twee keuzelijsten)
+erbij en twee gekoppelde Google-accounts (15 gereedschappen) ging het totaal
+erover. De documentatie noemt deze fout en raadt als eerste aan: maak alleen
+strikt wat het echt nodig heeft.
+
+**Beslissing.**
+- Strikt alleen de acties op de eigen administratie: taak toevoegen,
+  aanpassen en afvinken, project aanmaken, uren schrijven, factuur betaald,
+  notitie maken (en notitie bewerken / veld invullen als die er zijn). Niet
+  strikt: het opzoeken (agenda, mail, notities) -- dat verandert niets en
+  leest zijn invoer zelf voorzichtig in -- en de Google-acties (afspraak,
+  mail opruimen, antwoord klaarzetten), die alleen bestaan met gekoppelde
+  accounts en waarvan bekijk() de invoer al controleert. Strikt nu 7
+  gereedschappen met 31 velden, tegen 14 met 44 in v2.94, dat werkte.
+- Vangnet in `_claudeFetch`: antwoordt de API toch "Schema is too complex",
+  dan één keer opnieuw zonder strict, en de rest van de sessie meteen
+  zonder (`_claudeZonderStrict`). Elke actie blijft een voorstel dat bekijk()
+  controleert en dat de gebruiker goedkeurt.
+
+**Waarom niet anders.** De echte grens is niet te meten zonder API-sleutel
+en is niet gepubliceerd; een vangnet maakt de chat ongevoelig voor de
+volgende actie die erbij komt.
+
+**Bestanden.** `index.html` (`aiActieGereedschap`, `_claudeFout` geeft ook de
+ruwe melding, `_claudeFetch`, `_claudeStrictEraf`, `_claudeZonderStrict`),
+`test.html` (twee tests aangepast, één nieuw), `sw.js`, `CLAUDE.md`.
+
+**Niet doen.** Alles weer strikt maken, of een nieuwe actie met veel
+keuzelijsten toevoegen zonder het strikte totaal na te rekenen
+(`aiActieGereedschap().filter(t=>t.strict)`).
+

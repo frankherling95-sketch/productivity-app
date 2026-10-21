@@ -596,19 +596,26 @@ async function runChecks() {
        Voorstel → jouw klik → uitvoeren → ongedaan maken. Alles via een
        nagebootste fetch of rechtstreeks op het voorstel; geen echte aanroep. */
     /* Zonder account: zes acties (sinds 2026-10-12 ook project_aanmaken) en twee keer notities (zoeken, lezen). */
-    ['Acties: negen gereedschappen zonder account, strikt, elk veld verplicht', () => zonderAccounts(() => {
+    /* Alleen de acties op de eigen administratie zijn strikt; opzoeken en de
+       Google-acties niet (2026-10-21: de strikte schema's samen werden te
+       complex voor de API). Wel overal elk veld verplicht en geen extra velden. */
+    ['Acties: negen gereedschappen zonder account; de acties strikt, opzoeken niet; elk veld verplicht', () => zonderAccounts(() => {
       const g = w.aiActieGereedschap();
-      return g.length === 9 && g.every(t => t.strict === true && t.input_schema.additionalProperties === false &&
-        Object.keys(t.input_schema.properties).every(k => t.input_schema.required.includes(k)) && t.description);
+      const acties = Object.keys(w.eval('AI_ACTIES')).filter(n => !w.eval('AI_ACTIES')[n].nodig);
+      return g.length === 9 && g.every(t => t.strict === acties.includes(t.name) && t.input_schema.additionalProperties === false &&
+        Object.keys(t.input_schema.properties).every(k => t.input_schema.required.includes(k)) && t.description) &&
+        g.filter(t => t.strict).length === 7;
     })],
     /* Met een gekoppeld account komen er drie acties en drie keer opzoeken
        bij, ook allemaal strikt. */
     ['Acties: met een account ook agenda en mail, ook strikt', () => metGoogle(() => {
       const g = w.aiActieGereedschap();
       const namen = g.map(t => t.name);
+      const acties = Object.keys(w.eval('AI_ACTIES')).filter(n => !w.eval('AI_ACTIES')[n].nodig);
       return g.length === 15 && ['afspraak_maken', 'mail_opruimen', 'mail_concept', 'agenda_bekijken', 'mail_zoeken', 'mail_lezen']
-        .every(n => namen.includes(n)) && g.every(t => t.strict === true && t.input_schema.additionalProperties === false &&
-        Object.keys(t.input_schema.properties).every(k => t.input_schema.required.includes(k)));
+        .every(n => namen.includes(n)) && g.every(t => t.strict === acties.includes(t.name) && t.input_schema.additionalProperties === false &&
+        Object.keys(t.input_schema.properties).every(k => t.input_schema.required.includes(k))) &&
+        g.filter(t => t.strict).length === 7 && !g.find(t => t.name === 'afspraak_maken').strict;
     })],
     ['Acties: alleen bij Claude in de systeemprompt', () =>
       metLS({herling_ai_aanbieder: null}, () => /Acties:/.test(w.aiChatSysteem()) &&
@@ -649,6 +656,31 @@ async function runChecks() {
         stukken.filter(s => typeof s === 'string').join('') === 'Ik zet het klaar.' &&
         actie && actie.naam === 'taak_toevoegen' && actie.input.klant === naam;
     })],
+    ['Acties: "Schema is too complex" → één keer opnieuw zonder strict, en dan gewoon een antwoord', async () => {
+      const ev = (type, data) => 'event: ' + type + '\ndata: ' + JSON.stringify({type, ...data}) + '\n\n';
+      const oudFetch = w.fetch, oudTel = w._aiBumpUsage;
+      w._aiBumpUsage = () => {};
+      const bodies = [];
+      w.fetch = async (u, opt) => {
+        const b = JSON.parse(opt.body); bodies.push(b);
+        if (bodies.length === 1) return new w.Response(JSON.stringify({type: 'error', error: {type: 'invalid_request_error',
+          message: 'Schema is too complex for compilation. Try reducing the number of strict tools.'}}), {status: 400, headers: {'Content-Type': 'application/json'}});
+        const sse = ev('message_start', {message: {}}) + ev('content_block_start', {index: 0, content_block: {type: 'text', text: ''}}) +
+          ev('content_block_delta', {index: 0, delta: {type: 'text_delta', text: 'Gelukt.'}}) + ev('content_block_stop', {index: 0}) +
+          ev('message_delta', {delta: {stop_reason: 'end_turn'}}) + ev('message_stop', {});
+        return new w.Response(sse, {status: 200, headers: {'Content-Type': 'text/event-stream'}});
+      };
+      const stukken = [];
+      let fout = '';
+      try {
+        await metLS({herling_ai_aanbieder: null, herling_claude_api_key: 'test', herling_ai_maskeren: null}, () => zonderAccounts(async () => {
+          for await (const s of w._streamAI({system: 'test', user: 'hallo', gereedschap: w.aiActieGereedschap()})) stukken.push(s);
+        }));
+      } catch (e) { fout = e.message; }
+      finally { w.fetch = oudFetch; w._aiBumpUsage = oudTel; w.eval('_claudeZonderStrict=false'); }
+      return !fout && bodies.length === 2 && bodies[0].tools.some(t => t.strict) && bodies[1].tools.every(t => !('strict' in t)) &&
+        bodies[1].tools.length === bodies[0].tools.length && stukken.filter(s => typeof s === 'string').join('') === 'Gelukt.';
+    }],
     ['Acties: taak toevoegen via de kaart, en ongedaan maken', () => metKlant(async () => {
       const naam = w.eval('kanbanState.clients[0].name');
       const titel = 'Testtaak uit de chat ' + Date.now();

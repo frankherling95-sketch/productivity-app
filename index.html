@@ -9618,7 +9618,7 @@ body.aic-open .aic-starter { display: none; }
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.95</span>
+        <span class="app-versie" title="Appversie">v2.96</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -41429,11 +41429,18 @@ async function _claudeFout(r,model){
   else uit='Claude API fout '+s+(msg?': '+msg:'');
   /* Eén regel in de console met wat Anthropic werkelijk zei. */
   console.warn('[claude] '+s,{type,msg});
-  return {msg:uit,wacht};
+  return {msg:uit,wacht,ruw:msg};
 }
 
+/* Is de strikte modus deze sessie al eens te complex gebleken, dan meteen
+   zonder: anders kost elke volgende ronde opnieuw een mislukte aanvraag. */
+let _claudeZonderStrict=false;
+function _claudeStrictEraf(body){
+  return Array.isArray(body.tools)?{...body,tools:body.tools.map(({strict,...rest})=>rest)}:body;
+}
 async function _claudeFetch(body){
   let poging=0;
+  if(_claudeZonderStrict)body=_claudeStrictEraf(body);
   for(;;){
     const stop=new AbortController();
     const wekker=setTimeout(()=>stop.abort(),CLAUDE_TIJDLIMIET);
@@ -41453,6 +41460,17 @@ async function _claudeFetch(body){
     _aiBumpUsage();
     if(r.ok)return r;
     const fout=await _claudeFout(r,body.model);   /* body kan maar één keer */
+    /* Te ingewikkeld voor de strikte modus (2026-10-21): de API maakt van alle
+       strikte schema's samen één grammatica, met een grens die niet
+       gepubliceerd is. Dan één keer opnieuw zonder strict. Er gaat niets mis:
+       elke actie blijft een voorstel dat bekijk() controleert en dat jij
+       goedkeurt. */
+    if(r.status===400&&/schema is too complex/i.test(fout.ruw||'')&&Array.isArray(body.tools)&&body.tools.some(x=>x&&x.strict)){
+      console.warn('[claude] gereedschap te complex voor strict; opnieuw zonder strict');
+      _claudeZonderStrict=true;
+      body=_claudeStrictEraf(body);
+      continue;
+    }
     /* 429 en overbelasting gaan vanzelf over. Een paar keer wachten, met de
        wachttijd die Anthropic zelf noemt -- tenzij die langer is dan een
        minuut: dan liever nu de melding dan een spinner die blijft draaien. */
@@ -42101,7 +42119,15 @@ function aiChatOverzicht(vandaagIso){
      wat het voorstelde en of je het uitvoerde (aiChatBeurtTekst).
    - strict: de API houdt de invoer aan het schema. Wat het schema niet kan
      afdwingen (bestaat die klant, is dat een echte datum, staat die factuur
-     nog open) controleert bekijk() vóór de kaart in beeld komt. */
+     nog open) controleert bekijk() vóór de kaart in beeld komt.
+     Strikt zijn alleen de acties op de eigen administratie; opzoeken
+     (AI_LEES) en de Google-acties (afspraak, mail) niet (2026-10-21). De API
+     zet alle strikte schema's samen om in één grammatica, en die heeft een
+     grens. Met Taak aanpassen erbij en gekoppelde accounts ging het totaal
+     erover ("Schema is too complex"). Opzoeken verandert niets, en de
+     Google-acties controleert bekijk() al (datum, tijd, bestaan die mails);
+     versturen doet de gebruiker zelf. Zie ook _claudeFetch: gaat het toch
+     mis, dan één keer opnieuw zonder strict. */
 function _aiActieDatum(s,leegMag){
   s=String(s||'').trim();
   if(!s)return leegMag?{iso:'',tekst:''}:{fout:'Er staat geen datum bij.'};
@@ -42937,7 +42963,11 @@ function aiActieGereedschap(){
   /* Agenda en mail alleen als er een account is dat ze aan heeft: anders
      zou het model gereedschap krijgen dat alleen "kan niet" oplevert. */
   const kan=def=>(!def.nodig||gaccVoor(def.nodig).length>0)&&(!def.wanneer||def.wanneer());
-  const tool=(tabel,naam)=>({name:naam,description:tabel[naam].uitleg,input_schema:tabel[naam].schema,strict:true});
+  /* Strikt alleen de acties op de eigen administratie (taken, projecten,
+     uren, facturen, notities); opzoeken en wat via Google loopt (agenda,
+     mail) niet. Zie het commentaar boven _aiActieDatum. */
+  const tool=(tabel,naam)=>({name:naam,description:tabel[naam].uitleg,input_schema:tabel[naam].schema,
+    strict:tabel===AI_ACTIES&&!tabel[naam].nodig});
   return Object.keys(AI_ACTIES).filter(n=>kan(AI_ACTIES[n])).map(n=>tool(AI_ACTIES,n))
     .concat(Object.keys(AI_LEES).filter(n=>kan(AI_LEES[n])).map(n=>tool(AI_LEES,n)));
 }
