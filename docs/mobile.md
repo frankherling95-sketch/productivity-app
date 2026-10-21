@@ -87,9 +87,10 @@ Elke module ziet er op een telefoon hetzelfde uit. Twee vaste plekken:
 | ⋯-menu | rechtsboven, op de lijn van de moduletitel (`top: 4px` + safe-area, `right: 12px`) | 44×44, randloos, transparant | `var(--icoon)` |
 | filter | rechts in de balk eronder, in dezelfde kolom als het ⋯ — bij Uren en Facturen is dat de rij van periode/jaar, niet de tabsrij | 44×44, randloos, transparant | `var(--icoon)` |
 | `‹ jaar ›` | links in diezelfde balk, vóór de bedrijfskiezer — in **elke** weergave van Uren en Facturen, de analyse inbegrepen | 36px hoog (brede knop), het label zelf is de weg terug naar nu | — |
-| ronde + | rechtsonder, boven de tabbalk (`right: 17px`, `bottom: 80px` + safe-area) | 56×56 | 26px glyph |
+| onderbalk | een zwevende pil: `left/right: 12px`, `bottom: 10px` + safe-area, 60px hoog, navy met een rand van 12% wit en de schaduw van de ronde knop; zes vakken (de vijf modules en Herling AI), alleen iconen, het label in `aria-label`. Actief: een licht vlak (verloop 17% → 7% wit) met een mint icoon, zoals in de zijbalk; het eerste en laatste vak volgen de ronding van de pil. Tellertje rechtsboven het icoon met een navy rand | elk vak ≥ 44×46 (55px breed op 375, 45px op 320) | 22px — zonder label draagt het icoon het alleen |
+| ronde + | rechtsonder, boven de onderbalk (`right: 17px`, `bottom: 80px` + safe-area: 10px boven de pil) | 56×56 | 26px glyph |
 | ✕ sluiten | ín de gekleurde kopbalk van een modaal, 9px van de rechterrand | 44×44, randloos, wit op de band | `var(--icoon)` |
-| Herling AI | géén eigen zwevende knop (rechtsonder staat de ronde +): de sparkle in de zijbalk en in de kop van een open notitie; het paneel komt als blad van onderen (hoogte volgt de inhoud, tot 88vh), met een − om te minimaliseren | — | — |
+| Herling AI | het zesde vak van de onderbalk (`#mobileNavAi`, het vonkje in het verloop van het logo), plus de sparkle in de zijbalk en in de kop van een open notitie; geen eigen zwevende knop (rechtsonder staat de ronde +). Het paneel komt als blad van onderen (hoogte volgt de inhoud, tot 88vh), met een − om te minimaliseren | — | — |
 
 ### Eén maat voor een icoon: `--icoon`
 

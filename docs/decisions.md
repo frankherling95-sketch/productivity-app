@@ -8626,3 +8626,38 @@ noemen de oude naam; die blijven zoals ze zijn.
 je de hele dag in werkt leidt dat af), of een vaste duur gebruiken in plaats
 van de tokens.
 
+## 2026-10-21 · De onderbalk op een telefoon wordt een zwevende pil (v2.98)
+
+**Probleem.** Frank wilde de onderbalk in de vorm van een voorbeeld dat hij
+liet zien: een afgeronde, zwevende balk met alleen iconen en een licht vlak
+achter het actieve item. Met de eigen iconen en kleuren, en als het past met
+een knop voor Herling AI.
+
+**Beslissing.**
+- Een pil: navy (zoals de zijbalk en de ronde knop, in beide thema's), 12px
+  van de zijkanten en 10px boven de thuisbalk, 60px hoog, een rand van 12%
+  wit en de schaduw van de ronde knop.
+- Alleen iconen, 22px (zonder label draagt het icoon het alleen); het label
+  staat in `aria-label`. Niet-actief 60% wit; actief een licht vlak (verloop
+  17% → 7% wit) met een mint icoon, dezelfde taal als het actieve item in de
+  zijbalk. Het eerste en laatste vak volgen de ronding van de pil.
+- Zes vakken: de vijf modules en **Herling AI** als laatste (het vonkje in het
+  verloop van het logo, dat beweegt zoals elders). Het past: 55px per vak op
+  375px, 45px op 320px -- boven de 44px. Het vak staat aan zolang het paneel
+  open is.
+- De inhoud houdt onderaan 80px vrij (was 64), de melding staat op 82px, de
+  ronde + blijft op 80px: 10px boven de pil.
+
+**Daarbij gevonden.** Het rode tellertje bij Taken in de onderbalk was nooit
+te zien: de code zette `style.display=''`, en dan won de CSS-regel
+`display:none`. Nu `'flex'`.
+
+**Bestanden.** `index.html` (markup van `#mobileBottomNav`, de mobiele CSS
+van de balk, de ruimte onderaan, `updateMobileNavBadges`, `aiChatKnoppen`,
+het vonkje), `test.html` (één test, en de bestaande die het label las),
+`sw.js`, `CLAUDE.md`, `docs/mobile.md`, `docs/stijlgids.md`.
+
+**Niet doen.** De labels terugzetten onder de iconen (dan past het zesde vak
+niet meer op 320px), of de balk in het lichte thema wit maken: dan verdwijnt
+hij tegen de pagina en past hij niet meer bij de zijbalk en de ronde knop.
+

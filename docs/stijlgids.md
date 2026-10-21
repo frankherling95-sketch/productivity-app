@@ -467,7 +467,8 @@ verschilt — in Safari ruimer dan in Chrome. Altijd begrenzen met
 |---|---|---|
 | ⋯-menu | rechtsboven op de lijn van de moduletitel (`top: 4px` + safe-area, `right: 12px`) | 44×44 |
 | filter | rechts in de balk eronder, in dezelfde kolom als het ⋯ | 44×44 |
-| ronde + | rechtsonder boven de tabbalk | 56×56 |
+| onderbalk | een zwevende pil, 12px van de randen en 10px boven de thuisbalk; alleen iconen (22px), actief = licht vlak + mint icoon; zie `docs/mobile.md` | 60px hoog, vakken ≥ 44px |
+| ronde + | rechtsonder boven de onderbalk | 56×56 |
 | ✕ sluiten | in de kopbalk van een modaal, rechts | 44×44 |
 
 ---
