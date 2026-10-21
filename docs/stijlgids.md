@@ -607,7 +607,7 @@ beide thema's donker; de vensters die eruit opengaan volgen het thema.
 | rij in een groep (`.nav-sub`) | 12px dieper (vulling links 24px) | idem |
 | wisselaar bovenin | 60px, logo 44px, naam 15px / 700 display | naam `var(--fs-groot)` |
 | gebruiker onderin | 56px, avatar 40px, naam 14px / 600, e-mail `var(--fs-klein)` | naam `var(--fs-basis)` |
-| Vraag het je app (`.sb-ai`) | rechts naast de wisselaar: 44px in het vierkant, dezelfde tegel (vulling, rand, hoek 10px), sparkle 20px in het verloop van het logo; ingeklapt onder de wisselaar, 48×46 | idem, 44px; tikken sluit eerst de lade |
+| Herling AI (`.sb-ai`) | rechts naast de wisselaar: 44px in het vierkant, dezelfde tegel (vulling, rand, hoek 10px), sparkle 20px in het verloop van het logo; ingeklapt onder de wisselaar, 48×46 | idem, 44px; tikken sluit eerst de lade |
 | inklapknop | 28px rond, half over de rand, op de streep boven de gebruiker | weg |
 | pil onder de naam (`.sb-pil`) | `var(--fs-micro)` / 700, kapitalen, mint op 16% mint | idem |
 
@@ -688,6 +688,15 @@ deze; geen losse `.15s` of `0.3s` meer.
   Hooguit 30 beelden per seconde, alleen in beeld en met een zichtbaar
   tabblad; bij "beweging beperken" één stilstaand beeld. De vorm is vast:
   sfeer, geen gegevens.
+- *Het vonkje van Herling AI* (twee sterren, `.sp-g` groot en `.sp-k` klein,
+  `transform-box: fill-box`): bij aanwijzen van de tegel in de zijbalk, de
+  ronde knop of de knop bij een notitie draait de grote een kwartslag met een
+  sprongetje (`sp-draai`, 3× `--duur`; na 90° weer dezelfde vorm) en twinkelt
+  de kleine kort erna (`sp-twinkel`); bij het openen van het paneel één keer in
+  de kop; zolang hij nadenkt ademen ze om de beurt (`sp-adem`, 6× `--duur`,
+  herhaalt) in het paneel, op de tegel, de ronde knop en de balk op het
+  Dashboard; een nieuw antwoord terwijl het paneel weg is: de kleine twinkelt
+  twee keer. Geen beweging als er niets gebeurt.
 - *Taken*: afvinken tekent het vinkje (`.zojuist`), klapt de taak dicht en
   hertekent daarna; elke hertekening laat de taken naar hun nieuwe plek glijden
   (FLIP in `renderChecklistModule()`).
@@ -757,7 +766,7 @@ Een nieuwe instelling krijgt een regel op deze pagina, ook als hij in een
 
 ---
 
-## 16. Vraag het je app
+## 16. Herling AI
 
 **Het paneel** (sinds 2026-10-13; daarvoor een venster met achtergrond). Geen
 `.modal-bg`: je werkt ernaast door, en het blijft open als je van pagina
@@ -812,7 +821,7 @@ een knop, geen `<a href>`, omdat de app op de hash routeert.
 
 ### Een voorstel in de chat
 
-Wil Vraag het je app iets doen, dan staat er een kaart in het antwoord
+Wil Herling AI iets doen, dan staat er een kaart in het antwoord
 (`.aic-actie`). Op die kaart staat wat er gaat gebeuren. Er verandert pas iets
 als je klikt.
 
