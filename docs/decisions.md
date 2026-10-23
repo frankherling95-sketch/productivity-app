@@ -8661,3 +8661,29 @@ het vonkje), `test.html` (één test, en de bestaande die het label las),
 niet meer op 320px), of de balk in het lichte thema wit maken: dan verdwijnt
 hij tegen de pagina en past hij niet meer bij de zijbalk en de ronde knop.
 
+## 2026-10-23 · Uren-analyse: een totaal onder Nog niet gefactureerd (v2.99)
+
+**Probleem.** De kaart *Nog niet gefactureerd* op Uren → Analyse toont per
+klant het bedrag en de uren, maar niet hoeveel het samen is. Bovendien
+stonden de bedragen niet onder elkaar: elke rij van de ranglijst is zijn
+eigen raster, dus de waardekolom was zo breed als het eigen bedrag en de
+balken eindigden op verschillende plekken.
+
+**Beslissing.**
+- Onder de ranglijst een totaalregel (`.fac-an-krij-totaal`): een lijn
+  erboven, *Totaal* met het aantal klanten als bijregel, het totaalbedrag en
+  de uren vet, geen balk. Dezelfde som als de tegel bovenaan (`d.openEuro`,
+  `d.open`). Alleen vanaf twee klanten: bij één is het dezelfde regel nog eens.
+- De waardekolom van elke ranglijst (`.fac-an-krij .wa`) krijgt op een
+  bureaublad een ondergrens van 7,5em (ruim voor "€ 999.999,00"). Dat zet de
+  bedragen en de balkeinden recht in alle ranglijsten: ook Werkritme en die in
+  Facturen → Analyse. Op een telefoon staat het bedrag naast de naam en de
+  balk eronder; daar geen ondergrens.
+
+**Bestanden.** `index.html` (`urenAnOpenstaand`, CSS `.fac-an-krij .wa`,
+`.fac-an-krij-totaal`), `test.html` (één test), `sw.js`, `CLAUDE.md`,
+`docs/stijlgids.md`.
+
+**Niet doen.** Een balk in de totaalregel (de som is geen klant en zou altijd
+de langste zijn), of de kolommen per rij laten meegroeien.
+

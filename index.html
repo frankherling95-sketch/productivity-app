@@ -1727,6 +1727,16 @@ button.uren-mpiv-row:active{background:var(--surface2)}
 .fac-an-krij .vul{display:block;height:100%;background:var(--gr-nu);border-radius:4px}
 .fac-an-krij .wa{font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap;text-align:right}
 .fac-an-krij .wa small{display:block;font-weight:500;color:var(--text-muted)}
+/* Elke rij is zijn eigen raster, dus de laatste kolom was zo breed als het
+   eigen bedrag: de balken eindigden op verschillende plekken en de bedragen
+   stonden niet onder elkaar (2026-10-23). Een vaste ondergrens, ruim voor
+   "€ 999.999,00", trekt ze recht -- en een totaal staat er dan echt onder. */
+.fac-an-krij .wa{min-width:7.5em}
+/* De totaalregel onder een ranglijst: een lijn erboven, vet, geen balk -- de
+   som is geen klant. */
+.fac-an-krij-totaal{margin-top:6px;padding-top:12px;border-top:1px solid var(--border);border-radius:0}
+.fac-an-krij-totaal .nm,.fac-an-krij-totaal .wa{font-weight:700}
+.fac-an-krij-totaal .bl{visibility:hidden}
 /* Herkomst per maand (Uren): twee delen in één balk met een naad ertussen, en
    een bredere naamkolom -- de bronregel noemt een factuurnummer én een klant,
    en die mag afbreken in plaats van weg te vallen: bij het nalopen van een
@@ -1919,6 +1929,8 @@ button.uren-mpiv-row:active{background:var(--surface2)}
   .fac-an-krij .wa{grid-column:2;grid-row:1;text-align:right}
   .fac-an-krij .wa small{display:inline;margin-left:6px}
   .fac-an-krij .bl{grid-column:1/-1;grid-row:2;height:10px}
+  .fac-an-krij .wa{min-width:0}
+  .fac-an-krij-totaal .bl{display:none}
   .fac-an-krij.herkomst{grid-template-columns:1fr auto}
   .fac-an-nieuw{grid-template-columns:1fr}
   .fac-an-tip{min-width:120px}
@@ -9645,7 +9657,7 @@ body.aic-open .aic-kop .sp-k { animation: sp-twinkel calc(var(--duur) * 3) var(-
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.98</span>
+        <span class="app-versie" title="Appversie">v2.99</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -23785,12 +23797,20 @@ function urenAnOpenstaand(d){
   if(!metOpen.length)
     return '<div class="uren-empty">Alles is gefactureerd — er staan geen uren meer open.</div>';
   const max=Math.max(...metOpen.map(k=>k.openEuro),1);
+  /* Een totaal eronder (2026-10-23), vanaf twee klanten: bij één is het
+     dezelfde regel nog eens. Dezelfde som als de tegel bovenaan. */
+  const totaal=metOpen.length>1?`
+    <div class="fac-an-krij fac-an-krij-stil fac-an-krij-totaal">
+      <span class="nm">Totaal<small>${metOpen.length} klanten</small></span>
+      <span class="bl" aria-hidden="true"></span>
+      <span class="wa">${factuurFmtBedrag(d.openEuro)}<small>${urenFmt(d.open)} u</small></span>
+    </div>`:'';
   return `<div class="fac-an-klanten">${metOpen.map(k=>`
     <div class="fac-an-krij fac-an-krij-stil">
       <span class="nm">${escapeHtml(k.naam)}</span>
       <span class="bl"><span class="vul" style="width:${Math.max(1,(k.openEuro/max)*100).toFixed(1)}%"></span></span>
       <span class="wa">${factuurFmtBedrag(k.openEuro)}<small>${urenFmt(k.open)} u</small></span>
-    </div>`).join('')}</div>`;
+    </div>`).join('')}${totaal}</div>`;
 }
 
 /* Herkomst per maand: hoeveel je zelf schreef en hoeveel er uit een factuur

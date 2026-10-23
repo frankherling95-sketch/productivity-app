@@ -2258,6 +2258,16 @@ async function runChecks() {
     ['Analyse: bedragen kort maar leesbaar', () =>
       w.facAnKort(6000) === '€6k' && w.facAnKort(1500) === '€1,5k' &&
       w.facAnKort(950) === '€950' && w.facAnKort(0) === '€0'],
+    ['Uren-analyse: Nog niet gefactureerd krijgt een totaal eronder (vanaf twee klanten), met dezelfde som als de tegel', () => {
+      const twee = w.urenAnOpenstaand({klanten: [{naam: 'Klant A', open: 2, openEuro: 200}, {naam: 'Klant B', open: 1.5, openEuro: 150}], open: 3.5, openEuro: 350});
+      const doos = d.createElement('div'); doos.innerHTML = twee;
+      const tot = doos.querySelector('.fac-an-krij-totaal');
+      const totOk = !!tot && /^Totaal/.test(tot.querySelector('.nm').textContent.trim()) && /2 klanten/.test(tot.textContent) &&
+        tot.querySelector('.wa').textContent.includes(w.factuurFmtBedrag(350)) && tot.querySelector('.wa small').textContent.trim() === w.urenFmt(3.5) + ' u' &&
+        doos.querySelectorAll('.fac-an-krij').length === 3 && doos.lastElementChild.lastElementChild === tot;
+      const een = w.urenAnOpenstaand({klanten: [{naam: 'Klant A', open: 2, openEuro: 200}], open: 2, openEuro: 200});
+      return totOk && !/fac-an-krij-totaal/.test(een);
+    }],
     ['Analyse: eindklant uit de betreft-regel', () => {
       const r = (b, k) => w.facEindRaad(b, k);
       return r('Acme Data - Klant West Gewerkte uren Juni/Juli 2026', 'Acme Data B.V.') === 'Klant West' &&

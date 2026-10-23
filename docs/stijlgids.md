@@ -526,6 +526,11 @@ De regels die daarbij horen:
   "toen" — dan moet de lezer eerst een legenda uit zijn hoofd leren.
 - **Een ranglijst krijgt één kleur.** Kleur per klant doet over wat de lengte
   van de balk al zegt, en kost het enige vrije kanaal dat je hebt.
+- **In een ranglijst staan de bedragen onder elkaar** (`.fac-an-krij`): de
+  waardekolom heeft op een bureaublad een ondergrens van 7,5em, zodat elke balk
+  op dezelfde plek eindigt. Een totaal eronder (`.fac-an-krij-totaal`): een
+  lijn van 1px `--border` erboven, *Totaal* en het bedrag vet, het aantal
+  regels als bijregel, geen balk. Alleen vanaf twee regels.
 - **Nooit twee y-assen.** Twee grootheden = twee grafieken.
 - Balk maximaal 24px dik, ronde bovenkant (4px) en vierkante voet; lijn 2px;
   eindpunt minimaal 8px met een ring in de vlakkleur; raster een haarlijn,
