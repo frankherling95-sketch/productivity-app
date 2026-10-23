@@ -342,9 +342,9 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
+- **2026-10-23**: **Uren-analyse: totaal onder Nog niet gefactureerd** (v2.99) — een totaalregel (bedrag en uren, het aantal klanten) onder de ranglijst, vanaf twee klanten. De bedragen in alle ranglijsten (`.fac-an-krij`) staan nu onder elkaar: de waardekolom heeft op een bureaublad een ondergrens, zodat elke balk op dezelfde plek eindigt
 - **2026-10-21**: **Onderbalk als zwevende pil** (v2.98) — op een telefoon: navy pil, 12px van de randen en 10px boven de thuisbalk, alleen iconen (22px), het actieve vak een licht vlak met een mint icoon; zes vakken, de zesde is Herling AI. Het tellertje van Taken werkte er nooit (`display:''` verloor van de CSS) en staat er nu
 - **2026-10-21**: **Herling AI** (v2.97) — de assistent heet nu Herling AI (kop, knoppen, systeeminstructie). Het vonkje beweegt: bij aanwijzen draait de grote ster een kwartslag en twinkelt de kleine, bij openen één keer, en zolang hij nadenkt ademen ze om de beurt (`.sp-g`/`.sp-k`, duren uit de tokens)
-- **2026-10-16**: **Taken per project** (v2.92) — naast *Lijst* een weergave *Per project*: de taken per klant en daarbinnen per project, met tellingen; koppen klappen in, bovenaan *Klanten · Projecten · Alles* en per klant een klapknop op de klantregel. Klant- en projectlabel gaan dan van de kaart. Keuze per apparaat (`herling_taken_weergave`). Slepen kan daar alleen binnen een project, en volgt nu de volgorde op het scherm (een nieuwe taak sprong eerst naar onderen)
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 
@@ -431,7 +431,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 256 smoke-, sync-, model-, reken-, sorteer-, agenda-, mail- en projecttests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook. **Hoort in elke browser groen te zijn**, ook headless in een leeg profiel: een test die iets van de omgeving nodig heeft zet het zelf neer en ruimt het op — `metKlant` (minstens één klant), `metLogin` (ingelogd, met naam), `opBreed` (iframe op 1400px, want onder 769px is de app een telefoon), `metLS`, `metGoogle`. Rood is dus echt rood |
+| `test.html` | 257 smoke-, sync-, model-, reken-, sorteer-, agenda-, mail- en projecttests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook. **Hoort in elke browser groen te zijn**, ook headless in een leeg profiel: een test die iets van de omgeving nodig heeft zet het zelf neer en ruimt het op — `metKlant` (minstens één klant), `metLogin` (ingelogd, met naam), `opBreed` (iframe op 1400px, want onder 769px is de app een telefoon), `metLS`, `metGoogle`. Rood is dus echt rood |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |
