@@ -2276,6 +2276,82 @@ async function runChecks() {
         return !!nav && adres && kies && stappen && terug && btw;
       } finally { w.eval("fisWeergave='kies'"); w.facSetView('facturen'); w.switchModule(oud || 'dashboard'); }
     }],
+    /* ── Fiscaal: de dividenduitkering (2026-10-24) ──
+       Verzonnen gegevens; na afloop staat fiscaalState terug. */
+    ...(() => {
+      const G = {werkNaam: 'Voorbeeld B.V.', werkKvk: '12345678', werkPlaats: 'Puren', holdingNaam: 'Voorbeeld Holding B.V.',
+        aanhef: 'de heer', vertegenwoordiger: 'Jan Jansen', bestuurder: 'holding', bestuurderNaam: ''};
+      const DV = {id: 'tdv1', datum: '2026-01-12', plaats: 'Puren', boekjaar: '2025/2026', bedrag: 60000, tenLaste: 'winst of overige reserves',
+        betaaldatum: null, peildatum: '2025-12-31', ev: 148500, reserves: 0, kas: 121300, schulden: 24800, kasstroom: 38000, vrijstelling: true};
+      const metFiscaal = fn => {
+        const oud = w.eval('JSON.stringify(fiscaalState)');
+        w.eval('fiscaalState=' + JSON.stringify({gegevens: G, dividenden: [DV]}));
+        try { return fn(); } finally { w.eval('fiscaalState=' + oud); w.eval('fisWeergave="kies"'); }
+      };
+      const tekst = bl => bl.map(b => [b.tekst, (b.regels || []).join(' '), b.naam, b.plaatsDatum, (b.rijen || []).map(r => r.label).join(' ')].filter(Boolean).join(' ')).join(' ');
+      return [
+        ['Dividend: de toetsen rekenen goed, en negatief houdt de documenten tegen', () => metFiscaal(() => {
+          const st = w.fisDivStatus(DV, G);
+          const ok = st.klaar && st.ruimte === 148500 && st.ruimteNa === 88500 && st.saldo === 74500 && st.db === 0 && st.netto === 60000;
+          const teVeel = w.fisDivStatus({...DV, bedrag: 200000}, G);
+          const geenGeg = w.fisDivStatus(DV, {...G, werkKvk: ''});
+          const belast = w.fisDivStatus({...DV, vrijstelling: false}, G);
+          const getal = w.fisGetal('60.000') === 60000 && w.fisGetal('60.000,50') === 60000.5 && w.fisGetal('-1.500') === -1500 &&
+            w.fisGetal('2500') === 2500 && w.fisGetal('') === null && w.fisBedrag(60000) === '€ 60.000' && w.fisDatum('2026-01-12') === '12-1-2026';
+          return ok && !teVeel.klaar && teVeel.kort === 'Balanstest negatief' && !geenGeg.klaar && belast.db === 9000 && belast.netto === 51000 && getal;
+        })],
+        ['Dividend: de drie documenten volgen de gegevens -- holding als bestuurder, cijfers als bijlage, vrijstelling op de nota', () => metFiscaal(() => {
+          const ava = tekst(w.fisDivBlokken('ava', DV, G)), best = w.fisDivBlokken('bestuur', DV, G), nota = tekst(w.fisDivBlokken('nota', DV, G));
+          const bt = tekst(best);
+          const avaOk = /Notulen van de Algemene Vergadering/.test(ava) && /Voorbeeld Holding B\.V\., vertegenwoordigd door de heer Jan Jansen, enig aandeelhouder van Voorbeeld B\.V\./.test(ava) &&
+            /€ 60\.000/.test(ava) && /boekjaar 2025\/2026/.test(ava) && /ten laste van de winst of de overige reserves/.test(ava) && /Puren, 12-1-2026/.test(ava);
+          const bestOk = /enig bestuurder van Voorbeeld B\.V\., vertegenwoordigd door de heer Jan Jansen/.test(bt) && /goedkeuring/.test(bt) &&
+            best.some(b => b.soort === 'pagina') && /Saldo na twaalf maanden/.test(bt) && /Namens Voorbeeld Holding B\.V\., bestuurder van Voorbeeld B\.V\./.test(bt);
+          const persoon = tekst(w.fisDivBlokken('bestuur', DV, {...G, bestuurder: 'persoon', bestuurderNaam: 'Jan Jansen'}));
+          const persoonOk = /- Jan Jansen, bestuurder van Voorbeeld B\.V\./.test(persoon) && !/enig bestuurder/.test(persoon);
+          const notaOk = /Dividendnota/.test(nota) && /inhoudingsvrijstelling/.test(nota) && /geen aangifte/.test(nota) &&
+            /15% dividendbelasting/.test(tekst(w.fisDivBlokken('nota', {...DV, vrijstelling: false}, G)));
+          const geenDubbelePunt = !/B\.V\.\./.test(ava + bt + nota);
+          const naam = w.fisDivBestandsnaam('bestuur', DV) === 'Bestuursbesluit_Uitkeringstoets_2025-2026_2026-01-12.pdf';
+          return avaOk && bestOk && persoonOk && notaOk && geenDubbelePunt && naam;
+        })],
+        ['Dividend: de state laadt, gaat mee naar Drive en voegt samen op id', () => {
+          const bewaar = JSON.stringify(w.huidigeStateSnapshot());
+          try {
+            w.eval('rawState=' + bewaar);
+            w.eval('rawState.fiscaal=' + JSON.stringify({gegevens: G, dividenden: [DV]}));
+            w.hydrateerState();
+            const geladen = w.eval('fiscaalState.dividenden.length') === 1 && w.eval('fiscaalState.gegevens.werkNaam') === 'Voorbeeld B.V.';
+            const mee = w.huidigeStateSnapshot().fiscaal.dividenden[0].id === 'tdv1';
+            const r = w.voegStateSamen({fiscaal: {gegevens: G, dividenden: [DV, {...DV, id: 'tdv2'}]}}, {fiscaal: {gegevens: {}, dividenden: [DV]}});
+            const samen = r.state.fiscaal.dividenden.map(x => x.id).join() === 'tdv1,tdv2' && r.rapport.dividenden === 1 && r.state.fiscaal.gegevens.werkNaam === 'Voorbeeld B.V.';
+            return geladen && mee && samen;
+          } finally { w.eval('rawState=' + bewaar); w.hydrateerState(); }
+        }],
+        ['Dividend: het venster slaat een uitkering op, de lijst toont hem met een menu, en verwijderen is ongedaan te maken', () => metFiscaal(() => {
+          w.eval('fiscaalState.dividenden=[]');
+          w.switchModule('fiscaal'); w.fisOpen('dividend');
+          const body = d.getElementById('fisBody');
+          body.querySelector('[data-action="fisDivOpen"]').click();
+          const open = d.getElementById('fisDivModal').classList.contains('open') && d.getElementById('fisDivPlaats').value === 'Puren';
+          const zet = (id, v) => { const el = d.getElementById(id); el.value = v; el.dispatchEvent(new w.Event('input', {bubbles: true})); };
+          zet('fisDivBoekjaar', '2025/2026'); zet('fisDivBedrag', '60.000'); zet('fisDivPeil', '2025-12-31');
+          zet('fisDivEv', '148.500'); zet('fisDivReserves', '0'); zet('fisDivKas', '121.300'); zet('fisDivSchulden', '24.800'); zet('fisDivKasstroom', '38.000');
+          const reken = /€ 74\.500,00 over/.test(d.getElementById('fisDivReken').textContent);
+          d.querySelector('#fisDivModal [data-action="fisDivOpslaan"]').click();
+          const lijst = w.eval('fiscaalState.dividenden');
+          const bewaard = lijst.length === 1 && lijst[0].bedrag === 60000 && lijst[0].kas === 121300 && !d.getElementById('fisDivModal').classList.contains('open');
+          const rij = body.querySelector('[data-action="fisDivMenu"]');
+          const rijOk = !!rij && /Dividend € 60\.000/.test(rij.textContent) && /Klaar/.test(rij.textContent);
+          rij.click();
+          const menu = d.getElementById('fisMenu');
+          const menuOk = !!menu && menu.querySelectorAll('[data-arg1="pdf"]:not([disabled])').length === 4;
+          menu.querySelector('[data-arg1="weg"]').click();
+          const weg = w.eval('fiscaalState.dividenden.length') === 0 && !d.getElementById('fisMenu');
+          return open && reken && bewaard && rijOk && menuOk && weg;
+        })]
+      ];
+    })(),
     ['Uren-analyse: Nog niet gefactureerd krijgt een totaal eronder (vanaf twee klanten), met dezelfde som als de tegel', () => {
       const twee = w.urenAnOpenstaand({klanten: [{naam: 'Klant A', open: 2, openEuro: 200}, {naam: 'Klant B', open: 1.5, openEuro: 150}], open: 3.5, openEuro: 350});
       const doos = d.createElement('div'); doos.innerHTML = twee;

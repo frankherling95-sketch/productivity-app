@@ -8723,3 +8723,50 @@ je kiest welke functie je wilt gebruiken.
 **Niet doen.** Echte namen of gegevens van de BV's in de sjablonen zetten: die
 komen straks uit Franks eigen gegevens in Drive, de repo is openbaar.
 
+## 2026-10-24 · Dividenduitkering: formulier en documenten (v3.01)
+
+**Probleem.** Een dividenduitkering van werkmaatschappij naar holding vraagt
+elke keer dezelfde documenten. Frank stuurde zijn notulen van de AVA en zijn
+bestuursbesluit inzake de uitkeringstoets; die wilde hij laten invullen, zodat
+alleen de handtekeningen nog moeten. Gekozen: de holding is aandeelhouder én
+bestuurder (instelbaar), de uitkeringstoets krijgt een cijferbijlage, en er
+komt een dividendnota bij.
+
+**Beslissing.**
+- **Gegevens.** De vaste gegevens (werkmaatschappij, KvK, plaats, holding,
+  aanhef en vertegenwoordiger, bestuurder) één keer, in `fiscaalState.gegevens`;
+  per uitkering datum, plaats, boekjaar, bedrag, ten laste van, betaaldatum,
+  de cijfers van de balanstest (eigen vermogen, verplichte reserves, per
+  peildatum) en van de uitkeringstoets (liquide middelen, kortlopende
+  schulden, verwachte netto kasstroom over twaalf maanden), en de
+  dividendbelasting (inhoudingsvrijstelling of 15%).
+- **Toetsen.** Balanstest: eigen vermogen − reserves − dividend ≥ 0.
+  Uitkeringstoets: kas − schulden + kasstroom − dividend ≥ 0. Ze rekenen mee
+  in het venster; is er één negatief, of ontbreken gegevens of cijfers, dan
+  maakt de app de documenten niet (met de reden in het menu).
+- **Documenten.** Drie PDF's met jsPDF, in de opmaak van de voorbeelden (kop
+  in blauw, schreefletter, stippellijn om te tekenen): notulen AVA, het
+  bestuursbesluit met de cijfers op een tweede pagina, en de dividendnota.
+  De teksten volgen de voorbeelden, met verbeteringen: in het bestuursbesluit
+  staat de bestuurder als aanwezig (was de aandeelhouder); het besluit is
+  uitdrukkelijk een goedkeuring (art. 2:216 lid 2 BW: zonder goedkeuring heeft
+  het uitkeringsbesluit geen gevolgen); in de notulen staat dat het bestuur
+  advies kon uitbrengen (art. 2:238 jo. 2:227 lid 7 BW); namen eindigen nooit
+  op "B.V.." (`fisPunt`).
+- **Dividendbelasting** (Belastingdienst, gecontroleerd 2026-10-24): 15%. Bij
+  een Nederlandse holding met 5% of meer de inhoudingsvrijstelling; is de hele
+  uitkering vrijgesteld, dan geen aangifte, tenzij de Belastingdienst
+  uitnodigt. Zo staat het op de nota.
+- Eerst blokken (`fisDivBlokken`), dan de PDF (`fisPdfDoc`): de teksten zijn zo
+  te testen zonder PDF, en de opmaak zit op één plek.
+- De documenten worden niet bewaard: ze komen elke keer opnieuw uit de
+  gegevens. Bestandsnamen zoals Franks eigen: `Notulen_AVA_Dividend_<boekjaar>_<datum>.pdf`.
+
+**Bestanden.** `index.html` (state `fiscaal` in laden, verzamelen,
+samenvoegen en tellen; twee vensters; MODULE: FISCAAL), `test.html` (vier
+tests), `CLAUDE.md`, `docs/stijlgids.md`.
+
+**Niet doen.** Echte namen, KvK-nummers of plaatsen in de code of de tests
+(de repo is openbaar), of de documenten laten maken als een toets negatief
+is: dan verklaart het bestuur iets wat de eigen cijfers tegenspreken.
+

@@ -2444,6 +2444,10 @@ button.uren-mpiv-row:active{background:var(--surface2)}
   background:var(--surface2);color:var(--text-muted);font-family:var(--font-cijfer);font-size:var(--fs-micro);font-weight:700}
 .inst-rij.fis-stap{align-items:flex-start}
 .fis-stap .fis-nr{margin-top:1px}
+/* Een tussenkop in een venster (Fiscaal): een lijn erboven, behalve de eerste. */
+.fis-sectie{margin:4px 0 -4px;padding-top:12px;border-top:0.5px solid var(--border);
+  font-size:var(--fs-klein);font-weight:700;color:var(--text)}
+.uren-form > .fis-sectie:first-child{border-top:0;padding-top:0;margin-top:0}
 /* Wie tekent, of waar het bij hoort: een bijregel onder de uitleg. */
 .inst-tekst small.fis-wie{margin-top:2px;font-size:var(--fs-micro);font-weight:600;color:var(--text-hint)}
 .inst-kolommen{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(400px,100%),1fr));
@@ -10836,6 +10840,109 @@ body.aic-open .aic-kop .sp-k { animation: sp-twinkel calc(var(--duur) * 3) var(-
   </div>
 </div>
 
+<!-- ── Fiscaal: een dividenduitkering (2026-10-24) ──
+     Opbouw van het contractvenster. De uitkomst van de twee toetsen staat
+     onderaan en rekent mee terwijl je typt (fisDivReken). -->
+<div class="modal-bg" id="fisDivModal" onclick="if(event.target===this)fisDivSluit()">
+  <div class="modal" style="max-width:640px;padding:20px 22px">
+    <h3 id="fisDivTitel" style="font-size:18px;font-weight:700;margin:0 0 16px">Nieuwe dividenduitkering</h3>
+    <div class="uren-form">
+      <div class="fis-sectie">Het besluit</div>
+      <div class="opd-velden2">
+        <div class="uren-fld"><label for="fisDivDatum">Datum van het besluit</label><input type="date" class="inp" id="fisDivDatum"/></div>
+        <div class="uren-fld"><label for="fisDivPlaats">Plaats</label><input type="text" class="inp" id="fisDivPlaats" autocomplete="off"/></div>
+      </div>
+      <div class="opd-velden2">
+        <div class="uren-fld"><label for="fisDivBoekjaar">Boekjaar</label><input type="text" class="inp" id="fisDivBoekjaar" autocomplete="off" placeholder="Bijvoorbeeld 2025/2026"/></div>
+        <div class="uren-fld"><label for="fisDivBedrag">Dividend</label><input type="text" inputmode="decimal" class="inp" id="fisDivBedrag" autocomplete="off" placeholder="€"/></div>
+      </div>
+      <div class="opd-velden2">
+        <div class="uren-fld"><label for="fisDivTenLaste">Ten laste van</label>
+          <select class="inp" id="fisDivTenLaste">
+            <option value="winst of overige reserves">de winst of de overige reserves</option>
+            <option value="winst">de winst</option>
+            <option value="overige reserves">de overige reserves</option>
+          </select></div>
+        <div class="uren-fld"><label for="fisDivBetaal">Betaalbaar op</label><input type="date" class="inp" id="fisDivBetaal"/>
+          <small class="opd-hint">Leeg = de datum van het besluit</small></div>
+      </div>
+      <div class="fis-sectie">Balanstest</div>
+      <div class="opd-velden2">
+        <div class="uren-fld"><label for="fisDivPeil">Cijfers per</label><input type="date" class="inp" id="fisDivPeil"/>
+          <small class="opd-hint">De datum van de jaarrekening of de tussentijdse cijfers</small></div>
+        <div class="uren-fld"><label for="fisDivEv">Eigen vermogen</label><input type="text" inputmode="decimal" class="inp" id="fisDivEv" autocomplete="off" placeholder="€"/></div>
+      </div>
+      <div class="uren-fld"><label for="fisDivReserves">Wettelijke en statutaire reserves</label><input type="text" inputmode="decimal" class="inp" id="fisDivReserves" autocomplete="off" placeholder="€ 0"/>
+        <small class="opd-hint">Meestal nul; bijvoorbeeld een herwaarderingsreserve of een reserve die je statuten voorschrijven</small></div>
+      <div class="fis-sectie">Uitkeringstoets: de twaalf maanden na de uitkering</div>
+      <div class="opd-velden2">
+        <div class="uren-fld"><label for="fisDivKas">Liquide middelen</label><input type="text" inputmode="decimal" class="inp" id="fisDivKas" autocomplete="off" placeholder="€"/>
+          <small class="opd-hint">Kas en bank</small></div>
+        <div class="uren-fld"><label for="fisDivSchulden">Kortlopende schulden</label><input type="text" inputmode="decimal" class="inp" id="fisDivSchulden" autocomplete="off" placeholder="€"/>
+          <small class="opd-hint">Crediteuren en belastingen: Vpb, btw, loonheffing</small></div>
+      </div>
+      <div class="uren-fld"><label for="fisDivKasstroom">Verwachte netto kasstroom, komende twaalf maanden</label><input type="text" inputmode="decimal" class="inp" id="fisDivKasstroom" autocomplete="off" placeholder="€"/>
+        <small class="opd-hint">Wat er binnenkomt min wat eruit gaat, zonder het dividend; mag negatief</small></div>
+      <div class="fis-sectie">Dividendbelasting</div>
+      <div class="uren-fld"><label for="fisDivVrij">Inhouden</label>
+        <select class="inp" id="fisDivVrij">
+          <option value="ja">Nee: inhoudingsvrijstelling, de holding heeft 5% of meer (0%)</option>
+          <option value="nee">Ja: 15% dividendbelasting</option>
+        </select></div>
+      <div class="opd-reken" id="fisDivReken" aria-live="polite"></div>
+    </div>
+    <div class="modal-footer" style="margin-top:20px">
+      <div class="modal-footer-left">
+        <button class="btn btn-sm btn-danger" id="fisDivWegBtn" data-action="fisDivVerwijder" style="display:none">Verwijderen</button>
+      </div>
+      <div class="modal-footer-right">
+        <button class="btn btn-sm modal-annuleer" data-action="fisDivSluit">Annuleren</button>
+        <button class="btn btn-sm btn-primary" data-action="fisDivOpslaan">Opslaan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Fiscaal: de vaste gegevens van werkmaatschappij en holding ──
+     Eén keer invullen; ze staan in je eigen gegevens in Drive, nooit in de
+     code (de repo is openbaar). -->
+<div class="modal-bg" id="fisGegModal" onclick="if(event.target===this)fisGegSluit()">
+  <div class="modal" style="max-width:560px;padding:20px 22px">
+    <h3 style="font-size:18px;font-weight:700;margin:0 0 16px">Je gegevens</h3>
+    <div class="uren-form">
+      <div class="fis-sectie">Werkmaatschappij</div>
+      <div class="uren-fld"><label for="fisGegWerk">Naam</label><input type="text" class="inp" id="fisGegWerk" autocomplete="off" placeholder="Statutaire naam, met B.V."/></div>
+      <div class="opd-velden2">
+        <div class="uren-fld"><label for="fisGegKvk">KvK-nummer</label><input type="text" inputmode="numeric" class="inp" id="fisGegKvk" autocomplete="off"/></div>
+        <div class="uren-fld"><label for="fisGegPlaats">Plaats</label><input type="text" class="inp" id="fisGegPlaats" autocomplete="off"/>
+          <small class="opd-hint">Komt als plaats in elk besluit</small></div>
+      </div>
+      <div class="fis-sectie">Holding</div>
+      <div class="uren-fld"><label for="fisGegHolding">Naam</label><input type="text" class="inp" id="fisGegHolding" autocomplete="off" placeholder="Statutaire naam, met B.V."/>
+        <small class="opd-hint">De aandeelhouder van de werkmaatschappij</small></div>
+      <div class="opd-velden2">
+        <div class="uren-fld"><label for="fisGegAanhef">Aanhef</label>
+          <select class="inp" id="fisGegAanhef"><option value="de heer">de heer</option><option value="mevrouw">mevrouw</option><option value="">geen</option></select></div>
+        <div class="uren-fld"><label for="fisGegNaam">Vertegenwoordigd door</label><input type="text" class="inp" id="fisGegNaam" autocomplete="off" placeholder="Voor- en achternaam"/></div>
+      </div>
+      <div class="fis-sectie">Bestuur van de werkmaatschappij</div>
+      <div class="uren-fld"><label for="fisGegBestuur">Bestuurder</label>
+        <select class="inp" id="fisGegBestuur" data-change="fisGegBestuurKies">
+          <option value="holding">De holding (vertegenwoordigd zoals hierboven)</option>
+          <option value="persoon">Een persoon</option>
+        </select>
+        <small class="opd-hint">Zoals in het KvK-uittreksel van de werkmaatschappij</small></div>
+      <div class="uren-fld" id="fisGegPersoonVeld"><label for="fisGegPersoon">Naam bestuurder</label><input type="text" class="inp" id="fisGegPersoon" autocomplete="off" placeholder="Leeg = de vertegenwoordiger hierboven"/></div>
+    </div>
+    <div class="modal-footer" style="margin-top:20px">
+      <div class="modal-footer-right">
+        <button class="btn btn-sm modal-annuleer" data-action="fisGegSluit">Annuleren</button>
+        <button class="btn btn-sm btn-primary" data-action="fisGegOpslaan">Opslaan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ── Contracten: de PDF bekijken ──
      Zelfde opbouw als het voorbeeld van een factuur. Staat ná het
      contractvenster in de DOM, zodat hij erbovenop ligt als je hem van
@@ -11994,6 +12101,10 @@ let opdrachtState={opdrachten:[]};
 /* Contracten met looptijd en PDF's -- zie MODULE: CONTRACTEN. `opruimen`
    houdt verwijderde PDF's nog dertig dagen vast (ongedaan maken, terugzetten). */
 let contractState={contracten:[],opruimen:[]};
+/* Fiscaal (2026-10-24): de vaste gegevens van werkmaatschappij en holding,
+   en per dividenduitkering de besluitgegevens en de cijfers van de toetsen.
+   De documenten zelf worden uit deze gegevens gemaakt, niet bewaard. */
+let fiscaalState={gegevens:{},dividenden:[]};
 let urenView='reg';              /* reg | klant | week | maand */
 let urenRegScope='week';         /* week | month — periodebreedte van de registratie-tab */
 let urenOffset={week:0,month:0,year:0};
@@ -12164,6 +12275,7 @@ function stateOmvang(st){
   n+=((st.facturen||{}).invoices||[]).length;
   n+=((st.opdrachten||{}).opdrachten||[]).length;
   n+=((st.contracten||{}).contracten||[]).length;
+  n+=((st.fiscaal||{}).dividenden||[]).length;
   n+=((st.tasks||{}).clients||[]).length;
   Object.values((st.tasks||{}).projects||{}).forEach(p=>{
     (p&&p.columns||[]).forEach(c=>{n+=(c.items||[]).length;});
@@ -12411,6 +12523,9 @@ function hydrateerStateIntern(){
   contractState=rawState.contracten||{contracten:[],opruimen:[]};
   if(!Array.isArray(contractState.contracten))contractState.contracten=[];
   if(!Array.isArray(contractState.opruimen))contractState.opruimen=[];
+  fiscaalState=rawState.fiscaal||{gegevens:{},dividenden:[]};
+  if(!fiscaalState.gegevens||typeof fiscaalState.gegevens!=='object')fiscaalState.gegevens={};
+  if(!Array.isArray(fiscaalState.dividenden))fiscaalState.dividenden=[];
   if(!rawState.settings)rawState.settings={};
   /* Restant van de afgeschafte pincode: staat de vlag er nog maar is er
      geen versleuteld blok meer, dan valt er niets te ontgrendelen. Weg
@@ -12554,6 +12669,7 @@ function verzamelModuleState(){
   rawState.facturen=factuurState;
   rawState.opdrachten=opdrachtState;
   rawState.contracten=contractState;
+  rawState.fiscaal=fiscaalState;
 }
 
 /* De state zoals hij nu in het geheugen staat, met alle modules erin. */
@@ -15525,6 +15641,7 @@ let fisWeergave='kies';   /* 'kies' of 'dividend'; per sessie, niet in Drive */
 const FIS_IC={
   uitkeren:'<circle cx="8" cy="8" r="5.8"/><path d="M10.2 5.6a2.6 2.6 0 1 0 0 4.8"/><line x1="4.6" y1="7.2" x2="8.6" y2="7.2"/><line x1="4.6" y1="8.9" x2="8.6" y2="8.9"/>',
   aangifte:'<path d="M3.5 1.8h6L13 5.3v8.9a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5V2.3a.5.5 0 0 1 .5-.5z"/><path d="M9.5 1.8v3.5H13"/><line x1="5.6" y1="11.4" x2="10.4" y2="7.6"/><circle cx="6" cy="8" r=".8"/><circle cx="10" cy="11" r=".8"/>',
+  dividend:'<circle cx="8" cy="8" r="5.8"/><path d="M10.2 5.6a2.6 2.6 0 1 0 0 4.8"/><line x1="4.6" y1="7.2" x2="8.6" y2="7.2"/><line x1="4.6" y1="8.9" x2="8.6" y2="8.9"/>',
   toetsen:'<path d="M8 2v12"/><path d="M3 5h10"/><path d="M3 5 1.5 9a1.7 1.7 0 0 0 3 0z"/><path d="M13 5l-1.5 4a1.7 1.7 0 0 0 3 0z"/><line x1="5.5" y1="14" x2="10.5" y2="14"/>',
   stappen:'<rect x="2.5" y="2" width="11" height="12" rx="1.2"/><path d="M5 5.5l1 1 1.8-2"/><line x1="9" y1="5.5" x2="11" y2="5.5"/><path d="M5 9.5l1 1 1.8-2"/><line x1="9" y1="9.5" x2="11" y2="9.5"/>'
 };
@@ -15565,15 +15682,33 @@ const FIS_DIVIDEND_STAPPEN=[
   {doc:'Aandeelhoudersbesluit',wat:'Het dividendbesluit: bedrag, per aandeel, boekjaar of interim, datum van betaalbaarstelling. Meestal buiten vergadering (art. 2:238 BW), vaak samen met de vaststelling van de jaarrekening.',wie:'Tekent: de holding als aandeelhouder'},
   {doc:'Bestuursbesluit: goedkeuring',wat:'Dat de uitkeringstest is gedaan en het bestuur de uitkering goedkeurt (art. 2:216 lid 2 BW). Komt na het aandeelhoudersbesluit; vaak één document, getekend in beide hoedanigheden.',wie:'Tekent: het bestuur van de werkmaatschappij'},
   {doc:'Dividendnota',wat:'Bruto dividend, eventueel ingehouden dividendbelasting, netto bedrag en datum.',wie:'Tekent: de werkmaatschappij'},
-  {doc:'Dividendbelasting',wat:'Normaal 15%, aangifte binnen een maand. Naar een holding met minstens 5% meestal de inhoudingsvrijstelling; bij een fiscale eenheid speelt het niet. Laat dit bevestigen.',wie:'Bij de Belastingdienst'},
+  {doc:'Dividendbelasting',wat:'15%, aangifte binnen een maand. Naar een Nederlandse holding met 5% of meer: de inhoudingsvrijstelling, en is de hele uitkering vrijgesteld dan geen aangifte, tenzij de Belastingdienst uitnodigt. Bij een fiscale eenheid speelt het niet.',wie:'Op de dividendnota'},
   {doc:'Betaling en boeking',wat:'Pas na beide besluiten: de overboeking (of de boeking in rekening-courant), en de journaalposten bij beide BV\'s.',wie:'Bijlage'}
 ];
 function fisDividendHtml(){
   const terug='<button type="button" class="fis-terug" data-action="fisOpen" data-arg1="kies">'+
     '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3.5 5.5 8l4.5 4.5"/></svg>Fiscaal</button>';
+  const g=fiscaalState.gegevens||{};
+  const lijst=(fiscaalState.dividenden||[]).slice().sort((a,b)=>String(b.datum||'').localeCompare(String(a.datum||'')));
+  const rijen=lijst.map(d=>{
+    const st=fisDivStatus(d,g);
+    return '<button type="button" class="inst-rij" data-action="fisDivMenu" data-arg1="'+escapeHtml(d.id)+'" aria-haspopup="menu" aria-expanded="false">'+
+      '<span class="inst-tekst"><b>Dividend '+escapeHtml(fisBedrag(d.bedrag))+'</b><small>'+
+      escapeHtml(['Boekjaar '+(d.boekjaar||'?'),fisDatum(d.datum)].filter(Boolean).join(' · '))+'</small></span>'+
+      '<span class="inst-waarde '+(st.klaar?'is-aan':'is-uit')+'">'+escapeHtml(st.klaar?'Klaar':st.kort)+'</span>'+INST_PIJL+'</button>';
+  }).join('');
+  const uitkeringen='<div class="inst-kaart">'+rijen+
+    instRij({label:'Nieuwe uitkering',hint:'Besluit, cijfers en dividendbelasting; de app maakt de drie documenten',doe:'fisDivOpen'})+'</div>';
+  const ok=fisGegevensCompleet(g);
+  const gegevens='<div class="inst-kaart"><div class="inst-sub">Je gegevens</div>'+
+    instRij({label:'Werkmaatschappij',waarde:g.werkNaam||'Nog invullen',toon:g.werkNaam?'':'uit',doe:'fisGegOpen'})+
+    instRij({label:'Holding (aandeelhouder)',waarde:g.holdingNaam||'Nog invullen',toon:g.holdingNaam?'':'uit',doe:'fisGegOpen'})+
+    instRij({label:'Bestuurder',waarde:g.bestuurder==='persoon'?(g.bestuurderNaam||g.vertegenwoordiger||'Nog invullen'):'De holding',doe:'fisGegOpen'})+
+    instRij({label:'Vertegenwoordigd door',waarde:g.vertegenwoordiger||'Nog invullen',toon:g.vertegenwoordiger?'':'uit',doe:'fisGegOpen'})+
+    '</div>';
   const toetsen='<div class="inst-kaart">'+
-    instRij({soort:'info',label:'Balanstest',hint:'Uitkeren mag alleen voor zover het eigen vermogen groter is dan de reserves die je volgens de wet of de statuten moet aanhouden.'})+
-    instRij({soort:'info',label:'Uitkeringstest',hint:'Het bestuur keurt goed, en weigert als het weet of moet voorzien dat de BV daarna haar opeisbare schulden niet kan blijven betalen. In de praktijk: minstens 12 maanden vooruit.'})+
+    instRij({soort:'info',label:'Balanstest',hint:'Uitkeren mag alleen voor zover het eigen vermogen groter is dan de reserves die je volgens de wet of de statuten moet aanhouden (lid 1).'})+
+    instRij({soort:'info',label:'Uitkeringstoets',hint:'Het uitkeringsbesluit heeft geen gevolgen zolang het bestuur het niet heeft goedgekeurd. Het bestuur weigert als het weet of moet voorzien dat de BV daarna haar opeisbare schulden niet kan blijven betalen; in de praktijk minstens twaalf maanden vooruit (lid 2).'})+
     instRij({soort:'info',label:'Waarom vastleggen',hint:'Gaat het mis, dan zijn de bestuurders hoofdelijk aansprakelijk voor het tekort, en moet een aandeelhouder die het wist terugbetalen (lid 3). De documenten zijn je bewijs dat je zorgvuldig was.'})+
     '</div>';
   const stappen='<div class="inst-kaart">'+FIS_DIVIDEND_STAPPEN.map((s,i)=>
@@ -15581,15 +15716,417 @@ function fisDividendHtml(){
     '<span class="inst-tekst"><b>'+escapeHtml(s.doc)+'</b><small>'+escapeHtml(s.wat)+'</small>'+
     '<small class="fis-wie">'+escapeHtml(s.wie)+'</small></span></div>').join('')+'</div>';
   return terug+'<div class="inst-kolommen"><div class="inst-kolom">'+
-    fisGroep('toetsen','mint','Dividenduitkering','Van werkmaatschappij naar holding. Twee wettelijke toetsen (art. 2:216 BW), en het bewijs dat je ze deed. Het formulier dat de documenten voor je maakt, komt op deze pagina.',toetsen)+
+    fisGroep('dividend','mint','Dividenduitkering',
+      'Van werkmaatschappij naar holding. Vul per uitkering de gegevens in; de app maakt de notulen van de AVA, het bestuursbesluit met de cijfers als bijlage, en de dividendnota. Jij zet alleen de handtekeningen.'+
+      (ok?'':' Begin met je gegevens.'),uitkeringen+gegevens)+
     '</div><div class="inst-kolom">'+
-    fisGroep('stappen','info','Stappen en documenten','In deze volgorde. Algemene informatie, geen advies: je statuten en je accountant gaan voor.',stappen)+
+    fisGroep('toetsen','info','De twee toetsen','Artikel 2:216 BW: de toetsen, en het bewijs dat je ze deed.',toetsen)+
+    fisGroep('stappen','warning','Stappen en documenten','In deze volgorde. Algemene informatie, geen advies: je statuten en je accountant gaan voor.',stappen)+
     '</div></div>';
 }
+
+/* ── Rekenen en controleren ── */
+/* Een bedrag zoals je het typt: "60.000", "60000", "60.000,50", "-1.500". */
+function fisGetal(s){
+  s=String(s==null?'':s).replace(/[€\s]/g,'');
+  if(!s)return null;
+  let neg=false;
+  if(/^[-−]/.test(s)){neg=true;s=s.slice(1);}
+  if(s.includes(','))s=s.replace(/\./g,'').replace(',','.');
+  else if(/^\d{1,3}(\.\d{3})+$/.test(s))s=s.replace(/\./g,'');
+  const n=Number(s);
+  if(!isFinite(n))return null;
+  return neg?-n:n;
+}
+/* In een document zoals in Franks voorbeelden: "€ 60.000", met centen als die er zijn. */
+function fisBedrag(n){
+  const v=Math.round(Number(n||0)*100)/100;
+  const heel=Number.isInteger(v);
+  const s=Math.abs(v).toLocaleString('nl-NL',{minimumFractionDigits:heel?0:2,maximumFractionDigits:2});
+  return (v<0?'-':'')+'€ '+s;
+}
+/* In een tabel altijd met centen, zodat de bedragen onder elkaar staan. */
+function fisBedragTabel(n){
+  const v=Math.round(Number(n||0)*100)/100;
+  return (v<0?'- ':'')+'€ '+Math.abs(v).toLocaleString('nl-NL',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+/* "12-1-2026", zoals in de voorbeelden. */
+function fisDatum(iso){
+  if(!iso||!/^\d{4}-\d{2}-\d{2}$/.test(iso))return '';
+  const [y,m,d]=iso.split('-').map(Number);
+  return d+'-'+m+'-'+y;
+}
+function fisGegevensCompleet(g){
+  g=g||{};
+  return !!(String(g.werkNaam||'').trim()&&String(g.werkKvk||'').trim()&&String(g.holdingNaam||'').trim()&&String(g.vertegenwoordiger||'').trim());
+}
+/* De twee toetsen en of de documenten gemaakt kunnen worden. */
+function fisDivStatus(d,g){
+  const getal=v=>typeof v==='number'&&isFinite(v);
+  const bedrag=Number(d.bedrag)||0;
+  const cijfers=['ev','kas','schulden','kasstroom'].every(k=>getal(d[k]))&&!!d.peildatum;
+  const reserves=getal(d.reserves)?d.reserves:0;
+  const ruimte=(Number(d.ev)||0)-reserves, ruimteNa=ruimte-bedrag;
+  const saldo=(Number(d.kas)||0)-(Number(d.schulden)||0)+(Number(d.kasstroom)||0)-bedrag;
+  const balansOk=cijfers&&ruimteNa>=-0.005, liqOk=cijfers&&saldo>=-0.005;
+  const besluit=!!(d.datum&&String(d.boekjaar||'').trim()&&bedrag>0&&String(d.plaats||'').trim());
+  const gegevens=fisGegevensCompleet(g);
+  let kort='',reden='';
+  if(!gegevens){kort='Gegevens ontbreken';reden='Vul eerst je gegevens in: werkmaatschappij, KvK-nummer, holding en vertegenwoordiger.';}
+  else if(!besluit){kort='Besluit onvolledig';reden='Datum, plaats, boekjaar en bedrag zijn nodig.';}
+  else if(!cijfers){kort='Cijfers ontbreken';reden='De cijfers voor de balanstest en de uitkeringstoets ontbreken nog.';}
+  else if(!balansOk){kort='Balanstest negatief';reden='Het dividend is hoger dan de ruimte in het eigen vermogen. Pas het bedrag aan of overleg met je accountant.';}
+  else if(!liqOk){kort='Uitkeringstoets negatief';reden='Na de uitkering is er over twaalf maanden een tekort. Pas het bedrag aan of overleg met je accountant.';}
+  const db=d.vrijstelling===false?Math.round(bedrag*15)/100:0;
+  return {klaar:!kort,kort,reden,cijfers,balansOk,liqOk,ruimte,ruimteNa,saldo,reserves,db,netto:bedrag-db};
+}
+
+/* ── De documenten, als blokken ──
+   Eerst blokken (titel, regels, kop, tekst, tabel, handtekening, pagina),
+   dan pas de PDF: zo zijn de teksten te testen zonder PDF, en zit de opmaak
+   op één plek (fisPdfDoc). De teksten volgen Franks voorbeelden, met de
+   verbeteringen: de bestuurder in het bestuursbesluit, de cijfers als
+   bijlage, en namen die altijd op dezelfde manier staan. */
+function fisPunt(s){s=String(s||'').trim();return /[.!?]$/.test(s)?s:s+'.';}
+function fisTenLaste(v){
+  return v==='winst'?'de winst':v==='overige reserves'?'de overige reserves':'de winst of de overige reserves';
+}
+function fisDivBlokken(soort,d,g){
+  g=g||{};
+  const W=String(g.werkNaam||'').trim(), H=String(g.holdingNaam||'').trim(), K=String(g.werkKvk||'').trim();
+  const naam=String(g.vertegenwoordiger||'').trim();
+  const V=(g.aanhef?g.aanhef+' ':'')+naam;
+  const persoon=g.bestuurder==='persoon';
+  const bestuurderNaam=String(g.bestuurderNaam||'').trim()||naam;
+  const D=fisDatum(d.datum), P=String(d.plaats||'').trim(), bj=String(d.boekjaar||'').trim();
+  const bedrag=fisBedrag(d.bedrag), betaal=fisDatum(d.betaaldatum||d.datum);
+  const st=fisDivStatus(d,g);
+  if(soort==='ava')return [
+    {soort:'titel',tekst:'Notulen van de Algemene Vergadering van Aandeelhouders'},
+    {soort:'regels',regels:['Naam vennootschap: '+W,'KvK-nummer: '+K,'Datum vergadering: '+D,'Plaats: '+P]},
+    {soort:'tekst',tekst:'Aanwezig'},
+    {soort:'tekst',tekst:'- '+fisPunt(H+', vertegenwoordigd door '+V+', enig aandeelhouder van '+W)},
+    {soort:'kop',tekst:'Opening'},
+    {soort:'tekst',tekst:'De voorzitter opent de vergadering en stelt vast dat alle aandelen zijn vertegenwoordigd. Hiermee kan rechtsgeldig worden besloten. Het bestuur is in de gelegenheid gesteld om advies uit te brengen.'},
+    {soort:'kop',tekst:'Vaststelling resultaten en winstbestemming'},
+    {soort:'tekst',tekst:'De vergadering bespreekt de resultaten over het boekjaar '+bj+' en stelt vast dat er dividend kan worden uitgekeerd. Op voorstel van het bestuur besluit de vergadering tot uitkering van een dividend van '+bedrag+' aan de aandeelhouder, '+fisPunt(H)},
+    {soort:'kop',tekst:'Uitkeringstoets'},
+    {soort:'tekst',tekst:'Het eigen vermogen van de vennootschap is groter dan de reserves die krachtens de wet of de statuten moeten worden aangehouden. Het bestuur heeft beoordeeld dat de vennootschap na de uitkering van het dividend zal kunnen blijven voldoen aan haar opeisbare verplichtingen. De uitkering voldoet aan de voorwaarden zoals gesteld in artikel 2:216 BW.'},
+    {soort:'kop',tekst:'Besluit'},
+    {soort:'tekst',tekst:'De vergadering besluit unaniem tot uitkering van een dividend van '+bedrag+' ten laste van '+fisTenLaste(d.tenLaste)+' van de vennootschap aan '+H+', betaalbaar op '+betaal+'. Het besluit heeft gevolgen zodra het bestuur het heeft goedgekeurd (artikel 2:216 lid 2 BW).'},
+    {soort:'kop',tekst:'Slot'},
+    {soort:'tekst',tekst:'Er zijn geen verdere agendapunten aan de orde. De voorzitter sluit de vergadering.'},
+    {soort:'handtekening',plaatsDatum:P+', '+D,naam,regels:[H,'Enig aandeelhouder van '+W]}
+  ];
+  if(soort==='bestuur')return [
+    {soort:'titel',tekst:'Bestuursbesluit inzake uitkeringstoets dividend'},
+    {soort:'regels',regels:['Naam vennootschap: '+W,'KvK-nummer: '+K,'Datum besluit: '+D,'Plaats: '+P]},
+    {soort:'tekst',tekst:'Aanwezig'},
+    {soort:'tekst',tekst:'- '+fisPunt(persoon?bestuurderNaam+', bestuurder van '+W:H+', enig bestuurder van '+W+', vertegenwoordigd door '+V)},
+    {soort:'kop',tekst:'Inleiding'},
+    {soort:'tekst',tekst:'Het bestuur van '+W+' heeft kennisgenomen van het besluit van de algemene vergadering van aandeelhouders van '+D+' tot uitkering van een dividend van '+bedrag+' aan de aandeelhouder, '+fisPunt(H)},
+    {soort:'kop',tekst:'Uitkeringstoets conform artikel 2:216 BW'},
+    {soort:'tekst',tekst:'Het bestuur heeft beoordeeld of '+W+' na de voorgestelde uitkering nog steeds aan haar opeisbare verplichtingen zal kunnen voldoen. Daarbij heeft het bestuur gekeken naar de liquide middelen, de kortlopende schulden en de verwachte kasstromen over de twaalf maanden na de uitkering. Ook is vastgesteld dat het eigen vermogen na de uitkering groter blijft dan de reserves die krachtens de wet of de statuten moeten worden aangehouden. De cijfers, per '+fisDatum(d.peildatum)+', staan in de bijlage bij dit besluit.'},
+    {soort:'tekst',tekst:'Na deze toets is het bestuur tot de conclusie gekomen dat de vennootschap na uitkering van het dividend over voldoende liquide middelen beschikt om aan haar verplichtingen te blijven voldoen.'},
+    {soort:'kop',tekst:'Besluit'},
+    {soort:'tekst',tekst:'Het bestuur verleent goedkeuring aan het besluit tot uitkering van een dividend van '+bedrag+' aan '+H+' (artikel 2:216 lid 2 BW). De uitkering voldoet aan de wettelijke voorwaarden en is verantwoord gezien de financiële positie van de vennootschap.'},
+    {soort:'kop',tekst:'Slot'},
+    {soort:'tekst',tekst:'Er zijn geen verdere agendapunten aan de orde. Het besluit wordt hiermee vastgesteld en ondertekend.'},
+    {soort:'handtekening',plaatsDatum:D+', '+P,naam:persoon?bestuurderNaam:naam,
+      regels:persoon?['Bestuurder van '+W]:['Namens '+H+', bestuurder van '+W]},
+    {soort:'pagina'},
+    {soort:'titel',tekst:'Bijlage: uitkeringstoets in cijfers'},
+    {soort:'regels',regels:['Behorend bij het bestuursbesluit van '+W+' van '+D,'Cijfers per '+fisDatum(d.peildatum)]},
+    {soort:'kop',tekst:'Balanstest (artikel 2:216 lid 1 BW)'},
+    {soort:'tabel',rijen:[
+      {label:'Eigen vermogen',bedrag:d.ev},
+      {label:'Af: wettelijke en statutaire reserves',bedrag:-st.reserves},
+      {label:'Ruimte voor uitkering',bedrag:st.ruimte,vet:true,lijn:true},
+      {label:'Af: voorgesteld dividend',bedrag:-d.bedrag},
+      {label:'Ruimte na de uitkering',bedrag:st.ruimteNa,vet:true,lijn:true}]},
+    {soort:'kop',tekst:'Uitkeringstoets: de twaalf maanden na de uitkering (artikel 2:216 lid 2 BW)'},
+    {soort:'tabel',rijen:[
+      {label:'Liquide middelen (kas en bank)',bedrag:d.kas},
+      {label:'Af: kortlopende schulden, inclusief belastingen',bedrag:-d.schulden},
+      {label:'Verwachte netto kasstroom, komende twaalf maanden',bedrag:d.kasstroom},
+      {label:'Af: voorgesteld dividend',bedrag:-d.bedrag},
+      {label:'Saldo na twaalf maanden',bedrag:st.saldo,vet:true,lijn:true}]},
+    {soort:'kop',tekst:'Uitkomst'},
+    {soort:'tekst',tekst:'Beide toetsen zijn positief: na de uitkering blijft het eigen vermogen boven de verplichte reserves, en kan de vennootschap de komende twaalf maanden haar opeisbare schulden blijven betalen.'}
+  ];
+  if(soort==='nota'){
+    const vrij=d.vrijstelling!==false;
+    return [
+      {soort:'titel',tekst:'Dividendnota'},
+      {soort:'regels',regels:['Uitkerende vennootschap: '+W,'KvK-nummer: '+K,'Ontvanger: '+H,'Boekjaar: '+bj,'Datum besluit: '+D,'Betaalbaar op: '+betaal]},
+      {soort:'kop',tekst:'Uitkering'},
+      {soort:'tabel',rijen:[
+        {label:'Bruto dividend',bedrag:d.bedrag},
+        {label:vrij?'Dividendbelasting (0%, inhoudingsvrijstelling)':'Dividendbelasting (15%)',bedrag:-st.db},
+        {label:'Netto uit te betalen',bedrag:st.netto,vet:true,lijn:true}]},
+      {soort:'kop',tekst:'Dividendbelasting'},
+      {soort:'tekst',tekst:vrij
+        ?'Op deze uitkering is de inhoudingsvrijstelling van toepassing (artikel 4 Wet op de dividendbelasting 1965): '+H+' houdt 5% of meer van de aandelen en is in Nederland gevestigd. Er wordt geen dividendbelasting ingehouden. Omdat de hele uitkering is vrijgesteld, hoeft er geen aangifte te worden gedaan, tenzij de Belastingdienst daartoe uitnodigt.'
+        :'Op deze uitkering wordt 15% dividendbelasting ingehouden. De vennootschap doet daarvan aangifte en draagt de belasting af binnen een maand nadat het dividend ter beschikking is gesteld.'},
+      {soort:'handtekening',plaatsDatum:P+', '+D,naam:persoon?bestuurderNaam:naam,regels:['Namens '+W]}
+    ];
+  }
+  return [];
+}
+/* De opmaak van de voorbeelden: kop in blauw, tekst in een schreefletter,
+   een stippellijn om op te tekenen. Bedragen in een tabel rechts uitgelijnd. */
+function fisPdfDoc(blokken){
+  if(!window.jspdf||!window.jspdf.jsPDF)return null;
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:'mm',format:'a4'});
+  const L=25,R=185,BREED=R-L,BOVEN=30,ONDER=280,REGEL=5.4,blauw=[47,84,150],inkt=[30,30,30];
+  let y=BOVEN;
+  const ruimte=h=>{if(y+h>ONDER){doc.addPage();y=BOVEN;}};
+  const tekst=()=>{doc.setFont('times','normal');doc.setFontSize(11.5);doc.setTextColor(...inkt);};
+  blokken.forEach(b=>{
+    if(b.soort==='pagina'){doc.addPage();y=BOVEN;return;}
+    if(b.soort==='titel'){
+      ruimte(12);doc.setFont('helvetica','bold');doc.setFontSize(15);doc.setTextColor(...blauw);
+      doc.splitTextToSize(b.tekst,BREED).forEach(l=>{doc.text(l,L,y);y+=7;});
+      return;
+    }
+    if(b.soort==='kop'){
+      y+=3.5;ruimte(12);doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(...blauw);
+      doc.splitTextToSize(b.tekst,BREED).forEach(l=>{doc.text(l,L,y);y+=6;});
+      return;
+    }
+    if(b.soort==='regels'){tekst();b.regels.forEach(r=>{ruimte(REGEL);doc.text(r,L,y);y+=REGEL;});y+=3;return;}
+    if(b.soort==='tekst'){tekst();doc.splitTextToSize(b.tekst,BREED).forEach(l=>{ruimte(REGEL);doc.text(l,L,y);y+=REGEL;});y+=2;return;}
+    if(b.soort==='tabel'){
+      b.rijen.forEach(r=>{
+        ruimte(7);
+        if(r.lijn){doc.setDrawColor(150,150,150);doc.setLineWidth(0.2);doc.line(L,y-4,R,y-4);}
+        doc.setFont('times',r.vet?'bold':'normal');doc.setFontSize(11.5);doc.setTextColor(...inkt);
+        doc.text(r.label,L,y);
+        doc.text(fisBedragTabel(r.bedrag),R,y,{align:'right'});
+        y+=6.2;
+      });
+      y+=1;
+      return;
+    }
+    if(b.soort==='handtekening'){
+      ruimte(46);y+=8;tekst();doc.text(b.plaatsDatum,L,y);y+=22;
+      doc.setDrawColor(90,90,90);doc.setLineWidth(0.2);doc.setLineDashPattern([1,1],0);doc.line(L,y,L+85,y);doc.setLineDashPattern([],0);
+      y+=6;doc.text(b.naam,L,y);y+=REGEL+1;
+      (b.regels||[]).forEach(r=>{doc.text(r,L,y);y+=REGEL;});
+    }
+  });
+  return doc;
+}
+const FIS_DOCS={
+  ava:{naam:'Notulen AVA',bestand:'Notulen_AVA_Dividend'},
+  bestuur:{naam:'Bestuursbesluit met bijlage',bestand:'Bestuursbesluit_Uitkeringstoets'},
+  nota:{naam:'Dividendnota',bestand:'Dividendnota'}
+};
+function fisDivBestandsnaam(soort,d){
+  const bj=String(d.boekjaar||'').trim().replace(/[\/\\\s]+/g,'-').replace(/[^\w-]/g,'');
+  return FIS_DOCS[soort].bestand+(bj?'_'+bj:'')+(d.datum?'_'+d.datum:'')+'.pdf';
+}
+async function fisDivPdf(id,soort){
+  fisMenuDicht();
+  const d=(fiscaalState.dividenden||[]).find(x=>x.id===id);
+  if(!d)return;
+  const st=fisDivStatus(d,fiscaalState.gegevens);
+  if(!st.klaar){appMelding('Nog niet klaar',st.reden);return;}
+  const soorten=soort==='alle'?['ava','bestuur','nota']:[soort];
+  for(const s of soorten){
+    const doc=fisPdfDoc(fisDivBlokken(s,d,fiscaalState.gegevens));
+    if(!doc){appToast('De PDF-maker is niet geladen. Controleer je verbinding en probeer het opnieuw.',{type:'error'});return;}
+    doc.save(fisDivBestandsnaam(s,d));
+    /* Drie downloads achter elkaar: even ruimte, anders houdt de browser er een tegen. */
+    if(soorten.length>1)await new Promise(r=>setTimeout(r,400));
+  }
+}
+
+/* ── Het menu van een uitkering ── */
+function fisDivMenu(id,knop){
+  const open=document.getElementById('fisMenu');
+  const zelfde=open&&open.dataset.id===id;
+  fisMenuDicht();
+  if(zelfde)return;
+  const d=(fiscaalState.dividenden||[]).find(x=>x.id===id);
+  if(!d||!knop)return;
+  const st=fisDivStatus(d,fiscaalState.gegevens);
+  const item=(actie,soort,tekst,uit,klein)=>'<button type="button" class="uren-menu-item'+(actie==='weg'?' gevaar':'')+'" role="menuitem"'+(uit?' disabled':'')+
+    ' data-action="fisDivActie" data-arg1="'+actie+'" data-arg2="'+escapeHtml(id)+'" data-arg3="'+(soort||'')+'"><span>'+escapeHtml(tekst)+
+    (klein?'<small>'+escapeHtml(klein)+'</small>':'')+'</span></button>';
+  const m=document.createElement('div');
+  m.className='uren-menu fis-menu';m.id='fisMenu';m.dataset.id=id;m.setAttribute('role','menu');
+  m.innerHTML='<div class="uren-menu-lab">Dividend '+escapeHtml(fisBedrag(d.bedrag))+'</div>'+
+    item('pdf','ava',FIS_DOCS.ava.naam,!st.klaar)+
+    item('pdf','bestuur',FIS_DOCS.bestuur.naam,!st.klaar)+
+    item('pdf','nota',FIS_DOCS.nota.naam,!st.klaar)+
+    item('pdf','alle','Alle drie',!st.klaar,st.klaar?'':st.reden)+
+    '<div class="uren-menu-sep"></div>'+
+    item('bewerk','','Bewerken')+
+    '<div class="uren-menu-sep"></div>'+
+    item('weg','','Verwijderen');
+  document.body.appendChild(m);
+  urenPlacePopover(m,knop);
+  knop.setAttribute('aria-expanded','true');
+  m._knop=knop;
+  setTimeout(()=>document.addEventListener('mousedown',fisMenuBuiten),20);
+}
+function fisMenuBuiten(e){
+  const m=document.getElementById('fisMenu');
+  if(m&&!m.contains(e.target)&&!(m._knop&&m._knop.contains(e.target)))fisMenuDicht();
+}
+function fisMenuDicht(){
+  const m=document.getElementById('fisMenu');
+  if(m){m._knop?.setAttribute('aria-expanded','false');m.remove();}
+  document.removeEventListener('mousedown',fisMenuBuiten);
+}
+
+/* ── Het venster van een uitkering ── */
+let fisDivForm=null;   /* {id|null} zolang het venster open is */
+let fisNaGegevens=null; /* 'nieuw': na het invullen van je gegevens meteen een nieuwe uitkering */
+function fisInvoerGetal(n){
+  return typeof n==='number'&&isFinite(n)?n.toLocaleString('nl-NL',{minimumFractionDigits:0,maximumFractionDigits:2}):'';
+}
+function fisDivOpen(id){
+  fisMenuDicht();
+  const g=fiscaalState.gegevens||{};
+  if(!id&&!fisGegevensCompleet(g)){fisNaGegevens='nieuw';fisGegOpen();return;}
+  const d=id?(fiscaalState.dividenden||[]).find(x=>x.id===id):null;
+  if(id&&!d)return;
+  fisDivForm={id:d?d.id:null};
+  const zet=(el,v)=>{const x=document.getElementById(el);if(x)x.value=v==null?'':v;};
+  zet('fisDivDatum',d?d.datum:urenToday());
+  zet('fisDivPlaats',d?d.plaats:(g.werkPlaats||''));
+  zet('fisDivBoekjaar',d?d.boekjaar:'');
+  zet('fisDivBedrag',d?fisInvoerGetal(d.bedrag):'');
+  zet('fisDivTenLaste',d?(d.tenLaste||'winst of overige reserves'):'winst of overige reserves');
+  zet('fisDivBetaal',d?(d.betaaldatum||''):'');
+  zet('fisDivPeil',d?(d.peildatum||''):'');
+  zet('fisDivEv',d?fisInvoerGetal(d.ev):'');
+  zet('fisDivReserves',d?fisInvoerGetal(d.reserves):'');
+  zet('fisDivKas',d?fisInvoerGetal(d.kas):'');
+  zet('fisDivSchulden',d?fisInvoerGetal(d.schulden):'');
+  zet('fisDivKasstroom',d?fisInvoerGetal(d.kasstroom):'');
+  zet('fisDivVrij',d&&d.vrijstelling===false?'nee':'ja');
+  document.getElementById('fisDivTitel').textContent=d?'Dividenduitkering bewerken':'Nieuwe dividenduitkering';
+  document.getElementById('fisDivWegBtn').style.display=d?'':'none';
+  fisDivReken();
+  document.getElementById('fisDivModal').classList.add('open');
+  setTimeout(()=>document.getElementById(d?'fisDivBedrag':'fisDivBoekjaar')?.focus(),60);
+}
+function fisDivSluit(){
+  document.getElementById('fisDivModal').classList.remove('open');
+  fisDivForm=null;
+}
+/* Wat er in het venster staat, als uitkering. */
+function fisDivUitForm(){
+  const v=el=>document.getElementById(el)?.value||'';
+  return {datum:v('fisDivDatum'),plaats:v('fisDivPlaats').trim(),boekjaar:v('fisDivBoekjaar').trim(),
+    bedrag:fisGetal(v('fisDivBedrag')),tenLaste:v('fisDivTenLaste'),betaaldatum:v('fisDivBetaal')||null,
+    peildatum:v('fisDivPeil')||null,ev:fisGetal(v('fisDivEv')),reserves:fisGetal(v('fisDivReserves')),
+    kas:fisGetal(v('fisDivKas')),schulden:fisGetal(v('fisDivSchulden')),kasstroom:fisGetal(v('fisDivKasstroom')),
+    vrijstelling:v('fisDivVrij')!=='nee'};
+}
+/* Onderaan het venster: de uitkomst van de toetsen, terwijl je typt. */
+function fisDivReken(){
+  const box=document.getElementById('fisDivReken');
+  if(!box||!fisDivForm)return;
+  const d=fisDivUitForm();
+  if(!(d.bedrag>0)){box.innerHTML='';return;}
+  const st=fisDivStatus(d,fiscaalState.gegevens);
+  const li=[];
+  if(typeof d.ev==='number')li.push('Balanstest: ruimte <b>'+escapeHtml(fisBedragTabel(st.ruimte))+'</b>, na het dividend <b>'+escapeHtml(fisBedragTabel(st.ruimteNa))+'</b>'+(st.ruimteNa>=-0.005?'':' — te weinig'));
+  if(['kas','schulden','kasstroom'].every(k=>typeof d[k]==='number'))
+    li.push('Uitkeringstoets: na twaalf maanden <b>'+escapeHtml(fisBedragTabel(st.saldo))+'</b>'+(st.saldo>=-0.005?' over':' tekort'));
+  li.push('Dividendbelasting <b>'+escapeHtml(fisBedragTabel(st.db))+'</b>, netto <b>'+escapeHtml(fisBedragTabel(st.netto))+'</b>');
+  const fout=st.cijfers&&(!st.balansOk||!st.liqOk);
+  box.innerHTML=(fout?'<p class="opd-reken-fout">'+escapeHtml(st.reden)+'</p>':'')+'<ul>'+li.map(x=>'<li>'+x+'</li>').join('')+'</ul>';
+}
+document.addEventListener('input',e=>{if(e.target&&e.target.closest&&e.target.closest('#fisDivModal'))fisDivReken();});
+document.addEventListener('change',e=>{if(e.target&&e.target.closest&&e.target.closest('#fisDivModal'))fisDivReken();});
+function fisDivOpslaan(){
+  if(!fisDivForm)return;
+  const d=fisDivUitForm();
+  if(!d.datum){appToast('Vul de datum van het besluit in.',{type:'warning'});return;}
+  if(!d.boekjaar){appToast('Vul het boekjaar in.',{type:'warning'});document.getElementById('fisDivBoekjaar')?.focus();return;}
+  if(!(d.bedrag>0)){appToast('Vul het bedrag van het dividend in.',{type:'warning'});document.getElementById('fisDivBedrag')?.focus();return;}
+  const nu=Date.now();
+  const lijst=fiscaalState.dividenden;
+  if(fisDivForm.id){
+    const i=lijst.findIndex(x=>x.id===fisDivForm.id);
+    if(i>=0)lijst[i]={...lijst[i],...d,updatedAt:nu};
+  }else lijst.push({id:uid(),...d,createdAt:nu,updatedAt:nu});
+  scheduleSave();
+  fisDivSluit();
+  renderFiscaalModule();
+  const st=fisDivStatus(d,fiscaalState.gegevens);
+  appToast(st.klaar?'Uitkering bewaard; de documenten staan klaar in het menu.':'Uitkering bewaard. '+st.reden,{type:st.klaar?'success':'warning'});
+}
+function fisDivVerwijder(){
+  if(!fisDivForm||!fisDivForm.id)return;
+  const lijst=fiscaalState.dividenden;
+  const i=lijst.findIndex(x=>x.id===fisDivForm.id);
+  if(i<0)return;
+  const weg=lijst.splice(i,1)[0];
+  scheduleSave();fisDivSluit();renderFiscaalModule();
+  appToast('Uitkering verwijderd',{type:'success',undo:()=>{
+    fiscaalState.dividenden.splice(Math.min(i,fiscaalState.dividenden.length),0,weg);
+    scheduleSave();renderFiscaalModule();
+  }});
+}
+
+/* ── Het venster met je gegevens ── */
+function fisGegOpen(){
+  fisMenuDicht();
+  const g=fiscaalState.gegevens||{};
+  const zet=(el,v)=>{const x=document.getElementById(el);if(x)x.value=v==null?'':v;};
+  zet('fisGegWerk',g.werkNaam);zet('fisGegKvk',g.werkKvk);zet('fisGegPlaats',g.werkPlaats);
+  zet('fisGegHolding',g.holdingNaam);zet('fisGegAanhef',g.aanhef==null?'de heer':g.aanhef);zet('fisGegNaam',g.vertegenwoordiger);
+  zet('fisGegBestuur',g.bestuurder==='persoon'?'persoon':'holding');zet('fisGegPersoon',g.bestuurderNaam);
+  fisGegBestuurKies();
+  document.getElementById('fisGegModal').classList.add('open');
+  setTimeout(()=>document.getElementById('fisGegWerk')?.focus(),60);
+}
+function fisGegBestuurKies(){
+  const veld=document.getElementById('fisGegPersoonVeld');
+  if(veld)veld.hidden=document.getElementById('fisGegBestuur')?.value!=='persoon';
+}
+function fisGegSluit(){
+  document.getElementById('fisGegModal').classList.remove('open');
+  fisNaGegevens=null;
+}
+function fisGegOpslaan(){
+  const v=el=>(document.getElementById(el)?.value||'').trim();
+  fiscaalState.gegevens={werkNaam:v('fisGegWerk'),werkKvk:v('fisGegKvk'),werkPlaats:v('fisGegPlaats'),
+    holdingNaam:v('fisGegHolding'),aanhef:document.getElementById('fisGegAanhef')?.value||'',vertegenwoordiger:v('fisGegNaam'),
+    bestuurder:v('fisGegBestuur')==='persoon'?'persoon':'holding',bestuurderNaam:v('fisGegPersoon')};
+  scheduleSave();
+  const verder=fisNaGegevens;
+  document.getElementById('fisGegModal').classList.remove('open');
+  fisNaGegevens=null;
+  renderFiscaalModule();
+  if(verder==='nieuw'&&fisGegevensCompleet(fiscaalState.gegevens))fisDivOpen(null);
+}
+
 Object.assign(APP_ACTIONS,{
+  fisDivOpen:()=>fisDivOpen(null),
+  fisDivMenu:(el,e,id)=>{if(e)e.stopPropagation();fisDivMenu(id,el);},
+  fisDivActie:(el,e,actie,id,soort)=>{
+    if(actie==='pdf')fisDivPdf(id,soort);
+    else if(actie==='bewerk')fisDivOpen(id);
+    else if(actie==='weg'){fisMenuDicht();fisDivForm={id};fisDivVerwijder();}
+  },
+  fisDivSluit:()=>fisDivSluit(),
+  fisDivOpslaan:()=>fisDivOpslaan(),
+  fisDivVerwijder:()=>fisDivVerwijder(),
+  fisGegOpen:()=>fisGegOpen(),
+  fisGegSluit:()=>fisGegSluit(),
+  fisGegOpslaan:()=>fisGegOpslaan(),
   fisOpen:(el,e,w)=>fisOpen(w),
   fisBtw:()=>{switchModule('facturen');facSetView('btw');}
 });
+Object.assign(APP_CHANGE_ACTIONS,{fisGegBestuurKies:()=>fisGegBestuurKies()});
 
 /* ─ Event delegation registrations (Dashboard + Sidebar clients) ─ */
 Object.assign(APP_ACTIONS,{
@@ -16755,7 +17292,7 @@ function versiesLokaleKopie(){
    bewerking die je in negen van de tien gevallen wilt -- een stuk notities
    terug zonder de uren van deze week kwijt te raken. */
 function voegStateSamen(oud,nu){
-  const rapport={notities:0,tekst:0,checklist:0,uren:0,facturen:0,opdrachten:0,contracten:0,klanten:0};
+  const rapport={notities:0,tekst:0,checklist:0,uren:0,facturen:0,opdrachten:0,contracten:0,dividenden:0,klanten:0};
   const mergeBoom=(o_,n_)=>{
     const uit=(n_||[]).map(x=>({...x}));
     const idx=new Map(uit.map(x=>[x.id,x]));
@@ -16794,6 +17331,12 @@ function voegStateSamen(oud,nu){
      JSON.parse(JSON.stringify(((oud.opdrachten||{}).vrij||[]).filter(x=>x&&x.id&&!ids.has(x.id)))));}
   uit.contracten={...(uit.contracten||{}),
     contracten:vulAan((oud.contracten||{}).contracten,(nu.contracten||{}).contracten,'contracten')};
+  /* Fiscaal: uitkeringen aanvullen op id; de vaste gegevens van de nieuwe
+     kant, tenzij die nog leeg zijn. */
+  uit.fiscaal={...(uit.fiscaal||{}),
+    dividenden:vulAan((oud.fiscaal||{}).dividenden,(nu.fiscaal||{}).dividenden,'dividenden')};
+  if(!Object.keys(uit.fiscaal.gegevens||{}).length&&(oud.fiscaal||{}).gegevens)
+    uit.fiscaal.gegevens=JSON.parse(JSON.stringify(oud.fiscaal.gegevens));
   uit.tasks={...(uit.tasks||{}),
     clients:vulAan((oud.tasks||{}).clients,(nu.tasks||{}).clients,'klanten')};
   return {state:uit,rapport};
@@ -16808,6 +17351,7 @@ function versieRapportTekst(r){
   if(r.facturen)d.push(r.facturen+' facturen');
   if(r.opdrachten)d.push(r.opdrachten+' '+(r.opdrachten===1?'opdracht':'opdrachten'));
   if(r.contracten)d.push(r.contracten+' '+(r.contracten===1?'contract':'contracten'));
+  if(r.dividenden)d.push(r.dividenden+' '+(r.dividenden===1?'dividenduitkering':'dividenduitkeringen'));
   if(r.klanten)d.push(r.klanten+' klanten');
   return d.length?d.join(', '):null;
 }
