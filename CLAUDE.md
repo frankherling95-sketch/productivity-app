@@ -1,6 +1,6 @@
 # Herling Analytics — Productivity App
 
-Single-page productivity app voor Frank Herling. Single-file HTML SPA, gehost op GitHub Pages.
+Single-page productivity app voor Frank (de eigenaar). Single-file HTML SPA, gehost op GitHub Pages.
 Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Google Drive `appDataFolder`.
 
 ## Snel oriënteren

@@ -721,8 +721,8 @@ label droeg.
 - **Onderin**: de opslagstatus als regel (kleur alleen op de stip, rood bij een
   fout) met de versie ernaast, een streep met de ronde inklapknop half over de
   rand, en de gebruiker met initialen, naam en e-mail.
-- **Breedte** 236 → 272px, ingeklapt 56 → 72px. Op 272 past
-  `frank@herling-analytics.nl` precies (gemeten: 156 van 156px).
+- **Breedte** 236 → 272px, ingeklapt 56 → 72px. Op 272 past een
+  e-mailadres van 26 tekens op het eigen domein precies (gemeten: 156 van 156px).
 
 **Waarom Administratie nu wél een woord is.** Op 2026-09-07 gingen de kopjes
 eruit omdat Externe tools onder "Administratie" stond en dat geen administratie
@@ -4176,7 +4176,7 @@ Voorwaarden liggen klaar: Workspace-account (dus OAuth-app op *Internal*, geen 7
 
 Stappen:
 1. Scope `https://www.googleapis.com/auth/gmail.send` toevoegen in Cloud Console én aan `driveVraagToken` (of een tweede tokenclient — scopes mogen gecombineerd).
-2. MIME-bericht opbouwen: multipart/mixed, de PDF base64 als bijlage, afzender `app@herling-analytics.nl`.
+2. MIME-bericht opbouwen: multipart/mixed, de PDF base64 als bijlage, afzender het eigen adres van de gebruiker.
 3. `POST /gmail/v1/users/me/messages/send` met `raw` = base64url van het MIME-bericht.
 4. Verzendknop op de factuur, met bevestigingsdialoog vooraf (ontvanger, bedrag, bijlage) — Frank koos direct versturen, maar een factuur die weg is kun je alleen nog crediteren.
 5. Na verzenden: `f.verzondenOp` vastleggen en tonen in de factuurlijst.
@@ -8769,4 +8769,28 @@ tests), `CLAUDE.md`, `docs/stijlgids.md`.
 **Niet doen.** Echte namen, KvK-nummers of plaatsen in de code of de tests
 (de repo is openbaar), of de documenten laten maken als een toets negatief
 is: dan verklaart het bestuur iets wat de eigen cijfers tegenspreken.
+
+## 2026-10-24 · Geen persoonlijke gegevens in de repo, ook niet in oude entries
+
+**Probleem.** Frank vroeg om zeker te stellen dat er geen gevoelige informatie
+openbaar in de repo staat. Een scan van alle bestanden en de hele
+geschiedenis vond in de bestanden alleen zijn achternaam (CLAUDE.md) en twee
+e-mailadressen op het eigen domein (twee entries hieronder, van 2026-09 en
+eerder). In de **commitgegevens** van oudere commits staan wel persoonlijke
+e-mailadressen als auteur, waaronder adressen op het domein van een
+opdrachtgever of werkgever.
+
+**Beslissing.**
+- De achternaam en de twee adressen zijn uit de bestanden gehaald. Dat is een
+  bewuste uitzondering op "append-only": privacy gaat voor; de strekking van
+  de entries is gelijk gebleven.
+- De auteursadressen in de oude commits zijn alleen weg te krijgen door de
+  repo privé te maken of de hele geschiedenis te herschrijven. Dat is aan
+  Frank (kosten, en een force-push); zie het gesprek van 2026-10-24.
+- Nieuwe commits gaan onder het noreply-adres van GitHub (repo-config), en
+  `validate.mjs --commits` controleert de commitberichten op namen.
+
+**Niet doen.** Echte namen, adressen, KvK-nummers, IBAN's of e-mailadressen in
+code, tests, docs of commitberichten; een voorbeeld uit Franks eigen
+documenten overnemen; of een auteursadres anders dan het noreply-adres.
 
