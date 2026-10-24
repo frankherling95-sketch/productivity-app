@@ -2258,6 +2258,24 @@ async function runChecks() {
     ['Analyse: bedragen kort maar leesbaar', () =>
       w.facAnKort(6000) === '€6k' && w.facAnKort(1500) === '€1,5k' &&
       w.facAnKort(950) === '€950' && w.facAnKort(0) === '€0'],
+    ['Fiscaal: in Administratie, een keuzepagina, de dividenduitkering met acht stappen en terug; Btw-overzicht opent Facturen', () => {
+      const oud = w.eval('activeModule');
+      try {
+        const nav = d.querySelector('.nav-groep[data-groep="administratie"] .nav-item[data-mod="fiscaal"]');
+        w.switchModule('fiscaal');
+        const body = d.getElementById('fisBody');
+        const adres = w.location.hash === '#fiscaal' && d.getElementById('mod-fiscaal').classList.contains('active');
+        const rij = body.querySelector('[data-action="fisOpen"][data-arg1="dividend"]');
+        const kies = !!rij && /Dividenduitkering/.test(rij.textContent) && !!body.querySelector('[data-action="fisBtw"]');
+        rij.click();
+        const stappen = body.querySelectorAll('.fis-stap').length === 8 && /Balanstest/.test(body.textContent) && /2:216/.test(body.textContent);
+        body.querySelector('.fis-terug').click();
+        const terug = !!body.querySelector('[data-action="fisOpen"][data-arg1="dividend"]') && !body.querySelector('.fis-stap');
+        body.querySelector('[data-action="fisBtw"]').click();
+        const btw = w.eval('activeModule') === 'facturen' && w.eval('facView') === 'btw';
+        return !!nav && adres && kies && stappen && terug && btw;
+      } finally { w.eval("fisWeergave='kies'"); w.facSetView('facturen'); w.switchModule(oud || 'dashboard'); }
+    }],
     ['Uren-analyse: Nog niet gefactureerd krijgt een totaal eronder (vanaf twee klanten), met dezelfde som als de tegel', () => {
       const twee = w.urenAnOpenstaand({klanten: [{naam: 'Klant A', open: 2, openEuro: 200}, {naam: 'Klant B', open: 1.5, openEuro: 150}], open: 3.5, openEuro: 350});
       const doos = d.createElement('div'); doos.innerHTML = twee;

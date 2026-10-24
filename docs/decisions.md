@@ -8687,3 +8687,39 @@ balken eindigden op verschillende plekken.
 **Niet doen.** Een balk in de totaalregel (de som is geen klant en zou altijd
 de langste zijn), of de kolommen per rij laten meegroeien.
 
+## 2026-10-24 · Fiscaal: een keuzepagina, te beginnen met de dividenduitkering (v3.01)
+
+**Probleem.** Frank wil dividend van zijn werkmaatschappij naar zijn holding
+sneller uitwerken: een formulier waarin hij de gegevens invult en dat de
+documenten maakt, zodat alleen de handtekeningen nog moeten. Het hoort bij de
+administratie, als een nieuw onderdeel *Fiscaal* met een eigen pagina waarop
+je kiest welke functie je wilt gebruiken.
+
+**Beslissing.**
+- Een nieuwe module `#fiscaal`, onderaan de groep Administratie. De pagina is
+  een keuzepagina in de opbouw van Instellingen (groepen met een getint
+  icoon, regels die iets openen): *Uitkeren → Dividenduitkering* en
+  *Aangiftes → Btw-overzicht* (dat bestaat al in Facturen; de regel opent het
+  daar, zodat Fiscaal het ene adres is voor wat met de Belastingdienst te
+  maken heeft).
+- *Dividenduitkering* toont nu de twee toetsen van art. 2:216 BW (balanstest,
+  uitkeringstest, en waarom je ze vastlegt) en de acht stappen met de
+  documenten, in volgorde, met wie tekent. Als algemene informatie; de
+  statuten en de accountant gaan voor.
+- In twee stappen gebouwd: eerst de plek en het stappenplan, daarna -- als
+  Franks voorbeelden er zijn -- het formulier en het maken van de documenten.
+  Daarom bewaart de module nog niets: geen nieuw veld in `rawState` voordat
+  duidelijk is welke gegevens het formulier vraagt.
+- Welke pagina open staat (`fisWeergave`) is per sessie, niet in het adres:
+  een deeladres per functie komt pas als er meer functies zijn.
+- Het versienummer: na v2.99 komt v3.01 (`validate.mjs`: een build van 00
+  bestaat niet).
+
+**Bestanden.** `index.html` (menu, `#mod-fiscaal`, MODULE: FISCAAL,
+`GELDIGE_MODULES`, `MOBILE_MODULE_TITLES`, `switchModule`, CSS `.fis-*`),
+`test.html` (één test), `.claude/ownership.json` (coordinatorregio),
+`sw.js`, `CLAUDE.md`, `docs/stijlgids.md`.
+
+**Niet doen.** Echte namen of gegevens van de BV's in de sjablonen zetten: die
+komen straks uit Franks eigen gegevens in Drive, de repo is openbaar.
+

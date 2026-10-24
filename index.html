@@ -2429,8 +2429,23 @@ button.uren-mpiv-row:active{background:var(--surface2)}
    regel het raakvlak. Op een breed scherm twee kolommen, zodat je alles in
    één keer overziet; smaller dan twee keer 400px wordt het één kolom.
    Vaste kolommen (zie renderInstellingenModule): blokken klappen in. */
-#mod-instellingen{flex-direction:column}
-#mod-instellingen .uren-content{padding:var(--sp-5) var(--sp-5) var(--sp-6)}
+#mod-instellingen,#mod-fiscaal{flex-direction:column}
+#mod-instellingen .uren-content,#mod-fiscaal .uren-content{padding:var(--sp-5) var(--sp-5) var(--sp-6)}
+/* Fiscaal (2026-10-24): de opbouw van Instellingen. Op een functiepagina
+   bovenaan de weg terug naar de keuze, als tekstknop zoals .inst-link. */
+.fis-terug{display:inline-flex;align-items:center;gap:4px;margin:0 0 var(--sp-3);padding:6px 2px;
+  border:0;background:none;cursor:pointer;font-family:inherit;font-size:var(--fs-klein);font-weight:600;color:var(--text-muted)}
+.fis-terug:hover{color:var(--text)}
+.fis-terug:focus-visible{outline:2px solid var(--mint);outline-offset:2px;border-radius:4px}
+.fis-terug svg{width:14px;height:14px}
+/* Een stap in het stappenplan: het nummer in een rondje, zoals de
+   telpil van een kaartkop. */
+.fis-nr{flex-shrink:0;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;
+  background:var(--surface2);color:var(--text-muted);font-family:var(--font-cijfer);font-size:var(--fs-micro);font-weight:700}
+.inst-rij.fis-stap{align-items:flex-start}
+.fis-stap .fis-nr{margin-top:1px}
+/* Wie tekent, of waar het bij hoort: een bijregel onder de uitleg. */
+.inst-tekst small.fis-wie{margin-top:2px;font-size:var(--fs-micro);font-weight:600;color:var(--text-hint)}
 .inst-kolommen{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(400px,100%),1fr));
   column-gap:var(--sp-5);align-items:start;max-width:1040px}
 .inst-kolom{min-width:0}
@@ -2510,8 +2525,10 @@ button.inst-rij:focus-visible{outline:2px solid var(--mint);outline-offset:-2px}
 @media (max-width:768px){
   /* De titel staat al in de mobiele topbalk, en knoppen heeft deze kop niet. */
   #mod-instellingen .uren-topbar,
+  #mod-fiscaal .uren-topbar,
   #mod-klanten .uren-topbar{display:none}
-  #mod-instellingen .uren-content{padding:var(--sp-3) var(--sp-3) var(--sp-6)}
+  #mod-instellingen .uren-content,#mod-fiscaal .uren-content{padding:var(--sp-3) var(--sp-3) var(--sp-6)}
+  .fis-terug{min-height:var(--tap)}
   .inst-groep{margin-bottom:var(--sp-4)}
   .inst-rij{padding:11px 14px}
   .inst-waarde{max-width:40%}
@@ -9633,6 +9650,11 @@ body.aic-open .aic-kop .sp-k { animation: sp-twinkel calc(var(--duur) * 3) var(-
           <div class="nav-item nav-sub" data-mod="contracten" onclick="switchModule('contracten')" data-titel="Contracten">
             <span class="nav-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 14.2H4a1 1 0 0 1-1-1V2.8a1 1 0 0 1 1-1h5.5L13 5.3V8"/><path d="M9.5 1.8v3.5H13"/><line x1="5.3" y1="6" x2="7.6" y2="6"/><line x1="5.3" y1="8.6" x2="9" y2="8.6"/><circle cx="11.6" cy="11" r="2"/><path d="M10.6 12.8l-.5 1.9 1.5-.8 1.5.8-.5-1.9"/></svg></span><span class="nav-label">Contracten</span>
           </div>
+          <!-- Fiscaal (2026-10-24): een keuzepagina met de fiscale functies,
+               te beginnen met de dividenduitkering. Zie MODULE: FISCAAL. -->
+          <div class="nav-item nav-sub" data-mod="fiscaal" onclick="switchModule('fiscaal')" data-titel="Fiscaal">
+            <span class="nav-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.2 6 8 2.4 13.8 6"/><line x1="2.2" y1="13.6" x2="13.8" y2="13.6"/><line x1="4" y1="7.6" x2="4" y2="11.8"/><line x1="8" y1="7.6" x2="8" y2="11.8"/><line x1="12" y1="7.6" x2="12" y2="11.8"/></svg></span><span class="nav-label">Fiscaal</span>
+          </div>
         </div>
       </div>
 
@@ -9657,7 +9679,7 @@ body.aic-open .aic-kop .sp-k { animation: sp-twinkel calc(var(--duur) * 3) var(-
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v2.99</span>
+        <span class="app-versie" title="Appversie">v3.01</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -10147,6 +10169,18 @@ body.aic-open .aic-kop .sp-k { animation: sp-twinkel calc(var(--duur) * 3) var(-
       </div>
       <div class="uren-content" id="ctrBody"></div>
       <button class="uren-fab" data-action="ctrNieuw" aria-label="Nieuw contract">+</button>
+    </div>
+
+    <!-- ══ Module: Fiscaal (2026-10-24) ══
+         Een keuzepagina met de fiscale functies, en per functie een eigen
+         pagina (MODULE: FISCAAL in het script). Zelfde opbouw als
+         Instellingen: groepen met een getint icoon, kaarten met regels. -->
+    <div id="mod-fiscaal" class="module">
+      <div class="uren-topbar">
+        <span class="uren-topbar-title">Fiscaal</span>
+        <div class="uren-topbar-vul"></div>
+      </div>
+      <div class="uren-content" id="fisBody"></div>
     </div>
 
     <!-- ══ Module: Klanten (2026-10-13) ══
@@ -13163,6 +13197,7 @@ function switchModule(mod){
   else if(mod==='facturen')renderFacturenModule();
   else if(mod==='opdrachten')renderOpdrachtenModule();
   else if(mod==='contracten')renderContractenModule();
+  else if(mod==='fiscaal')renderFiscaalModule();
   else if(mod==='agenda')renderAgendaModule();
   else if(mod==='mail')renderMailModule();
   else if(mod==='instellingen')renderInstellingenModule();
@@ -13794,7 +13829,7 @@ const MOBILE_MODULE_TITLES={
   dashboard:'Dashboard',notes:'Notities',
   checklist:'Taken',klanten:'Klanten',agenda:'Agenda',mail:'Mail',
   uren:'Uren',facturen:'Facturen',opdrachten:'Opdrachten',contracten:'Contracten',
-  instellingen:'Instellingen'
+  fiscaal:'Fiscaal',instellingen:'Instellingen'
 };
 function updateMobileChrome(mod){
   const title=document.getElementById('mobileTopbarTitle');
@@ -15449,7 +15484,7 @@ function renderAll(){
   try{gaccPlanVerversing();}catch(_){}
 }
 
-const GELDIGE_MODULES=['dashboard','notes','checklist','klanten','agenda','mail','uren','facturen','opdrachten','contracten','instellingen'];
+const GELDIGE_MODULES=['dashboard','notes','checklist','klanten','agenda','mail','uren','facturen','opdrachten','contracten','fiscaal','instellingen'];
 /* Waar een module in het adres anders heet dan in de code (2026-10-14):
    de takenlijst heet Taken, intern nog checklist (zo staat hij ook in Drive).
    #checklist van vroeger blijft gewoon werken. Een functie en geen tabel:
@@ -15475,6 +15510,85 @@ window.addEventListener('hashchange',()=>{
   if(taak){aiNaarTaak(taak);return;}
   const doel=moduleUitHash();
   if(doel!==activeModule)switchModule(doel);
+});
+
+/* ══════════════════════════════════════════════════════════════════════
+   MODULE: FISCAAL (2026-10-24)
+   Een keuzepagina met de fiscale functies, en per functie een eigen pagina.
+   De eerste is de dividenduitkering van werkmaatschappij naar holding: nu
+   het stappenplan met de documenten en de twee wettelijke toetsen; het
+   formulier dat de documenten maakt komt hier, zodra de voorbeelden er
+   zijn. Bewaart (nog) niets. Opbouw en klassen van Instellingen (instRij,
+   .inst-groep), zodat het eruitziet als de rest.
+   ══════════════════════════════════════════════════════════════════════ */
+let fisWeergave='kies';   /* 'kies' of 'dividend'; per sessie, niet in Drive */
+const FIS_IC={
+  uitkeren:'<circle cx="8" cy="8" r="5.8"/><path d="M10.2 5.6a2.6 2.6 0 1 0 0 4.8"/><line x1="4.6" y1="7.2" x2="8.6" y2="7.2"/><line x1="4.6" y1="8.9" x2="8.6" y2="8.9"/>',
+  aangifte:'<path d="M3.5 1.8h6L13 5.3v8.9a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5V2.3a.5.5 0 0 1 .5-.5z"/><path d="M9.5 1.8v3.5H13"/><line x1="5.6" y1="11.4" x2="10.4" y2="7.6"/><circle cx="6" cy="8" r=".8"/><circle cx="10" cy="11" r=".8"/>',
+  toetsen:'<path d="M8 2v12"/><path d="M3 5h10"/><path d="M3 5 1.5 9a1.7 1.7 0 0 0 3 0z"/><path d="M13 5l-1.5 4a1.7 1.7 0 0 0 3 0z"/><line x1="5.5" y1="14" x2="10.5" y2="14"/>',
+  stappen:'<rect x="2.5" y="2" width="11" height="12" rx="1.2"/><path d="M5 5.5l1 1 1.8-2"/><line x1="9" y1="5.5" x2="11" y2="5.5"/><path d="M5 9.5l1 1 1.8-2"/><line x1="9" y1="9.5" x2="11" y2="9.5"/>'
+};
+function fisGroep(id,tint,titel,uitleg,inhoud){
+  return '<section class="inst-groep" aria-labelledby="fisKop-'+id+'"'+(tint?' data-inst-tint="'+tint+'"':'')+'>'+
+    '<h2 class="inst-kop" id="fisKop-'+id+'"><span class="inst-kop-ic" aria-hidden="true">'+
+    '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">'+
+    FIS_IC[id]+'</svg></span>'+escapeHtml(titel)+'</h2>'+
+    (uitleg?'<p class="inst-uitleg">'+escapeHtml(uitleg)+'</p>':'')+inhoud+'</section>';
+}
+function renderFiscaalModule(){
+  const body=document.getElementById('fisBody');
+  if(!body)return;
+  body.innerHTML=fisWeergave==='dividend'?fisDividendHtml():fisKiesHtml();
+}
+function fisOpen(w){
+  fisWeergave=w==='dividend'?'dividend':'kies';
+  renderFiscaalModule();
+  const body=document.getElementById('fisBody');
+  if(body)body.scrollTop=0;
+}
+/* De keuzepagina: per soort de functies, als regels die iets openen. */
+function fisKiesHtml(){
+  return '<div class="inst-kolommen"><div class="inst-kolom">'+
+    fisGroep('uitkeren','mint','Uitkeren','Geld van je werkmaatschappij naar je holding, met de documenten die daarbij horen.',
+      '<div class="inst-kaart">'+instRij({label:'Dividenduitkering',hint:'Balanstest, uitkeringstest, besluiten en dividendnota',doe:'fisOpen',arg:'dividend'})+'</div>')+
+    '</div><div class="inst-kolom">'+
+    fisGroep('aangifte','info','Aangiftes','Wat je bij de Belastingdienst aangeeft.',
+      '<div class="inst-kaart">'+instRij({label:'Btw-overzicht',hint:'Per kwartaal, uit je facturen (in Facturen)',doe:'fisBtw'})+'</div>')+
+    '</div></div>';
+}
+/* De stappen van een dividenduitkering, in de volgorde waarin je ze zet.
+   Algemene informatie, geen advies: de statuten en de accountant gaan voor. */
+const FIS_DIVIDEND_STAPPEN=[
+  {doc:'Financiële basis',wat:'De vastgestelde jaarrekening (slotdividend) of een recente tussentijdse cijferopstelling (interim-dividend): eigen vermogen, wettelijke en statutaire reserves.',wie:'Bijlage'},
+  {doc:'Balanstest',wat:'Eigen vermogen min de verplichte reserves is de ruimte; het dividend moet daarbinnen passen (art. 2:216 lid 1 BW).',wie:'Bijlage bij het bestuursbesluit'},
+  {doc:'Uitkeringstest: liquiditeitsprognose',wat:'Kas en bank, debiteuren, crediteuren, belastingschulden (Vpb, btw, loonheffing), vaste lasten en verwachte omzet, voor minstens 12 maanden na de uitkering.',wie:'Bijlage bij het bestuursbesluit'},
+  {doc:'Aandeelhoudersbesluit',wat:'Het dividendbesluit: bedrag, per aandeel, boekjaar of interim, datum van betaalbaarstelling. Meestal buiten vergadering (art. 2:238 BW), vaak samen met de vaststelling van de jaarrekening.',wie:'Tekent: de holding als aandeelhouder'},
+  {doc:'Bestuursbesluit: goedkeuring',wat:'Dat de uitkeringstest is gedaan en het bestuur de uitkering goedkeurt (art. 2:216 lid 2 BW). Komt na het aandeelhoudersbesluit; vaak één document, getekend in beide hoedanigheden.',wie:'Tekent: het bestuur van de werkmaatschappij'},
+  {doc:'Dividendnota',wat:'Bruto dividend, eventueel ingehouden dividendbelasting, netto bedrag en datum.',wie:'Tekent: de werkmaatschappij'},
+  {doc:'Dividendbelasting',wat:'Normaal 15%, aangifte binnen een maand. Naar een holding met minstens 5% meestal de inhoudingsvrijstelling; bij een fiscale eenheid speelt het niet. Laat dit bevestigen.',wie:'Bij de Belastingdienst'},
+  {doc:'Betaling en boeking',wat:'Pas na beide besluiten: de overboeking (of de boeking in rekening-courant), en de journaalposten bij beide BV\'s.',wie:'Bijlage'}
+];
+function fisDividendHtml(){
+  const terug='<button type="button" class="fis-terug" data-action="fisOpen" data-arg1="kies">'+
+    '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3.5 5.5 8l4.5 4.5"/></svg>Fiscaal</button>';
+  const toetsen='<div class="inst-kaart">'+
+    instRij({soort:'info',label:'Balanstest',hint:'Uitkeren mag alleen voor zover het eigen vermogen groter is dan de reserves die je volgens de wet of de statuten moet aanhouden.'})+
+    instRij({soort:'info',label:'Uitkeringstest',hint:'Het bestuur keurt goed, en weigert als het weet of moet voorzien dat de BV daarna haar opeisbare schulden niet kan blijven betalen. In de praktijk: minstens 12 maanden vooruit.'})+
+    instRij({soort:'info',label:'Waarom vastleggen',hint:'Gaat het mis, dan zijn de bestuurders hoofdelijk aansprakelijk voor het tekort, en moet een aandeelhouder die het wist terugbetalen (lid 3). De documenten zijn je bewijs dat je zorgvuldig was.'})+
+    '</div>';
+  const stappen='<div class="inst-kaart">'+FIS_DIVIDEND_STAPPEN.map((s,i)=>
+    '<div class="inst-rij fis-stap"><span class="fis-nr">'+(i+1)+'</span>'+
+    '<span class="inst-tekst"><b>'+escapeHtml(s.doc)+'</b><small>'+escapeHtml(s.wat)+'</small>'+
+    '<small class="fis-wie">'+escapeHtml(s.wie)+'</small></span></div>').join('')+'</div>';
+  return terug+'<div class="inst-kolommen"><div class="inst-kolom">'+
+    fisGroep('toetsen','mint','Dividenduitkering','Van werkmaatschappij naar holding. Twee wettelijke toetsen (art. 2:216 BW), en het bewijs dat je ze deed. Het formulier dat de documenten voor je maakt, komt op deze pagina.',toetsen)+
+    '</div><div class="inst-kolom">'+
+    fisGroep('stappen','info','Stappen en documenten','In deze volgorde. Algemene informatie, geen advies: je statuten en je accountant gaan voor.',stappen)+
+    '</div></div>';
+}
+Object.assign(APP_ACTIONS,{
+  fisOpen:(el,e,w)=>fisOpen(w),
+  fisBtw:()=>{switchModule('facturen');facSetView('btw');}
 });
 
 /* ─ Event delegation registrations (Dashboard + Sidebar clients) ─ */

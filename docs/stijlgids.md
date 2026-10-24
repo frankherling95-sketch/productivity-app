@@ -772,6 +772,18 @@ Een nieuwe instelling krijgt een regel op deze pagina, ook als hij in een
 
 ---
 
+### Fiscaal
+
+Dezelfde opbouw als Instellingen: groepen met een getint icoon van 30px
+(`.inst-kop-ic`), een uitlegregel, kaarten met regels (`instRij`; de regel is
+de knop, met een pijl als hij iets opent). Op een functiepagina staat
+bovenaan de weg terug (`.fis-terug`): een tekstknop met een pijl van 14px,
+`--fs-klein` / 600 muted, op een telefoon `var(--tap)` hoog. Een stappenplan
+(`.fis-stap`): het nummer in een rondje van 22px op `--surface2`
+(`--fs-micro` / 700, cijferletter) bovenaan bij de titel, de uitleg in
+`--fs-klein` muted, en wie tekent als bijregel in `--fs-micro` / 600
+`--text-hint`.
+
 ## 16. Herling AI
 
 **Het paneel** (sinds 2026-10-13; daarvoor een venster met achtergrond). Geen

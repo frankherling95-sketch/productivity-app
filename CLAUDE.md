@@ -58,10 +58,11 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 | `#opdrachten` | Opdrachten | Opdrachten per klant (looptijd, uren per week of urenbudget, tarief, opzegtermijn, PDF van de overeenkomst) en een vooruitzicht per werkmaand |
 | `#agenda` | Agenda | Afspraken van alle gekoppelde Google-accounts (zakelijk, privé) in één beeld: dag, week of lijst. Afspraak maken, wijzigen, verwijderen. Rechtstreeks de Calendar API, niets in Drive |
 | `#mail` | Mail | Postvak van de gekoppelde Google-accounts: lezen (veilig iframe, plaatjes van buiten pas op verzoek), zoeken met de zoektaal van Gmail, archiveren/prullenbak/gelezen/ster met ongedaan maken, opruimen per afzender, een taak maken van een mail (`pvTaak`, de taak onthoudt de mail), AI-overzicht, samenvatting en antwoorden: je ziet de hele mail (aan, cc, onderwerp, tekst, handtekening) en verstuurt zelf, met een paar seconden *Niet versturen*; of als concept in Gmail |
+| `#fiscaal` | Fiscaal | Onderaan in Administratie. Een keuzepagina met de fiscale functies (zelfde opbouw als Instellingen, `instRij`/`.inst-groep`): *Dividenduitkering* (van werkmaatschappij naar holding: de twee toetsen van art. 2:216 BW en de acht stappen met documenten; het formulier dat de documenten maakt volgt) en *Btw-overzicht* (opent Facturen → Btw). Welke pagina open staat (`fisWeergave`) per sessie; bewaart nog niets |
 | `#contracten` | Contracten | Zakelijke én privécontracten (twee tabs), elk met looptijd, opzegtermijn, stilzwijgende verlenging en de PDF erbij |
 | `#instellingen` | Instellingen | Eén pagina met alles wat je instelt: AI-model en sleutels, thema, facturatie, vrije dagen, opslag en back-up, meldingen, account. Opent de bestaande vensters; bewaart zelf niets |
 
-Entry render functions: `renderDashboard()`, `renderNotesModule()`, `renderChecklistModule()`, `renderKlantenModule()`, `renderUrenModule()`, `renderFacturenModule()`, `renderOpdrachtenModule()`, `renderContractenModule()`, `renderAgendaModule()`, `renderMailModule()`, `renderInstellingenModule()`. `renderAll()` wordt aangeroepen na elke `loadGist()`.
+Entry render functions: `renderDashboard()`, `renderNotesModule()`, `renderChecklistModule()`, `renderKlantenModule()`, `renderUrenModule()`, `renderFacturenModule()`, `renderOpdrachtenModule()`, `renderContractenModule()`, `renderFiscaalModule()`, `renderAgendaModule()`, `renderMailModule()`, `renderInstellingenModule()`. `renderAll()` wordt aangeroepen na elke `loadGist()`.
 
 ## State & persistence
 
@@ -246,7 +247,7 @@ tabel is de leesbare versie. Wijzig ze samen.
 | `uren` | `uren*`, `_uren*` | `.uren-` **minus de 42 gedeelde** | `#mod-uren` |
 | `facturen` | `fac*`, `_fac*`, `factuur*` | `.fac-` | `#mod-facturen` |
 
-`#mod-klanten` (`kb*`, `.kb-`), `#mod-opdrachten` (`opd*`, `.opd-`), `#mod-contracten` (`ctr*`, `.ctr-`), `#mod-agenda` (`kal*`, `.kal-`), `#mod-mail` (`pv*`, `.pv-`; de accountlaag `gacc*`, `.gacc-`) en `#mod-instellingen` (`inst*`, `.inst-`) hebben
+`#mod-klanten` (`kb*`, `.kb-`), `#mod-fiscaal` (`fis*`, `.fis-`), `#mod-opdrachten` (`opd*`, `.opd-`), `#mod-contracten` (`ctr*`, `.ctr-`), `#mod-agenda` (`kal*`, `.kal-`), `#mod-mail` (`pv*`, `.pv-`; de accountlaag `gacc*`, `.gacc-`) en `#mod-instellingen` (`inst*`, `.inst-`) hebben
 voorlopig geen eigen spoor en vallen onder de coördinator. (`#mod-todo`, Kanban, is
 weg sinds 2026-10-04.)
 
@@ -342,9 +343,9 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
+- **2026-10-24**: **Fiscaal** (v3.01) — nieuw onderdeel onderaan Administratie: een keuzepagina met de fiscale functies, als eerste *Dividenduitkering* (de twee toetsen en de acht stappen met documenten). Het invulformulier dat de documenten maakt komt daar, na Franks voorbeelden. Opbouw en klassen van Instellingen
 - **2026-10-23**: **Uren-analyse: totaal onder Nog niet gefactureerd** (v2.99) — een totaalregel (bedrag en uren, het aantal klanten) onder de ranglijst, vanaf twee klanten. De bedragen in alle ranglijsten (`.fac-an-krij`) staan nu onder elkaar: de waardekolom heeft op een bureaublad een ondergrens, zodat elke balk op dezelfde plek eindigt
 - **2026-10-21**: **Onderbalk als zwevende pil** (v2.98) — op een telefoon: navy pil, 12px van de randen en 10px boven de thuisbalk, alleen iconen (22px), het actieve vak een licht vlak met een mint icoon; zes vakken, de zesde is Herling AI. Het tellertje van Taken werkte er nooit (`display:''` verloor van de CSS) en staat er nu
-- **2026-10-21**: **Herling AI** (v2.97) — de assistent heet nu Herling AI (kop, knoppen, systeeminstructie). Het vonkje beweegt: bij aanwijzen draait de grote ster een kwartslag en twinkelt de kleine, bij openen één keer, en zolang hij nadenkt ademen ze om de beurt (`.sp-g`/`.sp-k`, duren uit de tokens)
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 
@@ -431,7 +432,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 257 smoke-, sync-, model-, reken-, sorteer-, agenda-, mail- en projecttests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook. **Hoort in elke browser groen te zijn**, ook headless in een leeg profiel: een test die iets van de omgeving nodig heeft zet het zelf neer en ruimt het op — `metKlant` (minstens één klant), `metLogin` (ingelogd, met naam), `opBreed` (iframe op 1400px, want onder 769px is de app een telefoon), `metLS`, `metGoogle`. Rood is dus echt rood |
+| `test.html` | 258 smoke-, sync-, model-, reken-, sorteer-, agenda-, mail- en projecttests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook. **Hoort in elke browser groen te zijn**, ook headless in een leeg profiel: een test die iets van de omgeving nodig heeft zet het zelf neer en ruimt het op — `metKlant` (minstens één klant), `metLogin` (ingelogd, met naam), `opBreed` (iframe op 1400px, want onder 769px is de app een telefoon), `metLS`, `metGoogle`. Rood is dus echt rood |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |
