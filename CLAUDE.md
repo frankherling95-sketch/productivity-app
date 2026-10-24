@@ -1,6 +1,6 @@
 # Herling Analytics — Productivity App
 
-Single-page productivity app voor Frank Herling. Single-file HTML SPA, gehost op GitHub Pages.
+Single-page productivity app voor Frank (de eigenaar). Single-file HTML SPA, gehost op GitHub Pages.
 Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Google Drive `appDataFolder`.
 
 ## Snel oriënteren
@@ -58,10 +58,11 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 | `#opdrachten` | Opdrachten | Opdrachten per klant (looptijd, uren per week of urenbudget, tarief, opzegtermijn, PDF van de overeenkomst) en een vooruitzicht per werkmaand |
 | `#agenda` | Agenda | Afspraken van alle gekoppelde Google-accounts (zakelijk, privé) in één beeld: dag, week of lijst. Afspraak maken, wijzigen, verwijderen. Rechtstreeks de Calendar API, niets in Drive |
 | `#mail` | Mail | Postvak van de gekoppelde Google-accounts: lezen (veilig iframe, plaatjes van buiten pas op verzoek), zoeken met de zoektaal van Gmail, archiveren/prullenbak/gelezen/ster met ongedaan maken, opruimen per afzender, een taak maken van een mail (`pvTaak`, de taak onthoudt de mail), AI-overzicht, samenvatting en antwoorden: je ziet de hele mail (aan, cc, onderwerp, tekst, handtekening) en verstuurt zelf, met een paar seconden *Niet versturen*; of als concept in Gmail |
+| `#fiscaal` | Fiscaal | Onderaan in Administratie. Een keuzepagina met de fiscale functies (zelfde opbouw als Instellingen, `instRij`/`.inst-groep`): *Dividenduitkering* (van werkmaatschappij naar holding: per uitkering een formulier met besluit, balanstest, uitkeringstoets en dividendbelasting; de app maakt drie PDF's -- notulen AVA, bestuursbesluit met de cijfers als bijlage, dividendnota -- met lege handtekeningregels; `fisDivBlokken()` → `fisPdfDoc()`) en *Btw-overzicht* (opent Facturen → Btw). De vaste gegevens van werkmaatschappij en holding staan in Franks eigen gegevens (`fiscaalState.gegevens`), nooit in de code. Welke pagina open staat (`fisWeergave`) per sessie |
 | `#contracten` | Contracten | Zakelijke én privécontracten (twee tabs), elk met looptijd, opzegtermijn, stilzwijgende verlenging en de PDF erbij |
 | `#instellingen` | Instellingen | Eén pagina met alles wat je instelt: AI-model en sleutels, thema, facturatie, vrije dagen, opslag en back-up, meldingen, account. Opent de bestaande vensters; bewaart zelf niets |
 
-Entry render functions: `renderDashboard()`, `renderNotesModule()`, `renderChecklistModule()`, `renderKlantenModule()`, `renderUrenModule()`, `renderFacturenModule()`, `renderOpdrachtenModule()`, `renderContractenModule()`, `renderAgendaModule()`, `renderMailModule()`, `renderInstellingenModule()`. `renderAll()` wordt aangeroepen na elke `loadGist()`.
+Entry render functions: `renderDashboard()`, `renderNotesModule()`, `renderChecklistModule()`, `renderKlantenModule()`, `renderUrenModule()`, `renderFacturenModule()`, `renderOpdrachtenModule()`, `renderContractenModule()`, `renderFiscaalModule()`, `renderAgendaModule()`, `renderMailModule()`, `renderInstellingenModule()`. `renderAll()` wordt aangeroepen na elke `loadGist()`.
 
 ## State & persistence
 
@@ -73,6 +74,7 @@ rawState = {
   uren:     urenState,       // {entries, templates}
   opdrachten: opdrachtState, // {opdrachten, vrij (vakanties), feestdagen (ids; ontbreekt = standaard)}
   contracten: contractState, // {contracten, opruimen} — de PDF's zelf staan NIET hierin, zie Contracten hieronder
+  fiscaal:  fiscaalState,    // {gegevens: {werkNaam, werkKvk, werkPlaats, holdingNaam, aanhef, vertegenwoordiger, bestuurder ('holding'|'persoon'), bestuurderNaam}, dividenden[]}
   // agenda: verwijderd 2026-09-06; oude events blijven ongemoeid in Drive staan (de nieuwe Agenda leest Google en bewaart niets)
   settings: { calSources, theme, googleAccounts: [Google-account], agendaMeldingen: {aan, kalenderId, checklist, clStandaard ('dag'|'dag1'|'week'|'uit'; ontbreekt = 'dag1'), clMail, clOverzicht}, driveArchief: {aan, mapId}, externeTools, aiVerbruik: {'JJJJ-MM': {model: {n, in, uit, lees, schrijf, usd}}}, ... }
 }
@@ -85,6 +87,7 @@ rawState = {
 - Notes node (recursief): `{id, type:'page'|'folder', title, content, clientId, projectId?, tags, children[]}` — `projectId` alleen op een pagina; zetten via `notePlekZet()` (houdt de klant gelijk aan die van het project), lezen via `noteProject()` (een project dat weg is of bij een andere klant hoort telt als geen)
 - Klant: `{id, name, colorIdx, verborgen?}` — `verborgen` = opgeschoond: weg uit de klantwisselaar, Notities, Taken en Dashboard, maar gewoon kiesbaar in Uren, Facturen, Opdrachten en Contracten (`klantVerborgen()`, `takenZichtbaar()`, `klantenVoorKeuze()`)
 - Contract: `{id, domein ('zakelijk'|'prive'; ontbreekt = zakelijk), soort, titel, clientId|null, wederpartij, opdrachtId|null, getekend, start, eind|null, opzeg, verlenging ('' of '1m'/'3m'/'6m'/'12m'), notitie, bijlagen[]}` — een bijlage is `{id, naam, grootte, hash, driveId|null}`. De PDF staat als **eigen bestand** in de Drive-`appDataFolder` (`contract-<id>.pdf`) plus een kopie in IndexedDB (`herling_bijlagen`), niet in `rawState`. Hangt een contract aan een opdracht, dan komt de looptijd uit de opdracht (`ctrLooptijd()`)
+- Dividenduitkering (Fiscaal): `{id, datum, plaats, boekjaar, bedrag, tenLaste ('winst of overige reserves'|'winst'|'overige reserves'), betaaldatum|null, peildatum, ev, reserves, kas, schulden, kasstroom, vrijstelling (true = inhoudingsvrijstelling, 0%; false = 15%)}` — de documenten worden uit deze gegevens gemaakt, niet bewaard. `fisDivStatus()` rekent de toetsen; negatief of onvolledig = geen documenten
 - Opdracht: `{id, clientId, naam, start, eind|null, opzeg ('', '2w', '1m', …), tarief|null, urenPerWeek|null, urenBudget|null, werkdagen|null ([2,3,5] = di/wo/vr; null = ma–vr), notitie, bijlagen[]}` — bijlagen zoals bij een contract, zelfde opslag en opruimlijst (`ctrAlleBijlagen()`) — uren horen erbij via klant + looptijd, niet via een veld op de urenregel
 
 ### Storage keys
@@ -246,7 +249,7 @@ tabel is de leesbare versie. Wijzig ze samen.
 | `uren` | `uren*`, `_uren*` | `.uren-` **minus de 42 gedeelde** | `#mod-uren` |
 | `facturen` | `fac*`, `_fac*`, `factuur*` | `.fac-` | `#mod-facturen` |
 
-`#mod-klanten` (`kb*`, `.kb-`), `#mod-opdrachten` (`opd*`, `.opd-`), `#mod-contracten` (`ctr*`, `.ctr-`), `#mod-agenda` (`kal*`, `.kal-`), `#mod-mail` (`pv*`, `.pv-`; de accountlaag `gacc*`, `.gacc-`) en `#mod-instellingen` (`inst*`, `.inst-`) hebben
+`#mod-klanten` (`kb*`, `.kb-`), `#mod-fiscaal` (`fis*`, `.fis-`), `#mod-opdrachten` (`opd*`, `.opd-`), `#mod-contracten` (`ctr*`, `.ctr-`), `#mod-agenda` (`kal*`, `.kal-`), `#mod-mail` (`pv*`, `.pv-`; de accountlaag `gacc*`, `.gacc-`) en `#mod-instellingen` (`inst*`, `.inst-`) hebben
 voorlopig geen eigen spoor en vallen onder de coördinator. (`#mod-todo`, Kanban, is
 weg sinds 2026-10-04.)
 
@@ -342,9 +345,9 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
+- **2026-10-24**: **Fiscaal, met de dividenduitkering** (v3.01) — nieuw onderdeel onderaan Administratie: een keuzepagina met de fiscale functies. *Dividenduitkering*: per uitkering een formulier (besluit, balanstest, uitkeringstoets, dividendbelasting, de toetsen rekenen live mee) en drie PDF's in de opmaak van Franks voorbeelden: notulen AVA, bestuursbesluit met de cijfers als bijlage, dividendnota. Nieuwe state `fiscaal` (gegevens + dividenden)
 - **2026-10-23**: **Uren-analyse: totaal onder Nog niet gefactureerd** (v2.99) — een totaalregel (bedrag en uren, het aantal klanten) onder de ranglijst, vanaf twee klanten. De bedragen in alle ranglijsten (`.fac-an-krij`) staan nu onder elkaar: de waardekolom heeft op een bureaublad een ondergrens, zodat elke balk op dezelfde plek eindigt
 - **2026-10-21**: **Onderbalk als zwevende pil** (v2.98) — op een telefoon: navy pil, 12px van de randen en 10px boven de thuisbalk, alleen iconen (22px), het actieve vak een licht vlak met een mint icoon; zes vakken, de zesde is Herling AI. Het tellertje van Taken werkte er nooit (`display:''` verloor van de CSS) en staat er nu
-- **2026-10-21**: **Herling AI** (v2.97) — de assistent heet nu Herling AI (kop, knoppen, systeeminstructie). Het vonkje beweegt: bij aanwijzen draait de grote ster een kwartslag en twinkelt de kleine, bij openen één keer, en zolang hij nadenkt ademen ze om de beurt (`.sp-g`/`.sp-k`, duren uit de tokens)
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 
@@ -431,7 +434,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |
 | `.claude/agents/*.md` | Eén per spoor, `isolation: worktree` — scope, verboden en valkuilen van die module |
 | `docs/stijlgids.md` | Maten per soort onderdeel; lezen vóór vormgeefwerk |
-| `test.html` | 257 smoke-, sync-, model-, reken-, sorteer-, agenda-, mail- en projecttests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook. **Hoort in elke browser groen te zijn**, ook headless in een leeg profiel: een test die iets van de omgeving nodig heeft zet het zelf neer en ruimt het op — `metKlant` (minstens één klant), `metLogin` (ingelogd, met naam), `opBreed` (iframe op 1400px, want onder 769px is de app een telefoon), `metLS`, `metGoogle`. Rood is dus echt rood |
+| `test.html` | 262 smoke-, sync-, model-, reken-, sorteer-, agenda-, mail- en projecttests in een iframe. **Via een lokale server openen** (`npx --yes http-server . -p 8765 -c-1 --silent` → http://localhost:8765/test.html); via `file://` schermt de browser de iframe af en zegt de pagina dat ook. **Hoort in elke browser groen te zijn**, ook headless in een leeg profiel: een test die iets van de omgeving nodig heeft zet het zelf neer en ruimt het op — `metKlant` (minstens één klant), `metLogin` (ingelogd, met naam), `opBreed` (iframe op 1400px, want onder 769px is de app een telefoon), `metLS`, `metGoogle`. Rood is dus echt rood |
 | `.githooks/pre-push` | Blokkeert force-push/non-fast-forward, draait validate |
 | `.claude/hooks/pre-tool-use.mjs` | Blokkeert Claude's gevaarlijke commando's |
 | `.claude/hooks/post-edit-validate.mjs` | Draait validate na elke edit van hoofd-bestand |

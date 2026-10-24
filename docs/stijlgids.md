@@ -772,6 +772,28 @@ Een nieuwe instelling krijgt een regel op deze pagina, ook als hij in een
 
 ---
 
+### Fiscaal
+
+Dezelfde opbouw als Instellingen: groepen met een getint icoon van 30px
+(`.inst-kop-ic`), een uitlegregel, kaarten met regels (`instRij`; de regel is
+de knop, met een pijl als hij iets opent). Op een functiepagina staat
+bovenaan de weg terug (`.fis-terug`): een tekstknop met een pijl van 14px,
+`--fs-klein` / 600 muted, op een telefoon `var(--tap)` hoog. Een stappenplan
+(`.fis-stap`): het nummer in een rondje van 22px op `--surface2`
+(`--fs-micro` / 700, cijferletter) bovenaan bij de titel, de uitleg in
+`--fs-klein` muted, en wie tekent als bijregel in `--fs-micro` / 600
+`--text-hint`.
+
+Het venster van een uitkering heeft de opbouw van het contractvenster
+(`.uren-form`, `.uren-fld`, `.opd-velden2`), met tussenkoppen per blok
+(`.fis-sectie`: `--fs-klein` / 700, een lijn van 0.5px `--border` erboven,
+behalve de eerste). Onderaan de uitkomst van de toetsen, die meerekent
+terwijl je typt: het rekenvak van Contracten (`.opd-reken`, een fout in
+`.opd-reken-fout`). Een uitkering in de lijst is een `.inst-rij` met de stand
+als stip (*Klaar* groen, anders oranje met wat er ontbreekt) en opent een
+`.uren-menu` met de drie documenten, *Bewerken* en *Verwijderen*; zolang het
+niet klaar is staan de documenten uit, met de reden eronder.
+
 ## 16. Herling AI
 
 **Het paneel** (sinds 2026-10-13; daarvoor een venster met achtergrond). Geen

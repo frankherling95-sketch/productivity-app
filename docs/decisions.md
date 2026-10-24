@@ -721,8 +721,8 @@ label droeg.
 - **Onderin**: de opslagstatus als regel (kleur alleen op de stip, rood bij een
   fout) met de versie ernaast, een streep met de ronde inklapknop half over de
   rand, en de gebruiker met initialen, naam en e-mail.
-- **Breedte** 236 → 272px, ingeklapt 56 → 72px. Op 272 past
-  `frank@herling-analytics.nl` precies (gemeten: 156 van 156px).
+- **Breedte** 236 → 272px, ingeklapt 56 → 72px. Op 272 past een
+  e-mailadres van 26 tekens op het eigen domein precies (gemeten: 156 van 156px).
 
 **Waarom Administratie nu wél een woord is.** Op 2026-09-07 gingen de kopjes
 eruit omdat Externe tools onder "Administratie" stond en dat geen administratie
@@ -4176,7 +4176,7 @@ Voorwaarden liggen klaar: Workspace-account (dus OAuth-app op *Internal*, geen 7
 
 Stappen:
 1. Scope `https://www.googleapis.com/auth/gmail.send` toevoegen in Cloud Console én aan `driveVraagToken` (of een tweede tokenclient — scopes mogen gecombineerd).
-2. MIME-bericht opbouwen: multipart/mixed, de PDF base64 als bijlage, afzender `app@herling-analytics.nl`.
+2. MIME-bericht opbouwen: multipart/mixed, de PDF base64 als bijlage, afzender het eigen adres van de gebruiker.
 3. `POST /gmail/v1/users/me/messages/send` met `raw` = base64url van het MIME-bericht.
 4. Verzendknop op de factuur, met bevestigingsdialoog vooraf (ontvanger, bedrag, bijlage) — Frank koos direct versturen, maar een factuur die weg is kun je alleen nog crediteren.
 5. Na verzenden: `f.verzondenOp` vastleggen en tonen in de factuurlijst.
@@ -8686,4 +8686,111 @@ balken eindigden op verschillende plekken.
 
 **Niet doen.** Een balk in de totaalregel (de som is geen klant en zou altijd
 de langste zijn), of de kolommen per rij laten meegroeien.
+
+## 2026-10-24 · Fiscaal: een keuzepagina, te beginnen met de dividenduitkering (v3.01)
+
+**Probleem.** Frank wil dividend van zijn werkmaatschappij naar zijn holding
+sneller uitwerken: een formulier waarin hij de gegevens invult en dat de
+documenten maakt, zodat alleen de handtekeningen nog moeten. Het hoort bij de
+administratie, als een nieuw onderdeel *Fiscaal* met een eigen pagina waarop
+je kiest welke functie je wilt gebruiken.
+
+**Beslissing.**
+- Een nieuwe module `#fiscaal`, onderaan de groep Administratie. De pagina is
+  een keuzepagina in de opbouw van Instellingen (groepen met een getint
+  icoon, regels die iets openen): *Uitkeren → Dividenduitkering* en
+  *Aangiftes → Btw-overzicht* (dat bestaat al in Facturen; de regel opent het
+  daar, zodat Fiscaal het ene adres is voor wat met de Belastingdienst te
+  maken heeft).
+- *Dividenduitkering* toont nu de twee toetsen van art. 2:216 BW (balanstest,
+  uitkeringstest, en waarom je ze vastlegt) en de acht stappen met de
+  documenten, in volgorde, met wie tekent. Als algemene informatie; de
+  statuten en de accountant gaan voor.
+- In twee stappen gebouwd: eerst de plek en het stappenplan, daarna -- als
+  Franks voorbeelden er zijn -- het formulier en het maken van de documenten.
+  Daarom bewaart de module nog niets: geen nieuw veld in `rawState` voordat
+  duidelijk is welke gegevens het formulier vraagt.
+- Welke pagina open staat (`fisWeergave`) is per sessie, niet in het adres:
+  een deeladres per functie komt pas als er meer functies zijn.
+- Het versienummer: na v2.99 komt v3.01 (`validate.mjs`: een build van 00
+  bestaat niet).
+
+**Bestanden.** `index.html` (menu, `#mod-fiscaal`, MODULE: FISCAAL,
+`GELDIGE_MODULES`, `MOBILE_MODULE_TITLES`, `switchModule`, CSS `.fis-*`),
+`test.html` (één test), `.claude/ownership.json` (coordinatorregio),
+`sw.js`, `CLAUDE.md`, `docs/stijlgids.md`.
+
+**Niet doen.** Echte namen of gegevens van de BV's in de sjablonen zetten: die
+komen straks uit Franks eigen gegevens in Drive, de repo is openbaar.
+
+## 2026-10-24 · Dividenduitkering: formulier en documenten (v3.01)
+
+**Probleem.** Een dividenduitkering van werkmaatschappij naar holding vraagt
+elke keer dezelfde documenten. Frank stuurde zijn notulen van de AVA en zijn
+bestuursbesluit inzake de uitkeringstoets; die wilde hij laten invullen, zodat
+alleen de handtekeningen nog moeten. Gekozen: de holding is aandeelhouder én
+bestuurder (instelbaar), de uitkeringstoets krijgt een cijferbijlage, en er
+komt een dividendnota bij.
+
+**Beslissing.**
+- **Gegevens.** De vaste gegevens (werkmaatschappij, KvK, plaats, holding,
+  aanhef en vertegenwoordiger, bestuurder) één keer, in `fiscaalState.gegevens`;
+  per uitkering datum, plaats, boekjaar, bedrag, ten laste van, betaaldatum,
+  de cijfers van de balanstest (eigen vermogen, verplichte reserves, per
+  peildatum) en van de uitkeringstoets (liquide middelen, kortlopende
+  schulden, verwachte netto kasstroom over twaalf maanden), en de
+  dividendbelasting (inhoudingsvrijstelling of 15%).
+- **Toetsen.** Balanstest: eigen vermogen − reserves − dividend ≥ 0.
+  Uitkeringstoets: kas − schulden + kasstroom − dividend ≥ 0. Ze rekenen mee
+  in het venster; is er één negatief, of ontbreken gegevens of cijfers, dan
+  maakt de app de documenten niet (met de reden in het menu).
+- **Documenten.** Drie PDF's met jsPDF, in de opmaak van de voorbeelden (kop
+  in blauw, schreefletter, stippellijn om te tekenen): notulen AVA, het
+  bestuursbesluit met de cijfers op een tweede pagina, en de dividendnota.
+  De teksten volgen de voorbeelden, met verbeteringen: in het bestuursbesluit
+  staat de bestuurder als aanwezig (was de aandeelhouder); het besluit is
+  uitdrukkelijk een goedkeuring (art. 2:216 lid 2 BW: zonder goedkeuring heeft
+  het uitkeringsbesluit geen gevolgen); in de notulen staat dat het bestuur
+  advies kon uitbrengen (art. 2:238 jo. 2:227 lid 7 BW); namen eindigen nooit
+  op "B.V.." (`fisPunt`).
+- **Dividendbelasting** (Belastingdienst, gecontroleerd 2026-10-24): 15%. Bij
+  een Nederlandse holding met 5% of meer de inhoudingsvrijstelling; is de hele
+  uitkering vrijgesteld, dan geen aangifte, tenzij de Belastingdienst
+  uitnodigt. Zo staat het op de nota.
+- Eerst blokken (`fisDivBlokken`), dan de PDF (`fisPdfDoc`): de teksten zijn zo
+  te testen zonder PDF, en de opmaak zit op één plek.
+- De documenten worden niet bewaard: ze komen elke keer opnieuw uit de
+  gegevens. Bestandsnamen zoals Franks eigen: `Notulen_AVA_Dividend_<boekjaar>_<datum>.pdf`.
+
+**Bestanden.** `index.html` (state `fiscaal` in laden, verzamelen,
+samenvoegen en tellen; twee vensters; MODULE: FISCAAL), `test.html` (vier
+tests), `CLAUDE.md`, `docs/stijlgids.md`.
+
+**Niet doen.** Echte namen, KvK-nummers of plaatsen in de code of de tests
+(de repo is openbaar), of de documenten laten maken als een toets negatief
+is: dan verklaart het bestuur iets wat de eigen cijfers tegenspreken.
+
+## 2026-10-24 · Geen persoonlijke gegevens in de repo, ook niet in oude entries
+
+**Probleem.** Frank vroeg om zeker te stellen dat er geen gevoelige informatie
+openbaar in de repo staat. Een scan van alle bestanden en de hele
+geschiedenis vond in de bestanden alleen zijn achternaam (CLAUDE.md) en twee
+e-mailadressen op het eigen domein (twee entries hieronder, van 2026-09 en
+eerder). In de **commitgegevens** van oudere commits staan wel persoonlijke
+e-mailadressen als auteur, waaronder adressen op het domein van een
+opdrachtgever of werkgever.
+
+**Beslissing.**
+- De achternaam en de twee adressen zijn uit de bestanden gehaald. Dat is een
+  bewuste uitzondering op "append-only": privacy gaat voor; de strekking van
+  de entries is gelijk gebleven.
+- De auteursadressen in de oude commits zijn alleen weg te krijgen door de
+  repo privé te maken of de hele geschiedenis te herschrijven. Dat is aan
+  Frank (kosten, en een force-push); zie het gesprek van 2026-10-24.
+- Nieuwe commits gaan onder het noreply-adres van GitHub (repo-config), en
+  `validate.mjs --commits` controleert de commitberichten op namen.
+
+**Niet doen.** Echte namen, adressen, KvK-nummers, IBAN's of e-mailadressen in
+code, tests, docs of commitberichten; een voorbeeld uit Franks eigen
+documenten overnemen; of een auteursadres anders dan het noreply-adres.
 
