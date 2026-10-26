@@ -9683,7 +9683,7 @@ body.aic-open .aic-kop .sp-k { animation: sp-twinkel calc(var(--duur) * 3) var(-
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v3.01</span>
+        <span class="app-versie" title="Appversie">v3.02</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -15631,11 +15631,12 @@ window.addEventListener('hashchange',()=>{
 /* ══════════════════════════════════════════════════════════════════════
    MODULE: FISCAAL (2026-10-24)
    Een keuzepagina met de fiscale functies, en per functie een eigen pagina.
-   De eerste is de dividenduitkering van werkmaatschappij naar holding: nu
-   het stappenplan met de documenten en de twee wettelijke toetsen; het
-   formulier dat de documenten maakt komt hier, zodra de voorbeelden er
-   zijn. Bewaart (nog) niets. Opbouw en klassen van Instellingen (instRij,
-   .inst-groep), zodat het eruitziet als de rest.
+   De eerste is de dividenduitkering van werkmaatschappij naar holding: per
+   uitkering een formulier met de twee wettelijke toetsen, en daaruit drie
+   PDF's (notulen AVA, bestuursbesluit met cijferbijlage, dividendnota).
+   Bewaart de gegevens in fiscaalState, de documenten niet. Opbouw en
+   klassen van Instellingen (instRij, .inst-groep), zodat het eruitziet als
+   de rest.
    ══════════════════════════════════════════════════════════════════════ */
 let fisWeergave='kies';   /* 'kies' of 'dividend'; per sessie, niet in Drive */
 const FIS_IC={
@@ -15756,6 +15757,10 @@ function fisDatum(iso){
   const [y,m,d]=iso.split('-').map(Number);
   return d+'-'+m+'-'+y;
 }
+/* Boven elke handtekening dezelfde volgorde: "Puren, 12-1-2026" (plaats, datum). */
+function fisPlaatsDatum(plaats,iso){
+  return [String(plaats||'').trim(),fisDatum(iso)].filter(Boolean).join(', ');
+}
 function fisGegevensCompleet(g){
   g=g||{};
   return !!(String(g.werkNaam||'').trim()&&String(g.werkKvk||'').trim()&&String(g.holdingNaam||'').trim()&&String(g.vertegenwoordiger||'').trim());
@@ -15816,7 +15821,7 @@ function fisDivBlokken(soort,d,g){
     {soort:'tekst',tekst:'De vergadering besluit unaniem tot uitkering van een dividend van '+bedrag+' ten laste van '+fisTenLaste(d.tenLaste)+' van de vennootschap aan '+H+', betaalbaar op '+betaal+'. Het besluit heeft gevolgen zodra het bestuur het heeft goedgekeurd (artikel 2:216 lid 2 BW).'},
     {soort:'kop',tekst:'Slot'},
     {soort:'tekst',tekst:'Er zijn geen verdere agendapunten aan de orde. De voorzitter sluit de vergadering.'},
-    {soort:'handtekening',plaatsDatum:P+', '+D,naam,regels:[H,'Enig aandeelhouder van '+W]}
+    {soort:'handtekening',plaatsDatum:fisPlaatsDatum(P,d.datum),naam,regels:[H,'Enig aandeelhouder van '+W]}
   ];
   if(soort==='bestuur')return [
     {soort:'titel',tekst:'Bestuursbesluit inzake uitkeringstoets dividend'},
@@ -15832,7 +15837,7 @@ function fisDivBlokken(soort,d,g){
     {soort:'tekst',tekst:'Het bestuur verleent goedkeuring aan het besluit tot uitkering van een dividend van '+bedrag+' aan '+H+' (artikel 2:216 lid 2 BW). De uitkering voldoet aan de wettelijke voorwaarden en is verantwoord gezien de financiële positie van de vennootschap.'},
     {soort:'kop',tekst:'Slot'},
     {soort:'tekst',tekst:'Er zijn geen verdere agendapunten aan de orde. Het besluit wordt hiermee vastgesteld en ondertekend.'},
-    {soort:'handtekening',plaatsDatum:D+', '+P,naam:persoon?bestuurderNaam:naam,
+    {soort:'handtekening',plaatsDatum:fisPlaatsDatum(P,d.datum),naam:persoon?bestuurderNaam:naam,
       regels:persoon?['Bestuurder van '+W]:['Namens '+H+', bestuurder van '+W]},
     {soort:'pagina'},
     {soort:'titel',tekst:'Bijlage: uitkeringstoets in cijfers'},
@@ -15868,7 +15873,7 @@ function fisDivBlokken(soort,d,g){
       {soort:'tekst',tekst:vrij
         ?'Op deze uitkering is de inhoudingsvrijstelling van toepassing (artikel 4 Wet op de dividendbelasting 1965): '+H+' houdt 5% of meer van de aandelen en is in Nederland gevestigd. Er wordt geen dividendbelasting ingehouden. Omdat de hele uitkering is vrijgesteld, hoeft er geen aangifte te worden gedaan, tenzij de Belastingdienst daartoe uitnodigt.'
         :'Op deze uitkering wordt 15% dividendbelasting ingehouden. De vennootschap doet daarvan aangifte en draagt de belasting af binnen een maand nadat het dividend ter beschikking is gesteld.'},
-      {soort:'handtekening',plaatsDatum:P+', '+D,naam:persoon?bestuurderNaam:naam,regels:['Namens '+W]}
+      {soort:'handtekening',plaatsDatum:fisPlaatsDatum(P,d.datum),naam:persoon?bestuurderNaam:naam,regels:['Namens '+W]}
     ];
   }
   return [];

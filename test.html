@@ -2313,7 +2313,10 @@ async function runChecks() {
             /15% dividendbelasting/.test(tekst(w.fisDivBlokken('nota', {...DV, vrijstelling: false}, G)));
           const geenDubbelePunt = !/B\.V\.\./.test(ava + bt + nota);
           const naam = w.fisDivBestandsnaam('bestuur', DV) === 'Bestuursbesluit_Uitkeringstoets_2025-2026_2026-01-12.pdf';
-          return avaOk && bestOk && persoonOk && notaOk && geenDubbelePunt && naam;
+          /* Boven elke handtekening dezelfde volgorde: plaats, datum (2026-10-26). */
+          const handtekeningen = ['ava', 'bestuur', 'nota'].flatMap(s => w.fisDivBlokken(s, DV, G).filter(b => b.soort === 'handtekening'));
+          const plaatsDatum = handtekeningen.length === 3 && handtekeningen.every(b => b.plaatsDatum === 'Puren, 12-1-2026');
+          return avaOk && bestOk && persoonOk && notaOk && geenDubbelePunt && naam && plaatsDatum;
         })],
         ['Dividend: de state laadt, gaat mee naar Drive en voegt samen op id', () => {
           const bewaar = JSON.stringify(w.huidigeStateSnapshot());
