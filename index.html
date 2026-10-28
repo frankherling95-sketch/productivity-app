@@ -3112,12 +3112,20 @@ iframe.pv-inhoud{display:block;width:100%;height:120px;border:0;background:trans
 .fac-wizard-partij.is-uit .fac-wizard-sub,.fac-wizard-partij.is-uit .fac-maand-kop .nm,
 .fac-wizard-partij.is-uit .fac-maand-kop .uren{opacity:.5}
 .fac-maand-rij{cursor:default}
-.fac-maand-aan{width:auto;max-width:220px;height:30px;font-size:12px;padding:0 6px}
+.fac-maand-aan{width:auto;max-width:250px;height:30px;font-size:12px;padding:0 6px}
 .fac-maand-noten{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+/* Een vinkje met zijn tekst in een veld (klantvenster). Binnen .uren-fld
+   maakt "label" er een veldlabel in kapitalen van; hier hoort gewone tekst,
+   vandaar de dubbele klasse (zoals .ctr-drop). */
+.fac-vink,.uren-fld .fac-vink{display:flex;align-items:center;gap:8px;font-size:var(--fs-klein);font-weight:400;
+  letter-spacing:0;text-transform:none;color:var(--text);cursor:pointer}
+.fac-vink input{accent-color:var(--mint);width:16px;height:16px;margin:0;flex-shrink:0;cursor:pointer}
 .fac-maand-hint{align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px}
 @media (max-width:768px){
   .fac-maand-rij{flex-wrap:wrap}
   .fac-maand-aan{flex:1 1 100%;max-width:none;height:var(--tap);font-size:var(--fs-basis)}
+  /* Een vinger raakt de hele regel, niet alleen het vakje. */
+  .fac-vink,.uren-fld .fac-vink{min-height:var(--tap)}
   /* De mobiele laag verbergt elke primaire knop in Facturen (de "+ Nieuwe
      factuur" wordt daar de ronde knop). Deze hoort wel in beeld. */
   #mod-facturen .fac-maand-hint .uren-btn-primary{display:inline-flex !important;flex:1 1 100%;
@@ -9683,7 +9691,7 @@ body.aic-open .aic-kop .sp-k { animation: sp-twinkel calc(var(--duur) * 3) var(-
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v3.01</span>
+        <span class="app-versie" title="Appversie">v3.03</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -14660,7 +14668,7 @@ function kbKaartHtml(c){
   const vast=c.bedrijfId&&facMeerdereBedrijven()?factuurSettings().bedrijven.find(b=>b.id===c.bedrijfId):null;
   const adres=[v.adres,((v.postcode||'')+' '+(v.plaats||'')).trim()].filter(Boolean).join(', ');
   const extra=[
-    partij?`Factuur gaat naar <b>${escapeHtml(partij.bedrijfsnaam||partij.name)}</b>`:'',
+    partij?`Factuur gaat naar <b>${escapeHtml(partij.bedrijfsnaam||partij.name)}</b>${c.factuurApart?', op een eigen factuur':''}`:'',
     !partij&&ontvangt>0?`Ontvangt ook de facturen van <b>${ontvangt} andere klant${ontvangt===1?'':'en'}</b>`:'',
     vast?`Factureren vanuit <b>${escapeHtml(vast.naam||'')}</b>`:''].filter(Boolean);
   /* Werk: projecten, notities en open taken -- ook van een verborgen klant,
@@ -15631,11 +15639,12 @@ window.addEventListener('hashchange',()=>{
 /* ══════════════════════════════════════════════════════════════════════
    MODULE: FISCAAL (2026-10-24)
    Een keuzepagina met de fiscale functies, en per functie een eigen pagina.
-   De eerste is de dividenduitkering van werkmaatschappij naar holding: nu
-   het stappenplan met de documenten en de twee wettelijke toetsen; het
-   formulier dat de documenten maakt komt hier, zodra de voorbeelden er
-   zijn. Bewaart (nog) niets. Opbouw en klassen van Instellingen (instRij,
-   .inst-groep), zodat het eruitziet als de rest.
+   De eerste is de dividenduitkering van werkmaatschappij naar holding: per
+   uitkering een formulier met de twee wettelijke toetsen, en daaruit drie
+   PDF's (notulen AVA, bestuursbesluit met cijferbijlage, dividendnota).
+   Bewaart de gegevens in fiscaalState, de documenten niet. Opbouw en
+   klassen van Instellingen (instRij, .inst-groep), zodat het eruitziet als
+   de rest.
    ══════════════════════════════════════════════════════════════════════ */
 let fisWeergave='kies';   /* 'kies' of 'dividend'; per sessie, niet in Drive */
 const FIS_IC={
@@ -15756,6 +15765,10 @@ function fisDatum(iso){
   const [y,m,d]=iso.split('-').map(Number);
   return d+'-'+m+'-'+y;
 }
+/* Boven elke handtekening dezelfde volgorde: "Puren, 12-1-2026" (plaats, datum). */
+function fisPlaatsDatum(plaats,iso){
+  return [String(plaats||'').trim(),fisDatum(iso)].filter(Boolean).join(', ');
+}
 function fisGegevensCompleet(g){
   g=g||{};
   return !!(String(g.werkNaam||'').trim()&&String(g.werkKvk||'').trim()&&String(g.holdingNaam||'').trim()&&String(g.vertegenwoordiger||'').trim());
@@ -15816,7 +15829,7 @@ function fisDivBlokken(soort,d,g){
     {soort:'tekst',tekst:'De vergadering besluit unaniem tot uitkering van een dividend van '+bedrag+' ten laste van '+fisTenLaste(d.tenLaste)+' van de vennootschap aan '+H+', betaalbaar op '+betaal+'. Het besluit heeft gevolgen zodra het bestuur het heeft goedgekeurd (artikel 2:216 lid 2 BW).'},
     {soort:'kop',tekst:'Slot'},
     {soort:'tekst',tekst:'Er zijn geen verdere agendapunten aan de orde. De voorzitter sluit de vergadering.'},
-    {soort:'handtekening',plaatsDatum:P+', '+D,naam,regels:[H,'Enig aandeelhouder van '+W]}
+    {soort:'handtekening',plaatsDatum:fisPlaatsDatum(P,d.datum),naam,regels:[H,'Enig aandeelhouder van '+W]}
   ];
   if(soort==='bestuur')return [
     {soort:'titel',tekst:'Bestuursbesluit inzake uitkeringstoets dividend'},
@@ -15832,7 +15845,7 @@ function fisDivBlokken(soort,d,g){
     {soort:'tekst',tekst:'Het bestuur verleent goedkeuring aan het besluit tot uitkering van een dividend van '+bedrag+' aan '+H+' (artikel 2:216 lid 2 BW). De uitkering voldoet aan de wettelijke voorwaarden en is verantwoord gezien de financiële positie van de vennootschap.'},
     {soort:'kop',tekst:'Slot'},
     {soort:'tekst',tekst:'Er zijn geen verdere agendapunten aan de orde. Het besluit wordt hiermee vastgesteld en ondertekend.'},
-    {soort:'handtekening',plaatsDatum:D+', '+P,naam:persoon?bestuurderNaam:naam,
+    {soort:'handtekening',plaatsDatum:fisPlaatsDatum(P,d.datum),naam:persoon?bestuurderNaam:naam,
       regels:persoon?['Bestuurder van '+W]:['Namens '+H+', bestuurder van '+W]},
     {soort:'pagina'},
     {soort:'titel',tekst:'Bijlage: uitkeringstoets in cijfers'},
@@ -15868,7 +15881,7 @@ function fisDivBlokken(soort,d,g){
       {soort:'tekst',tekst:vrij
         ?'Op deze uitkering is de inhoudingsvrijstelling van toepassing (artikel 4 Wet op de dividendbelasting 1965): '+H+' houdt 5% of meer van de aandelen en is in Nederland gevestigd. Er wordt geen dividendbelasting ingehouden. Omdat de hele uitkering is vrijgesteld, hoeft er geen aangifte te worden gedaan, tenzij de Belastingdienst daartoe uitnodigt.'
         :'Op deze uitkering wordt 15% dividendbelasting ingehouden. De vennootschap doet daarvan aangifte en draagt de belasting af binnen een maand nadat het dividend ter beschikking is gesteld.'},
-      {soort:'handtekening',plaatsDatum:P+', '+D,naam:persoon?bestuurderNaam:naam,regels:['Namens '+W]}
+      {soort:'handtekening',plaatsDatum:fisPlaatsDatum(P,d.datum),naam:persoon?bestuurderNaam:naam,regels:['Namens '+W]}
     ];
   }
   return [];
@@ -28902,9 +28915,14 @@ document.addEventListener('keydown',e=>{
    ontvanger komen samen op één factuur, met één regel per klant (en per
    afwijkend tarief, zoals altijd -- zie factuurRegelsUitUren).
 
+   Behalve een klant die een eigen factuur wil (2026-10-28): die gaat wel
+   naar dezelfde ontvanger, maar op een factuur met alleen zijn uren. Vast
+   per klant (factuurApart, bij "Factureren aan"), of voor deze keer met de
+   keuze "Aparte factuur aan ..." in het venster.
+
    Uren die al op een concept staan gaan niet nog eens mee
    (factuurUrenInConcepten), dus twee keer afsluiten geeft geen dubbele. */
-let facMaand=null;   /* {ym:'2026-09', keuze:{klantId:ontvangerId}, uit:[ontvangerIds]} */
+let facMaand=null;   /* {ym:'2026-09', keuze:{klantId:'ontvangerId' of 'ontvangerId|apart'}, uit:[groepsleutels]} */
 
 /* Welke maand je bedoelt: vanaf de 20e de lopende, daarvoor de vorige. */
 function facMaandStandaard(){
@@ -28934,16 +28952,26 @@ function facMaandVoorstel(ym,keuze){
     const aantal=rond(uren.reduce((s,e)=>s+Number(e.hours||0),0));
     const bedrag=rond(uren.reduce((s,e)=>s+Number(e.hours||0)*
       ((e.tarief!=null&&e.tarief!=='')?Number(e.tarief):Number(kv.tarief||0)),0));
-    const gekozen=keuze&&keuze[c.id]&&factuurKlant(keuze[c.id])?keuze[c.id]:null;
+    /* De keuze voor deze keer: "ontvanger" of "ontvanger|apart". Zonder
+       keuze de vaste instelling van de klant. Apart naar de klant zelf zegt
+       niets: dat is al een eigen factuur. */
+    const [kId,kApart]=String((keuze&&keuze[c.id])||'').split('|');
+    const gekozen=kId&&factuurKlant(kId)?kId:null;
     const aan=gekozen||factuurPartijIdVan(c.id);
-    (perAan[aan]=perAan[aan]||[]).push({klant:c,aantal,bedrag,aan});
+    const apart=aan!==c.id&&(gekozen?kApart==='apart':!!c.factuurApart);
+    const sleutel=apart?aan+'|'+c.id:aan;
+    (perAan[sleutel]=perAan[sleutel]||[]).push({klant:c,aantal,bedrag,aan,apart});
   });
   const naam=id=>{const k=factuurKlant(id);return k?(k.bedrijfsnaam||k.name):'';};
-  const groepen=Object.keys(perAan).map(aan=>({aan,ontvanger:factuurKlant(aan),
-    rijen:perAan[aan].sort((a,b)=>naam(a.klant.id).localeCompare(naam(b.klant.id),'nl')),
-    aantal:rond(perAan[aan].reduce((s,r)=>s+r.aantal,0)),
-    bedrag:rond(perAan[aan].reduce((s,r)=>s+r.bedrag,0))}))
-    .sort((a,b)=>naam(a.aan).localeCompare(naam(b.aan),'nl'));
+  /* Per ontvanger eerst de gezamenlijke factuur, dan de aparte op klantnaam. */
+  const groepen=Object.keys(perAan).map(sleutel=>{
+    const rijen=perAan[sleutel], aan=rijen[0].aan, apart=rijen[0].apart;
+    return {sleutel,aan,apart,ontvanger:factuurKlant(aan),
+      rijen:rijen.sort((a,b)=>naam(a.klant.id).localeCompare(naam(b.klant.id),'nl')),
+      aantal:rond(rijen.reduce((s,r)=>s+r.aantal,0)),
+      bedrag:rond(rijen.reduce((s,r)=>s+r.bedrag,0))};})
+    .sort((a,b)=>naam(a.aan).localeCompare(naam(b.aan),'nl')||(a.apart-b.apart)||
+      (a.apart?naam(a.rijen[0].klant.id).localeCompare(naam(b.rijen[0].klant.id),'nl'):0));
   const inPeriode=e=>e.date>=from&&e.date<=to&&urenStatusOf(e)!=='invoiced'&&!e.factuurId;
   const alle=(urenState.entries||[]);
   return {from,to,groepen,
@@ -28975,10 +29003,10 @@ function facMaandKeuze(el,klantId){
   facMaand.keuze[klantId]=el.value;
   facMaandRender();
 }
-function facMaandGroep(el,aan){
+function facMaandGroep(el,sleutel){
   if(!facMaand)return;
-  facMaand.uit=facMaand.uit.filter(x=>x!==aan);
-  if(!el.checked)facMaand.uit.push(aan);
+  facMaand.uit=facMaand.uit.filter(x=>x!==sleutel);
+  if(!el.checked)facMaand.uit.push(sleutel);
   facMaandRender();
 }
 function facMaandRender(){
@@ -28990,12 +29018,17 @@ function facMaandRender(){
   const ontvangers=(kanbanState.clients||[]).filter(c=>!c.factuurPartijId)
     .sort((a,b)=>(a.bedrijfsnaam||a.name).localeCompare(b.bedrijfsnaam||b.name,'nl'));
   const naam=k=>k?(k.bedrijfsnaam||k.name):'';
+  /* Per ontvanger twee keuzes: samen met de andere klanten, of een aparte
+     factuur. Daarboven de factuur aan de klant zelf. */
   const keuzeLijst=(rij)=>{
-    const opties=[{id:rij.klant.id,label:'Eigen factuur'}].concat(
-      ontvangers.filter(c=>c.id!==rij.klant.id).map(c=>({id:c.id,label:'Op factuur aan '+naam(c)})));
+    const opties=[{id:rij.klant.id,label:'Factuur aan '+naam(rij.klant)+' zelf'}];
+    ontvangers.filter(c=>c.id!==rij.klant.id).forEach(c=>{
+      opties.push({id:c.id,label:'Op factuur aan '+naam(c)},{id:c.id+'|apart',label:'Aparte factuur aan '+naam(c)});
+    });
+    const huidig=rij.apart?rij.aan+'|apart':rij.aan;
     return '<select class="fac-ed-inp fac-maand-aan" data-fac-change="facMaandKeuze" data-fac-arg1="'+rij.klant.id+'" '+
       'aria-label="Factureren aan, voor '+escapeHtml(naam(rij.klant))+'">'+
-      opties.map(o=>'<option value="'+o.id+'"'+(o.id===rij.aan?' selected':'')+'>'+escapeHtml(o.label)+'</option>').join('')+
+      opties.map(o=>'<option value="'+o.id+'"'+(o.id===huidig?' selected':'')+'>'+escapeHtml(o.label)+'</option>').join('')+
       '</select>';
   };
   const kop='<div class="fac-maand-nav">'+
@@ -29004,15 +29037,15 @@ function facMaandRender(){
     '<button type="button" class="uren-btn" data-fac-action="facMaandStap" data-fac-arg1="1" aria-label="Volgende maand">›</button></div>';
   const lijst=v.groepen.length
     ? '<div class="fac-wizard-klanten fac-maand-lijst">'+v.groepen.map(g=>{
-        const aan=!facMaand.uit.includes(g.aan);
+        const aan=!facMaand.uit.includes(g.sleutel);
         const col=g.ontvanger?CLIENT_COLORS[g.ontvanger.colorIdx%CLIENT_COLORS.length]:null;
         return '<div class="fac-wizard-partij'+(aan?'':' is-uit')+'">'+
           '<label class="fac-wizard-klant fac-maand-kop">'+
-            '<input type="checkbox"'+(aan?' checked':'')+' data-fac-change="facMaandGroep" data-fac-arg1="'+g.aan+'" '+
-              'aria-label="Concept maken voor '+escapeHtml(naam(g.ontvanger))+'">'+
+            '<input type="checkbox"'+(aan?' checked':'')+' data-fac-change="facMaandGroep" data-fac-arg1="'+escapeHtml(g.sleutel)+'" '+
+              'aria-label="Concept maken voor '+escapeHtml(naam(g.ontvanger))+(g.apart?', alleen '+escapeHtml(naam(g.rijen[0].klant)):'')+'">'+
             '<span class="sw" style="background:'+(col?col.bg:'var(--text-hint)')+'"></span>'+
             '<span class="nm">'+escapeHtml(naam(g.ontvanger))+
-              (g.rijen.length>1?'<em>'+g.rijen.length+' klanten op één factuur</em>':'')+'</span>'+
+              (g.apart?'<em>Aparte factuur</em>':g.rijen.length>1?'<em>'+g.rijen.length+' klanten op één factuur</em>':'')+'</span>'+
             '<span class="uren">'+urenFmt(g.aantal)+' u'+(g.bedrag?' · '+factuurFmtBedrag(g.bedrag):'')+'</span>'+
           '</label>'+
           '<div class="fac-wizard-sub">'+g.rijen.map(r=>
@@ -29028,7 +29061,7 @@ function facMaandRender(){
   if(v.opConcept)noten.push('<div class="fac-uren-info"><span><b>'+urenFmt(v.opConcept)+' u</b> uit deze maand staat al op een concept en gaat niet nog eens mee.</span></div>');
   if(v.zonderKlant)noten.push('<div class="fac-btw-let"><b>'+urenFmt(v.zonderKlant)+' u zonder klant</b>Die kunnen niet op een factuur. Zet er in Uren eerst een klant bij.</div>');
   box.innerHTML=kop+lijst+(noten.length?'<div class="fac-maand-noten">'+noten.join('')+'</div>':'');
-  const n=v.groepen.filter(g=>!facMaand.uit.includes(g.aan)).length;
+  const n=v.groepen.filter(g=>!facMaand.uit.includes(g.sleutel)).length;
   const btn=document.getElementById('facMaandMaakBtn');
   if(btn){btn.disabled=!n;btn.textContent=n?n+' '+(n===1?'concept':'concepten')+' klaarzetten':'Niets te factureren';}
 }
@@ -29040,7 +29073,7 @@ function facMaandMaak(){
   if(!facMaand)return;
   const v=facMaandVoorstel(facMaand.ym,facMaand.keuze);
   const gemaakt=[], onvolledig=[];
-  v.groepen.filter(g=>!facMaand.uit.includes(g.aan)).forEach(g=>{
+  v.groepen.filter(g=>!facMaand.uit.includes(g.sleutel)).forEach(g=>{
     const f=factuurNieuw(g.aan,v.from,v.to,g.rijen.map(r=>r.klant.id));
     if(!f.regels.length){facConcept=null;return;}
     facConceptVastleggen();
@@ -32410,7 +32443,9 @@ function openKlantModal(id){
         ${(kanbanState.clients||[]).filter(x=>(!c||x.id!==c.id)&&!x.factuurPartijId)
           .map(x=>`<option value="${x.id}"${c&&c.factuurPartijId===x.id?' selected':''}>${escapeHtml(x.bedrijfsnaam||x.name)}</option>`).join('')}
       </select>
-      <small style="font-size:11px;color:var(--text-muted)">Werk je voor deze klant maar stuur je de rekening naar een tussenpersoon, kies die dan hier. De uren komen dan op de factuur van die partij, met deze klantnaam op de regel.</small></div>
+      <small style="font-size:11px;color:var(--text-muted)">Werk je voor deze klant maar stuur je de rekening naar een tussenpersoon, kies die dan hier. De uren komen dan op de factuur van die partij, met deze klantnaam op de regel.</small>
+      <label class="fac-vink" style="margin-top:10px">
+        <input type="checkbox" id="kmApart" ${c&&c.factuurApart?'checked':''}/>Altijd een aparte factuur, niet samen met andere klanten</label></div>
     ${s.bedrijven.length>1?`<div class="uren-fld" style="margin-top:12px"><label>Factureren vanuit</label>
       <select class="fac-ed-inp" id="kmBedrijfId">
         <option value="">Het bedrijf dat je op dat moment bekijkt</option>
@@ -32435,10 +32470,10 @@ function openKlantModal(id){
         </select></div>
       <div class="uren-fld"><label>Standaard op factuur</label>
         <div style="display:flex;flex-direction:column;gap:7px;padding-top:5px">
-          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
-            <input type="checkbox" id="kmVerlegd" ${c&&c.btwVerlegd?'checked':''} style="accent-color:var(--mint);width:15px;height:15px"/>Btw verlegd</label>
-          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
-            <input type="checkbox" id="kmSpec" ${c&&c.specificatie?'checked':''} style="accent-color:var(--mint);width:15px;height:15px"/>Urenspecificatie meesturen</label>
+          <label class="fac-vink">
+            <input type="checkbox" id="kmVerlegd" ${c&&c.btwVerlegd?'checked':''}/>Btw verlegd</label>
+          <label class="fac-vink">
+            <input type="checkbox" id="kmSpec" ${c&&c.specificatie?'checked':''}/>Urenspecificatie meesturen</label>
         </div></div>
     </div>
     <div class="uren-fld" style="margin-top:12px"><label>Vaste tekst op facturen</label>
@@ -32465,6 +32500,7 @@ function klantModalOpslaan(){
     email:g('kmEmail').value.trim(),
     contactpersoon:g('kmContact').value.trim(),
     factuurPartijId:g('kmPartij').value||null,
+    factuurApart:g('kmApart').checked,
     /* Het veld staat er niet bij één bedrijf; dan de bestaande waarde
        laten staan in plaats van hem op null te zetten. */
     ...(g('kmBedrijfId')?{bedrijfId:g('kmBedrijfId').value||null}:{}),

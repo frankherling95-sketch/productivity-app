@@ -949,6 +949,64 @@ async function runChecks() {
           w.switchModule(terugNaar || 'dashboard');
         }
       }],
+    /* Een klant die via een tussenpersoon gaat maar een eigen factuur wil
+       (2026-10-28): vast bij de klant, of per keer in het venster. */
+    ['Factureren: een klant kan een aparte factuur krijgen bij dezelfde ontvanger -- vast bij de klant of per keer',
+      async () => {
+        const voor = w.eval('JSON.stringify({c:kanbanState.clients,u:urenState.entries,f:factuurState.invoices,s:factuurState.settings})');
+        const terugNaar = w.eval('activeModule');
+        try {
+          w.eval(`(function(){
+            kanbanState.clients.push(
+              {id:'tP',name:'Acme Data B.V.',colorIdx:0,tarief:90,adres:'Straat 1',postcode:'1000 AA',plaats:'Puren',email:'iemand@voorbeeld.nl'},
+              {id:'tA',name:'Klant Noord',colorIdx:1,factuurPartijId:'tP'},
+              {id:'tB',name:'Klant Zuid',colorIdx:2,factuurPartijId:'tP',factuurApart:true},
+              {id:'tC',name:'Klant Oost',colorIdx:3,factuurPartijId:'tP'});
+            [['tA','2031-01-06',4],['tB','2031-01-08',2],['tC','2031-01-09',5]]
+              .forEach(([c,d,h])=>urenAddEntry({date:d,clientId:c,hours:h,description:'test'}));
+          })()`);
+          const groepen = k => w.facMaandVoorstel('2031-01', k).groepen.map(g => g.sleutel + ':' + g.rijen.map(r => r.klant.id).join('+')).join(' ');
+          const vast = groepen({}) === 'tP:tA+tC tP|tB:tB';
+          const perKeerSamen = groepen({tB: 'tP'}) === 'tP:tA+tC+tB';   /* op naam: Noord, Oost, Zuid */
+          /* In het venster: Klant Oost voor deze keer ook apart, met de echte change. */
+          w.facMaandStart('2031-01');
+          await new Promise(r => setTimeout(r, 30));
+          const sel = d.querySelector('#facMaandBody select[data-fac-arg1="tC"]');
+          const optiesOk = [...sel.options].some(o => o.value === 'tP|apart' && o.textContent === 'Aparte factuur aan Acme Data B.V.') &&
+            [...sel.options].some(o => o.value === 'tC' && o.textContent === 'Factuur aan Klant Oost zelf');
+          sel.value = 'tP|apart';
+          sel.dispatchEvent(new w.Event('change', {bubbles: true}));
+          await new Promise(r => setTimeout(r, 30));
+          const knop = d.getElementById('facMaandMaakBtn');
+          const drie = knop.textContent === '3 concepten klaarzetten' &&
+            [...d.querySelectorAll('#facMaandBody .fac-maand-kop em')].filter(x => x.textContent === 'Aparte factuur').length === 2;
+          /* Een aparte groep uitvinken telt los van de rest. */
+          const vink = d.querySelector('#facMaandBody input[data-fac-arg1="tP|tB"]');
+          vink.checked = false; vink.dispatchEvent(new w.Event('change', {bubbles: true}));
+          await new Promise(r => setTimeout(r, 30));
+          const twee = d.getElementById('facMaandMaakBtn').textContent === '2 concepten klaarzetten';
+          const vink2 = d.querySelector('#facMaandBody input[data-fac-arg1="tP|tB"]');
+          vink2.checked = true; vink2.dispatchEvent(new w.Event('change', {bubbles: true}));
+          await new Promise(r => setTimeout(r, 30));
+          d.getElementById('facMaandMaakBtn').click();
+          await new Promise(r => setTimeout(r, 60));
+          const concepten = w.eval('factuurState.invoices').filter(f => f.status === 'concept' && f.clientId === 'tP');
+          const perFactuur = concepten.map(f => [...new Set(f.regels.map(r => r.klantId))].sort().join('+')).sort().join(' ');
+          const gemaakt = concepten.length === 3 && perFactuur === 'tA tB tC';
+          /* De vaste instelling, via het klantvenster. */
+          w.openKlantModal('tA');
+          const kv = d.getElementById('kmApart');
+          const uitStond = kv && !kv.checked;
+          kv.checked = true;
+          d.querySelector('#klantModal [data-fac-action="facKlantOpslaan"]').click();
+          const bewaard = w.eval('kanbanState.clients').find(c => c.id === 'tA').factuurApart === true;
+          return vast && perKeerSamen && optiesOk && drie && twee && gemaakt && uitStond && bewaard;
+        } finally {
+          w.eval('(function(o){kanbanState.clients=o.c;urenState.entries=o.u;factuurState.invoices=o.f;factuurState.settings=o.s;})(' + voor + ')');
+          if (d.getElementById('klantModal').classList.contains('open')) w.closeKlantModal();
+          w.switchModule(terugNaar || 'dashboard');
+        }
+      }],
     ['Factureren: uren op een concept zijn niet meer open, behalve voor dat concept zelf', () => {
       const voor = w.eval('JSON.stringify({c:kanbanState.clients,u:urenState.entries,f:factuurState.invoices})');
       try {
@@ -2313,7 +2371,10 @@ async function runChecks() {
             /15% dividendbelasting/.test(tekst(w.fisDivBlokken('nota', {...DV, vrijstelling: false}, G)));
           const geenDubbelePunt = !/B\.V\.\./.test(ava + bt + nota);
           const naam = w.fisDivBestandsnaam('bestuur', DV) === 'Bestuursbesluit_Uitkeringstoets_2025-2026_2026-01-12.pdf';
-          return avaOk && bestOk && persoonOk && notaOk && geenDubbelePunt && naam;
+          /* Boven elke handtekening dezelfde volgorde: plaats, datum (2026-10-26). */
+          const handtekeningen = ['ava', 'bestuur', 'nota'].flatMap(s => w.fisDivBlokken(s, DV, G).filter(b => b.soort === 'handtekening'));
+          const plaatsDatum = handtekeningen.length === 3 && handtekeningen.every(b => b.plaatsDatum === 'Puren, 12-1-2026');
+          return avaOk && bestOk && persoonOk && notaOk && geenDubbelePunt && naam && plaatsDatum;
         })],
         ['Dividend: de state laadt, gaat mee naar Drive en voegt samen op id', () => {
           const bewaar = JSON.stringify(w.huidigeStateSnapshot());

@@ -8794,3 +8794,31 @@ opdrachtgever of werkgever.
 code, tests, docs of commitberichten; een voorbeeld uit Franks eigen
 documenten overnemen; of een auteursadres anders dan het noreply-adres.
 
+## 2026-10-28 · Uren factureren: een aparte factuur bij dezelfde ontvanger (v3.03)
+
+**Probleem.** Bij *Uren factureren* komen alle klanten met dezelfde ontvanger
+(een tussenpersoon, via "Factureren aan") op één factuur. Sommige klanten
+achter die tussenpersoon willen hun uren op een eigen factuur, de kleine
+klussen mogen samen. De enige uitweg was "Eigen factuur", en die stuurde de
+rekening naar de klant zelf in plaats van naar de tussenpersoon.
+
+**Beslissing.**
+- **Vast per klant**: een vinkje bij "Factureren aan" in het klantvenster,
+  *Altijd een aparte factuur* (`factuurApart` op de klant). De klantkaart
+  zegt het erbij.
+- **Per keer** in het venster: per ontvanger twee keuzes, *Op factuur aan …*
+  (samen) en *Aparte factuur aan …*. "Eigen factuur" heet nu *Factuur aan …
+  zelf*, zodat het niet met apart verward wordt. De keuze is
+  `ontvanger|apart`; zonder keuze geldt de klantinstelling.
+- Een groep heeft een sleutel: de ontvanger, of `ontvanger|klant` voor een
+  aparte factuur. Per ontvanger eerst de gezamenlijke, dan de aparte op
+  klantnaam; elke groep is los aan en uit te vinken.
+- De vinkjes in het klantvenster (ook *Btw verlegd* en *Urenspecificatie*)
+  krijgen `.fac-vink`: gewone tekst in plaats van de kapitalen van een
+  veldlabel, en op een telefoon de hele regel als raakvlak.
+
+**Bestanden.** `index.html` (Uren factureren, klantvenster, klantkaart),
+`test.html` (één test), `CLAUDE.md`.
+
+**Niet doen.** "Apart" laten betekenen dat de rekening naar de klant zelf
+gaat: de ontvanger blijft de tussenpersoon, alleen de factuur wordt gesplitst.
