@@ -49,7 +49,7 @@ Toegang via Google-login (Workspace-domein `herling-analytics.nl`), data in Goog
 
 | Hash | Module | Functie |
 |------|--------|---------|
-| `#dashboard` | Dashboard | Hero (met een balk die een vraag aan de chat is: een taak komt meteen in Taken, `dashAiVraag`) + KPI strip + kaartenraster (Notes/Checklist/Opdrachten & contracten) |
+| `#dashboard` | Dashboard | Hero (met een balk die een vraag aan de chat is: een taak komt meteen in Taken, `dashAiVraag`) + *Vandaag belangrijk* (te late taken, deadline vandaag, hoog de komende 3 dagen; facturen alleen geteld, nooit een bedrag; `renderDashVandaag`) + kaartenraster (Notes/Checklist/Opdrachten & contracten) |
 | `#notes` | Notes | Boomstructuur per klant, met daarin eerst de projecten en dan de losse notities; rich-text editor met onder de titel klant en project (`notesPlekMenu`). Geplakte afbeeldingen staan compact (220px hoog); een klik vergroot, met een knopje voor volledig scherm (`noteImg*`); groot wordt niet bewaard |
 | `#taken` | Taken | Heette tot 2026-10-14 Checklist; in de code nog `checklist` (module, state, `cl*`), en `#checklist` werkt nog (`moduleNaarHash()`/`moduleUitHash()`). Taken met subtaken, filters (prio/klant/periode/project; periode = deze week, deze maand of *Te laat*, `clPeriodeFilter()`), projecten met een specificatie-notitie, vastpinnen, drag-drop, archief, herinnering per taak (klik op de deadline). Het snelveld (bureaublad) vraagt ook project en toelichting. Twee weergaven: *Lijst* en *Per project* (klant → project, met tellingen en inklapbare koppen; `renderProjectGroepen()`, keuze per apparaat in `clWeergave`). `#taak-<id>` opent één taak (`taakUitHash()`) |
 | `#klanten` | Klanten | Klantbeheer op één plek (was het tabblad Klanten in Facturen): per klant een kaart met factuurgegevens, de projecten (aanmaken, hernoemen, naar een andere klant, afronden, verwijderen) en de weg naar zijn notities en taken. `openKlantenBeheer()` komt hier uit |
@@ -346,9 +346,9 @@ waar de fout zit.
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
+- **2026-10-29**: **Vandaag belangrijk op het Dashboard** (v3.05) — één blok bovenaan met wat vandaag aandacht vraagt, vooral taken: te laat, deadline vandaag, hoge prioriteit de komende drie dagen (hooguit vier per groep, "en nog n ›" opent Taken met het filter). Facturen alleen als telling en zonder bedrag (over de vervaldatum; rond het factuurmoment ongefactureerde uren en concepten). Geen agenda, geen contracten (die hebben hun eigen strook)
 - **2026-10-28**: **Uren factureren: een aparte factuur bij dezelfde ontvanger** (v3.03) — een klant achter een tussenpersoon kan zijn uren op een eigen factuur krijgen, nog steeds aan die tussenpersoon: vast per klant (*Altijd een aparte factuur* bij "Factureren aan") of per keer (*Aparte factuur aan …* in het venster). "Eigen factuur" heet nu *Factuur aan … zelf*
 - **2026-10-24**: **Fiscaal, met de dividenduitkering** (v3.01) — nieuw onderdeel onderaan Administratie: een keuzepagina met de fiscale functies. *Dividenduitkering*: per uitkering een formulier (besluit, balanstest, uitkeringstoets, dividendbelasting, de toetsen rekenen live mee) en drie PDF's in de opmaak van Franks voorbeelden: notulen AVA, bestuursbesluit met de cijfers als bijlage, dividendnota. Nieuwe state `fiscaal` (gegevens + dividenden)
-- **2026-10-23**: **Uren-analyse: totaal onder Nog niet gefactureerd** (v2.99) — een totaalregel (bedrag en uren, het aantal klanten) onder de ranglijst, vanaf twee klanten. De bedragen in alle ranglijsten (`.fac-an-krij`) staan nu onder elkaar: de waardekolom heeft op een bureaublad een ondergrens, zodat elke balk op dezelfde plek eindigt
 
 > ⚠️ **Vóór je iets terugdraait of een oude beslissing herziet**: lees eerst de volledige entry in `docs/decisions.md` — daar staat *waarom* de keuze gemaakt is.
 
