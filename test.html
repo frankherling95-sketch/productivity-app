@@ -1947,6 +1947,64 @@ async function runChecks() {
         w.eval('(function(o){notesState.tree=o.t;notesState.activeId=o.a;})(' + oud + ')');
       }
     }],
+    /* ── Vandaag belangrijk (2026-10-29) ──
+       Met eigen taken en facturen; na afloop staat alles terug. */
+    ['Dashboard: Vandaag belangrijk — te laat, vandaag, hoog de komende drie dagen; elke taak één keer, met "en nog"', () => metKlant(() => {
+      const oud = w.eval('JSON.stringify({i:checklistState.items,f:clFilters,m:activeModule})');
+      try {
+        const k = w.eval('kanbanState.clients[0].id');
+        w.eval(`(function(k){
+          const d=n=>{const x=new Date();x.setDate(x.getDate()+n);return dateStr(x);};
+          let n=0;const t=(p,dl,x)=>Object.assign({id:'tv'+(++n),text:'Taak '+n,done:false,priority:p,deadline:dl,clientId:k,subtasks:[],archived:false,sortOrder:n},x||{});
+          checklistState.items=[t('laag',d(-1)),t('hoog',d(-9)),t('middel',d(-3)),t('hoog',d(-2)),t('laag',d(-4)),
+            t('middel',d(0)),t('hoog',d(0)),
+            t('hoog',d(1)),t('hoog',d(3)),t('hoog',d(4)),t('middel',d(1)),
+            t('hoog',d(-5),{done:true}),t('hoog',d(-6),{archived:true}),t('hoog',null)];
+        })('${k}')`);
+        const data = w.dashVandaagData();
+        const ids = g => data.groepen.find(x => x.id === g).taken.map(i => i.id).join(',');
+        /* Te laat: hoog eerst (oudste deadline eerst), dan middel, dan laag */
+        const goedeGroepen = ids('telaat') === 'tv2,tv4,tv3,tv5,tv1' && ids('vandaag') === 'tv7,tv6' && ids('binnenkort') === 'tv8,tv9';
+        const alles = data.groepen.flatMap(g => g.taken.map(i => i.id));
+        const eenKeer = new Set(alles).size === alles.length;
+        w.switchModule('dashboard');
+        const body = d.getElementById('dashVandaagBody');
+        const telaat = body.querySelector('[data-groep="telaat"]');
+        const meer = telaat.querySelector('.dash-vandaag-meer');
+        const getoond = telaat.querySelectorAll('.dash-taak').length === 4 && meer && /en nog 1/.test(meer.textContent);
+        const teller = d.getElementById('dashCountVandaag').textContent === '9';
+        /* Geen pil in "Hoog, de komende dagen": die zegt het al */
+        const geenPil = !body.querySelector('[data-groep="binnenkort"] .dash-pri') && !!body.querySelector('[data-groep="vandaag"] .dash-pri');
+        /* Afvinken met een echte klik: weg uit Vandaag, en de teller loopt terug */
+        body.querySelector('[data-groep="vandaag"] .dash-taak[data-id="tv7"] .dash-vink').click();
+        const af = w.eval('checklistState.items.find(i=>i.id==="tv7").done') && !body.querySelector('[data-id="tv7"]') &&
+          d.getElementById('dashCountVandaag').textContent === '8';
+        /* "en nog n" opent Taken met het filter Te laat, en niets anders */
+        body.querySelector('[data-groep="telaat"] .dash-vandaag-meer').click();
+        const naarTaken = w.eval('activeModule') === 'checklist' && w.eval('clFilters.period') === 'telaat' && !w.eval('clFilters.prio');
+        /* Niets dringends: één regel met de eerstvolgende deadline */
+        w.eval("checklistState.items=checklistState.items.filter(i=>i.deadline&&i.deadline>dateStr(new Date())&&i.priority!=='hoog')");
+        w.switchModule('dashboard');
+        const rustig = /Niets dat vandaag aandacht vraagt/.test(body.textContent) && /volgende deadline: Taak 11, morgen/.test(body.textContent) &&
+          d.querySelector('[data-dash-card="vandaag"]').classList.contains('is-rustig');
+        return goedeGroepen && eenKeer && getoond && teller && geenPil && af && naarTaken && rustig;
+      } finally {
+        w.eval('(function(o){checklistState.items=o.i;clFilters=o.f;switchModule(o.m);})(' + oud + ')');
+      }
+    })],
+    ['Dashboard: Vandaag belangrijk — facturen alleen tellen, nooit een bedrag', () => {
+      const oud = w.eval('JSON.stringify(factuurState.invoices||[])');
+      try {
+        w.eval(`factuurState.invoices=[
+          {id:'fv1',status:'verstuurd',datum:'2026-01-01',vervaldatum:'2026-01-31',clientId:null,regels:[{aantal:10,prijs:95}]},
+          {id:'fv2',status:'verstuurd',datum:dateStr(new Date()),vervaldatum:'2099-01-01',regels:[]},
+          {id:'fv3',status:'betaald',datum:'2026-01-01',vervaldatum:'2026-01-31',regels:[]}]`);
+        /* Midden in de maand: alleen wat over de vervaldatum is */
+        const midden = w.dashVandaagFacturen(new Date(2026, 9, 15));
+        const tekst = midden.map(f => f.tekst).join(' | ');
+        return midden.length === 1 && midden[0].id === 'telaat' && tekst === '1 factuur over de vervaldatum' && !/€|\d+,\d{2}/.test(tekst);
+      } finally { w.eval('factuurState.invoices=' + oud); }
+    }],
     ['Dashboard: de hero heeft één deeltjeslijn (canvas), ook na opnieuw tekenen; de oude lijn en het plusje zijn weg', () => {
       w.switchModule('notes'); w.switchModule('dashboard'); w.renderDashboard(); w.renderDashboard();
       return d.querySelectorAll('#mod-dashboard .dash-hero-lijn').length === 1 && !d.querySelector('.dash-hero-trace') &&

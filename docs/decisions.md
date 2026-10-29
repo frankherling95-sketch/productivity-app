@@ -8822,3 +8822,56 @@ rekening naar de klant zelf in plaats van naar de tussenpersoon.
 
 **Niet doen.** "Apart" laten betekenen dat de rekening naar de klant zelf
 gaat: de ontvanger blijft de tussenpersoon, alleen de factuur wordt gesplitst.
+
+## 2026-10-29 · Vandaag belangrijk op het Dashboard (v3.04)
+
+**Vraag.** Eén blok "Vandaag belangrijk" dat in één oogopslag laat zien wat
+vandaag aandacht nodig heeft, zonder door Taken, Facturen en Agenda te
+zoeken. Frank: vooral de taken, "dat is voor mij het belangrijkste"; geen
+bedragen van facturen op het Dashboard; de agenda gebruikt hij nog weinig.
+
+**Beslissing.**
+- Een kaart bovenaan het raster, over de volle breedte (`renderDashVandaag`,
+  `dashVandaagData`). Op een telefoon is het de eerste kaart, dus die staat
+  open; de rest klapt dicht zoals altijd.
+- Drie groepen taken: **Te laat** (open, deadline voorbij; hoog eerst, dan de
+  oudste deadline), **Vandaag**, en **Hoog, de komende 3 dagen**
+  (`DASH_VANDAAG_DAGEN`). Een taak staat in één groep. Hooguit vier per groep
+  (`DASH_VANDAAG_MAX`); "en nog n ›" opent Taken met het filter *Te laat*
+  of prioriteit *Hoog* (de andere filters gaan uit). Een lege groep staat er
+  niet; is alles leeg, dan "Niets dat vandaag aandacht vraagt" met de
+  eerstvolgende deadline.
+- De regels zijn die van de kaart Taken (`.dash-taak`, gedeelde metaregel
+  `dashTaakKlantProject`): afvinken en de titel doen hetzelfde, en het blok
+  werkt mee bij (`dashClToggle`, het taakvenster). Zonder subtaken.
+- Facturen alleen geteld, nooit een bedrag (`dashVandaagFacturen`): over de
+  vervaldatum (naar Debiteuren), en rond het factuurmoment -- de laatste
+  drie dagen van de maand en de eerste week -- ongefactureerde uren (opent
+  *Uren factureren*) en concepten.
+- Geen agenda en geen contracten: die laatste staan al in de strook
+  Opdrachten & contracten.
+- Het icoon is rood zolang er iets te laat is, anders mint (`.is-rustig`).
+- Bureaublad: de rijen van het raster zijn nu `max-content minmax(300px, 1fr)
+  max-content`. Met `auto` telde een kaart met overflow:hidden voor nul en
+  verdeelde een laag venster de rest gelijk over beide stroken (112px elk,
+  de inhoud viel eraf). Notities en Taken houden minstens 300px en scrollen
+  zelf (`contain: size`, anders groeiden ze tot hun volle lengte); is het
+  venster te laag, dan scrolt de pagina.
+- Bijvangst: het Dashboard nam "vandaag" in UTC
+  (`toISOString().slice(0,10)`); tussen middernacht en twee uur 's nachts
+  telde het dan de dag ervoor. Nu `dateStr(new Date())`, in de hero en op
+  de kaart Taken. Elders in de app staat dat patroon nog.
+
+**Waarom.** De hero zegt hoeveel er te laat is, maar niet wat; de kaart Taken
+toont alles op volgorde van prioriteit. Dit blok beantwoordt "wat moet er
+vandaag gebeuren" zonder iets op te tellen of te scrollen. Bedragen niet:
+het Dashboard staat open zodra je inlogt, ook als je bij een klant zit (zie
+renderDashKpis).
+
+**Bestanden.** `index.html` (markup in `#mod-dashboard`, `renderDashboard`,
+`dashVandaag*`, `dashTaakKlantProject`, `dashTaakHtml`, `dashDerivedStats`,
+`renderDashChecklist`, CSS `.dash-vandaag-*` en het raster), `test.html`
+(2 nieuwe tests), `sw.js`, `docs/stijlgids.md`, `CLAUDE.md`.
+
+**Niet doen.** Bedragen in dit blok. En de rijen van het raster terug naar
+`auto` zolang de kaarten overflow:hidden hebben.

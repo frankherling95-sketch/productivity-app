@@ -6730,7 +6730,7 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
      #dashChecklistBody ervoor: de basisregels staan verderop. */
   /* Pil naast de titel, metaregel eronder over de volle breedte: naast pil
      en uitklapknop bleef er ±175px over en brak de regel op de ring. */
-  #dashChecklistBody .dash-taak-rij {
+  :is(#dashChecklistBody, #dashVandaagBody) .dash-taak-rij {
     min-height: var(--tap);
     display: grid;
     grid-template-columns: 20px minmax(0, 1fr) auto auto;
@@ -6738,26 +6738,26 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
     column-gap: 10px;
     row-gap: 2px;
   }
-  #dashChecklistBody .dash-taak-tekst { display: contents; }
-  #dashChecklistBody .dash-vink { grid-area: vink; }
-  #dashChecklistBody .dash-taak-titel { grid-area: titel; }
-  #dashChecklistBody .dash-taak-meta { grid-area: meta; }
+  :is(#dashChecklistBody, #dashVandaagBody) .dash-taak-tekst { display: contents; }
+  :is(#dashChecklistBody, #dashVandaagBody) .dash-vink { grid-area: vink; }
+  :is(#dashChecklistBody, #dashVandaagBody) .dash-taak-titel { grid-area: titel; }
+  :is(#dashChecklistBody, #dashVandaagBody) .dash-taak-meta { grid-area: meta; }
   /* Met een project alleen het klantblokje, dan het project: naast elkaar
      bleef er van de klantnaam niets over (2026-10-12). */
-  #dashChecklistBody .dash-taak-meta.met-project > .dash-taak-klant .dash-taak-naam,
-  #dashChecklistBody .dash-taak-meta.met-project > .dash-taak-klant + .dash-taak-sep { display: none; }
-  #dashChecklistBody .dash-taak-meta.met-project > .dash-taak-klant { flex-shrink: 0; }
-  #dashChecklistBody .dash-pri { grid-area: pri; }
+  :is(#dashChecklistBody, #dashVandaagBody) .dash-taak-meta.met-project > .dash-taak-klant .dash-taak-naam,
+  :is(#dashChecklistBody, #dashVandaagBody) .dash-taak-meta.met-project > .dash-taak-klant + .dash-taak-sep { display: none; }
+  :is(#dashChecklistBody, #dashVandaagBody) .dash-taak-meta.met-project > .dash-taak-klant { flex-shrink: 0; }
+  :is(#dashChecklistBody, #dashVandaagBody) .dash-pri { grid-area: pri; }
   #dashChecklistBody .dash-exp { grid-area: exp; }
   /* Twee regels titel: op 375px blijft er naast pil en knop ±150px over. */
-  #dashChecklistBody .dash-taak-titel {
+  :is(#dashChecklistBody, #dashVandaagBody) .dash-taak-titel {
     white-space: normal;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
   }
   #dashChecklistBody .dash-exp { width: var(--tap); height: var(--tap); }
-  #dashChecklistBody .dash-vink::before {
+  :is(#dashChecklistBody, #dashVandaagBody) .dash-vink::before {
     content: ""; position: absolute; inset: -12px;
   }
   #dashChecklistBody .dash-sub { min-height: var(--tap); }
@@ -6782,6 +6782,11 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
   #dashAfsprakenBody .dash-oc-rij .fac-pill { margin-left: auto; }
   #dashAfsprakenBody .dash-oc-sum { margin-bottom: 4px; }
   #dashAfsprakenBody .dash-oc-link { min-height: var(--tap); display: inline-flex; align-items: center; }
+  /* Vandaag belangrijk: "en nog n" en de factuurlinks zijn ook paden naar
+     een module, dus een vingerbreed raakvlak. */
+  #dashVandaagBody .dash-vandaag-meer,
+  #dashVandaagBody .dash-vandaag-fac .dash-oc-link { min-height: var(--tap); display: inline-flex; align-items: center; }
+  #dashVandaagBody .dash-vandaag-groepen { row-gap: 10px; }
 
   /* ── DASHBOARD MOBILE SETTINGS ──
      Show the new mobile-only dropdown, hide the old simple ⚙. */
@@ -8239,14 +8244,17 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
   color: var(--dash-inkt, var(--text-muted));
 }
 .dash-kop-icoon svg, .inst-kop-ic svg { width: 16px; height: 16px; }
-[data-dash-card="checklist"], [data-inst-tint="mint"] { --dash-tint: var(--mint-soft); --dash-inkt: #00936C; }
+/* Vandaag belangrijk: rood zolang er iets te laat is, anders de mint van
+   Taken (.is-rustig, gezet door renderDashVandaag). */
+[data-dash-card="vandaag"] { --dash-tint: var(--danger-bg); --dash-inkt: var(--danger); }
+[data-dash-card="checklist"], [data-inst-tint="mint"], [data-dash-card="vandaag"].is-rustig { --dash-tint: var(--mint-soft); --dash-inkt: #00936C; }
 [data-dash-card="notes"], [data-inst-tint="info"] { --dash-tint: var(--info-bg); --dash-inkt: var(--info); }
 [data-dash-card="afspraken"], [data-inst-tint="warning"] { --dash-tint: var(--warning-bg); --dash-inkt: var(--warning); }
 /* In het donker is de echte mint leesbaar; #00936C is alleen voor licht. */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) :is([data-dash-card="checklist"], [data-inst-tint="mint"]) { --dash-inkt: var(--mint); }
+  :root:not([data-theme="light"]) :is([data-dash-card="checklist"], [data-inst-tint="mint"], [data-dash-card="vandaag"].is-rustig) { --dash-inkt: var(--mint); }
 }
-:root[data-theme="dark"] :is([data-dash-card="checklist"], [data-inst-tint="mint"]) { --dash-inkt: var(--mint); }
+:root[data-theme="dark"] :is([data-dash-card="checklist"], [data-inst-tint="mint"], [data-dash-card="vandaag"].is-rustig) { --dash-inkt: var(--mint); }
 /* De telpil staat op een bureaublad ook in beeld (de basisregel bovenin
    verbergt hem; op mobiel had hij al deze vorm). */
 .dash-grid .card-hdr .dash-card-count {
@@ -8494,10 +8502,72 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
    Checklist: hooguit vijf regels, dus geen kaart die een halve hoogte
    verdient. De bovenste rij houdt 1fr en vult wat overblijft. */
 @media (min-width: 901px) {
-  .dash-grid { grid-template-rows: 1fr auto !important; }
+  /* Vandaag belangrijk erboven (2026-10-29): zijn eigen hoogte. Notities en
+     Taken houden minstens 300px; is het venster lager, dan scrolt de pagina. */
+  /* max-content en geen auto: een kaart met overflow:hidden telt in een
+     auto-rij voor nul, en dan verdeelde een laag venster de rest gelijk over
+     beide stroken (112px elk, de inhoud viel eraf). Zo houden ze hun eigen
+     hoogte en scrolt de pagina. */
+  .dash-grid {
+    grid-template-rows: max-content minmax(300px, 1fr) max-content !important;
+    /* Niet kleiner dan de drie rijen samen: anders loopt de inhoud over het
+       raster heen en valt de ruimte onder de laatste kaart weg. */
+    min-height: min-content !important;
+  }
+  /* Notities en Taken vullen hun rij en scrollen zelf; hun inhoud telt niet
+     mee voor die ondergrens, anders groeiden ze tot hun volle lengte. */
+  .dash-grid > [data-dash-card="notes"],
+  .dash-grid > [data-dash-card="checklist"] { contain: size; }
 }
-.dash-grid > .dash-oc-card { grid-column: 1 / -1; }
-.dash-oc-card .card-body { flex: 0 0 auto; }
+.dash-grid > .dash-oc-card,
+.dash-grid > .dash-vandaag-card { grid-column: 1 / -1; }
+.dash-oc-card .card-body,
+.dash-vandaag-card .card-body { flex: 0 0 auto; }
+
+/* ── Vandaag belangrijk (2026-10-29) ──
+   De groepen naast elkaar, vanaf 300px per groep; de kop van een groep is
+   een label zoals bij een KPI-kaart (micro, kapitalen, gedempt), met het
+   aantal erachter -- rood bij Te laat. De regels zijn de taakregels van de
+   kaart Taken. Onderaan de facturen als één regel met links, zoals de
+   samenvatting van Opdrachten & contracten. */
+.dash-vandaag-groepen {
+  display: grid;
+  gap: 6px 28px;
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+}
+.dash-vandaag-groep { min-width: 0; }
+.dash-vandaag-kop {
+  display: flex; align-items: center; gap: 6px;
+  margin: 4px 0 2px;
+  font-family: var(--font-body);
+  font-size: var(--fs-micro); font-weight: 600;
+  letter-spacing: .06em; text-transform: uppercase;
+  color: var(--text-muted);
+}
+.dash-vandaag-tel {
+  font-family: var(--font-cijfer); font-variant-numeric: tabular-nums;
+  color: var(--text-hint);
+}
+.dash-vandaag-groep[data-groep="telaat"] .dash-vandaag-tel { color: var(--danger); }
+.dash-vandaag-meer {
+  display: inline-flex; align-items: center;
+  min-height: 28px; padding: 0;
+  border: 0; background: none; cursor: pointer;
+  font-family: var(--font-body); font-size: var(--fs-klein); font-weight: 600;
+  color: var(--text-muted);
+}
+.dash-vandaag-meer:hover { color: var(--text); text-decoration: underline; }
+.dash-vandaag-fac {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px;
+  margin-top: 10px; padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: var(--fs-klein); color: var(--text-muted);
+}
+.dash-vandaag-fac-kop {
+  margin-right: 4px;
+  font-size: var(--fs-micro); font-weight: 600;
+  letter-spacing: .06em; text-transform: uppercase;
+}
 .dash-oc-sum {
   display: flex; flex-wrap: wrap; align-items: center; gap: 0 5px;
   font-size: var(--fs-klein); color: var(--text-muted);
@@ -9691,7 +9761,7 @@ body.aic-open .aic-kop .sp-k { animation: sp-twinkel calc(var(--duur) * 3) var(-
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v3.03</span>
+        <span class="app-versie" title="Appversie">v3.04</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -9823,8 +9893,24 @@ body.aic-open .aic-kop .sp-k { animation: sp-twinkel calc(var(--duur) * 3) var(-
           </div>
         </div>
 
-        <!-- Kaartenraster: Notities linksboven, Checklist rechtsboven -->
+        <!-- Kaartenraster: Vandaag belangrijk bovenaan over de volle breedte,
+             dan Notities en Taken naast elkaar, onderaan Opdrachten & contracten -->
         <div class="dash-grid">
+          <!-- Vandaag belangrijk (2026-10-29): wat vandaag aandacht vraagt,
+               vooral taken; facturen alleen als signaal, zonder bedragen.
+               Op een telefoon de kaart die openstaat. Zie renderDashVandaag. -->
+          <div class="card dash-vandaag-card" data-dash-card="vandaag">
+            <div class="card-hdr" onclick="dashCardToggle(event,this)">
+              <span class="dash-kop-icoon" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 14.25V2.25"/><path d="M3.5 2.75h8.25L10 6l1.75 3.25H3.5"/></svg></span>
+              <h2>Vandaag belangrijk</h2>
+              <span class="dash-card-count" id="dashCountVandaag"></span>
+              <button type="button" class="dash-alles" onclick="switchModule('checklist')">Alles ›</button>
+              <span class="dash-card-chevron" aria-hidden="true">
+                <svg viewBox="0 0 12 12" fill="none" width="12" height="12"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+            </div>
+            <div class="card-body" id="dashVandaagBody"></div>
+          </div>
           <div class="card" data-dash-card="notes">
             <div class="card-hdr" onclick="dashCardToggle(event,this)">
               <span class="dash-kop-icoon" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 1.75h5.25L12.5 5v8.25a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-10.5a1 1 0 0 1 1-1z"/><path d="M9.25 1.75V5h3.25M5.5 8.5h5M5.5 11h3.5"/></svg></span>
@@ -14963,6 +15049,7 @@ function renderDashboard(){
   renderDashKpis();
   renderDashNotes();
   renderDashChecklist();
+  renderDashVandaag();
   renderDashAfspraken();
   dashCardsInit();
   renderDashCardCounts();
@@ -15104,8 +15191,9 @@ function renderDashCardCounts(){
 
 /* ─── Dashboard: Hero + KPI derived values ───────────────────────────────── */
 function dashDerivedStats(){
-  /* Open + overdue checklist items (Todo + Uren modules removed) */
-  const today=new Date().toISOString().slice(0,10);
+  /* Open + overdue checklist items (Todo + Uren modules removed).
+     De lokale kalenderdag, niet die van UTC (zie dashVandaagData). */
+  const today=dateStr(new Date());
   const openCl=takenZichtbaar().filter(i=>!i.done&&!i.archived);
   const overdueCl=openCl.filter(i=>i.deadline&&i.deadline<today).length;
   const doneCl=takenZichtbaar().filter(i=>i.done&&!i.archived).length;
@@ -15249,21 +15337,26 @@ function dashTaakDeadline(iso,vandaag){
   return d.toLocaleDateString('nl-NL',{day:'numeric',month:'short'}).replace('.','');
 }
 
+/* Het begin van de metaregel: klant, dan project (2026-10-12) -- een mapje
+   en de naam; een tik gaat naar dat project in Taken, net als het label
+   daar. Voor de kaart Taken en voor Vandaag belangrijk. */
+function dashTaakKlantProject(item){
+  const client=item.clientId?clientById(item.clientId):null;
+  const col=client?CLIENT_COLORS[client.colorIdx%CLIENT_COLORS.length]:null;
+  const meta=[];
+  if(client)meta.push(`<span class="dash-taak-klant" title="${escapeHtml(client.name)}"><span class="dash-taak-blok" style="background:${col.tx}"></span><span class="dash-taak-naam">${escapeHtml(client.name)}</span></span>`);
+  const proj=clProject(item.projectId);
+  if(proj)meta.push(`<button type="button" class="dash-taak-project" data-action="dashProjectOpen" data-arg1="${escapeHtml(proj.id)}" title="${escapeHtml(proj.naam)} — naar dit project in Taken">${CL_PROJECT_IC}<span class="dash-taak-naam">${escapeHtml(proj.naam)}</span></button>`);
+  return {meta,proj};
+}
 function dashTaakHtml(item,vandaag){
   const cfg=CL_PRIORITY_CFG[item.priority]||CL_PRIORITY_CFG.middel;
   const subs=item.subtasks||[];
   const af=subs.filter(s=>s.done).length;
   const open=subs.length>0&&dashTakenOpen.has(item.id);
-  const client=item.clientId?clientById(item.clientId):null;
-  const col=client?CLIENT_COLORS[client.colorIdx%CLIENT_COLORS.length]:null;
   const overdue=item.deadline&&item.deadline<vandaag;
   const id=escapeHtml(item.id);
-  const meta=[];
-  if(client)meta.push(`<span class="dash-taak-klant" title="${escapeHtml(client.name)}"><span class="dash-taak-blok" style="background:${col.tx}"></span><span class="dash-taak-naam">${escapeHtml(client.name)}</span></span>`);
-  /* Het project (2026-10-12), na de klant: een mapje en de naam. Een tik
-     gaat naar dat project in de Checklist, net als het label daar. */
-  const proj=clProject(item.projectId);
-  if(proj)meta.push(`<button type="button" class="dash-taak-project" data-action="dashProjectOpen" data-arg1="${escapeHtml(proj.id)}" title="${escapeHtml(proj.naam)} — naar dit project in Taken">${CL_PROJECT_IC}<span class="dash-taak-naam">${escapeHtml(proj.naam)}</span></button>`);
+  const {meta,proj}=dashTaakKlantProject(item);
   if(item.deadline)meta.push(`<span class="dash-taak-datum${overdue?' te-laat':''}">${dashTaakDeadline(item.deadline,vandaag)}</span>`);
   if(subs.length){
     const omtrek=50.27, boog=(af/subs.length)*omtrek;
@@ -15322,7 +15415,7 @@ function renderDashChecklist(){
     }
     return dashCmp(a,b);
   });
-  const vandaag=new Date().toISOString().slice(0,10);
+  const vandaag=dateStr(new Date());
   dashClHertekent=true;
   try{body.innerHTML=sorted.map(item=>dashTaakHtml(item,vandaag)).join('');}
   finally{dashClHertekent=false;}
@@ -15356,7 +15449,7 @@ function dashTaakBewerk(id){
   let wasOpen=m.classList.contains('open');
   new MutationObserver(()=>{
     const nu=m.classList.contains('open');
-    if(wasOpen&&!nu&&activeModule==='dashboard'){renderDashHero();renderDashChecklist();}
+    if(wasOpen&&!nu&&activeModule==='dashboard'){renderDashHero();renderDashChecklist();renderDashVandaag();}
     wasOpen=nu;
   }).observe(m,{attributes:true,attributeFilter:['class']});
 })();
@@ -15393,7 +15486,7 @@ function dashClToggleSubtask(itemId,subId){
   const st=(item.subtasks||[]).find(s=>s.id===subId);
   if(!st)return;
   clZetSubtaak(item,st);
-  scheduleSave();renderDashChecklist();renderDashHero();
+  scheduleSave();renderDashChecklist();renderDashHero();renderDashVandaag();
   if(activeModule==='checklist')renderChecklistModule();
 }
 function dashClToggle(id){
@@ -15401,7 +15494,7 @@ function dashClToggle(id){
   if(!item)return;
   clZetHoofdKlaar(item,true);
   dashTakenOpen.delete(id);
-  scheduleSave();renderDashChecklist();renderDashHero();
+  scheduleSave();renderDashChecklist();renderDashHero();renderDashVandaag();
   if(activeModule==='checklist')renderChecklistModule();
 }
 
@@ -15416,6 +15509,135 @@ function dashClAdd(){
   if(activeModule==='checklist')renderChecklistModule();
 }
 
+
+/* ── Vandaag belangrijk (2026-10-29) ──
+   Eén blok bovenaan met wat vandaag aandacht vraagt, zodat je niet door
+   Taken, Facturen en Agenda hoeft te zoeken. Vooral taken -- "dat is voor
+   mij het belangrijkste":
+   - Te laat: open, de deadline is voorbij.
+   - Vandaag: de deadline is vandaag.
+   - Hoog, de komende drie dagen: hoge prioriteit en een deadline vanaf
+     morgen tot en met over DASH_VANDAAG_DAGEN dagen.
+   Een taak staat in één groep. Per groep hooguit DASH_VANDAAG_MAX regels; de
+   rest zit achter "en nog n ›", dat Taken opent met het passende filter.
+   Een lege groep staat er niet; is alles leeg, dan één regel met de
+   eerstvolgende deadline.
+   Facturen alleen als signaal en zonder bedragen (zie renderDashKpis): over
+   de vervaldatum, en rond het factuurmoment (de laatste drie dagen van de
+   maand en de eerste week) ongefactureerde uren en concepten. Geen agenda en
+   geen contracten: die laatste hebben hun eigen strook onderaan.
+   De regels zijn die van de kaart Taken (.dash-taak); afvinken en de titel
+   doen hier hetzelfde. Zonder subtaken: die klap je open in Taken. */
+const DASH_VANDAAG_MAX=4;
+const DASH_VANDAAG_DAGEN=3;
+function dashVandaagData(nu){
+  nu=nu||new Date();
+  const vandaag=dateStr(nu);
+  const grens=dateStr(new Date(nu.getFullYear(),nu.getMonth(),nu.getDate()+DASH_VANDAAG_DAGEN));
+  const open=takenZichtbaar().filter(i=>!i.done&&!i.archived);
+  const prio=i=>(CL_PRIORITY_CFG[i.priority]||CL_PRIORITY_CFG.middel).order;
+  const volg=(a,b)=>(a.sortOrder||0)-(b.sortOrder||0);
+  const opPrio=(a,b)=>prio(a)-prio(b)||String(a.deadline).localeCompare(String(b.deadline))||volg(a,b);
+  const opDatum=(a,b)=>String(a.deadline).localeCompare(String(b.deadline))||volg(a,b);
+  const later=open.filter(i=>i.deadline&&i.deadline>vandaag).sort(opDatum);
+  return {vandaag,
+    groepen:[
+      {id:'telaat',titel:'Te laat',taken:open.filter(i=>i.deadline&&i.deadline<vandaag).sort(opPrio)},
+      {id:'vandaag',titel:'Vandaag',taken:open.filter(i=>i.deadline===vandaag).sort(opPrio)},
+      {id:'binnenkort',titel:'Hoog, de komende '+DASH_VANDAAG_DAGEN+' dagen',
+        taken:later.filter(i=>i.priority==='hoog'&&i.deadline<=grens)}],
+    volgende:later[0]||null,
+    facturen:dashVandaagFacturen(nu)};
+}
+/* Facturen: alleen tellen, nooit een bedrag. Zolang een oud versleuteld
+   blok nog dicht is, is de administratie leeg en zegt dit niets. */
+function dashVandaagFacturen(nu){
+  const uit=[];
+  try{
+    if(typeof geheimenKlaar==='function'&&!geheimenKlaar())return uit;
+    const fac=facBedrijfFacturen();
+    const meer=(n,een,veel)=>n+' '+(n===1?een:veel);
+    const teLaat=fac.filter(f=>factuurDagenTeLaat(f)>0).length;
+    if(teLaat)uit.push({id:'telaat',tekst:meer(teLaat,'factuur','facturen')+' over de vervaldatum'});
+    const dag=nu.getDate(), laatste=new Date(nu.getFullYear(),nu.getMonth()+1,0).getDate();
+    if(dag>laatste-3||dag<=7){
+      const ym=facMaandStandaard();
+      const klanten=facMaandVoorstel(ym,{}).groepen.reduce((n,g)=>n+g.rijen.length,0);
+      if(klanten)uit.push({id:'maand',ym,
+        tekst:'uren van '+facMaandNaam(ym).split(' ')[0].toLowerCase()+' nog factureren ('+meer(klanten,'klant','klanten')+')'});
+      const concepten=fac.filter(f=>f.status==='concept').length;
+      if(concepten)uit.push({id:'concept',tekst:meer(concepten,'concept','concepten')+' nog versturen'});
+    }
+  }catch(e){console.warn('[dashboard] facturen voor Vandaag',e);}
+  return uit;
+}
+function dashVandaagTaakHtml(item,vandaag,groep){
+  const id=escapeHtml(item.id);
+  const {meta,proj}=dashTaakKlantProject(item);
+  /* In de groep Vandaag zegt de datum niets nieuws. */
+  if(item.deadline&&groep!=='vandaag')
+    meta.push(`<span class="dash-taak-datum${groep==='telaat'?' te-laat':''}">${dashTaakDeadline(item.deadline,vandaag)}</span>`);
+  const sep='<span class="dash-taak-sep" aria-hidden="true">·</span>';
+  /* In "Hoog, de komende dagen" is elke taak hoog; de pil zou dat herhalen. */
+  const cfg=CL_PRIORITY_CFG[item.priority]||CL_PRIORITY_CFG.middel;
+  const pil=groep==='binnenkort'?'':`<span class="dash-pri" style="background:${cfg.bg};color:${cfg.tx}">${cfg.label}</span>`;
+  return `<div class="dash-taak" data-id="${id}">
+    <div class="dash-taak-rij">
+      <button type="button" class="dash-vink" data-action="dashClToggle" data-arg1="${id}" aria-label="Afvinken: ${escapeHtml(item.text)}">${DASH_VINK_SVG}</button>
+      <div class="dash-taak-tekst">
+        <button type="button" class="dash-taak-titel" data-action="dashTaakBewerk" data-arg1="${id}" title="Bewerken">${escapeHtml(item.text)}</button>
+        ${meta.length?`<div class="dash-taak-meta${proj?' met-project':''}">${meta.join(sep)}</div>`:''}
+      </div>
+      ${pil}
+    </div>
+  </div>`;
+}
+function renderDashVandaag(){
+  const body=document.getElementById('dashVandaagBody');
+  if(!body)return;
+  const d=dashVandaagData();
+  const groepen=d.groepen.filter(g=>g.taken.length);
+  const totaal=groepen.reduce((n,g)=>n+g.taken.length,0);
+  const tel=document.getElementById('dashCountVandaag');
+  if(tel)tel.textContent=totaal||'';
+  /* Rood icoon zolang er iets te laat is, anders mint. */
+  body.closest('[data-dash-card]')?.classList.toggle('is-rustig',!d.groepen[0].taken.length);
+  let html;
+  if(groepen.length){
+    html='<div class="dash-vandaag-groepen">'+groepen.map(g=>{
+      const rest=g.taken.length-DASH_VANDAAG_MAX;
+      return `<section class="dash-vandaag-groep" data-groep="${g.id}">
+        <h3 class="dash-vandaag-kop">${g.titel}<span class="dash-vandaag-tel">${g.taken.length}</span></h3>
+        ${g.taken.slice(0,DASH_VANDAAG_MAX).map(i=>dashVandaagTaakHtml(i,d.vandaag,g.id)).join('')}
+        ${rest>0?`<button type="button" class="dash-vandaag-meer" data-action="dashVandaagAlles" data-arg1="${g.id}">en nog ${rest} ›</button>`:''}
+      </section>`;
+    }).join('')+'</div>';
+  }else{
+    const v=d.volgende;
+    html=`<div class="dash-oc-rustig">Niets dat vandaag aandacht vraagt${v?
+      ` <span>· volgende deadline: ${escapeHtml(v.text)}, ${escapeHtml(dashTaakDeadline(v.deadline,d.vandaag).toLowerCase())}</span>`:''}</div>`;
+  }
+  if(d.facturen.length)
+    html+=`<div class="dash-vandaag-fac"><span class="dash-vandaag-fac-kop">Facturen</span>${d.facturen.map(f=>
+      `<button type="button" class="dash-oc-link" data-action="dashVandaagFactuur" data-arg1="${f.id}"${f.ym?` data-arg2="${f.ym}"`:''}>${escapeHtml(f.tekst)}</button>`
+    ).join('<span class="dash-oc-sep" aria-hidden="true">·</span>')}</div>`;
+  body.innerHTML=html;
+}
+/* "en nog n ›": Taken met het filter dat bij de groep hoort. Andere
+   filters gaan uit, anders zie je er maar een deel van. */
+function dashVandaagAlles(groep){
+  clFilters={prio:null,clientId:null,period:null,search:'',projectId:null};
+  if(groep==='telaat')clFilters.period='telaat';
+  else if(groep==='binnenkort')clFilters.prio='hoog';
+  switchModule('checklist');
+}
+function dashVandaagFactuur(soort,ym){
+  switchModule('facturen');
+  if(soort==='telaat'){facSetView('debiteuren');return;}
+  if(soort==='maand'){facMaandStart(ym);return;}
+  facFilterStatus='concept';
+  facSetView('facturen');
+}
 
 function renderDashNotes(){
   const body=document.getElementById('dashNotesBody');
@@ -16153,7 +16375,9 @@ Object.assign(APP_ACTIONS,{
   dashNotitieOpen:(el,e,id)=>dashNotitieOpen(id),
   dashProjectOpen:(el,e,id)=>aiNaarProject(id),
   dashOcOpen:(el,e,soort,id)=>dashOcOpen(soort,id),
-  dashOcPrive:()=>dashOcPrive()
+  dashOcPrive:()=>dashOcPrive(),
+  dashVandaagAlles:(el,e,groep)=>dashVandaagAlles(groep),
+  dashVandaagFactuur:(el,e,soort,ym)=>dashVandaagFactuur(soort,ym)
 });
 
 /* ═══════════════════════════════════════════════════

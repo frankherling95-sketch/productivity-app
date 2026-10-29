@@ -221,7 +221,7 @@ Eén kop voor alle dashboardkaarten (`.dash-grid .card-hdr`):
 | | |
 |---|---|
 | icoon | `.dash-kop-icoon` 30×30, radius 8, svg 16px; tint via `--dash-tint`/`--dash-inkt` op de kaart |
-| tinten | Taken `--mint-soft` / #00936C (donker: `--mint`) · Notities `--info-bg` / `--info` · Opdrachten & contracten `--warning-bg` / `--warning` |
+| tinten | Taken `--mint-soft` / #00936C (donker: `--mint`) · Notities `--info-bg` / `--info` · Opdrachten & contracten `--warning-bg` / `--warning` · Vandaag belangrijk `--danger-bg` / `--danger` zolang er iets te laat is, anders die van Taken (`.is-rustig`) |
 | titel | `--font-display`, `--fs-groot`, 700 |
 | telpil | `--fs-micro`, 700, 22px hoog, `--surface2`; leeg = weg |
 | rechts | `.dash-alles` "Alles ›": 30px, `--fs-klein`/600, rand `--border-strong`, hover mint. Op mobiel weg (de kop klapt daar in en uit) |
@@ -229,6 +229,22 @@ Eén kop voor alle dashboardkaarten (`.dash-grid .card-hdr`):
 Notitieregel (`.dash-notitie`): documenticoon 30×30 op `--surface2`, titel
 `--fs-basis`/600, klant eronder `--fs-micro` met een blokje van 8px, tijd
 rechts `--fs-micro` `--text-hint` ("14:20", "gisteren", "ma", "28 sep").
+
+### Vandaag belangrijk (Dashboard)
+
+Bovenaan het raster, over de volle breedte; op een telefoon de kaart die
+openstaat. De kop is de gewone kaartkop (vlag-icoon, telpil = alle taken in
+het blok, "Alles ›" naar Taken).
+
+| | |
+|---|---|
+| groepen | Te laat · Vandaag · Hoog, de komende 3 dagen; naast elkaar vanaf 300px per groep (`auto-fit`), gat 6×28px; een lege groep staat er niet |
+| groepskop | label zoals bij een KPI-kaart: `--fs-micro`, 600, `.06em`, kapitalen, `--text-muted`; het aantal erachter in `--text-hint`, bij Te laat `--danger` |
+| regels | de taakregel van het Dashboard (hieronder), hooguit 4 per groep, zonder subtaken; geen datum in de groep Vandaag, geen prioriteitspil in Hoog |
+| meer | "en nog n ›" `--fs-klein`/600 `--text-muted`, 28px (mobiel `--tap`): Taken met het passende filter |
+| facturen | één regel onder een lijn: label "Facturen" als groepskop, dan links `.dash-oc-link` gescheiden door ·; alleen tellingen, nooit een bedrag |
+| leeg | `.dash-oc-rustig`: "Niets dat vandaag aandacht vraagt · volgende deadline: …" |
+| hoogte | rij `max-content` (bureaublad): het blok drukt Notities en Taken niet plat; die houden minstens 300px en de pagina scrolt |
 
 ### Taakregel op het Dashboard
 
