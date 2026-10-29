@@ -11,6 +11,7 @@
  * 5. Geen font-size onder 11,5px binnen een mobiele media query
  *    (waarschuwing — zie docs/mobile.md voor de schaal)
  * 6. Geen namen van klanten of relaties in de repo (zie hieronder)
+ * 7. Een kalenderdag niet via toISOString() (zie hieronder)
  *
  * Extra:
  *   node validate.mjs --commits <van>..<tot>   ook de commitberichten nalopen
@@ -272,6 +273,28 @@ if (teKlein.size) {
     `font-size onder ${MOBIELE_ONDERGRENS}px in een mobiele media query (${teKlein.size}x) — ` +
     `${lijst}. Gebruik var(--fs-micro) of ruimer; zie docs/mobile.md.`
   );
+}
+
+/* ─── Een kalenderdag is lokaal, niet UTC ───
+ * new Date().toISOString().slice(0,10) geeft de datum in UTC. In Nederland
+ * is dat tussen middernacht en een of twee uur nog gisteren, en voor lokale
+ * middernacht (new Date('…T00:00:00') of setHours(0,0,0,0)) zelfs altijd: zo
+ * schoof een herhalende taak bij elke herhaling een dag terug, en zocht de
+ * deadlinemelding naar de taken van gisteren (2026-10-29). Gebruik dateStr().
+ * Is UTC echt bedoeld, zet dan utc-bedoeld in een comment op die regel. */
+{
+  const utcRe = /toISOString\(\)\.slice\(\s*0\s*,\s*(?:10|7)\s*\)/g;
+  const regels = [];
+  let u;
+  while ((u = utcRe.exec(html)) !== null) {
+    const voor = html.slice(0, u.index);
+    const regel = voor.split('\n').length;
+    const tekst = voor.slice(voor.lastIndexOf('\n') + 1) + html.slice(u.index, html.indexOf('\n', u.index));
+    if (!/utc-bedoeld/.test(tekst)) regels.push(regel);
+  }
+  if (regels.length) errors.push(
+    `Kalenderdag via toISOString() op regel ${regels.join(', ')}: dat is de dag in UTC, niet die van de gebruiker. ` +
+    'Gebruik dateStr(), of zet utc-bedoeld in een comment als UTC de bedoeling is.');
 }
 
 /* ─── Actienamen in data-*-attributen ───

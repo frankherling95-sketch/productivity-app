@@ -339,13 +339,14 @@ waar de fout zit.
 | Force-push verwijdert remote commits | **Eerst altijd `git fetch && git log HEAD..origin/main`** |
 | `.claude/worktrees/...` heeft een kopie | Negeren — staat in `.gitignore`, agent-isolatie |
 | Maandweergave krap bij drukke dag | Klik op datum → daganzicht |
+| Datum een dag te vroeg (deadline, "vandaag", herhaling) | Een kalenderdag is `dateStr(d)`, nooit `toISOString().slice(0,10)`: dat is UTC, en lokale middernacht is in UTC de dag ervoor. `validate.mjs` meldt het; `utc-bedoeld` in een comment als UTC echt de bedoeling is |
 
 ## Recent gemaakte beslissingen
 
 De drie meest recente. Alle andere — met het *waarom* — staan in
 [`docs/decisions.md`](docs/decisions.md) (append-only, nieuwste onderaan).
 
-- **2026-10-29**: **Vandaag belangrijk op het Dashboard** (v3.04) — één blok bovenaan met wat vandaag aandacht vraagt, vooral taken: te laat, deadline vandaag, hoge prioriteit de komende drie dagen (hooguit vier per groep, "en nog n ›" opent Taken met het filter). Facturen alleen als telling en zonder bedrag (over de vervaldatum; rond het factuurmoment ongefactureerde uren en concepten). Geen agenda, geen contracten (die hebben hun eigen strook)
+- **2026-10-29**: **Vandaag belangrijk op het Dashboard** (v3.05) — één blok bovenaan met wat vandaag aandacht vraagt, vooral taken: te laat, deadline vandaag, hoge prioriteit de komende drie dagen (hooguit vier per groep, "en nog n ›" opent Taken met het filter). Facturen alleen als telling en zonder bedrag (over de vervaldatum; rond het factuurmoment ongefactureerde uren en concepten). Geen agenda, geen contracten (die hebben hun eigen strook)
 - **2026-10-28**: **Uren factureren: een aparte factuur bij dezelfde ontvanger** (v3.03) — een klant achter een tussenpersoon kan zijn uren op een eigen factuur krijgen, nog steeds aan die tussenpersoon: vast per klant (*Altijd een aparte factuur* bij "Factureren aan") of per keer (*Aparte factuur aan …* in het venster). "Eigen factuur" heet nu *Factuur aan … zelf*
 - **2026-10-24**: **Fiscaal, met de dividenduitkering** (v3.01) — nieuw onderdeel onderaan Administratie: een keuzepagina met de fiscale functies. *Dividenduitkering*: per uitkering een formulier (besluit, balanstest, uitkeringstoets, dividendbelasting, de toetsen rekenen live mee) en drie PDF's in de opmaak van Franks voorbeelden: notulen AVA, bestuursbesluit met de cijfers als bijlage, dividendnota. Nieuwe state `fiscaal` (gegevens + dividenden)
 
@@ -428,7 +429,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 
 | Bestand | Doel |
 |---------|------|
-| `validate.mjs` | JS syntax + tag balance + onclick-referentie checks |
+| `validate.mjs` | JS syntax + tag balance + onclick-referentie checks, namen van relaties, versienummer, en geen kalenderdag via `toISOString()` |
 | `parallel-check.mjs` | Bewaakt de moduleverdeling: `kaart` / `scope` / `overlap` / `merge` / `stijl`. Vangt het stille conflict dat git niet ziet — twee sporen die dezelfde gedeelde CSS-regel raken |
 | `parallel-check.test.mjs` | 21 tests op die bewaker, op een wegwerp-kloon (`node parallel-check.test.mjs`, ~1 min). Draaien na elke wijziging aan `parallel-check.mjs` of `ownership.json` |
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |

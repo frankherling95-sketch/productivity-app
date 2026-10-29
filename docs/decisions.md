@@ -8823,7 +8823,50 @@ rekening naar de klant zelf in plaats van naar de tussenpersoon.
 **Niet doen.** "Apart" laten betekenen dat de rekening naar de klant zelf
 gaat: de ontvanger blijft de tussenpersoon, alleen de factuur wordt gesplitst.
 
-## 2026-10-29 · Vandaag belangrijk op het Dashboard (v3.04)
+## 2026-10-29 · Een kalenderdag is lokaal, niet UTC (v3.04)
+
+**Probleem.** Op twaalf plekken werd een datum gemaakt met
+`toISOString().slice(0,10)` (of `slice(0,7)` voor een maand). Dat is de dag
+in UTC. In Nederland is het dan tussen middernacht en een of twee uur nog
+gisteren. Bij lokale middernacht (`new Date('…T00:00:00')`,
+`setHours(0,0,0,0)`) gaat het zelfs altijd mis, en daar zaten twee echte
+fouten:
+- **Herhalende taken**: de volgende deadline kwam een dag te vroeg. Een
+  wekelijkse taak op maandag kreeg zondag als volgende deadline, en schoof
+  zo bij elke herhaling een dag terug (`spawnRecurringNext`).
+- **Browsermeldingen over deadlines** zochten naar de taken van gisteren
+  (`checkDeadlineNotifications`).
+De rest gold alleen 's nachts: de teller naast Taken, het klantoverzicht,
+het Dashboard, de kalender in het taakvenster (de knop *Vandaag* zette
+gisteren), de versiegeschiedenis per dag, één Drive-versie per dag, de
+naam van de back-up en de AI-teller per dag.
+
+**Beslissing.** Overal `dateStr()`: de lokale kalenderdag, zoals Facturen
+en Opdrachten al deden (zie 2026-08-12 bij `factuurVandaag`). Het
+chat-overzicht rekende vanaf 12:00 en klopte al, maar is ook omgezet, zodat
+het patroon nergens meer staat. `validate.mjs` geeft nu een fout bij
+`toISOString().slice(0,10)` en `slice(0,7)`; staat er `utc-bedoeld` in een
+comment op die regel, dan niet. Tijdstempels (`toISOString()` voluit,
+opslagtijd, de Calendar API) blijven UTC; dat is daar juist goed.
+
+**Waarom.** Een deadline is een dag op jouw kalender, geen tijdstip. Twaalf
+keer dezelfde fout in één bestand vraagt om een bewaker, niet om
+oplettendheid.
+
+**Wat het niet herstelt.** Herhalende taken die al een dag verschoven zijn,
+houden hun datum: de app kan niet zien welke deadline bedoeld was.
+
+**Bestanden.** `index.html` (`spawnRecurringNext`,
+`checkDeadlineNotifications`, `updateNavBadges`, `clCalToday`, `renderClCal`,
+`versiesRender`, `driveBewaarDagversie`, `dashDerivedStats`,
+`renderDashChecklist`, de back-up, het klantoverzicht, `_aiTodayStr`,
+`aiChatOverzicht`), `validate.mjs`, `test.html` (1 nieuwe test), `sw.js`,
+`CLAUDE.md` (valkuilen).
+
+**Niet doen.** Een kalenderdag maken met `toISOString()`. Ook niet "even" in
+een test of een hulpfunctie: `dateStr()` staat er al.
+
+## 2026-10-29 · Vandaag belangrijk op het Dashboard (v3.05)
 
 **Vraag.** Eén blok "Vandaag belangrijk" dat in één oogopslag laat zien wat
 vandaag aandacht nodig heeft, zonder door Taken, Facturen en Agenda te
@@ -8857,10 +8900,7 @@ bedragen van facturen op het Dashboard; de agenda gebruikt hij nog weinig.
   de inhoud viel eraf). Notities en Taken houden minstens 300px en scrollen
   zelf (`contain: size`, anders groeiden ze tot hun volle lengte); is het
   venster te laag, dan scrolt de pagina.
-- Bijvangst: het Dashboard nam "vandaag" in UTC
-  (`toISOString().slice(0,10)`); tussen middernacht en twee uur 's nachts
-  telde het dan de dag ervoor. Nu `dateStr(new Date())`, in de hero en op
-  de kaart Taken. Elders in de app staat dat patroon nog.
+- "Vandaag" is de lokale kalenderdag (`dateStr`, zie de entry hierboven).
 
 **Waarom.** De hero zegt hoeveel er te laat is, maar niet wat; de kaart Taken
 toont alles op volgorde van prioriteit. Dit blok beantwoordt "wat moet er
@@ -8869,8 +8909,7 @@ het Dashboard staat open zodra je inlogt, ook als je bij een klant zit (zie
 renderDashKpis).
 
 **Bestanden.** `index.html` (markup in `#mod-dashboard`, `renderDashboard`,
-`dashVandaag*`, `dashTaakKlantProject`, `dashTaakHtml`, `dashDerivedStats`,
-`renderDashChecklist`, CSS `.dash-vandaag-*` en het raster), `test.html`
+`dashVandaag*`, `dashTaakKlantProject`, `dashTaakHtml`, CSS `.dash-vandaag-*` en het raster), `test.html`
 (2 nieuwe tests), `sw.js`, `docs/stijlgids.md`, `CLAUDE.md`.
 
 **Niet doen.** Bedragen in dit blok. En de rijen van het raster terug naar
