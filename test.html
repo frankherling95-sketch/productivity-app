@@ -3559,6 +3559,18 @@ async function runChecks() {
           w.eval('rawState.settings.agendaMeldingen=' + oudS + ';if(!rawState.settings.agendaMeldingen)delete rawState.settings.agendaMeldingen;');
         }
       }],
+    /* ── Een kalenderdag is lokaal (2026-10-29) ──
+       De volgende deadline werd in UTC opgeschreven; in Nederland schoof een
+       herhalende taak zo elke keer een dag terug. Ook over de wisseling van
+       de zomertijd heen (25 oktober). */
+    ['Herhalende taak: de volgende deadline is precies een dag, week, maand of jaar later — lokaal, niet in UTC', () => {
+      const volgende = (rec, dl) => w.spawnRecurringNext({text: 'x', priority: 'middel', recurrence: rec, deadline: dl, subtasks: []}).deadline;
+      const vandaag = w.dateStr(new Date());
+      return volgende('daily', '2026-11-02') === '2026-11-03' && volgende('weekly', '2026-11-02') === '2026-11-09' &&
+        volgende('weekly', '2026-10-22') === '2026-10-29' && volgende('biweekly', '2026-03-23') === '2026-04-06' &&
+        volgende('monthly', '2026-03-15') === '2026-04-15' && volgende('yearly', '2026-03-29') === '2027-03-29' &&
+        w._aiTodayStr() === vandaag;
+    }],
     /* ── Archief in Google Drive (2026-10-04) ───────────────────────────
        archiefGewenst leest de state; archiefSync praat met een nep-Drive. */
     ['Archief: welke bestanden in welke map, zonder concepten; een betaling verandert de PDF niet',

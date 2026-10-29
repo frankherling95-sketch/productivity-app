@@ -339,6 +339,7 @@ waar de fout zit.
 | Force-push verwijdert remote commits | **Eerst altijd `git fetch && git log HEAD..origin/main`** |
 | `.claude/worktrees/...` heeft een kopie | Negeren — staat in `.gitignore`, agent-isolatie |
 | Maandweergave krap bij drukke dag | Klik op datum → daganzicht |
+| Datum een dag te vroeg (deadline, "vandaag", herhaling) | Een kalenderdag is `dateStr(d)`, nooit `toISOString().slice(0,10)`: dat is UTC, en lokale middernacht is in UTC de dag ervoor. `validate.mjs` meldt het; `utc-bedoeld` in een comment als UTC echt de bedoeling is |
 
 ## Recent gemaakte beslissingen
 
@@ -428,7 +429,7 @@ Daarna draaien `node validate.mjs` en pre-push hook automatisch.
 
 | Bestand | Doel |
 |---------|------|
-| `validate.mjs` | JS syntax + tag balance + onclick-referentie checks |
+| `validate.mjs` | JS syntax + tag balance + onclick-referentie checks, namen van relaties, versienummer, en geen kalenderdag via `toISOString()` |
 | `parallel-check.mjs` | Bewaakt de moduleverdeling: `kaart` / `scope` / `overlap` / `merge` / `stijl`. Vangt het stille conflict dat git niet ziet — twee sporen die dezelfde gedeelde CSS-regel raken |
 | `parallel-check.test.mjs` | 21 tests op die bewaker, op een wegwerp-kloon (`node parallel-check.test.mjs`, ~1 min). Draaien na elke wijziging aan `parallel-check.mjs` of `ownership.json` |
 | `.claude/ownership.json` | Bron van de moduleverdeling; leesbare versie staat onder *Module ownership* |

@@ -8822,3 +8822,46 @@ rekening naar de klant zelf in plaats van naar de tussenpersoon.
 
 **Niet doen.** "Apart" laten betekenen dat de rekening naar de klant zelf
 gaat: de ontvanger blijft de tussenpersoon, alleen de factuur wordt gesplitst.
+
+## 2026-10-29 · Een kalenderdag is lokaal, niet UTC (v3.04)
+
+**Probleem.** Op twaalf plekken werd een datum gemaakt met
+`toISOString().slice(0,10)` (of `slice(0,7)` voor een maand). Dat is de dag
+in UTC. In Nederland is het dan tussen middernacht en een of twee uur nog
+gisteren. Bij lokale middernacht (`new Date('…T00:00:00')`,
+`setHours(0,0,0,0)`) gaat het zelfs altijd mis, en daar zaten twee echte
+fouten:
+- **Herhalende taken**: de volgende deadline kwam een dag te vroeg. Een
+  wekelijkse taak op maandag kreeg zondag als volgende deadline, en schoof
+  zo bij elke herhaling een dag terug (`spawnRecurringNext`).
+- **Browsermeldingen over deadlines** zochten naar de taken van gisteren
+  (`checkDeadlineNotifications`).
+De rest gold alleen 's nachts: de teller naast Taken, het klantoverzicht,
+het Dashboard, de kalender in het taakvenster (de knop *Vandaag* zette
+gisteren), de versiegeschiedenis per dag, één Drive-versie per dag, de
+naam van de back-up en de AI-teller per dag.
+
+**Beslissing.** Overal `dateStr()`: de lokale kalenderdag, zoals Facturen
+en Opdrachten al deden (zie 2026-08-12 bij `factuurVandaag`). Het
+chat-overzicht rekende vanaf 12:00 en klopte al, maar is ook omgezet, zodat
+het patroon nergens meer staat. `validate.mjs` geeft nu een fout bij
+`toISOString().slice(0,10)` en `slice(0,7)`; staat er `utc-bedoeld` in een
+comment op die regel, dan niet. Tijdstempels (`toISOString()` voluit,
+opslagtijd, de Calendar API) blijven UTC; dat is daar juist goed.
+
+**Waarom.** Een deadline is een dag op jouw kalender, geen tijdstip. Twaalf
+keer dezelfde fout in één bestand vraagt om een bewaker, niet om
+oplettendheid.
+
+**Wat het niet herstelt.** Herhalende taken die al een dag verschoven zijn,
+houden hun datum: de app kan niet zien welke deadline bedoeld was.
+
+**Bestanden.** `index.html` (`spawnRecurringNext`,
+`checkDeadlineNotifications`, `updateNavBadges`, `clCalToday`, `renderClCal`,
+`versiesRender`, `driveBewaarDagversie`, `dashDerivedStats`,
+`renderDashChecklist`, de back-up, het klantoverzicht, `_aiTodayStr`,
+`aiChatOverzicht`), `validate.mjs`, `test.html` (1 nieuwe test), `sw.js`,
+`CLAUDE.md` (valkuilen).
+
+**Niet doen.** Een kalenderdag maken met `toISOString()`. Ook niet "even" in
+een test of een hulpfunctie: `dateStr()` staat er al.

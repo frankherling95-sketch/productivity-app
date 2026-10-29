@@ -9691,7 +9691,7 @@ body.aic-open .aic-kop .sp-k { animation: sp-twinkel calc(var(--duur) * 3) var(-
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v3.03</span>
+        <span class="app-versie" title="Appversie">v3.04</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -13085,7 +13085,7 @@ function downloadBackup(){
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
-  const ts=new Date().toISOString().slice(0,10);
+  const ts=dateStr(new Date());
   a.href=url;
   a.download=`herling-backup-${ts}.json`;
   document.body.appendChild(a);a.click();a.remove();
@@ -13343,7 +13343,7 @@ function switchModule(mod){
    that could affect the counts (saveGist hook + module switches). */
 function updateNavBadges(){
   /* Checklist: overdue items only (most actionable signal) */
-  const today=new Date().toISOString().slice(0,10);
+  const today=dateStr(new Date());
   const overdue=takenZichtbaar().filter(i=>!i.done&&!i.archived&&i.deadline&&i.deadline<today).length;
   const setBadge=(id,n)=>{
     const el=document.getElementById(id);if(!el)return;
@@ -14068,7 +14068,9 @@ function checkDeadlineNotifications(){
   if(notifPerm()!=='granted')return;
   if(!checklistState||!checklistState.items)return;
   const today=new Date();today.setHours(0,0,0,0);
-  const todayIso=today.toISOString().slice(0,10);
+  /* dateStr, niet toISOString: lokale middernacht is in UTC nog gisteren,
+     dus de melding zocht naar taken met de deadline van gisteren. */
+  const todayIso=dateStr(today);
   const log=getNotifLog();
   /* Items with deadline = today, not done, not yet notified today */
   const dueToday=checklistState.items.filter(i=>!i.done&&!i.archived&&i.deadline===todayIso);
@@ -14827,7 +14829,7 @@ function openClientDash(id){
   const allNotes=flattenNotes(notesState?.tree||[]).filter(n=>n.type!=='folder'&&n.clientId===id);
   /* Sort newest first by updatedAt or createdAt */
   allNotes.sort((a,b)=>(b.updatedAt||b.createdAt||0)-(a.updatedAt||a.createdAt||0));
-  const today=new Date().toISOString().slice(0,10);
+  const today=dateStr(new Date());
   const allCl=(checklistState?.items||[]).filter(i=>i.clientId===id&&!i.archived);
   const openCl=allCl.filter(i=>!i.done);
   const doneCl=allCl.filter(i=>i.done);
@@ -15105,7 +15107,7 @@ function renderDashCardCounts(){
 /* ─── Dashboard: Hero + KPI derived values ───────────────────────────────── */
 function dashDerivedStats(){
   /* Open + overdue checklist items (Todo + Uren modules removed) */
-  const today=new Date().toISOString().slice(0,10);
+  const today=dateStr(new Date());
   const openCl=takenZichtbaar().filter(i=>!i.done&&!i.archived);
   const overdueCl=openCl.filter(i=>i.deadline&&i.deadline<today).length;
   const doneCl=takenZichtbaar().filter(i=>i.done&&!i.archived).length;
@@ -15322,7 +15324,7 @@ function renderDashChecklist(){
     }
     return dashCmp(a,b);
   });
-  const vandaag=new Date().toISOString().slice(0,10);
+  const vandaag=dateStr(new Date());
   dashClHertekent=true;
   try{body.innerHTML=sorted.map(item=>dashTaakHtml(item,vandaag)).join('');}
   finally{dashClHertekent=false;}
@@ -17092,7 +17094,7 @@ async function driveRevisieState(bestandId,revId){
    ruim daaronder blijven we door de oudste weer los te laten. */
 async function driveBewaarDagversie(bestandId,revId){
   if(!bestandId||!revId)return;
-  const vandaag=new Date().toISOString().slice(0,10);
+  const vandaag=dateStr(new Date());
   const v=syncStand();
   if(v.dagversieOp===vandaag)return;
   try{
@@ -17173,12 +17175,12 @@ function versiesRender(){
      van die dag"; de tussenversies staan een klik verderop. */
   const perDag=new Map();
   revs.forEach(r=>{
-    const dag=new Date(r.modifiedTime).toISOString().slice(0,10);
+    const dag=dateStr(new Date(r.modifiedTime));
     if(!perDag.has(dag))perDag.set(dag,[]);
     perDag.get(dag).push(r);
   });
-  const nu=new Date().toISOString().slice(0,10);
-  const gisteren=new Date(Date.now()-864e5).toISOString().slice(0,10);
+  const nu=dateStr(new Date());
+  const gisteren=(()=>{const d=new Date();d.setDate(d.getDate()-1);return dateStr(d);})();
   let h='';
 
   /* Werk dat dit apparaat wel had maar Drive nooit kreeg. Vroeger drong dit
@@ -20322,7 +20324,7 @@ function renderClCal(){
   if(!titleEl||!daysEl)return;
   const MONTHS=['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'];
   titleEl.textContent=MONTHS[clCalMonth]+' '+clCalYear;
-  const today=new Date().toISOString().slice(0,10);
+  const today=dateStr(new Date());
   const firstDow=new Date(clCalYear,clCalMonth,1).getDay(); // 0=Sun
   const startOffset=(firstDow===0?6:firstDow-1); // shift to Mon=0
   const daysInMonth=new Date(clCalYear,clCalMonth+1,0).getDate();
@@ -20357,7 +20359,7 @@ function clCalSelect(iso){
 function clCalPrev(){clCalMonth--;if(clCalMonth<0){clCalMonth=11;clCalYear--;}renderClCal();}
 function clCalNext(){clCalMonth++;if(clCalMonth>11){clCalMonth=0;clCalYear++;}renderClCal();}
 function clCalClear(){clCalSelected=null;document.getElementById('clItemDeadline').value='';renderClCal();renderClHerinner();}
-function clCalToday(){const n=new Date();clCalYear=n.getFullYear();clCalMonth=n.getMonth();clCalSelected=n.toISOString().slice(0,10);document.getElementById('clItemDeadline').value=clCalSelected;renderClCal();renderClHerinner();}
+function clCalToday(){const n=new Date();clCalYear=n.getFullYear();clCalMonth=n.getMonth();clCalSelected=dateStr(n);document.getElementById('clItemDeadline').value=clCalSelected;renderClCal();renderClHerinner();}
 
 /* ══ Sortering ══════════════════════════════════════════════════════════════
    checklistState.sortBy bepaalt de volgorde *binnen* een groep,
@@ -21517,7 +21519,9 @@ function spawnRecurringNext(item){
     text:item.text,
     done:false,
     priority:item.priority,
-    deadline:nd.toISOString().slice(0,10),
+    /* dateStr, niet toISOString: nd is lokale middernacht, en dat is in
+       UTC nog de dag ervoor. Elke herhaling schoof zo een dag terug. */
+    deadline:dateStr(nd),
     clientId:item.clientId||null,
     subtasks:(item.subtasks||[]).map(st=>({id:uid(),text:st.text,done:false})),
     archived:false,
@@ -41328,7 +41332,7 @@ Object.assign(APP_CHANGE_ACTIONS,{
 const _aiCalling={chat:false}; /* concurrent-guard */
 
 /* ─ Quota tracking — per-dag teller in localStorage ─ */
-function _aiTodayStr(){return new Date().toISOString().slice(0,10);}
+function _aiTodayStr(){return dateStr(new Date());}
 function _aiGetUsage(){
   try{
     const raw=localStorage.getItem(LS_AI_USAGE);
@@ -42714,8 +42718,8 @@ function _aiChatTel(obj,sleutel,n){obj[sleutel]=_aiChatRond((obj[sleutel]||0)+(n
 function aiChatOverzicht(vandaagIso){
   const vandaag=vandaagIso||opdVandaag();
   const nu=new Date(vandaag+'T12:00:00');
-  const maandGrens=(()=>{const d=new Date(nu);d.setMonth(d.getMonth()-23,1);return d.toISOString().slice(0,7);})();
-  const weekGrens=(()=>{const d=new Date(nu);d.setDate(d.getDate()-7*11-((d.getDay()+6)%7));return d.toISOString().slice(0,10);})();
+  const maandGrens=(()=>{const d=new Date(nu);d.setMonth(d.getMonth()-23,1);return dateStr(d).slice(0,7);})();
+  const weekGrens=(()=>{const d=new Date(nu);d.setDate(d.getDate()-7*11-((d.getDay()+6)%7));return dateStr(d);})();
   const uit={
     vandaag, dag:nu.toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long',year:'numeric'}),
     isoWeek:_aiChatWeek(vandaag),
