@@ -8914,3 +8914,58 @@ renderDashKpis).
 
 **Niet doen.** Bedragen in dit blok. En de rijen van het raster terug naar
 `auto` zolang de kaarten overflow:hidden hebben.
+
+## 2026-11-01 · Factuurstatus in vier stappen: concept, definitief, verstuurd, betaald (v3.06)
+
+**Probleem.** Een factuur stond op *Verstuurd* terwijl hij nooit gemaild was.
+De knop *Versturen* in de editor legde de factuur vast (nummer, uren op
+gefactureerd) en zette hem meteen op verstuurd. Het mailen zette er alleen
+een datum "gemaild" bij. "Verstuurd" zei dus niets over of de klant hem had.
+
+**Beslissing.**
+- Vier stappen (`FACTUUR_STATUSSEN`), oninbaar blijft ernaast:
+  - **Concept**: in de maak.
+  - **Definitief**: nummer vast en uren gefactureerd. De knop heet nu
+    *Definitief maken* (`facMaakDefinitief` → `factuurMarkeerDefinitief`,
+    `definitiefOp`).
+  - **Verstuurd**: de klant heeft hem. Het mailen doet dit vanzelf
+    (`verstuurdHoe:'mail'`). Wie hem via een portaal of per post levert,
+    kiest *Als verstuurd markeren* (`facAlsVerstuurd`, `'handmatig'`); dat
+    legt de klant- en afzendergegevens vast zoals het mailen ook doet, en is
+    met de melding terug te draaien.
+  - **Betaald**: bij het registreren van de betaling, zoals altijd.
+- Openstaand en onbetaald zijn definitief én verstuurd (`factuurOnbetaald`):
+  allebei een echte factuur die nog betaald moet worden, dus ook onder
+  Debiteuren en in de chat. *Te laat* kan alleen een verstuurde: wie hem
+  niet kreeg, kan niet te laat zijn.
+- In de editor van een definitieve factuur is *Mailen* de mintknop;
+  *Betaling registreren* komt pas na het versturen.
+- Vandaag belangrijk noemt "n facturen nog niet verstuurd" (altijd), en
+  concepten heten daar "nog afmaken".
+- Het oude *Definitief maken* bij het factuuradres (de gegevens vastleggen
+  voor wie print) heet nu *Gegevens vastleggen*, want definitief is nu een
+  status.
+- Bestaande facturen (`factuurStatussenBij`, bij elk laden, verandert
+  niets aan wat al klopt):
+  - verstuurd zonder mail en zonder betaling → **definitief**;
+  - gemaild → verstuurd (`'mail'`, met de maildatum als verzenddatum);
+  - een ingelezen oude factuur (`extern`) → verstuurd (`'buiten'`);
+  - deels betaald → verstuurd (`'handmatig'`).
+  Het oude `verstuurdOp` (het moment van vastleggen) wordt `definitiefOp`.
+
+**Waarom.** De status moet zeggen wat er gebeurd is. "Verstuurd" bij een
+factuur die nog op je scherm staat, verbergt precies wat je nog moet doen.
+
+**Wat jij misschien moet doen.** Stuurde je een factuur die nu op
+*Definitief* staat wél, maar niet vanuit de app (portaal, post, je eigen
+mail)? Open hem en kies *Als verstuurd markeren*.
+
+**Bestanden.** `index.html` (`FACTUUR_STATUSSEN`, `factuurOnbetaald`,
+`factuurMarkeerDefinitief`, `factuurMarkeerVerstuurd`, `factuurStatussenBij`,
+`facMaakDefinitief`, `facAlsVerstuurd`, de editorvoet, het mailen,
+`facVerzendBron`, Debiteuren, de cijfers, `aiChatOverzicht`,
+`dashVandaagFacturen`, `.fac-pill-definitief`), `test.html` (3 nieuwe tests),
+`sw.js`, `docs/stijlgids.md`, `CLAUDE.md`.
+
+**Niet doen.** Een factuur op verstuurd zetten zonder dat hij gemaild is of
+dat jij het zelf aangeeft. En definitief als te laat tellen.

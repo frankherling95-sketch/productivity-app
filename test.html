@@ -3006,6 +3006,66 @@ async function runChecks() {
           w.eval('rawState=' + JSON.stringify(bewaard) + ';hydrateerState();');
         }
       }],
+    /* ── Vier statussen (2026-11-01): concept → definitief → verstuurd → betaald ── */
+    ['Factuurstatus: definitief is nog niet verstuurd en kan niet te laat zijn; verstuurd en betaald volgen', () => {
+      const voor = w.eval('JSON.stringify(factuurState.invoices)');
+      try {
+        const f = w.factuurNieuw(null, null, null);
+        w.facConceptVastleggen();
+        f.regels = [{omschrijving:'Test', aantal:1, stuksprijs:100, btwTarief:21, eenheid:'stuk'}];
+        f.vervaldatum = '2020-01-01';
+        w.factuurMarkeerDefinitief(f.id);
+        const def = f.status === 'definitief' && f.nummerVast && !!f.definitiefOp && !f.verstuurdOp &&
+          w.factuurDagenTeLaat(f) === 0 && w.factuurOnbetaald(f);
+        w.factuurMarkeerVerstuurd(f.id, 'handmatig');
+        const verst = f.status === 'verstuurd' && f.verstuurdHoe === 'handmatig' && !!f.verstuurdOp && !!f.klant &&
+          w.factuurDagenTeLaat(f) > 0 && w.factuurOnbetaald(f);
+        w.factuurMarkeerBetaald(f.id);
+        const bet = f.status === 'betaald' && !w.factuurOnbetaald(f);
+        w.factuurTerugNaarConcept(f.id);
+        const terug = f.status === 'concept' && !f.definitiefOp && !f.verstuurdHoe;
+        return def && verst && bet && terug;
+      } finally { w.eval('factuurState.invoices=' + voor); }
+    }],
+    ['Factuurstatus: oude "verstuurd" zonder mail of betaling wordt definitief; gemaild, extern en deels betaald blijven verstuurd', () => {
+      const voor = w.eval('JSON.stringify(factuurState.invoices)');
+      try {
+        w.eval(`factuurState.invoices=[
+          {id:'m1',nummer:'M1',status:'verstuurd',verstuurdOp:'2026-10-01T10:00:00.000Z',betalingen:[]},
+          {id:'m2',nummer:'M2',status:'verstuurd',verstuurdOp:'2026-10-01T10:00:00.000Z',gemaildOp:'2026-10-02T10:00:00.000Z',betalingen:[]},
+          {id:'m3',nummer:'M3',status:'verstuurd',extern:true,verstuurdOp:'2026-09-01T12:00:00.000Z',betalingen:[]},
+          {id:'m4',nummer:'M4',status:'verstuurd',verstuurdOp:'2026-10-01T10:00:00.000Z',betalingen:[{datum:'2026-10-05',bedrag:10}]},
+          {id:'m5',nummer:'M5',status:'betaald',verstuurdOp:'2026-08-01T10:00:00.000Z',betalingen:[{datum:'2026-08-10',bedrag:100}]},
+          {id:'m6',nummer:'M6',status:'concept',betalingen:[]}]`);
+        w.factuurStatussenBij(); w.factuurStatussenBij();
+        const s = w.eval('factuurState.invoices.map(f=>f.id+":"+f.status+":"+(f.verstuurdHoe||"")).join(" ")');
+        const m1 = w.eval('factuurState.invoices[0]'), m2 = w.eval('factuurState.invoices[1]');
+        return s === 'm1:definitief: m2:verstuurd:mail m3:verstuurd:buiten m4:verstuurd:handmatig m5:betaald: m6:concept:' &&
+          m1.definitiefOp === '2026-10-01T10:00:00.000Z' && !m1.verstuurdOp && m2.verstuurdOp === '2026-10-02T10:00:00.000Z';
+      } finally { w.eval('factuurState.invoices=' + voor); }
+    }],
+    ['Factuurstatus: voet van een definitieve factuur — Mailen is de mintknop, Als verstuurd markeren werkt en is terug te draaien', () => opBreed(async () => {
+      const voor = w.eval('JSON.stringify(factuurState.invoices)');
+      const f = w.factuurNieuw(null, null, null);
+      w.facConceptVastleggen();
+      w.factuurMarkeerDefinitief(f.id);
+      try {
+        w.facOpenEditor(f.id);
+        const knoppen = [...d.querySelectorAll('#facEditorActies button')];
+        const mint = knoppen.filter(b => b.classList.contains('uren-btn-primary')).map(b => b.textContent.trim());
+        const voet = mint.length === 1 && /Mailen/.test(mint[0]) &&
+          knoppen.some(b => b.textContent.trim() === 'Als verstuurd markeren') && !knoppen.some(b => /Betaling registreren/.test(b.textContent));
+        const pil = /Definitief/.test(d.getElementById('facEditorStatus').textContent);
+        d.querySelector('#facEditorActies [data-fac-action="facAlsVerstuurd"]').click();
+        const verstuurd = f.status === 'verstuurd' && f.verstuurdHoe === 'handmatig' && !!f.klant;
+        d.getElementById('undoToastUndoBtn').click();
+        const terug = f.status === 'definitief' && !f.verstuurdOp && !f.klant;
+        return voet && pil && verstuurd && terug;
+      } finally {
+        w.closeFacEditor?.();
+        w.eval('factuurState.invoices=' + voor);
+      }
+    })],
     ['Voet: één mintknop, en dat is Betaling registreren', () => opBreed(async () => {
       const f = w.factuurNieuw(null, null, null);
       w.facConceptVastleggen();                 /* pas dan telt hij niet meer als concept */

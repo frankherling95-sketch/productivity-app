@@ -405,7 +405,7 @@ kapitalen waar het een categorie is, afgeronde hoek `999px`.
 |---|---|
 | prioriteit (`.cl2-pri`) | micro / 600, achtergrond + tekstkleur uit `CL_PRIORITY_CFG` |
 | klant (`.cl2-client-tag`, `.cf-dot`) | micro / 600, kleur uit `CLIENT_COLORS` |
-| factuurstatus (`.fac-pill`) | micro / 600 — op een gekleurde kopbalk een lichtere variant, anders donker-op-donker |
+| factuurstatus (`.fac-pill`) | micro / 600 — op een gekleurde kopbalk een lichtere variant, anders donker-op-donker. Kleuren: concept grijs, **definitief oranje** (er moet nog iets gebeuren: versturen), verstuurd blauw, betaald groen, te laat rood, oninbaar grijs gedimd |
 
 ---
 

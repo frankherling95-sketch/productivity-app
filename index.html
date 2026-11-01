@@ -1572,6 +1572,8 @@ button.uren-mpiv-row:active{background:var(--surface2)}
   font-family:var(--font-body);border:1px solid transparent;
 }
 .fac-pill-concept{background:var(--surface3);border-color:var(--border-strong)}
+/* Definitief: oranje, want er moet nog iets gebeuren (versturen). */
+.fac-pill-definitief{background:rgba(245,158,11,.16);border-color:rgba(245,158,11,.6)}
 .fac-pill-verstuurd{background:rgba(37,99,235,.16);border-color:rgba(37,99,235,.55)}
 .fac-pill-betaald{background:rgba(10,157,120,.16);border-color:rgba(10,157,120,.6)}
 .fac-pill-telaat{background:rgba(220,38,38,.16);border-color:rgba(220,38,38,.55)}
@@ -4019,6 +4021,10 @@ textarea { line-height: 1.6; resize: vertical; }
   color: #fff !important;
   background: rgba(255,255,255,0.16);
   border-color: rgba(255,255,255,0.38);
+}
+.modal-kop .fac-pill-definitief {
+  background: rgba(251,191,36,0.24);
+  border-color: rgba(252,211,77,0.65);
 }
 .modal-kop .fac-pill-verstuurd {
   background: rgba(96,165,250,0.26);
@@ -9761,7 +9767,7 @@ body.aic-open .aic-kop .sp-k { animation: sp-twinkel calc(var(--duur) * 3) var(-
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v3.05</span>
+        <span class="app-versie" title="Appversie">v3.06</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -12089,6 +12095,7 @@ function pinZetGeheimenTerug(geheim){
     rawState.facturen=geheim.facturen;
     factuurState=geheim.facturen;
     if(!factuurState.invoices)factuurState.invoices=[];
+    factuurStatussenBij();
   }
   if(geheim.uren){
     rawState.uren=geheim.uren;
@@ -12609,6 +12616,7 @@ function hydrateerStateIntern(){
   if(!Array.isArray(factuurState.eindklantRegels))factuurState.eindklantRegels=[];
   factuurSettings();
   factuurMailsAanvullen();
+  factuurStatussenBij();
   opdrachtState=rawState.opdrachten||{opdrachten:[]};
   if(!Array.isArray(opdrachtState.opdrachten))opdrachtState.opdrachten=[];
   /* Vrije dagen (2026-10-03): vakantieperiodes, en welke feestdagen je vrij
@@ -15560,6 +15568,9 @@ function dashVandaagFacturen(nu){
     const meer=(n,een,veel)=>n+' '+(n===1?een:veel);
     const teLaat=fac.filter(f=>factuurDagenTeLaat(f)>0).length;
     if(teLaat)uit.push({id:'telaat',tekst:meer(teLaat,'factuur','facturen')+' over de vervaldatum'});
+    /* Definitief maar nog niet weg (2026-11-01): altijd, want dit vergeet je. */
+    const nogWeg=fac.filter(f=>f.status==='definitief').length;
+    if(nogWeg)uit.push({id:'definitief',tekst:meer(nogWeg,'factuur','facturen')+' nog niet verstuurd'});
     const dag=nu.getDate(), laatste=new Date(nu.getFullYear(),nu.getMonth()+1,0).getDate();
     if(dag>laatste-3||dag<=7){
       const ym=facMaandStandaard();
@@ -15567,7 +15578,7 @@ function dashVandaagFacturen(nu){
       if(klanten)uit.push({id:'maand',ym,
         tekst:'uren van '+facMaandNaam(ym).split(' ')[0].toLowerCase()+' nog factureren ('+meer(klanten,'klant','klanten')+')'});
       const concepten=fac.filter(f=>f.status==='concept').length;
-      if(concepten)uit.push({id:'concept',tekst:meer(concepten,'concept','concepten')+' nog versturen'});
+      if(concepten)uit.push({id:'concept',tekst:meer(concepten,'concept','concepten')+' nog afmaken'});
     }
   }catch(e){console.warn('[dashboard] facturen voor Vandaag',e);}
   return uit;
@@ -15636,7 +15647,7 @@ function dashVandaagFactuur(soort,ym){
   switchModule('facturen');
   if(soort==='telaat'){facSetView('debiteuren');return;}
   if(soort==='maand'){facMaandStart(ym);return;}
-  facFilterStatus='concept';
+  facFilterStatus=soort==='definitief'?'definitief':'concept';
   facSetView('facturen');
 }
 
@@ -24298,7 +24309,7 @@ function urenImpRender(){
         bron.concept?bron.concept+' concept'+(bron.concept===1?'factuur':'facturen'):''}.</p>`:''}
     `:`<div class="uren-empty" style="margin-top:14px"><b>Geen factuurregels gevonden</b>
       ${bron.concept?'Je hebt alleen concepten; die tellen nog niet mee.':
-        'Er staan geen verstuurde facturen met een aantal erop.'}</div>`}
+        'Er staan geen facturen met een aantal erop.'}</div>`}
 
     ${urenImpModus!=='ai'&&!gekozen&&bron.lijst.length?`<div class="fac-btw-let" style="margin-top:12px">
       <span class="ic">✲</span><span>Niets aangevinkt, dus er valt nog niets te importeren.
@@ -26757,8 +26768,13 @@ function urenExportPdf(data){
    ║                verandert een oude factuur niet meer              ║
    ╚══════════════════════════════════════════════════════════════════╝ */
 
+/* Vier stappen (2026-11-01): concept → definitief (nummer vast, uren
+   gefactureerd) → verstuurd (gemaild, of zelf gemarkeerd als je hem op een
+   andere manier stuurde) → betaald. Eerst sprong "Versturen" van concept
+   meteen naar verstuurd, ook als de factuur nooit de deur uit ging. */
 const FACTUUR_STATUSSEN=[
   {id:'concept',   label:'Concept'},
+  {id:'definitief',label:'Definitief'},
   {id:'verstuurd', label:'Verstuurd'},
   {id:'betaald',   label:'Betaald'},
   {id:'oninbaar',  label:'Oninbaar'}
@@ -27306,6 +27322,10 @@ function factuurDagenTot(f){
   const vandaag=factuurVandaag();
   return Math.round((new Date(f.vervaldatum)-new Date(vandaag))/86400000);
 }
+/* Staat er nog iets open? Definitief én verstuurd: allebei een echte
+   factuur die nog betaald moet worden. Te laat kan alleen een verstuurde
+   (factuurDagenTeLaat): wie hem niet kreeg, kan niet te laat zijn. */
+function factuurOnbetaald(f){return !!f&&(f.status==='definitief'||f.status==='verstuurd');}
 /* Hoeveel tijd heeft de klant nog? Alleen de nog-lopende kant; is de
    termijn verstreken, dan zegt de statuspil dat al met zoveel woorden
    en zou dit het dubbelop maken. */
@@ -27562,7 +27582,7 @@ function factuurDupliceer(id){
   f.vervaldatum=factuurVervaldatum(datum,(klant&&klant.betaaltermijn)||factuurSettings().betaaltermijn);
   f.betalingen=[];
   delete f.verstuurdOp; delete f.betaaldOp; delete f.klant; delete f.afzender;
-  delete f.gegevensVastOp;
+  delete f.gegevensVastOp; delete f.definitiefOp; delete f.verstuurdHoe;
   /* Het maildossier hoort bij de bron, niet bij de kopie. Bleef dit
      staan, dan dacht factuurMailsAanvullen dat dit concept al gemaild
      was en zette het er een verzonnen regel voor in het logboek
@@ -27636,9 +27656,10 @@ function factuurUrenLoskoppelen(f){
   });
 }
 
-/* Versturen bevriest de factuur: nummer vastzetten, snapshots maken,
-   uren markeren. Vanaf hier is bewerken niet meer vanzelfsprekend. */
-function factuurMarkeerVerstuurd(id){
+/* Definitief maken bevriest de factuur: nummer vastzetten en uren
+   markeren. Vanaf hier is bewerken niet meer vanzelfsprekend. Versturen is
+   een aparte stap (factuurMarkeerVerstuurd). */
+function factuurMarkeerDefinitief(id){
   const f=factuurById(id);
   if(!f||f.status!=='concept')return f;
   const bedrijfId=factuurBedrijfIdVan(f);
@@ -27653,11 +27674,44 @@ function factuurMarkeerVerstuurd(id){
      Tot dan volgt de factuur je klantenkaart: vul je een btw- of
      KVK-nummer later pas in, dan staat het er gewoon op. Eerder
      bevroor dit bij "verstuurd", wat vaak dagen vóór het mailen is. */
-  f.status='verstuurd';
-  f.verstuurdOp=new Date().toISOString();
+  f.status='definitief';
+  f.definitiefOp=new Date().toISOString();
   factuurUrenKoppelen(f);
   scheduleSave();
   return f;
+}
+/* Verstuurd: de klant heeft hem. Het mailen doet dit vanzelf (hoe = 'mail');
+   lever je hem via een portaal of per post, dan markeer je het zelf
+   ('handmatig'). Dan worden ook de klant- en afzendergegevens vastgelegd,
+   net als bij het mailen: zo kreeg de klant hem. Een concept wordt eerst
+   definitief. */
+function factuurMarkeerVerstuurd(id,hoe){
+  let f=factuurById(id);
+  if(!f)return f;
+  if(f.status==='concept')f=factuurMarkeerDefinitief(id);
+  if(f.status!=='definitief')return f;
+  f.status='verstuurd';
+  f.verstuurdOp=new Date().toISOString();
+  f.verstuurdHoe=hoe||'handmatig';
+  if(!f.klant)factuurBevriesGegevens(f);
+  f.updatedAt=Date.now();
+  scheduleSave();
+  return f;
+}
+/* Facturen van vóór 2026-11-01. "Verstuurd" betekende toen ook "definitief
+   gemaakt". Wat gemaild is of al (deels) betaald blijft verstuurd, net als
+   een oude factuur die je inlas (extern); de rest gaat terug naar
+   definitief. Mag bij elk laden draaien: wat al klopt, blijft staan. */
+function factuurStatussenBij(){
+  (factuurState.invoices||[]).forEach(f=>{
+    if(!f||f.status==='concept')return;
+    if(f.definitiefOp===undefined&&f.verstuurdOp)f.definitiefOp=f.verstuurdOp;
+    if(f.status!=='verstuurd'||f.verstuurdHoe)return;
+    if(f.gemaildOp){f.verstuurdHoe='mail';f.verstuurdOp=f.gemaildOp;}
+    else if(f.extern)f.verstuurdHoe='buiten';
+    else if((f.betalingen||[]).length)f.verstuurdHoe='handmatig';
+    else{f.status='definitief';delete f.verstuurdOp;}
+  });
 }
 function factuurMarkeerBetaald(id,bedrag,datum){
   const f=factuurById(id);
@@ -27678,7 +27732,7 @@ function factuurTerugNaarConcept(id){
   if(!f||f.status==='concept')return;
   factuurUrenLoskoppelen(f);
   f.status='concept';
-  delete f.verstuurdOp; delete f.betaaldOp;
+  delete f.verstuurdOp; delete f.betaaldOp; delete f.definitiefOp; delete f.verstuurdHoe;
   /* Ook de bevroren klant- en afzendergegevens loslaten: een concept
      hoort je klantenkaart te volgen. Bleef de kopie staan, dan wees de
      editor wél "volgt je klantgegevens" aan terwijl de PDF nog uit de
@@ -27793,7 +27847,8 @@ const FAC_CLICK_ACTIONS={
   facUrenOphalen:()=>facUrenOphalen(),
   facEditorSluit:()=>closeFacEditor(),
   facConceptOpslaan:()=>facConceptOpslaan(),
-  facVerstuur:()=>facVerstuur(),
+  facDefinitief:()=>facMaakDefinitief(),
+  facAlsVerstuurd:()=>facAlsVerstuurd(),
   facPdf:(a)=>facPdfDownload(a||facEditId),
   facPreview:(a)=>openFacPreview(a||facEditId),
   facSnapshotBijwerken:()=>facSnapshotBijwerkenActie(),
@@ -27945,7 +28000,7 @@ function facBackupHerinnering(){
     localStorage.setItem('herling_backup_herinnerd',new Date().toISOString());
   }catch(_){}
   appToast(d===null
-      ? `${echte} verstuurde factu${echte===1?'ur':'ren'} en nog geen back-up gemaakt`
+      ? `${echte} factu${echte===1?'ur':'ren'} en nog geen back-up gemaakt`
       : `Laatste back-up is ${d} dagen geleden`,
     {type:'warning',duration:9000});
 }
@@ -28224,7 +28279,7 @@ function facKpiTegels(){
   if(facView==='analyse')return facAnKpiTegels();
   const lijst=facZichtbaar();
   const som=arr=>arr.reduce((s,f)=>s+factuurTotalen(f).incl,0);
-  const openstaand=facBedrijfFacturen().filter(f=>f.status==='verstuurd');
+  const openstaand=facBedrijfFacturen().filter(factuurOnbetaald);
   const teLaat=openstaand.filter(f=>factuurDagenTeLaat(f)>0);
   const betaald=lijst.filter(f=>f.status==='betaald');
   const omzet=lijst.filter(f=>f.status!=='concept').reduce((s,f)=>s+factuurTotalen(f).excl,0);
@@ -28291,7 +28346,7 @@ function facCijferSamenvatting(){
     return {tekst:n+' bericht'+(n===1?'':'en')+' verstuurd',laat:false};
   }
   const lijst=facZichtbaar().filter(f=>f.status!=='concept');
-  const onbetaald=lijst.filter(f=>f.status==='verstuurd').length;
+  const onbetaald=lijst.filter(factuurOnbetaald).length;
   return {tekst:lijst.length+' factu'+(lijst.length===1?'ur':'ren')
     +(onbetaald?' · '+onbetaald+' onbetaald':' · alles betaald'),laat:false};
 }
@@ -28407,7 +28462,7 @@ function facRenderLijst(){
   lijst.forEach(f=>{
     const t=factuurTotalen(f);
     excl+=t.excl;incl+=t.incl;
-    if(f.status==='verstuurd')open+=t.openstaand;
+    if(factuurOnbetaald(f))open+=t.openstaand;
     const klant=factuurKlant(f.clientId);
     const col=klant?CLIENT_COLORS[klant.colorIdx%CLIENT_COLORS.length]:{bg:'var(--surface3)'};
     html+=`<tr data-fac-action="facOpen" data-fac-arg1="${f.id}">
@@ -28464,15 +28519,19 @@ function facRenderKaarten(lijst,totaal){
    datum stond alleen in de editor, terwijl je bij het doorlopen van een
    maand juist wilt zien hoe lang een factuur al loopt.
 
-   f.verstuurdOp is het moment waarop je hem definitief maakte; dat is
-   iets anders dan gemaildOp (het moment waarop de klant hem kreeg). Bij
-   een gemailde factuur is dat laatste eerlijker, dus die wint. */
-function facVerstuurdRegel(f){
-  if(!f||f.status==='concept')return '';
+   Sinds 2026-11-01: een definitieve factuur zegt dat hij nog niet weg is;
+   een verstuurde zegt wanneer de klant hem kreeg (gemaild, of zelf als
+   verstuurd gemarkeerd). */
+function facVerzendBron(f){
+  if(!f||f.status==='concept')return null;
+  if(f.status==='definitief')return {woord:'nog niet verstuurd',datum:''};
   const bron=f.gemaildOp||f.verstuurdOp;
-  if(!bron)return '';
-  const woord=f.gemaildOp?'gemaild':'verstuurd';
-  return `<span class="fac-verstuurd">${woord} ${factuurFmtDatum(String(bron).slice(0,10))}</span>`;
+  return bron?{woord:f.gemaildOp?'gemaild':'verstuurd',datum:String(bron).slice(0,10)}:null;
+}
+function facVerstuurdRegel(f){
+  const b=facVerzendBron(f);
+  if(!b)return '';
+  return `<span class="fac-verstuurd">${b.woord}${b.datum?' '+factuurFmtDatum(b.datum):''}</span>`;
 }
 /* Mobiel: dezelfde twee feiten op \u00e9\u00e9n regel. Stonden als twee losse
    regeltjes op de kaart -- "gemaild 28/08" bovenaan en "Vervalt 27/09 \u00b7 nog
@@ -28482,8 +28541,8 @@ function facVerstuurdRegel(f){
 function facTijdRegel(f){
   if(!f||f.status==='concept')return '';
   const delen=[];
-  const bron=f.gemaildOp||f.verstuurdOp;
-  if(bron)delen.push((f.gemaildOp?'Gemaild ':'Verstuurd ')+factuurFmtDatum(String(bron).slice(0,10)));
+  const b=facVerzendBron(f);
+  if(b)delen.push(b.datum?b.woord.charAt(0).toUpperCase()+b.woord.slice(1)+' '+factuurFmtDatum(b.datum):'Nog niet verstuurd');
   const tk=factuurVervalTekst(f);
   if(tk)delen.push(delen.length?tk:'Vervalt '+factuurFmtDatum(f.vervaldatum)+' \u00b7 '+tk);
   if(!delen.length)return '';
@@ -28499,7 +28558,7 @@ function facStatusPil(f){
   const telaat=factuurDagenTeLaat(f);
   if(telaat>0)return `<span class="fac-pill fac-pill-telaat">${telaat} dag${telaat===1?'':'en'} te laat</span>`;
   const t=factuurTotalen(f);
-  if(f.status==='verstuurd'&&t.betaald>0)
+  if(factuurOnbetaald(f)&&t.betaald>0)
     return `<span class="fac-pill fac-pill-verstuurd">Deels betaald</span>`;
   const meta=FACTUUR_STATUSSEN.find(s=>s.id===f.status)||FACTUUR_STATUSSEN[0];
   return `<span class="fac-pill fac-pill-${f.status}">${f.status==='betaald'?'✓ ':''}${meta.label}</span>`;
@@ -28560,7 +28619,7 @@ function urenToggleCijfers(){
    functie omdat de uitklapbalk voor alle tabbladen op één plek wordt
    opgebouwd (facCijferBalk). */
 function facDebiteurenTegels(){
-  const open=facBedrijfFacturen().filter(f=>f.status==='verstuurd');
+  const open=facBedrijfFacturen().filter(factuurOnbetaald);
   const groepen={lopend:[],d30:[],d60:[],d90:[],d90plus:[]};
   open.forEach(f=>groepen[factuurOuderdom(f)].push(f));
   const som=arr=>arr.reduce((s,f)=>s+factuurTotalen(f).openstaand,0);
@@ -28608,12 +28667,12 @@ function facDebiteurenTegels(){
       ${cel('90+ dagen','d90plus','var(--danger)')}</div>`;
 }
 function facRenderDebiteuren(){
-  const open=facBedrijfFacturen().filter(f=>f.status==='verstuurd');
+  const open=facBedrijfFacturen().filter(factuurOnbetaald);
   if(!open.length){
     const scope=facBedrijfScope();
     return `<div class="uren-empty"><b>Niets openstaand${
       scope?' bij '+escapeHtml(facBedrijfNaam(scope)):''}</b>
-      Alle verstuurde facturen zijn betaald.</div>`;
+      Alle facturen zijn betaald.</div>`;
   }
   /* Het openstaande bedrag per factuur; de tabel sorteert erop en telt hem
      op in de voet. (De ouderdomstegels hebben hun eigen kopie in
@@ -29605,10 +29664,12 @@ function facEditorRender(){
   document.getElementById('facEditorTitel').textContent=
     (definitief?'Factuur ':'Concept ')+f.nummer;
   const sub=[];
-  if(!definitief)sub.push('Nummer wordt definitief bij versturen');
+  if(!definitief)sub.push('Het nummer ligt vast zodra je hem definitief maakt');
   else{
-    if(f.verstuurdOp)sub.push('Verstuurd op '+factuurFmtDatum(f.verstuurdOp.slice(0,10)));
-    if(f.gemaildOp)sub.push('gemaild op '+factuurFmtDatum(String(f.gemaildOp).slice(0,10)));
+    if(f.definitiefOp)sub.push('Definitief op '+factuurFmtDatum(String(f.definitiefOp).slice(0,10)));
+    if(f.status==='definitief')sub.push('nog niet verstuurd');
+    else if(f.gemaildOp)sub.push('gemaild op '+factuurFmtDatum(String(f.gemaildOp).slice(0,10)));
+    else if(f.verstuurdOp)sub.push('verstuurd op '+factuurFmtDatum(String(f.verstuurdOp).slice(0,10)));
   }
   document.getElementById('facEditorSub').textContent=sub.join(' · ');
   document.getElementById('facEditorStatus').innerHTML=facStatusPil(f);
@@ -29825,12 +29886,12 @@ function facEditorRender(){
   if(facIsConcept(f)){
     /* Nog niet aangemaakt. Geen "Verwijderen" (er is niets om te
        verwijderen) en geen "Dupliceren" (van iets dat nog niet bestaat).
-       Versturen blijft wél staan: dat legt hem vanzelf eerst vast, want
-       versturen is een steviger besluit dan opslaan. */
+       Definitief maken blijft wél staan: dat legt hem vanzelf eerst vast,
+       want definitief is een steviger besluit dan opslaan. */
     acties=`<button class="uren-btn" data-fac-action="facEditorSluit">Verwerpen</button>
       <div class="fac-ed-actievul"></div>
       <button class="uren-btn" data-fac-action="facPreview">Voorbeeld</button>
-      <button class="uren-btn" data-fac-action="facVerstuur">Versturen</button>
+      <button class="uren-btn" data-fac-action="facDefinitief">Definitief maken</button>
       <button class="uren-btn uren-btn-primary" data-fac-action="facConceptOpslaan">Opslaan</button>`;
   } else if(!definitief){
     acties=`<button class="uren-btn" data-fac-action="facVerwijder">Verwijderen</button>
@@ -29839,7 +29900,21 @@ function facEditorRender(){
       <div class="fac-ed-actievul"></div>
       <button class="uren-btn" data-fac-action="facPreview">Voorbeeld</button>
       <button class="uren-btn" data-fac-action="facPdf">↧ PDF</button>
-      <button class="uren-btn uren-btn-primary" data-fac-action="facVerstuur">Versturen</button>`;
+      <button class="uren-btn uren-btn-primary" data-fac-action="facDefinitief">Definitief maken</button>`;
+  } else if(f.status==='definitief'){
+    /* Definitief, nog niet weg: mailen is wat er nu moet gebeuren, dus dat
+       is de mintknop. Stuur je hem anders (portaal, post), dan markeer je
+       hem zelf als verstuurd. */
+    acties=`<button class="uren-btn" data-fac-action="facVerwijder">Verwijderen</button>
+      <button class="uren-btn" data-fac-action="facDupliceer">Dupliceren</button>
+      <button class="uren-btn" data-fac-action="facTerugConcept">← Terug naar concept</button>
+      <div class="fac-ed-actievul"></div>
+      <button class="uren-btn" data-fac-action="facPreview">Voorbeeld</button>
+      <button class="uren-btn" data-fac-action="facPdf">↧ PDF</button>
+      <button class="uren-btn" data-fac-action="facAlsVerstuurd"
+        title="Stuurde je hem op een andere manier, bijvoorbeeld via een portaal of per post?">Als verstuurd markeren</button>
+      <button class="uren-btn uren-btn-primary" data-fac-action="facMail"
+        title="Mailen met de PDF als bijlage">✉ Mailen</button>`;
   } else {
     /* Eén mintknop, en altijd dezelfde: op een verstuurde factuur is
        "Betaling registreren" wat er nog moet gebeuren. Het mint sprong eerder
@@ -29875,7 +29950,7 @@ function facAdresHerkomstRegel(f){
     const wanneer=f.gemaildOp
       ? 'Vastgelegd bij het mailen op '+factuurFmtDatum(String(f.gemaildOp).slice(0,10))
       : f.gegevensVastOp
-        ? 'Definitief gemaakt op '+factuurFmtDatum(String(f.gegevensVastOp).slice(0,10))
+        ? 'Vastgelegd op '+factuurFmtDatum(String(f.gegevensVastOp).slice(0,10))
         : 'Vastgelegd';
     return `<div style="${st}">${wanneer} — latere wijzigingen aan de klantgegevens
       komen hier niet vanzelf in.</div>`;
@@ -29885,7 +29960,7 @@ function facAdresHerkomstRegel(f){
   return `<div style="${st}">Volgt je klantgegevens; wordt vastgelegd zodra je de factuur mailt.
     <div style="margin-top:7px">
       <button class="uren-btn" data-fac-action="facGegevensVastleggen"
-        title="Leg de klant- en afzendergegevens vast zoals ze er nu staan">Definitief maken</button>
+        title="Leg de klant- en afzendergegevens vast zoals ze er nu staan">Gegevens vastleggen</button>
       <span style="margin-left:8px">Print of post je deze factuur? Leg ze dan hier vast.</span>
     </div></div>`;
 }
@@ -30285,7 +30360,7 @@ function facUrenOphalen(){
 }
 
 /* ── Statusacties ── */
-function facVerstuur(){
+function facMaakDefinitief(){
   const f=factuurById(facEditId);
   if(!f)return;
   const klant=factuurKlant(f.clientId);
@@ -30297,25 +30372,50 @@ function facVerstuur(){
   if(!(f.regels||[]).length){appToast('Voeg eerst een factuurregel toe',{type:'warning'});return;}
   const t=factuurTotalen(f);
   const urenAantal=factuurUrenIds(f).length;
-  const bevestig=`Factuur versturen?\n\n`+
+  const bevestig=`Factuur definitief maken?\n\n`+
     `${klant.bedrijfsnaam||klant.name}\n`+
     `${factuurFmtBedrag(t.incl)} incl. btw · vervalt ${factuurFmtDatum(f.vervaldatum)}\n\n`+
     (urenAantal?`${urenAantal} urenregistratie${urenAantal===1?'':'s'} gaan op "gefactureerd".\n`:'')+
-    `Het factuurnummer wordt definitief vastgelegd.`;
+    `Het factuurnummer wordt vastgelegd. Versturen doe je daarna: mailen, of zelf als verstuurd markeren.`;
   if(!confirm(bevestig))return;
   /* Pas hier vastleggen: gaat de controle hierboven mis of klik je de
      bevestiging weg, dan is er nog steeds niets aangemaakt. */
   facConceptVastleggen();
-  factuurMarkeerVerstuurd(f.id);
+  factuurMarkeerDefinitief(f.id);
   facEditorRender();
   facRenderAll();
   if(activeModule==='uren')renderUrenModule();
-  appToast(`${f.nummer} verstuurd · ${factuurFmtBedrag(t.incl)}`,{type:'success'});
+  appToast(`${f.nummer} is definitief · ${factuurFmtBedrag(t.incl)}`,{type:'success'});
+}
+/* Zelf als verstuurd markeren: voor een factuur die je niet vanuit de app
+   mailt. Geen vraag vooraf; terugdraaien kan met de melding. */
+function facAlsVerstuurd(){
+  const f=factuurById(facEditId);
+  if(!f||f.status!=='definitief')return;
+  const had={klant:!!f.klant,afzender:!!f.afzender,stempel:!!f.gegevensVastOp};
+  factuurMarkeerVerstuurd(f.id,'handmatig');
+  facEditorRender();
+  facRenderAll();
+  appToast(`${f.nummer} staat op verstuurd`,{type:'success',undo:()=>{
+    const g=factuurById(f.id);
+    if(!g||g.status!=='verstuurd')return;
+    g.status='definitief';
+    delete g.verstuurdOp; delete g.verstuurdHoe;
+    /* Alleen loslaten wat deze stap vastlegde. */
+    if(!had.klant)delete g.klant;
+    if(!had.afzender)delete g.afzender;
+    if(!had.stempel)delete g.gegevensVastOp;
+    g.updatedAt=Date.now();
+    scheduleSave();
+    if(facEditId===g.id)facEditorRender();
+    facRenderAll();
+  }});
 }
 /* Bijwerken is met opzet één klik zonder bevestigingsvraag: de
    verschillen staan al uitgeschreven boven de knop, dus je weet wat je
    krijgt. Terugdraaien kan met de toast. */
-/* "Definitief maken": legt vast wat er nu op de factuur zou komen. Voor
+/* "Gegevens vastleggen" (heette tot 2026-11-01 "Definitief maken", maar
+   dat is nu een status): legt vast wat er nu op de factuur zou komen. Voor
    wie print in plaats van mailt -- dan komt het mailmoment nooit. */
 function facGegevensVastleggenActie(){
   const f=factuurById(facEditId);
@@ -30325,7 +30425,7 @@ function facGegevensVastleggenActie(){
   scheduleSave();
   facEditorRender();
   facRenderAll();
-  appToast(`Gegevens van ${f.nummer} definitief gemaakt`,{
+  appToast(`Gegevens van ${f.nummer} vastgelegd`,{
     type:'success',
     undo:()=>{
       const g=factuurById(f.id);
@@ -30443,7 +30543,7 @@ function facDupliceerActie(id){
 function facVerwijderActie(id){
   const f=factuurById(id||facEditId);
   if(!f)return;
-  if(f.status!=='concept'&&!confirm(`${f.nummer} is al verstuurd. Toch verwijderen?\n\nVoor de administratie is crediteren meestal juister dan verwijderen.`))return;
+  if(f.status!=='concept'&&!confirm(`${f.nummer} is al ${f.status==='definitief'?'definitief':'verstuurd'}. Toch verwijderen?\n\nVoor de administratie is crediteren meestal juister dan verwijderen.`))return;
   const fid=f.id;
   closeFacEditor();
   factuurVerwijder([fid]);
@@ -31875,6 +31975,7 @@ function factuurOudToevoegen(g){
        geen door de app opgebouwde -- er hangt geen uren-administratie aan. */
     extern:true,
     verstuurdOp:(g.verstuurdOp||g.datum)+'T12:00:00.000Z',
+    verstuurdHoe:'buiten',
     createdAt:Date.now(), updatedAt:Date.now()
   };
   factuurState.invoices.push(f);
@@ -34852,6 +34953,8 @@ async function facMailVerstuurActie(){
     } else {
       f.gemaildOp=nu;
       f.gemaildAan=aan;
+      /* Gemaild = verstuurd (2026-11-01). Opnieuw mailen verandert niets. */
+      if(f.status==='definitief'){f.status='verstuurd';f.verstuurdOp=nu;f.verstuurdHoe='mail';}
     }
     f.updatedAt=Date.now();
     if(!Array.isArray(factuurState.mails))factuurState.mails=[];
@@ -43029,7 +43132,7 @@ function aiChatOverzicht(vandaagIso){
       const t=factuurTotalen(f), laat=factuurDagenTeLaat(f);
       const m=_aiChatMaand(f.datum);
       if(m>=maandGrens&&f.status!=='oninbaar')_aiChatTel(omzetMaand,m,t.excl);
-      if(f.status==='verstuurd'){openstaand+=t.openstaand;if(laat>0){teLaatBedrag+=t.openstaand;teLaatAantal++;}}
+      if(factuurOnbetaald(f)){openstaand+=t.openstaand;if(laat>0){teLaatBedrag+=t.openstaand;teLaatAantal++;}}
       return {nummer:f.nummer||null,klant:(f.klant&&f.klant.naam)||_aiChatKlant(f.clientId),datum:f.datum||null,
         vervaldatum:f.vervaldatum||null,status:f.status,excl:_aiChatRond(t.excl),incl:_aiChatRond(t.incl),
         openstaand:_aiChatRond(t.openstaand),dagenTeLaat:laat||undefined,betreft:f.betreft||undefined};
@@ -43037,9 +43140,10 @@ function aiChatOverzicht(vandaagIso){
     uit.facturen={
       openstaandTotaal:_aiChatRond(openstaand), teLaat:{aantal:teLaatAantal,bedrag:_aiChatRond(teLaatBedrag)},
       concepten:fac.filter(f=>f.status==='concept').length,
+      nogNietVerstuurd:fac.filter(f=>f.status==='definitief').length,
       omzetExclPerMaand:Object.keys(omzetMaand).sort().map(m=>({maand:m,excl:omzetMaand[m]})),
       lijst:lijst.slice(0,250),
-      toelichting:'Status: verstuurd = nog niet (helemaal) betaald, betaald, oninbaar. Omzet = factuurdatum, excl btw, zonder concepten en oninbaar.'
+      toelichting:'Status: definitief = vastgelegd maar nog niet naar de klant; verstuurd = gemaild of anders bij de klant, nog niet (helemaal) betaald; betaald; oninbaar. Openstaand = definitief + verstuurd; te laat kan alleen een verstuurde. Omzet = factuurdatum, excl btw, zonder concepten en oninbaar.'
     };
   }
 
