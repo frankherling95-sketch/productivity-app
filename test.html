@@ -2495,6 +2495,40 @@ async function runChecks() {
              r('Acme BI B.V. Gewerkte uren Augustus 2026', 'Acme BI B.V.') === '' &&
              r('Voorbeeld Energie Werkzaamheden Juli 2026', 'Voorbeeld Energie BV') === '';
     }],
+    /* ── Nog niet gefactureerd klikt door (2026-11-01) ── */
+    ['Uren: Nog niet gefactureerd klikt door — de lijst telt wat de tegel telt, een regel opent om te bewerken, en wat gefactureerd is valt eruit',
+      () => metKlant(() => metLS({herling_cijfers: JSON.stringify({uren: true})}, async () => {
+      const oud = w.eval('JSON.stringify({e:urenState.entries,v:urenView,j:urenAnJaar,m:activeModule})');
+      try {
+        const k = w.eval('kanbanState.clients[0].id');
+        w.eval(`(function(k){
+          const vandaag=urenToday(), j=Number(vandaag.slice(0,4));
+          const e=(id,date,hours,status)=>({id,date,clientId:k,hours,description:'Test '+id,status,createdAt:Date.now(),updatedAt:Date.now()});
+          urenState.entries=[e('ng1',vandaag,3,'open'),e('ng2',vandaag,2,'concept'),e('ng3',vandaag,5,'invoiced'),
+            e('ng4',(j-1)+'-06-01',4,'open')];
+          urenAnJaar=null;urenView='analyse';
+        })('${k}')`);
+        w.switchModule('uren'); w.urenRenderAll();
+        const tegel = d.querySelector('#mod-uren .uren-kpi-klik');
+        const telt = !!tegel && /5,00 uur op de plank/.test(tegel.textContent);
+        tegel.click();
+        const lijst = () => [...d.querySelectorAll('#urenCelBody .uren-mcard')];
+        const open = d.getElementById('urenCelModal').classList.contains('open') &&
+          d.getElementById('urenCelTitel').textContent === 'Nog niet gefactureerd' && lijst().length === 2 &&
+          /5,00 uur/.test(d.getElementById('urenCelSub').textContent);
+        /* Een regel opent het bewerkvenster; op Gefactureerd zetten en opslaan */
+        lijst().find(b => b.dataset.urenArg1 === 'ng1').click();
+        const bewerk = d.getElementById('urenEntryModal').classList.contains('open') && w.eval('urenEntryEditing') === 'ng1';
+        d.querySelector('#urenEntryStatus [data-uren-arg1="invoiced"]').click();
+        d.querySelector('#urenEntryModal [data-uren-action="urenEntrySave"]').click();
+        const weg = lijst().length === 1 && !lijst().some(b => b.dataset.urenArg1 === 'ng1');
+        return telt && open && bewerk && weg;
+      } finally {
+        w.closeUrenCel(); w.closeUrenEntryModal?.();
+        d.getElementById('urenEntryModal')?.classList.remove('open');
+        w.eval('(function(o){urenState.entries=o.e;urenView=o.v;urenAnJaar=o.j;switchModule(o.m);})(' + oud + ')');
+      }
+    }))],
     ['Analyse: doorklikken geeft de facturen achter een balk', () => {
       /* De doorklik moet uit dezelfde selectie putten als de grafiek erboven,
          anders wijst een balk naar een ander getal dan hij toont. */

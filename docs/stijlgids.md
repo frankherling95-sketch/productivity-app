@@ -162,6 +162,13 @@ Eén blok, twee namen: `.uren-kpi` (Uren, Facturen) en `.fac-aging-cel`
 | streepje links | 3px in de kleur van de rubriek |
 | maat op 375px | 169 × 65px, twee per regel |
 
+Klikt een tegel door (`urenKpiKlik`, sinds 2026-11-01 *Nog niet gefactureerd*
+in Uren → Analyse), dan is het een `<button class="uren-kpi uren-kpi-klik">`
+met dezelfde opbouw, plus een pijltje `›` rechtsboven (`--fs-groot`,
+`--text-hint`, mint bij aanwijzen) zodat je het ook zonder hover ziet. Het
+label houdt 16px vrij voor dat pijltje. Aanwijzen: vlak `--surface2`; focus
+`2px solid var(--mint)`. Een tegel zonder doorklik blijft een `div`.
+
 ### Bediening in een kaartkop
 
 Verandert een knop alleen wát er in díe kaart staat, dan hoort hij in de kop

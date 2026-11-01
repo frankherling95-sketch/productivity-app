@@ -8969,3 +8969,38 @@ mail)? Open hem en kies *Als verstuurd markeren*.
 
 **Niet doen.** Een factuur op verstuurd zetten zonder dat hij gemaild is of
 dat jij het zelf aangeeft. En definitief als te laat tellen.
+
+## 2026-11-01 · Nog niet gefactureerd klikt door naar de uren (v3.07)
+
+**Vraag.** De tegel *Nog niet gefactureerd* in Uren → Analyse klikbaar maken:
+een overzicht van de uren die nog niet gefactureerd zijn, om daar te bepalen
+of je ze bijwerkt.
+
+**Beslissing.**
+- De tegel is een knop (`urenKpiKlik`) met een pijltje rechtsboven. Hij
+  opent het bestaande lijstvenster van Uren (`urenCelOpen`) met de uren van
+  het analysejaar tot en met deze maand die niet op Gefactureerd staan (Open
+  en Concept) -- precies wat de tegel telt (`urenAnData`). De filterchips in
+  de topbalk tellen daar niet mee (`filter=uit`), want de tegel kent ze
+  ook niet.
+- De regels in de ranglijst *Nog niet gefactureerd* eronder klikken nu ook
+  door: per klant, en de totaalregel voor alle klanten
+  (`urenNietGefactOpen`). Ze waren bewust stil "tot er een doorklik was".
+- In het venster opent een regel het bewerkvenster (`urenEditEntry`, zoals
+  elders); na opslaan loopt de lijst mee. Wat je op Gefactureerd zet, valt
+  eruit.
+- Titel *Nog niet gefactureerd*, ondertitel met klant, "januari t/m
+  november 2026", uren en aantallen. *Naar Registraties* staat er niet bij
+  een reeks van meer dan één maand (`urenCelMaanden`), zoals bij een jaar.
+
+**Waarom.** De tegel noemde een bedrag waar je niets mee kon. Nu leidt hij
+naar de regels erachter, en daar pas je ze aan.
+
+**Bestanden.** `index.html` (`urenKpiKlik`, `urenAnKpiTegels`,
+`urenAnOpenstaand`, `urenNietGefactOpen`, `urenCelOpen`, `urenCelRegels`,
+`urenCelMaanden`, `urenCelRender`, `urenCelNaarReg`, CSS
+`.uren-kpi-klik`), `test.html` (1 nieuwe test), `sw.js`,
+`docs/stijlgids.md`.
+
+**Niet doen.** Een tegel klikbaar maken zonder pijltje: op een telefoon is er
+geen hover die laat zien dat er iets achter zit.

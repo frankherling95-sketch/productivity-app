@@ -889,6 +889,18 @@ select option,select optgroup{background-color:var(--surface);color:var(--text)}
   padding:12px 14px;position:relative;overflow:hidden;
 }
 .uren-kpi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--k,var(--mint))}
+/* Een tegel die doorklikt (urenKpiKlik): dezelfde tegel, met een pijltje
+   rechtsboven; aanwijzen kleurt het vlak zoals een regel in een ranglijst. */
+button.uren-kpi{display:block;width:100%;text-align:left;font:inherit;color:inherit;cursor:pointer;
+  transition:background var(--duur-kort) var(--ease)}
+button.uren-kpi:hover{background:var(--surface2)}
+button.uren-kpi:focus-visible{outline:2px solid var(--mint);outline-offset:-2px}
+.uren-kpi-pijl{position:absolute;top:8px;right:12px;font-size:var(--fs-groot);line-height:1;color:var(--text-hint);
+  transition:color var(--duur-kort) var(--ease)}
+button.uren-kpi:hover .uren-kpi-pijl{color:var(--mint)}
+/* Het label kort in vóór het pijltje, niet eronder (op een telefoon past
+   "Nog niet gefactureerd" niet op één regel). */
+.uren-kpi-klik .uren-kpi-lab{padding-right:16px}
 /* De ouderdomskaarten bij Debiteuren (.fac-aging-cel) zijn hetzelfde blok
    met andere tekst: streepje links, label in kapitalen, bedrag, bijregel.
    Ze stonden alleen op eigen maten -- label 700 tegen 600, cijfer 19px
@@ -1717,8 +1729,8 @@ button.uren-mpiv-row:active{background:var(--surface2)}
   padding:7px 8px;cursor:pointer;text-align:left;font-family:inherit;
   color:var(--text);font-size:var(--fs-basis);
 }
-/* De ranglijst in Uren is niet aanklikbaar (nog geen doorklik naar de
-   registraties), dus daar geen hand en geen hoverstand. */
+/* Een regel zonder doorklik: geen hand en geen hoverstand. (De ranglijst
+   Nog niet gefactureerd in Uren klikt sinds 2026-11-01 wel door.) */
 .fac-an-krij-stil{cursor:default}
 .fac-an-krij:not(.fac-an-krij-stil):hover{background:var(--surface2)}
 .fac-an-krij.aan{background:var(--mint-soft)}
@@ -9767,7 +9779,7 @@ body.aic-open .aic-kop .sp-k { animation: sp-twinkel calc(var(--duur) * 3) var(-
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v3.06</span>
+        <span class="app-versie" title="Appversie">v3.07</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -23164,6 +23176,7 @@ const UREN_CLICK_ACTIONS={
   urenAnMaandNaarReg:()=>urenAnMaandNaarReg(),
   urenAnMaandFactuur:(id)=>urenAnMaandFactuur(id),
   urenCelOpen:(klant,bereik)=>urenCelOpen(klant,bereik),
+  urenNietGefact:(klant)=>urenNietGefactOpen(klant),
   closeUrenCel:()=>closeUrenCel(),
   urenCelNaarReg:()=>urenCelNaarReg(),
   urenSetRegScope:(a)=>urenSetRegScope(a),
@@ -24708,18 +24721,21 @@ function urenAnOpenstaand(d){
   const max=Math.max(...metOpen.map(k=>k.openEuro),1);
   /* Een totaal eronder (2026-10-23), vanaf twee klanten: bij één is het
      dezelfde regel nog eens. Dezelfde som als de tegel bovenaan. */
+  /* Elke regel opent de uren erachter (urenNietGefactOpen, 2026-11-01). */
   const totaal=metOpen.length>1?`
-    <div class="fac-an-krij fac-an-krij-stil fac-an-krij-totaal">
+    <button type="button" class="fac-an-krij fac-an-krij-totaal" data-uren-action="urenNietGefact" data-uren-arg1="*"
+        title="Bekijk alle uren die nog niet gefactureerd zijn">
       <span class="nm">Totaal<small>${metOpen.length} klanten</small></span>
       <span class="bl" aria-hidden="true"></span>
       <span class="wa">${factuurFmtBedrag(d.openEuro)}<small>${urenFmt(d.open)} u</small></span>
-    </div>`:'';
+    </button>`:'';
   return `<div class="fac-an-klanten">${metOpen.map(k=>`
-    <div class="fac-an-krij fac-an-krij-stil">
+    <button type="button" class="fac-an-krij" data-uren-action="urenNietGefact" data-uren-arg1="${escapeHtml(k.key==='geen'?'':k.key)}"
+        title="Bekijk de uren van ${escapeHtml(k.naam)} die nog niet gefactureerd zijn">
       <span class="nm">${escapeHtml(k.naam)}</span>
       <span class="bl"><span class="vul" style="width:${Math.max(1,(k.openEuro/max)*100).toFixed(1)}%"></span></span>
       <span class="wa">${factuurFmtBedrag(k.openEuro)}<small>${urenFmt(k.open)} u</small></span>
-    </div>`).join('')}${totaal}</div>`;
+    </button>`).join('')}${totaal}</div>`;
 }
 
 /* Herkomst per maand: hoeveel je zelf schreef en hoeveel er uit een factuur
@@ -24905,6 +24921,17 @@ function urenAnMaandFactuur(id){
   facOpenEditor(id);
 }
 
+/* Een tegel die doorklikt (2026-11-01): dezelfde tegel als facKpi, maar een
+   knop, met een pijltje rechtsboven zodat je ook op een telefoon (zonder
+   hover) ziet dat er iets achter zit. */
+function urenKpiKlik(lab,val,eenheid,sub,kleur,actie,arg,titel){
+  return `<button type="button" class="uren-kpi uren-kpi-klik" style="--k:${kleur}" data-uren-action="${actie}"
+      data-uren-arg1="${escapeHtml(arg)}" title="${escapeHtml(titel||'')}">
+    <span class="uren-kpi-pijl" aria-hidden="true">›</span>
+    <div class="uren-kpi-lab">${escapeHtml(lab)}</div>
+    <div class="uren-kpi-val">${escapeHtml(String(val))}${eenheid?`<small>${eenheid}</small>`:''}</div>
+    <div class="uren-kpi-sub">${escapeHtml(sub||'')}</div></button>`;
+}
 function urenAnKpiTegels(d){
   const groei=d.heeftVorige&&d.totaalVorig>0
     ? facAnPct(((d.totaal-d.totaalVorig)/d.totaalVorig)*100)+' t.o.v. '+d.vorigJaar : String(d.jaar);
@@ -24912,8 +24939,10 @@ function urenAnKpiTegels(d){
   return facKpiRaster(`
     ${facKpi('Geschreven',urenFmt(d.totaal),' u',groei,'var(--mint)')}
     ${facKpi('Gemiddeld per week',urenFmt(d.perWeek),' u',d.dagen+' dag'+(d.dagen===1?'':'en')+' geschreven','var(--info)')}
-    ${facKpi('Nog niet gefactureerd',factuurFmtBedrag(d.openEuro),'',
-      d.open>0.005?urenFmt(d.open)+' uur op de plank':'alles gefactureerd','var(--warning)')}
+    ${d.open>0.005
+      ?urenKpiKlik('Nog niet gefactureerd',factuurFmtBedrag(d.openEuro),'',urenFmt(d.open)+' uur op de plank',
+        'var(--warning)','urenNietGefact','*','Bekijk de uren die nog niet gefactureerd zijn')
+      :facKpi('Nog niet gefactureerd',factuurFmtBedrag(d.openEuro),'','alles gefactureerd','var(--warning)')}
     ${facKpi('Grootste klant',grootste&&d.totaal
       ?Math.round((grootste.uren/d.totaal)*100)+'%':'—','',
       grootste?grootste.naam+' · '+urenFmt(grootste.uren)+' u':'','var(--success)')}`);
@@ -25302,7 +25331,10 @@ function urenCelOpen(klant,bereik){
   const o={};
   opties.forEach(s=>{const i=s.indexOf('=');if(i>0)o[s.slice(0,i)]=s.slice(i+1);});
   urenCel={klant:klant==null?'':String(klant),van,tot,
-    status:o.status||'',dag:/^[0-6]$/.test(o.dag||'')?Number(o.dag):null};
+    status:o.status||'',dag:/^[0-6]$/.test(o.dag||'')?Number(o.dag):null,
+    /* filter=uit: de chips in de topbalk tellen niet mee, zodat de lijst
+       precies is wat de tegel telde (die kent die chips niet). */
+    zonderFilter:o.filter==='uit'};
   urenCelRender();
   document.getElementById('urenCelModal').classList.add('open');
 }
@@ -25311,9 +25343,12 @@ function closeUrenCel(){
   urenCel=null;
 }
 function urenCelRegels(c){
-  let list=urenFilterToepassen(urenEntriesBetween(c.van,c.tot));
+  let list=urenEntriesBetween(c.van,c.tot);
+  if(!c.zonderFilter)list=urenFilterToepassen(list);
   if(c.klant!=='*')list=list.filter(e=>(e.clientId||'')===c.klant);
-  if(c.status)list=list.filter(e=>urenStatusOf(e)===c.status);
+  /* nietgefact: open én concept -- alles wat nog niet op een factuur staat. */
+  if(c.status==='nietgefact')list=list.filter(e=>urenStatusOf(e)!=='invoiced');
+  else if(c.status)list=list.filter(e=>urenStatusOf(e)===c.status);
   if(c.dag!==null)list=list.filter(e=>(urenDate(e.date).getDay()+6)%7===c.dag);
   return list;
 }
@@ -25325,18 +25360,36 @@ function urenCelHeleMaand(c){
 function urenCelHeelJaar(c){
   return c.van.slice(5)==='01-01'&&c.tot===c.van.slice(0,4)+'-12-31';
 }
+/* Meer dan één hele maand (januari t/m nu): geen week of maand in Registraties. */
+function urenCelMaanden(c){
+  if(c.van.slice(8)!=='01'||c.van.slice(0,7)===c.tot.slice(0,7))return false;
+  const l=urenDate(c.tot);
+  return c.tot===urenIso(new Date(l.getFullYear(),l.getMonth()+1,0));
+}
+/* Uit de tegel of de ranglijst van de analyse: de uren van het analysejaar
+   tot en met deze maand die nog niet op Gefactureerd staan -- precies wat
+   daar geteld wordt (urenAnData). Een regel aantikken opent hem om te
+   bewerken; na opslaan loopt de lijst mee (urenRenderAll). */
+function urenNietGefactOpen(klant){
+  const jaar=urenAnHuidigJaar(), vandaag=urenToday();
+  const tot=jaar===Number(vandaag.slice(0,4))
+    ?urenIso(new Date(jaar,Number(vandaag.slice(5,7)),0)):jaar+'-12-31';
+  urenCelOpen(klant==null?'*':klant,jaar+'-01-01/'+tot+'/status=nietgefact/filter=uit');
+}
 function urenCelRender(){
   const box=document.getElementById('urenCelBody');
   if(!box||!urenCel)return;
   const c=urenCel;
   const list=urenCelRegels(c);
-  const heleMaand=urenCelHeleMaand(c),heelJaar=urenCelHeelJaar(c);
+  const heleMaand=urenCelHeleMaand(c),heelJaar=urenCelHeelJaar(c),maanden=!heelJaar&&urenCelMaanden(c);
   const f=urenDate(c.van),l=urenDate(c.tot);
 
   /* Titel: van wie. Ondertitel: wanneer, en wat erin zit. */
   const wie=c.klant==='*'?'Alle klanten':c.klant?urenClientName(c.klant):'Zonder klant';
   let wanneer;
   if(heelJaar)wanneer=String(f.getFullYear());
+  else if(maanden)wanneer=MONTH_LABELS_NL[f.getMonth()].toLowerCase()+' t/m '+
+    MONTH_LABELS_NL[l.getMonth()].toLowerCase()+' '+l.getFullYear();
   else if(heleMaand)wanneer=MONTH_LABELS_NL[f.getMonth()]+' '+f.getFullYear();
   else if(c.van===c.tot)wanneer=urenFormatDayLabel(c.van)+' · week '+getISOWeek(f);
   else{
@@ -25345,7 +25398,10 @@ function urenCelRender(){
     wanneer='Week '+getISOWeek(f)+' · '+reeks;
   }
   const sub=[];
-  if(c.status)sub.push(c.status==='open'?'Nog te factureren':urenStatusMeta(c.status).label);
+  /* Nog niet gefactureerd: dat is de titel, de klant komt in de ondertitel. */
+  const nietGefact=c.status==='nietgefact';
+  if(nietGefact)sub.push(wie);
+  else if(c.status)sub.push(c.status==='open'?'Nog te factureren':urenStatusMeta(c.status).label);
   if(c.dag!==null)sub.push('Alle '+UREN_DAG_MV[c.dag]);
   sub.push(wanneer);
   if(list.length){
@@ -25354,19 +25410,21 @@ function urenCelRender(){
     const nKl=new Set(list.map(e=>e.clientId||'')).size;
     if(c.klant==='*'&&nKl>1)sub.push(nKl+' klanten');
   }
-  document.getElementById('urenCelTitel').textContent=wie;
+  document.getElementById('urenCelTitel').textContent=nietGefact?'Nog niet gefactureerd':wie;
   document.getElementById('urenCelSub').textContent=sub.join(' · ');
   /* Registraties kent een week en een maand, geen jaar: bij een jaar valt de
      knop weg. Op een telefoon staat Sluiten dan al als kruisje in de kop,
      dus gaat de lege voet mee (zelfde afspraak als de prullenbak). */
   const naar=document.querySelector('#urenCelModal [data-uren-action="urenCelNaarReg"]');
   if(naar){
-    naar.style.display=heelJaar?'none':'';
-    naar.closest('.modal-footer')?.classList.toggle('voet-leeg',heelJaar);
+    naar.style.display=heelJaar||maanden?'none':'';
+    naar.closest('.modal-footer')?.classList.toggle('voet-leeg',heelJaar||maanden);
   }
 
   if(!list.length){
-    box.innerHTML=`<div class="uren-empty"><b>Hier staat niets meer</b>
+    box.innerHTML=nietGefact
+      ?`<div class="uren-empty"><b>Alles is gefactureerd</b>Er staan hier geen uren meer open.</div>`
+      :`<div class="uren-empty"><b>Hier staat niets meer</b>
       De regels zijn verplaatst of verwijderd.</div>`;
     return;
   }
@@ -25396,7 +25454,7 @@ function urenCelRender(){
 function urenCelNaarReg(){
   const c=urenCel;
   closeUrenCel();
-  if(!c||urenCelHeelJaar(c))return;
+  if(!c||urenCelHeelJaar(c)||urenCelMaanden(c))return;
   urenView='reg';
   urenRegScope=urenCelHeleMaand(c)?'month':'week';
   urenSelection.clear();
