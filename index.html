@@ -2467,7 +2467,11 @@ button.uren-mpiv-row:active{background:var(--surface2)}
 /* Velden die bij een keuze horen (lening: doel, zekerheid, betaling; je
    gegevens: de bestuurder) gaan weg met hidden -- .uren-fld is flex, dus
    dat moet hier gezegd, zoals bij Contracten. */
-#fisLenModal [hidden],#fisGegModal [hidden]{display:none}
+#fisLenModal [hidden],#fisGegModal [hidden],#fisAllModal [hidden]{display:none}
+/* Een paar vinkjes bij elkaar (allonge: wat verandert): twee kolommen, ook
+   op een telefoon, waar elk vinkje de hoogte van een vinger krijgt (.fac-vink). */
+.fis-vinken{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}
+@media (max-width:768px){.fis-vinken{gap:0 14px}}
 .inst-kolommen{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(400px,100%),1fr));
   column-gap:var(--sp-5);align-items:start;max-width:1040px}
 .inst-kolom{min-width:0}
@@ -6543,6 +6547,8 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
   /* Het bijschrift boven een veld: dicht genoeg bij de invoer om erbij te
      horen, licht genoeg om niet mee te lezen. */
   .uren-form label, .modal label { font-size: var(--fs-micro) !important; }
+  /* Een vinkje met zijn tekst is geen bijschrift: dat blijft --fs-klein. */
+  .uren-form label.fac-vink, .modal label.fac-vink { font-size: var(--fs-klein) !important; }
 
   /* ── Universal touch-target bump for icon buttons ── */
   .cl2-iconbtn,
@@ -6910,6 +6916,7 @@ body.notes-sleept iframe, body.notes-sleept .notes-editor { pointer-events: none
   /* Menuregels op een telefoon: het raakvlak uit de stijlgids (§3). */
   .notes-plek-menu .uren-menu-item,
   .kb-menu .uren-menu-item,
+  .fis-menu .uren-menu-item,
   .cl-herinner-menu .uren-menu-item { min-height: var(--tap); }
 
   /* ── CHECKLIST ── */
@@ -9783,7 +9790,7 @@ body.aic-open .aic-kop .sp-k { animation: sp-twinkel calc(var(--duur) * 3) var(-
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v3.08</span>
+        <span class="app-versie" title="Appversie">v3.09</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -11125,6 +11132,85 @@ body.aic-open .aic-kop .sp-k { animation: sp-twinkel calc(var(--duur) * 3) var(-
       <div class="modal-footer-right">
         <button class="btn btn-sm modal-annuleer" data-action="fisLenSluit">Annuleren</button>
         <button class="btn btn-sm btn-primary" data-action="fisLenOpslaan">Opslaan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Fiscaal: een allonge bij een lening ──
+     Een wijziging (nieuwe voorwaarden vanaf een datum, met de restschuld) of
+     een herstel van een fout in de overeenkomst (vanaf de ingang). De app
+     maakt de allonge met het nieuwe schema en het besluit van de aandeelhouder. -->
+<div class="modal-bg" id="fisAllModal" onclick="if(event.target===this)fisAllSluit()">
+  <div class="modal" style="max-width:640px;padding:20px 22px">
+    <h3 id="fisAllTitel" style="font-size:18px;font-weight:700;margin:0 0 16px">Allonge</h3>
+    <div class="uren-form">
+      <div class="fis-sectie">De allonge</div>
+      <div class="uren-fld"><label for="fisAllSoort">Soort</label>
+        <select class="inp" id="fisAllSoort" data-change="fisAllVelden">
+          <option value="wijziging">Wijziging vanaf een datum</option>
+          <option value="herstel">Herstel van een fout</option>
+        </select>
+        <small class="opd-hint" id="fisAllSoortHint"></small></div>
+      <div class="opd-velden2">
+        <div class="uren-fld"><label for="fisAllDatum">Datum van de allonge</label><input type="date" class="inp" id="fisAllDatum"/></div>
+        <div class="uren-fld"><label for="fisAllPlaats">Plaats</label><input type="text" class="inp" id="fisAllPlaats" autocomplete="off"/></div>
+      </div>
+      <div class="fis-sectie" id="fisAllWatKop">Wat verandert</div>
+      <div class="fis-vinken" id="fisAllWatVelden" role="group" aria-labelledby="fisAllWatKop">
+        <label class="fac-vink"><input type="checkbox" id="fisAllWatRente" data-change="fisAllVelden"/>Rente</label>
+        <label class="fac-vink"><input type="checkbox" id="fisAllWatLooptijd" data-change="fisAllVelden"/>Looptijd</label>
+        <label class="fac-vink"><input type="checkbox" id="fisAllWatAflossing" data-change="fisAllVelden"/>Aflossingsvorm</label>
+        <label class="fac-vink"><input type="checkbox" id="fisAllWatTermijn" data-change="fisAllVelden"/>Aflossingsbedrag</label>
+      </div>
+      <div class="fis-sectie" id="fisAllFoutKop">Wat was er fout</div>
+      <div class="uren-fld" id="fisAllFoutVeld"><label for="fisAllFout">Onderdeel</label>
+        <select class="inp" id="fisAllFout" data-change="fisAllVelden">
+          <option value="termijn">Het maandbedrag</option>
+          <option value="looptijd">De looptijd</option>
+          <option value="rente">De rente</option>
+          <option value="tekst">Iets anders in de tekst</option>
+        </select></div>
+      <div class="opd-velden2" id="fisAllRenteVelden">
+        <div class="uren-fld"><label for="fisAllRente" id="fisAllRenteLab">Nieuwe rente per jaar</label><input type="text" inputmode="decimal" class="inp" id="fisAllRente" autocomplete="off" placeholder="%"/></div>
+        <div class="uren-fld" id="fisAllRenteVastVeld"><label for="fisAllRenteVast">Rente vast, in maanden</label><input type="text" inputmode="numeric" class="inp" id="fisAllRenteVast" autocomplete="off" placeholder="Rest van de looptijd"/>
+          <small class="opd-hint">Vanaf de wijziging; leeg = de rest van de looptijd</small></div>
+      </div>
+      <div class="uren-fld" id="fisAllLooptijdVeld"><label for="fisAllLooptijd" id="fisAllLooptijdLab">Nieuwe looptijd in maanden</label><input type="text" inputmode="numeric" class="inp" id="fisAllLooptijd" autocomplete="off"/>
+        <small class="opd-hint" id="fisAllLooptijdHint"></small></div>
+      <div class="uren-fld" id="fisAllAflossingVeld"><label for="fisAllAflossing">Nieuwe aflossingsvorm</label>
+        <select class="inp" id="fisAllAflossing">
+          <option value="annuitair">Annuïtair (vast maandbedrag)</option>
+          <option value="lineair">Lineair (vaste aflossing)</option>
+          <option value="aflossingsvrij">Aflossingsvrij</option>
+        </select></div>
+      <div class="uren-fld" id="fisAllTermijnVeld"><label for="fisAllTermijn" id="fisAllTermijnLab">Nieuw maandbedrag</label><input type="text" inputmode="decimal" class="inp" id="fisAllTermijn" autocomplete="off" placeholder="€"/>
+        <small class="opd-hint" id="fisAllTermijnHint"></small></div>
+      <div id="fisAllTekstVelden" class="uren-form">
+        <div class="uren-fld"><label for="fisAllArtikel">Artikel</label><input type="text" class="inp" id="fisAllArtikel" autocomplete="off" placeholder="Bijvoorbeeld 4"/></div>
+        <div class="uren-fld"><label for="fisAllStond">Er staat</label><textarea class="inp" id="fisAllStond" rows="2"></textarea></div>
+        <div class="uren-fld"><label for="fisAllWordt">Het moet zijn</label><textarea class="inp" id="fisAllWordt" rows="2"></textarea></div>
+      </div>
+      <div class="fis-sectie" id="fisAllIjkKop">Onderbouwing van de nieuwe rente</div>
+      <div class="opd-velden2" id="fisAllIjkVelden">
+        <div class="uren-fld"><label for="fisAllIjk">IJkrente</label><input type="text" inputmode="decimal" class="inp" id="fisAllIjk" autocomplete="off" placeholder="%"/></div>
+        <div class="uren-fld"><label for="fisAllIjkDatum">Datum</label><input type="date" class="inp" id="fisAllIjkDatum"/></div>
+      </div>
+      <div class="uren-fld" id="fisAllIjkBronVeld"><label for="fisAllIjkBron">Bron</label><input type="text" class="inp" id="fisAllIjkBron" autocomplete="off" placeholder="Bijvoorbeeld de rentetabel van een bank of een vergelijker"/></div>
+      <div class="uren-fld" id="fisAllIjkWatVeld"><label for="fisAllIjkWat">Wat je vergelijkt</label><input type="text" class="inp" id="fisAllIjkWat" autocomplete="off" placeholder="Dezelfde zekerheid en de resterende looptijd"/>
+        <small class="opd-hint">Wat een bank nu rekent; de rente mag daar niet onder liggen</small></div>
+      <div class="fis-sectie">Toelichting</div>
+      <div class="uren-fld"><label for="fisAllToelichting">Waarom</label><textarea class="inp" id="fisAllToelichting" rows="2" placeholder="Bijvoorbeeld: de marktrente is gedaald"></textarea>
+        <small class="opd-hint">Komt in de allonge en in het besluit</small></div>
+      <div class="opd-reken" id="fisAllReken" aria-live="polite"></div>
+    </div>
+    <div class="modal-footer" style="margin-top:20px">
+      <div class="modal-footer-left">
+        <button class="btn btn-sm btn-danger" id="fisAllWegBtn" data-action="fisAllVerwijder" style="display:none">Verwijderen</button>
+      </div>
+      <div class="modal-footer-right">
+        <button class="btn btn-sm modal-annuleer" data-action="fisAllSluit">Annuleren</button>
+        <button class="btn btn-sm btn-primary" data-action="fisAllOpslaan">Opslaan</button>
       </div>
     </div>
   </div>
@@ -12524,6 +12610,7 @@ function stateOmvang(st){
   n+=((st.contracten||{}).contracten||[]).length;
   n+=((st.fiscaal||{}).dividenden||[]).length;
   n+=((st.fiscaal||{}).leningen||[]).length;
+  ((st.fiscaal||{}).leningen||[]).forEach(l=>{n+=((l&&l.allonges)||[]).length;});
   n+=((st.tasks||{}).clients||[]).length;
   Object.values((st.tasks||{}).projects||{}).forEach(p=>{
     (p&&p.columns||[]).forEach(c=>{n+=(c.items||[]).length;});
@@ -12777,6 +12864,8 @@ function hydrateerStateIntern(){
   if(!Array.isArray(fiscaalState.dividenden))fiscaalState.dividenden=[];
   /* Leningen aan jezelf (2026-11-02): van holding of werkmaatschappij naar privé. */
   if(!Array.isArray(fiscaalState.leningen))fiscaalState.leningen=[];
+  /* Allonges (2026-11-02): wijzigingen en herstel bij een lopende lening. */
+  fiscaalState.leningen.forEach(l=>{if(l&&typeof l==='object'&&!Array.isArray(l.allonges))l.allonges=[];});
   if(!rawState.settings)rawState.settings={};
   /* Restant van de afgeschafte pincode: staat de vlag er nog maar is er
      geen versleuteld blok meer, dan valt er niets te ontgrendelen. Weg
@@ -16299,7 +16388,9 @@ function fisPdfDoc(blokken){
       return;
     }
     if(b.soort==='regels'){tekst();b.regels.forEach(r=>{ruimte(REGEL);doc.text(r,L,y);y+=REGEL;});y+=3;return;}
-    if(b.soort==='tekst'){tekst();doc.splitTextToSize(b.tekst,BREED).forEach(l=>{ruimte(REGEL);doc.text(l,L,y);y+=REGEL;});y+=2;return;}
+    /* houdBij: zoveel mm erna moet op dezelfde pagina passen (de slotzin bij
+       de handtekeningen), anders begint de tekst op een nieuwe pagina. */
+    if(b.soort==='tekst'){tekst();const r=doc.splitTextToSize(b.tekst,BREED);if(b.houdBij)ruimte(r.length*REGEL+b.houdBij);r.forEach(l=>{ruimte(REGEL);doc.text(l,L,y);y+=REGEL;});y+=2;return;}
     if(b.soort==='tabel'){
       b.rijen.forEach(r=>{
         ruimte(7);
@@ -16649,8 +16740,9 @@ function fisLenIngang(l){return l.uitbetaalDatum||l.datum||'';}
    van art. 3.119c Wet IB. De rente over de dagen daarvoor gaat mee met de
    eerste termijn. Een annuïteit wordt naar boven op centen afgerond, zodat
    de schuld nooit boven de wettelijke lijn uitkomt; de laatste termijn
-   vangt het verschil op. */
-function fisLenSchema(l){
+   vangt het verschil op. Dit is het schema van de overeenkomst zelf;
+   fisLenSchema legt de allonges eroverheen. */
+function fisLenSchemaKaal(l){
   const B=Number(l.bedrag)||0,n=Math.round(Number(l.looptijd)||0),ingang=fisLenIngang(l);
   if(!(B>0)||!(n>0)||!fisIsIso(ingang))return null;
   const jr=(Number(l.rente)||0)/100,im=jr/12;
@@ -16674,6 +16766,95 @@ function fisLenSchema(l){
     einde:fisMaandEinde(eerste+n-1),eersteTermijn:fisMaandEinde(eerste),
     eersteBedrag:(l.aflossing==='lineair'?B/n+B*im:termijn)+gebroken,
     totaleRente:maanden.reduce((s,m)=>s+m.rente,0)+gebroken};
+}
+
+/* ── Allonges: een lopende lening wijzigen of herstellen ──
+   Een wijziging geldt vanaf een datum en rekent verder met de restschuld;
+   een herstel (een fout in de tekst of de berekening van de overeenkomst)
+   geldt vanaf de ingang. De overeenkomst zelf blijft zoals hij getekend is. */
+const FIS_ALL_FOUT={termijn:'Het maandbedrag',looptijd:'De looptijd',rente:'De rente',tekst:'Iets anders in de tekst'};
+/* De allonges op datum; bij dezelfde datum op nummer. */
+function fisLenAllonges(l){
+  return (Array.isArray(l&&l.allonges)?l.allonges:[]).filter(a=>a&&fisIsIso(a.datum))
+    .sort((a,b)=>a.datum.localeCompare(b.datum)||(Number(a.nummer)||0)-(Number(b.nummer)||0));
+}
+/* De lening zoals hij gold vóór (incl false) of na (incl true) een allonge.
+   Zonder id: de overeenkomst zoals hij getekend is, zonder allonges. */
+function fisLenTot(l,id,incl){
+  if(!id)return {...l,allonges:[]};
+  const lijst=fisLenAllonges(l),i=lijst.findIndex(a=>a.id===id);
+  return {...l,allonges:i<0?lijst:lijst.slice(0,incl?i+1:i)};
+}
+/* De voorwaarden vanaf de ingang: de overeenkomst, met wat een herstel erin verbetert. */
+function fisLenBasis(l){
+  const b={...l};
+  fisLenAllonges(l).forEach(a=>{
+    if(a.soort!=='herstel')return;
+    if(a.fout==='looptijd'&&Number(a.looptijd)>0)b.looptijd=Math.round(a.looptijd);
+    if(a.fout==='rente'&&typeof a.rente==='number'&&isFinite(a.rente))b.rente=a.rente;
+  });
+  return b;
+}
+function fisAllNummer(l){return (l.allonges||[]).reduce((m,a)=>Math.max(m,Number(a&&a.nummer)||0),0)+1;}
+/* De eerste maand met de nieuwe voorwaarden: de eerste hele kalendermaand
+   na de datum (de 1e: die maand zelf), net als bij de ingang. */
+function fisAllVanIdx(datum){return fisMaandIdx(datum)+(fisIsoDeel(datum).d===1?0:1);}
+function fisMaandBegin(idx){return dateStr(new Date(Math.floor(idx/12),idx%12,1));}
+/* Het schema met de allonges erin. periodes: per stuk van het schema de
+   voorwaarden (k = de termijnen ervoor, R = de restschuld, termijn = het
+   maandbedrag, de aflossing per maand of de rente per maand). Een
+   wijziging die niet kan, staat in fouten en laat het schema ongemoeid. */
+function fisLenSchema(l){
+  const basis=fisLenBasis(l);
+  const s=fisLenSchemaKaal(basis);
+  if(!s)return null;
+  const vast=Math.round(Number(basis.renteVast)||0);
+  s.periodes=[{allonge:null,k:0,R:s.B,n:s.n,im:s.im,rente:Number(basis.rente)||0,aflossing:basis.aflossing,
+    termijn:basis.aflossing==='lineair'?s.B/s.n:s.termijn,vastTot:vast>0&&vast<s.n?s.eerste+vast-1:null}];
+  s.fouten=[];
+  fisLenAllonges(l).forEach(a=>{if(a.soort!=='herstel')fisLenWijzig(s,a);});
+  return s;
+}
+function fisLenWijzig(s,a){
+  const k=Math.max(0,fisAllVanIdx(a.datum)-s.eerste);
+  const fout=reden=>{s.fouten.push({id:a.id,reden});};
+  if(k>=s.maanden.length){fout('Op die datum is de lening volgens het schema al afgelost.');return;}
+  const v=s.periodes[s.periodes.length-1],R=k?s.maanden[k-1].schuld:s.B;
+  const nieuweRente=typeof a.rente==='number'&&isFinite(a.rente);
+  const rente=nieuweRente?a.rente:v.rente,im=rente/100/12;
+  const vorm=FIS_LEN_AFLOSSING[a.aflossing]?a.aflossing:v.aflossing;
+  let n=Number(a.looptijd)>0?Math.round(a.looptijd)-k:s.maanden.length-k,T;
+  if(!(n>0)){fout('De nieuwe looptijd is niet langer dan de '+k+' maanden die al voorbij zijn.');return;}
+  const vastBedrag=Number(a.termijn)>0&&vorm!=='aflossingsvrij'?Number(a.termijn):0;
+  if(vastBedrag){
+    if(vorm!=='lineair'&&vastBedrag<=R*im+0.005){fout('Het maandbedrag moet hoger zijn dan de rente van een maand ('+fisBedragTabel(R*im)+').');return;}
+    n=vorm==='lineair'||!im?Math.ceil(R/vastBedrag-1e-9):Math.ceil(-Math.log(1-R*im/vastBedrag)/Math.log(1+im)-1e-9);
+    T=vastBedrag;
+  }else if(vorm==='aflossingsvrij')T=R*im;
+  else if(vorm==='lineair')T=R/n;
+  else T=im?Math.ceil(R*im/(1-Math.pow(1+im,-n))*100-1e-7)/100:Math.ceil(R/n*100-1e-7)/100;
+  const nieuw=[];
+  let schuld=R;
+  for(let j=0;j<n&&schuld>1e-9;j++){
+    const r=schuld*im;
+    let afl=vorm==='lineair'?T:vorm==='aflossingsvrij'?0:T-r;
+    if(j===n-1||afl>schuld)afl=schuld;
+    schuld=Math.max(0,schuld-afl);
+    nieuw.push({idx:s.eerste+k+j,rente:r,aflossing:afl,schuld});
+  }
+  const vast=Math.round(Number(a.renteVast)||0);
+  s.maanden=s.maanden.slice(0,k).concat(nieuw);
+  s.n=s.maanden.length;
+  s.einde=fisMaandEinde(s.eerste+s.n-1);
+  s.totaleRente=s.maanden.reduce((x,m)=>x+m.rente,0)+s.gebroken;
+  s.periodes.push({allonge:a.id,k,R,n:nieuw.length,im,rente,aflossing:vorm,termijn:T,
+    vastTot:nieuweRente?(vast>0&&vast<nieuw.length?s.eerste+k+vast-1:null):v.vastTot});
+}
+/* De voorwaarden die gelden in een maand (de laatste periode die dan al begonnen is). */
+function fisLenPeriode(s,idx){
+  let p=s.periodes[0];
+  s.periodes.forEach(x=>{if(s.eerste+x.k<=idx)p=x;});
+  return p;
 }
 /* Eén kalenderjaar: schuld 1 januari, opgenomen, afgelost, schuld 31
    december en betaalde rente. Uitgaande van betaling volgens het schema;
@@ -16708,6 +16889,18 @@ function fisLenMaxSchuld(B0,im,N,x){
   const q=1+im;
   return B0*(Math.pow(q,N)-Math.pow(q,x))/(Math.pow(q,N)-1);
 }
+/* Dezelfde lijn bij een schema met allonges: na een andere rente rekent de
+   lijn met die rente verder over wat er volgens de lijn nog openstond. De
+   looptijd N begint niet opnieuw. */
+function fisLenMax(s,N,x){
+  let B=s.B,im=s.im,x0=0;
+  for(const p of (s.periodes||[]).slice(1)){
+    if(p.k>=x)break;
+    if(Math.abs(p.im-im)<1e-12)continue;
+    B=fisLenMaxSchuld(B,im,N-x0,p.k-x0);x0=p.k;im=p.im;
+  }
+  return fisLenMaxSchuld(B,im,N-x0,x-x0);
+}
 /* De maximale looptijd: 360 maanden, en bij oversluiten wat er resteert van
    de oude lening (art. 3.119c lid 3). Alleen een verhoging krijgt opnieuw
    360 (lid 6); daarvoor is een aparte lening nodig. */
@@ -16716,16 +16909,28 @@ function fisLenMaxLooptijd(l){
   if(!fisIsIso(l.oudStart))return null;
   return Math.max(0,360-fisHeleMaanden(l.oudStart,fisLenIngang(l)));
 }
-/* Box 1 of box 3, met de reden. */
+/* Box 1 of box 3, met de reden. Een herstel telt vanaf de ingang mee; een
+   wijziging die de lening uit box 1 haalt, doet dat vanaf haar datum
+   (vanaf, allonge). Daarna blijft het box 3. */
 function fisLenBox(l){
-  const doel=FIS_LEN_DOELEN[l.doel];
+  const doel=FIS_LEN_DOELEN[l.doel],b=fisLenBasis(l);
   if(!doel||!doel.woning)return {box:3,N:null,reden:'Een lening voor '+(l.doel==='auto'?'een auto':'iets anders dan je eigen woning')+' valt in box 3: de rente is niet aftrekbaar.'};
-  if(l.aflossing==='aflossingsvrij')return {box:3,N:null,reden:'Aflossingsvrij is geen eigenwoningschuld: daarvoor los je ten minste annuïtair af in hooguit 360 maanden (art. 3.119a lid 1 Wet IB 2001). Deze lening valt in box 3.'};
-  const N=fisLenMaxLooptijd(l),n=Math.round(Number(l.looptijd)||0);
+  if(b.aflossing==='aflossingsvrij')return {box:3,N:null,reden:'Aflossingsvrij is geen eigenwoningschuld: daarvoor los je ten minste annuïtair af in hooguit 360 maanden (art. 3.119a lid 1 Wet IB 2001). Deze lening valt in box 3.'};
+  const N=fisLenMaxLooptijd(l),n=Math.round(Number(b.looptijd)||0);
   if(N==null)return {box:3,N:null,reden:'Vul de ingang van de oude lening in: bij oversluiten loopt het schema daarvan door.'};
   if(n>N)return {box:3,N,reden:l.doel==='oversluiten'
     ?'Bij oversluiten loopt het schema van de oude lening door: hooguit '+N+' maanden (art. 3.119c lid 3 Wet IB 2001; standpunt Kennisgroep van 15 oktober 2026). Met '+n+' maanden valt de hele lening in box 3.'
     :'Een eigenwoningschuld loopt hooguit 360 maanden (art. 3.119a Wet IB 2001). Met '+n+' maanden valt de lening in box 3.'};
+  const s=fisLenSchema(l);
+  for(const p of s?s.periodes.slice(1):[]){
+    const a=(l.allonges||[]).find(x=>x&&x.id===p.allonge)||{},wie='Allonge '+(a.nummer||'');
+    if(p.aflossing==='aflossingsvrij')return {box:3,N,vanaf:a.datum,allonge:a.id,
+      reden:wie+' maakt de lening aflossingsvrij, en dat is geen eigenwoningschuld (art. 3.119a lid 1 Wet IB 2001). Vanaf de wijziging valt de lening in box 3.'};
+    if(p.k+p.n>N)return {box:3,N,vanaf:a.datum,allonge:a.id,
+      reden:'Een wijziging begint geen nieuwe looptijd: de lening moet binnen '+N+' maanden na de ingang zijn afgelost, uiterlijk op '+fisDatum(fisMaandEinde(s.eerste+N-1))+
+        (l.doel==='oversluiten'?', de rest van de oude lening':'')+' (art. 3.119a en 3.119c lid 3 Wet IB 2001). Na '+wie.toLowerCase()+' loopt hij '+(p.k+p.n)+' maanden, tot '+
+        fisDatum(fisMaandEinde(s.eerste+p.k+p.n-1))+'. Vanaf de wijziging valt de lening in box 3.'};
+  }
   return {box:1,N,reden:''};
 }
 /* Telt de lening mee voor excessief lenen? Alle schulden aan je eigen BV's
@@ -16771,15 +16976,15 @@ function fisLenGegevensOk(g){
 function fisLenStatus(l,g){
   g=g||{};
   const t=v=>String(v||'').trim(),getal=v=>typeof v==='number'&&isFinite(v);
-  const gg=fisLenGeldgever(l,g),doel=FIS_LEN_DOELEN[l.doel],box=fisLenBox(l),s=fisLenSchema(l);
+  const gg=fisLenGeldgever(l,g),doel=FIS_LEN_DOELEN[l.doel],box=fisLenBox(l),s=fisLenSchema(l),b=fisLenBasis(l);
   const gegevens=!!(gg.naam&&gg.plaats&&t(g.vertegenwoordiger)&&t(g.priveAdres)&&(l.geldgever!=='werk'||t(g.holdingNaam)));
   const mist=[];
   if(!doel)mist.push('het doel');
   if(!(Number(l.bedrag)>0))mist.push('het bedrag');
   if(!fisIsIso(l.datum))mist.push('de datum');
   if(!t(l.plaats))mist.push('de plaats');
-  if(!(Number(l.looptijd)>0))mist.push('de looptijd');
-  if(!getal(l.rente))mist.push('de rente');
+  if(!(Number(b.looptijd)>0))mist.push('de looptijd');
+  if(!getal(b.rente))mist.push('de rente');
   if(doel&&doel.woning&&!t(l.woningAdres))mist.push('het adres van de woning');
   if(l.doel==='oversluiten'&&!(fisIsIso(l.oudStart)&&t(l.oudGeldgever)))mist.push('de oude lening');
   if((l.doel==='overig'||l.zekerheid==='pand')&&!t(l.omschrijving))mist.push(l.zekerheid==='pand'?'de auto (merk, type, kenteken)':'waarvoor de lening is');
@@ -16790,9 +16995,40 @@ function fisLenStatus(l,g){
   if(!gegevens){kort='Gegevens ontbreken';reden='Vul eerst je gegevens in: naam en plaats van de '+(l.geldgever==='werk'?'werkmaatschappij (en de holding)':'holding')+', je naam en je woonadres.';}
   else if(mist.length){kort='Lening onvolledig';reden='Nog nodig: '+mist.join(', ')+'.';}
   else if(!ijk){kort='Rente niet onderbouwd';reden='Vul een ijkrente in, met bron en datum: wat een bank rekent voor een vergelijkbare lening met dezelfde zekerheid. Die onderbouwing komt in de overeenkomst.';}
-  else if(l.rente<l.ijkRente-1e-9){kort='Rente te laag';reden='De rente ligt onder de ijkrente van '+fisPct(l.ijkRente)+'. Het verschil kan de Belastingdienst als verkapt dividend zien. Verhoog de rente, of onderbouw een lagere ijkrente.';}
+  else if(b.rente<l.ijkRente-1e-9){kort='Rente te laag';reden='De rente ligt onder de ijkrente van '+fisPct(l.ijkRente)+'. Het verschil kan de Belastingdienst als verkapt dividend zien. Verhoog de rente, of onderbouw een lagere ijkrente.';}
   else if(kasNa!=null&&kasNa<-0.005){kort='Te weinig liquide middelen';reden='De BV komt na de uitbetaling '+fisBedragTabel(-kasNa)+' tekort. Een lening die de BV niet kan missen, is niet te verantwoorden.';}
-  return {klaar:!kort,kort,reden,box:box.box,boxReden:box.reden,N:box.N,schema:s,kasNa,geldgever:gg};
+  else for(const a of fisLenAllonges(l)){
+    const f=fisAllFout(l,a,s);
+    if(f){kort=f.kort;reden='Allonge '+a.nummer+': '+f.reden;break;}
+  }
+  return {klaar:!kort,kort,reden,box:box.box,boxReden:box.reden,boxVanaf:box.vanaf||null,N:box.N,schema:s,kasNa,geldgever:gg};
+}
+/* Wat er aan een allonge ontbreekt of niet kan; null als hij klaar is. Een
+   nieuwe rente vraagt een nieuwe ijkrente, en mag daar niet onder liggen. */
+function fisAllFout(l,a,s){
+  const t=v=>String(v||'').trim(),getal=v=>typeof v==='number'&&isFinite(v);
+  const onv=reden=>({kort:'Allonge onvolledig',reden});
+  if(!fisIsIso(a.datum))return onv('Vul de datum in.');
+  if(fisIsIso(l.datum)&&a.datum<l.datum)return onv('De datum ligt vóór de overeenkomst van '+fisDatum(l.datum)+'.');
+  if(!t(a.plaats))return onv('Vul de plaats in.');
+  if(a.soort==='herstel'){
+    if(!FIS_ALL_FOUT[a.fout])return onv('Kies wat er fout was.');
+    if(a.fout==='termijn'&&!(Number(a.foutBedrag)>0))return onv('Vul in welk maandbedrag er in de overeenkomst staat.');
+    if(a.fout==='looptijd'&&!(Number(a.looptijd)>0))return onv('Vul de juiste looptijd in.');
+    if(a.fout==='rente'&&!getal(a.rente))return onv('Vul de juiste rente in.');
+    if(a.fout==='tekst'&&!(t(a.stond)&&t(a.wordt)))return onv('Vul in wat er staat en wat er had moeten staan.');
+    return null;
+  }
+  if(!(getal(a.rente)||Number(a.looptijd)>0||FIS_LEN_AFLOSSING[a.aflossing]||Number(a.termijn)>0))return onv('Kies wat er verandert.');
+  const sf=s&&(s.fouten||[]).find(x=>x.id===a.id);
+  if(sf)return {kort:'Allonge klopt niet',reden:sf.reden};
+  if(getal(a.rente)){
+    if(!(getal(a.ijkRente)&&t(a.ijkBron)&&fisIsIso(a.ijkDatum)))
+      return {kort:'Rente niet onderbouwd',reden:'Een nieuwe rente vraagt een nieuwe ijkrente, met bron en datum: wat een bank nu rekent voor een vergelijkbare lening met dezelfde zekerheid.'};
+    if(a.rente<a.ijkRente-1e-9)
+      return {kort:'Rente te laag',reden:'De nieuwe rente ligt onder de ijkrente van '+fisPct(a.ijkRente)+'. Het verschil kan de Belastingdienst als verkapt dividend zien. Kies een hogere rente, of onderbouw een lagere ijkrente.'};
+  }
+  return null;
 }
 /* Het volgende vrije contractnummer: Z-001, Z-002, ... */
 function fisLenVolgendNummer(){
@@ -16852,16 +17088,17 @@ function fisLenUitbetaalTekst(l,datum){
 function fisLenZekerheidKort(l){
   return {hypotheek:'een recht van hypotheek op de woning',verklaring:'een positieve en negatieve hypotheekverklaring',pand:'een stil pandrecht op de auto',geen:'geen zekerheid'}[l.zekerheid]||'geen zekerheid';
 }
-/* Het schema per kalenderjaar, voor bijlage 1 (los van 'afgelost op'). */
-function fisLenSchemaRijen(l,s,box1){
+/* Het schema per kalenderjaar, voor bijlage 1 (los van 'afgelost op');
+   bij een allonge vanaf het jaar van de wijziging (vanJaar). */
+function fisLenSchemaRijen(l,s,box1,vanJaar){
   const kaal={...l,afgelostOp:null};
-  const van=fisIsoDeel(s.ingang).y,tot=fisIsoDeel(s.einde).y,N=box1?fisLenMaxLooptijd(l):null;
+  const van=Math.max(fisIsoDeel(s.ingang).y,vanJaar||0),tot=fisIsoDeel(s.einde).y,N=box1?fisLenMaxLooptijd(l):null;
   const rijen=[];let totR=0,totA=0;
   for(let j=van;j<=tot;j++){
     const r=fisLenJaar(kaal,j,s);
     totR+=r.rente;totA+=r.afgelost;
     const cel=[String(j),r.rente,r.afgelost,r.eind];
-    if(box1)cel.push(fisLenMaxSchuld(s.B,s.im,N,fisHeleMaanden(s.ingang,j+'-12-31')));
+    if(box1)cel.push(fisLenMax(s,N,fisHeleMaanden(s.ingang,j+'-12-31')));
     rijen.push({cellen:cel});
   }
   const som=['Totaal',totR,totA,''];
@@ -16871,6 +17108,9 @@ function fisLenSchemaRijen(l,s,box1){
 }
 function fisLenBlokken(soort,l,g,jaar){
   g=g||{};
+  /* Overeenkomst, besluit en pandakte zoals ze getekend zijn; wat daarna
+     veranderde, staat in de allonges. Het jaaroverzicht volgt die wel. */
+  if(soort!=='jaar')l=fisLenTot(l);
   const N_=fisLenNamen(l,g),gg=N_.gg;
   const st=fisLenStatus(l,g),s=st.schema,box1=st.box===1,doel=FIS_LEN_DOELEN[l.doel]||{woning:false};
   const P=String(l.plaats||'').trim(),D=fisDatum(l.datum),DL=fisDatumLang(l.datum),nr=String(l.nummer||'').trim();
@@ -16949,8 +17189,8 @@ function fisLenBlokken(soort,l,g,jaar){
       box1?'Geldnemer verstrekt elk jaar in zijn aangifte inkomstenbelasting de gegevens van deze lening (artikel 3.119g Wet inkomstenbelasting 2001 en artikel 17b Uitvoeringsregeling inkomstenbelasting 2001): de datum van aangaan, het startbedrag, de maandelijkse rentevoet, de looptijd in maanden, de wijze van aflossing, en naam, adres en registratienummer (KvK-nummer en RSIN) van Geldgever, met de wijzigingen in dat jaar.':'');
     artikel('Slotbepalingen',
       'Wijzigingen in deze overeenkomst gelden alleen als partijen ze schriftelijk vastleggen. Op deze overeenkomst is Nederlands recht van toepassing.'+
-        (gg.holding?' Deze overeenkomst is de schriftelijke vastlegging als bedoeld in artikel 2:247 BW.':''),
-      'Aldus opgemaakt in tweevoud en ondertekend te '+P+' op '+DL+'.');
+        (gg.holding?' Deze overeenkomst is de schriftelijke vastlegging als bedoeld in artikel 2:247 BW.':''));
+    bl.push({...T('Aldus opgemaakt in tweevoud en ondertekend te '+P+' op '+DL+'.'),houdBij:52});
     bl.push({soort:'handtekening',plaatsDatum:fisPlaatsDatum(P,l.datum),naam:N_.tekenNaam,regels:N_.tekenRegels,
       naast:{plaatsDatum:fisPlaatsDatum(P,l.datum),naam:N_.naam,regels:['Geldnemer']}});
     if(partner)bl.push({soort:'handtekening',plaatsDatum:fisPlaatsDatum(P,l.datum),naam:partner,regels:['Echtgenoot of geregistreerd partner van Geldnemer']});
@@ -16994,21 +17234,34 @@ function fisLenBlokken(soort,l,g,jaar){
       K('Het jaar '+jaar),
       {soort:'tabel',rijen},
       {soort:'tabel',rijen:[{label:'Betaalde rente in '+jaar,bedrag:j.rente,vet:true}]},
-      T('Uitgaande van betaling volgens het aflossingsschema.'+(fisIsIso(l.afgelostOp)&&fisIsoDeel(l.afgelostOp).y===jaar?' De lening is afgelost op '+fisDatumLang(l.afgelostOp)+'.':''))
+      T('Uitgaande van betaling volgens het aflossingsschema'+(fisLenAllonges(l).length?', zoals gewijzigd bij de allonges':'')+'.'+
+        (fisIsIso(l.afgelostOp)&&fisIsoDeel(l.afgelostOp).y===jaar?' De lening is afgelost op '+fisDatumLang(l.afgelostOp)+'.':''))
     ];
-    if(box1){
-      const x=fisHeleMaanden(s.ingang,jaar+'-12-31'),max=fisLenMaxSchuld(s.B,s.im,st.N,x),ok=j.eind<=max+0.005;
-      const vastTot=Number(l.renteVast)>0&&Number(l.renteVast)<s.n?fisMaandEinde(s.eerste+Number(l.renteVast)-1):'';
-      bl.push(K('Voor je aangifte: eigen woning (box 1)'),
+    /* Haalt een allonge de lening uit box 1, dan is ze dat tot de wijziging nog. */
+    const vanafJ=st.boxVanaf?fisIsoDeel(st.boxVanaf).y:null,overgang=vanafJ===jaar;
+    if(box1||(vanafJ!=null&&jaar<=vanafJ)){
+      const x=fisHeleMaanden(s.ingang,jaar+'-12-31'),max=fisLenMax(s,st.N,x),ok=j.eind<=max+0.005;
+      const p=fisLenPeriode(s,jaar*12+11);
+      const wijz=fisLenAllonges(l).filter(a=>fisIsoDeel(a.datum).y===jaar).map(a=>'allonge '+a.nummer+' van '+fisDatumLang(a.datum)+': '+fisAllWat(l,a).join(', '));
+      const vast=new Set();
+      s.periodes.forEach(q=>{if(q.vastTot!=null&&Math.floor(q.vastTot/12)===jaar&&q.vastTot<s.eerste+s.n-1&&fisLenPeriode(s,q.vastTot).vastTot===q.vastTot)vast.add(q.vastTot);});
+      vast.forEach(v=>wijz.push('de rentevaste periode eindigde op '+fisDatumLang(fisMaandEinde(v))+'; geef de nieuwe rente op'));
+      bl.push(K(overgang?'Voor je aangifte: van box 1 naar box 3':'Voor je aangifte: eigen woning (box 1)'),
         T('Deze gegevens geef je op in je aangifte inkomstenbelasting over '+jaar+' (artikel 3.119g Wet inkomstenbelasting 2001):'),
         T('- Datum van aangaan: '+fisDatumLang(s.ingang)),
         T('- Startbedrag: '+bedrag),
-        T('- Maandelijkse rentevoet: '+fisPct(l.rente/12,4)+' ('+pct+' per jaar)'),
+        T('- Maandelijkse rentevoet: '+fisPct(p.rente/12,4)+' ('+fisPct(p.rente)+' per jaar)'),
         T('- Looptijd: '+s.n+' maanden'),
-        T('- Wijze van aflossing: '+FIS_LEN_AFLOSSING[l.aflossing]),
+        T('- Wijze van aflossing: '+FIS_LEN_AFLOSSING[p.aflossing]),
         T('- Geldverstrekker: '+[gg.naam,gg.adres,gg.kvk?'KvK-nummer '+gg.kvk:'',gg.rsin?'RSIN '+gg.rsin:''].filter(Boolean).join(', ')),
-        T('- Wijzigingen in '+jaar+': '+(vastTot&&fisIsoDeel(vastTot).y===jaar?'de rentevaste periode eindigde op '+fisDatumLang(vastTot)+'; geef de nieuwe rente op':'geen')),
-        T('De betaalde rente ('+fisBedragTabel(j.rente)+') is aftrekbaar zolang de lening een eigenwoningschuld is.'),
+        T('- Wijzigingen in '+jaar+': '+(wijz.length?wijz.join('; '):'geen')));
+      if(overgang){
+        const grens=fisAllVanIdx(st.boxVanaf);
+        let voor=jaar===fisIsoDeel(s.ingang).y?s.gebroken:0;
+        s.maanden.forEach(m=>{if(Math.floor(m.idx/12)===jaar&&m.idx<grens)voor+=m.rente;});
+        bl.push(T(fisPunt(st.boxReden)),
+          T('De rente tot de wijziging ('+fisBedragTabel(voor)+') is aftrekbaar; de rente daarna niet. Voor de aangifte over '+(jaar+1)+' telt de schuld op 1 januari '+(jaar+1)+' in box 3: '+fisBedragTabel(j.eind)+'.'));
+      }else bl.push(T('De betaalde rente ('+fisBedragTabel(j.rente)+') is aftrekbaar zolang de lening een eigenwoningschuld is.'),
         T('Aflossingseis (artikel 3.119c Wet inkomstenbelasting 2001): op 31 december '+jaar+' mag hooguit '+fisBedragTabel(max)+' openstaan; volgens het schema is dat '+fisBedragTabel(j.eind)+'. '+
           (ok?'De lening voldoet.':'De lening voldoet niet: los het verschil uiterlijk op 31 december '+(jaar+1)+' af (artikel 3.119e Wet inkomstenbelasting 2001).')));
     }else{
@@ -17041,10 +17294,176 @@ function fisLenBlokken(soort,l,g,jaar){
       T('Pandgever verkoopt, verhuurt of bezwaart de auto niet zonder voorafgaande schriftelijke toestemming van Pandhouder. Hij houdt de auto in goede staat en verzekerd, en meldt schade, verlies of beslag direct aan Pandhouder.'),
       K('Artikel 5. Uitwinning'),
       T('Is Pandgever in verzuim met de lening, dan mag Pandhouder de afgifte van de auto vorderen en hem verkopen zoals de wet dat regelt (artikelen 3:237 lid 3 en 3:248 BW).'),
-      T('Aldus opgemaakt in tweevoud en ondertekend te '+P+' op '+DL+'.'),
+      {...T('Aldus opgemaakt in tweevoud en ondertekend te '+P+' op '+DL+'.'),houdBij:52},
       {soort:'handtekening',plaatsDatum:fisPlaatsDatum(P,l.datum),naam:N_.tekenNaam,regels:N_.tekenRegels.map(r=>r.replace('(Geldgever)','(Pandhouder)')),
         naast:{plaatsDatum:fisPlaatsDatum(P,l.datum),naam:N_.naam,regels:['Pandgever']}}
     ];
+  }
+  return [];
+}
+
+/* ── De allonge en het besluit erbij ── */
+/* Wat een allonge verandert: de lening ervóór en erna, met hun schema's.
+   p = de voorwaarden die de allonge invoert (bij een herstel: die vanaf de
+   ingang), pV = die er toen golden. */
+function fisAllInfo(l,a){
+  const voor=fisLenTot(l,a.id,false),na=fisLenTot(l,a.id,true);
+  const sV=fisLenSchema(voor),sN=fisLenSchema(na);
+  if(!sV||!sN)return null;
+  const herstel=a.soort==='herstel';
+  const p=herstel?sN.periodes[0]:sN.periodes.find(x=>x.allonge===a.id)||null;
+  const pV=herstel?sV.periodes[0]:p?fisLenPeriode(sV,sV.eerste+p.k):null;
+  const vanIdx=p&&!herstel?sN.eerste+p.k:sN.eerste;
+  return {voor,na,sV,sN,p,pV,vanIdx,van:fisMaandBegin(vanIdx),eersteNieuw:fisMaandEinde(vanIdx)};
+}
+function fisAllTermijnNaam(vorm){return vorm==='lineair'?'aflossing per maand':vorm==='aflossingsvrij'?'rente per maand':'maandbedrag';}
+/* Wat een allonge verandert, kort: voor het menu, het besluit en het jaaroverzicht. */
+function fisAllWat(l,a){
+  const i=fisAllInfo(l,a),bt=fisBedragTabel,uit=[];
+  if(a.soort==='herstel'){
+    const pN=i&&i.p,pO=i&&i.pV;
+    if(a.fout==='termijn')uit.push(fisAllTermijnNaam(pN&&pN.aflossing)+(pN?' '+bt(pN.termijn):'')+' in plaats van '+bt(a.foutBedrag));
+    else if(a.fout==='looptijd')uit.push('looptijd '+a.looptijd+' maanden'+(pO?' in plaats van '+pO.n:''));
+    else if(a.fout==='rente')uit.push('rente '+fisPct(a.rente)+(pO?' in plaats van '+fisPct(pO.rente):''));
+    else uit.push('tekst'+(String(a.artikel||'').trim()?' van artikel '+String(a.artikel).trim().replace(/^artikel\s*/i,''):'')+' hersteld');
+    return uit;
+  }
+  const p=i&&i.p,pV=i&&i.pV,vast=Number(a.termijn)>0;
+  if(typeof a.rente==='number')uit.push('rente '+fisPct(a.rente)+(pV?' (was '+fisPct(pV.rente)+')':''));
+  if(Number(a.looptijd)>0&&!vast)uit.push('looptijd '+(p?i.sN.n:a.looptijd)+' maanden'+(p?' (was '+i.sV.n+')':''));
+  if(FIS_LEN_AFLOSSING[a.aflossing])uit.push(FIS_LEN_AFLOSSING[a.aflossing]+' aflossen'+(pV&&pV.aflossing!==a.aflossing?' (was '+FIS_LEN_AFLOSSING[pV.aflossing]+')':''));
+  if(vast)uit.push(fisAllTermijnNaam(p?p.aflossing:a.aflossing)+' '+bt(a.termijn)+(pV&&pV.aflossing===(p&&p.aflossing)?' (was '+bt(pV.termijn)+')':''));
+  return uit;
+}
+/* soort 'allonge': de allonge met het nieuwe schema als bijlage; 'abesluit':
+   het besluit van de aandeelhouder. Zelfde blokken als de overeenkomst. */
+function fisAllBlokken(soort,l,a,g){
+  g=g||{};
+  const i=fisAllInfo(l,a);
+  if(!i||!i.p)return [];
+  const N_=fisLenNamen(l,g),gg=N_.gg,doel=FIS_LEN_DOELEN[l.doel]||{woning:false};
+  const stV=fisLenStatus(i.voor,g),stN=fisLenStatus(i.na,g),sV=i.sV,sN=i.sN,p=i.p,pV=i.pV;
+  const P=String(a.plaats||'').trim(),D=fisDatum(a.datum),DL=fisDatumLang(a.datum),nr=String(l.nummer||'').trim();
+  const herstel=a.soort==='herstel',bt=fisBedragTabel;
+  const T=t=>({soort:'tekst',tekst:String(t).replace(/€ /g,'€ ')});
+  const K=t=>({soort:'kop',tekst:t});
+  const toel=String(a.toelichting||'').trim().replace(/[.;:,\s]+$/,'');
+  const eerder=fisLenAllonges(i.voor).map(x=>'allonge '+x.nummer+' van '+fisDatumLang(x.datum));
+  const eerderTekst=eerder.length>1?eerder.slice(0,-1).join(', ')+' en '+eerder[eerder.length-1]:eerder.join('');
+  const ijkZin=x=>'De rente is zakelijk. Ter vergelijking: '+String(x.ijkBron||'').trim()+' noemde op '+fisDatumLang(x.ijkDatum)+' een rente van '+fisPct(x.ijkRente)+
+    (String(x.ijkWat||'').trim()?' voor '+String(x.ijkWat).trim():'')+'. De afgesproken rente ligt daar niet onder.';
+  const vormZin=q=>q.aflossing==='lineair'
+    ?'lost Geldnemer elke maand '+bt(q.termijn)+' af en betaalt hij daarnaast de rente over de openstaande hoofdsom (lineair), tot en met '+fisDatumLang(sN.einde)
+    :q.aflossing==='aflossingsvrij'
+    ?'betaalt Geldnemer elke maand de rente ('+bt(q.termijn)+') en lost hij de hoofdsom in één keer af op '+fisDatumLang(sN.einde)
+    :'betaalt Geldnemer elke maand een vast bedrag van '+bt(q.termijn)+' aan rente en aflossing samen (annuïtair), tot en met '+fisDatumLang(sN.einde);
+  if(soort==='allonge'){
+    const bl=[];
+    let art=0;
+    const artikel=(titel,...alineas)=>{art++;bl.push(K('Artikel '+art+'. '+titel));alineas.filter(Boolean).forEach(x=>bl.push(T(x)));};
+    bl.push({soort:'titel',tekst:'Allonge bij overeenkomst van geldlening '+nr});
+    bl.push({soort:'regels',regels:['Allonge nummer: '+a.nummer,'Datum: '+D]});
+    bl.push(T('De ondergetekenden:'));
+    bl.push(T('1. '+gg.naam+', statutair gevestigd te '+gg.plaats+(gg.kvk?', ingeschreven in het handelsregister onder nummer '+gg.kvk:'')+', rechtsgeldig vertegenwoordigd door '+N_.vert+', hierna "Geldgever";'));
+    bl.push(T('2. '+N_.V+(N_.geboren?', geboren op '+N_.geboren:'')+', wonende aan '+N_.adres+', hierna "Geldnemer".'));
+    bl.push(T('In aanmerking nemende dat:'));
+    bl.push(T('- partijen op '+fisDatumLang(l.datum)+' een overeenkomst van geldlening hebben gesloten met contractnummer '+nr+', groot '+fisBedrag(l.bedrag)+' (hierna "de Overeenkomst")'+
+      (eerderTekst?', die is gewijzigd bij '+eerderTekst:'')+';'));
+    bl.push(T('- '+(herstel?'de Overeenkomst een fout bevat die partijen willen herstellen':'partijen de voorwaarden van de Overeenkomst willen wijzigen')+(toel?': '+toel:'')+';'));
+    if(!herstel)bl.push(T('- volgens het aflossingsschema '+(p.k?'na de termijn van '+fisDatumLang(fisMaandEinde(i.vanIdx-1))+' nog '+bt(p.R):'nog de hele hoofdsom van '+bt(p.R))+' openstaat;'));
+    bl.push(T('- de bestuurder van Geldgever ook bij deze allonge een tegenstrijdig belang heeft, en de algemene vergadering van Geldgever daarom op '+DL+' met de allonge heeft ingestemd (artikel 2:239 lid 6 BW);'));
+    bl.push(T('komen het volgende overeen:'));
+    const verrekenen='Wat Geldnemer op grond van de onjuiste tekst te veel of te weinig heeft betaald, wordt verrekend met de eerstvolgende termijn.';
+    const vervangt='Het aflossingsschema in bijlage 1 bij deze allonge vervangt bijlage 1 bij de Overeenkomst.';
+    if(!herstel){
+      const reg=[],vast=Number(a.termijn)>0;
+      if(typeof a.rente==='number')reg.push('Rente (artikel 3): de rente wordt '+fisPct(a.rente)+' per jaar ('+fisPct(a.rente/12,4)+' per maand); dat was '+fisPct(pV.rente)+'. '+
+        (p.vastTot!=null?'De rente staat vast tot en met '+fisDatumLang(fisMaandEinde(p.vastTot))+'; daarna stelt Geldgever haar opnieuw vast zoals artikel 3 van de Overeenkomst bepaalt.':'De rente staat vast voor de rest van de looptijd.')+' '+ijkZin(a));
+      if(Number(a.looptijd)>0&&!vast)reg.push('Looptijd (artikel 2): de looptijd wordt '+sN.n+' maanden, gerekend vanaf de eerste termijn op '+fisDatumLang(sN.eersteTermijn)+
+        '; de lening eindigt op '+fisDatumLang(sN.einde)+'. Dat was '+sV.n+' maanden, tot '+fisDatumLang(sV.einde)+'.');
+      if(FIS_LEN_AFLOSSING[a.aflossing])reg.push('Aflossing (artikel 2): Geldnemer lost voortaan '+FIS_LEN_AFLOSSING[a.aflossing]+' af; dat was '+FIS_LEN_AFLOSSING[pV.aflossing]+'.');
+      if(vast&&p.aflossing!=='aflossingsvrij')reg.push((p.aflossing==='lineair'?'Aflossing per maand':'Maandbedrag')+' (artikel 2): het '+fisAllTermijnNaam(p.aflossing).replace('aflossing','bedrag van de aflossing')+' wordt '+bt(a.termijn)+
+        (pV.aflossing===p.aflossing?'; dat was '+bt(pV.termijn):'')+'. Daarmee is de lening na '+sN.n+' maanden afgelost, op '+fisDatumLang(sN.einde)+' (dat was '+fisDatumLang(sV.einde)+').');
+      artikel('Wijziging',
+        'Met ingang van '+fisDatumLang(i.van)+' wijzigt de Overeenkomst als volgt. De termijn die vervalt op '+fisDatumLang(i.eersteNieuw)+' is de eerste volgens deze allonge; de termijnen daarvoor blijven zoals ze waren.',
+        ...reg.map((x,j)=>'abcd'[j]+'. '+x),
+        'Vanaf die termijn '+vormZin(p)+'. Het aflossingsschema staat in bijlage 1 bij deze allonge; het vervangt vanaf die datum het schema dat tot dan gold.');
+    }else{
+      const pO=pV,naam=fisAllTermijnNaam(p.aflossing),hetNaam=(naam==='maandbedrag'?'het ':'de ')+naam,eindO=fisMaandEinde(sV.eerste+pO.n-1),eindN=fisMaandEinde(sN.eerste+p.n-1);
+      const gevolg=p.aflossing==='aflossingsvrij'?'':' Daarmee is '+hetNaam+' '+bt(p.termijn)+' in plaats van '+bt(pO.termijn)+'.';
+      if(a.fout==='termijn')artikel('Herstel',
+        'In artikel 2 van de Overeenkomst staat als '+naam+' '+bt(a.foutBedrag)+'. Dat bedrag is onjuist berekend: bij een hoofdsom van '+fisBedrag(l.bedrag)+', een rente van '+fisPct(p.rente)+
+          ' per jaar en een looptijd van '+p.n+' maanden is '+hetNaam+' '+bt(p.termijn)+'.',
+        'Partijen stellen vast dat zij vanaf de eerste termijn '+bt(p.termijn)+' hebben bedoeld, en lezen artikel 2 en bijlage 1 van de Overeenkomst zo. '+vervangt+' '+verrekenen);
+      else if(a.fout==='looptijd')artikel('Herstel',
+        'In artikel 2 van de Overeenkomst staat een looptijd van '+pO.n+' maanden, tot '+fisDatumLang(eindO)+'. Dat is onjuist'+
+          (l.doel==='oversluiten'&&stN.N!=null?': de lening zet het aflossingsschema voort van de lening bij '+String(l.oudGeldgever||'').trim()+' die op '+fisDatumLang(l.oudStart)+
+            ' is ingegaan, en daarvan resteerden bij de ingang '+stN.N+' maanden (artikel 3.119c lid 3 Wet inkomstenbelasting 2001)':'')+'.',
+        'Partijen stellen vast dat de looptijd vanaf de ingang '+p.n+' maanden is en dat de lening eindigt op '+fisDatumLang(eindN)+'.'+gevolg+' '+vervangt+' '+verrekenen);
+      else if(a.fout==='rente')artikel('Herstel',
+        'In artikel 3 van de Overeenkomst staat een rente van '+fisPct(pO.rente)+' per jaar. Dat is onjuist: partijen zijn een rente van '+fisPct(p.rente)+' per jaar ('+fisPct(p.rente/12,4)+' per maand) overeengekomen. '+ijkZin(l),
+        'Partijen stellen vast dat die rente vanaf de ingang geldt.'+gevolg+' '+vervangt+' '+verrekenen);
+      else{
+        const ar=String(a.artikel||'').trim().replace(/^artikel\s*/i,'');
+        artikel('Herstel',
+          (ar?'In artikel '+ar+' van de Overeenkomst':'In de Overeenkomst')+' staat: "'+String(a.stond||'').trim()+'". Dat is onjuist; daar had moeten staan: "'+String(a.wordt||'').trim()+'".',
+          'Partijen stellen vast dat zij dat vanaf het sluiten van de Overeenkomst hebben bedoeld, en lezen de Overeenkomst zo.');
+      }
+    }
+    if(doel.woning){
+      const N=stN.N,uiterlijk=N!=null?fisDatumLang(fisMaandEinde(sN.eerste+N-1)):'';
+      let f;
+      if(stN.box===1)f=(stV.box===1?'De lening blijft een eigenwoningschuld':'Met dit herstel voldoet de lening aan de voorwaarden voor een eigenwoningschuld')+' (artikel 3.119a Wet inkomstenbelasting 2001). '+
+        (herstel?'':'Deze allonge begint geen nieuwe looptijd: ')+'Geldnemer lost de lening ten minste annuïtair en volledig af binnen '+N+' maanden na de ingang op '+fisDatumLang(sN.ingang)+
+        ', uiterlijk op '+uiterlijk+(l.doel==='oversluiten'?', de rest van de looptijd van de lening die zij aflost':'')+(herstel&&l.doel!=='oversluiten'?'':' (artikel 3.119c lid 3 Wet inkomstenbelasting 2001)')+'.';
+      else if(stV.box===1)f='Partijen weten dat de lening door deze allonge niet langer voldoet aan de voorwaarden voor een eigenwoningschuld'+
+        (p.aflossing==='aflossingsvrij'?', omdat zij niet meer wordt afgelost (artikel 3.119a Wet inkomstenbelasting 2001)':
+          ': zij moet uiterlijk op '+uiterlijk+' zijn afgelost, en een wijziging begint geen nieuwe looptijd (artikel 3.119a en 3.119c lid 3 Wet inkomstenbelasting 2001)')+
+        '. Vanaf deze allonge is de rente niet aftrekbaar en valt de schuld in box 3.';
+      else f='Partijen weten dat de lening geen eigenwoningschuld is; de rente is niet aftrekbaar en de schuld valt in box 3.';
+      artikel('Fiscale positie',f);
+    }
+    artikel('Overige bepalingen',
+      'Voor het overige blijft de Overeenkomst'+(eerderTekst?', zoals gewijzigd bij '+eerderTekst+',':'')+' ongewijzigd van kracht. Deze allonge maakt deel uit van de Overeenkomst; begrippen hebben dezelfde betekenis als daarin.'+
+        (gg.holding?' Deze allonge is de schriftelijke vastlegging als bedoeld in artikel 2:247 BW.':''));
+    bl.push({...T('Aldus opgemaakt in tweevoud en ondertekend te '+P+' op '+DL+'.'),houdBij:52});
+    bl.push({soort:'handtekening',plaatsDatum:fisPlaatsDatum(P,a.datum),naam:N_.tekenNaam,regels:N_.tekenRegels,
+      naast:{plaatsDatum:fisPlaatsDatum(P,a.datum),naam:N_.naam,regels:['Geldnemer']}});
+    if(herstel&&a.fout==='tekst')return bl;
+    const box1=stN.box===1,vanJ=herstel?null:fisIsoDeel(i.eersteNieuw).y;
+    bl.push({soort:'pagina'});
+    bl.push({soort:'titel',tekst:'Bijlage 1: aflossingsschema'});
+    bl.push({soort:'regels',regels:['Behorend bij allonge '+a.nummer+' van '+D+' bij overeenkomst van geldlening '+nr,
+      (herstel?'Hoofdsom '+fisBedrag(l.bedrag):'Restschuld '+bt(p.R))+' · rente '+fisPct(p.rente)+' · '+(herstel?'':'nog ')+p.n+' maanden · '+FIS_LEN_AFLOSSING[p.aflossing]]});
+    bl.push(T('Bedragen per kalenderjaar'+(vanJ?' vanaf '+vanJ:'')+', uitgaande van betaling volgens dit schema.'+
+      (vanJ&&i.vanIdx%12!==0&&i.vanIdx>sN.eerste?' Het jaar '+vanJ+' telt ook de termijnen vóór de wijziging mee.':'')+
+      (p.aflossing==='annuitair'?' Het maandbedrag is '+bt(p.termijn)+(herstel?'':' vanaf '+fisDatumLang(i.eersteNieuw))+'.':'')+
+      (box1?' De laatste kolom is de hoogste schuld die op 31 december mag openstaan volgens de aflossingseis (artikel 3.119c Wet inkomstenbelasting 2001).':'')));
+    bl.push({soort:'kolommen',koppen:['Jaar','Rente','Aflossing','Schuld 31 december'].concat(box1?['Maximaal']:[]),rijen:fisLenSchemaRijen(i.na,sN,box1,vanJ)});
+    return bl;
+  }
+  if(soort==='abesluit'){
+    const aandeelhouder=gg.holding?N_.V:N_.H+', vertegenwoordigd door '+N_.V;
+    const wat=fisAllWat(l,a);
+    const bl=[
+      {soort:'titel',tekst:'Besluit van de algemene vergadering'},
+      {soort:'regels',regels:['Naam vennootschap: '+gg.naam].concat(gg.kvk?['KvK-nummer: '+gg.kvk]:[],['Datum besluit: '+D,'Plaats: '+P])},
+      T('De ondergetekende, '+aandeelhouder+', enig aandeelhouder van '+gg.naam+', neemt buiten vergadering het volgende besluit (artikel 2:238 BW). Het bestuur is in de gelegenheid gesteld advies uit te brengen.'),
+      K('Overwegingen'),
+      T('- De vennootschap heeft op '+fisDatumLang(l.datum)+' een geldlening van '+fisBedrag(l.bedrag)+' verstrekt aan '+N_.V+' (overeenkomst van geldlening '+nr+(eerderTekst?', gewijzigd bij '+eerderTekst:'')+').'+
+        (herstel?'':' Volgens het aflossingsschema staat daarvan bij de wijziging nog '+bt(p.R)+' open.')),
+      T('- '+(herstel?'De overeenkomst bevat een fout, die partijen herstellen met allonge '+a.nummer+': ':'Partijen wijzigen de overeenkomst met allonge '+a.nummer+', met ingang van '+fisDatumLang(i.van)+': ')+
+        wat.join('; ')+'.'+(toel?' '+fisPunt(toel.charAt(0).toUpperCase()+toel.slice(1)):'')),
+      T('- '+N_.V.charAt(0).toUpperCase()+N_.V.slice(1)+' is direct of indirect bestuurder en aandeelhouder van de vennootschap. Het bestuur heeft daardoor ook bij deze allonge een tegenstrijdig belang en neemt niet deel aan de besluitvorming; het besluit wordt genomen door de algemene vergadering (artikel 2:239 lid 6 BW).')
+    ];
+    if(!herstel&&typeof a.rente==='number')bl.push(T('- De nieuwe rente is zakelijk: '+fisPct(a.rente)+' per jaar, tegen '+fisPct(a.ijkRente)+' bij '+String(a.ijkBron||'').trim()+' op '+fisDatumLang(a.ijkDatum)+
+      (String(a.ijkWat||'').trim()?' voor '+String(a.ijkWat).trim():'')+'.'));
+    if(!herstel&&sN.einde>sV.einde)bl.push(T('- De vennootschap krijgt haar geld later terug, tot '+fisDatumLang(sN.einde)+'. Zij kan de lening zo lang missen en haar opeisbare schulden blijven betalen.'));
+    bl.push(K('Besluit'),
+      T('De algemene vergadering stemt in met allonge '+a.nummer+' van '+DL+' bij de overeenkomst van geldlening '+nr+' van '+fisDatumLang(l.datum)+', op de voorwaarden van die allonge.'),
+      {soort:'handtekening',plaatsDatum:fisPlaatsDatum(P,a.datum),naam:N_.naam,
+        regels:gg.holding?['Enig aandeelhouder van '+gg.naam]:['Namens '+N_.H,'Enig aandeelhouder van '+gg.naam]});
+    return bl;
   }
   return [];
 }
@@ -17052,26 +17471,38 @@ const FIS_LEN_DOCS={
   overeenkomst:{naam:'Overeenkomst met aflossingsschema',bestand:'Overeenkomst_Geldlening'},
   besluit:{naam:'Besluit aandeelhouder',bestand:'Besluit_AVA_Lening'},
   pand:{naam:'Akte van verpanding',bestand:'Pandakte'},
-  jaar:{naam:'Jaaroverzicht',bestand:'Jaaroverzicht'}
+  jaar:{naam:'Jaaroverzicht',bestand:'Jaaroverzicht'},
+  allonge:{naam:'Allonge met nieuw schema',bestand:'Allonge'},
+  abesluit:{naam:'Besluit bij de allonge',bestand:'Besluit_AVA_Allonge'}
 };
-function fisLenBestandsnaam(soort,l,jaar){
+/* extra: het jaar van een jaaroverzicht, of het nummer van een allonge. */
+function fisLenBestandsnaam(soort,l,extra){
   const nr=String(l.nummer||'').trim().replace(/[\/\\\s]+/g,'-').replace(/[^\w-]/g,'')||'lening';
-  return FIS_LEN_DOCS[soort].bestand+'_'+nr+(soort==='jaar'?'_'+jaar:'')+'.pdf';
+  return FIS_LEN_DOCS[soort].bestand+'_'+nr+(soort==='jaar'||soort==='allonge'||soort==='abesluit'?'_'+extra:'')+'.pdf';
 }
 function fisLenSoorten(l){return ['overeenkomst','besluit'].concat(l.zekerheid==='pand'?['pand']:[]);}
-async function fisLenPdf(id,soort,jaar){
+/* Welke stand telt voor een document: de overeenkomst zoals getekend, een
+   allonge met wat ervoor kwam, het jaaroverzicht met alle allonges. */
+function fisLenDocStatus(l,soort,aId,g){
+  if(soort==='allonge'||soort==='abesluit')return fisLenStatus(fisLenTot(l,aId,true),g);
+  return fisLenStatus(soort==='jaar'?l:fisLenTot(l),g);
+}
+/* extra: het jaar (soort 'jaar') of het id van een allonge ('allonge', 'abesluit'). */
+async function fisLenPdf(id,soort,extra){
   fisMenuDicht();
   const l=(fiscaalState.leningen||[]).find(x=>x.id===id);
   if(!l)return;
   const g=fiscaalState.gegevens;
-  const st=fisLenStatus(l,g);
+  const a=soort==='allonge'||soort==='abesluit'?(l.allonges||[]).find(x=>x.id===extra):null;
+  if((soort==='allonge'||soort==='abesluit')&&!a)return;
+  const st=fisLenDocStatus(l,soort,extra,g);
   if(!st.klaar){appMelding('Nog niet klaar',st.reden);return;}
   if(soort==='jaar'){const uit=fisLenJaarUit(l,g);if(uit){appMelding('Nog niet klaar',uit);return;}}
   const soorten=soort==='alle'?fisLenSoorten(l):[soort];
   for(const s of soorten){
-    const doc=fisPdfDoc(fisLenBlokken(s,l,g,jaar));
+    const doc=fisPdfDoc(a?fisAllBlokken(s,l,a,g):fisLenBlokken(s,l,g,extra));
     if(!doc){appToast('De PDF-maker is niet geladen. Controleer je verbinding en probeer het opnieuw.',{type:'error'});return;}
-    doc.save(fisLenBestandsnaam(s,l,jaar));
+    doc.save(fisLenBestandsnaam(s,l,a?a.nummer:extra));
     if(soorten.length>1)await new Promise(r=>setTimeout(r,400));
   }
 }
@@ -17094,9 +17525,12 @@ function fisLeningHtml(){
     const afgelost=fisIsIso(l.afgelostOp);
     const waarde=afgelost?'Afgelost':st.klaar?'Box '+st.box:st.kort;
     const toon=afgelost?'':!st.klaar||(st.box===3&&doel.woning)?'uit':'aan';
+    /* Na een allonge de voorwaarden die nu gelden. */
+    const s=st.schema,p=s&&s.periodes[s.periodes.length-1],n=(l.allonges||[]).length;
+    const rente=p?p.rente:l.rente,looptijd=s?s.n:l.looptijd;
     return '<button type="button" class="inst-rij" data-action="fisLenMenu" data-arg1="'+escapeHtml(l.id)+'" aria-haspopup="menu" aria-expanded="false">'+
       '<span class="inst-tekst"><b>'+escapeHtml([String(l.nummer||'').trim(),fisBedrag(l.bedrag)].filter(Boolean).join(' · '))+'</b><small>'+
-      escapeHtml([doel.kort,typeof l.rente==='number'?fisPct(l.rente):'',l.looptijd?l.looptijd+' maanden':'',fisDatum(l.datum)].filter(Boolean).join(' · '))+'</small></span>'+
+      escapeHtml([doel.kort,typeof rente==='number'?fisPct(rente):'',looptijd?looptijd+' maanden':'',fisDatum(l.datum),n?n+(n===1?' allonge':' allonges'):''].filter(Boolean).join(' · '))+'</small></span>'+
       '<span class="inst-waarde'+(toon?' is-'+toon:'')+'">'+escapeHtml(waarde)+'</span>'+INST_PIJL+'</button>';
   }).join('');
   const leningen='<div class="inst-kaart">'+rijen+
@@ -17149,20 +17583,31 @@ function fisLenMenu(id,knop){
   const l=(fiscaalState.leningen||[]).find(x=>x.id===id);
   if(!l||!knop)return;
   const g=fiscaalState.gegevens;
-  const st=fisLenStatus(l,g),jaarUit=fisLenJaarUit(l,g);
+  /* De overeenkomst zoals getekend; het jaaroverzicht met de allonges. */
+  const stO=fisLenStatus(fisLenTot(l),g),st=fisLenStatus(l,g),jaarUit=fisLenJaarUit(l,g);
   const item=(actie,extra,tekst,uit,klein)=>'<button type="button" class="uren-menu-item'+(actie==='weg'?' gevaar':'')+'" role="menuitem"'+(uit?' disabled':'')+
     ' data-action="fisLenActie" data-arg1="'+actie+'" data-arg2="'+escapeHtml(id)+'" data-arg3="'+escapeHtml(extra==null?'':String(extra))+'"><span>'+escapeHtml(tekst)+
     (klein?'<small>'+escapeHtml(klein)+'</small>':'')+'</span></button>';
   const soorten=fisLenSoorten(l);
   const jaren=fisLenJaren(l);
+  const allonges=fisLenAllonges(l);
   const m=document.createElement('div');
   m.className='uren-menu fis-menu';m.id='fisMenu';m.dataset.id=id;m.setAttribute('role','menu');
   m.innerHTML='<div class="uren-menu-lab">Lening '+escapeHtml(String(l.nummer||'').trim()||fisBedrag(l.bedrag))+'</div>'+
-    soorten.map(s=>item('pdf',s,FIS_LEN_DOCS[s].naam,!st.klaar)).join('')+
-    item('pdf','alle',soorten.length===3?'Alle drie documenten':'Beide documenten',!st.klaar,st.klaar?'':st.reden)+
-    (jaren.length?'<div class="uren-menu-sep"></div>'+jaren.map(j=>item('jaar',j,'Jaaroverzicht '+j,!st.klaar||!!jaarUit,st.klaar&&jaarUit&&j===jaren[0]?jaarUit:'')).join(''):'')+
+    soorten.map(s=>item('pdf',s,FIS_LEN_DOCS[s].naam,!stO.klaar)).join('')+
+    item('pdf','alle',soorten.length===3?'Alle drie documenten':'Beide documenten',!stO.klaar,stO.klaar?'':stO.reden)+
+    allonges.map(a=>{
+      const sa=fisLenDocStatus(l,'allonge',a.id,g);
+      return '<div class="uren-menu-sep"></div>'+
+        item('allonge',a.id,'Allonge '+a.nummer,!sa.klaar,sa.klaar?fisDatum(a.datum)+' · '+fisAllWat(l,a)[0]:sa.reden)+
+        item('abesluit',a.id,'Besluit bij allonge '+a.nummer,!sa.klaar);
+    }).join('')+
+    (jaren.length?'<div class="uren-menu-sep"></div>'+jaren.map(j=>item('jaar',j,'Jaaroverzicht '+j,!st.klaar||!!jaarUit,
+      j!==jaren[0]?'':!st.klaar&&stO.klaar?st.reden:st.klaar&&jaarUit?jaarUit:'')).join(''):'')+
     '<div class="uren-menu-sep"></div>'+
     item('bewerk','','Bewerken')+
+    item('anieuw','','Wijzigen met allonge',!fisLenSchema(l),'Rente, looptijd, aflossing, of een fout herstellen')+
+    allonges.map(a=>item('abewerk',a.id,'Allonge '+a.nummer+' bewerken')).join('')+
     '<div class="uren-menu-sep"></div>'+
     item('weg','','Verwijderen');
   document.body.appendChild(m);
@@ -17303,6 +17748,9 @@ function fisLenReken(){
   const exc=fisExcStand(jaar,andere.concat([l]));
   li.push('Excessief lenen op 31-12-'+jaar+': '+b(fisBedrag(exc.telt))+' van '+escapeHtml(fisBedrag(exc.grens))+(fisLenTeltMee(l)?'':' (deze lening telt niet mee)'));
   if(st.kasNa!=null)li.push('Liquide middelen van de BV na de uitbetaling '+b(fisBedragTabel(st.kasNa)));
+  /* Met allonges: hier staat de overeenkomst zoals getekend. */
+  const echt=fisLenForm.id&&(fiscaalState.leningen||[]).find(x=>x.id===fisLenForm.id),nA=echt?(echt.allonges||[]).length:0;
+  if(nA)li.unshift('Dit zijn de voorwaarden van de overeenkomst zelf; '+(nA===1?'de allonge staat':'de '+nA+' allonges staan')+' in het menu van de lening');
   const fout=!st.klaar&&(st.kort==='Rente te laag'||st.kort==='Te weinig liquide middelen');
   box.innerHTML=(fout?'<p class="opd-reken-fout">'+escapeHtml(st.reden)+'</p>':'')+'<ul>'+li.map(x=>'<li>'+x+'</li>').join('')+'</ul>';
 }
@@ -17320,7 +17768,7 @@ function fisLenOpslaan(){
   if(fisLenForm.id){
     const i=lijst.findIndex(x=>x.id===fisLenForm.id);
     if(i>=0)lijst[i]={...lijst[i],...l,updatedAt:nu};
-  }else lijst.push({id:uid(),...l,createdAt:nu,updatedAt:nu});
+  }else lijst.push({id:uid(),...l,allonges:[],createdAt:nu,updatedAt:nu});
   scheduleSave();
   fisLenSluit();
   renderFiscaalModule();
@@ -17339,12 +17787,209 @@ function fisLenVerwijder(){
     scheduleSave();renderFiscaalModule();
   }});
 }
+/* ── Het venster van een allonge ── */
+let fisAllForm=null;   /* {len, id|null, nummer} zolang het venster open is */
+function fisAllOpen(lenId,id){
+  fisMenuDicht();
+  const l=(fiscaalState.leningen||[]).find(x=>x.id===lenId);
+  if(!l)return;
+  const a=id?(l.allonges||[]).find(x=>x.id===id):null;
+  if(id&&!a)return;
+  fisAllForm={len:l.id,id:a?a.id:null,nummer:a?a.nummer:fisAllNummer(l)};
+  const zet=(el,v)=>{const x=document.getElementById(el);if(x)x.value=v==null?'':v;};
+  const vink=(el,v)=>{const x=document.getElementById(el);if(x)x.checked=!!v;};
+  const herstel=!!a&&a.soort==='herstel',getal=v=>typeof v==='number'&&isFinite(v);
+  /* De laatste onderbouwing van de rente om mee te beginnen; de datum niet,
+     want een nieuwe rente vraagt een vergelijking van nu. */
+  const vorige=fisLenAllonges(l).filter(x=>x.id!==id&&x.soort!=='herstel'&&getal(x.rente)).pop();
+  const ijk=a&&!herstel&&getal(a.rente)?a:vorige||l;
+  const s=fisLenSchema(l),pl=s?s.periodes[s.periodes.length-1]:null;
+  zet('fisAllSoort',a?a.soort:'wijziging');
+  zet('fisAllDatum',a?a.datum:urenToday());
+  zet('fisAllPlaats',a?a.plaats:l.plaats);
+  vink('fisAllWatRente',a&&!herstel&&getal(a.rente));
+  vink('fisAllWatLooptijd',a&&!herstel&&Number(a.looptijd)>0);
+  vink('fisAllWatAflossing',a&&!herstel&&!!FIS_LEN_AFLOSSING[a.aflossing]);
+  vink('fisAllWatTermijn',a&&!herstel&&Number(a.termijn)>0);
+  zet('fisAllFout',herstel&&FIS_ALL_FOUT[a.fout]?a.fout:'termijn');
+  zet('fisAllRente',a&&getal(a.rente)?fisInvoerGetal(a.rente):'');
+  zet('fisAllRenteVast',a&&a.renteVast?String(a.renteVast):'');
+  zet('fisAllLooptijd',a&&a.looptijd?String(a.looptijd):'');
+  zet('fisAllAflossing',a&&FIS_LEN_AFLOSSING[a.aflossing]?a.aflossing:pl&&pl.aflossing==='annuitair'?'lineair':'annuitair');
+  zet('fisAllTermijn',herstel?fisInvoerGetal(a.foutBedrag):a&&a.termijn?fisInvoerGetal(a.termijn):'');
+  zet('fisAllArtikel',herstel?a.artikel:'');
+  zet('fisAllStond',herstel?a.stond:'');
+  zet('fisAllWordt',herstel?a.wordt:'');
+  zet('fisAllIjk',fisInvoerGetal(ijk.ijkRente));
+  zet('fisAllIjkDatum',ijk===a?a.ijkDatum:'');
+  zet('fisAllIjkBron',ijk.ijkBron);
+  zet('fisAllIjkWat',ijk.ijkWat);
+  zet('fisAllToelichting',a?a.toelichting:'');
+  document.getElementById('fisAllTitel').textContent='Allonge '+fisAllForm.nummer+' bij lening '+(String(l.nummer||'').trim()||fisBedrag(l.bedrag));
+  document.getElementById('fisAllWegBtn').style.display=a?'':'none';
+  fisAllVelden();
+  document.getElementById('fisAllModal').classList.add('open');
+  setTimeout(()=>document.getElementById('fisAllSoort')?.focus(),60);
+}
+function fisAllSluit(){
+  document.getElementById('fisAllModal').classList.remove('open');
+  fisAllForm=null;
+}
+/* Wat er in het venster staat, als allonge. Alleen wat is aangevinkt of bij
+   de gekozen fout hoort, telt; de rest is null. */
+function fisAllUitForm(){
+  const v=el=>document.getElementById(el)?.value||'',t=el=>v(el).trim(),aan=el=>!!document.getElementById(el)?.checked;
+  const getal=el=>fisGetal(v(el)),heel=el=>{const x=fisGetal(v(el));return x==null?null:Math.round(x);};
+  const herstel=v('fisAllSoort')==='herstel',fout=herstel?v('fisAllFout'):null;
+  const a={soort:herstel?'herstel':'wijziging',datum:v('fisAllDatum'),plaats:t('fisAllPlaats'),
+    rente:null,renteVast:null,looptijd:null,aflossing:null,termijn:null,ijkRente:null,ijkDatum:null,ijkBron:'',ijkWat:'',
+    fout,foutBedrag:null,artikel:'',stond:'',wordt:'',toelichting:t('fisAllToelichting')};
+  if(herstel){
+    if(fout==='termijn')a.foutBedrag=getal('fisAllTermijn');
+    else if(fout==='looptijd')a.looptijd=heel('fisAllLooptijd');
+    else if(fout==='rente')a.rente=getal('fisAllRente');
+    else{a.artikel=t('fisAllArtikel');a.stond=t('fisAllStond');a.wordt=t('fisAllWordt');}
+    return a;
+  }
+  if(aan('fisAllWatRente')){
+    a.rente=getal('fisAllRente');a.renteVast=heel('fisAllRenteVast');
+    a.ijkRente=getal('fisAllIjk');a.ijkDatum=v('fisAllIjkDatum')||null;a.ijkBron=t('fisAllIjkBron');a.ijkWat=t('fisAllIjkWat');
+  }
+  if(aan('fisAllWatLooptijd'))a.looptijd=heel('fisAllLooptijd');
+  if(aan('fisAllWatAflossing'))a.aflossing=v('fisAllAflossing')||'annuitair';
+  if(aan('fisAllWatTermijn')&&a.aflossing!=='aflossingsvrij')a.termijn=getal('fisAllTermijn');
+  return a;
+}
+/* De lening met de allonge uit het venster erin, om mee te rekenen. */
+function fisAllProef(){
+  const l=fisAllForm&&(fiscaalState.leningen||[]).find(x=>x.id===fisAllForm.len);
+  if(!l)return null;
+  const a={...fisAllUitForm(),id:fisAllForm.id||'nieuw',nummer:fisAllForm.nummer};
+  return {l:{...l,allonges:(l.allonges||[]).filter(x=>x.id!==a.id).concat([a])},a};
+}
+/* Welke velden er bij de soort, de vinkjes en de fout horen. Een vast
+   aflossingsbedrag bepaalt de looptijd: die twee gaan niet samen. */
+function fisAllVelden(el){
+  const v=id=>document.getElementById(id)?.value||'',aan=id=>!!document.getElementById(id)?.checked;
+  const toon=(id,ja)=>{const x=document.getElementById(id);if(x)x.hidden=!ja;};
+  const tekst=(id,t)=>{const x=document.getElementById(id);if(x)x.textContent=t;};
+  if(el&&el.checked&&el.id==='fisAllWatTermijn')document.getElementById('fisAllWatLooptijd').checked=false;
+  if(el&&el.checked&&el.id==='fisAllWatLooptijd')document.getElementById('fisAllWatTermijn').checked=false;
+  const herstel=v('fisAllSoort')==='herstel',fout=v('fisAllFout');
+  const rente=herstel?fout==='rente':aan('fisAllWatRente');
+  const looptijd=herstel?fout==='looptijd':aan('fisAllWatLooptijd');
+  const termijn=herstel?fout==='termijn':aan('fisAllWatTermijn');
+  ['fisAllWatKop','fisAllWatVelden'].forEach(id=>toon(id,!herstel));
+  ['fisAllFoutKop','fisAllFoutVeld'].forEach(id=>toon(id,herstel));
+  toon('fisAllRenteVelden',rente);
+  toon('fisAllRenteVastVeld',!herstel);
+  toon('fisAllLooptijdVeld',looptijd);
+  toon('fisAllAflossingVeld',!herstel&&aan('fisAllWatAflossing'));
+  toon('fisAllTermijnVeld',termijn);
+  toon('fisAllTekstVelden',herstel&&fout==='tekst');
+  ['fisAllIjkKop','fisAllIjkVelden','fisAllIjkBronVeld','fisAllIjkWatVeld'].forEach(id=>toon(id,!herstel&&rente));
+  const l=fisAllForm&&(fiscaalState.leningen||[]).find(x=>x.id===fisAllForm.len);
+  const s=l&&fisLenSchema(fisAllForm.id?fisLenTot(l,fisAllForm.id,false):l);
+  const pl=s?s.periodes[s.periodes.length-1]:null,N=l?fisLenBox(l).N:null;
+  const vorm=!herstel&&aan('fisAllWatAflossing')?v('fisAllAflossing'):pl?pl.aflossing:'annuitair';
+  tekst('fisAllSoortHint',herstel
+    ?'Geldt vanaf de ingang: partijen stellen vast wat er bedoeld was, en lezen de overeenkomst zo.'
+    :'Geldt vanaf de eerste hele maand na de datum, en rekent verder met wat er dan nog openstaat.');
+  tekst('fisAllRenteLab',herstel?'Juiste rente per jaar':'Nieuwe rente per jaar');
+  tekst('fisAllLooptijdLab',herstel?'Juiste looptijd in maanden':'Nieuwe looptijd in maanden');
+  tekst('fisAllLooptijdHint',s?'Vanaf de eerste termijn ('+fisDatum(s.eersteTermijn)+'); nu '+s.n+' maanden, tot '+fisDatum(s.einde)+
+    (N!=null?'. Voor box 1 hooguit '+N+', ook na een wijziging':''):'');
+  tekst('fisAllTermijnLab',herstel?'In de overeenkomst staat':vorm==='lineair'?'Nieuwe aflossing per maand':'Nieuw maandbedrag');
+  tekst('fisAllTermijnHint',herstel?'Het onjuiste bedrag; de app rekent het juiste uit':vorm==='lineair'?'De looptijd volgt eruit':'Rente en aflossing samen; de looptijd volgt eruit');
+  fisAllReken();
+}
+/* Onderaan het venster: wat er verandert en de toetsen, terwijl je typt. */
+function fisAllReken(){
+  const box=document.getElementById('fisAllReken');
+  if(!box||!fisAllForm)return;
+  const pr=fisAllProef();
+  if(!pr||!fisIsIso(pr.a.datum)){box.innerHTML='';return;}
+  const g=fiscaalState.gegevens||{},l=pr.l,a=pr.a,i=fisAllInfo(l,a);
+  if(!i){box.innerHTML='';return;}
+  const st=fisLenDocStatus(l,'allonge',a.id,g),sf=(i.sN.fouten||[]).find(x=>x.id===a.id);
+  const b=x=>'<b>'+escapeHtml(x)+'</b>',bt=fisBedragTabel,groot=x=>x.charAt(0).toUpperCase()+x.slice(1),li=[];
+  const p=i.p,pV=i.pV;
+  if(p&&!sf&&!(a.soort==='herstel'&&a.fout==='tekst')){
+    if(a.soort==='herstel'&&a.fout==='termijn')
+      li.push('Juist '+fisAllTermijnNaam(p.aflossing)+' '+b(bt(p.termijn))+(Number(a.foutBedrag)>0?'; in de overeenkomst staat '+escapeHtml(bt(a.foutBedrag))+
+        ', '+escapeHtml(bt(Math.abs(a.foutBedrag-p.termijn)))+' per maand '+(a.foutBedrag>p.termijn?'te veel':'te weinig'):''));
+    else{
+      if(a.soort!=='herstel')li.push('Nog open bij de wijziging '+b(bt(p.R))+'; de eerste termijn met de nieuwe voorwaarden is die van '+escapeHtml(fisDatum(i.eersteNieuw)));
+      li.push(groot(fisAllTermijnNaam(p.aflossing))+' '+b(bt(p.termijn))+(pV&&pV.aflossing===p.aflossing&&Math.abs(pV.termijn-p.termijn)>0.004?' (was '+escapeHtml(bt(pV.termijn))+')':''));
+      li.push('Laatste termijn '+b(fisDatum(i.sN.einde))+(i.sN.einde!==i.sV.einde?' (was '+escapeHtml(fisDatum(i.sV.einde))+')':'')+'; '+i.sN.n+' maanden vanaf de eerste termijn');
+      li.push('Totale rente '+b(bt(i.sN.totaleRente))+(Math.abs(i.sN.totaleRente-i.sV.totaleRente)>0.004?' (was '+escapeHtml(bt(i.sV.totaleRente))+')':''));
+    }
+    if((FIS_LEN_DOELEN[l.doel]||{}).woning)li.push(st.box===1
+      ?b('Box 1')+': eigenwoningschuld'+(st.N!=null?', uiterlijk afgelost op '+escapeHtml(fisDatum(fisMaandEinde(i.sN.eerste+st.N-1))):'')
+      :b('Box 3')+': '+escapeHtml(st.boxReden));
+    const ijk=a.soort==='herstel'?l.ijkRente:a.ijkRente;
+    if(typeof a.rente==='number'&&typeof ijk==='number')li.push('Rente '+escapeHtml(fisPct(a.rente))+' tegen ijkrente '+b(fisPct(ijk))+(a.rente<ijk-1e-9?' — te laag':''));
+  }
+  const fout=sf?sf.reden:!st.klaar&&(st.kort==='Rente te laag'||st.kort==='Allonge klopt niet')?st.reden.replace(/^Allonge \d+: /,''):'';
+  box.innerHTML=(fout?'<p class="opd-reken-fout">'+escapeHtml(fout)+'</p>':'')+(li.length?'<ul>'+li.map(x=>'<li>'+x+'</li>').join('')+'</ul>':'');
+}
+document.addEventListener('input',e=>{if(e.target&&e.target.closest&&e.target.closest('#fisAllModal'))fisAllReken();});
+document.addEventListener('change',e=>{if(e.target&&e.target.closest&&e.target.closest('#fisAllModal'))fisAllReken();});
+function fisAllOpslaan(){
+  if(!fisAllForm)return;
+  const l=(fiscaalState.leningen||[]).find(x=>x.id===fisAllForm.len);
+  if(!l)return;
+  const a=fisAllUitForm(),aan=id=>!!document.getElementById(id)?.checked;
+  const meld=(t,veld)=>{appToast(t,{type:'warning'});if(veld)document.getElementById(veld)?.focus();};
+  if(!fisIsIso(a.datum))return meld('Vul de datum van de allonge in.','fisAllDatum');
+  if(a.soort==='wijziging'){
+    if(!['fisAllWatRente','fisAllWatLooptijd','fisAllWatAflossing','fisAllWatTermijn'].some(aan))return meld('Kies wat er verandert.');
+    if(aan('fisAllWatRente')&&a.rente==null)return meld('Vul de nieuwe rente in.','fisAllRente');
+    if(aan('fisAllWatLooptijd')&&!(a.looptijd>0))return meld('Vul de nieuwe looptijd in maanden in.','fisAllLooptijd');
+    if(aan('fisAllWatTermijn')&&a.aflossing!=='aflossingsvrij'&&!(a.termijn>0))return meld('Vul het nieuwe aflossingsbedrag in.','fisAllTermijn');
+  }
+  const nu=Date.now();
+  if(!Array.isArray(l.allonges))l.allonges=[];
+  let id=fisAllForm.id;
+  if(id){
+    const i=l.allonges.findIndex(x=>x.id===id);
+    if(i>=0)l.allonges[i]={...l.allonges[i],...a,updatedAt:nu};
+  }else{id=uid();l.allonges.push({id,nummer:fisAllForm.nummer,...a,createdAt:nu,updatedAt:nu});}
+  l.updatedAt=nu;
+  scheduleSave();
+  fisAllSluit();
+  renderFiscaalModule();
+  const st=fisLenDocStatus(l,'allonge',id,fiscaalState.gegevens);
+  appToast(st.klaar?'Allonge bewaard; de allonge en het besluit staan klaar in het menu.':'Allonge bewaard. '+st.reden,{type:st.klaar?'success':'warning'});
+}
+function fisAllVerwijder(){
+  if(!fisAllForm||!fisAllForm.id)return;
+  const l=(fiscaalState.leningen||[]).find(x=>x.id===fisAllForm.len);
+  const i=l?(l.allonges||[]).findIndex(x=>x.id===fisAllForm.id):-1;
+  if(i<0)return;
+  const weg=l.allonges.splice(i,1)[0];
+  scheduleSave();fisAllSluit();renderFiscaalModule();
+  appToast('Allonge verwijderd',{type:'success',undo:()=>{
+    l.allonges.splice(Math.min(i,l.allonges.length),0,weg);
+    scheduleSave();renderFiscaalModule();
+  }});
+}
+Object.assign(APP_ACTIONS,{
+  fisAllSluit:()=>fisAllSluit(),
+  fisAllOpslaan:()=>fisAllOpslaan(),
+  fisAllVerwijder:()=>fisAllVerwijder()
+});
+Object.assign(APP_CHANGE_ACTIONS,{fisAllVelden:el=>fisAllVelden(el)});
+
 Object.assign(APP_ACTIONS,{
   fisLenOpen:()=>fisLenOpen(null),
   fisLenMenu:(el,e,id)=>{if(e)e.stopPropagation();fisLenMenu(id,el);},
   fisLenActie:(el,e,actie,id,extra)=>{
     if(actie==='pdf')fisLenPdf(id,extra);
     else if(actie==='jaar')fisLenPdf(id,'jaar',Number(extra));
+    else if(actie==='allonge'||actie==='abesluit')fisLenPdf(id,actie,extra);
+    else if(actie==='anieuw')fisAllOpen(id,null);
+    else if(actie==='abewerk')fisAllOpen(id,extra);
     else if(actie==='bewerk')fisLenOpen(id);
     else if(actie==='weg'){fisMenuDicht();fisLenForm={id};fisLenVerwijder();}
   },
@@ -18583,6 +19228,19 @@ function voegStateSamen(oud,nu){
   uit.fiscaal={...(uit.fiscaal||{}),
     dividenden:vulAan((oud.fiscaal||{}).dividenden,(nu.fiscaal||{}).dividenden,'dividenden'),
     leningen:vulAan((oud.fiscaal||{}).leningen,(nu.fiscaal||{}).leningen,'leningen')};
+  /* Allonges horen bij een lening: staat de lening aan beide kanten, vul
+     dan haar allonges aan op id (een lening die alleen oud is, heeft ze al). */
+  {const oudL=new Map(((oud.fiscaal||{}).leningen||[]).filter(x=>x&&x.id).map(x=>[x.id,x]));
+   rapport.allonges=0;
+   uit.fiscaal.leningen.forEach(l=>{
+     const o=oudL.get(l&&l.id);
+     if(!o||!Array.isArray(o.allonges))return;
+     const ids=new Set((l.allonges||[]).map(a=>a&&a.id));
+     const mist=o.allonges.filter(a=>a&&a.id&&!ids.has(a.id));
+     if(!mist.length)return;
+     l.allonges=(l.allonges||[]).concat(JSON.parse(JSON.stringify(mist)));
+     rapport.allonges+=mist.length;
+   });}
   if(!Object.keys(uit.fiscaal.gegevens||{}).length&&(oud.fiscaal||{}).gegevens)
     uit.fiscaal.gegevens=JSON.parse(JSON.stringify(oud.fiscaal.gegevens));
   uit.tasks={...(uit.tasks||{}),
@@ -18601,6 +19259,7 @@ function versieRapportTekst(r){
   if(r.contracten)d.push(r.contracten+' '+(r.contracten===1?'contract':'contracten'));
   if(r.dividenden)d.push(r.dividenden+' '+(r.dividenden===1?'dividenduitkering':'dividenduitkeringen'));
   if(r.leningen)d.push(r.leningen+' '+(r.leningen===1?'lening':'leningen'));
+  if(r.allonges)d.push(r.allonges+' '+(r.allonges===1?'allonge':'allonges'));
   if(r.klanten)d.push(r.klanten+' klanten');
   return d.length?d.join(', '):null;
 }
