@@ -2779,6 +2779,192 @@ async function runChecks() {
         })()
       ];
     })(),
+    /* ── Fiscaal: ondertekenen (2026-11-02) ──
+       Verzonnen gegevens en een getekende krabbel. Na afloop staan
+       fiscaalState, de opruimlijst en de opslag op dit apparaat terug, en
+       is er niets gedownload of gemaild. */
+    ...(() => {
+      const G = {werkNaam: 'Voorbeeld B.V.', werkKvk: '12345678', werkPlaats: 'Puren', werkAdres: 'Werkstraat 1, 1234 AB Puren', werkRsin: '001122334',
+        holdingNaam: 'Voorbeeld Holding B.V.', holdingKvk: '87654321', holdingPlaats: 'Puren', holdingAdres: 'Holdingweg 2, 1234 AB Puren', holdingRsin: '998877665',
+        aanhef: 'de heer', vertegenwoordiger: 'Jan Jansen', bestuurder: 'holding', bestuurderNaam: '', priveAdres: 'Dorpsstraat 3, 1234 CD Puren', geboortedatum: '1990-05-01'};
+      const L = {id: 'tlt1', nummer: 'Z-003', geldgever: 'holding', doel: 'oversluiten', omschrijving: '', woningAdres: 'Dorpsstraat 3, 1234 CD Puren',
+        bedrag: 40000, datum: '2026-06-16', plaats: 'Puren', oudGeldgever: 'Voorbeeld Bank', oudStart: '2021-03-01', aflossing: 'annuitair', looptijd: 297,
+        rente: 4.4, renteVast: null, ijkRente: 4.2, ijkDatum: '2026-06-10', ijkBron: 'de rentetabel van Voorbeeld Bank', ijkWat: 'een hypotheek 30 jaar vast zonder NHG',
+        zekerheid: 'verklaring', partner: '', uitbetaalAan: 'oud', uitbetaalDatum: null, betaling: 'incasso', iban: 'NL00TEST0123456789', kas: 90000, afgelostOp: null,
+        allonges: [], getekend: [], tekenMails: []};
+      const KRABBEL = [[{x: 10, y: 40}, {x: 40, y: 12}, {x: 70, y: 44}, {x: 100, y: 16}, {x: 130, y: 42}, {x: 170, y: 22}], [{x: 30, y: 50}, {x: 150, y: 52}]];
+      const vandaag = () => w.urenToday();
+      /* Een async functie van de app via de echte klik, en toch wachten tot hij klaar is. */
+      const enWacht = async (naam, doe) => {
+        const echt = w[naam]; let belofte = null;
+        w[naam] = (...a) => (belofte = echt(...a));
+        try { doe(); await belofte; } finally { w[naam] = echt; }
+      };
+      const metTeken = async fn => {
+        const oud = w.eval('JSON.stringify(fiscaalState)'), oudOpruim = w.eval('JSON.stringify(contractState.opruimen||[])'), oudMod = w.eval('activeModule');
+        const echtPdf = w.fisPdfDoc, bewaard = [];
+        /* Geen download: wat de app zou opslaan, onthouden we. */
+        w.fisPdfDoc = bl => { const doc = echtPdf(bl); if (doc) doc.save = naam => { bewaard.push(naam); return doc; }; return doc; };
+        w.eval('fiscaalState=' + JSON.stringify({gegevens: G, dividenden: [], leningen: [L]}));
+        try { return await fn(bewaard); }
+        finally {
+          w.fisPdfDoc = echtPdf;
+          try { w.fisTekenSluit(); w.fisGegSluit(); w.fisMenuDicht(); w.appToastHide(); } catch (_) {}
+          const ids = JSON.parse(w.eval('JSON.stringify(fiscaalState.dividenden.concat(fiscaalState.leningen).flatMap(x=>(x.getekend||[]).map(t=>t.bestand&&t.bestand.id)).concat((contractState.opruimen||[]).map(t=>t.id)))'));
+          const blijft = new Set(JSON.parse(oudOpruim).map(t => t.id));
+          w.eval('fiscaalState=' + oud); w.eval('contractState.opruimen=' + oudOpruim); w.eval('fisWeergave="kies"');
+          for (const id of ids) if (id && !blijft.has(id)) await w.ctrLokaalWeg(id);
+          try { w.switchModule(oudMod); } catch (_) {}
+        }
+      };
+      const weg = id => w.getComputedStyle(d.getElementById(id)).display === 'none';
+      return [
+        ['Ondertekenen: je handtekening komt alleen op de regels met jouw naam, met de gekozen datum; wie zelf tekent en een lege datum blijven open', () => {
+          const h = w.fisHandUitStreken(KRABBEL), stip = w.fisHandUitStreken([[{x: 5, y: 5}]]);
+          const krabbel = !!h && /^data:image\/png;base64,/.test(h.png) && h.w > 0 && h.w <= 900 && h.h <= 240 && stip === null;
+          const metPartner = {...L, partner: 'Pien Voorbeeld'};
+          const bl = w.fisLenBlokken('overeenkomst', metPartner, G);
+          const t = w.fisTekenBlokken(bl, G, {plaats: 'Puren', datum: '2026-11-02', beeld: h});
+          const hk = t.filter(b => b.soort === 'handtekening');
+          const regels = hk.length === 2 && hk[0].beeld === h && hk[0].plaatsDatum === 'Puren, 2-11-2026' && !hk[0].datumLeeg &&
+            hk[0].naast.beeld === h && hk[0].naast.naam === 'Jan Jansen' &&
+            hk[1].naam === 'Pien Voorbeeld' && hk[1].beeld === null && hk[1].datumLeeg && hk[1].plaatsDatum === 'Puren';
+          /* De slotzin: met iemand die zelf nog tekent zonder datum, alleen jij wel. */
+          const slot = b => b.find(x => x.slot).tekst;
+          const slotOk = slot(t) === 'Aldus opgemaakt in tweevoud en ondertekend te Puren.' &&
+            slot(w.fisTekenBlokken(w.fisLenBlokken('overeenkomst', L, G), G, {plaats: 'Puren', datum: '2026-11-02', beeld: h})) === 'Aldus opgemaakt in tweevoud en ondertekend te Puren op 2 november 2026.' &&
+            slot(bl) === 'Aldus opgemaakt in tweevoud en ondertekend te Puren op 16 juni 2026.';
+          const leeg = w.fisTekenBlokken(bl, G, {plaats: 'Puren', datum: '', beeld: h}).find(b => b.soort === 'handtekening');
+          const leegOk = leeg.datumLeeg && leeg.beeld === h && leeg.plaatsDatum === 'Puren';
+          /* Een andere bestuurder tekent voor de werkmaatschappij: die regel niet. */
+          const G2 = {...G, bestuurder: 'persoon', bestuurderNaam: 'Pieter Voorbeeld'};
+          const wie = w.fisTekenWie(w.fisLenBlokken('overeenkomst', {...L, geldgever: 'werk'}, G2), G2);
+          const wieOk = wie.mijn.length === 1 && wie.mijn[0] === 'Geldnemer' && wie.anderen.length === 1 && wie.anderen[0].naam === 'Pieter Voorbeeld';
+          const div = w.fisTekenWie(w.fisDivBlokken('bestuur', {datum: '2026-11-02', plaats: 'Puren', boekjaar: '2025', bedrag: 1000}, G), G);
+          /* De PDF: een plaatje met doorzichtigheid, en een stippellijn voor de datum. */
+          const raw = w.fisPdfDoc(t).output();
+          const pdf = /\/Subtype \/Image/.test(raw) && /\/SMask/.test(raw) && !!w.fisPdfDoc(w.fisTekenBlokken(bl, G, {plaats: '', datum: ''}));
+          const vinger = w.fisStukVinger(bl) === w.fisStukVinger(w.fisLenBlokken('overeenkomst', metPartner, G)) &&
+            w.fisStukVinger(bl) !== w.fisStukVinger(w.fisLenBlokken('overeenkomst', {...metPartner, rente: 4.5}, G));
+          return krabbel && regels && slotOk && leegOk && wieOk && div.mijn.length === 1 && !div.anderen.length && pdf && vinger;
+        }],
+        ['Ondertekenen: een foto wordt inkt op doorzichtig papier, bijgesneden en zonder de schaduw; een leeg vel geeft niets', () => {
+          const B = 200, H = 100, px = new w.Uint8ClampedArray(B * H * 4);
+          for (let y = 0; y < H; y++) for (let x = 0; x < B; x++) {
+            /* Papier van 250 links naar 150 rechts (een schaduw), met een streep inkt. */
+            const inkt = x >= 70 && x < 130 && y >= 47 && y < 53, l = inkt ? 30 : 250 - x / 2, o = (y * B + x) * 4;
+            px[o] = px[o + 1] = px[o + 2] = l; px[o + 3] = 255;
+          }
+          const r = w.fisHandUitPixels(px, B, H);
+          const a = (x, y) => r.data[(y * r.w + x) * 4 + 3];
+          const ok = !!r && r.w >= 60 && r.w <= 80 && r.h >= 6 && r.h <= 20 && a(0, 0) === 0 && a(r.w - 1, r.h - 1) === 0 &&
+            a(Math.floor(r.w / 2), Math.floor(r.h / 2)) > 200 && r.data[(Math.floor(r.h / 2) * r.w + Math.floor(r.w / 2)) * 4 + 2] === 0x6b;
+          const vel = new w.Uint8ClampedArray(B * H * 4).fill(230);
+          return ok && w.fisHandUitPixels(vel, B, H) === null;
+        }],
+        ['Ondertekenen: tekenen bij je gegevens, dan ondertekent het venster de overeenkomst en bewaart hem bij de lening; wijzigen en verwijderen worden gezien', () => metTeken(async bewaard => {
+          w.switchModule('fiscaal'); w.fisOpen('lening');
+          const body = d.getElementById('fisBody');
+          body.querySelector('[data-action="fisLenMenu"][data-arg1="tlt1"]').click();
+          const tekenItem = d.querySelector('#fisMenu [data-arg1="teken"]');
+          const menuOk = !!tekenItem && !tekenItem.disabled;
+          tekenItem.click();
+          const modal = d.getElementById('fisTekenModal'), reken = () => d.getElementById('fisTekenReken').textContent;
+          const zonder = modal.classList.contains('open') && /Lening Z-003/.test(d.getElementById('fisTekenSub').textContent) &&
+            d.getElementById('fisTekenMijn').disabled && !weg('fisTekenGeen') && d.getElementById('fisTekenKnop').textContent === 'Downloaden' &&
+            d.getElementById('fisTekenDatum').value === vandaag() && d.getElementById('fisTekenPlaats').value === 'Puren' && /Plaats en datum komen bij/.test(reken());
+          modal.querySelector('[data-action="fisTekenNaarGegevens"]').click();
+          const geg = d.getElementById('fisGegModal');
+          const naarGeg = geg.classList.contains('open') && !modal.classList.contains('open');
+          geg.querySelector('[data-action="fisHand"][data-arg1="teken"]').click();
+          const c = d.querySelector('#fisHandVak canvas'), r = c.getBoundingClientRect();
+          const pe = (type, p) => c.dispatchEvent(new w.PointerEvent(type, {clientX: r.left + p.x, clientY: r.top + p.y, pointerId: 7, bubbles: true, cancelable: true}));
+          KRABBEL.forEach(s => { pe('pointerdown', s[0]); s.slice(1).forEach(p => pe('pointermove', p)); pe('pointerup', s[s.length - 1]); });
+          geg.querySelector('[data-action="fisHand"][data-arg1="klaar"]').click();
+          const plaatje = !!d.querySelector('#fisHandVak img');
+          geg.querySelector('[data-action="fisGegOpslaan"]').click();
+          const h = w.eval('fiscaalState.gegevens.handtekening');
+          const opgeslagen = !!h && /^data:image\/png;base64,/.test(h.png) && h.w > 0 && h.w <= 900 && h.h <= 240 && w.eval('fiscaalState.gegevens.holdingNaam') === 'Voorbeeld Holding B.V.';
+          const terug = modal.classList.contains('open') && !d.getElementById('fisTekenMijn').disabled && d.getElementById('fisTekenMijn').checked &&
+            d.getElementById('fisTekenKnop').textContent === 'Ondertekenen' && weg('fisTekenGeen') && /Jouw handtekening komt bij/.test(reken());
+          const datum = d.getElementById('fisTekenDatum');
+          const zetD = v => { datum.value = v; datum.dispatchEvent(new w.Event('input', {bubbles: true})); };
+          zetD(''); const leeg = /met de hand in/.test(reken());
+          zetD('2026-06-16'); const eerder = /vóór vandaag/.test(reken());
+          zetD(vandaag());
+          await enWacht('fisTekenDoe', () => d.getElementById('fisTekenKnop').click());
+          const l = w.eval('fiscaalState.leningen[0]'), t = l.getekend[0];
+          const getekend = l.getekend.length === 1 && t.soort === 'overeenkomst' && t.bron === 'app' && t.datum === vandaag() &&
+            t.bestand.naam === 'Overeenkomst_Geldlening_Z-003_getekend.pdf' && bewaard.join() === t.bestand.naam && !modal.classList.contains('open') &&
+            w.eval('ctrAlleBijlagen().some(b=>b.id===' + JSON.stringify(t.bestand.id) + ')') && await w.ctrLokaalHeeft(t.bestand.id) &&
+            t.vinger === w.fisStukVinger(w.fisLenBlokken('overeenkomst', l, w.eval('fiscaalState.gegevens')));
+          const rij = () => body.querySelector('[data-action="fisLenMenu"][data-arg1="tlt1"]');
+          const rijOk = /deels getekend/.test(rij().textContent);
+          rij().click();
+          const item = () => d.querySelector('#fisMenu [data-arg1="getekend"]');
+          const menuNa = !!item() && /Getekend: Overeenkomst met aflossingsschema/.test(item().textContent) && /getekend \d/.test(item().textContent) && !/daarna gewijzigd/.test(item().textContent);
+          w.fisMenuDicht();
+          /* Na het tekenen een andere rente: de getekende versie zegt iets anders. */
+          w.eval('fiscaalState.leningen[0].rente=4.5');
+          rij().click();
+          const anders = w.fisGetekendAnders('len', 'tlt1').length === 1 && /daarna gewijzigd/.test(item().textContent);
+          /* Verwijderen: de PDF in de opruimlijst; ongedaan maken zet hem terug in gebruik. */
+          d.querySelector('#fisMenu [data-arg1="weg"]').click();
+          const begraven = w.eval('(contractState.opruimen||[]).some(x=>x.id===' + JSON.stringify(t.bestand.id) + ')') && w.eval('fiscaalState.leningen.length') === 0;
+          d.getElementById('undoToastUndoBtn').click();
+          const weerTerug = w.eval('fiscaalState.leningen.length') === 1 && w.eval('ctrAlleBijlagen().some(b=>b.id===' + JSON.stringify(t.bestand.id) + ')');
+          return menuOk && zonder && naarGeg && plaatje && opgeslagen && terug && leeg && eerder && getekend && rijOk && menuNa && anders && begraven && weerTerug;
+        })],
+        ['Ondertekenen: mailen naar wie nog tekent gaat via Gmail met de PDF erbij, zonder download; een getekende PDF terugzetten en weghalen kan; de state laadt', () => metLogin(() => metTeken(async bewaard => {
+          w.eval('fiscaalState.leningen[0].partner="Pien Voorbeeld"');
+          w.switchModule('fiscaal'); w.fisOpen('lening');
+          d.querySelector('#fisBody [data-action="fisLenMenu"][data-arg1="tlt1"]').click();
+          d.querySelector('#fisMenu [data-arg1="teken"]').click();
+          const modal = d.getElementById('fisTekenModal'), reken = () => d.getElementById('fisTekenReken').textContent;
+          const partner = /Pien Voorbeeld tekent zelf/.test(reken()) && weg('fisTekenAanVeld');
+          const mail = d.getElementById('fisTekenMail');
+          mail.checked = true; mail.dispatchEvent(new w.Event('change', {bubbles: true}));
+          const velden = !weg('fisTekenAanVeld') && !weg('fisTekenBerichtVeld') && d.getElementById('fisTekenKnop').textContent === 'Mailen' &&
+            /Ter ondertekening: Overeenkomst met aflossingsschema \(Lening Z-003\)/.test(d.getElementById('fisTekenOnderwerp').value) &&
+            /Jan Jansen$/.test(d.getElementById('fisTekenBericht').value);
+          d.getElementById('fisTekenAan').value = 'iemand@voorbeeld.nl';
+          const echtMail = w.mailApiVerstuur, verstuurd = [];
+          w.mailApiVerstuur = async b => { verstuurd.push(b); return {id: 'test'}; };
+          try { await enWacht('fisTekenDoe', () => d.getElementById('fisTekenKnop').click()); } finally { w.mailApiVerstuur = echtMail; }
+          const l = w.eval('fiscaalState.leningen[0]');
+          const gemaild = verstuurd.length === 1 && /To: iemand@voorbeeld\.nl/.test(verstuurd[0]) && /filename="Overeenkomst_Geldlening_Z-003\.pdf"/.test(verstuurd[0]) &&
+            bewaard.length === 0 && l.tekenMails.length === 1 && l.tekenMails[0].aan === 'iemand@voorbeeld.nl' && l.getekend.length === 0 && !modal.classList.contains('open');
+          d.querySelector('#fisBody [data-action="fisLenMenu"][data-arg1="tlt1"]').click();
+          d.querySelector('#fisMenu [data-arg1="teken"]').click();
+          const onthouden = /Gemaild naar iemand@voorbeeld\.nl/.test(reken());
+          /* De getekende PDF komt terug: erbij zetten. */
+          const pdf = new w.jspdf.jsPDF(); pdf.text('getekend', 20, 20);
+          const inp = d.getElementById('fisTekenBestand'), dt = new w.DataTransfer();
+          dt.items.add(new w.File([pdf.output('arraybuffer')], 'scan.pdf', {type: 'application/pdf'}));
+          inp.files = dt.files;
+          await enWacht('fisTekenBestand', () => inp.dispatchEvent(new w.Event('change', {bubbles: true})));
+          const t = w.eval('fiscaalState.leningen[0].getekend[0]');
+          const terug = !!t && t.bron === 'upload' && t.bestand.naam === 'Overeenkomst_Geldlening_Z-003_getekend.pdf' && !weg('fisTekenBestaand') &&
+            /^Toegevoegd/.test(d.getElementById('fisTekenBestaand').textContent) && await w.ctrLokaalHeeft(t.bestand.id);
+          modal.querySelector('[data-action="fisTekenWeg"]').click();
+          const weggehaald = w.eval('fiscaalState.leningen[0].getekend.length') === 0 && weg('fisTekenBestaand') &&
+            w.eval('(contractState.opruimen||[]).some(x=>x.id===' + JSON.stringify(t.bestand.id) + ')');
+          d.getElementById('undoToastUndoBtn').click();
+          const undo = w.eval('fiscaalState.leningen[0].getekend.length') === 1;
+          /* Laden: zonder de nieuwe velden krijgt elk stuk lege lijsten; een vreemde handtekening gaat eruit. */
+          const bewaar = JSON.stringify(w.huidigeStateSnapshot());
+          let laadt = false;
+          try {
+            w.eval('rawState=' + bewaar);
+            const {getekend, tekenMails, ...kaal} = L;
+            w.eval('rawState.fiscaal=' + JSON.stringify({gegevens: {...G, handtekening: {png: 'data:text/html,<b>x</b>', w: 1, h: 1}}, dividenden: [{id: 'td1', bedrag: 1}], leningen: [kaal]}));
+            w.hydrateerState();
+            laadt = w.eval('Array.isArray(fiscaalState.leningen[0].getekend)&&Array.isArray(fiscaalState.leningen[0].tekenMails)&&Array.isArray(fiscaalState.dividenden[0].getekend)&&!("handtekening" in fiscaalState.gegevens)');
+          } finally { w.eval('rawState=' + bewaar); w.hydrateerState(); }
+          return partner && velden && gemaild && onthouden && terug && weggehaald && undo && laadt;
+        }))]
+      ];
+    })(),
     ['Uren-analyse: Nog niet gefactureerd krijgt een totaal eronder (vanaf twee klanten), met dezelfde som als de tegel', () => {
       const twee = w.urenAnOpenstaand({klanten: [{naam: 'Klant A', open: 2, openEuro: 200}, {naam: 'Klant B', open: 1.5, openEuro: 150}], open: 3.5, openEuro: 350});
       const doos = d.createElement('div'); doos.innerHTML = twee;
