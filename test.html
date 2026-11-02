@@ -4981,6 +4981,166 @@ async function runChecks() {
             laatste.acties[0].status === 'voorstel' && laatste.acties[0].titel === 'Mail archiveren';
         } finally { w.fetch = googleFetch; w._aiBumpUsage = oudTel; w.eval('aiChatGesprek=[]'); }
       }))],
+    /* ── Kilometers (2026-11-02) ──
+       Verzonnen ritten; na afloop staan kilometerState, de weergave en de
+       gps terug. Tarieven van de Belastingdienst: € 0,23 (2024, 2025),
+       € 0,25 (2026). */
+    ...(() => {
+      const bewaar = () => w.eval('JSON.stringify({k:kilometerState,w:kmWeergave,m:kmMaand,j:kmJaar,a:activeModule})');
+      const terug = oud => {
+        try { w.appToastHide(); } catch (_) {}
+        try { w.kmSluitMenu(); w.kmRitSluit(); w.kmVastSluit(); w.kmGpsWeg(); } catch (_) {}
+        w.eval('(function(o){kilometerState=o.k;kmWeergave=o.w;kmMaand=o.m;kmJaar=o.j;switchModule(o.a);})(' + oud + ')');
+      };
+      const leeg = extra => w.eval('kilometerState={ritten:[],vast:[],tarieven:{},uitbetaald:{}};kmWeergave="ritten";kmMaand=null;kmJaar=null;' + (extra || ''));
+      const typ = (id, v) => { const el = d.getElementById(id); el.value = v; el.dispatchEvent(new w.Event('input', {bubbles: true})); };
+      return [
+        ['Kilometers: tarief per jaar (maximum of eigen) en kilometers per rit — de kilometerstand gaat voor', () => {
+          const oud = bewaar();
+          try {
+            leeg();
+            const max = w.kmTarief(2026) === 0.25 && w.kmTarief(2025) === 0.23 && w.kmTarief(2024) === 0.23 && w.kmMaxTarief(2031) === 0.25;
+            w.eval('kilometerState.tarieven={"2026":0.19}');
+            const eigen = w.kmTarief(2026) === 0.19 && w.kmTarief(2025) === 0.23;
+            const afstand = w.kmRitKm({afstand: 24, retour: true}).km === 48 && w.kmRitKm({afstand: 31.44, retour: false}).km === 31.4;
+            const s = w.kmRitKm({afstand: 24, retour: true, standBegin: 45210, standEind: 45257});
+            const fout = !!w.kmRitKm({standBegin: 100, standEind: 90}).fout && w.kmRitKm({afstand: 0}).km === null;
+            return max && eigen && afstand && s.km === 47 && s.uitStand && fout;
+          } finally { terug(oud); }
+        }],
+        ['Kilometers: gps telt de route, niet de ruis — stilstaan, een onnauwkeurig punt en een sprong tellen niet; een gat telt als rechte lijn', () => {
+          const p = (lat, t, acc) => ({lat, lon: 5, acc: acc || 8, t});
+          let st = w.kmGpsNieuw(0);
+          st = w.kmGpsVerwerk(st, p(52, 0));
+          st = w.kmGpsVerwerk(st, p(52.00002, 1000));
+          const ruis = st.meters === 0;
+          for (let i = 1; i <= 10; i++) st = w.kmGpsVerwerk(st, p(52 + 0.0004 * i, 1000 + i * 1500));
+          const rit = Math.abs(st.meters - 444.8) < 3 && st.punten === 11;
+          const voor = st.meters;
+          st = w.kmGpsVerwerk(st, p(52.01, 17000, 200));
+          st = w.kmGpsVerwerk(st, p(52.05, 18000));
+          const genegeerd = st.meters === voor && st.gatMeters === 0;
+          st = w.kmGpsVerwerk(st, p(52.022, 198000));
+          const gat = st.gatTijd >= 60000 && st.gatMeters > 1900 && /rechte lijn/.test(w.kmGpsGatTekst(st));
+          return ruis && rit && genegeerd && gat;
+        }],
+        ['Kilometers: per maand en per jaar — vergoeding, uitbetaald en per klant; de Excel telt hetzelfde', () => metKlant(() => {
+          const oud = bewaar();
+          try {
+            const k = w.eval('kanbanState.clients[0].id');
+            leeg('kilometerState.ritten=' + JSON.stringify([
+              {id: 'tr1', datum: '2026-10-05', van: 'Thuis', naar: 'Kantoor', retour: true, km: 48, clientId: k, createdAt: 1},
+              {id: 'tr2', datum: '2026-10-20', van: 'Thuis', naar: 'Gemeente Puren', retour: false, km: 31.4, clientId: null, createdAt: 2},
+              {id: 'tr3', datum: '2026-09-01', van: 'Thuis', naar: 'Kantoor', retour: true, km: 48, clientId: k, createdAt: 3},
+              {id: 'tr4', datum: '2025-12-31', van: 'Thuis', naar: 'Kantoor', retour: false, km: 10, clientId: null, createdAt: 4}]) +
+              ';kilometerState.uitbetaald={"2026-09":"2026-10-01"};');
+            const m = w.kmMaandData('2026-10');
+            const maand = m.ritten.length === 2 && m.km === 79.4 && m.bedrag === 19.85 && !m.uitbetaald;
+            const j = w.kmJaarData(2026);
+            const jaar = j.ritten === 3 && j.km === 127.4 && j.bedrag === 31.85 && j.open === 19.85 && j.maanden.length === 2 &&
+              j.klanten[0].clientId === k && j.klanten[0].km === 96;
+            const v = w.kmJaarData(2025);
+            const vorig = v.km === 10 && v.bedrag === 2.3;
+            const x = w.kmExportData('maand', '2026-10'), voet = x.bladen[0].voet;
+            const excel = x.bladen[0].rijen.length === 2 && x.bladen[0].rijen[0][0] === '05/10/2026' &&
+              voet[0][10] === 79.4 && voet[1][10] === 0.25 && voet[2][10] === 19.85;
+            const xj = w.kmExportData('jaar', '2026');
+            const excelJaar = xj.bladen.length === 2 && xj.bladen[0].rijen.length === 2 && xj.bladen[0].rijen[0][5] === '01/10/2026' &&
+              xj.bladen[0].voet[0][4] === 31.85 && xj.bladen[1].rijen.length === 3;
+            return maand && jaar && vorig && excel && excelJaar;
+          } finally { terug(oud); }
+        })],
+        ['Kilometers: een bekende rit staat er met één tik in; ongedaan maken haalt hem weg, via ⋯ kan alleen heen', () => metKlant(() => {
+          const oud = bewaar();
+          try {
+            leeg('kilometerState.vast=[{id:"tv1",naam:"Klant Test",van:"Thuis",naar:"Kantoor",km:24,retour:true,clientId:kanbanState.clients[0].id,projectId:null,doel:"Werkdag"}];');
+            w.switchModule('kilometers');
+            d.querySelector('#kmBody [data-action="kmVastRegistreer"][data-arg1="tv1"]').click();
+            const r = w.eval('kilometerState.ritten[0]||null');
+            const vast = w.eval('kilometerState.ritten.length') === 1 && r.km === 48 && r.retour === true &&
+              r.datum === w.opdVandaag() && r.bron === 'vast' && r.vastId === 'tv1' && r.doel === 'Werkdag';
+            const inLijst = d.querySelectorAll('#kmBody .km-rit').length === 1 && /vandaag vastgelegd/.test(d.getElementById('kmBody').textContent);
+            d.getElementById('undoToastUndoBtn').click();
+            const weg = w.eval('kilometerState.ritten.length') === 0;
+            d.querySelector('#kmBody [data-action="kmVastMenu"][data-arg1="tv1"]').click();
+            d.querySelector('#kmMenuPop [data-action="kmVastRegistreer"][data-arg2="enkel"]').click();
+            const enkel = w.eval('kilometerState.ritten.length===1&&kilometerState.ritten[0].km===24&&kilometerState.ritten[0].retour===false') &&
+              !d.getElementById('kmMenuPop');
+            return vast && inLijst && weg && enkel;
+          } finally { terug(oud); }
+        })],
+        ['Kilometers: een losse rit in het venster — van en naar verplicht, heen en terug, de kilometerstand gaat voor, daarna bewerken', () => metKlant(() => {
+          const oud = bewaar();
+          try {
+            leeg();
+            w.switchModule('kilometers');
+            d.querySelector('#mod-kilometers .uren-fab').click();
+            const open = d.getElementById('kmRitModal').classList.contains('open') && d.getElementById('kmRitDatum').value === w.opdVandaag();
+            d.querySelector('#kmRitModal [data-action="kmRitOpslaan"]').click();
+            const tegen = w.eval('kilometerState.ritten.length') === 0 && d.getElementById('kmRitModal').classList.contains('open');
+            typ('kmRitVan', 'Thuis'); typ('kmRitNaar', 'Bibliotheek Noordstad'); typ('kmRitAfstand', '17,5');
+            d.querySelector('#kmRitRetour [data-arg1="1"]').click();
+            const rk = d.getElementById('kmRitReken').textContent;
+            const reken = /35 km/.test(rk) && /€\s8,75/.test(rk);
+            const k = w.eval('kanbanState.clients[0].id');
+            const sel = d.querySelector('#kmRitKlant select');
+            sel.value = k; sel.dispatchEvent(new w.Event('change', {bubbles: true}));
+            d.getElementById('kmRitMeerKnop').click();
+            typ('kmRitStandB', '45.210'); typ('kmRitStandE', '45246');
+            const stand = d.getElementById('kmRitAfstand').disabled && /36 km/.test(d.getElementById('kmRitReken').textContent);
+            d.querySelector('#kmRitModal [data-action="kmRitOpslaan"]').click();
+            const r = w.eval('kilometerState.ritten[0]||null');
+            const bewaard = !!r && r.km === 36 && r.retour === true && r.standBegin === 45210 && r.standEind === 45246 &&
+              r.clientId === k && r.bron === 'hand' && !d.getElementById('kmRitModal').classList.contains('open');
+            d.querySelector('#kmBody .km-rit').click();
+            const bewerk = d.getElementById('kmRitTitel').textContent === 'Rit bewerken' && !d.getElementById('kmRitMeerVelden').hidden &&
+              d.getElementById('kmRitWeg').style.display === '' && d.getElementById('kmRitBewaarVeld').hidden;
+            return open && tegen && reken && stand && bewaard && bewerk;
+          } finally { terug(oud); }
+        })],
+        ['Kilometers: een gps-rit meet pas na een klik, en na vastleggen staat er geen locatie meer op het apparaat of in de state', () => metLS({herling_km_gps: null}, () => {
+          const oud = bewaar();
+          let cb = null, gewist = false;
+          Object.defineProperty(w.navigator, 'geolocation', {configurable: true,
+            value: {watchPosition: ok => { cb = ok; return 7; }, clearWatch: () => { gewist = true; }}});
+          try {
+            leeg();
+            w.switchModule('kilometers');
+            const voorKlik = cb === null;
+            d.querySelector('#kmBody [data-action="kmGpsStart"]').click();
+            const t0 = Date.now();
+            for (let i = 0; i <= 20; i++) cb({coords: {latitude: 52 + 0.0009 * i, longitude: 5, accuracy: 6}, timestamp: t0 + i * 3000});
+            const loopt = !!d.querySelector('.km-gps[data-stand="meet"]') && d.getElementById('kmGpsKm').textContent === '2' &&
+              !!w.localStorage.getItem('herling_km_gps');
+            d.querySelector('#kmBody [data-action="kmGpsStop"]').click();
+            const venster = d.getElementById('kmRitModal').classList.contains('open') && d.getElementById('kmRitAfstand').value === '2' && gewist;
+            typ('kmRitVan', 'Thuis'); typ('kmRitNaar', 'Kantoor');
+            d.querySelector('#kmRitModal [data-action="kmRitOpslaan"]').click();
+            const r = w.eval('kilometerState.ritten[0]||null');
+            const klaar = !!r && r.bron === 'gps' && r.km === 2 && !w.localStorage.getItem('herling_km_gps') && w.eval('kmGps') === null &&
+              !w.eval('JSON.stringify(kilometerState)').includes('52.0');
+            return voorKlik && loopt && venster && klaar;
+          } finally { delete w.navigator.geolocation; terug(oud); }
+        })],
+        ['Kilometers: in Drive en in de back-up — verzamelen, tellen en samenvoegen', () => {
+          const oud = bewaar();
+          try {
+            leeg('kilometerState.ritten=[{id:"ts1",datum:"2026-11-01",van:"A",naar:"B",km:5}];kilometerState.vast=[{id:"tsv",naam:"X",van:"A",naar:"B",km:5}];');
+            const snap = w.huidigeStateSnapshot();
+            const verzameld = snap.kilometers.ritten.length === 1 && snap.kilometers.vast.length === 1;
+            const omvang = w.stateOmvang({kilometers: {ritten: [{}, {}], vast: [{}]}}) === 3;
+            const {state, rapport} = w.voegStateSamen(
+              {kilometers: {ritten: [{id: 'a', km: 1}, {id: 'b', km: 2}], vast: [{id: 'v'}], tarieven: {2025: 0.2}, uitbetaald: {'2026-01': '2026-02-01'}}},
+              {kilometers: {ritten: [{id: 'b', km: 3}], vast: [], tarieven: {}, uitbetaald: {}}});
+            const samen = state.kilometers.ritten.length === 2 && state.kilometers.ritten.find(x => x.id === 'b').km === 3 &&
+              rapport.ritten === 1 && state.kilometers.vast.length === 1 && state.kilometers.tarieven['2025'] === 0.2 &&
+              state.kilometers.uitbetaald['2026-01'] === '2026-02-01' && /1 rit/.test(w.versieRapportTekst(rapport));
+            const vorm = w.eval('Array.isArray(kilometerState.ritten)&&Array.isArray(kilometerState.vast)');
+            return verzameld && omvang && samen && vorm;
+          } finally { terug(oud); }
+        }]
+      ];
+    })(),
     ['No iframe console errors',           () => iframeErrors.length === 0]
   ];
 
