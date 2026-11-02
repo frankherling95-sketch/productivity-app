@@ -2617,7 +2617,166 @@ async function runChecks() {
           menu.querySelector('[data-arg1="weg"]').click();
           const verwijderd = w.eval('fiscaalState.leningen.length') === 0 && !d.getElementById('fisMenu');
           return kies && pagina && open && oud && reken360 && reken && partnerWeg && partnerTerug && bewaard && rijOk && menuOk && verwijderd;
-        })]
+        })],
+        /* ── Allonges (2026-11-02): een lopende lening wijzigen of herstellen ── */
+        ...(() => {
+          const A = {id: 'ta1', nummer: 1, soort: 'wijziging', datum: '2027-03-15', plaats: 'Puren', rente: 3.9, renteVast: null, looptijd: null, aflossing: null, termijn: null,
+            ijkRente: 3.8, ijkDatum: '2027-03-01', ijkBron: 'de rentetabel van Voorbeeld Bank', ijkWat: 'een hypotheek met de resterende looptijd', toelichting: 'de marktrente is gedaald'};
+          const W = {...L, id: 'tln5', nummer: 'Z-005', doel: 'woning', looptijd: 360, rente: 3.5, ijkRente: 3.4, oudGeldgever: '', oudStart: null, uitbetaalAan: 'notaris'};
+          const som = s => s.maanden.reduce((a, m) => a + m.aflossing, 0);
+          return [
+            ['Allonge: een wijziging rekent vanaf de eerste hele maand met de restschuld verder; de termijnen ervoor blijven, de looptijd ook', () => {
+              const s0 = w.fisLenSchema(L), s = w.fisLenSchema({...L, allonges: [A]}), p = s.periodes[1];
+              const R = s0.maanden[8].schuld, im = 3.9 / 1200;
+              const T = Math.ceil(R * im / (1 - Math.pow(1 + im, -288)) * 100 - 1e-7) / 100;
+              const zelfde = s.maanden.slice(0, 9).every((m, j) => m.schuld === s0.maanden[j].schuld);
+              const opDe1e = w.fisLenSchema({...L, allonges: [{...A, datum: '2027-04-01'}]}).periodes[1].k === 9;
+              const voorEerste = w.fisLenSchema({...L, allonges: [{...A, datum: '2026-06-20'}]}).periodes[1];
+              return p.k === 9 && p.R === R && p.termijn === T && Math.abs(s.maanden[9].rente - R * im) < 1e-9 && s.maanden[9].idx === w.fisMaandIdx('2027-04-30') &&
+                s.n === 297 && s.einde === s0.einde && Math.abs(som(s) - 40000) < 0.01 && s.maanden[296].schuld === 0 && zelfde && opDe1e &&
+                voorEerste.k === 0 && voorEerste.R === 40000 && s.totaleRente < s0.totaleRente;
+            }],
+            ['Allonge: een hoger aflossingsbedrag verkort de looptijd, lineair ook; te laag of na het einde gaat niet', () => {
+              const hoog = w.fisLenSchema({...L, allonges: [{...A, rente: null, termijn: 300}]});
+              const p = hoog.periodes[1], midden = hoog.maanden.slice(p.k, -1).every(m => Math.abs(m.rente + m.aflossing - 300) < 1e-9);
+              const lin = w.fisLenSchema({...L, allonges: [{...A, rente: null, aflossing: 'lineair', termijn: 500}]}), pl = lin.periodes[1];
+              const laag = w.fisLenStatus({...L, allonges: [{...A, rente: null, termijn: 100}]}, G);
+              const na = w.fisLenStatus({...L, allonges: [{...A, datum: '2052-01-01'}]}, G);
+              return hoog.n < 297 && hoog.n === p.k + p.n && hoog.maanden[hoog.n - 1].schuld === 0 && Math.abs(som(hoog) - 40000) < 0.01 && midden &&
+                w.fisLenBox({...L, allonges: [{...A, rente: null, termijn: 300}]}).box === 1 &&
+                pl.n === Math.ceil(pl.R / 500 - 1e-9) && Math.abs(lin.maanden[pl.k].aflossing - 500) < 1e-9 && Math.abs(som(lin) - 40000) < 0.01 &&
+                laag.kort === 'Allonge klopt niet' && /hoger zijn dan de rente/.test(laag.reden) && /^Allonge 1: /.test(laag.reden) &&
+                na.kort === 'Allonge klopt niet' && /al afgelost/.test(na.reden);
+            }],
+            ['Allonge: een langere looptijd begint geen nieuwe 360 maanden -- box 3 vanaf de wijziging, en het jaaroverzicht zegt het', () => metLen(() => {
+              const lang = {...A, rente: null, looptijd: 300, datum: '2028-01-10'}, l = {...L, allonges: [lang]};
+              const box = w.fisLenBox(l), st = w.fisLenStatus(l, G);
+              const precies = w.fisLenBox({...L, allonges: [{...lang, looptijd: 297}]}).box === 1;
+              const woning = w.fisLenBox({...W, allonges: [{...lang, looptijd: 361}]});
+              const vrij = w.fisLenBox({...L, allonges: [{...lang, looptijd: null, aflossing: 'aflossingsvrij'}]});
+              const j27 = tekst(w.fisLenBlokken('jaar', l, G, 2027)), j28 = tekst(w.fisLenBlokken('jaar', l, G, 2028)), j29 = tekst(w.fisLenBlokken('jaar', l, G, 2029));
+              const al = tekst(w.fisAllBlokken('allonge', l, lang, G));
+              return box.box === 3 && box.vanaf === '2028-01-10' && /geen nieuwe looptijd/.test(box.reden) && /3\.119c lid 3/.test(box.reden) && /297 maanden/.test(box.reden) &&
+                st.klaar && st.box === 3 && st.boxVanaf === '2028-01-10' && precies && woning.box === 3 && /360 maanden/.test(woning.reden) &&
+                vrij.box === 3 && /aflossingsvrij/.test(vrij.reden) &&
+                /eigen woning \(box 1\)/.test(j27) && /De lening voldoet\./.test(j27) && /van box 1 naar box 3/.test(j28) && /aftrekbaar; de rente daarna niet/.test(j28) &&
+                /Voor je aangifte: box 3/.test(j29) && /niet langer voldoet aan de voorwaarden voor een eigenwoningschuld/.test(al) && /box 3/.test(al);
+            })],
+            ['Allonge: een nieuwe rente onder de ijkrente of zonder onderbouwing houdt de allonge tegen; de overeenkomst zelf blijft te maken', () => {
+              const met = a => ({...L, allonges: [a]});
+              const laag = w.fisLenStatus(met({...A, rente: 3.7}), G);
+              const doc = w.fisLenDocStatus(met({...A, rente: 3.7}), 'allonge', 'ta1', G), ov = w.fisLenDocStatus(met({...A, rente: 3.7}), 'overeenkomst', null, G);
+              const geenIjk = w.fisLenStatus(met({...A, ijkDatum: null}), G);
+              const niets = w.fisLenStatus(met({...A, rente: null}), G);
+              const vroeg = w.fisLenStatus(met({...A, datum: '2026-01-01'}), G);
+              const herstelLaag = w.fisLenStatus(met({id: 'th', nummer: 1, soort: 'herstel', datum: '2027-01-05', plaats: 'Puren', fout: 'rente', rente: 4.0}), G);
+              return laag.kort === 'Rente te laag' && /Allonge 1: /.test(laag.reden) && /3,80%/.test(laag.reden) && !doc.klaar && ov.klaar &&
+                geenIjk.kort === 'Rente niet onderbouwd' && niets.kort === 'Allonge onvolledig' && /Kies wat er verandert/.test(niets.reden) &&
+                vroeg.kort === 'Allonge onvolledig' && /vóór de overeenkomst/.test(vroeg.reden) && herstelLaag.kort === 'Rente te laag' && w.fisLenStatus(met(A), G).klaar;
+            }],
+            ['Allonge: herstel van het maandbedrag (€ 179,72 staat er, € 179,62 klopt) en van de looptijd bij oversluiten (360 → 297 is box 1)', () => metLen(() => {
+              const H1 = {id: 'th1', nummer: 1, soort: 'herstel', datum: '2027-04-20', plaats: 'Puren', fout: 'termijn', foutBedrag: 179.72, toelichting: ''};
+              const lw = {...W, allonges: [H1]}, t1 = tekst(w.fisAllBlokken('allonge', lw, H1, G));
+              const H2 = {id: 'th2', nummer: 1, soort: 'herstel', datum: '2026-07-10', plaats: 'Puren', fout: 'looptijd', looptijd: 297, toelichting: ''};
+              const l360 = {...L, looptijd: 360}, lh = {...l360, allonges: [H2]};
+              const t2 = tekst(w.fisAllBlokken('allonge', lh, H2, G)), ov = tekst(w.fisLenBlokken('overeenkomst', lh, G));
+              return w.fisLenSchema(lw).periodes[0].termijn === 179.62 && /als maandbedrag €\s179,72/.test(t1) && /is het maandbedrag €\s179,62/.test(t1) &&
+                /vanaf de eerste termijn/.test(t1) && /verrekend met de eerstvolgende termijn/.test(t1) && /blijft een eigenwoningschuld/.test(t1) &&
+                w.fisAllWat(lw, H1)[0] === 'maandbedrag € 179,62 in plaats van € 179,72' &&
+                w.fisLenBox(l360).box === 3 && w.fisLenBox(lh).box === 1 && w.fisLenSchema(lh).n === 297 &&
+                /looptijd van 360 maanden/.test(t2) && /resteerden bij de ingang 297 maanden/.test(t2) && /3\.119c lid 3/.test(t2) &&
+                /Met dit herstel voldoet de lening/.test(t2) && /360 maanden/.test(ov) && /box 3/.test(ov);
+            })],
+            ['Allonge: de allonge en het besluit -- ingang, wat blijft, schema als bijlage, handtekeningen naast elkaar, 2:238 en 2:239 lid 6', () => metLen(() => {
+              const l = {...L, allonges: [A]}, al = w.fisAllBlokken('allonge', l, A, G), at = tekst(al), bt = tekst(w.fisAllBlokken('abesluit', l, A, G));
+              const hand = al.filter(b => b.soort === 'handtekening'), schema = al.find(b => b.soort === 'kolommen');
+              const pdf = !w.jspdf || w.fisPdfDoc(al).getNumberOfPages() >= 2;
+              const alOk = /^Allonge bij overeenkomst van geldlening Z-003/.test(at) && /Allonge nummer: 1/.test(at) && /Met ingang van 1 april 2027/.test(at) &&
+                /De termijn die vervalt op 30 april 2027 is de eerste/.test(at) && /de rente wordt 3,90% per jaar/.test(at) && /dat was 4,40%/.test(at) &&
+                /noemde op 1 maart 2027 een rente van 3,80%/.test(at) && /geen nieuwe looptijd/.test(at) && /blijft de Overeenkomst ongewijzigd van kracht/.test(at) &&
+                /2:239 lid 6/.test(at) && /2:247 BW/.test(at) && /de marktrente is gedaald/.test(at) && al.some(b => b.soort === 'pagina') &&
+                hand.length === 1 && hand[0].naast.regels[0] === 'Geldnemer' && !!schema && schema.rijen[0].cellen[0] === '2027' && schema.koppen.length === 5;
+              const btOk = /Besluit van de algemene vergadering/.test(bt) && /2:238 BW/.test(bt) && /2:239 lid 6/.test(bt) && /stemt in met allonge 1/.test(bt) &&
+                /De nieuwe rente is zakelijk: 3,90%/.test(bt) && /De heer Jan Jansen is direct of indirect/.test(bt);
+              const naam = w.fisLenBestandsnaam('allonge', l, 1) === 'Allonge_Z-003_1.pdf' && w.fisLenBestandsnaam('abesluit', l, 1) === 'Besluit_AVA_Allonge_Z-003_1.pdf';
+              const schoon = !al.concat(w.fisAllBlokken('abesluit', l, A, G)).some(b => b.soort === 'tekst' && /€ \d/.test(b.tekst)) && !/B\.V\.\./.test(at + bt);
+              return alOk && btOk && naam && schoon && pdf;
+            })],
+            ['Allonge: het jaaroverzicht volgt de nieuwe rente; de overeenkomst blijft zoals hij getekend is', () => metLen(() => {
+              const l = {...L, allonges: [A]};
+              const j26 = tekst(w.fisLenBlokken('jaar', l, G, 2026)), j27 = tekst(w.fisLenBlokken('jaar', l, G, 2027)), ov = tekst(w.fisLenBlokken('overeenkomst', l, G));
+              const s = w.fisLenSchema(l), r28 = s.maanden.filter(m => Math.floor(m.idx / 12) === 2028).reduce((a, m) => a + m.rente, 0);
+              return /Maandelijkse rentevoet: 0,3667%/.test(j26) && /Wijzigingen in 2026: geen/.test(j26) &&
+                /Maandelijkse rentevoet: 0,325% \(3,90% per jaar\)/.test(j27) && /Wijzigingen in 2027: allonge 1 van 15 maart 2027: rente 3,90% \(was 4,40%\)/.test(j27) &&
+                /De lening voldoet\./.test(j27) && Math.abs(w.fisLenJaar(l, 2028).rente - r28) < 1e-9 &&
+                /4,40%/.test(ov) && !/3,90%/.test(ov) && !/allonge/i.test(ov);
+            })],
+            ['Allonge: de state laadt (oude leningen krijgen allonges), en samenvoegen vult de allonges van dezelfde lening aan', () => {
+              const bewaar = JSON.stringify(w.huidigeStateSnapshot());
+              try {
+                w.eval('rawState=' + bewaar);
+                w.eval('rawState.fiscaal=' + JSON.stringify({gegevens: G, dividenden: [], leningen: [L]}));
+                w.hydrateerState();
+                const leeg = w.eval('Array.isArray(fiscaalState.leningen[0].allonges)&&fiscaalState.leningen[0].allonges.length===0');
+                const B = {...A, id: 'ta2', nummer: 2, datum: '2028-01-05'};
+                const r = w.voegStateSamen({fiscaal: {gegevens: G, dividenden: [], leningen: [{...L, allonges: [A, B]}]}}, {fiscaal: {gegevens: G, dividenden: [], leningen: [{...L, allonges: [A]}]}});
+                const samen = r.state.fiscaal.leningen[0].allonges.map(x => x.id).join() === 'ta1,ta2' && r.rapport.allonges === 1 && r.rapport.leningen === 0 &&
+                  /1 allonge/.test(w.versieRapportTekst(r.rapport));
+                const omvang = w.stateOmvang({fiscaal: {leningen: [{...L, allonges: [A, B]}]}}) === 3;
+                return leeg && samen && omvang;
+              } finally { w.eval('rawState=' + bewaar); w.hydrateerState(); }
+            }],
+            ['Allonge: het menu opent het venster; velden per keuze, het venster rekent mee, slaat op, en verwijderen is ongedaan te maken', () => metLen(() => {
+              w.switchModule('fiscaal'); w.fisOpen('lening');
+              const body = d.getElementById('fisBody'), modal = d.getElementById('fisAllModal');
+              const zet = (id, v, ev) => { const el = d.getElementById(id); el.value = v; el.dispatchEvent(new w.Event(ev || 'input', {bubbles: true})); };
+              const vink = (id, aan) => { const el = d.getElementById(id); el.checked = aan; el.dispatchEvent(new w.Event('change', {bubbles: true})); };
+              const weg = id => w.getComputedStyle(d.getElementById(id)).display === 'none';
+              body.querySelector('[data-action="fisLenMenu"][data-arg1="tln1"]').click();
+              const nieuw = d.querySelector('#fisMenu [data-arg1="anieuw"]');
+              const menuOk = !!nieuw && !nieuw.disabled && /Wijzigen met allonge/.test(nieuw.textContent);
+              nieuw.click();
+              const open = modal.classList.contains('open') && d.getElementById('fisAllTitel').textContent === 'Allonge 1 bij lening Z-003' &&
+                d.getElementById('fisAllPlaats').value === 'Puren' && d.getElementById('fisAllIjk').value === '4,2' && d.getElementById('fisAllIjkDatum').value === '';
+              const leeg = weg('fisAllRenteVelden') && weg('fisAllIjkVelden') && weg('fisAllFoutVeld') && !weg('fisAllWatVelden');
+              zet('fisAllSoort', 'herstel', 'change');
+              const herstel = !weg('fisAllFoutVeld') && weg('fisAllWatVelden') && !weg('fisAllTermijnVeld') && d.getElementById('fisAllTermijnLab').textContent === 'In de overeenkomst staat';
+              zet('fisAllFout', 'tekst', 'change');
+              const tekstVelden = !weg('fisAllTekstVelden') && weg('fisAllTermijnVeld');
+              zet('fisAllSoort', 'wijziging', 'change');
+              vink('fisAllWatLooptijd', true); vink('fisAllWatTermijn', true);
+              const uitsluiten = !d.getElementById('fisAllWatLooptijd').checked && !weg('fisAllTermijnVeld') && weg('fisAllLooptijdVeld');
+              vink('fisAllWatTermijn', false);
+              zet('fisAllDatum', '2027-03-15');
+              vink('fisAllWatRente', true);
+              const renteVelden = !weg('fisAllRenteVelden') && !weg('fisAllIjkVelden');
+              zet('fisAllRente', '3,7'); zet('fisAllIjk', '3,8'); zet('fisAllIjkDatum', '2027-03-01');
+              const teLaag = !!d.querySelector('#fisAllReken .opd-reken-fout') && /3,80%/.test(d.getElementById('fisAllReken').textContent);
+              zet('fisAllRente', '3,9'); zet('fisAllToelichting', 'de marktrente is gedaald');
+              const reken = !d.querySelector('#fisAllReken .opd-reken-fout') && /Box 1/.test(d.getElementById('fisAllReken').textContent) &&
+                /€\s39\.318,36/.test(d.getElementById('fisAllReken').textContent);
+              modal.querySelector('[data-action="fisAllOpslaan"]').click();
+              const lijst = w.eval('fiscaalState.leningen[0].allonges');
+              const bewaard = lijst.length === 1 && lijst[0].rente === 3.9 && lijst[0].ijkRente === 3.8 && lijst[0].ijkDatum === '2027-03-01' && lijst[0].nummer === 1 &&
+                lijst[0].looptijd === null && lijst[0].soort === 'wijziging' && !modal.classList.contains('open');
+              const rij = body.querySelector('[data-action="fisLenMenu"][data-arg1="tln1"]');
+              const rijOk = /3,90%/.test(rij.textContent) && /1 allonge/.test(rij.textContent);
+              rij.click();
+              const menu = d.getElementById('fisMenu');
+              const items = menu && [...menu.querySelectorAll('[data-arg1="allonge"]:not([disabled]),[data-arg1="abesluit"]:not([disabled])')].map(b => b.textContent);
+              const menuNa = !!items && items.length === 2 && /^Allonge 1/.test(items[0]) && /rente 3,90%/.test(items[0]) && /Besluit bij allonge 1/.test(items[1]) &&
+                menu.querySelectorAll('[data-arg1="pdf"]:not([disabled])').length === 3;
+              menu.querySelector('[data-arg1="abewerk"]').click();
+              const terug = modal.classList.contains('open') && d.getElementById('fisAllRente').value === '3,9' && d.getElementById('fisAllWatRente').checked &&
+                !weg('fisAllWegBtn');
+              d.getElementById('fisAllWegBtn').click();
+              const weg1 = w.eval('fiscaalState.leningen[0].allonges.length') === 0 && !modal.classList.contains('open');
+              d.getElementById('undoToastUndoBtn').click();
+              const undo = w.eval('fiscaalState.leningen[0].allonges.length') === 1;
+              return menuOk && open && leeg && herstel && tekstVelden && uitsluiten && renteVelden && teLaag && reken && bewaard && rijOk && menuNa && terug && weg1 && undo;
+            })]
+          ];
+        })()
       ];
     })(),
     ['Uren-analyse: Nog niet gefactureerd krijgt een totaal eronder (vanaf twee klanten), met dezelfde som als de tegel', () => {

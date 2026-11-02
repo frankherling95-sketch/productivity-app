@@ -841,6 +841,24 @@ naast elkaar** (`handtekening` met `naast`), zoals in Franks voorbeelden;
 de regels lopen dan binnen hun eigen kolom. In lopende tekst breekt een
 bedrag niet tussen € en het getal (vaste spatie).
 
+**Allonge** (2026-11-02). Het menu van een lening heeft per allonge een
+blok (*Allonge n*, met datum en wat er verandert als bijregel, en *Besluit
+bij allonge n*), en onder *Bewerken* de regels *Wijzigen met allonge* en
+*Allonge n bewerken*. De regels van het Fiscaal-menu (`.fis-menu`) hebben op
+een telefoon het raakvlak van §3 (`var(--tap)`), zoals de andere menu's.
+Het venster (`#fisAllModal`, 640) volgt het leningvenster: `.fis-sectie`
+per blok, velden die bij een keuze horen gaan weg met `hidden`, onderaan het
+rekenvak (`.opd-reken`) met wat er verandert (*was …*) en de toetsen, en een
+te lage rente in `.opd-reken-fout`. *Wat verandert* is een paar vinkjes
+(`.fac-vink`) in `.fis-vinken`: twee kolommen, ook op een telefoon, waar elk
+vinkje `var(--tap)` hoog is. De tekst van een vinkje in een venster blijft
+`--fs-klein`, ook op een telefoon: het is geen bijschrift boven een veld
+(de mobiele regel `.modal label` maakt die `--fs-micro`).
+
+In de PDF blijft de slotzin (*Aldus opgemaakt…*) bij de handtekeningen: een
+tekstblok met `houdBij` (in mm) begint op een nieuwe pagina als de
+handtekeningen er anders los achter zouden vallen.
+
 ### Kilometers
 
 Dezelfde opbouw als Fiscaal: groepen met een getint icoon (`kmGroep`),
