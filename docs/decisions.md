@@ -9062,3 +9062,65 @@ wetten.overheid.nl.
   onafhankelijke geldverstrekker rekent voor dezelfde zekerheid.
 - Het voorstel voor een lagere grens als wet behandelen. Wordt het wet, zet
   de bedragen dan in `fisExcGrens`.
+
+## 2026-11-02 · Fiscaal: allonge bij een lening (v3.09)
+
+**Probleem.** Een lopende lening aan jezelf kon alleen opnieuw worden
+ingevuld (*Bewerken*). Dan verandert de overeenkomst die al getekend is, en
+er is geen stuk dat de wijziging vastlegt. Voorbeelden: een lagere rente
+vanaf een datum, een ander maandbedrag, of een fout in de oorspronkelijke
+tekst (€ 179,72 in plaats van € 179,62, of 360 maanden waar bij oversluiten
+de rest van de oude looptijd hoort).
+
+**Beslissing.**
+- Een allonge is een eigen stuk bij de lening: `allonges[]` op het
+  leningobject. Twee soorten:
+  - *wijziging*: nieuwe rente, looptijd, aflossingsvorm of aflossingsbedrag
+    vanaf de eerste hele maand na de datum (dezelfde regel als de ingang),
+    met de restschuld volgens het schema;
+  - *herstel*: een fout in de overeenkomst (maandbedrag, looptijd, rente of
+    een stuk tekst). Dat geldt vanaf de ingang: partijen stellen vast wat er
+    bedoeld was.
+- `fisLenSchema` legt de allonges over het schema van de overeenkomst
+  (`fisLenSchemaKaal`) en houdt per stuk de voorwaarden bij (`periodes`).
+  Jaaroverzicht, excessief lenen, de lijst en de jaren volgen daarmee
+  vanzelf de gewijzigde voorwaarden. Overeenkomst, besluit en pandakte
+  blijven zoals ze getekend zijn (`fisLenTot(l)`).
+- Box 1: een wijziging begint geen nieuwe looptijd. Loopt de lening na de
+  wijziging langer dan de maximale looptijd vanaf de ingang (360, of bij
+  oversluiten de rest van de oude lening), of wordt hij aflossingsvrij, dan
+  is hij box 3 **vanaf de wijziging** (`fisLenBox` → `vanaf`). Het
+  jaaroverzicht van dat jaar zegt dat, met de rente tot de wijziging.
+- De aflossingseis rekent na een renteverandering met de nieuwe rente verder
+  over wat er volgens de wettelijke lijn nog openstond (`fisLenMax`).
+- Een nieuwe rente vraagt een nieuwe ijkrente met bron en datum; een rente
+  eronder houdt de allonge tegen, zoals bij een nieuwe lening. Een herstel
+  van de rente toetst aan de ijkrente van de lening.
+- Twee PDF's in de opmaak van de overeenkomst: *Allonge bij overeenkomst van
+  geldlening Z-nnn* (wat wijzigt, de rest blijft van kracht, het nieuwe
+  schema als bijlage, handtekeningen naast elkaar) en het besluit van de
+  algemene vergadering (art. 2:238 en 2:239 lid 6 BW).
+- In de PDF blijft de slotzin (*Aldus opgemaakt…*) bij de handtekeningen
+  (`houdBij`), ook in de overeenkomst en de pandakte: een losse pagina met
+  alleen handtekeningen hoort niet.
+
+**Waarom.** De overeenkomst is getekend en moet te herleiden blijven. Een
+wijziging zonder eigen stuk en zonder besluit is bij een tegenstrijdig
+belang (art. 2:239 lid 6 BW) niet te verantwoorden, en de fiscale toets moet
+over de hele looptijd gaan, niet opnieuw beginnen bij de wijziging.
+
+**Bestanden.** `index.html` (`fisLenAllonges`, `fisLenTot`, `fisLenBasis`,
+`fisLenSchema`/`fisLenWijzig`, `fisLenMax`, `fisLenBox`, `fisLenStatus`,
+`fisAllFout`, `fisAllBlokken`, `fisAll*` voor het venster, `fisLenMenu`,
+`fisPdfDoc`, hydratie, `voegStateSamen`, `stateOmvang`,
+`versieRapportTekst`), `test.html` (9 nieuwe tests), `sw.js`, `CLAUDE.md`,
+`docs/stijlgids.md`.
+
+**Niet doen.**
+- Een gewijzigde lening via *Bewerken* aanpassen: dan klopt de overeenkomst
+  niet meer met wat er getekend is. *Bewerken* is voor de overeenkomst zelf.
+- Een wijziging de looptijd opnieuw laten tellen: ook na een allonge moet de
+  lening binnen de oorspronkelijke maximale looptijd vanaf de ingang zijn
+  afgelost.
+- Een herstel gebruiken voor iets wat partijen nu anders willen: dat is een
+  wijziging, vanaf een datum.
