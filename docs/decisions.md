@@ -9004,3 +9004,61 @@ naar de regels erachter, en daar pas je ze aan.
 
 **Niet doen.** Een tegel klikbaar maken zonder pijltje: op een telefoon is er
 geen hover die laat zien dat er iets achter zit.
+
+## 2026-11-02 · Fiscaal: lening aan jezelf (v3.08)
+
+**Probleem.** Frank leent geld van zijn holding (of werkmaatschappij) aan
+zichzelf privé, voor de eigen woning of iets anders, en maakte de stukken
+met de hand. Een analyse van twee eigen voorbeelden liet zien waar dat
+misgaat: oversluiten met een nieuwe looptijd van 360 maanden (dan is de
+hele lening box 3, art. 3.119c lid 3 Wet IB, standpunt Kennisgroep van
+15 oktober 2026), een rente onder wat een bank zou rekenen terwijl de BV
+geen hypotheekrecht heeft, geen besluit van de aandeelhouder terwijl de
+bestuurder een tegenstrijdig belang heeft (art. 2:239 lid 6 BW), een
+kwijtschelding bij overlijden, en een "onderpand" zonder notaris.
+
+**Beslissing.**
+- Nieuwe functie *Lening aan jezelf* in Fiscaal (groep *Lenen*). Per lening
+  de voorwaarden in één venster (`fisLenModal`); de app rekent het schema
+  (`fisLenSchema`, annuïteit naar boven op centen, eerste termijn aan het
+  eind van de eerste hele kalendermaand, gebroken periode naar rato), de
+  aflossingseis per 31 december (`fisLenMaxSchuld`, de formule van art.
+  3.119c lid 1), box 1 of box 3 met de reden (`fisLenBox`) en excessief
+  lenen (`fisExcStand`).
+- Vier documenten uit blokken (`fisLenBlokken` → `fisPdfDoc`): de
+  overeenkomst met het aflossingsschema als bijlage, het besluit van de
+  algemene vergadering buiten vergadering, een jaaroverzicht per jaar (met de
+  gegevens van art. 3.119g Wet IB en art. 17b Uitv.reg. IB voor de aangifte)
+  en bij een auto een akte van stil pandrecht. `fisPdfDoc` kreeg een
+  kolommentabel en twee handtekeningen naast elkaar.
+- Een ijkrente met bron en datum is verplicht; een rente eronder houdt de
+  documenten tegen, net als te weinig liquide middelen. Box 3 houdt niets
+  tegen: dat kan een keuze zijn (auto, aflossingsvrij).
+- Bij oversluiten vraagt het venster de ingang van de oude lening en rekent
+  de resterende looptijd uit; meer lenen dan je aflost is een aparte lening.
+- Excessief lenen: de grens die nu wet is (`fisExcGrens`), en apart, als
+  voorstel gemarkeerd, de verlaging uit de Kamerbrief van 29 september 2026
+  (`FIS_EXC_VOORSTEL`) als waarschuwing.
+- Nieuwe state `fiscaal.leningen`, en extra vaste gegevens (adres, KvK en
+  RSIN van beide BV's, woonadres en geboortedatum van de geldnemer).
+
+**Waarom.** De fouten in de voorbeelden waren geen tikfouten maar regels
+die je moet kennen. Die horen in de app, zodat elke nieuwe lening ze vanzelf
+volgt. De wetteksten zijn op 2 november 2026 nagelezen op
+wetten.overheid.nl.
+
+**Bestanden.** `index.html` (`fisLen*`, `fisExc*`, `fisInWoorden`,
+`fisPdfDoc`, `fisLenModal`, `fisGegModal`, hydratie, `voegStateSamen`,
+`stateOmvang`, `versieRapportTekst`), `test.html` (7 nieuwe tests),
+`sw.js`, `CLAUDE.md`, `docs/stijlgids.md`.
+
+**Niet doen.**
+- Een kwijtschelding bij overlijden in de overeenkomst: dat is onzakelijk en
+  geldt als uitdeling aan de aandeelhouder.
+- De woning "onderpand" noemen zonder notariële akte: een hypotheek ontstaat
+  alleen bij de notaris (art. 3:260 BW). Zonder akte is het een
+  hypotheekverklaring.
+- Een lagere rente onderbouwen met "geen winstopslag": de maat is wat een
+  onafhankelijke geldverstrekker rekent voor dezelfde zekerheid.
+- Het voorstel voor een lagere grens als wet behandelen. Wordt het wet, zet
+  de bedragen dan in `fisExcGrens`.

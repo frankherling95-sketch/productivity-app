@@ -2471,6 +2471,155 @@ async function runChecks() {
         })]
       ];
     })(),
+    /* ── Fiscaal: leningen aan jezelf (2026-11-02) ──
+       Verzonnen gegevens; na afloop staat fiscaalState terug. De regels zijn
+       die uit de wet: art. 3.119a/3.119c/3.119g Wet IB 2001, 2:239 lid 6 en
+       2:247 BW. */
+    ...(() => {
+      const G = {werkNaam: 'Voorbeeld B.V.', werkKvk: '12345678', werkPlaats: 'Puren', werkAdres: 'Werkstraat 1, 1234 AB Puren', werkRsin: '001122334',
+        holdingNaam: 'Voorbeeld Holding B.V.', holdingKvk: '87654321', holdingPlaats: 'Puren', holdingAdres: 'Holdingweg 2, 1234 AB Puren', holdingRsin: '998877665',
+        aanhef: 'de heer', vertegenwoordiger: 'Jan Jansen', bestuurder: 'holding', bestuurderNaam: '', priveAdres: 'Dorpsstraat 3, 1234 CD Puren', geboortedatum: '1990-05-01'};
+      const L = {id: 'tln1', nummer: 'Z-003', geldgever: 'holding', doel: 'oversluiten', omschrijving: '', woningAdres: 'Dorpsstraat 3, 1234 CD Puren',
+        bedrag: 40000, datum: '2026-06-16', plaats: 'Puren', oudGeldgever: 'Voorbeeld Bank', oudStart: '2021-03-01', aflossing: 'annuitair', looptijd: 297,
+        rente: 4.4, renteVast: null, ijkRente: 4.2, ijkDatum: '2026-06-10', ijkBron: 'de rentetabel van Voorbeeld Bank', ijkWat: 'een hypotheek 30 jaar vast zonder NHG',
+        zekerheid: 'verklaring', partner: '', uitbetaalAan: 'oud', uitbetaalDatum: null, betaling: 'incasso', iban: 'NL00TEST0123456789', kas: 90000, afgelostOp: null};
+      const metLen = fn => {
+        const oud = w.eval('JSON.stringify(fiscaalState)');
+        w.eval('fiscaalState=' + JSON.stringify({gegevens: G, dividenden: [], leningen: [L]}));
+        try { return fn(); } finally { w.eval('fiscaalState=' + oud); w.eval('fisWeergave="kies"'); }
+      };
+      const tekst = bl => bl.map(b => [b.tekst, (b.regels || []).join(' '), b.naam, b.plaatsDatum, (b.rijen || []).map(r => r.label).join(' ')].filter(Boolean).join(' ')).join(' ');
+      return [
+        ['Lening: annuïteit, schema, gebroken periode en het bedrag in woorden kloppen', () => {
+          const s = w.fisLenSchema({bedrag: 40000, rente: 3.5, looptijd: 360, aflossing: 'annuitair', datum: '2026-06-16'});
+          const som = s.maanden.reduce((a, m) => a + m.aflossing, 0);
+          const lin = w.fisLenSchema({bedrag: 12000, rente: 6, looptijd: 60, aflossing: 'lineair', datum: '2026-07-01'});
+          const woorden = w.fisInWoorden(40000) === 'veertigduizend' && w.fisInWoorden(22) === 'tweeëntwintig' &&
+            w.fisInWoorden(1250000) === 'één miljoen tweehonderdvijftigduizend' && w.fisInWoorden(2500) === 'tweeduizend vijfhonderd' &&
+            w.fisEuroWoorden(179.62) === 'honderdnegenenzeventig euro en tweeënzestig cent';
+          return s.termijn === 179.62 && Math.abs(som - 40000) < 0.01 && s.maanden[359].schuld === 0 && s.eersteTermijn === '2026-07-31' &&
+            s.gebrokenDagen === 15 && lin.eersteTermijn === '2026-07-31' && lin.gebrokenDagen === 0 && Math.abs(lin.maanden[0].aflossing - 200) < 1e-9 && woorden;
+        }],
+        ['Lening: oversluiten zet het oude schema voort (art. 3.119c lid 3) -- 360 maanden is box 3, de resterende looptijd box 1', () => {
+          const N = w.fisLenMaxLooptijd(L);
+          const goed = w.fisLenBox(L), fout = w.fisLenBox({...L, looptijd: 360});
+          const vrij = w.fisLenBox({...L, doel: 'woning', aflossing: 'aflossingsvrij'});
+          const auto = w.fisLenBox({...L, doel: 'auto'});
+          /* Op elke 31 december blijft de schuld onder de wettelijke lijn; met 360 maanden niet. */
+          const s = w.fisLenSchema(L), s360 = w.fisLenSchema({...L, looptijd: 360});
+          let onder = true;
+          for (let j = 2026; j <= 2051; j++) {
+            const max = w.fisLenMaxSchuld(40000, s.im, N, w.fisHeleMaanden('2026-06-16', j + '-12-31'));
+            if (w.fisLenJaar(L, j, s).eind > max + 0.005) onder = false;
+          }
+          const x27 = w.fisHeleMaanden('2026-06-16', '2027-12-31');
+          const boven = w.fisLenJaar({...L, looptijd: 360}, 2027, s360).eind > w.fisLenMaxSchuld(40000, s.im, N, x27) + 1;
+          return N === 297 && goed.box === 1 && fout.box === 3 && /3\.119c lid 3/.test(fout.reden) && /297/.test(fout.reden) &&
+            vrij.box === 3 && /aflossingsvrij/i.test(vrij.reden) && auto.box === 3 && onder && boven && x27 === 18;
+        }],
+        ['Lening: de status houdt een te lage rente, een ontbrekende ijkrente en te weinig geld tegen; box 3 niet', () => {
+          const ok = w.fisLenStatus(L, G);
+          const laag = w.fisLenStatus({...L, rente: 3.5}, G);
+          const geenIjk = w.fisLenStatus({...L, ijkBron: ''}, G);
+          const krap = w.fisLenStatus({...L, kas: 30000}, G);
+          const box3 = w.fisLenStatus({...L, looptijd: 360}, G);
+          const geenAdres = w.fisLenStatus(L, {...G, priveAdres: ''});
+          const onvolledig = w.fisLenStatus({...L, oudStart: null}, G);
+          return ok.klaar && ok.box === 1 && !laag.klaar && laag.kort === 'Rente te laag' && /verkapt dividend/.test(laag.reden) &&
+            geenIjk.kort === 'Rente niet onderbouwd' && krap.kort === 'Te weinig liquide middelen' && box3.klaar && box3.box === 3 &&
+            geenAdres.kort === 'Gegevens ontbreken' && onvolledig.kort === 'Lening onvolledig' && /de oude lening/.test(onvolledig.reden);
+        }],
+        ['Lening: de overeenkomst noemt besluit, oversluiten, hypotheekverklaring en informatieplicht; het besluit het tegenstrijdig belang', () => metLen(() => {
+          const ov = w.fisLenBlokken('overeenkomst', L, G), ot = tekst(ov);
+          const bes = tekst(w.fisLenBlokken('besluit', L, G));
+          const ovOk = /Overeenkomst van geldlening \(eigen woning\)/.test(ot) && /€\s40\.000 \(zegge: veertigduizend euro\)/.test(ot) &&
+            /2:239 lid 6/.test(ot) && /3\.119c lid 3/.test(ot) && /297 maanden/.test(ot) && /positieve hypotheekverklaring/.test(ot) &&
+            /negatieve hypotheekverklaring/.test(ot) && /3\.119g/.test(ot) && /2:247 BW/.test(ot) && /niet kwijtgescholden/.test(ot) &&
+            /de rentetabel van Voorbeeld Bank noemde op 10 juni 2026 een rente van 4,20%/.test(ot) && /NL00TEST0123456789/.test(ot) &&
+            ov.some(b => b.soort === 'kolommen' && b.koppen.length === 5) &&
+            ov.filter(b => b.soort === 'handtekening').length === 1 && ov.some(b => b.soort === 'handtekening' && b.naast && b.naast.regels[0] === 'Geldnemer');
+          const besOk = /Besluit van de algemene vergadering/.test(bes) && /2:238 BW/.test(bes) && /2:239 lid 6/.test(bes) && /Z-003/.test(bes) &&
+            /€\s50\.000,00 aan liquide middelen/.test(bes) &&
+            !ov.concat(w.fisLenBlokken('besluit', L, G)).some(b => b.soort === 'tekst' && /€ \d/.test(b.tekst));
+          /* Van de werkmaatschappij, met de holding als bestuurder: geen 2:247, wel de holding als aandeelhouder. */
+          const werk = tekst(w.fisLenBlokken('overeenkomst', {...L, geldgever: 'werk'}, G));
+          const werkBes = tekst(w.fisLenBlokken('besluit', {...L, geldgever: 'werk'}, G));
+          const werkOk = /haar bestuurder Voorbeeld Holding B\.V\., op haar beurt vertegenwoordigd door de heer Jan Jansen/.test(werk) && !/2:247/.test(werk) &&
+            /Voorbeeld Holding B\.V\., vertegenwoordigd door de heer Jan Jansen, enig aandeelhouder van Voorbeeld B\.V\./.test(werkBes);
+          return ovOk && besOk && werkOk && !/B\.V\.\./.test(ot + bes + werk + werkBes);
+        })],
+        ['Lening: jaaroverzicht met de gegevens voor de aangifte; excessief lenen telt een eigenwoningschuld met hypotheek niet mee', () => metLen(() => {
+          const j = tekst(w.fisLenBlokken('jaar', L, G, 2026));
+          const jOk = /Jaaroverzicht 2026: lening Z-003/.test(j) && /Maandelijkse rentevoet: 0,3667%/.test(j) && /Looptijd: 297 maanden/.test(j) &&
+            /RSIN 998877665/.test(j) && /De lening voldoet\./.test(j) && /telt mee voor de grens van excessief lenen/.test(j);
+          const auto = {...L, id: 'tln2', doel: 'auto', omschrijving: 'Voorbeeldmerk Type, kenteken XX-000-X', bedrag: 20000, looptijd: 60, rente: 7.5, ijkRente: 7.3, zekerheid: 'pand', woningAdres: ''};
+          const hyp = {...L, id: 'tln3', doel: 'woning', zekerheid: 'hypotheek', looptijd: 360, bedrag: 400000};
+          const st = w.fisExcStand(2026, [L, auto, hyp]);
+          const telt = w.fisLenJaar(L, 2026).eind + w.fisLenJaar(auto, 2026).eind, niet = w.fisLenJaar(hyp, 2026).eind;
+          const voorstel = w.fisExcVoorstelBoven([L, auto, hyp]);
+          const zonderHyp = w.fisExcVoorstelBoven([L, auto, {...hyp, zekerheid: 'verklaring'}]);
+          const pand = tekst(w.fisLenBlokken('pand', auto, G));
+          const pandOk = /Akte van verpanding/.test(pand) && /3:237 BW/.test(pand) && /registr/.test(pand) && /XX-000-X/.test(pand);
+          const uit = w.fisLenJaarUit(L, {...G, holdingRsin: ''});
+          return jOk && Math.abs(st.telt - telt) < 0.01 && Math.abs(st.niet - niet) < 0.01 && st.grens === 500000 && voorstel === null &&
+            !!zonderHyp && zonderHyp.jaar === 2027 && pandOk && /RSIN/.test(uit) && w.fisLenJaarUit(auto, {...G, holdingRsin: ''}) === '';
+        })],
+        ['Lening: de state laadt (ook de oude vorm zonder leningen), gaat mee naar Drive en voegt samen op id', () => {
+          const bewaar = JSON.stringify(w.huidigeStateSnapshot());
+          try {
+            w.eval('rawState=' + bewaar);
+            w.eval('rawState.fiscaal=' + JSON.stringify({gegevens: G, dividenden: []}));
+            w.hydrateerState();
+            const leeg = w.eval('Array.isArray(fiscaalState.leningen)&&fiscaalState.leningen.length===0');
+            w.eval('rawState.fiscaal=' + JSON.stringify({gegevens: G, dividenden: [], leningen: [L]}));
+            w.hydrateerState();
+            const mee = w.huidigeStateSnapshot().fiscaal.leningen[0].id === 'tln1';
+            const r = w.voegStateSamen({fiscaal: {gegevens: G, dividenden: [], leningen: [L, {...L, id: 'tln9'}]}}, {fiscaal: {gegevens: G, dividenden: [], leningen: [L]}});
+            const samen = r.state.fiscaal.leningen.map(x => x.id).join() === 'tln1,tln9' && r.rapport.leningen === 1 && /1 lening/.test(w.versieRapportTekst(r.rapport));
+            return leeg && mee && samen;
+          } finally { w.eval('rawState=' + bewaar); w.hydrateerState(); }
+        }],
+        ['Lening: keuzepagina, het venster rekent mee en slaat op, de lijst toont box 1 met een menu, en verwijderen is ongedaan te maken', () => metLen(() => {
+          w.eval('fiscaalState.leningen=[]');
+          w.switchModule('fiscaal'); w.fisOpen('kies');
+          const body = d.getElementById('fisBody');
+          const kies = !!body.querySelector('[data-action="fisOpen"][data-arg1="lening"]');
+          w.fisOpen('lening');
+          const pagina = /Lening aan jezelf/.test(body.textContent) && body.querySelectorAll('.fis-stap').length === 6 && /Excessief lenen/.test(body.textContent);
+          body.querySelector('[data-action="fisLenOpen"]').click();
+          const modal = d.getElementById('fisLenModal');
+          const open = modal.classList.contains('open') && d.getElementById('fisLenNummer').value === 'Z-001' && d.getElementById('fisLenPlaats').value === 'Puren';
+          const zet = (id, v, ev) => { const el = d.getElementById(id); el.value = v; el.dispatchEvent(new w.Event(ev || 'input', {bubbles: true})); };
+          const weg = id => w.getComputedStyle(d.getElementById(id)).display === 'none';
+          zet('fisLenDoel', 'oversluiten', 'change');
+          const oud = !weg('fisLenOudVelden') && d.getElementById('fisLenUitAan').value === 'oud' && weg('fisLenOmschrVeld') && weg('fisLenAfgelostVeld');
+          zet('fisLenBedrag', '40.000'); zet('fisLenDatum', '2026-06-16'); zet('fisLenWoning', 'Dorpsstraat 3, 1234 CD Puren');
+          zet('fisLenOudGever', 'Voorbeeld Bank'); zet('fisLenOudStart', '2021-03-01'); zet('fisLenLooptijd', '360'); zet('fisLenRente', '4,4');
+          const r360 = d.getElementById('fisLenReken').textContent;
+          const reken360 = /Box 3/.test(r360) && /297 maanden/.test(r360);
+          zet('fisLenLooptijd', '297');
+          zet('fisLenIjk', '4,2'); zet('fisLenIjkDatum', '2026-06-10'); zet('fisLenIjkBron', 'de rentetabel van Voorbeeld Bank');
+          zet('fisLenIban', 'NL00TEST0123456789');
+          const reken = /Box 1/.test(d.getElementById('fisLenReken').textContent);
+          zet('fisLenZekerheid', 'geen', 'change');
+          const partnerWeg = weg('fisLenPartnerVeld');
+          zet('fisLenZekerheid', 'verklaring', 'change');
+          const partnerTerug = !weg('fisLenPartnerVeld');
+          modal.querySelector('[data-action="fisLenOpslaan"]').click();
+          const lijst = w.eval('fiscaalState.leningen');
+          const bewaard = lijst.length === 1 && lijst[0].bedrag === 40000 && lijst[0].rente === 4.4 && lijst[0].looptijd === 297 &&
+            lijst[0].doel === 'oversluiten' && !modal.classList.contains('open');
+          const rij = body.querySelector('[data-action="fisLenMenu"]');
+          const rijOk = !!rij && /Z-001 · € 40\.000/.test(rij.textContent) && /Box 1/.test(rij.textContent);
+          rij.click();
+          const menu = d.getElementById('fisMenu');
+          const menuOk = !!menu && menu.querySelectorAll('[data-arg1="pdf"]:not([disabled])').length === 3 && menu.querySelectorAll('[data-arg1="jaar"]').length >= 1;
+          menu.querySelector('[data-arg1="weg"]').click();
+          const verwijderd = w.eval('fiscaalState.leningen.length') === 0 && !d.getElementById('fisMenu');
+          return kies && pagina && open && oud && reken360 && reken && partnerWeg && partnerTerug && bewaard && rijOk && menuOk && verwijderd;
+        })]
+      ];
+    })(),
     ['Uren-analyse: Nog niet gefactureerd krijgt een totaal eronder (vanaf twee klanten), met dezelfde som als de tegel', () => {
       const twee = w.urenAnOpenstaand({klanten: [{naam: 'Klant A', open: 2, openEuro: 200}, {naam: 'Klant B', open: 1.5, openEuro: 150}], open: 3.5, openEuro: 350});
       const doos = d.createElement('div'); doos.innerHTML = twee;
