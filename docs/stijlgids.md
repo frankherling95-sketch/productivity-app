@@ -817,6 +817,30 @@ als stip (*Klaar* groen, anders oranje met wat er ontbreekt) en opent een
 `.uren-menu` met de drie documenten, *Bewerken* en *Verwijderen*; zolang het
 niet klaar is staan de documenten uit, met de reden eronder.
 
+**Lening aan jezelf** (2026-11-02) volgt dezelfde opbouw. Een lening in de
+lijst is een `.inst-rij` met nummer en bedrag, eronder doel · rente ·
+looptijd · datum; rechts de stand als stip: *Box 1* of *Box 3* groen, maar
+*Box 3* oranje bij een lening voor de eigen woning (dan is het meestal niet
+de bedoeling), en oranje met wat er ontbreekt zolang hij niet klaar is. Het
+menu heeft de documenten, daaronder een regel per jaaroverzicht, dan
+*Bewerken* en *Verwijderen*. Onder de lijst een kaart met `.inst-sub`
+*Excessief lenen*: twee info-regels, het bedrag op 31 december rechts
+(hele euro's, zodat het op 375px past) en de grens in de bijregel.
+
+Het venster van een lening (`#fisLenModal`, 640) heeft velden die bij een
+keuze horen (doel, zekerheid, betaling); die gaan weg met `hidden`, wat in
+dit venster en in `#fisGegModal` uitdrukkelijk `display:none` is, want
+`.uren-fld` is flex. Een losse uitleg tussen twee blokken velden is een
+kale `small.opd-hint` in `.uren-form`.
+
+In de PDF (`fisPdfDoc`) zijn er twee blokken bij gekomen: een
+**kolommentabel** (`kolommen`: eerste kolom links, de rest rechts uitgelijnd,
+koppen in Helvetica 8,5 grijs met een lijn eronder, rijen in Times 10,5;
+de koppen komen terug op een nieuwe pagina) en **twee handtekeningen
+naast elkaar** (`handtekening` met `naast`), zoals in Franks voorbeelden;
+de regels lopen dan binnen hun eigen kolom. In lopende tekst breekt een
+bedrag niet tussen € en het getal (vaste spatie).
+
 ## 16. Herling AI
 
 **Het paneel** (sinds 2026-10-13; daarvoor een venster met achtergrond). Geen
