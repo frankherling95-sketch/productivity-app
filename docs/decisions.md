@@ -9124,3 +9124,92 @@ over de hele looptijd gaan, niet opnieuw beginnen bij de wijziging.
   afgelost.
 - Een herstel gebruiken voor iets wat partijen nu anders willen: dat is een
   wijziging, vanaf een datum.
+
+## 2026-11-02 · Kilometers: zakelijke ritten met je eigen auto (v3.10)
+
+**Probleem.** Frank rijdt zakelijk met zijn privéauto en laat de BV hem
+per kilometer vergoeden. Hij wilde de ritten "heel gemakkelijk" vastleggen,
+op drie manieren: een losse rit (vooral op de telefoon), een rit die de app
+met gps meet, en vaste ritten die je met één tik registreert, eventueel met
+de terugrit erbij.
+
+**Beslissing.**
+- Een eigen module `#kilometers` in Administratie, onder Uren. Gevraagd:
+  privéauto met een vergoeding vanuit de BV. Dus geen sluitende
+  rittenadministratie zoals voor een auto van de zaak: geen kenteken, en de
+  kilometerstand is een vangnet, geen verplicht veld.
+- **Fiscaal** (Belastingdienst, nagelezen 2026-11-02). Tot het maximum is de
+  vergoeding onbelast, als gerichte vrijstelling:
+  - 2026: € 0,25 per km, met terugwerkende kracht vanaf 1 januari. Dat is
+    een beleidsbesluit, vooruitlopend op het Belastingplan 2027.
+  - 2024 en 2025: € 0,23 per km.
+
+  Woon-werk is zakelijk; omrijden om een privéreden niet (Handboek
+  Loonheffingen 2026, 23.1.1). De werkgever houdt per betalingstijdvak de
+  kilometers bij, en per rit maken de route en het bezochte adres het
+  aannemelijk (23.1.5). Verplicht zijn daarom datum, van, naar en
+  kilometers. Klant, project en doel zijn optioneel; de route vul je alleen
+  in als je anders reed. Het tarief is per jaar instelbaar, standaard het
+  maximum (`KM_MAX`). Een eigen tarief boven het maximum geeft een
+  waarschuwing, want het meerdere is loon.
+- **Drie manieren, op één pagina.**
+  - Een bekende rit leg je met één tik vast voor vandaag, als enkele reis of
+    heen en terug, zoals die rit is ingesteld. Via ⋯ kies je alleen heen,
+    heen en terug of een andere datum.
+  - Gps meet pas na een klik (`watchPosition`).
+  - Bij een losse rit telt het verschil als je de begin- en eindstand van de
+    teller invult.
+- **Gps, eerlijk.** Een webapp krijgt alleen locaties zolang hij in beeld
+  is. Met het scherm op slot of in een andere app stopt het meten; op een
+  iPhone altijd, want een PWA heeft geen locatie op de achtergrond. Daarom:
+  - houdt de app het scherm aan zolang hij meet (Wake Lock, waar de browser
+    dat kent);
+  - telt ruis niet mee: een stap onder de onnauwkeurigheid (minstens 10 m),
+    een punt dat minder nauwkeurig is dan 50 m, of een sprong boven 250 km/u;
+  - telt een gat van meer dan een minuut als rechte lijn, en het venster
+    zegt dat erbij;
+  - kun je de kilometerstand bij vertrek invullen als vangnet.
+
+  Ging de app tijdens een rit dicht, dan staat de rit bij terugkomst op
+  *gepauzeerd*; verder meten begint pas weer na een klik.
+- **Overzicht** per jaar. Elke maand is een declaratie: de kilometers keer
+  het tarief, met een Excel en *Als uitbetaald markeren*. Daarnaast het jaar
+  in Excel en de kilometers per klant.
+- **Opslag.** `rawState.kilometers` = {`ritten`, `vast`, `tarieven`,
+  `uitbetaald`}. Het staat in laden, verzamelen, samenvoegen en tellen.
+  - Een lopende gps-rit staat alleen op het apparaat (`herling_km_gps`), met
+    het laatste punt, zodat een herstarte app verder kan meten.
+  - Zodra de rit is vastgelegd of weggegooid, gaat dat weg.
+  - In Drive komt geen coördinaat.
+- **Snel erbij.** Op het bureaublad staat *Rit* in het menu Nieuw item. Op
+  een telefoon heeft het Dashboard sinds 2026-10-12 geen ronde + meer: daar
+  ga je via de lade naar Kilometers. Op Android kan het ook met de
+  snelkoppeling *Rit vastleggen* op het app-icoon (`shortcuts` in
+  `manifest.json`); iOS kent die niet.
+
+**Waarom.** Een vergoeding is alleen onbelast als je de kilometers kunt
+onderbouwen. Dus legt de app per rit vast wat de Belastingdienst noemt, en
+niet meer. Er zijn drie manieren omdat een rit op drie momenten bekend is:
+vooraf (een vaste klant), onderweg (gps) of achteraf (de agenda, de teller).
+
+**Bestanden.**
+- `index.html`:
+  - MODULE: KILOMETERS (`km*`, `.km-*`);
+  - de pagina `#mod-kilometers` en de vensters `#kmRitModal`, `#kmVastModal`
+    en `#kmTariefModal`;
+  - de opslag: hydratie, `verzamelModuleState`, `voegStateSamen`,
+    `stateOmvang`, `versieRapportTekst`;
+  - navigatie en Nieuw item.
+- `test.html`: 7 tests.
+- Verder `manifest.json`, `sw.js`, `CLAUDE.md`, `docs/stijlgids.md` en
+  `.claude/ownership.json`.
+
+**Niet doen.**
+- De gps-punten of de gereden route in Drive bewaren. Voor de vergoeding is
+  dat niet nodig, en het is een spoor van waar je was.
+- Een adres opzoeken bij een coördinaat (reverse geocoding): dan gaat je
+  locatie naar een derde.
+- Omrijkilometers om een privéreden meetellen: die zijn loon.
+- Beloven dat gps doormeet met het scherm op slot.
+- Een maximum voor een nieuw jaar aannemen voordat de Belastingdienst het
+  noemt. Zet het pas in `KM_MAX` als het er staat.

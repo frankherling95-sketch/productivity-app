@@ -859,6 +859,30 @@ In de PDF blijft de slotzin (*Aldus opgemaakt…*) bij de handtekeningen: een
 tekstblok met `houdBij` (in mm) begint op een nieuwe pagina als de
 handtekeningen er anders los achter zouden vallen.
 
+### Kilometers
+
+Dezelfde opbouw als Fiscaal: groepen met een getint icoon (`kmGroep`),
+kaarten met regels (`instRij`). Bovenaan de balk van Uren: de periode
+(`‹ november 2026 ›` op *Ritten*, het jaar op *Overzicht*) met het label als
+weg terug naar nu, het ⋯ en **+ Rit**; op een telefoon het ⋯ en de ronde +
+op hun vaste plek (§8).
+
+| | |
+|---|---|
+| bekende rit | een `.inst-rij` (de tik legt hem vandaag vast) met rechts wat de tik doet, **+48 km** in `--text` / 600, en daarachter een ⋯ als rij-actie in de vorm van het oog in de klantwisselaar (`.klant-wissel-oog.km-meer`, 32px, telefoon `var(--tap)`) |
+| rit in de lijst | `.inst-rij`: van → naar (`--fs-basis` / 600), daaronder *ma 2 nov · heen en terug · ▪ Klant* met het klantblokje van 8px; rechts de kilometers |
+| totaal | een regel op `--surface2`: *Totaal november* (700), het aantal ritten en het tarief; rechts km · bedrag in `--text` / 600 |
+| gps-blok | kop *Rit loopt* (`--fs-basis` / 600) met een stip van 8px die ademt (6 × `--duur`, alleen zolang hij meet; gestopt oranje) en *sinds 14:05*; de kilometers in `--fs-cijfer`; de stand van het signaal en de uitleg in `--fs-klein`; een gat als meldingsblok (§12); de knoppen `.btn-sm`, primair rechts, op een telefoon vullend en `var(--tap)` hoog |
+| overzicht | drie KPI-tegels: km, *nog uit te betalen*, *uitbetaald* (die twee sluiten elkaar uit, dus geen totaal ernaast); per maand een regel met het bedrag als stand (stip groen = uitbetaald, oranje = nog niet) die een menu opent |
+
+Het venster van een rit (`#kmRitModal`, 640) heeft de opbouw van het
+contractvenster. Eerst komt wat elke rit nodig heeft: datum (met ‹ › zoals bij
+Uren), van en naar, afstand met de keuzechips *Enkele reis* / *Heen en
+terug*, klant en project, en doel. Route en kilometerstand staan achter een
+tekstknop (`.fis-terug.km-meer-knop`, *+ Route of kilometerstand*), want
+die heb je zelden nodig. Met beide standen is de afstand niet te typen: die
+volgt dan de teller.
+
 ## 16. Herling AI
 
 **Het paneel** (sinds 2026-10-13; daarvoor een venster met achtergrond). Geen
