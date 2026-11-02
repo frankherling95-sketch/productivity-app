@@ -9213,3 +9213,66 @@ vooraf (een vaste klant), onderweg (gps) of achteraf (de agenda, de teller).
 - Beloven dat gps doormeet met het scherm op slot.
 - Een maximum voor een nieuw jaar aannemen voordat de Belastingdienst het
   noemt. Zet het pas in `KM_MAX` als het er staat.
+
+## 2026-11-02 · Fiscaal: ondertekenen (v3.11)
+
+**Probleem.** De stukken van Fiscaal (dividend, lening, allonge, pandakte)
+kwamen met lege handtekeningregels uit de app: printen, tekenen, scannen.
+Frank wilde ze in de app kunnen ondertekenen, en ze ook kunnen laten
+ondertekenen door wie verder nog tekent. De datum moest hij zelf kunnen
+kiezen of met de hand invullen.
+
+**Beslissing.**
+- De handtekening staat één keer bij *Je gegevens* (`fiscaalState.gegevens.handtekening`,
+  een PNG van hooguit 900 × 240): tekenen op een canvas, of een foto van een
+  handtekening op wit papier. Uit een foto haalt `fisHandUitPixels` de inkt
+  (vergelijken met het gemiddelde in een vak eromheen, Bradley), zodat een
+  schaduw over het papier geen inkt wordt.
+- Ondertekenen is altijd een klik van Frank, per document, in een eigen
+  venster: plaats en datum (standaard vandaag, aan te passen, leeg = met de
+  hand), met of zonder handtekening, en eventueel mailen.
+- De handtekening komt alleen op de regels met zijn naam (de vertegenwoordiger
+  uit zijn gegevens; `fisTekenBlokken`). Een partner of een andere bestuurder
+  krijgt een lege datum en geen handtekening. De slotzin (*Aldus opgemaakt…*)
+  noemt de datum alleen als hij als enige tekent.
+- De getekende PDF wordt bewaard als bijlage, op dezelfde plek als de PDF's
+  van Contracten (IndexedDB + Drive, via `ctrAlleBijlagen`). Er is één
+  getekende versie per stuk. Weghalen gaat via de opruimlijst (dertig dagen
+  terug te halen).
+- Mailen gaat vanaf zijn eigen Gmail (`mailBouwBericht`, zoals bij facturen).
+  De getekende PDF die terugkomt zet hij erbij (*Getekende PDF toevoegen*).
+- Verandert een stuk na het tekenen, dan blijft de getekende versie zoals hij
+  was. Het menu zegt dan *daarna gewijzigd*: de vingerafdruk van het stuk
+  (`fisStukVinger`) klopt niet meer. Bewaren van een lening met een getekend
+  stuk dat nu anders is, geeft een waarschuwing: leg het vast met een allonge.
+
+**Waarom.**
+- Een geplaatste afbeelding is een gewone elektronische handtekening. Die is
+  even geldig als een handtekening met pen als de methode betrouwbaar genoeg
+  is voor het doel (art. 3:15a BW). Voor stukken binnen de eigen BV's, met
+  Frank aan beide kanten, is dat ruim genoeg.
+- Bij een pandakte zegt het venster: liever met de hand, want het pandrecht
+  moet ook tegenover een curator overeind blijven.
+- Een datum vóór vandaag mag (Frank wilde flexibiliteit), maar het venster
+  waarschuwt. Het stuk zegt dan dat hij op die dag tekende. Wie nu vastlegt
+  wat eerder is afgesproken, tekent met de datum van vandaag; de datum van
+  het stuk zelf blijft staan.
+- Vastleggen bij het tekenen voorkomt een getekend stuk met andere voorwaarden
+  onder de oude datum. Zonder vastleggen zou dat gebeuren, omdat de documenten
+  elke keer opnieuw uit de gegevens worden gemaakt.
+
+**Bestanden.**
+- `index.html`: `fisHand*`, `fisTeken*`, `fisGetekend*`, `#fisTekenModal`, het
+  vak in `#fisGegModal`, `fisPdfDoc` (`beeld`, `datumLeeg`), `slot` op de
+  slotzinnen, `ctrAlleBijlagen` en de hydratie.
+- `test.html`: 4 tests.
+- `validate.mjs`: `Uint8ClampedArray` en `ImageData` als browserfuncties.
+
+**Niet doen.**
+- Automatisch ondertekenen bij elke download: dan bestaat er een getekend stuk
+  zonder dat iemand tekende.
+- Een tekenpagina voor anderen in de app: er is geen server, en alleen het
+  eigen domein komt binnen.
+- De handtekening op een regel met een andere naam zetten.
+- De handtekening in de code of de repo zetten. Hij staat in de eigen gegevens
+  in Drive.

@@ -2513,7 +2513,22 @@ button.uren-mpiv-row:active{background:var(--surface2)}
 /* Velden die bij een keuze horen (lening: doel, zekerheid, betaling; je
    gegevens: de bestuurder) gaan weg met hidden -- .uren-fld is flex, dus
    dat moet hier gezegd, zoals bij Contracten. */
-#fisLenModal [hidden],#fisGegModal [hidden],#fisAllModal [hidden]{display:none}
+#fisLenModal [hidden],#fisGegModal [hidden],#fisAllModal [hidden],#fisTekenModal [hidden]{display:none}
+/* Je handtekening (2026-11-02): een vel papier, ook in donker, want daar
+   komt hij ook op te staan. Tekenen met vinger of muis op een canvas, met
+   een stippellijn als houvast; een foto van een handtekening op wit papier
+   wordt eerst ontdaan van de achtergrond. */
+.fis-hand{position:relative;height:128px;border:0.5px solid var(--border);border-radius:var(--radius-md);
+  background:#fff;display:grid;place-items:center;overflow:hidden}
+.fis-hand img{max-width:88%;max-height:100px}
+.fis-hand canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair}
+.fis-hand-leeg{font-size:var(--fs-klein);color:#6b7280}
+.fis-hand-lijn{position:absolute;left:18px;right:18px;bottom:30px;border-bottom:1px dashed #c4c8d0;pointer-events:none}
+.fis-hand-knoppen{display:flex;flex-wrap:wrap;gap:8px}
+/* Ondertekenen: de getekende versie van een stuk, met bekijken en weghalen. */
+.fis-getekend{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:var(--fs-klein);color:var(--text-muted)}
+.fis-getekend b{color:var(--text);font-weight:600}
+.fis-getekend .fis-getekend-knoppen{display:flex;gap:6px;margin-left:auto}
 /* Een paar vinkjes bij elkaar (allonge: wat verandert): twee kolommen, ook
    op een telefoon, waar elk vinkje de hoogte van een vinger krijgt (.fac-vink). */
 .fis-vinken{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}
@@ -9848,7 +9863,7 @@ body.aic-open .aic-kop .sp-k { animation: sp-twinkel calc(var(--duur) * 3) var(-
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v3.10</span>
+        <span class="app-versie" title="Appversie">v3.11</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -11526,11 +11541,58 @@ body.aic-open .aic-kop .sp-k { animation: sp-twinkel calc(var(--duur) * 3) var(-
         <div class="uren-fld"><label for="fisGegPrive">Woonadres</label><input type="text" class="inp" id="fisGegPrive" autocomplete="off" placeholder="Straat, postcode en plaats"/></div>
         <div class="uren-fld"><label for="fisGegGeboren">Geboortedatum</label><input type="date" class="inp" id="fisGegGeboren"/></div>
       </div>
+      <div class="fis-sectie" id="fisHandKop">Je handtekening</div>
+      <div class="fis-hand" id="fisHandVak"></div>
+      <div class="fis-hand-knoppen" id="fisHandKnoppen"></div>
+      <input type="file" id="fisHandFoto" accept="image/*" hidden data-change="fisHandFoto"/>
+      <small class="opd-hint">Komt alleen op de regels met jouw naam, en alleen als je zelf op Ondertekenen klikt. Een foto: je handtekening op wit papier, met genoeg licht.</small>
     </div>
     <div class="modal-footer" style="margin-top:20px">
+      <div class="modal-footer-left"></div>
       <div class="modal-footer-right">
         <button class="btn btn-sm modal-annuleer" data-action="fisGegSluit">Annuleren</button>
         <button class="btn btn-sm btn-primary" data-action="fisGegOpslaan">Opslaan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Fiscaal: een stuk ondertekenen of laten ondertekenen ──
+     Per document: plaats en datum (leeg = met de hand), je handtekening op
+     de regels met jouw naam, en eventueel mailen naar wie nog tekent. De
+     getekende versie wordt bewaard; een getekende PDF die terugkomt zet je
+     hier ook bij. -->
+<div class="modal-bg" id="fisTekenModal" onclick="if(event.target===this)fisTekenSluit()">
+  <div class="modal" style="max-width:560px;padding:20px 22px">
+    <h3 style="font-size:18px;font-weight:700;margin:0 0 2px">Ondertekenen</h3>
+    <p style="font-size:13px;color:var(--text-muted);margin:0 0 16px" id="fisTekenSub"></p>
+    <div class="uren-form">
+      <div class="uren-fld"><label for="fisTekenStuk">Document</label>
+        <select class="inp" id="fisTekenStuk" data-change="fisTekenStukKies"></select></div>
+      <div class="opd-velden2">
+        <div class="uren-fld"><label for="fisTekenPlaats">Plaats</label><input type="text" class="inp" id="fisTekenPlaats" autocomplete="off"/></div>
+        <div class="uren-fld"><label for="fisTekenDatum">Datum van ondertekenen</label><input type="date" class="inp" id="fisTekenDatum"/>
+          <small class="opd-hint">Leeg: die vul je met de hand in</small></div>
+      </div>
+      <label class="fac-vink"><input type="checkbox" id="fisTekenMijn" data-change="fisTekenVelden"/>Met mijn handtekening</label>
+      <div class="fis-getekend" id="fisTekenGeen" hidden><span>Je hebt nog geen handtekening.</span>
+        <span class="fis-getekend-knoppen"><button type="button" class="btn btn-xs" data-action="fisTekenNaarGegevens">Handtekening zetten</button></span></div>
+      <label class="fac-vink"><input type="checkbox" id="fisTekenMail" data-change="fisTekenVelden"/>Mailen naar wie nog moet tekenen</label>
+      <div class="uren-fld" id="fisTekenAanVeld" hidden><label for="fisTekenAan">Aan</label><input type="email" class="inp" id="fisTekenAan" autocomplete="off" placeholder="iemand@voorbeeld.nl"/></div>
+      <div class="uren-fld" id="fisTekenOnderwerpVeld" hidden><label for="fisTekenOnderwerp">Onderwerp</label><input type="text" class="inp" id="fisTekenOnderwerp" autocomplete="off"/></div>
+      <div class="uren-fld" id="fisTekenBerichtVeld" hidden><label for="fisTekenBericht">Bericht</label><textarea class="inp" id="fisTekenBericht" rows="6"></textarea>
+        <small class="opd-hint">Het document gaat als PDF mee, vanaf je eigen Gmail</small></div>
+      <div class="fis-getekend" id="fisTekenBestaand" hidden></div>
+      <div class="opd-reken" id="fisTekenReken" aria-live="polite"></div>
+    </div>
+    <input type="file" id="fisTekenBestand" accept="application/pdf,.pdf" hidden data-change="fisTekenBestand"/>
+    <div class="modal-footer" style="margin-top:20px">
+      <div class="modal-footer-left">
+        <button class="btn btn-sm" data-action="fisTekenUpload">Getekende PDF toevoegen</button>
+      </div>
+      <div class="modal-footer-right">
+        <button class="btn btn-sm modal-annuleer" data-action="fisTekenSluit">Annuleren</button>
+        <button class="btn btn-sm btn-primary" id="fisTekenKnop" data-action="fisTekenDoe">Ondertekenen</button>
       </div>
     </div>
   </div>
@@ -13134,6 +13196,15 @@ function hydrateerStateIntern(){
   if(!Array.isArray(fiscaalState.leningen))fiscaalState.leningen=[];
   /* Allonges (2026-11-02): wijzigingen en herstel bij een lopende lening. */
   fiscaalState.leningen.forEach(l=>{if(l&&typeof l==='object'&&!Array.isArray(l.allonges))l.allonges=[];});
+  /* Ondertekenen (2026-11-02): per uitkering en lening de getekende versies
+     (de PDF's staan als bijlage in IndexedDB en Drive) en de mails om te
+     laten tekenen; de handtekening zelf bij je gegevens. */
+  fiscaalState.dividenden.concat(fiscaalState.leningen).forEach(x=>{
+    if(!x||typeof x!=='object')return;
+    if(!Array.isArray(x.getekend))x.getekend=[];
+    if(!Array.isArray(x.tekenMails))x.tekenMails=[];
+  });
+  if(fiscaalState.gegevens.handtekening&&!fisHandtekening(fiscaalState.gegevens))delete fiscaalState.gegevens.handtekening;
   /* Kilometers (2026-11-02): ritten, bekende ritten, tarief per jaar en
      de uitbetaalde maanden. */
   kilometerState=rawState.kilometers||{ritten:[],vast:[],tarieven:{},uitbetaald:{}};
@@ -16419,6 +16490,8 @@ function renderFiscaalModule(){
 function fisOpen(w){
   fisWeergave=w==='dividend'||w==='lening'?w:'kies';
   renderFiscaalModule();
+  /* Getekende PDF's die nog alleen op dit apparaat staan alsnog naar Drive. */
+  if(w==='dividend'||w==='lening')ctrUploadWachtrij();
   const body=document.getElementById('fisBody');
   if(body)body.scrollTop=0;
 }
@@ -16459,7 +16532,7 @@ function fisDividendHtml(){
     const st=fisDivStatus(d,g);
     return '<button type="button" class="inst-rij" data-action="fisDivMenu" data-arg1="'+escapeHtml(d.id)+'" aria-haspopup="menu" aria-expanded="false">'+
       '<span class="inst-tekst"><b>Dividend '+escapeHtml(fisBedrag(d.bedrag))+'</b><small>'+
-      escapeHtml(['Boekjaar '+(d.boekjaar||'?'),fisDatum(d.datum)].filter(Boolean).join(' · '))+'</small></span>'+
+      escapeHtml(['Boekjaar '+(d.boekjaar||'?'),fisDatum(d.datum),fisGetekendKort('div',d)].filter(Boolean).join(' · '))+'</small></span>'+
       '<span class="inst-waarde '+(st.klaar?'is-aan':'is-uit')+'">'+escapeHtml(st.klaar?'Klaar':st.kort)+'</span>'+INST_PIJL+'</button>';
   }).join('');
   const uitkeringen='<div class="inst-kaart">'+rijen+
@@ -16710,7 +16783,25 @@ function fisPdfDoc(blokken){
          Franks voorbeeld; de regels lopen dan binnen hun eigen kolom. */
       const kol=b.naast?[b,b.naast]:[b],X=i=>L+i*(BREED/2+4),LIJN=b.naast?72:85,KB=b.naast?BREED/2-6:BREED;
       ruimte(46);y+=8;tekst();
-      kol.forEach((k,i)=>doc.text(k.plaatsDatum,X(i),y));y+=22;
+      /* datumLeeg (ondertekenen): na de plaats een stippellijn om de datum
+         met de hand op te schrijven. */
+      kol.forEach((k,i)=>{
+        if(!k.datumLeeg){doc.text(k.plaatsDatum,X(i),y);return;}
+        const voor=k.plaatsDatum?k.plaatsDatum+', ':'Datum ',x0=X(i)+doc.getTextWidth(voor)+1;
+        doc.text(voor,X(i),y);
+        doc.setDrawColor(90,90,90);doc.setLineWidth(0.2);doc.setLineDashPattern([1,1],0);
+        doc.line(x0,y+0.6,x0+30,y+0.6);doc.setLineDashPattern([],0);
+      });
+      y+=22;
+      /* beeld: je handtekening in het vak boven de lijn, er iets overheen,
+         zoals met een pen. */
+      kol.forEach((k,i)=>{
+        const h=k.beeld;
+        if(!h)return;
+        const sc=Math.min((LIJN-6)/h.w,17/h.h),w=h.w*sc,hh=h.h*sc;
+        /* Eén keer ingesloten (alias) en gecomprimeerd, ook bij twee regels. */
+        try{doc.addImage(h.png,'PNG',X(i)+3,y+1.5-hh,w,hh,'handtekening','FAST');}catch(e){console.warn('Handtekening niet in de PDF:',e.message);}
+      });
       doc.setDrawColor(90,90,90);doc.setLineWidth(0.2);doc.setLineDashPattern([1,1],0);
       kol.forEach((k,i)=>doc.line(X(i),y,X(i)+LIJN,y));doc.setLineDashPattern([],0);
       y+=6;kol.forEach((k,i)=>doc.text(k.naam,X(i),y));y+=REGEL+1;
@@ -16767,6 +16858,7 @@ function fisDivMenu(id,knop){
     item('pdf','bestuur',FIS_DOCS.bestuur.naam,!st.klaar)+
     item('pdf','nota',FIS_DOCS.nota.naam,!st.klaar)+
     item('pdf','alle','Alle drie',!st.klaar,st.klaar?'':st.reden)+
+    '<div class="uren-menu-sep"></div>'+fisTekenMenuItems('div',id,item)+
     '<div class="uren-menu-sep"></div>'+
     item('bewerk','','Bewerken')+
     '<div class="uren-menu-sep"></div>'+
@@ -16861,7 +16953,7 @@ function fisDivOpslaan(){
   if(fisDivForm.id){
     const i=lijst.findIndex(x=>x.id===fisDivForm.id);
     if(i>=0)lijst[i]={...lijst[i],...d,updatedAt:nu};
-  }else lijst.push({id:uid(),...d,createdAt:nu,updatedAt:nu});
+  }else lijst.push({id:uid(),...d,getekend:[],tekenMails:[],createdAt:nu,updatedAt:nu});
   scheduleSave();
   fisDivSluit();
   renderFiscaalModule();
@@ -16874,6 +16966,7 @@ function fisDivVerwijder(){
   const i=lijst.findIndex(x=>x.id===fisDivForm.id);
   if(i<0)return;
   const weg=lijst.splice(i,1)[0];
+  fisGetekendBegraaf(weg.getekend);
   scheduleSave();fisDivSluit();renderFiscaalModule();
   appToast('Uitkering verwijderd',{type:'success',undo:()=>{
     fiscaalState.dividenden.splice(Math.min(i,fiscaalState.dividenden.length),0,weg);
@@ -16894,8 +16987,11 @@ function fisGegOpen(){
   zet('fisGegPrive',g.priveAdres);zet('fisGegGeboren',g.geboortedatum);
   zet('fisGegBestuur',g.bestuurder==='persoon'?'persoon':'holding');zet('fisGegPersoon',g.bestuurderNaam);
   fisGegBestuurKies();
+  fisHand=fisHandtekening(g);fisHandPad=null;fisHandRender();
   document.getElementById('fisGegModal').classList.add('open');
-  setTimeout(()=>document.getElementById('fisGegWerk')?.focus(),60);
+  /* Vanuit Ondertekenen meteen naar je handtekening. */
+  if(fisNaGegevens&&fisNaGegevens.teken)setTimeout(()=>document.getElementById('fisHandKop')?.scrollIntoView({block:'start'}),60);
+  else setTimeout(()=>document.getElementById('fisGegWerk')?.focus(),60);
 }
 function fisGegBestuurKies(){
   const veld=document.getElementById('fisGegPersoonVeld');
@@ -16903,17 +16999,20 @@ function fisGegBestuurKies(){
 }
 function fisGegSluit(){
   document.getElementById('fisGegModal').classList.remove('open');
-  fisNaGegevens=null;
+  fisNaGegevens=null;fisHandPad=null;
 }
 function fisGegOpslaan(){
   const v=el=>(document.getElementById(el)?.value||'').trim();
+  /* Nog aan het tekenen: wat er staat telt als klaar. */
+  if(fisHandPad){const r=fisHandUitStreken(fisHandPad.streken);if(r)fisHand=r;fisHandPad=null;}
   fiscaalState.gegevens={werkNaam:v('fisGegWerk'),werkKvk:v('fisGegKvk'),werkPlaats:v('fisGegPlaats'),
     werkAdres:v('fisGegWerkAdres'),werkRsin:v('fisGegWerkRsin'),
     holdingNaam:v('fisGegHolding'),holdingKvk:v('fisGegHoldingKvk'),holdingPlaats:v('fisGegHoldingPlaats'),
     holdingAdres:v('fisGegHoldingAdres'),holdingRsin:v('fisGegHoldingRsin'),
     aanhef:document.getElementById('fisGegAanhef')?.value||'',vertegenwoordiger:v('fisGegNaam'),
     bestuurder:v('fisGegBestuur')==='persoon'?'persoon':'holding',bestuurderNaam:v('fisGegPersoon'),
-    priveAdres:v('fisGegPrive'),geboortedatum:v('fisGegGeboren')};
+    priveAdres:v('fisGegPrive'),geboortedatum:v('fisGegGeboren'),
+    ...(fisHand?{handtekening:{png:fisHand.png,w:fisHand.w,h:fisHand.h}}:{})};
   scheduleSave();
   const verder=fisNaGegevens;
   document.getElementById('fisGegModal').classList.remove('open');
@@ -16921,6 +17020,7 @@ function fisGegOpslaan(){
   renderFiscaalModule();
   if(verder==='nieuw'&&fisGegevensCompleet(fiscaalState.gegevens))fisDivOpen(null);
   else if(verder==='lening'&&fisLenGegevensOk(fiscaalState.gegevens))fisLenOpen(null);
+  else if(verder&&verder.teken)fisTekenOpen(verder.teken.bron,verder.teken.id,verder.teken.soort,verder.teken.extra);
 }
 
 /* ══ Leningen aan jezelf (2026-11-02) ══
@@ -17467,7 +17567,7 @@ function fisLenBlokken(soort,l,g,jaar){
     artikel('Slotbepalingen',
       'Wijzigingen in deze overeenkomst gelden alleen als partijen ze schriftelijk vastleggen. Op deze overeenkomst is Nederlands recht van toepassing.'+
         (gg.holding?' Deze overeenkomst is de schriftelijke vastlegging als bedoeld in artikel 2:247 BW.':''));
-    bl.push({...T('Aldus opgemaakt in tweevoud en ondertekend te '+P+' op '+DL+'.'),houdBij:52});
+    bl.push({...T('Aldus opgemaakt in tweevoud en ondertekend te '+P+' op '+DL+'.'),houdBij:52,slot:true});
     bl.push({soort:'handtekening',plaatsDatum:fisPlaatsDatum(P,l.datum),naam:N_.tekenNaam,regels:N_.tekenRegels,
       naast:{plaatsDatum:fisPlaatsDatum(P,l.datum),naam:N_.naam,regels:['Geldnemer']}});
     if(partner)bl.push({soort:'handtekening',plaatsDatum:fisPlaatsDatum(P,l.datum),naam:partner,regels:['Echtgenoot of geregistreerd partner van Geldnemer']});
@@ -17571,7 +17671,7 @@ function fisLenBlokken(soort,l,g,jaar){
       T('Pandgever verkoopt, verhuurt of bezwaart de auto niet zonder voorafgaande schriftelijke toestemming van Pandhouder. Hij houdt de auto in goede staat en verzekerd, en meldt schade, verlies of beslag direct aan Pandhouder.'),
       K('Artikel 5. Uitwinning'),
       T('Is Pandgever in verzuim met de lening, dan mag Pandhouder de afgifte van de auto vorderen en hem verkopen zoals de wet dat regelt (artikelen 3:237 lid 3 en 3:248 BW).'),
-      {...T('Aldus opgemaakt in tweevoud en ondertekend te '+P+' op '+DL+'.'),houdBij:52},
+      {...T('Aldus opgemaakt in tweevoud en ondertekend te '+P+' op '+DL+'.'),houdBij:52,slot:true},
       {soort:'handtekening',plaatsDatum:fisPlaatsDatum(P,l.datum),naam:N_.tekenNaam,regels:N_.tekenRegels.map(r=>r.replace('(Geldgever)','(Pandhouder)')),
         naast:{plaatsDatum:fisPlaatsDatum(P,l.datum),naam:N_.naam,regels:['Pandgever']}}
     ];
@@ -17703,7 +17803,7 @@ function fisAllBlokken(soort,l,a,g){
     artikel('Overige bepalingen',
       'Voor het overige blijft de Overeenkomst'+(eerderTekst?', zoals gewijzigd bij '+eerderTekst+',':'')+' ongewijzigd van kracht. Deze allonge maakt deel uit van de Overeenkomst; begrippen hebben dezelfde betekenis als daarin.'+
         (gg.holding?' Deze allonge is de schriftelijke vastlegging als bedoeld in artikel 2:247 BW.':''));
-    bl.push({...T('Aldus opgemaakt in tweevoud en ondertekend te '+P+' op '+DL+'.'),houdBij:52});
+    bl.push({...T('Aldus opgemaakt in tweevoud en ondertekend te '+P+' op '+DL+'.'),houdBij:52,slot:true});
     bl.push({soort:'handtekening',plaatsDatum:fisPlaatsDatum(P,a.datum),naam:N_.tekenNaam,regels:N_.tekenRegels,
       naast:{plaatsDatum:fisPlaatsDatum(P,a.datum),naam:N_.naam,regels:['Geldnemer']}});
     if(herstel&&a.fout==='tekst')return bl;
@@ -17807,7 +17907,7 @@ function fisLeningHtml(){
     const rente=p?p.rente:l.rente,looptijd=s?s.n:l.looptijd;
     return '<button type="button" class="inst-rij" data-action="fisLenMenu" data-arg1="'+escapeHtml(l.id)+'" aria-haspopup="menu" aria-expanded="false">'+
       '<span class="inst-tekst"><b>'+escapeHtml([String(l.nummer||'').trim(),fisBedrag(l.bedrag)].filter(Boolean).join(' · '))+'</b><small>'+
-      escapeHtml([doel.kort,typeof rente==='number'?fisPct(rente):'',looptijd?looptijd+' maanden':'',fisDatum(l.datum),n?n+(n===1?' allonge':' allonges'):''].filter(Boolean).join(' · '))+'</small></span>'+
+      escapeHtml([doel.kort,typeof rente==='number'?fisPct(rente):'',looptijd?looptijd+' maanden':'',fisDatum(l.datum),n?n+(n===1?' allonge':' allonges'):'',fisGetekendKort('len',l)].filter(Boolean).join(' · '))+'</small></span>'+
       '<span class="inst-waarde'+(toon?' is-'+toon:'')+'">'+escapeHtml(waarde)+'</span>'+INST_PIJL+'</button>';
   }).join('');
   const leningen='<div class="inst-kaart">'+rijen+
@@ -17879,6 +17979,7 @@ function fisLenMenu(id,knop){
         item('allonge',a.id,'Allonge '+a.nummer,!sa.klaar,sa.klaar?fisDatum(a.datum)+' · '+fisAllWat(l,a)[0]:sa.reden)+
         item('abesluit',a.id,'Besluit bij allonge '+a.nummer,!sa.klaar);
     }).join('')+
+    '<div class="uren-menu-sep"></div>'+fisTekenMenuItems('len',id,item)+
     (jaren.length?'<div class="uren-menu-sep"></div>'+jaren.map(j=>item('jaar',j,'Jaaroverzicht '+j,!st.klaar||!!jaarUit,
       j!==jaren[0]?'':!st.klaar&&stO.klaar?st.reden:st.klaar&&jaarUit?jaarUit:'')).join(''):'')+
     '<div class="uren-menu-sep"></div>'+
@@ -18045,12 +18146,16 @@ function fisLenOpslaan(){
   if(fisLenForm.id){
     const i=lijst.findIndex(x=>x.id===fisLenForm.id);
     if(i>=0)lijst[i]={...lijst[i],...l,updatedAt:nu};
-  }else lijst.push({id:uid(),...l,allonges:[],createdAt:nu,updatedAt:nu});
+  }else lijst.push({id:uid(),...l,allonges:[],getekend:[],tekenMails:[],createdAt:nu,updatedAt:nu});
+  const bestaand=fisLenForm.id;
   scheduleSave();
   fisLenSluit();
   renderFiscaalModule();
   const st=fisLenStatus(l,fiscaalState.gegevens);
-  appToast(st.klaar?'Lening bewaard; de documenten staan klaar in het menu.':'Lening bewaard. '+st.reden,{type:st.klaar?'success':'warning'});
+  /* Al getekend en nu anders: dat hoort in een allonge. */
+  if(bestaand&&fisGetekendAnders('len',bestaand).length)
+    appToast('Lening bewaard. De getekende stukken zeggen nu iets anders: leg een wijziging vast met een allonge, of teken opnieuw.',{type:'warning',duration:9000});
+  else appToast(st.klaar?'Lening bewaard; de documenten staan klaar in het menu.':'Lening bewaard. '+st.reden,{type:st.klaar?'success':'warning'});
 }
 function fisLenVerwijder(){
   if(!fisLenForm||!fisLenForm.id)return;
@@ -18058,6 +18163,7 @@ function fisLenVerwijder(){
   const i=lijst.findIndex(x=>x.id===fisLenForm.id);
   if(i<0)return;
   const weg=lijst.splice(i,1)[0];
+  fisGetekendBegraaf(weg.getekend);
   scheduleSave();fisLenSluit();renderFiscaalModule();
   appToast('Lening verwijderd',{type:'success',undo:()=>{
     fiscaalState.leningen.splice(Math.min(i,fiscaalState.leningen.length),0,weg);
@@ -18245,9 +18351,14 @@ function fisAllVerwijder(){
   const i=l?(l.allonges||[]).findIndex(x=>x.id===fisAllForm.id):-1;
   if(i<0)return;
   const weg=l.allonges.splice(i,1)[0];
+  /* Getekende versies van deze allonge en zijn besluit gaan mee. */
+  const getekend=(l.getekend||[]).filter(t=>t&&t.extra===weg.id);
+  l.getekend=(l.getekend||[]).filter(t=>!getekend.includes(t));
+  fisGetekendBegraaf(getekend);
   scheduleSave();fisAllSluit();renderFiscaalModule();
   appToast('Allonge verwijderd',{type:'success',undo:()=>{
     l.allonges.splice(Math.min(i,l.allonges.length),0,weg);
+    l.getekend=(l.getekend||[]).concat(getekend);
     scheduleSave();renderFiscaalModule();
   }});
 }
@@ -18265,6 +18376,8 @@ Object.assign(APP_ACTIONS,{
     if(actie==='pdf')fisLenPdf(id,extra);
     else if(actie==='jaar')fisLenPdf(id,'jaar',Number(extra));
     else if(actie==='allonge'||actie==='abesluit')fisLenPdf(id,actie,extra);
+    else if(actie==='teken')fisTekenOpen('len',id);
+    else if(actie==='getekend')fisGetekendDownload('len',id,extra);
     else if(actie==='anieuw')fisAllOpen(id,null);
     else if(actie==='abewerk')fisAllOpen(id,extra);
     else if(actie==='bewerk')fisLenOpen(id);
@@ -18281,6 +18394,8 @@ Object.assign(APP_ACTIONS,{
   fisDivMenu:(el,e,id)=>{if(e)e.stopPropagation();fisDivMenu(id,el);},
   fisDivActie:(el,e,actie,id,soort)=>{
     if(actie==='pdf')fisDivPdf(id,soort);
+    else if(actie==='teken')fisTekenOpen('div',id);
+    else if(actie==='getekend')fisGetekendDownload('div',id,soort);
     else if(actie==='bewerk')fisDivOpen(id);
     else if(actie==='weg'){fisMenuDicht();fisDivForm={id};fisDivVerwijder();}
   },
@@ -18294,6 +18409,493 @@ Object.assign(APP_ACTIONS,{
   fisBtw:()=>{switchModule('facturen');facSetView('btw');}
 });
 Object.assign(APP_CHANGE_ACTIONS,{fisGegBestuurKies:()=>fisGegBestuurKies()});
+
+/* ══ Ondertekenen (2026-11-02) ══
+   Je handtekening staat één keer bij je gegevens: getekend met vinger of
+   muis, of een foto van een handtekening op wit papier. Ondertekenen is
+   altijd een klik van jou, per document. De app zet hem dan op de regels
+   met jouw naam, met de plaats en de datum die je kiest -- of een lege
+   datum om met de hand in te vullen -- en bewaart die PDF als vast
+   bestand, op dezelfde plek als de PDF's van Contracten (IndexedDB en de
+   app-map in Drive). Verandert er daarna iets, dan blijft de getekende
+   versie zoals hij was en zegt het menu "daarna gewijzigd". Wie verder
+   nog tekent (je partner, een andere bestuurder) krijgt het stuk per mail;
+   de getekende PDF die terugkomt zet je erbij.
+   Een geplaatste afbeelding is een gewone elektronische handtekening:
+   even geldig als een handtekening met pen als de methode betrouwbaar
+   genoeg is voor het doel (art. 3:15a BW). Voor stukken binnen je eigen
+   BV's is dat zo; een pandakte teken je liever met de hand. */
+const FIS_INKT='#1d2d6b',FIS_HAND_DIK=2.4;
+/* Een bruikbare handtekening uit de gegevens, of null. */
+function fisHandtekening(g){
+  const h=g&&g.handtekening;
+  return h&&typeof h.png==='string'&&/^data:image\/png;base64,/.test(h.png)&&h.w>0&&h.h>0?h:null;
+}
+/* Een foto van een handtekening op papier: wat duidelijk donkerder is dan
+   het papier eromheen wordt inkt, de rest doorzichtig. Vergeleken met het
+   gemiddelde in een vak rond elke pixel (Bradley), zodat een schaduw over
+   het papier geen inkt wordt. Daarna bijgesneden. px: RGBA van w×h.
+   Geeft {data,w,h} (RGBA, in inktkleur) of null als er niets te vinden is. */
+function fisHandUitPixels(px,w,h){
+  const n=w*h,lum=new Float32Array(n);
+  for(let i=0;i<n;i++)lum[i]=0.299*px[i*4]+0.587*px[i*4+1]+0.114*px[i*4+2];
+  const W1=w+1,I=new Float64Array(W1*(h+1));
+  for(let y=0;y<h;y++){let rij=0;for(let x=0;x<w;x++){rij+=lum[y*w+x];I[(y+1)*W1+x+1]=I[y*W1+x+1]+rij;}}
+  const r=Math.max(4,Math.round(Math.max(w,h)/16)),a=new Uint8ClampedArray(n);
+  let x0=w,y0=h,x1=-1,y1=-1,tel=0;
+  for(let y=0;y<h;y++){
+    const ya=Math.max(0,y-r),yb=Math.min(h,y+r+1);
+    for(let x=0;x<w;x++){
+      const xa=Math.max(0,x-r),xb=Math.min(w,x+r+1);
+      const gem=(I[yb*W1+xb]-I[ya*W1+xb]-I[yb*W1+xa]+I[ya*W1+xa])/((xb-xa)*(yb-ya));
+      const v=Math.max(0,Math.min(1,(gem*0.85-lum[y*w+x])/(gem*0.12+1)));
+      const al=Math.round(v*px[(y*w+x)*4+3]);
+      a[y*w+x]=al;
+      if(al>128){tel++;if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;}
+    }
+  }
+  if(tel<Math.max(30,n*0.0005))return null;
+  const m=Math.round(Math.max(w,h)/100)+2;
+  x0=Math.max(0,x0-m);y0=Math.max(0,y0-m);x1=Math.min(w-1,x1+m);y1=Math.min(h-1,y1+m);
+  const B=x1-x0+1,H=y1-y0+1,uit=new Uint8ClampedArray(B*H*4);
+  for(let y=0;y<H;y++)for(let x=0;x<B;x++){
+    const o=(y*B+x)*4;uit[o]=0x1d;uit[o+1]=0x2d;uit[o+2]=0x6b;uit[o+3]=a[(y+y0)*w+x+x0];
+  }
+  return {data:uit,w:B,h:H};
+}
+/* Een canvas als PNG, hooguit 900 × 240 pixels: scherp genoeg voor de
+   PDF, klein genoeg voor je gegevens in Drive. */
+function fisHandPng(c){
+  const sc=Math.min(1,900/c.width,240/c.height);
+  if(sc<1){
+    const d=document.createElement('canvas');
+    d.width=Math.max(1,Math.round(c.width*sc));d.height=Math.max(1,Math.round(c.height*sc));
+    const ctx=d.getContext('2d');ctx.imageSmoothingQuality='high';ctx.drawImage(c,0,0,d.width,d.height);
+    c=d;
+  }
+  return {png:c.toDataURL('image/png'),w:c.width,h:c.height};
+}
+async function fisHandUitFoto(file){
+  const url=URL.createObjectURL(file);
+  try{
+    const img=await new Promise((ok,nee)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=()=>nee(new Error('Dit beeld kan de browser niet lezen'));i.src=url;});
+    const sc=Math.min(1,1400/Math.max(img.naturalWidth,img.naturalHeight));
+    const w=Math.max(1,Math.round(img.naturalWidth*sc)),h=Math.max(1,Math.round(img.naturalHeight*sc));
+    const c=document.createElement('canvas');c.width=w;c.height=h;
+    const ctx=c.getContext('2d');ctx.drawImage(img,0,0,w,h);
+    const r=fisHandUitPixels(ctx.getImageData(0,0,w,h).data,w,h);
+    if(!r)return null;
+    const d=document.createElement('canvas');d.width=r.w;d.height=r.h;
+    d.getContext('2d').putImageData(new ImageData(r.data,r.w,r.h),0,0);
+    return fisHandPng(d);
+  }finally{URL.revokeObjectURL(url);}
+}
+/* Klaar met tekenen: de streken opnieuw, vloeiend (door de middens van de
+   stukjes) en bijgesneden. streken: [[{x,y}]] in CSS-pixels. */
+function fisHandUitStreken(streken){
+  const pt=(streken||[]).flat();
+  if(!pt.length)return null;
+  const d=FIS_HAND_DIK;
+  let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+  pt.forEach(p=>{x0=Math.min(x0,p.x);y0=Math.min(y0,p.y);x1=Math.max(x1,p.x);y1=Math.max(y1,p.y);});
+  if(x1-x0<12&&y1-y0<12)return null;   /* een punt of een tikje, geen handtekening */
+  x0-=d*2;y0-=d*2;x1+=d*2;y1+=d*2;
+  const sc=Math.min(3,900/(x1-x0),240/(y1-y0)),c=document.createElement('canvas');
+  c.width=Math.max(1,Math.round((x1-x0)*sc));c.height=Math.max(1,Math.round((y1-y0)*sc));
+  const ctx=c.getContext('2d');ctx.scale(sc,sc);ctx.translate(-x0,-y0);
+  ctx.lineCap='round';ctx.lineJoin='round';ctx.lineWidth=d;ctx.strokeStyle=FIS_INKT;ctx.fillStyle=FIS_INKT;
+  streken.forEach(s=>{
+    if(!s.length)return;
+    if(s.length===1){ctx.beginPath();ctx.arc(s[0].x,s[0].y,d/2,0,Math.PI*2);ctx.fill();return;}
+    ctx.beginPath();ctx.moveTo(s[0].x,s[0].y);
+    for(let i=1;i<s.length-1;i++)ctx.quadraticCurveTo(s[i].x,s[i].y,(s[i].x+s[i+1].x)/2,(s[i].y+s[i+1].y)/2);
+    ctx.lineTo(s[s.length-1].x,s[s.length-1].y);ctx.stroke();
+  });
+  return fisHandPng(c);
+}
+
+/* ── Het vak in het venster met je gegevens ── */
+let fisHand=null;     /* {png,w,h}: wat er in het venster staat; pas bij Opslaan bewaard */
+let fisHandPad=null;  /* {c,ctx,streken} zolang je tekent */
+function fisHandRender(){
+  const vak=document.getElementById('fisHandVak'),kn=document.getElementById('fisHandKnoppen');
+  if(!vak||!kn)return;
+  const knop=(wat,t,hoofd)=>'<button type="button" class="btn btn-sm'+(hoofd?' btn-primary':'')+'" data-action="fisHand" data-arg1="'+wat+'">'+t+'</button>';
+  if(fisHandPad){
+    kn.innerHTML=knop('wis','Wissen')+knop('stop','Annuleren')+knop('klaar','Klaar',true);
+    return;
+  }
+  vak.innerHTML=fisHand?'<img alt="Je handtekening" src="'+escapeHtml(fisHand.png)+'">':'<span class="fis-hand-leeg">Nog geen handtekening</span>';
+  kn.innerHTML=knop('teken',fisHand?'Opnieuw tekenen':'Tekenen')+knop('foto','Foto kiezen')+(fisHand?knop('weg','Weghalen'):'');
+}
+function fisHandTekenStart(){
+  const vak=document.getElementById('fisHandVak');
+  if(!vak)return;
+  vak.innerHTML='<span class="fis-hand-lijn"></span><canvas aria-label="Teken hier je handtekening"></canvas>';
+  const c=vak.querySelector('canvas'),r=c.getBoundingClientRect(),dpr=Math.max(1,window.devicePixelRatio||1);
+  c.width=Math.max(1,Math.round(r.width*dpr));c.height=Math.max(1,Math.round(r.height*dpr));
+  const ctx=c.getContext('2d');ctx.scale(dpr,dpr);
+  ctx.lineCap='round';ctx.lineJoin='round';ctx.lineWidth=FIS_HAND_DIK;ctx.strokeStyle=FIS_INKT;ctx.fillStyle=FIS_INKT;
+  const pad={c,ctx,streken:[]};
+  fisHandPad=pad;
+  let streek=null;
+  const punt=e=>{const b=c.getBoundingClientRect();return {x:e.clientX-b.left,y:e.clientY-b.top};};
+  c.addEventListener('pointerdown',e=>{
+    e.preventDefault();
+    try{c.setPointerCapture(e.pointerId);}catch(_){}
+    const p=punt(e);streek=[p];pad.streken.push(streek);
+    ctx.beginPath();ctx.arc(p.x,p.y,FIS_HAND_DIK/2,0,Math.PI*2);ctx.fill();
+  });
+  c.addEventListener('pointermove',e=>{
+    if(!streek)return;
+    const p=punt(e),v=streek[streek.length-1];
+    if(Math.hypot(p.x-v.x,p.y-v.y)<0.8)return;
+    streek.push(p);
+    ctx.beginPath();ctx.moveTo(v.x,v.y);ctx.lineTo(p.x,p.y);ctx.stroke();
+  });
+  const eind=()=>{streek=null;};
+  c.addEventListener('pointerup',eind);
+  c.addEventListener('pointercancel',eind);
+  fisHandRender();
+}
+function fisHandDoe(wat){
+  if(wat==='teken')fisHandTekenStart();
+  else if(wat==='wis'&&fisHandPad){
+    const {c,ctx}=fisHandPad;
+    ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,c.width,c.height);ctx.restore();
+    fisHandPad.streken.length=0;
+  }
+  else if(wat==='klaar'&&fisHandPad){
+    const r=fisHandUitStreken(fisHandPad.streken);
+    if(!r){appToast('Teken eerst je handtekening.',{type:'warning'});return;}
+    fisHand=r;fisHandPad=null;fisHandRender();
+  }
+  else if(wat==='stop'){fisHandPad=null;fisHandRender();}
+  else if(wat==='foto')document.getElementById('fisHandFoto')?.click();
+  else if(wat==='weg'){fisHand=null;fisHandRender();}
+}
+async function fisHandFoto(el){
+  const f=(el.files||[])[0];
+  el.value='';
+  if(!f)return;
+  if(!/^image\//.test(f.type||'')){appToast((f.name||'Dit bestand')+' is geen foto',{type:'error'});return;}
+  try{
+    const r=await fisHandUitFoto(f);
+    if(!r){appToast('Geen handtekening gevonden. Neem een foto van je handtekening op wit papier, met genoeg licht en zonder schaduw.',{type:'warning',duration:9000});return;}
+    fisHand=r;fisHandPad=null;fisHandRender();
+  }catch(e){appToast('De foto kon niet worden gelezen: '+e.message,{type:'error'});}
+}
+
+/* ── Wat er getekend wordt ── */
+/* De stukken van een uitkering ('div') of lening ('len'): per stuk soort,
+   extra (het id van een allonge), naam, bestandsnaam, of hij klaar is,
+   plaats en de blokken. Het jaaroverzicht tekent niemand. */
+function fisTekenBron(bron,id){
+  const g=fiscaalState.gegevens||{};
+  if(bron==='div'){
+    const d=(fiscaalState.dividenden||[]).find(x=>x.id===id);
+    if(!d)return null;
+    const st=fisDivStatus(d,g);
+    return {item:d,titel:'Dividend '+fisBedrag(d.bedrag)+(String(d.boekjaar||'').trim()?', boekjaar '+String(d.boekjaar).trim():''),
+      stukken:['ava','bestuur','nota'].map(s=>({soort:s,extra:'',naam:FIS_DOCS[s].naam,bestand:fisDivBestandsnaam(s,d),
+        klaar:st.klaar,reden:st.reden,plaats:d.plaats,blokken:()=>fisDivBlokken(s,d,g)}))};
+  }
+  const l=(fiscaalState.leningen||[]).find(x=>x.id===id);
+  if(!l)return null;
+  const stO=fisLenStatus(fisLenTot(l),g);
+  const stukken=fisLenSoorten(l).map(s=>({soort:s,extra:'',naam:FIS_LEN_DOCS[s].naam,bestand:fisLenBestandsnaam(s,l),
+    klaar:stO.klaar,reden:stO.reden,plaats:l.plaats,blokken:()=>fisLenBlokken(s,l,g)}));
+  fisLenAllonges(l).forEach(a=>{
+    const sa=fisLenDocStatus(l,'allonge',a.id,g);
+    ['allonge','abesluit'].forEach(s=>stukken.push({soort:s,extra:a.id,naam:(s==='allonge'?'Allonge ':'Besluit bij allonge ')+a.nummer,
+      bestand:fisLenBestandsnaam(s,l,a.nummer),klaar:sa.klaar,reden:sa.reden,plaats:a.plaats||l.plaats,blokken:()=>fisAllBlokken(s,l,a,g)}));
+  });
+  return {item:l,titel:'Lening '+(String(l.nummer||'').trim()||fisBedrag(l.bedrag)),stukken};
+}
+function fisZelfdeNaam(a,b){
+  const t=v=>String(v||'').trim().replace(/\s+/g,' ').toLowerCase();
+  return !!t(a)&&t(a)===t(b);
+}
+/* Wie er tekent: jouw regels (rol) en die van anderen ({naam,rol}). */
+function fisTekenWie(blokken,g){
+  const ik=String((g||{}).vertegenwoordiger||'').trim(),uit={mijn:[],anderen:[]};
+  blokken.forEach(b=>{
+    if(b.soort!=='handtekening')return;
+    [b,b.naast].filter(Boolean).forEach(k=>{
+      const rol=String((k.regels||[])[0]||k.naam||'').replace(/^Namens /,'namens ');
+      if(fisZelfdeNaam(k.naam,ik))uit.mijn.push(rol);else uit.anderen.push({naam:k.naam,rol});
+    });
+  });
+  return uit;
+}
+/* De blokken zoals je ze tekent (o: {plaats, datum, beeld}). Op de regels met
+   jouw naam de plaats, de gekozen datum en -- met beeld -- je handtekening;
+   bij wie zelf nog tekent de plaats en een lege datum. Zonder datum ook bij
+   jou een lege datum, om met de hand in te vullen. De slotzin noemt de
+   datum alleen als jij als enige tekent; anders staat hij bij elke regel. */
+function fisTekenBlokken(blokken,g,o){
+  const ik=String((g||{}).vertegenwoordiger||'').trim();
+  const datum=fisIsIso(o.datum)?o.datum:'',plaats=String(o.plaats||'').trim();
+  const wie=fisTekenWie(blokken,g),alleenIk=!wie.anderen.length;
+  const kolom=k=>{
+    const mijn=fisZelfdeNaam(k.naam,ik),d=mijn?datum:'';
+    return {...k,plaatsDatum:fisPlaatsDatum(plaats,d),datumLeeg:!d,beeld:mijn&&o.beeld?o.beeld:null};
+  };
+  return blokken.map(b=>{
+    if(b.soort==='handtekening'){const k=kolom(b);if(b.naast)k.naast=kolom(b.naast);return k;}
+    if(b.slot)return {...b,tekst:'Aldus opgemaakt in tweevoud en ondertekend'+(plaats?' te '+plaats:'')+(datum&&alleenIk?' op '+fisDatumLang(datum):'')+'.'};
+    return b;
+  });
+}
+/* Een vingerafdruk van wat er in een stuk staat, om later te zien of het
+   nog hetzelfde zou zijn als wat je tekende. */
+function fisStukVinger(blokken){
+  const s=JSON.stringify(blokken);
+  let h=0x811c9dc5;
+  for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,0x01000193)>>>0;}
+  return h.toString(16)+'.'+s.length;
+}
+/* De laatste getekende versie van een stuk, of null. */
+function fisGetekend(item,soort,extra){
+  const l=((item&&item.getekend)||[]).filter(t=>t&&t.soort===soort&&(t.extra||'')===(extra||''));
+  return l.length?l[l.length-1]:null;
+}
+function fisGetekendGewijzigd(t,stuk){return !!(t&&t.vinger&&stuk&&t.vinger!==fisStukVinger(stuk.blokken()));}
+/* De getekende stukken die nu anders zouden zijn. */
+function fisGetekendAnders(bron,id){
+  const b=fisTekenBron(bron,id);
+  return b?b.stukken.filter(s=>fisGetekendGewijzigd(fisGetekend(b.item,s.soort,s.extra),s)):[];
+}
+/* Voor de regel in de lijst: zijn de hoofdstukken getekend (de overeenkomst
+   met besluit en pandakte; bij een uitkering alle drie)? */
+function fisGetekendKort(bron,item){
+  const soorten=bron==='div'?['ava','bestuur','nota']:fisLenSoorten(item);
+  const n=soorten.filter(s=>fisGetekend(item,s,'')).length;
+  return !n?'':n===soorten.length?'getekend':'deels getekend';
+}
+/* Weg met een stuk of een uitkering of lening: de PDF's in de opruimlijst
+   van Contracten. Over dertig dagen gaan ze uit Drive, tenzij ongedaan
+   maken ze weer in gebruik zet. */
+function fisGetekendBegraaf(lijst){
+  (lijst||[]).forEach(t=>{if(t&&t.bestand)ctrBegraaf(t.bestand);});
+}
+async function fisGetekendBewaar(item,stuk,blob,velden){
+  const {hash}=await facScanVingerafdruk(blob);
+  const b={id:uid(),naam:stuk.bestand.replace(/\.pdf$/i,'')+'_getekend.pdf',grootte:blob.size,hash,driveId:null,toegevoegdOp:Date.now()};
+  await ctrLokaalZet(b.id,blob);
+  if(!Array.isArray(item.getekend))item.getekend=[];
+  /* Eén getekende versie per stuk: een nieuwe vervangt de vorige. */
+  const oud=item.getekend.filter(t=>t&&t.soort===stuk.soort&&(t.extra||'')===(stuk.extra||''));
+  item.getekend=item.getekend.filter(t=>!oud.includes(t));
+  fisGetekendBegraaf(oud);
+  const t={id:uid(),soort:stuk.soort,extra:stuk.extra||'',vinger:fisStukVinger(stuk.blokken()),op:Date.now(),bestand:b,...velden};
+  item.getekend.push(t);
+  item.updatedAt=Date.now();
+  scheduleSave();
+  ctrUploadWachtrij();
+  return t;
+}
+function fisDownloadBlob(blob,naam){
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=naam;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),4000);
+}
+async function fisGetekendDownload(bron,id,tid){
+  fisMenuDicht();
+  const b=fisTekenBron(bron,id),t=b&&(b.item.getekend||[]).find(x=>x&&x.id===tid);
+  if(!t||!t.bestand)return;
+  try{fisDownloadBlob(await ctrPdfHaal(t.bestand),t.bestand.naam);}
+  catch(e){appToast(e.code==='elders'?e.message:'De getekende PDF is niet te openen: '+e.message,{type:'error',duration:9000});}
+}
+/* "getekend 2-11-2026" of "toegevoegd …", en of het stuk daarna veranderde. */
+function fisGetekendTekst(t,stuk){
+  const wanneer=t.bron==='upload'?'toegevoegd '+fisDatum(dateStr(new Date(t.op)))
+    :t.datum?'getekend '+fisDatum(t.datum):'getekend, datum met de hand';
+  return wanneer+(fisGetekendGewijzigd(t,stuk)?' · daarna gewijzigd':'');
+}
+/* In het menu van een uitkering of lening: ondertekenen, en per stuk de
+   getekende versie. item: de menuregel van dat menu (actie, arg, tekst, uit, klein). */
+function fisTekenMenuItems(bron,id,item){
+  const b=fisTekenBron(bron,id);
+  if(!b)return '';
+  const klaar=b.stukken.some(s=>s.klaar);
+  return item('teken','','Ondertekenen of mailen',!klaar,klaar?'Met je handtekening en een datum naar keuze':'')+
+    b.stukken.map(s=>{
+      const t=fisGetekend(b.item,s.soort,s.extra);
+      return t?item('getekend',t.id,'Getekend: '+s.naam,false,fisGetekendTekst(t,s)):'';
+    }).join('');
+}
+
+/* ── Het venster ── */
+let fisTeken=null;   /* {bron,id} zolang het venster open is */
+function fisTekenOpen(bron,id,soort,extra){
+  fisMenuDicht();
+  const b=fisTekenBron(bron,id);
+  if(!b||!b.stukken.length)return;
+  fisTeken={bron,id};
+  const sel=document.getElementById('fisTekenStuk');
+  sel.innerHTML=b.stukken.map((s,i)=>'<option value="'+i+'">'+escapeHtml(s.naam)+'</option>').join('');
+  /* Het gevraagde stuk, anders het eerste dat klaar is. */
+  let i=soort?b.stukken.findIndex(s=>s.soort===soort&&(s.extra||'')===(extra||'')):-1;
+  if(i<0)i=Math.max(0,b.stukken.findIndex(s=>s.klaar));
+  sel.value=String(i);
+  document.getElementById('fisTekenSub').textContent=b.titel;
+  document.getElementById('fisTekenDatum').value=urenToday();
+  const h=fisHandtekening(fiscaalState.gegevens);
+  document.getElementById('fisTekenMijn').checked=!!h;
+  document.getElementById('fisTekenMail').checked=false;
+  document.getElementById('fisTekenAan').value='';
+  fisTekenStukKies();
+  document.getElementById('fisTekenModal').classList.add('open');
+}
+function fisTekenSluit(){
+  document.getElementById('fisTekenModal').classList.remove('open');
+  fisTeken=null;
+}
+function fisTekenHuidig(){
+  const b=fisTeken&&fisTekenBron(fisTeken.bron,fisTeken.id);
+  const s=b&&b.stukken[Number(document.getElementById('fisTekenStuk')?.value)||0];
+  return s?{b,s}:null;
+}
+/* Een ander stuk gekozen: plaats en mailtekst daarbij. */
+function fisTekenStukKies(){
+  const h=fisTekenHuidig();
+  if(!h)return;
+  const naam=String((fiscaalState.gegevens||{}).vertegenwoordiger||'').trim();
+  document.getElementById('fisTekenPlaats').value=String(h.s.plaats||'').trim();
+  document.getElementById('fisTekenOnderwerp').value='Ter ondertekening: '+h.s.naam+' ('+h.b.titel+')';
+  document.getElementById('fisTekenBericht').value='Beste,\n\nIn de bijlage staat een document om te ondertekenen: '+h.s.naam+' ('+h.b.titel+
+    '). Wil je het ondertekenen en de getekende versie aan mij terugsturen?\n\nMet vriendelijke groet,\n\n'+naam;
+  fisTekenVelden();
+}
+/* Wat er bij de keuzes hoort: de mailvelden, de knop, en onderaan wie er
+   tekent en waar je op let. */
+function fisTekenVelden(){
+  const h=fisTekenHuidig();
+  if(!h)return;
+  const g=fiscaalState.gegevens||{},hand=fisHandtekening(g);
+  const mijnVink=document.getElementById('fisTekenMijn'),mailVink=document.getElementById('fisTekenMail');
+  mijnVink.disabled=!hand;
+  if(!hand)mijnVink.checked=false;
+  const mijn=mijnVink.checked,mail=mailVink.checked;
+  document.getElementById('fisTekenGeen').hidden=!!hand;
+  ['fisTekenAanVeld','fisTekenOnderwerpVeld','fisTekenBerichtVeld'].forEach(x=>{document.getElementById(x).hidden=!mail;});
+  const knop=document.getElementById('fisTekenKnop');
+  knop.textContent=mijn&&mail?'Ondertekenen en mailen':mijn?'Ondertekenen':mail?'Mailen':'Downloaden';
+  knop.disabled=!h.s.klaar;
+  /* De getekende versie van dit stuk. */
+  const t=fisGetekend(h.b.item,h.s.soort,h.s.extra),bestaand=document.getElementById('fisTekenBestaand');
+  bestaand.hidden=!t;
+  bestaand.innerHTML=t?'<span><b>'+escapeHtml(fisGetekendTekst(t,h.s).replace(/^./,c=>c.toUpperCase()))+'</b>'+(mijn?' · opnieuw ondertekenen vervangt die versie':'')+'</span>'+
+    '<span class="fis-getekend-knoppen"><button type="button" class="btn btn-xs" data-action="fisTekenBekijk" data-arg1="'+escapeHtml(t.id)+'">Downloaden</button>'+
+    '<button type="button" class="btn btn-xs" data-action="fisTekenWeg" data-arg1="'+escapeHtml(t.id)+'">Weghalen</button></span>':'';
+  /* Onderaan: wie, de datum, en wat er verder speelt. */
+  const box=document.getElementById('fisTekenReken');
+  if(!h.s.klaar){box.innerHTML='<p class="opd-reken-fout">'+escapeHtml(h.s.reden||'Dit stuk is nog niet klaar.')+'</p>';return;}
+  const wie=fisTekenWie(h.s.blokken(),g),datum=document.getElementById('fisTekenDatum').value,li=[];
+  const b=x=>'<b>'+escapeHtml(x)+'</b>';
+  if(wie.mijn.length)li.push((mijn?'Jouw handtekening komt bij ':'Plaats en datum komen bij ')+wie.mijn.map(b).join(' en ')+(mijn?'':', zonder handtekening'));
+  wie.anderen.forEach(x=>li.push(b(x.naam)+' tekent zelf ('+escapeHtml(x.rol)+'); daar blijft de datum leeg'));
+  if(!datum)li.push('De datum vul je met de hand in, bij elke handtekening');
+  else if(datum<urenToday())li.push(b('Een datum vóór vandaag')+': het stuk zegt dan dat je op die dag tekende. Leg je nu vast wat eerder is afgesproken, teken dan met de datum van vandaag; de datum van het stuk zelf blijft staan');
+  if(h.s.soort==='pand')li.push('Een pandakte teken je liever met de hand: het pandrecht moet ook tegenover een curator overeind blijven. Laat hem daarna registreren bij de Belastingdienst');
+  ((h.b.item.tekenMails)||[]).filter(m=>m&&m.soort===h.s.soort&&(m.extra||'')===(h.s.extra||'')).slice(-2)
+    .forEach(m=>li.push('Gemaild naar '+escapeHtml(m.aan)+' op '+escapeHtml(fisDatum(dateStr(new Date(m.op))))));
+  box.innerHTML=li.length?'<ul>'+li.map(x=>'<li>'+x+'</li>').join('')+'</ul>':'';
+}
+document.addEventListener('input',e=>{if(e.target&&e.target.id==='fisTekenDatum')fisTekenVelden();});
+async function fisTekenDoe(){
+  const h=fisTekenHuidig();
+  if(!h)return;
+  if(!h.s.klaar){appMelding('Nog niet klaar',h.s.reden);return;}
+  const g=fiscaalState.gegevens||{},hand=fisHandtekening(g);
+  const mijn=!!hand&&document.getElementById('fisTekenMijn').checked,mail=document.getElementById('fisTekenMail').checked;
+  const datum=document.getElementById('fisTekenDatum').value||'',plaats=document.getElementById('fisTekenPlaats').value.trim();
+  const aan=document.getElementById('fisTekenAan').value.trim(),onderwerp=document.getElementById('fisTekenOnderwerp').value.trim();
+  if(mail&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(aan)){appToast('Vul een geldig e-mailadres in bij "Aan"',{type:'warning'});document.getElementById('fisTekenAan').focus();return;}
+  if(mail&&!onderwerp){appToast('Een onderwerp is verplicht',{type:'warning'});return;}
+  const doc=fisPdfDoc(fisTekenBlokken(h.s.blokken(),g,{plaats,datum,beeld:mijn?hand:null}));
+  if(!doc){appToast('De PDF-maker is niet geladen. Controleer je verbinding en probeer het opnieuw.',{type:'error'});return;}
+  const naam=mijn?h.s.bestand.replace(/\.pdf$/i,'')+'_getekend.pdf':h.s.bestand;
+  const knop=document.getElementById('fisTekenKnop');
+  if(mail){
+    const gebruiker=ingelogdeGebruiker();
+    if(!gebruiker){appToast('Je bent niet meer ingelogd',{type:'error'});return;}
+    knop.disabled=true;knop.textContent='Versturen…';
+    try{
+      await mailApiVerstuur(mailBouwBericht({aan,van:gebruiker.email,vanNaam:String(g.vertegenwoordiger||'').trim(),
+        onderwerp,tekst:document.getElementById('fisTekenBericht').value,bijlageNaam:naam,bijlageB64:doc.output('datauristring').split(',')[1]}));
+    }catch(e){
+      fisTekenVelden();
+      const uitleg=/scope|insufficient|permission|403/i.test(e.message)?' — controleer of gmail.send bij de OAuth-toestemmingen staat':'';
+      appToast('Mailen mislukt: '+e.message+uitleg,{type:'error',duration:12000});
+      return;
+    }
+    if(!Array.isArray(h.b.item.tekenMails))h.b.item.tekenMails=[];
+    h.b.item.tekenMails.push({id:uid(),soort:h.s.soort,extra:h.s.extra||'',aan,op:Date.now()});
+    scheduleSave();
+  }
+  if(mijn){
+    try{await fisGetekendBewaar(h.b.item,h.s,doc.output('blob'),{bron:'app',datum:datum||null,plaats});}
+    catch(e){appToast('Getekend, maar niet bewaard: '+e.message,{type:'error',duration:9000});}
+  }
+  if(!mail)doc.save(naam);
+  fisTekenSluit();
+  renderFiscaalModule();
+  appToast(mail?(mijn?'Getekend en gemaild naar ':'Gemaild naar ')+aan:mijn?'Getekend en bewaard; de getekende versie staat ook in het menu':'PDF gedownload',{type:'success'});
+}
+/* Een getekende PDF die terugkomt: bij het gekozen stuk zetten. */
+async function fisTekenBestand(el){
+  const f=(el.files||[])[0];
+  el.value='';
+  const h=fisTekenHuidig();
+  if(!f||!h)return;
+  if(!(f.type==='application/pdf'||/\.pdf$/i.test(f.name||''))){appToast((f.name||'Dit bestand')+' is geen PDF',{type:'error'});return;}
+  if(f.size>CTR_MAX_BYTES){appToast(f.name+' is groter dan 25 MB',{type:'error'});return;}
+  try{await fisGetekendBewaar(h.b.item,h.s,f.type==='application/pdf'?f:new Blob([f],{type:'application/pdf'}),{bron:'upload',datum:null,plaats:''});}
+  catch(e){appToast('Niet bewaard: '+e.message,{type:'error'});return;}
+  fisTekenVelden();
+  renderFiscaalModule();
+  appToast('Getekende versie bewaard bij '+h.s.naam,{type:'success'});
+}
+function fisTekenWeg(tid){
+  const h=fisTekenHuidig();
+  if(!h)return;
+  const item=h.b.item,i=(item.getekend||[]).findIndex(t=>t&&t.id===tid);
+  if(i<0)return;
+  const [t]=item.getekend.splice(i,1);
+  fisGetekendBegraaf([t]);
+  scheduleSave();fisTekenVelden();renderFiscaalModule();
+  appToast('Getekende versie weggehaald',{type:'success',undo:()=>{
+    item.getekend.splice(Math.min(i,item.getekend.length),0,t);
+    scheduleSave();renderFiscaalModule();
+    if(fisTeken)fisTekenVelden();
+  }});
+}
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&fisTeken&&!document.getElementById('fisTekenKnop')?.textContent.startsWith('Versturen'))fisTekenSluit();
+});
+Object.assign(APP_ACTIONS,{
+  fisHand:(el,e,wat)=>fisHandDoe(wat),
+  fisTekenSluit:()=>fisTekenSluit(),
+  fisTekenDoe:()=>fisTekenDoe(),
+  fisTekenUpload:()=>document.getElementById('fisTekenBestand')?.click(),
+  fisTekenBekijk:(el,e,tid)=>{const h=fisTekenHuidig();if(h)fisGetekendDownload(fisTeken.bron,fisTeken.id,tid);},
+  fisTekenWeg:(el,e,tid)=>fisTekenWeg(tid),
+  fisTekenNaarGegevens:()=>{
+    const h=fisTekenHuidig();
+    const terug=fisTeken&&h?{teken:{bron:fisTeken.bron,id:fisTeken.id,soort:h.s.soort,extra:h.s.extra}}:null;
+    fisTekenSluit();
+    fisNaGegevens=terug;
+    fisGegOpen();
+  }
+});
+Object.assign(APP_CHANGE_ACTIONS,{
+  fisHandFoto:el=>fisHandFoto(el),
+  fisTekenStukKies:()=>fisTekenStukKies(),
+  fisTekenVelden:()=>fisTekenVelden(),
+  fisTekenBestand:el=>fisTekenBestand(el)
+});
 
 /* ─ Event delegation registrations (Dashboard + Sidebar clients) ─ */
 Object.assign(APP_ACTIONS,{
@@ -38838,6 +39440,9 @@ function ctrAlleBijlagen(){
   const uit=[];
   (contractState.contracten||[]).forEach(c=>(c.bijlagen||[]).forEach(b=>uit.push(b)));
   (opdrachtState.opdrachten||[]).forEach(o=>(o.bijlagen||[]).forEach(b=>uit.push(b)));
+  /* De getekende stukken van Fiscaal (2026-11-02): zelfde opslag en opruimlijst. */
+  (fiscaalState.dividenden||[]).concat(fiscaalState.leningen||[]).forEach(x=>
+    ((x&&x.getekend)||[]).forEach(t=>{if(t&&t.bestand)uit.push(t.bestand);}));
   return uit;
 }
 function ctrWachtend(){return ctrAlleBijlagen().filter(b=>!b.driveId).length;}
@@ -38889,6 +39494,7 @@ function ctrUploadWachtrij(){
       scheduleSave();
       if(activeModule==='contracten')ctrRenderAll();
       else if(activeModule==='opdrachten')opdRenderAll();
+      else if(activeModule==='fiscaal')renderFiscaalModule();
     }
     return n;
   })().finally(()=>{ctrUploadBezig=null;});

@@ -859,6 +859,29 @@ In de PDF blijft de slotzin (*Aldus opgemaakt…*) bij de handtekeningen: een
 tekstblok met `houdBij` (in mm) begint op een nieuwe pagina als de
 handtekeningen er anders los achter zouden vallen.
 
+**Ondertekenen** (2026-11-02). *Je handtekening* staat onderaan
+`#fisGegModal`. Het vak (`.fis-hand`, 128px hoog, `--radius-md`) is altijd
+wit, ook in donker: het is het papier waar hij op komt te staan. De inkt is
+donkerblauw. Tijdens het tekenen staat er een stippellijn als houvast. Onder
+het vak staan de knoppen als `.btn-sm` op een rij (*Tekenen* of *Opnieuw
+tekenen*, *Foto kiezen*, *Weghalen*; tijdens het tekenen *Wissen*,
+*Annuleren* en *Klaar* als primaire knop). Op een telefoon lopen ze door
+naar een tweede regel. Het venster *Ondertekenen* (`#fisTekenModal`, 560)
+volgt de andere vensters. Bovenaan staan document, plaats en datum (met de
+uitleg *Leeg: die vul je met de hand in*), daaronder twee vinkjes (`.fac-vink`).
+De mailvelden zijn er alleen met het vinkje. Een getekende versie is een
+regel `.fis-getekend` met twee `.btn-xs`. Onderaan staat het rekenvak: wie
+tekent, de datum, de pandakte. Links in de voet staat *Getekende PDF
+toevoegen*. De primaire knop zegt wat er gebeurt: *Ondertekenen*, *Mailen*,
+*Ondertekenen en mailen* of *Downloaden*. In het menu komt *Ondertekenen of
+mailen* na de documenten, met per getekend stuk een regel *Getekend: …*
+(bijregel: de datum, en *daarna gewijzigd*). In de lijst staat *getekend* of
+*deels getekend* achteraan de bijregel.
+
+In de PDF staat de handtekening boven de stippellijn, er iets overheen
+(hooguit 17mm hoog, één keer ingesloten). Een lege datum is een stippellijn
+van 30mm na de plaats.
+
 ### Kilometers
 
 Dezelfde opbouw als Fiscaal: groepen met een getint icoon (`kmGroep`),
