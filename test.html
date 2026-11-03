@@ -2687,6 +2687,32 @@ async function runChecks() {
                 /looptijd van 360 maanden/.test(t2) && /resteerden bij de ingang 297 maanden/.test(t2) && /3\.119c lid 3/.test(t2) &&
                 /Met dit herstel voldoet de lening/.test(t2) && /360 maanden/.test(ov) && /box 3/.test(ov);
             })],
+            /* Een herstel of wijziging werkt fiscaal niet terug (standpunt Kennisgroep
+               van 15 oktober 2026): box 3 tot de allonge, box 1 daarna, en het
+               jaaroverzicht geeft alleen de rente vanaf dan als aftrekbaar op. */
+            ['Allonge: een herstel of wijziging werkt fiscaal niet terug -- box 3 tot de allonge, box 1 daarna, en het jaaroverzicht splitst de rente', () => metLen(() => {
+              const l360 = {...L, looptijd: 360};
+              const H = {id: 'th3', nummer: 1, soort: 'herstel', datum: '2026-11-20', plaats: 'Puren', fout: 'looptijd', looptijd: 297, toelichting: ''};
+              const Wz = {...A, id: 'tw3', datum: '2026-11-20', rente: null, looptijd: 297};
+              const lh = {...l360, allonges: [H]}, lw = {...l360, allonges: [Wz]};
+              const per = b => b.perioden.map(p => p.box + '@' + p.datum).join();
+              const bh = w.fisLenBox(lh), bw = w.fisLenBox(lw);
+              const vlak = t => t.replace(/ /g, ' ');
+              const j26 = vlak(tekst(w.fisLenBlokken('jaar', lw, G, 2026))), j27 = vlak(tekst(w.fisLenBlokken('jaar', lw, G, 2027)));
+              const jh26 = vlak(tekst(w.fisLenBlokken('jaar', lh, G, 2026)));
+              const s = w.fisLenSchema(lw), dec = s.maanden.find(m => m.idx === w.fisMaandIdx('2026-12-31'));
+              const r1 = vlak(w.fisBedragTabel(dec.rente));
+              const al = tekst(w.fisAllBlokken('allonge', lh, H, G));
+              const hyp = {...lw, zekerheid: 'hypotheek'};
+              return per(bh) === '3@2026-06-16,1@2026-11-20' && per(bw) === '3@2026-06-16,1@2026-11-20' && bh.box === 1 && bh.vanaf === '2026-11-20' &&
+                /van box 3 naar box 1/.test(j26) && /Datum van aangaan: 20 november 2026/.test(j26) && /Looptijd: 292 maanden/.test(j26) &&
+                j26.includes('de rente vanaf de termijn van december 2026 (' + r1 + ') is aftrekbaar') && /werkt niet terug/.test(j26) && /De lening voldoet\./.test(j26) &&
+                /van box 3 naar box 1/.test(jh26) && !/aftrekbaar zolang/.test(jh26) &&
+                /eigen woning \(box 1\)/.test(j27) && /Datum van aangaan: 20 november 2026/.test(j27) && /De lening voldoet\./.test(j27) &&
+                /vanaf deze allonge aan de voorwaarden/.test(al) && /werkt niet terug/.test(al) &&
+                w.fisLenTeltMee(hyp, '2026-07-31') === true && w.fisLenTeltMee(hyp, '2026-12-31') === false && w.fisLenTeltMee(lw, '2026-12-31') === true &&
+                w.fisLenBox(l360).box === 3 && w.fisLenBox(l360).perioden.length === 1;
+            })],
             ['Allonge: de allonge en het besluit -- ingang, wat blijft, schema als bijlage, handtekeningen naast elkaar, 2:238 en 2:239 lid 6', () => metLen(() => {
               const l = {...L, allonges: [A]}, al = w.fisAllBlokken('allonge', l, A, G), at = tekst(al), bt = tekst(w.fisAllBlokken('abesluit', l, A, G));
               const hand = al.filter(b => b.soort === 'handtekening'), schema = al.find(b => b.soort === 'kolommen');

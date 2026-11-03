@@ -9883,7 +9883,7 @@ body.aic-open .aic-kop .sp-k { animation: sp-twinkel calc(var(--duur) * 3) var(-
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v3.14</span>
+        <span class="app-versie" title="Appversie">v3.15</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -17337,43 +17337,79 @@ function fisLenMaxLooptijd(l){
   if(!fisIsIso(l.oudStart))return null;
   return Math.max(0,360-fisHeleMaanden(l.oudStart,fisLenIngang(l)));
 }
-/* Box 1 of box 3, met de reden. Een herstel telt vanaf de ingang mee; een
-   wijziging die de lening uit box 1 haalt, doet dat vanaf haar datum
-   (vanaf, allonge). Daarna blijft het box 3. */
-function fisLenBox(l){
+/* De box van de lening zoals ze er nu bij ligt (met de allonges in l): de
+   voorwaarden die het laatst zijn afgesproken tellen. */
+function fisLenBoxStand(l){
   const doel=FIS_LEN_DOELEN[l.doel],b=fisLenBasis(l);
   if(!doel||!doel.woning)return {box:3,N:null,reden:'Een lening voor '+(l.doel==='auto'?'een auto':'iets anders dan je eigen woning')+' valt in box 3: de rente is niet aftrekbaar.'};
-  if(b.aflossing==='aflossingsvrij')return {box:3,N:null,reden:'Aflossingsvrij is geen eigenwoningschuld: daarvoor los je ten minste annuïtair af in hooguit 360 maanden (art. 3.119a lid 1 Wet IB 2001). Deze lening valt in box 3.'};
-  const N=fisLenMaxLooptijd(l),n=Math.round(Number(b.looptijd)||0);
-  if(N==null)return {box:3,N:null,reden:'Vul de ingang van de oude lening in: bij oversluiten loopt het schema daarvan door.'};
-  if(n>N)return {box:3,N,reden:l.doel==='oversluiten'
-    ?'Bij oversluiten loopt het schema van de oude lening door: hooguit '+N+' maanden (art. 3.119c lid 3 Wet IB 2001; standpunt Kennisgroep van 15 oktober 2026). Met '+n+' maanden valt de hele lening in box 3.'
-    :'Een eigenwoningschuld loopt hooguit 360 maanden (art. 3.119a Wet IB 2001). Met '+n+' maanden valt de lening in box 3.'};
-  const s=fisLenSchema(l);
-  for(const p of s?s.periodes.slice(1):[]){
-    const a=(l.allonges||[]).find(x=>x&&x.id===p.allonge)||{},wie='Allonge '+(a.nummer||'');
-    if(p.aflossing==='aflossingsvrij')return {box:3,N,vanaf:a.datum,allonge:a.id,
-      reden:wie+' maakt de lening aflossingsvrij, en dat is geen eigenwoningschuld (art. 3.119a lid 1 Wet IB 2001). Vanaf de wijziging valt de lening in box 3.'};
-    if(p.k+p.n>N)return {box:3,N,vanaf:a.datum,allonge:a.id,
-      reden:'Een wijziging begint geen nieuwe looptijd: de lening moet binnen '+N+' maanden na de ingang zijn afgelost, uiterlijk op '+fisDatum(fisMaandEinde(s.eerste+N-1))+
-        (l.doel==='oversluiten'?', de rest van de oude lening':'')+' (art. 3.119a en 3.119c lid 3 Wet IB 2001). Na '+wie.toLowerCase()+' loopt hij '+(p.k+p.n)+' maanden, tot '+
-        fisDatum(fisMaandEinde(s.eerste+p.k+p.n-1))+'. Vanaf de wijziging valt de lening in box 3.'};
+  const N=fisLenMaxLooptijd(l);
+  const s=fisLenSchema(l),ps=s?s.periodes.slice(1):[],p=ps[ps.length-1];
+  if(!p){
+    if(b.aflossing==='aflossingsvrij')return {box:3,N:null,reden:'Aflossingsvrij is geen eigenwoningschuld: daarvoor los je ten minste annuïtair af in hooguit 360 maanden (art. 3.119a lid 1 Wet IB 2001). Deze lening valt in box 3.'};
+    if(N==null)return {box:3,N:null,reden:'Vul de ingang van de oude lening in: bij oversluiten loopt het schema daarvan door.'};
+    const n=Math.round(Number(b.looptijd)||0);
+    if(n>N)return {box:3,N,reden:l.doel==='oversluiten'
+      ?'Bij oversluiten loopt het schema van de oude lening door: hooguit '+N+' maanden (art. 3.119c lid 3 Wet IB 2001; standpunt Kennisgroep van 15 oktober 2026). Met '+n+' maanden valt de hele lening in box 3.'
+      :'Een eigenwoningschuld loopt hooguit 360 maanden (art. 3.119a Wet IB 2001). Met '+n+' maanden valt de lening in box 3.'};
+    return {box:1,N,reden:''};
   }
+  if(N==null)return {box:3,N:null,reden:'Vul de ingang van de oude lening in: bij oversluiten loopt het schema daarvan door.'};
+  const a=(l.allonges||[]).find(x=>x&&x.id===p.allonge)||{},wie='Allonge '+(a.nummer||'');
+  if(p.aflossing==='aflossingsvrij')return {box:3,N,
+    reden:wie+' maakt de lening aflossingsvrij, en dat is geen eigenwoningschuld (art. 3.119a lid 1 Wet IB 2001). Vanaf de wijziging valt de lening in box 3.'};
+  if(p.k+p.n>N)return {box:3,N,
+    reden:'Een wijziging begint geen nieuwe looptijd: de lening moet binnen '+N+' maanden na de ingang zijn afgelost, uiterlijk op '+fisDatum(fisMaandEinde(s.eerste+N-1))+
+      (l.doel==='oversluiten'?', de rest van de oude lening':'')+' (art. 3.119a en 3.119c lid 3 Wet IB 2001). Na '+wie.toLowerCase()+' loopt hij '+(p.k+p.n)+' maanden, tot '+
+      fisDatum(fisMaandEinde(s.eerste+p.k+p.n-1))+'. Vanaf de wijziging valt de lening in box 3.'};
   return {box:1,N,reden:''};
 }
-/* Telt de lening mee voor excessief lenen? Alle schulden aan je eigen BV's
-   tellen, behalve een eigenwoningschuld waarvoor de BV een recht van
-   hypotheek heeft, of die al vóór 2023 bestond. */
-function fisLenTeltMee(l){
-  if(fisLenBox(l).box!==1)return true;
-  return !(l.zekerheid==='hypotheek'||String(l.datum||'')<'2023-01-01');
+/* Box 1 of box 3, met de reden, per periode. De overeenkomst zoals ze is
+   getekend bepaalt de box vanaf de ingang; elke allonge, ook een herstel,
+   pas vanaf haar eigen datum. Een hersteld of gewijzigd schema werkt
+   fiscaal niet terug (standpunt Kennisgroep van 15 oktober 2026), maar kan
+   een lening wel vanaf dan in box 1 brengen: het gaan kwalificeren geldt
+   als het aangaan van een nieuwe schuld (art. 3.119c lid 8 Wet IB 2001).
+   Andersom haalt een wijziging haar vanaf haar datum uit box 1. box, N en
+   reden zijn de stand nu; vanaf en allonge de laatste overgang. */
+function fisLenBox(l){
+  const doel=FIS_LEN_DOELEN[l.doel];
+  const perioden=[{...fisLenBoxStand({...l,allonges:[]}),datum:fisLenIngang(l)||null,allonge:null}];
+  if(doel&&doel.woning)fisLenAllonges(l).forEach(a=>{
+    const st=fisLenBoxStand(fisLenTot(l,a.id,true)),vorige=perioden[perioden.length-1];
+    if(st.box===vorige.box){vorige.reden=st.reden;vorige.N=st.N;return;}
+    perioden.push({...st,datum:a.datum,allonge:a.id});
+  });
+  const nu=perioden[perioden.length-1],uit={box:nu.box,N:nu.N,reden:nu.reden,perioden};
+  if(nu.allonge){uit.vanaf=nu.datum;uit.allonge=nu.allonge;}
+  return uit;
+}
+/* De periode die geldt op een datum (een allonge vanaf haar datum), en die
+   voor een termijn in een maand (een allonge vanaf de eerste hele maand na
+   haar datum, zoals het schema). */
+function fisLenBoxOp(bx,iso){
+  let q=bx.perioden[0];
+  bx.perioden.forEach(x=>{if(x.allonge&&x.datum<=iso)q=x;});
+  return q;
+}
+function fisLenBoxIn(bx,idx){
+  let q=bx.perioden[0];
+  bx.perioden.forEach(x=>{if(x.allonge&&fisAllVanIdx(x.datum)<=idx)q=x;});
+  return q;
+}
+/* Telt de lening mee voor excessief lenen (op een datum, of nu)? Alle
+   schulden aan je eigen BV's tellen, behalve een eigenwoningschuld waarvoor
+   de BV een recht van hypotheek heeft, of die al vóór 2023 bestond. */
+function fisLenTeltMee(l,iso){
+  const bx=fisLenBox(l),q=iso?fisLenBoxOp(bx,iso):bx.perioden[bx.perioden.length-1];
+  if(q.box!==1)return true;
+  return !(l.zekerheid==='hypotheek'||String((q.allonge?q.datum:l.datum)||'')<'2023-01-01');
 }
 function fisExcStand(jaar,leningen){
   let telt=0,niet=0;
   (leningen||[]).forEach(l=>{
     const j=fisLenJaar(l,jaar);
     if(!j)return;
-    if(fisLenTeltMee(l))telt+=j.eind;else niet+=j.eind;
+    if(fisLenTeltMee(l,jaar+'-12-31'))telt+=j.eind;else niet+=j.eind;
   });
   return {jaar,telt,niet,grens:fisExcGrens(jaar),voorstel:FIS_EXC_VOORSTEL[jaar]||null};
 }
@@ -17429,7 +17465,7 @@ function fisLenStatus(l,g){
     const f=fisAllFout(l,a,s);
     if(f){kort=f.kort;reden='Allonge '+a.nummer+': '+f.reden;break;}
   }
-  return {klaar:!kort,kort,reden,box:box.box,boxReden:box.reden,boxVanaf:box.vanaf||null,N:box.N,schema:s,kasNa,geldgever:gg};
+  return {klaar:!kort,kort,reden,box:box.box,boxReden:box.reden,boxVanaf:box.vanaf||null,boxPerioden:box.perioden,N:box.N,schema:s,kasNa,geldgever:gg};
 }
 /* Wat er aan een allonge ontbreekt of niet kan; null als hij klaar is. Een
    nieuwe rente vraagt een nieuwe ijkrente, en mag daar niet onder liggen. */
@@ -17479,7 +17515,7 @@ function fisLenJaren(l){
    adres en nummers van de geldgever (art. 17b Uitv.reg. IB 2001). */
 function fisLenJaarUit(l,g){
   const gg=fisLenGeldgever(l,g);
-  if(fisLenBox(l).box===1&&!(gg.adres&&gg.kvk&&gg.rsin))
+  if(fisLenBox(l).perioden.some(q=>q.box===1)&&!(gg.adres&&gg.kvk&&gg.rsin))
     return 'Vul adres, KvK-nummer en RSIN van de '+(gg.holding?'holding':'werkmaatschappij')+' in bij je gegevens: die horen in je aangifte.';
   return '';
 }
@@ -17521,12 +17557,18 @@ function fisLenZekerheidKort(l){
 function fisLenSchemaRijen(l,s,box1,vanJaar){
   const kaal={...l,afgelostOp:null};
   const van=Math.max(fisIsoDeel(s.ingang).y,vanJaar||0),tot=fisIsoDeel(s.einde).y,N=box1?fisLenMaxLooptijd(l):null;
+  /* Het maximum geldt alleen in de jaren dat de lening een eigenwoningschuld
+     is, en begint waar ze dat werd (fisLenMax, k0). */
+  const bx=box1?fisLenBox(l):null;
   const rijen=[];let totR=0,totA=0;
   for(let j=van;j<=tot;j++){
     const r=fisLenJaar(kaal,j,s);
     totR+=r.rente;totA+=r.afgelost;
     const cel=[String(j),r.rente,r.afgelost,r.eind];
-    if(box1)cel.push(fisLenMax(s,N,fisHeleMaanden(s.ingang,j+'-12-31')));
+    if(box1){
+      const q=fisLenBoxOp(bx,j+'-12-31');
+      cel.push(q.box===1?fisLenMax(s,N,fisHeleMaanden(s.ingang,j+'-12-31'),q.allonge?fisAllVanIdx(q.datum)-s.eerste:0):'');
+    }
     rijen.push({cellen:cel});
   }
   const som=['Totaal',totR,totA,''];
@@ -17665,39 +17707,62 @@ function fisLenBlokken(soort,l,g,jaar){
       T('Uitgaande van betaling volgens het aflossingsschema'+(fisLenAllonges(l).length?', zoals gewijzigd bij de allonges':'')+'.'+
         (fisIsIso(l.afgelostOp)&&fisIsoDeel(l.afgelostOp).y===jaar?' De lening is afgelost op '+fisDatumLang(l.afgelostOp)+'.':''))
     ];
-    /* Haalt een allonge de lening uit box 1, dan is ze dat tot de wijziging nog. */
-    const vanafJ=st.boxVanaf?fisIsoDeel(st.boxVanaf).y:null,overgang=vanafJ===jaar;
-    if(box1||(vanafJ!=null&&jaar<=vanafJ)){
-      const x=fisHeleMaanden(s.ingang,jaar+'-12-31'),max=fisLenMax(s,st.N,x),ok=j.eind<=max+0.005;
-      const p=fisLenPeriode(s,jaar*12+11);
+    /* De box per maand: de overeenkomst vanaf de ingang, een allonge vanaf
+       de eerste hele maand na haar datum (fisLenBox). De rente van een maand
+       in box 1 is aftrekbaar, die in box 3 niet; een herstel of wijziging
+       werkt niet terug (standpunt Kennisgroep van 15 oktober 2026). */
+    const bx=fisLenBox(l),ingJaar=fisIsoDeel(s.ingang).y,afIdx=fisIsIso(l.afgelostOp)?fisMaandIdx(l.afgelostOp):Infinity;
+    let r1=0,r3=0,laatste1=null;
+    if(jaar===ingJaar){if(bx.perioden[0].box===1)r1+=s.gebroken;else r3+=s.gebroken;}
+    s.maanden.forEach(m=>{
+      if(Math.floor(m.idx/12)!==jaar||m.idx>=afIdx)return;
+      if(fisLenBoxIn(bx,m.idx).box===1){r1+=m.rente;laatste1=m.idx;}else r3+=m.rente;
+    });
+    const qBegin=jaar>ingJaar?fisLenBoxOp(bx,jaar+'-01-01'):bx.perioden[0],qEind=fisLenBoxOp(bx,jaar+'-12-31');
+    const bt=fisBedragTabel,heeft1=laatste1!=null||qEind.box===1||(jaar===ingJaar&&bx.perioden[0].box===1);
+    if(heeft1){
+      /* De gegevens van de eigenwoningschuld: vanaf de ingang, of vanaf de
+         allonge die haar een eigenwoningschuld maakte (art. 3.119c lid 8). */
+      const q1=qEind.box===1?qEind:fisLenBoxIn(bx,laatste1!=null?laatste1:jaar*12+11);
+      const k0=q1.allonge?Math.max(0,fisAllVanIdx(q1.datum)-s.eerste):0;
+      const start=k0?s.maanden[Math.min(k0,s.maanden.length)-1].schuld:s.B;
+      const p=fisLenPeriode(s,laatste1!=null?laatste1:jaar*12+11);
       const wijz=fisLenAllonges(l).filter(a=>fisIsoDeel(a.datum).y===jaar).map(a=>'allonge '+a.nummer+' van '+fisDatumLang(a.datum)+': '+fisAllWat(l,a).join(', '));
       const vast=new Set();
       s.periodes.forEach(q=>{if(q.vastTot!=null&&Math.floor(q.vastTot/12)===jaar&&q.vastTot<s.eerste+s.n-1&&fisLenPeriode(s,q.vastTot).vastTot===q.vastTot)vast.add(q.vastTot);});
       vast.forEach(v=>wijz.push('de rentevaste periode eindigde op '+fisDatumLang(fisMaandEinde(v))+'; geef de nieuwe rente op'));
-      bl.push(K(overgang?'Voor je aangifte: van box 1 naar box 3':'Voor je aangifte: eigen woning (box 1)'),
+      const naar3=qBegin.box===1&&qEind.box===3,naar1=qBegin.box===3&&qEind.box===1;
+      bl.push(K(naar3?'Voor je aangifte: van box 1 naar box 3':naar1?'Voor je aangifte: van box 3 naar box 1':'Voor je aangifte: eigen woning (box 1)'),
         T('Deze gegevens geef je op in je aangifte inkomstenbelasting over '+jaar+' (artikel 3.119g Wet inkomstenbelasting 2001):'),
-        T('- Datum van aangaan: '+fisDatumLang(s.ingang)),
-        T('- Startbedrag: '+bedrag),
+        T('- Datum van aangaan: '+fisDatumLang(q1.allonge?q1.datum:s.ingang)+(q1.allonge?' (de datum waarop de lening een eigenwoningschuld werd)':'')),
+        T('- Startbedrag: '+(q1.allonge?bt(start):bedrag)),
         T('- Maandelijkse rentevoet: '+fisPct(p.rente/12,4)+' ('+fisPct(p.rente)+' per jaar)'),
-        T('- Looptijd: '+s.n+' maanden'),
+        T('- Looptijd: '+(s.n-k0)+' maanden'),
         T('- Wijze van aflossing: '+FIS_LEN_AFLOSSING[p.aflossing]),
         T('- Geldverstrekker: '+[gg.naam,gg.adres,gg.kvk?'KvK-nummer '+gg.kvk:'',gg.rsin?'RSIN '+gg.rsin:''].filter(Boolean).join(', ')),
         T('- Wijzigingen in '+jaar+': '+(wijz.length?wijz.join('; '):'geen')));
-      if(overgang){
-        const grens=fisAllVanIdx(st.boxVanaf);
-        let voor=jaar===fisIsoDeel(s.ingang).y?s.gebroken:0;
-        s.maanden.forEach(m=>{if(Math.floor(m.idx/12)===jaar&&m.idx<grens)voor+=m.rente;});
-        bl.push(T(fisPunt(st.boxReden)),
-          T('De rente tot de wijziging ('+fisBedragTabel(voor)+') is aftrekbaar; de rente daarna niet. Voor de aangifte over '+(jaar+1)+' telt de schuld op 1 januari '+(jaar+1)+' in box 3: '+fisBedragTabel(j.eind)+'.'));
-      }else bl.push(T('De betaalde rente ('+fisBedragTabel(j.rente)+') is aftrekbaar zolang de lening een eigenwoningschuld is.'),
-        T('Aflossingseis (artikel 3.119c Wet inkomstenbelasting 2001): op 31 december '+jaar+' mag hooguit '+fisBedragTabel(max)+' openstaan; volgens het schema is dat '+fisBedragTabel(j.eind)+'. '+
+      if(naar3)bl.push(T(fisPunt(qEind.reden)),
+        T('De rente tot de wijziging ('+bt(r1)+') is aftrekbaar; de rente daarna niet. Voor de aangifte over '+(jaar+1)+' telt de schuld op 1 januari '+(jaar+1)+' in box 3: '+bt(j.eind)+'.'));
+      else if(naar1){
+        const i=bx.perioden.indexOf(q1),voor=i>0?bx.perioden[i-1]:null,a=(l.allonges||[]).find(x=>x&&x.id===q1.allonge)||{};
+        if(voor&&voor.reden)bl.push(T(fisPunt(voor.reden)));
+        bl.push(T('Met allonge '+(a.nummer||'')+' van '+fisDatumLang(q1.datum)+' voldoet de lening aan de voorwaarden voor een eigenwoningschuld. Dat werkt niet terug (standpunt Kennisgroep van 15 oktober 2026): de rente vanaf de termijn van '+
+          FIS_MAANDEN[(s.eerste+k0)%12]+' '+Math.floor((s.eerste+k0)/12)+' ('+bt(r1)+') is aftrekbaar, de rente daarvoor ('+bt(r3)+') niet.'+
+          (jaar>ingJaar?' Voor de aangifte over '+jaar+' telt de schuld op 1 januari '+jaar+' nog in box 3: '+bt(j.begin)+'.':'')));
+      }else if(r3>0.005)bl.push(T('Een deel van '+jaar+' was de lening geen eigenwoningschuld: de rente in de maanden in box 1 ('+bt(r1)+') is aftrekbaar, de rest ('+bt(r3)+') niet.'));
+      else bl.push(T('De betaalde rente ('+bt(j.rente)+') is aftrekbaar zolang de lening een eigenwoningschuld is.'));
+      if(qEind.box===1){
+        const x=fisHeleMaanden(s.ingang,jaar+'-12-31'),kE=qEind.allonge?Math.max(0,fisAllVanIdx(qEind.datum)-s.eerste):0;
+        const max=fisLenMax(s,qEind.N,x,kE),ok=j.eind<=max+0.005;
+        bl.push(T('Aflossingseis (artikel 3.119c Wet inkomstenbelasting 2001): op 31 december '+jaar+' mag hooguit '+bt(max)+' openstaan; volgens het schema is dat '+bt(j.eind)+'. '+
           (ok?'De lening voldoet.':'De lening voldoet niet: los het verschil uiterlijk op 31 december '+(jaar+1)+' af (artikel 3.119e Wet inkomstenbelasting 2001).')));
+      }
     }else{
       bl.push(K('Voor je aangifte: box 3'),
-        T('Deze lening is een schuld in box 3; de rente is niet aftrekbaar. Voor de aangifte over '+jaar+' telt de schuld op 1 januari '+jaar+': '+fisBedragTabel(j.begin)+'. Voor het jaar daarna is dat de stand op 31 december hierboven.'));
+        T('Deze lening is een schuld in box 3; de rente is niet aftrekbaar. Voor de aangifte over '+jaar+' telt de schuld op 1 januari '+jaar+': '+bt(j.begin)+'. Voor het jaar daarna is dat de stand op 31 december hierboven.'));
     }
     bl.push(K('Excessief lenen'),
-      T(fisLenTeltMee(l)
+      T(fisLenTeltMee(l,jaar+'-12-31')
         ?'Deze lening telt mee voor de grens van excessief lenen bij je eigen vennootschap (artikel 4.14a Wet inkomstenbelasting 2001), met de stand op 31 december: '+fisBedragTabel(j.eind)+'. De grens van '+fisBedrag(fisExcGrens(jaar))+' geldt voor al je schulden aan je eigen vennootschappen samen, met die van een fiscale partner.'
         :'Deze lening telt niet mee voor excessief lenen: het is een eigenwoningschuld '+(l.zekerheid==='hypotheek'?'met een recht van hypotheek voor de geldgever.':'die al vóór 2023 bestond.')),
       T('Opgemaakt door '+gg.naam+' op '+fisDatumLang(urenToday())+'.'));
@@ -17841,7 +17906,9 @@ function fisAllBlokken(soort,l,a,g){
     if(doel.woning){
       const N=stN.N,uiterlijk=N!=null?fisDatumLang(fisMaandEinde(sN.eerste+N-1)):'';
       let f;
-      if(stN.box===1)f=(stV.box===1?'De lening blijft een eigenwoningschuld':'Met dit herstel voldoet de lening aan de voorwaarden voor een eigenwoningschuld')+' (artikel 3.119a Wet inkomstenbelasting 2001). '+
+      if(stN.box===1)f=(stV.box===1?'De lening blijft een eigenwoningschuld (artikel 3.119a Wet inkomstenbelasting 2001). '
+        :(herstel?'Met dit herstel':'Met deze wijziging')+' voldoet de lening vanaf deze allonge aan de voorwaarden voor een eigenwoningschuld (artikel 3.119a Wet inkomstenbelasting 2001). '+
+          'Dat werkt niet terug: tot deze allonge was de lening geen eigenwoningschuld, en de rente over die periode is niet aftrekbaar (standpunt Kennisgroep van 15 oktober 2026). ')+
         (herstel?'':'Deze allonge begint geen nieuwe looptijd: ')+'Geldnemer lost de lening ten minste annuïtair en volledig af binnen '+N+' maanden na de ingang op '+fisDatumLang(sN.ingang)+
         ', uiterlijk op '+uiterlijk+(l.doel==='oversluiten'?', de rest van de looptijd van de lening die zij aflost':'')+(herstel&&l.doel!=='oversluiten'?'':' (artikel 3.119c lid 3 Wet inkomstenbelasting 2001)')+'.';
       else if(stV.box===1)f='Partijen weten dat de lening door deze allonge niet langer voldoet aan de voorwaarden voor een eigenwoningschuld'+
@@ -18175,7 +18242,7 @@ function fisLenReken(){
   const andere=(fiscaalState.leningen||[]).filter(x=>!fisLenForm.id||x.id!==fisLenForm.id);
   const jaar=Math.max(new Date().getFullYear(),fisIsoDeel(fisLenIngang(l)).y);
   const exc=fisExcStand(jaar,andere.concat([l]));
-  li.push('Excessief lenen op 31-12-'+jaar+': '+b(fisBedrag(exc.telt))+' van '+escapeHtml(fisBedrag(exc.grens))+(fisLenTeltMee(l)?'':' (deze lening telt niet mee)'));
+  li.push('Excessief lenen op 31-12-'+jaar+': '+b(fisBedrag(exc.telt))+' van '+escapeHtml(fisBedrag(exc.grens))+(fisLenTeltMee(l,jaar+'-12-31')?'':' (deze lening telt niet mee)'));
   if(st.kasNa!=null)li.push('Liquide middelen van de BV na de uitbetaling '+b(fisBedragTabel(st.kasNa)));
   /* Met allonges: hier staat de overeenkomst zoals getekend. */
   const echt=fisLenForm.id&&(fiscaalState.leningen||[]).find(x=>x.id===fisLenForm.id),nA=echt?(echt.allonges||[]).length:0;
@@ -18327,7 +18394,7 @@ function fisAllVelden(el){
   const pl=s?s.periodes[s.periodes.length-1]:null,N=l?fisLenBox(l).N:null;
   const vorm=!herstel&&aan('fisAllWatAflossing')?v('fisAllAflossing'):pl?pl.aflossing:'annuitair';
   tekst('fisAllSoortHint',herstel
-    ?'Geldt vanaf de ingang: partijen stellen vast wat er bedoeld was, en lezen de overeenkomst zo.'
+    ?'Geldt vanaf de ingang: partijen stellen vast wat er bedoeld was, en lezen de overeenkomst zo. Fiscaal telt een herstel pas vanaf de datum van de allonge.'
     :'Geldt vanaf de eerste hele maand na de datum, en rekent verder met wat er dan nog openstaat.');
   tekst('fisAllRenteLab',herstel?'Juiste rente per jaar':'Nieuwe rente per jaar');
   tekst('fisAllLooptijdLab',herstel?'Juiste looptijd in maanden':'Nieuwe looptijd in maanden');
@@ -18358,8 +18425,12 @@ function fisAllReken(){
       li.push('Laatste termijn '+b(fisDatum(i.sN.einde))+(i.sN.einde!==i.sV.einde?' (was '+escapeHtml(fisDatum(i.sV.einde))+')':'')+'; '+i.sN.n+' maanden vanaf de eerste termijn');
       li.push('Totale rente '+b(bt(i.sN.totaleRente))+(Math.abs(i.sN.totaleRente-i.sV.totaleRente)>0.004?' (was '+escapeHtml(bt(i.sV.totaleRente))+')':''));
     }
+    /* Haalt deze allonge de lening uit box 3, dan zegt de regel ook dat dat
+       pas vanaf de allonge telt. */
+    const per=st.boxPerioden||[],uit3=st.box===1&&per.length>1&&per[per.length-1].allonge===a.id;
     if((FIS_LEN_DOELEN[l.doel]||{}).woning)li.push(st.box===1
-      ?b('Box 1')+': eigenwoningschuld'+(st.N!=null?', uiterlijk afgelost op '+escapeHtml(fisDatum(fisMaandEinde(i.sN.eerste+st.N-1))):'')
+      ?b('Box 1')+': eigenwoningschuld'+(uit3?' vanaf '+escapeHtml(fisDatum(a.datum))+'; daarvoor box 3, want een allonge werkt fiscaal niet terug':'')+
+        (st.N!=null?', uiterlijk afgelost op '+escapeHtml(fisDatum(fisMaandEinde(i.sN.eerste+st.N-1))):'')
       :b('Box 3')+': '+escapeHtml(st.boxReden));
     const ijk=a.soort==='herstel'?l.ijkRente:a.ijkRente;
     if(typeof a.rente==='number'&&typeof ijk==='number')li.push('Rente '+escapeHtml(fisPct(a.rente))+' tegen ijkrente '+b(fisPct(ijk))+(a.rente<ijk-1e-9?' — te laag':''));

@@ -9513,3 +9513,44 @@ lossen zichzelf op.
 **Niet doen.**
 - Een fout van BMW tonen zonder zijn eigen code.
 - Bij een geweigerde gegevensset dezelfde uit de lijst opnieuw nemen.
+
+## 2026-11-03 · Fiscaal: een allonge werkt fiscaal niet terug (v3.15)
+
+**Probleem.** De box van een lening was één waarde voor de hele looptijd.
+Een *herstel* (bijvoorbeeld de looptijd bij oversluiten: 360 maanden waar de
+rest van de oude lening had moeten staan) zette de lening met terugwerkende
+kracht in box 1: het jaaroverzicht gaf dan de rente vanaf de ingang als
+aftrekbaar op. Een *wijziging* die de lening weer aan de aflossingseis liet
+voldoen, bracht haar juist nooit terug in box 1. Beide kloppen niet. Volgens
+het standpunt van de Kennisgroep onroerende zaken van 15 oktober 2026 (en
+Rechtbank Noord-Nederland, maart 2026) telt een aangepast aflossingsschema
+pas vanaf het moment van aanpassen.
+
+**Beslissing.** `fisLenBox()` rekent de box per periode (`perioden`): de
+overeenkomst zoals getekend vanaf de ingang, en elke allonge, ook een herstel,
+vanaf haar eigen datum (`fisLenBoxStand` op de lening met de allonges tot en
+met die ene). Een lening kan zo van box 3 naar box 1, en andersom. Het gaan
+kwalificeren geldt als het aangaan van een nieuwe schuld (art. 3.119c lid 8
+Wet IB 2001): de lijn van de aflossingseis begint dan opnieuw, bij de
+restschuld van dat moment en met wat er van de maximale looptijd over is
+(`fisLenMax`, `k0`). Het jaaroverzicht kent de box per maand (een allonge
+vanaf de eerste hele maand na haar datum, net als het schema), splitst de
+rente in aftrekbaar en niet aftrekbaar, en geeft als gegevens voor de aangifte
+de datum, het startbedrag en de looptijd vanaf de allonge. De allonge zelf
+zegt bij een overgang naar box 1 dat die niet terugwerkt. Excessief lenen
+kijkt naar de box op 31 december.
+
+**Waarom.** Het jaaroverzicht is wat Frank (of zijn boekhouder) in de
+aangifte zet. Rente als aftrekbaar opgeven die dat niet is, levert een
+correctie met belastingrente op.
+
+**Bestanden.** `index.html` (`fisLenBoxStand`, `fisLenBox`, `fisLenBoxOp`,
+`fisLenBoxIn`, `fisLenMax`, `fisLenTeltMee`, `fisExcStand`, `fisLenSchemaRijen`,
+het jaaroverzicht in `fisLenBlokken`, de fiscale positie in `fisAllBlokken`,
+de uitleg in het allongevenster), `test.html` (één test erbij), `CLAUDE.md`,
+`sw.js`: v315.
+
+**Niet doen.**
+- Een herstel fiscaal laten terugwerken, ook al zegt de allonge civielrechtelijk dat het vanaf de ingang zo bedoeld was.
+- Een lening die eenmaal in box 3 zit, daar laten zitten als een latere allonge haar weer laat voldoen.
+- De lijn van de aflossingseis na het gaan kwalificeren vanaf de oorspronkelijke ingang rekenen.
