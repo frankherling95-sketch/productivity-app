@@ -9513,3 +9513,92 @@ lossen zichzelf op.
 **Niet doen.**
 - Een fout van BMW tonen zonder zijn eigen code.
 - Bij een geweigerde gegevensset dezelfde uit de lijst opnieuw nemen.
+
+## 2026-11-03 · Fiscaal: een allonge werkt fiscaal niet terug (v3.15)
+
+**Probleem.** De box van een lening was één waarde voor de hele looptijd.
+Een *herstel* (bijvoorbeeld de looptijd bij oversluiten: 360 maanden waar de
+rest van de oude lening had moeten staan) zette de lening met terugwerkende
+kracht in box 1: het jaaroverzicht gaf dan de rente vanaf de ingang als
+aftrekbaar op. Een *wijziging* die de lening weer aan de aflossingseis liet
+voldoen, bracht haar juist nooit terug in box 1. Beide kloppen niet. Volgens
+het standpunt van de Kennisgroep onroerende zaken van 15 oktober 2026 (en
+Rechtbank Noord-Nederland, maart 2026) telt een aangepast aflossingsschema
+pas vanaf het moment van aanpassen.
+
+**Beslissing.** `fisLenBox()` rekent de box per periode (`perioden`): de
+overeenkomst zoals getekend vanaf de ingang, en elke allonge, ook een herstel,
+vanaf haar eigen datum (`fisLenBoxStand` op de lening met de allonges tot en
+met die ene). Een lening kan zo van box 3 naar box 1, en andersom. Het gaan
+kwalificeren geldt als het aangaan van een nieuwe schuld (art. 3.119c lid 8
+Wet IB 2001): de lijn van de aflossingseis begint dan opnieuw, bij de
+restschuld van dat moment en met wat er van de maximale looptijd over is
+(`fisLenMax`, `k0`). Het jaaroverzicht kent de box per maand (een allonge
+vanaf de eerste hele maand na haar datum, net als het schema), splitst de
+rente in aftrekbaar en niet aftrekbaar, en geeft als gegevens voor de aangifte
+de datum, het startbedrag en de looptijd vanaf de allonge. De allonge zelf
+zegt bij een overgang naar box 1 dat die niet terugwerkt. Excessief lenen
+kijkt naar de box op 31 december.
+
+**Waarom.** Het jaaroverzicht is wat Frank (of zijn boekhouder) in de
+aangifte zet. Rente als aftrekbaar opgeven die dat niet is, levert een
+correctie met belastingrente op.
+
+**Bestanden.** `index.html` (`fisLenBoxStand`, `fisLenBox`, `fisLenBoxOp`,
+`fisLenBoxIn`, `fisLenMax`, `fisLenTeltMee`, `fisExcStand`, `fisLenSchemaRijen`,
+het jaaroverzicht in `fisLenBlokken`, de fiscale positie in `fisAllBlokken`,
+de uitleg in het allongevenster), `test.html` (één test erbij), `CLAUDE.md`,
+`sw.js`: v315.
+
+**Niet doen.**
+- Een herstel fiscaal laten terugwerken, ook al zegt de allonge civielrechtelijk dat het vanaf de ingang zo bedoeld was.
+- Een lening die eenmaal in box 3 zit, daar laten zitten als een latere allonge haar weer laat voldoen.
+- De lijn van de aflossingseis na het gaan kwalificeren vanaf de oorspronkelijke ingang rekenen.
+
+## 2026-11-03 · Leningen: documenten, extra aflossingen, banken en een totaaloverzicht (v3.16)
+
+**Probleem.** Frank wilde de getekende stukken bij zijn leningen in de app
+kunnen zien, ook zijn hypotheek bij de bank kwijt kunnen, en één overzicht
+van al zijn leningen voor zijn boekhouder. De app kende alleen leningen van
+de eigen BV, zonder bijlagen. Een extra aflossing (zoals het deel van de
+bankhypotheek dat met geld van de holding is afgelost) kon niet.
+
+**Beslissing.**
+- *Documenten*: bij elke lening `documenten[]`, eigen PDF's met een
+  omschrijving. Zelfde opslag en opruimlijst als Contracten (IndexedDB plus
+  een los bestand in Drive, `ctrAlleBijlagen`), bekijken in de PDF-viewer van
+  Contracten (`ctrPdfOpen('lening', …)`). Ze gaan meteen bij de lening, los
+  van Opslaan.
+- *Extra aflossingen*: `aflossingen[]` in het schema (`fisLenExtra`), in de
+  maand van de datum, zodat de stand op 31 december klopt (box 3, excessief
+  lenen). Daarna blijft het maandbedrag gelijk en wordt de looptijd korter,
+  zoals de overeenkomsten van de app zeggen, of daalt het maandbedrag
+  (`naAflossen: 'lager'`, zoals veel banken doen). In dezelfde maand eerst de
+  extra aflossing, dan een wijziging (`fisLenRestVoor`). De box verandert er
+  niet door: dat doen alleen afspraken (allonges).
+- *Bank of een ander*: `geldgever: 'extern'` met `externNaam`. Geen gegevens
+  van een BV, geen ijkrente, geen stukken, geen jaaroverzicht, geen allonge;
+  telt niet mee voor excessief lenen. Wel box 1 of 3 met dezelfde regels, en
+  `overgangsrecht` voor een eigenwoningschuld die al op 31 december 2012
+  bestond (ook aflossingsvrij box 1).
+- *Totaaloverzicht*: per jaar alle leningen die liepen, met de schuld op
+  1 januari en 31 december, de betaalde rente en wat daarvan aftrekbaar is
+  (box per maand, `fisLenBoxJaar`), de box-3-schulden en excessief lenen. Als
+  PDF (`fisTotBlokken`), Excel (`fisTotBoek`) of gemaild naar de boekhouder
+  met beide als bijlage (`mailBouwBericht` kan nu meer bijlagen aan). Het
+  adres van de boekhouder komt bij de gegevens (`boekhouderMail`).
+
+**Waarom.** Eén plek voor de stukken en de cijfers; de boekhouder krijgt in
+één keer wat hij voor de aangifte nodig heeft.
+
+**Bestanden.** `index.html` (`fisLenExtra`, `fisLenAflossingen`,
+`fisLenRestVoor`, `fisLenBoxJaar`, `fisLenDoc*`, `fisTot*`, het leningvenster,
+het menu, de pagina; `ctrPdfLijst`, `ctrPdfTitel`, `ctrPdfOpen`,
+`ctrAlleBijlagen`; `mailBouwBericht`; `fisPdfDoc`: een tabel met eigen
+kolombreedtes; `.ctr-drop` ook als knop), `test.html` (vijf tests erbij),
+`CLAUDE.md`, `docs/stijlgids.md`, `sw.js`: v316.
+
+**Niet doen.**
+- Een extra aflossing pas vanaf de maand erna laten tellen: dan klopt de stand op 31 december niet.
+- Een lening bij een bank meetellen voor excessief lenen, of er stukken bij maken.
+- De pijl → in een PDF-tekst: die staat niet in de standaardletters van jsPDF (gebruik ›).
