@@ -9883,7 +9883,7 @@ body.aic-open .aic-kop .sp-k { animation: sp-twinkel calc(var(--duur) * 3) var(-
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v3.13</span>
+        <span class="app-versie" title="Appversie">v3.14</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -17313,10 +17313,16 @@ function fisLenMaxSchuld(B0,im,N,x){
 }
 /* Dezelfde lijn bij een schema met allonges: na een andere rente rekent de
    lijn met die rente verder over wat er volgens de lijn nog openstond. De
-   looptijd N begint niet opnieuw. */
-function fisLenMax(s,N,x){
-  let B=s.B,im=s.im,x0=0;
+   looptijd N begint niet opnieuw. k0: wordt de lening pas na k0 termijnen
+   een eigenwoningschuld (een allonge haalt haar uit box 3), dan begint de
+   lijn daar, bij wat er dan openstaat, met wat er van N over is (art. 3.119c
+   lid 8: het gaan kwalificeren geldt als het aangaan van een nieuwe schuld). */
+function fisLenMax(s,N,x,k0){
+  k0=Math.max(0,Math.round(k0||0));
+  if(k0>=s.maanden.length)return 0;
+  let B=k0?s.maanden[k0-1].schuld:s.B,im=fisLenPeriode(s,s.eerste+k0).im,x0=k0;
   for(const p of (s.periodes||[]).slice(1)){
+    if(p.k<=k0)continue;
     if(p.k>=x)break;
     if(Math.abs(p.im-im)<1e-12)continue;
     B=fisLenMaxSchuld(B,im,N-x0,p.k-x0);x0=p.k;im=p.im;
@@ -44589,17 +44595,27 @@ function kmBmwTeller(){
 }
 function kmBmwTel(){const t=kmBmwTeller();kmBmw.teller={dag:t.dag,n:t.n+1};kmBmwBewaar();}
 function kmBmwFout(soort,extra){const e=new Error(soort);e.soort=soort;return Object.assign(e,extra||{});}
+/* Wat BMW zelf over een fout zegt: de API geeft {exveErrorId, exveErrorMsg}
+   (CU-105: geen toegang tot die gegevensset), het inloggen {error,
+   error_description}. Het komt in de melding: een kale "400" zegt niets. */
+function kmBmwReden(d){
+  if(!d||typeof d!=='object')return '';
+  const id=String(d.exveErrorId||d.error||'').trim(), msg=String(d.exveErrorMsg||d.error_description||'').trim();
+  return (id&&msg&&id!==msg?id+': '+msg:id||msg).slice(0,160);
+}
 function kmBmwFoutTekst(e){
-  const s=e&&e.soort;
+  const s=e&&e.soort, waarom=e&&e.reden?' (BMW: '+e.reden+')':'';
   return s==='cors'?'BMW laat de app niet rechtstreeks inloggen. Zet de doorgeefroute op; dat is eenmalig.'
     :s==='relay'?'De doorgeefroute antwoordt niet zoals verwacht. Kijk de URL na, en of de web-app voor iedereen openstaat.'
-    :s==='verlopen'?'De koppeling met BMW is verlopen. Koppel opnieuw; haal je minstens eens per twee weken op, dan blijft hij staan.'
+    :s==='verlopen'?'De koppeling met BMW is verlopen'+waarom+'. Koppel opnieuw; haal je minstens eens per twee weken op, dan blijft hij staan.'
     :s==='limiet'?'BMW staat '+KM_BMW_PER_DAG+' keer ophalen per dag toe. Morgen kan het weer.'
-    :s==='toegang'?'BMW weigert de gegevens. Staat CarData API aan bij je client, en ben je de hoofdgebruiker van de auto?'
+    :s==='toegang'?'BMW weigert de gegevens'+waarom+'. Staat CarData API aan bij je client, en ben je de hoofdgebruiker van de auto?'
+    :s==='auto'?'BMW geeft geen toegang tot deze auto'+waarom+'. Kijk in het CarData-portaal of hij erbij staat en of er nog iets te bevestigen is.'
     :s==='geen-auto'?'Er staat geen auto op je BMW-account.'
-    :s==='container'?'BMW maakte de gegevensset niet aan. Probeer het later nog eens.'
+    :s==='container'?'BMW maakte de gegevensset niet aan'+waarom+'. Probeer het later nog eens.'
     :s==='net'?'Geen verbinding met BMW.'
-    :'BMW gaf een fout'+(e&&e.status?' ('+e.status+')':'')+'.';
+    :'BMW gaf een fout'+(e&&e.stap?' bij '+e.stap:'')+(e&&(e.status||e.reden)?' ('+[e.status,e.reden].filter(Boolean).join(', ')+')':'')+'.'+
+      (/CU-400/.test(e&&e.reden||'')?' BMW weigert een van de gegevens; kijk in het CarData-portaal of er nog iets te bevestigen is.':'');
 }
 function kmTijdTekst(ms){
   const d=new Date(ms), dag=dateStr(d);
@@ -44653,11 +44669,15 @@ async function kmBmwToken(){
   if(!kmBmwTokenBezig)kmBmwTokenBezig=(async()=>{
     const {status,data}=await kmBmwAuth('token',{grant_type:'refresh_token',refresh_token:kmBmw.refresh,client_id:kmBmwInst().clientId});
     if(data&&data.access_token){kmBmwTokensZet(data);return data.access_token;}
-    if(status===401||['invalid_grant','invalid_token','expired_token','invalid_client'].includes(data&&data.error)){
+    /* "pad" is de doorgeefroute zelf, niet BMW. */
+    if(data&&data.error==='pad')throw kmBmwFout('relay');
+    /* Een 400 op verversen is nooit van voorbijgaande aard (OAuth: de
+       koppeling deugt niet meer); opnieuw koppelen is de weg terug. */
+    if(status===400||status===401||['invalid_grant','invalid_token','expired_token','invalid_client'].includes(data&&data.error)){
       kmBmwVergeet();
-      throw kmBmwFout('verlopen');
+      throw kmBmwFout('verlopen',{reden:kmBmwReden(data)});
     }
-    throw kmBmwFout('bmw',{status});
+    throw kmBmwFout('bmw',{status,reden:kmBmwReden(data),stap:'het verversen van de koppeling'});
   })().finally(()=>{kmBmwTokenBezig=null;});
   return kmBmwTokenBezig;
 }
@@ -44674,11 +44694,17 @@ async function kmBmwApi(pad,body){
   try{data=await r.json();}catch(_){}
   if(r.ok)return data;
   const id=String(data&&data.exveErrorId||'');
-  throw kmBmwFout(r.status===429||/429/.test(id)?'limiet':r.status===401||r.status===403?'toegang':r.status===404?'weg':'bmw',{status:r.status});
+  const stap=/telematicData/.test(pad)?'het ophalen':/containers/.test(pad)?(body?'het aanmaken van de gegevensset':'het opvragen van de gegevenssets')
+    :/mappings/.test(pad)?'het opzoeken van je auto':'';
+  /* CU-105 en CU-121: de gegevensset is onbekend of hoort niet bij deze
+     koppeling (een nieuwe client ID), net als een 404. CU-104: de auto. */
+  throw kmBmwFout(r.status===429||/429/.test(id)?'limiet':/^CU-10[45]$|^CU-121$/.test(id)?(id==='CU-104'?'auto':'weg')
+    :r.status===401||r.status===403?'toegang':r.status===404?'weg':'bmw',{status:r.status,reden:kmBmwReden(data),stap});
 }
 /* De auto (de VIN waarvan je hoofdgebruiker bent) en een gegevensset met de
-   sleutels hierboven. Allebei één keer; daarna staan ze in Drive. */
-async function kmBmwInrichten(){
+   sleutels hierboven. Allebei één keer; daarna staan ze in Drive. o.niet:
+   een gegevensset die net weigerde, niet opnieuw nemen. */
+async function kmBmwInrichten(o){
   const inst=kmBmwInst();
   let vin=inst.vin||null, containerId=inst.containerId||null;
   if(!vin){
@@ -44691,7 +44717,7 @@ async function kmBmwInrichten(){
   if(!containerId){
     const c=await kmBmwApi('/customers/containers');
     const lijst=Array.isArray(c&&c.containers)?c.containers:Array.isArray(c)?c:[];
-    const er=lijst.find(x=>x&&x.name===KM_BMW_CONTAINER&&x.state!=='DELETED');
+    const er=lijst.find(x=>x&&x.name===KM_BMW_CONTAINER&&x.state!=='DELETED'&&!(o&&o.niet&&x.containerId===o.niet));
     containerId=er?er.containerId:null;
     if(!containerId){
       const n=await kmBmwApi('/customers/containers',{name:KM_BMW_CONTAINER,purpose:'Ritten voor de kilometerregistratie',
@@ -44819,10 +44845,12 @@ async function kmBmwHaal(o){
     let data;
     try{data=await haal();}
     catch(e){
-      /* De gegevensset is weg (BMW ruimt er na een tijd een op): opnieuw. */
+      /* De gegevensset is weg (BMW ruimt er na een tijd een op) of hoort niet
+         bij deze koppeling: een nieuwe, en die ene niet opnieuw. */
       if(e.soort!=='weg')throw e;
+      const oudId=kmBmwInst().containerId;
       kmBmwInstZet({containerId:null});
-      await kmBmwInrichten();
+      await kmBmwInrichten({niet:oudId});
       data=await haal();
     }
     const w=kmBmwWaarden(data);
@@ -44936,7 +44964,7 @@ function kmBmwHtml(){
   }
   if(!kmBmwGekoppeld()){
     return '<div class="inst-kaart">'+instRij({label:'Ritten uit je BMW',doe:'kmBmwOpen',
-      hint:kmBmwInst().clientId?'Niet gekoppeld op dit apparaat. Koppel opnieuw om je laatste rit op te halen.'
+      hint:kmBmwInst().clientId?kmBmw.fout||'Niet gekoppeld op dit apparaat. Koppel opnieuw om je laatste rit op te halen.'
         :'Koppel je auto, dan haal je na een rit de kilometers en de kilometerstand op met één tik.'})+'</div>';
   }
   const hint=kmBmwBezig?'Ophalen bij BMW…':kmBmw.fout?kmBmw.fout

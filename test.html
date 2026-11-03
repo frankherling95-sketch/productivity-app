@@ -5378,6 +5378,55 @@ async function runChecks() {
             w.eval('kmBmw=' + oudBmw); terug(oud);
           }
         })],
+        ['Kilometers: een fout van BMW (nagebootst) — de melding zegt wat BMW zegt; een gegevensset die weigert wordt een nieuwe; verversen dat faalt is opnieuw koppelen', () =>
+          metLS({herling_km_bmw: null, herling_km_plekken: null}, async () => {
+          const oud = bewaar(), oudBmw = w.eval('JSON.stringify(kmBmw)');
+          const echteFetch = w.fetch, verzoeken = [];
+          let telematic = () => ({status: 200, body: {}});
+          let token = () => ({status: 200, body: {access_token: 'at2', refresh_token: 'rt2', expires_in: 3599}});
+          const antwoord = o => Promise.resolve(new w.Response(JSON.stringify(o.body), {status: o.status, headers: {'Content-Type': 'application/json'}}));
+          w.fetch = (url, opt) => {
+            url = String(url);
+            verzoeken.push(url + ' ' + ((opt && opt.method) || 'GET'));
+            if (url.endsWith('/gcdm/oauth/token')) return antwoord(token());
+            if (url.endsWith('/customers/containers')) return opt && opt.method === 'POST' ? antwoord({status: 200, body: {containerId: 'nieuw'}})
+              : antwoord({status: 200, body: {containers: [{name: 'Herling Kilometers', containerId: 'oud', state: 'ACTIVE'}]}});
+            if (url.includes('/telematicData')) return antwoord(telematic(url));
+            return echteFetch(url, opt);
+          };
+          const gekoppeld = () => w.eval('kmBmw={refresh:"rt1",refreshTot:Date.now()+864e5,access:"at1",accessTot:Date.now()+36e5};' +
+            'kilometerState.bmw={clientId:"c1",vin:"WBA00000000TEST01",containerId:"oud"};');
+          try {
+            leeg('kilometerState.prive=[];');
+            gekoppeld();
+            /* CU-105: de gegevensset hoort niet bij deze koppeling. Een nieuwe, niet dezelfde uit de lijst. */
+            telematic = url => /containerId=oud/.test(url)
+              ? {status: 400, body: {exveErrorId: 'CU-105', exveErrorMsg: 'No permission for specified containerId'}}
+              : {status: 200, body: {telematicData: {'vehicle.vehicle.travelledDistance': {value: '45282', unit: 'km'}, 'vehicle.isMoving': {value: 'false'}}}};
+            await w.kmBmwHaal({stil: true});
+            const nieuw = w.eval('kilometerState.bmw.containerId') === 'nieuw' && !w.eval('kmBmw.fout') && w.eval('kmBmw.wacht&&kmBmw.wacht.eerste') === true &&
+              verzoeken.some(x => /\/customers\/containers POST/.test(x));
+            /* CU-400: de melding noemt de stap en wat BMW zei. */
+            telematic = () => ({status: 400, body: {exveErrorId: 'CU-400', exveErrorMsg: 'Bad request'}});
+            await w.kmBmwHaal({stil: true});
+            const f = String(w.eval('kmBmw.fout'));
+            const zegt = /bij het ophalen \(400, CU-400: Bad request\)/.test(f) && /CarData-portaal/.test(f) && w.eval('kmBmwGekoppeld()') === true;
+            /* Verversen geeft 400: de koppeling is weg, met de reden erbij. */
+            gekoppeld();
+            w.eval('kmBmw.accessTot=0');
+            token = () => ({status: 400, body: {error: 'invalid_request', error_description: 'Refresh not allowed'}});
+            await w.kmBmwHaal({stil: true});
+            const v = String(w.eval('kmBmw.fout'));
+            const verlopen = /verlopen/.test(v) && /invalid_request: Refresh not allowed/.test(v) && w.eval('kmBmwGekoppeld()') === false &&
+              w.eval('kmBmw.refresh') == null;
+            w.switchModule('kilometers');
+            const inBeeld = /invalid_request/.test(d.getElementById('kmBody').textContent);
+            return nieuw && zegt && verlopen && inBeeld;
+          } finally {
+            w.fetch = echteFetch;
+            w.eval('kmBmw=' + oudBmw); terug(oud);
+          }
+        })],
         ['Kilometers: privéstukken en de BMW-koppeling in Drive — samenvoegen en tellen', () => {
           const {state} = w.voegStateSamen(
             {kilometers: {ritten: [], vast: [], prive: [{id: 'p1', km: 5}], bmw: {clientId: 'c', relay: 'r'}}},

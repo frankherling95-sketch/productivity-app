@@ -9469,3 +9469,47 @@ wat je oversloeg of privé noemde, blijft buiten de volgende rit.
   oversloeg: dan verdwijnt een privérit in een zakelijke.
 - `laatste` alleen op het apparaat bewaren: dan biedt een tweede apparaat
   een overgeslagen rit opnieuw aan, of plakt hij hem aan de volgende.
+
+## 2026-11-03 · BMW: de melding zegt wat BMW zegt (v3.14)
+
+**Probleem.** Na v3.13 kreeg Frank *BMW gaf een fout (400).* Daaruit valt
+niet op te maken wat er mis is. BMW stuurt bij een fout zelf een reden mee:
+de API `{exveErrorId, exveErrorMsg}`, het inloggen `{error,
+error_description}`. De app gooide die weg.
+
+Bekende oorzaken van een 400, uit de verhalen van andere CarData-gebruikers
+(BavarianData, ioBroker; BMW beschrijft het niet openbaar):
+- `CU-105` of `CU-121`: de gegevensset is onbekend of hoort niet bij deze
+  koppeling, bijvoorbeeld na een nieuwe client ID.
+- `CU-104`: geen toegang tot de auto.
+- `CU-400`: BMW weigert een van de gegevens, en daarmee het hele ophalen.
+  Soms was dat tijdelijk, soms stond er in het CarData-portaal nog iets te
+  bevestigen.
+- Verversen dat 400 geeft: opnieuw koppelen hielp.
+
+**Beslissing.**
+- **De melding noemt de stap en BMW's reden** (`kmBmwReden`), zoals *BMW
+  gaf een fout bij het ophalen (400, CU-400: Bad request).* Bij `CU-400`
+  verwijst hij naar het CarData-portaal.
+- **CU-105 en CU-121 lost de app zelf op**, net als een 404. Hij maakt een
+  nieuwe gegevensset en neemt de geweigerde niet opnieuw uit de lijst
+  (`kmBmwInrichten({niet})`).
+- **CU-104** krijgt een eigen melding over de auto.
+- **Een 400 op verversen betekent opnieuw koppelen.** Bij OAuth is dat nooit
+  tijdelijk: de koppeling deugt niet meer. De reden staat in de melding, ook
+  op de regel *Niet gekoppeld*. Een `pad`-fout komt van de doorgeefroute,
+  niet van BMW.
+
+**Waarom.** Zonder BMW's eigen code is elke 400 gissen. Met de code is de
+volgende stap meteen duidelijk, en de gevallen met een vaste oplossing
+lossen zichzelf op.
+
+**Bestanden.**
+- `index.html`: `kmBmwReden`, `kmBmwFoutTekst`, `kmBmwToken`, `kmBmwApi`,
+  `kmBmwInrichten`, `kmBmwHaal` en `kmBmwHtml`.
+- `test.html`: 1 test, met BMW nagebootst.
+- `sw.js`: v314.
+
+**Niet doen.**
+- Een fout van BMW tonen zonder zijn eigen code.
+- Bij een geweigerde gegevensset dezelfde uit de lijst opnieuw nemen.
