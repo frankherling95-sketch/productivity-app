@@ -817,6 +817,15 @@ als stip (*Klaar* groen, anders oranje met wat er ontbreekt) en opent een
 `.uren-menu` met de drie documenten, *Bewerken* en *Verwijderen*; zolang het
 niet klaar is staan de documenten uit, met de reden eronder.
 
+**Leningen (2026-11-03).** Onder de eigen leningen een kaart *Bij een bank
+of een ander* en een kaart *Totaaloverzicht*, elk met een label boven in de
+kaart (`.inst-sub`) en gewone regels (`instRij`). In het leningvenster staan
+extra aflossingen en documenten als de bijlagenlijst van Contracten
+(`.ctr-bijlagen`, `.ctr-bijlage`, het kruisje `.weg`); *PDF toevoegen* is
+het uploadvak `.ctr-drop`, hier als knop (zonder knopvlak, volle breedte).
+Het venster van het totaaloverzicht heeft de opbouw van de andere vensters
+(640px), met PDF en Excel links in de voet en Mailen als hoofdknop.
+
 **Lening aan jezelf** (2026-11-02) volgt dezelfde opbouw. Een lening in de
 lijst is een `.inst-rij` met nummer en bedrag, eronder doel · rente ·
 looptijd · datum; rechts de stand als stip: *Box 1* of *Box 3* groen, maar

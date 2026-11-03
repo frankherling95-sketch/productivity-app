@@ -2610,7 +2610,7 @@ async function runChecks() {
           const bewaard = lijst.length === 1 && lijst[0].bedrag === 40000 && lijst[0].rente === 4.4 && lijst[0].looptijd === 297 &&
             lijst[0].doel === 'oversluiten' && !modal.classList.contains('open');
           const rij = body.querySelector('[data-action="fisLenMenu"]');
-          const rijOk = !!rij && /Z-001 · € 40\.000/.test(rij.textContent) && /Box 1/.test(rij.textContent);
+          const rijOk = !!rij && /Z-001 · €\s40\.000/.test(rij.textContent) && /Box 1/.test(rij.textContent);
           rij.click();
           const menu = d.getElementById('fisMenu');
           const menuOk = !!menu && menu.querySelectorAll('[data-arg1="pdf"]:not([disabled])').length === 3 && menu.querySelectorAll('[data-arg1="jaar"]').length >= 1;
@@ -2712,6 +2712,99 @@ async function runChecks() {
                 /vanaf deze allonge aan de voorwaarden/.test(al) && /werkt niet terug/.test(al) &&
                 w.fisLenTeltMee(hyp, '2026-07-31') === true && w.fisLenTeltMee(hyp, '2026-12-31') === false && w.fisLenTeltMee(lw, '2026-12-31') === true &&
                 w.fisLenBox(l360).box === 3 && w.fisLenBox(l360).perioden.length === 1;
+            })],
+            /* ── Extra aflossingen, leningen bij een bank, het totaaloverzicht (2026-11-03) ── */
+            ['Extra aflossing: telt in haar eigen maand; maandbedrag gelijk en korter, of looptijd gelijk en lager; helemaal afgelost stopt de lening', () => {
+              const X = {id: 'tx1', datum: '2027-03-15', bedrag: 5000};
+              const s0 = w.fisLenSchema(L), k = w.fisMaandIdx('2027-03-15') - s0.eerste;
+              const kort = w.fisLenSchema({...L, aflossingen: [X]}), laag = w.fisLenSchema({...L, naAflossen: 'lager', aflossingen: [X]});
+              const pk = kort.periodes[1], pl = laag.periodes[1];
+              const R = s0.maanden[k - 1].schuld - 5000;
+              const korterOk = pk.extra === 'tx1' && pk.k === k && Math.abs(pk.R - R) < 0.01 && pk.termijn === s0.termijn && kort.n < s0.n && kort.maanden[kort.n - 1].schuld === 0;
+              const lagerOk = pl.termijn < s0.termijn && laag.n === s0.n && laag.einde === s0.einde;
+              const af = w.fisLenSchema({...L, aflossingen: [{...X, bedrag: 1e6}]});
+              const afOk = af.maanden[af.n - 1].schuld === 0 && af.maanden[af.n - 1].idx === s0.eerste + k && w.fisLenJaar({...L, aflossingen: [{...X, bedrag: 1e6}]}, 2028).eind === 0;
+              const laat = w.fisLenStatus({...L, aflossingen: [{...X, datum: '2060-01-01'}]}, G);
+              /* Dezelfde maand: eerst de extra aflossing, dan de wijziging met de lagere schuld. */
+              const Wz = {id: 'tw9', nummer: 1, soort: 'wijziging', datum: '2027-02-20', plaats: 'Puren', rente: null, looptijd: 297};
+              const samen = w.fisLenSchema({...L, aflossingen: [{...X, datum: '2027-03-31'}], allonges: [Wz]});
+              const pw = samen.periodes.find(p => p.allonge === 'tw9'), px = samen.periodes.find(p => p.extra === 'tx1');
+              const samenOk = px.k === pw.k && Math.abs(pw.R - px.R) < 0.01;
+              const box = w.fisLenBox({...L, aflossingen: [X]}).box === 1;
+              return korterOk && lagerOk && afOk && laat.kort === 'Extra aflossing klopt niet' && samenOk && box;
+            }],
+            ['Bank of ander: geen gegevens of ijkrente nodig, geen stukken, telt niet mee voor excessief lenen; overgangsrecht is box 1', () => metLen(() => {
+              const B = {id: 'tbk', nummer: '12345', geldgever: 'extern', externNaam: 'Voorbeeld Bank', doel: 'woning', bedrag: 250000, datum: '2024-05-01',
+                aflossing: 'annuitair', looptijd: 360, rente: 3.9, naAflossen: 'lager', aflossingen: [], allonges: [], documenten: []};
+              const st = w.fisLenStatus(B, {}), vrij = w.fisLenBox({...B, aflossing: 'aflossingsvrij'}), oud = w.fisLenBox({...B, aflossing: 'aflossingsvrij', overgangsrecht: true});
+              const exc = w.fisExcStand(2026, [L, B]), zonder = w.fisExcStand(2026, [L]);
+              return st.klaar && st.extern && st.box === 1 && w.fisLenSoorten(B).length === 0 && vrij.box === 3 && oud.box === 1 &&
+                Math.abs(exc.telt - zonder.telt) < 0.005 && exc.niet === zonder.niet && w.fisLenTeltMee(B, '2026-12-31') === false &&
+                /Voorbeeld Bank/.test(w.fisLenJaarUit(B, G)) && w.fisLenGeldgever(B, G).naam === 'Voorbeeld Bank' &&
+                w.fisLenStatus({...B, externNaam: ''}, {}).kort === 'Lening onvolledig';
+            })],
+            ['Totaaloverzicht: alle leningen in een jaar, totalen per box, als PDF-blokken, Excel en mail met twee bijlagen', () => metLen(() => {
+              const B = {id: 'tbk', nummer: '12345', geldgever: 'extern', externNaam: 'Voorbeeld Bank', doel: 'woning', bedrag: 250000, datum: '2024-05-01',
+                aflossing: 'annuitair', looptijd: 360, rente: 3.9, naAflossen: 'lager', aflossingen: [{id: 'tbx', datum: '2026-06-16', bedrag: 40000}], allonges: [], documenten: []};
+              const V = {...L, id: 'tv3', nummer: 'Z-007', doel: 'auto', omschrijving: 'Voorbeeldmerk, kenteken XX-000-X', looptijd: 60, rente: 7.5, ijkRente: 7.3, zekerheid: 'geen', woningAdres: ''};
+              w.eval('fiscaalState.leningen=' + JSON.stringify([L, B, V]));
+              const dt = w.fisTotData(2026), r = id => dt.rijen.find(x => x.l.id === id);
+              const somOk = dt.rijen.length === 3 && Math.abs(dt.eind - (w.fisLenJaar(L, 2026).eind + w.fisLenJaar(B, 2026).eind + w.fisLenJaar(V, 2026).eind)) < 0.01 &&
+                Math.abs(dt.aftrekbaar - (r('tln1').bj.r1 + r('tbk').bj.r1)) < 0.01 && r('tv3').bj.r1 === 0 && Math.abs(dt.box3Eind - w.fisLenJaar(V, 2026).eind) < 0.01 &&
+                Math.abs(dt.exc.telt - (w.fisLenJaar(L, 2026).eind + w.fisLenJaar(V, 2026).eind)) < 0.01;
+              const bl = w.fisTotBlokken(2026), t = tekst(bl), tab = bl.find(b => b.soort === 'kolommen');
+              const pdfOk = /^Overzicht leningen 2026/.test(t) && /Eigen woning \(box 1\)/.test(t) && /Box 3/.test(t) && /Excessief lenen/.test(t) && /Per lening/.test(t) &&
+                /Voorbeeld Bank/.test(t) && /Extra afgelost/.test(t) && !!tab && tab.koppen.length === 6 && tab.breedtes.reduce((a, x) => a + x, 0) === 160 &&
+                tab.rijen.length === 4 && tab.rijen[3].cellen[0] === 'Totaal' && (!w.jspdf || w.fisPdfDoc(bl).getNumberOfPages() >= 1);
+              let xlsOk = true;
+              if (w.XLSX) { const wb = w.fisTotBoek(2026), ws = wb.Sheets[wb.SheetNames[0]]; xlsOk = wb.SheetNames[0] === 'Leningen 2026' && ws.A3.v === 'Lening' && typeof ws.F4.v === 'number'; }
+              const m = w.mailBouwBericht({aan: 'iemand@voorbeeld.nl', van: 'iemand@voorbeeld.nl', vanNaam: 'Jan Jansen', onderwerp: 'Overzicht', tekst: 'Zie bijlage',
+                bijlageNaam: 'a.pdf', bijlageB64: 'QUJD', bijlagen: [{naam: 'b.xlsx', type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', b64: 'REVG'}]});
+              const mailOk = /filename="a\.pdf"/.test(m) && /filename="b\.xlsx"/.test(m) && /spreadsheetml/.test(m);
+              const leeg = w.fisTotData(2020).rijen.length === 0;
+              return somOk && pdfOk && xlsOk && mailOk && leeg;
+            })],
+            ['Documenten bij een lening: in de opruimlijst van Contracten, in de PDF-viewer met de omschrijving, en weg met ongedaan maken', () => metLen(() => {
+              const D = {id: 'tdoc', naam: 'Getekende overeenkomst', op: Date.now(), bestand: {id: 'tdocf', naam: 'scan_01.pdf', grootte: 1234, hash: 'x', driveId: 'drv1'}};
+              w.eval('fiscaalState.leningen[0].documenten=' + JSON.stringify([D]));
+              const inLijst = w.ctrAlleBijlagen().some(b => b.id === 'tdocf');
+              const pdf = w.ctrPdfLijst('lening', 'tln1');
+              const viewerOk = pdf.length === 1 && pdf[0].naam === 'Getekende overeenkomst.pdf' && pdf[0].id === 'tdocf' && /Z-003/.test(w.ctrPdfTitel('lening', 'tln1'));
+              const oud = w.eval('JSON.stringify(contractState.opruimen||[])');
+              try {
+                w.fisLenDocWeg('tln1', 'tdoc');
+                const weg = w.eval('fiscaalState.leningen[0].documenten.length') === 0 && w.eval('(contractState.opruimen||[]).some(t=>t.id==="tdocf")');
+                return inLijst && viewerOk && weg;
+              } finally { w.eval('contractState.opruimen=' + oud); }
+            })],
+            ['Schermen: een lening bij een bank toevoegen, met een extra aflossing; de kaart en het totaaloverzicht', () => metLen(() => {
+              w.switchModule('fiscaal'); w.fisOpen('lening');
+              const body = d.getElementById('fisBody');
+              const kaart = /Bij een bank of een ander/.test(body.textContent) && /Overzicht voor je boekhouder/.test(body.textContent);
+              body.querySelector('[data-action="fisLenOpenExtern"]').click();
+              const modal = d.getElementById('fisLenModal'), weg = id => d.getElementById(id).hidden;
+              const zet = (id, v, ev) => { const el = d.getElementById(id); el.value = v; el.dispatchEvent(new w.Event(ev || 'input', {bubbles: true})); };
+              const open = modal.classList.contains('open') && d.getElementById('fisLenGever').value === 'extern' && !weg('fisLenExternVeld') &&
+                weg('fisLenIjkKop') && weg('fisLenZekVeld') && weg('fisLenKasVeld') && weg('fisLenPlaatsVeld') && d.getElementById('fisLenNaAfl').value === 'lager' &&
+                d.getElementById('fisLenNummerLab').textContent === 'Leningnummer';
+              zet('fisLenExtern', 'Voorbeeld Bank'); zet('fisLenBedrag', '250.000'); zet('fisLenDatum', '2024-05-01'); zet('fisLenRente', '3,9');
+              zet('fisLenExtraDatum', '2026-06-16'); zet('fisLenExtraBedrag', '40.000');
+              modal.querySelector('[data-action="fisLenExtraToe"]').click();
+              const extraRij = d.getElementById('fisLenExtraLijst').querySelectorAll('.ctr-bijlage').length === 1;
+              modal.querySelector('[data-action="fisLenOpslaan"]').click();
+              const B = w.eval('fiscaalState.leningen').find(x => x.geldgever === 'extern');
+              const bewaard = !!B && B.externNaam === 'Voorbeeld Bank' && B.aflossingen.length === 1 && B.aflossingen[0].bedrag === 40000 && !modal.classList.contains('open');
+              const rij = [...body.querySelectorAll('[data-action="fisLenMenu"]')].find(x => /Voorbeeld Bank/.test(x.textContent));
+              const rijOk = !!rij && /Box 1/.test(rij.textContent);
+              rij.click();
+              const menu = d.getElementById('fisMenu');
+              const menuOk = !!menu && !menu.querySelector('[data-arg1="pdf"]') && !menu.querySelector('[data-arg1="anieuw"]') && !!menu.querySelector('[data-arg1="dnieuw"]');
+              w.fisMenuDicht();
+              body.querySelector('[data-action="fisTotOpen"]').click();
+              const tm = d.getElementById('fisTotModal');
+              const totOk = tm.classList.contains('open') && /Overzicht leningen/.test(d.getElementById('fisTotOnderwerp').value) && /2 leningen/.test(d.getElementById('fisTotReken').textContent);
+              tm.querySelector('[data-action="fisTotSluit"]').click();
+              return kaart && open && extraRij && bewaard && rijOk && menuOk && totOk && !tm.classList.contains('open');
             })],
             ['Allonge: de allonge en het besluit -- ingang, wat blijft, schema als bijlage, handtekeningen naast elkaar, 2:238 en 2:239 lid 6', () => metLen(() => {
               const l = {...L, allonges: [A]}, al = w.fisAllBlokken('allonge', l, A, G), at = tekst(al), bt = tekst(w.fisAllBlokken('abesluit', l, A, G));
