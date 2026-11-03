@@ -9883,7 +9883,7 @@ body.aic-open .aic-kop .sp-k { animation: sp-twinkel calc(var(--duur) * 3) var(-
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v3.12</span>
+        <span class="app-versie" title="Appversie">v3.13</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -11262,7 +11262,7 @@ body.aic-open .aic-kop .sp-k { animation: sp-twinkel calc(var(--duur) * 3) var(-
 <!-- ── Kilometers: je BMW koppelen (2026-11-03) ──
      Eén venster met stappen (kmBmwToon): client ID, zo nodig de
      doorgeefroute, de code die je bij BMW bevestigt, en daarna de stand van
-     de koppeling op dit apparaat. -->
+     de koppeling (die staat in je Google-account, voor al je apparaten). -->
 <div class="modal-bg" id="kmBmwModal" onclick="if(event.target===this)kmBmwSluit()">
   <div class="modal" style="max-width:640px;padding:20px 22px">
     <h3 id="kmBmwTitel" style="font-size:18px;font-weight:700;margin:0 0 16px">Je BMW koppelen</h3>
@@ -12957,6 +12957,8 @@ async function driveProbeerLaden(){
   if(!DRIVE_ACTIEF)return null;
   const d=await driveLees();
   driveGelezen=true;
+  /* Je API-sleutels en de BMW-koppeling staan los hiervan (sleutels.json). */
+  sleutelsNaLezen();
   if(!d||!d.inhoud)return null;
   /* Vanaf hier weet dit venster welke versie in Drive staat. */
   driveGezien=d.meta.modifiedTime;
@@ -19021,6 +19023,8 @@ function loginVerleng(){
 }
 function logUit(){
   try{localStorage.removeItem(LS_LOGIN);}catch(_){}
+  /* Je sleutels staan in Drive; na het inloggen komen ze terug. */
+  sleutelsVanApparaat();
   driveTokenVergeet();
   mailTokenVergeet();
   gaccAllesVergeten();
@@ -19195,7 +19199,8 @@ function instGroepAi(){
   ];
   return instGroep('ai','mint','AI',
     'Voor Herling AI, notities opschonen en het uitlezen van '+
-    'facturen en contracten. Gekozen op dit apparaat; sleutels gaan niet mee naar Drive.',
+    'facturen en contracten. Sleutels en model staan in je Google-account, dus op elk apparaat waar je inlogt; '+
+    'niet in je administratie of de back-ups daarvan.',
     /* Het verbruik direct onder het model (2026-10-13): daar kies je, en daar
        wil je zien wat het kost. Tot dan stond het onder de sleutels, en als
        badge in de chat. */
@@ -19325,7 +19330,7 @@ function instGroepWerk(){
       instRij({doe:'instDoe',arg:'urenSjablonen',label:'Uren-sjablonen en herhaling',
         hint:'Vaste regels die je met één klik invult'}),
       instRij({doe:'instDoe',arg:'kmBmw',label:'Ritten uit je BMW',
-        hint:bmw?'De laatste rit ophalen in Kilometers; de koppeling geldt per apparaat':'Kilometers en kilometerstand ophalen na een rit',
+        hint:bmw?'De laatste rit ophalen in Kilometers; gekoppeld op al je apparaten':'Kilometers en kilometerstand ophalen na een rit',
         waarde:bmw?'Gekoppeld':'',toon:'aan'})
     ]));
 }
@@ -19386,7 +19391,8 @@ const INST_DOEN={
   console:()=>{window.open('https://platform.claude.com/dashboard','_blank','noopener');},
   uitloggen:async()=>{
     if(await appBevestig('Uitloggen','Je gaat terug naar het inlogscherm. Wat nog niet in Drive staat, '+
-      'blijft op dit apparaat bewaard.',{ja:'Uitloggen',gevaar:true}))logUit();
+      'blijft op dit apparaat bewaard. Je API-sleutels en de BMW-koppeling gaan van dit apparaat af; '+
+      'na het inloggen komen ze terug uit je Google-account.',{ja:'Uitloggen',gevaar:true}))logUit();
   }
 };
 async function instDoe(wat){
@@ -44096,8 +44102,9 @@ let kmForm=null, kmVastForm=null;
 /* De lopende gps-rit. Bij het laden staat hij er nog als de app tijdens een
    rit dicht ging; meten begint dan pas weer na een klik (Verder meten). */
 let kmGps=kmGpsLees(), kmGpsWatch=null, kmGpsSlot=null, kmGpsTik=null, kmGpsMelding='';
-/* De koppeling met je BMW op dit apparaat: tokens, de laatste keer ophalen,
-   een opgehaalde rit die op je wacht. kmBmwKoppel is het koppelvenster. */
+/* De koppeling met je BMW op dit apparaat: tokens (die gaan ook naar je
+   Google-account, zie SLEUTEL_SOORTEN), de laatste keer ophalen, een
+   opgehaalde rit die op je wacht. kmBmwKoppel is het koppelvenster. */
 let kmBmw=kmBmwLees(), kmBmwBezig=false, kmBmwTokenBezig=null, kmBmwKoppel=null;
 
 /* ── Rekenen ── */
@@ -44556,10 +44563,11 @@ function kmPlekLeer(tekst,pos){
    de auto zelf doorgeeft, de kilometerstand en waar hij nu staat. BMW kent
    geen rittenlijst, alleen de laatste rit; mis je er een, dan zie je dat
    als gat in de kilometerstand.
-   - Koppelen gaat per apparaat (device code + PKCE). De tokens staan alleen
-     hier (LS_KM_BMW); de client ID, de doorgeefroute, de auto en de
-     gegevensset staan in Drive (kilometerState.bmw), zodat een tweede
-     apparaat alleen nog de code hoeft te bevestigen.
+   - Koppelen gaat met een device code + PKCE. De tokens staan hier
+     (LS_KM_BMW) en sinds v3.13 ook in je Google-account (sleutels.json,
+     zie SLEUTELS IN JE GOOGLE-ACCOUNT): je koppelt één keer voor al je
+     apparaten. De client ID, de doorgeefroute, de auto en de gegevensset
+     staan in Drive (kilometerState.bmw).
    - Een opgehaalde rit wacht op jou (kmBmw.wacht, ook alleen hier, want er
      zit een positie in): zakelijk, privé of overslaan. */
 function kmBmwLees(){
@@ -44569,9 +44577,14 @@ function kmBmwBewaar(){try{localStorage.setItem(LS_KM_BMW,JSON.stringify(kmBmw||
 function kmBmwInst(){const b=kilometerState.bmw;return b&&typeof b==='object'?b:{};}
 function kmBmwInstZet(o){kilometerState.bmw={...kmBmwInst(),...o};scheduleSave();}
 function kmBmwGekoppeld(){return !!(kmBmw.refresh&&(kmBmw.refreshTot||0)>Date.now()&&kmBmwInst().clientId);}
-function kmBmwVergeet(){
+/* overal=false: alleen hier. Dat is als we niet zeker weten of een ander
+   apparaat intussen een geldige heeft (Drive niet bereikt), of als er
+   meteen nieuwe tokens komen. */
+function kmBmwVergeet(overal){
+  const had=!!kmBmw.refresh;
   ['access','accessTot','refresh','refreshTot','koppelTijd','wacht'].forEach(k=>{delete kmBmw[k];});
   kmBmwBewaar();
+  if(had&&overal!==false)sleutelBij('bmw');
 }
 /* BMW telt per dag (UTC); dit apparaat telt mee om de grens niet te raken. */
 function kmBmwTeller(){
@@ -44637,20 +44650,36 @@ function kmBmwTokensZet(d){
   /* Elke keer verversen geeft een nieuwe, weer twee weken geldig. */
   if(d.refresh_token){kmBmw.refresh=d.refresh_token;kmBmw.refreshTot=nu+14*86400000;}
   kmBmwBewaar();
+  sleutelBij('bmw');
 }
+function kmBmwAccessGeldig(){return !!(kmBmw.access&&(kmBmw.accessTot||0)>Date.now()+60000);}
 async function kmBmwToken(){
-  if(kmBmw.access&&(kmBmw.accessTot||0)>Date.now()+60000)return kmBmw.access;
-  if(!kmBmw.refresh||(kmBmw.refreshTot||0)<=Date.now())throw kmBmwFout('verlopen');
-  if(!kmBmwTokenBezig)kmBmwTokenBezig=(async()=>{
+  if(kmBmwAccessGeldig())return kmBmw.access;
+  if(!kmBmwTokenBezig)kmBmwTokenBezig=kmBmwVervers(true).finally(()=>{kmBmwTokenBezig=null;});
+  return kmBmwTokenBezig;
+}
+/* Verversen met de refresh token. Weigert BMW hem, of is hij hier al
+   verlopen, dan kan een ander apparaat intussen verversd hebben: één keer
+   in je Google-account kijken en met een nieuwere opnieuw. Pas daarna is
+   de koppeling echt verlopen -- op al je apparaten als Drive dat bevestigde,
+   anders alleen hier. */
+async function kmBmwVervers(nogEens){
+  if(kmBmw.refresh&&(kmBmw.refreshTot||0)>Date.now()){
     const {status,data}=await kmBmwAuth('token',{grant_type:'refresh_token',refresh_token:kmBmw.refresh,client_id:kmBmwInst().clientId});
     if(data&&data.access_token){kmBmwTokensZet(data);return data.access_token;}
-    if(status===401||['invalid_grant','invalid_token','expired_token','invalid_client'].includes(data&&data.error)){
-      kmBmwVergeet();
-      throw kmBmwFout('verlopen');
+    if(!(status===401||['invalid_grant','invalid_token','expired_token','invalid_client'].includes(data&&data.error)))
+      throw kmBmwFout('bmw',{status});
+  }
+  if(nogEens){
+    const voor=kmBmw.refresh||'';
+    await sleutelsSync();
+    if(kmBmw.refresh&&kmBmw.refresh!==voor){
+      if(kmBmwAccessGeldig())return kmBmw.access;
+      return kmBmwVervers(false);
     }
-    throw kmBmwFout('bmw',{status});
-  })().finally(()=>{kmBmwTokenBezig=null;});
-  return kmBmwTokenBezig;
+  }
+  kmBmwVergeet(sleutelsStand==='klaar');
+  throw kmBmwFout('verlopen');
 }
 async function kmBmwApi(pad,body){
   const token=await kmBmwToken();
@@ -44791,7 +44820,8 @@ async function kmBmwHaal(o){
     else kmBmw.wacht=rit;
   }catch(e){
     kmBmw.fout=kmBmwFoutTekst(e);fout=true;
-    if(e.soort==='verlopen')kmBmwVergeet();
+    /* Bij verlopen heeft kmBmwVervers de tokens al weggehaald (en weet die
+       of dat op al je apparaten mocht). */
     melding=kmBmw.fout;
   }finally{
     kmBmwBezig=false;
@@ -44869,7 +44899,7 @@ function kmBmwHtml(){
   }
   if(!kmBmwGekoppeld()){
     return '<div class="inst-kaart">'+instRij({label:'Ritten uit je BMW',doe:'kmBmwOpen',
-      hint:kmBmwInst().clientId?'Niet gekoppeld op dit apparaat. Koppel opnieuw om je laatste rit op te halen.'
+      hint:kmBmwInst().clientId?'Niet meer gekoppeld. Koppel opnieuw om je laatste rit op te halen.'
         :'Koppel je auto, dan haal je na een rit de kilometers en de kilometerstand op met één tik.'})+'</div>';
   }
   const hint=kmBmwBezig?'Ophalen bij BMW…':kmBmw.fout?kmBmw.fout
@@ -44885,7 +44915,7 @@ function kmBmwMenu(knop){
   kmMenu(knop,'<div class="uren-menu-lab">Je BMW</div>'+
     kmMenuItem('kmBmwOpen','⚙','Koppeling',tot?'Geldig tot '+tot+'; ophalen verlengt hem':null)+
     '<div class="uren-menu-sep"></div>'+
-    kmMenuItem('kmBmwOntkoppel','✕','Ontkoppelen','Op dit apparaat',null,true));
+    kmMenuItem('kmBmwOntkoppel','✕','Ontkoppelen','Op al je apparaten',null,true));
 }
 function kmBmwOntkoppel(){
   kmSluitMenu();
@@ -44893,7 +44923,7 @@ function kmBmwOntkoppel(){
   kmBmw.fout='';kmBmwBewaar();
   if(kmBmwKoppel){kmBmwKoppel.stap='start';kmBmwKoppel.melding='';kmBmwToon();}
   if(activeModule==='kilometers')renderKilometersModule();
-  appToast('BMW ontkoppeld op dit apparaat',{type:'success'});
+  appToast('BMW ontkoppeld op al je apparaten',{type:'success'});
 }
 
 /* ── Gaten en privé in de lijst ── */
@@ -44991,8 +45021,8 @@ function kmBmwToon(){
       '<li>Kopieer de client ID; BMW toont hem maar één keer.</li></ol>'+
       veld('kmBmwClient','Client ID',inst.clientId,' placeholder="Bijvoorbeeld 1a2b3c4d-…"')+
       (inst.relay?veld('kmBmwRelay','Doorgeefroute',inst.relay,' placeholder="Leeg = rechtstreeks naar BMW"'):'')+
-      '<small class="opd-hint">Daarna toont de app een code die je bij BMW bevestigt. De koppeling geldt op dit apparaat; '+
-      'de client ID onthoudt de app voor je andere apparaten.</small>'+melding;
+      '<small class="opd-hint">Daarna toont de app een code die je bij BMW bevestigt. Dat doe je één keer: '+
+      'de koppeling staat daarna in je Google-account, voor al je apparaten.</small>'+melding;
     knop='Koppelen';
   }else if(k.stap==='route'){
     titel='Doorgeefroute opzetten';
@@ -45024,9 +45054,9 @@ function kmBmwToon(){
     const n=kmPlekkenLees().length, t=kmBmwTeller();
     html=instKaart([
       instRij({soort:'info',label:'Auto',waarde:inst.vin?'VIN …'+String(inst.vin).slice(-6):'nog niet bekend'}),
-      instRij({soort:'info',label:'Koppeling op dit apparaat',hint:'Elke keer ophalen verlengt hem met twee weken',
+      instRij({soort:'info',label:'Koppeling',hint:'Op al je apparaten; elke keer ophalen verlengt hem met twee weken',
         waarde:kmBmw.refreshTot?'tot '+opdFmtDatum(dateStr(new Date(kmBmw.refreshTot))):'',toon:'aan'}),
-      instRij({soort:'info',label:'Vandaag opgehaald',hint:'BMW staat '+KM_BMW_PER_DAG+' keer per dag toe',waarde:t.n+' keer'}),
+      instRij({soort:'info',label:'Vandaag opgehaald',hint:'Vanaf dit apparaat; BMW staat '+KM_BMW_PER_DAG+' keer per dag toe',waarde:t.n+' keer'}),
       instRij({soort:'info',label:'Inloggen',waarde:inst.relay?'via je doorgeefroute':'rechtstreeks'})
     ])+(n?instKaart([instRij({doe:'kmBmwPlekkenWeg',label:'Geleerde plekken wissen',gevaar:true,
       hint:n+' '+(n===1?'plek':'plekken')+' op dit apparaat, om ritten te herkennen'})]):'')+melding;
@@ -45122,7 +45152,7 @@ function kmBmwPeil(k){
     if(kmBmwKoppel!==k||k.stap!=='code')return;
     const d=res.data||{};
     if(d.access_token){
-      kmBmwVergeet();
+      kmBmwVergeet(false);
       kmBmw.koppelTijd=Date.now();kmBmw.fout='';
       kmBmwTokensZet(d);
       k.stap='inrichten';k.melding='';kmBmwToon();
@@ -45361,7 +45391,7 @@ function kmToggleMenu(knop){
     kmMenuItem('kmExport','↧','Jaaroverzicht '+(kmWeergave==='ritten'?maand.slice(0,4):jaar),'Alle ritten en de vergoeding per maand',['jaar',kmWeergave==='ritten'?maand.slice(0,4):jaar])+
     '<div class="uren-menu-sep"></div>'+
     kmMenuItem('kmVastNieuw','+','Bekende rit toevoegen','Daarna met één tik vastgelegd')+
-    kmMenuItem('kmBmwOpen','⚙','Je BMW',kmBmwGekoppeld()?'Gekoppeld op dit apparaat':'Ritten ophalen uit je auto')+
+    kmMenuItem('kmBmwOpen','⚙','Je BMW',kmBmwGekoppeld()?'Gekoppeld':'Ritten ophalen uit je auto')+
     kmMenuItem('kmTariefOpen','€','Vergoeding per km',kmTariefFmt(t)+(t===kmMaxTarief(kmWeergave==='overzicht'?jaar:maand.slice(0,4))?' · het onbelaste maximum':'')));
 }
 function kmVastMenu(id,knop){
@@ -46022,10 +46052,12 @@ function geminiModel(){
   catch(e){return GEMINI_MODEL_STANDAARD;}
 }
 function geminiZetModel(m){
+  const oud=geminiModel();
   try{
     if(!m||m===GEMINI_MODEL_STANDAARD)localStorage.removeItem(LS_GEMINI_MODEL);
     else localStorage.setItem(LS_GEMINI_MODEL,m);
   }catch(e){}
+  if(geminiModel()!==oud)sleutelBij('geminiModel');
 }
 /* Gemini 3 denkt standaard na en kent thinkingLevel; 2.5 kent alleen
    thinkingBudget. Een veld dat het model niet kent is een 400, dus kijken. */
@@ -46119,9 +46151,10 @@ async function _aiModelProbeer(){
    de standaard en stond de aanbieder als aparte keuze in het menu; zie
    decisions.md.)
 
-   Keuze, sleutels en model staan per apparaat in localStorage: een API-key
-   hoort niet in Drive, en de keuze hoort bij de sleutel die op dít
-   apparaat staat. */
+   Keuze, sleutels en model staan in localStorage, en sinds v3.13 ook in
+   een eigen bestand in Drive (sleutels.json, zie SLEUTELS IN JE
+   GOOGLE-ACCOUNT): op elk apparaat waar je inlogt dezelfde. Niet in
+   rawState: dan kwam een sleutel in de back-ups terecht. */
 const LS_AI_AANBIEDER='herling_ai_aanbieder';
 const AI_AANBIEDERS={
   gemini:{naam:'Gemini',bedrijf:'Google'},
@@ -46132,10 +46165,12 @@ function aiAanbieder(){
   catch(e){return 'claude';}
 }
 function aiZetAanbieder(a){
+  const oud=aiAanbieder();
   try{
     if(a==='gemini')localStorage.setItem(LS_AI_AANBIEDER,'gemini');
     else localStorage.removeItem(LS_AI_AANBIEDER);
   }catch(e){}
+  if(aiAanbieder()!==oud)sleutelBij('aanbieder');
 }
 function aiNaam(){return AI_AANBIEDERS[aiAanbieder()].naam;}
 function aiBedrijf(){return AI_AANBIEDERS[aiAanbieder()].bedrijf;}
@@ -46153,10 +46188,12 @@ function claudeModel(){
   catch(e){return CLAUDE_MODEL_STANDAARD;}
 }
 function claudeZetModel(m){
+  const oud=claudeModel();
   try{
     if(!m||m===CLAUDE_MODEL_STANDAARD)localStorage.removeItem(LS_CLAUDE_MODEL);
     else localStorage.setItem(LS_CLAUDE_MODEL,m);
   }catch(e){}
+  if(claudeModel()!==oud)sleutelBij('claudeModel');
 }
 
 /* Wat je kunt kiezen, goedkoopst eerst. Prijzen per miljoen tokens,
@@ -46228,7 +46265,7 @@ async function openAiModelPrompt(){
   const v=await appKies({
     titel:'AI-model',
     tekst:'Goedkoopst bovenaan. Het model bepaalt ook wie het werk doet: Claude '+
-      '(Anthropic) of Gemini (Google). Geldt voor alle AI-functies op dit apparaat.',
+      '(Anthropic) of Gemini (Google). Geldt voor alle AI-functies, op al je apparaten.',
     opties:aiModelKeuzes().map(k=>({waarde:k.model,naam:k.naam,uitleg:k.uitleg})),
     waarde:nu,
     veld:{label:'Model',waarde:nu,placeholder:CLAUDE_MODEL_STANDAARD},
@@ -47474,9 +47511,10 @@ document.addEventListener('keydown',e=>{
    gekozen was -- de andere sleutel was dan niet te beheren.
 
    De sleutel zelf komt nooit meer in beeld: alleen de laatste vier tekens,
-   om te herkennen welke het is. Bewaard per apparaat in localStorage, niet
-   in Drive. Testen kost niets: het vraagt de lijst met modellen op, en dat
-   lukt alleen met een geldige sleutel. */
+   om te herkennen welke het is. Bewaard in localStorage en, sinds v3.13,
+   in je Google-account (sleutelBij, zie SLEUTELS IN JE GOOGLE-ACCOUNT);
+   niet in rawState. Testen kost niets: het vraagt de lijst met modellen
+   op, en dat lukt alleen met een geldige sleutel. */
 const AI_SLEUTELS={
   claude:{naam:'Claude',bedrijf:'Anthropic',ls:LS_CLAUDE_KEY,vorm:/^sk-ant-/,voorbeeld:'sk-ant-…',
     url:'https://platform.claude.com/dashboard',
@@ -47507,6 +47545,7 @@ function aiSleutelBewaar(a,ruw){
   }
   try{localStorage.setItem(d.ls,key);}
   catch(e){appToast('Opslaan lukte niet in deze browser',{type:'error'});return false;}
+  sleutelBij(a);
   aiSleutelStand[a]=null;
   aiModelBijwerken();
   appToast(d.naam+'-sleutel opgeslagen',{type:'success',duration:2500});
@@ -47517,12 +47556,13 @@ async function aiSleutelWeg(a){
   const d=AI_SLEUTELS[a];
   if(!d||!aiSleutelVan(a))return false;
   const ja=await appBevestig('Sleutel verwijderen',
-    'De '+d.naam+'-sleutel gaat van dit apparaat af. '+(aiAanbieder()===a
+    'De '+d.naam+'-sleutel gaat van al je apparaten af. '+(aiAanbieder()===a
       ?'Zolang er geen nieuwe staat, werken de AI-functies niet met '+d.naam+'.'
-      :'Op je andere apparaten blijft hij staan.'),
+      :'Bij '+d.bedrijf+' blijft hij bestaan; intrekken doe je daar.'),
     {ja:'Verwijderen',gevaar:true});
   if(!ja)return false;
   try{localStorage.removeItem(d.ls);}catch(e){}
+  sleutelBij(a);
   aiSleutelStand[a]=null;
   aiModelBijwerken();
   appToast(d.naam+'-sleutel verwijderd',{type:'info',duration:2500});
@@ -47563,7 +47603,12 @@ function aiSleutelStandToon(a){
    knop erheen. Niet zelf wegspringen -- je kunt midden in een formulier
    zitten (een contract uitlezen) en dat wil je niet kwijt. */
 function aiGeenSleutel(){
-  appToast('Er staat nog geen '+aiNaam()+'-sleutel op dit apparaat.',
+  /* Net ingelogd op een nieuw apparaat: dan komt hij misschien nog. */
+  if(sleutelsStand==='laden'){
+    appToast('Je sleutels komen nog uit je Google-account. Probeer het zo nog eens.',{type:'info',duration:5000});
+    return;
+  }
+  appToast('Er staat nog geen '+aiNaam()+'-sleutel in de app.',
     {type:'warning',duration:9000,undo:aiNaarSleutel,actieLabel:'Naar Instellingen'});
 }
 /* Naar het veld van de sleutel op de Instellingen-pagina. */
@@ -47582,6 +47627,212 @@ function aiNaarSleutel(a){
     veld.focus({preventScroll:true});
   },60);
 }
+
+/* ╔══════════════════════════════════════════════════════════════════╗
+   ║            SLEUTELS IN JE GOOGLE-ACCOUNT (2026-11-03)            ║
+   ╚══════════════════════════════════════════════════════════════════╝
+   Tot v3.13 stonden de API-sleutels en de BMW-koppeling alleen op het
+   apparaat waar je ze invulde, en op elk ander apparaat opnieuw. Nu staan
+   ze ook in een eigen bestand in de verborgen app-map in Drive,
+   sleutels.json, en zet de app ze na het inloggen vanzelf klaar. Het slot
+   is je Google-account: zonder een token voor deze app is het bestand
+   niet te lezen, en dat token geeft Google alleen na het inloggen.
+
+   - Bewust níet in rawState: dat gaat ook naar de lokale back-up, de
+     versiegeschiedenis, de kopie bij een conflict en een back-up die je
+     downloadt. Een sleutel hoort daar niet (zie 2026-10-11).
+   - Per sleutel een tijdstip (op): de nieuwste wint, van welk apparaat
+     ook. Weghalen laat een lege waarde met tijdstip achter, zodat hij niet
+     terugkomt uit een apparaat dat nog de oude had.
+   - Wat meegaat staat in SLEUTEL_SOORTEN: de Claude- en de Gemini-sleutel,
+     de gekozen aanbieder en modellen (die horen bij de sleutel), en van
+     BMW alleen de tokens. Niet de rit die op je wacht (daar zit een
+     positie in), niet de geleerde plekken, niet de teller.
+   - De Google-tokens zelf (Drive, Mail, Agenda) gaan niet mee: die geeft
+     Google per apparaat, en zonder die is dit bestand niet te openen.
+   - Uitloggen haalt de sleutels van het apparaat (sleutelsVanApparaat);
+     na het inloggen komen ze terug.
+   - Zonder Drive (nog niet gelezen deze sessie, of localhost) blijft
+     alles op het apparaat, en gaat het mee zodra Drive er is. */
+const SLEUTEL_BESTAND='sleutels.json';
+const LS_SLEUTELS='herling_sleutels';   /* per apparaat: {op: {naam: ms}, indrive: {naam: true}} */
+const SLEUTEL_KIJK_MS=5*60000;          /* terug in beeld: hooguit zo vaak kijken of er iets veranderde */
+const sleutelLs=k=>({lees:()=>{try{return localStorage.getItem(k);}catch(_){return null;}},
+  zet:v=>{try{if(typeof v==='string'&&v)localStorage.setItem(k,v);else localStorage.removeItem(k);}catch(_){}}});
+const SLEUTEL_SOORTEN={
+  claude:sleutelLs(LS_CLAUDE_KEY),
+  gemini:sleutelLs(LS_GEMINI_KEY),
+  aanbieder:sleutelLs(LS_AI_AANBIEDER),
+  claudeModel:sleutelLs(LS_CLAUDE_MODEL),
+  geminiModel:sleutelLs(LS_GEMINI_MODEL),
+  bmw:{
+    lees:()=>kmBmw.refresh?{access:kmBmw.access||null,accessTot:kmBmw.accessTot||0,refresh:kmBmw.refresh,refreshTot:kmBmw.refreshTot||0}:null,
+    zet:v=>{
+      ['access','accessTot','refresh','refreshTot'].forEach(k=>{delete kmBmw[k];});
+      if(v&&typeof v==='object'&&typeof v.refresh==='string'&&v.refresh)
+        Object.assign(kmBmw,{access:typeof v.access==='string'?v.access:null,accessTot:Number(v.accessTot)||0,
+          refresh:v.refresh,refreshTot:Number(v.refreshTot)||0});
+      kmBmwBewaar();
+    }
+  }
+};
+let sleutelsStand='nog';     /* nog | laden | klaar | fout */
+let sleutelsGekeken=0;       /* wanneer dit venster voor het laatst in Drive keek */
+let _sleutelsBestand=null;   /* {tijd, inhoud}: wat we het laatst in Drive zagen */
+let _sleutelsTimer=null, _sleutelsBezig=null, _sleutelsNogEens=false;
+
+/* De opslag apart, zodat de tests een nep-Drive kunnen geven. */
+const sleutelOpslag={
+  zoek:async()=>{
+    const r=await driveApi('drive/v3/files?spaces=appDataFolder'+
+      '&q='+encodeURIComponent("name='"+SLEUTEL_BESTAND+"'")+
+      '&fields=files(id,modifiedTime)&orderBy=modifiedTime desc');
+    return ((await r.json()).files||[])[0]||null;
+  },
+  lees:async(b)=>{
+    const r=await driveApi('drive/v3/files/'+b.id+'?alt=media');
+    return JSON.parse(await r.text());
+  },
+  schrijf:async(b,obj)=>{
+    const grens='herling'+Math.random().toString(36).slice(2);
+    const meta=b?{name:SLEUTEL_BESTAND}:{name:SLEUTEL_BESTAND,parents:['appDataFolder']};
+    const body='--'+grens+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify(meta)+'\r\n'+
+      '--'+grens+'\r\nContent-Type: application/json\r\n\r\n'+JSON.stringify(obj)+'\r\n--'+grens+'--';
+    const r=await driveApi('upload/drive/v3/files'+(b?'/'+b.id:'')+'?uploadType=multipart&fields=id,modifiedTime',{
+      method:b?'PATCH':'POST',headers:{'Content-Type':'multipart/related; boundary='+grens},body});
+    return r.json();
+  }
+};
+
+function sleutelsMeta(){
+  try{
+    const m=JSON.parse(localStorage.getItem(LS_SLEUTELS)||'null');
+    if(m&&typeof m==='object')return {op:m.op&&typeof m.op==='object'?m.op:{},indrive:m.indrive&&typeof m.indrive==='object'?m.indrive:{}};
+  }catch(_){}
+  return {op:{},indrive:{}};
+}
+function sleutelsMetaZet(m){try{localStorage.setItem(LS_SLEUTELS,JSON.stringify(m));}catch(_){}}
+function sleutelVinger(v){return v==null||v===''?'':typeof v==='string'?v:JSON.stringify(v);}
+
+/* Hier veranderde een sleutel: onthouden wanneer, en straks naar Drive. */
+function sleutelBij(naam){
+  if(!SLEUTEL_SOORTEN[naam])return;
+  const m=sleutelsMeta();
+  m.op[naam]=Math.max(Date.now(),(Number(m.op[naam])||0)+1);
+  m.indrive[naam]=false;
+  sleutelsMetaZet(m);
+  /* Zonder Drive wacht hij tot de eerste keer lezen (sleutelsNaLezen). */
+  if(!driveGelezen)return;
+  clearTimeout(_sleutelsTimer);
+  _sleutelsTimer=setTimeout(()=>{_sleutelsTimer=null;sleutelsSync();},1500);
+}
+
+/* Samenvoegen zonder iets aan te raken. bestand = wat in Drive staat (of
+   null), lokaal = de waarden hier, op = wanneer ze hier veranderden.
+   Geeft het nieuwe bestand, wat hier anders moet (zet), de tijdstippen en
+   of er geschreven moet worden. Een waarde die hier al stond van vóór
+   deze versie (geen tijdstip) gaat mee als Drive er nog geen heeft; heeft
+   Drive er wel een, dan wint Drive. */
+function sleutelsSamen(bestand,lokaal,op,nu){
+  const waarden={};
+  const ruw=bestand&&bestand.waarden&&typeof bestand.waarden==='object'?bestand.waarden:{};
+  Object.keys(ruw).forEach(k=>{
+    const r=ruw[k];
+    if(r&&typeof r==='object'&&Number(r.op)>0)waarden[k]={w:r.w==null||r.w===''?null:r.w,op:Number(r.op)};
+  });
+  const zet={}, nieuwOp={...op};
+  let schrijf=false;
+  Object.keys(SLEUTEL_SOORTEN).forEach(naam=>{
+    const r=waarden[naam], lop=Number(op[naam])||0, lw=lokaal[naam]==null||lokaal[naam]===''?null:lokaal[naam];
+    if(r&&r.op>lop){
+      if(sleutelVinger(r.w)!==sleutelVinger(lw))zet[naam]=r.w;
+      nieuwOp[naam]=r.op;
+    }else if(lop&&(!r||lop>r.op)){
+      waarden[naam]={w:lw,op:lop};schrijf=true;
+    }else if(!lop&&!r&&lw!=null){
+      waarden[naam]={w:lw,op:nu};nieuwOp[naam]=nu;schrijf=true;
+    }
+  });
+  return {bestand:{versie:1,waarden},zet,op:nieuwOp,schrijf};
+}
+
+/* Kijken in Drive, samenvoegen, en zo nodig terugschrijven. Geeft true als
+   er hier iets veranderde. Hooguit één tegelijk; wie ondertussen vraagt,
+   krijgt er na afloop nog één. */
+function sleutelsSync(){
+  if(!driveGelezen||!DRIVE_ACTIEF)return Promise.resolve(false);
+  if(_sleutelsBezig){_sleutelsNogEens=true;return _sleutelsBezig;}
+  clearTimeout(_sleutelsTimer);_sleutelsTimer=null;
+  sleutelsStand='laden';
+  _sleutelsBezig=(async()=>{
+    let veranderd=false;
+    try{
+      const b=await sleutelOpslag.zoek();
+      let inhoud=null;
+      if(b)inhoud=_sleutelsBestand&&_sleutelsBestand.tijd===b.modifiedTime?_sleutelsBestand.inhoud:await sleutelOpslag.lees(b);
+      const m=sleutelsMeta(), lokaal={};
+      Object.keys(SLEUTEL_SOORTEN).forEach(n=>{lokaal[n]=SLEUTEL_SOORTEN[n].lees();});
+      const s=sleutelsSamen(inhoud,lokaal,m.op,Date.now());
+      Object.entries(s.zet).forEach(([n,v])=>{SLEUTEL_SOORTEN[n].zet(v);veranderd=true;});
+      /* De tijdstippen meteen vastleggen: een sleutel die net uit Drive
+         kwam, is hier niet "nieuwer" als het schrijven hierna mislukt. */
+      Object.entries(s.op).forEach(([n,t])=>{if(!(Number(m.op[n])>t))m.op[n]=t;});
+      sleutelsMetaZet(m);
+      let tijd=b?b.modifiedTime:null;
+      if(s.schrijf){const r=await sleutelOpslag.schrijf(b,s.bestand);tijd=(r&&r.modifiedTime)||null;}
+      _sleutelsBestand=tijd?{tijd,inhoud:s.bestand}:null;
+      /* Wat hier nu gelijk is aan Drive, mag bij uitloggen weg. Opnieuw
+         lezen: tijdens het schrijven kan er hier iets veranderd zijn. */
+      const m2=sleutelsMeta();
+      Object.keys(SLEUTEL_SOORTEN).forEach(n=>{
+        const d=s.bestand.waarden[n];
+        m2.indrive[n]=!!d&&Number(m2.op[n])===d.op&&sleutelVinger(d.w)===sleutelVinger(SLEUTEL_SOORTEN[n].lees());
+      });
+      sleutelsMetaZet(m2);
+      sleutelsStand='klaar';
+    }catch(e){
+      console.warn('[sleutels]',e);
+      sleutelsStand='fout';
+    }finally{
+      sleutelsGekeken=Date.now();
+      _sleutelsBezig=null;
+      if(veranderd)sleutelsNaVerandering();
+      if(_sleutelsNogEens){_sleutelsNogEens=false;sleutelsSync();}
+    }
+    return veranderd;
+  })();
+  return _sleutelsBezig;
+}
+/* Na de eerste keer Drive lezen (driveProbeerLaden), en na een mislukte
+   poging bij de volgende. */
+function sleutelsNaLezen(){
+  if(sleutelsStand==='nog'||sleutelsStand==='fout')setTimeout(sleutelsSync,0);
+}
+/* Er kwam iets uit Drive: laten zien wat het nu is. Instellingen niet
+   opnieuw tekenen als je daar net in een veld typt. */
+function sleutelsNaVerandering(){
+  try{aiVerbruikBij();aiChatModelToon();}catch(_){}
+  if(activeModule==='instellingen'){
+    const f=document.activeElement, box=document.getElementById('instBody');
+    if(!(box&&f&&box.contains(f)&&/^(INPUT|TEXTAREA)$/.test(f.tagName)))renderInstellingenModule();
+  }
+  if(activeModule==='kilometers')renderKilometersModule();
+}
+/* Uitloggen: van dit apparaat af wat ook in Drive staat. Wat nog niet in
+   Drive staat blijft, anders ben je het kwijt. */
+function sleutelsVanApparaat(){
+  const m=sleutelsMeta();
+  Object.keys(SLEUTEL_SOORTEN).forEach(n=>{
+    if(!m.indrive[n])return;
+    SLEUTEL_SOORTEN[n].zet(null);
+    delete m.op[n];delete m.indrive[n];
+  });
+  sleutelsMetaZet(m);
+}
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='hidden'){if(_sleutelsTimer)sleutelsSync();return;}
+  if(driveGelezen&&Date.now()-sleutelsGekeken>SLEUTEL_KIJK_MS)sleutelsSync();
+});
 
 /* ╔══════════════════════════════════════════════════════════════════╗
    ║                    VRAAG HET JE APP (AI-chat)                    ║

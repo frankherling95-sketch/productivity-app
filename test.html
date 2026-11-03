@@ -906,6 +906,109 @@ async function runChecks() {
         return ok && daar && dicht;
         } finally { scherm.style.display = was; }
       })],
+    /* ── Sleutels in je Google-account (2026-11-03, v3.13) ──
+       Met een nep-Drive in het geheugen: sleutelOpslag krijgt eigen zoek,
+       lees en schrijf. Verzonnen sleutels; er gaat niets naar buiten. */
+    ['Sleutels in je Google-account: samenvoegen — de nieuwste wint, weghalen gaat overal mee, een sleutel van vóór v3.13 gaat mee als Drive er nog geen heeft', () => {
+      const S = w.sleutelsSamen;
+      const a = S({versie: 1, waarden: {claude: {w: 'sk-ant-drive', op: 100}}}, {}, {}, 500);
+      const nieuwApparaat = a.zet.claude === 'sk-ant-drive' && a.op.claude === 100 && !a.schrijf;
+      const b = S({versie: 1, waarden: {claude: {w: 'sk-ant-oud', op: 100}}}, {claude: 'sk-ant-nieuw'}, {claude: 200}, 500);
+      const hierNieuwer = b.schrijf && b.bestand.waarden.claude.w === 'sk-ant-nieuw' && b.bestand.waarden.claude.op === 200 && !('claude' in b.zet);
+      const c = S({versie: 1, waarden: {gemini: {w: null, op: 300}}}, {gemini: 'AIzaoud'}, {gemini: 100}, 500);
+      const weg = 'gemini' in c.zet && c.zet.gemini === null && c.op.gemini === 300;
+      const e = S(null, {claude: 'sk-ant-al'}, {}, 500);
+      const vanVoor = e.schrijf && e.bestand.waarden.claude.w === 'sk-ant-al' && e.bestand.waarden.claude.op === 500 && e.op.claude === 500;
+      const f = S({versie: 1, waarden: {claude: {w: 'sk-ant-drive', op: 100}}}, {claude: 'sk-ant-al'}, {}, 500);
+      const driveWint = f.zet.claude === 'sk-ant-drive' && !f.schrijf;
+      const g = S({versie: 1, waarden: {claude: {w: 'x', op: 100}}}, {claude: 'x'}, {claude: 100}, 500);
+      const gelijk = !g.schrijf && Object.keys(g.zet).length === 0;
+      const h = S({versie: 1, waarden: {claude: 'kaal', later: {w: 'x', op: 5}}}, {}, {}, 500);
+      const vreemd = !('claude' in h.zet) && h.bestand.waarden.later.w === 'x';
+      return nieuwApparaat && hierNieuwer && weg && vanVoor && driveWint && gelijk && vreemd;
+    }],
+    ['Sleutels in je Google-account: een nieuw apparaat krijgt ze vanzelf, een nieuwe gaat naar Drive, uitloggen haalt alleen weg wat ook in Drive staat', () =>
+      metLS({herling_claude_api_key: null, herling_gemini_api_key: null, herling_ai_aanbieder: null, herling_claude_model: null,
+        herling_gemini_model: null, herling_sleutels: null, herling_km_bmw: null}, async () => {
+        const opslag = w.eval('sleutelOpslag'), echt = {...opslag};
+        const oud = w.eval('JSON.stringify({d:driveGelezen,s:sleutelsStand,g:sleutelsGekeken,b:kmBmw})');
+        let bestand = {versie: 1, waarden: {claude: {w: 'sk-ant-drive-1234', op: 100}, claudeModel: {w: 'claude-opus-5-5', op: 100},
+          bmw: {w: {access: 'at', accessTot: Date.now() + 3600e3, refresh: 'rt-drive', refreshTot: Date.now() + 864e5}, op: 100}}};
+        let tijd = 1, schrijven = 0;
+        opslag.zoek = async () => ({id: 's1', modifiedTime: 't' + tijd});
+        opslag.lees = async () => JSON.parse(JSON.stringify(bestand));
+        opslag.schrijf = async (b, obj) => { schrijven++; bestand = JSON.parse(JSON.stringify(obj)); tijd++; return {id: 's1', modifiedTime: 't' + tijd}; };
+        try {
+          w.eval("driveGelezen=true;sleutelsStand='nog';_sleutelsBestand=null;kmBmw={}");
+          const veranderd = await w.sleutelsSync();
+          const binnen = veranderd === true && w.localStorage.getItem('herling_claude_api_key') === 'sk-ant-drive-1234' &&
+            w.claudeModel() === 'claude-opus-5-5' && w.eval('kmBmw.refresh') === 'rt-drive' && schrijven === 0 &&
+            w.eval('sleutelsStand') === 'klaar';
+          const nietInState = !w.eval('JSON.stringify(huidigeStateSnapshot())').includes('sk-ant-drive') &&
+            !w.eval('JSON.stringify(huidigeStateSnapshot())').includes('rt-drive');
+          w.localStorage.setItem('herling_gemini_api_key', 'AIzaNieuw');
+          w.sleutelBij('gemini');
+          await w.sleutelsSync();
+          const naarDrive = schrijven === 1 && bestand.waarden.gemini.w === 'AIzaNieuw' && bestand.waarden.claude.w === 'sk-ant-drive-1234';
+          /* Net een andere Claude-sleutel, nog niet in Drive: die blijft bij uitloggen. */
+          w.localStorage.setItem('herling_claude_api_key', 'sk-ant-nog-niet-in-drive');
+          w.sleutelBij('claude');
+          w.eval('clearTimeout(_sleutelsTimer);_sleutelsTimer=null');
+          w.sleutelsVanApparaat();
+          const af = w.localStorage.getItem('herling_gemini_api_key') === null && w.eval('kmBmw.refresh') == null &&
+            w.claudeModel() === 'claude-sonnet-5-5' && w.localStorage.getItem('herling_claude_api_key') === 'sk-ant-nog-niet-in-drive';
+          await w.sleutelsSync();
+          const weer = w.localStorage.getItem('herling_gemini_api_key') === 'AIzaNieuw' && w.eval('kmBmw.refresh') === 'rt-drive' &&
+            w.claudeModel() === 'claude-opus-5-5' && bestand.waarden.claude.w === 'sk-ant-nog-niet-in-drive';
+          return binnen && nietInState && naarDrive && af && weer;
+        } finally {
+          Object.assign(opslag, echt);
+          w.eval('(function(o){driveGelezen=o.d;sleutelsStand=o.s;sleutelsGekeken=o.g;kmBmw=o.b;_sleutelsBestand=null;' +
+            'clearTimeout(_sleutelsTimer);_sleutelsTimer=null;})(' + oud + ')');
+        }
+      })],
+    ['Sleutels in je Google-account: BMW weigert een oude refresh token omdat een ander apparaat al ververste — de app haalt de nieuwe en gaat door; heeft Drive niets beters, dan is hij overal verlopen', () =>
+      metLS({herling_km_bmw: null, herling_sleutels: null}, async () => {
+        const opslag = w.eval('sleutelOpslag'), echt = {...opslag}, echteFetch = w.fetch;
+        const oud = w.eval('JSON.stringify({d:driveGelezen,s:sleutelsStand,g:sleutelsGekeken,b:kmBmw,i:kilometerState.bmw||null})');
+        const nu = Date.now();
+        let bestand = {versie: 1, waarden: {bmw: {w: {access: 'at-oud', accessTot: nu - 1000, refresh: 'rt-nieuw', refreshTot: nu + 864e5}, op: nu + 5}}};
+        let tijd = 1;
+        opslag.zoek = async () => ({id: 's1', modifiedTime: 't' + tijd});
+        opslag.lees = async () => JSON.parse(JSON.stringify(bestand));
+        opslag.schrijf = async (b, obj) => { bestand = JSON.parse(JSON.stringify(obj)); tijd++; return {id: 's1', modifiedTime: 't' + tijd}; };
+        const gevraagd = [];
+        w.fetch = async (url, opt) => {
+          const velden = new URLSearchParams(String((opt && opt.body) || ''));
+          gevraagd.push(velden.get('refresh_token'));
+          const goed = velden.get('refresh_token') === 'rt-nieuw';
+          return new w.Response(JSON.stringify(goed ? {access_token: 'at-vers', refresh_token: 'rt-vers', expires_in: 3599} : {error: 'invalid_grant'}),
+            {status: goed ? 200 : 400, headers: {'Content-Type': 'application/json'}});
+        };
+        try {
+          w.eval("driveGelezen=true;sleutelsStand='klaar';_sleutelsBestand=null;kilometerState.bmw={clientId:'1a2b3c4d-1111-2222-3333-444455556666'};" +
+            "kmBmw={access:'at-oud',accessTot:" + (nu - 1000) + ",refresh:'rt-oud',refreshTot:" + (nu + 864e5) + "}");
+          w.localStorage.setItem('herling_sleutels', JSON.stringify({op: {bmw: nu - 5000}, indrive: {bmw: true}}));
+          const token = await w.kmBmwToken();
+          await w.sleutelsSync();
+          const door = token === 'at-vers' && gevraagd.join(',') === 'rt-oud,rt-nieuw' && w.eval('kmBmw.refresh') === 'rt-vers' &&
+            bestand.waarden.bmw.w.refresh === 'rt-vers';
+          w.eval("kmBmw={access:null,accessTot:0,refresh:'rt-dood',refreshTot:" + (nu + 864e5) + "}");
+          bestand = {versie: 1, waarden: {bmw: {w: {refresh: 'rt-dood', refreshTot: nu + 864e5}, op: nu + 10}}};
+          tijd++;
+          w.localStorage.setItem('herling_sleutels', JSON.stringify({op: {bmw: nu + 10}, indrive: {bmw: true}}));
+          let fout = '';
+          try { await w.kmBmwToken(); } catch (e) { fout = e.soort; }
+          await w.sleutelsSync();
+          const verlopen = fout === 'verlopen' && !w.eval('kmBmw.refresh') && bestand.waarden.bmw.w === null;
+          return door && verlopen;
+        } finally {
+          w.fetch = echteFetch;
+          Object.assign(opslag, echt);
+          w.eval('(function(o){driveGelezen=o.d;sleutelsStand=o.s;sleutelsGekeken=o.g;kmBmw=o.b;kilometerState.bmw=o.i||{};_sleutelsBestand=null;' +
+            'clearTimeout(_sleutelsTimer);_sleutelsTimer=null;})(' + oud + ')');
+        }
+      })],
     /* ── Uren factureren: maandafsluiting en samenvoegen (2026-10-11) ──
        Met tijdelijke klanten en uren in januari 2031, zodat de demo-
        gegevens er niet in zitten; na afloop staat alles weer terug. */
@@ -5334,6 +5437,9 @@ async function runChecks() {
   /* Tests die een Claude-antwoord nabootsen, tellen dat als verbruik
      (aiVerbruikTel). Na afloop staat het weer zoals het was. */
   const verbruikVoor = w.eval('JSON.stringify((rawState.settings||{}).aiVerbruik||null)');
+  /* Een sleutel of model kiezen legt vast wanneer dat gebeurde
+     (herling_sleutels, sleutelBij). Ook dat staat na afloop terug. */
+  const sleutelsVoor = w.localStorage.getItem('herling_sleutels');
   for (const [name, fn] of tests) {
     /* Welke test er loopt: blijft er een hangen, dan zie je welke. */
     checks.innerHTML = '<div class="check">Bezig (' + (regels.length + 1) + '/' + tests.length + '): ' + name + '</div>';
@@ -5343,6 +5449,7 @@ async function runChecks() {
     regels.push(`<div class="check ${ok?'ok':'fail'}">${ok?'✓':'✗'} ${name}${err}</div>`);
   }
   try { w.eval('rawState.settings.aiVerbruik=' + verbruikVoor); } catch (_) {}
+  try { if (sleutelsVoor === null) w.localStorage.removeItem('herling_sleutels'); else w.localStorage.setItem('herling_sleutels', sleutelsVoor); } catch (_) {}
   checks.innerHTML = regels.join('');
 
   if (iframeErrors.length) {

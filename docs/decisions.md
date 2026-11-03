@@ -9402,3 +9402,145 @@ Vallen die tegen, dan werkt de rest (kilometerstand, gaten) nog wel.
   antwoord blokkeert. BMW verwerkt het verzoek wel; als het het token
   vervangt, ben je de koppeling kwijt zonder het nieuwe te zien.
 - Vaker dan nodig ophalen: 50 per dag geldt voor alle apparaten samen.
+
+## 2026-11-03 · Sleutels in je Google-account (v3.13)
+
+**Probleem.** Frank werkt op meerdere apparaten. De Claude- en de
+Gemini-sleutel moest hij op elk apparaat opnieuw invullen, en de BMW-koppeling
+(v3.12) op elk apparaat opnieuw doen. Hij vroeg om iets als een keyvault,
+gekoppeld aan zijn Google-account, ook voor de andere API-koppelingen in de app.
+
+**Wat er aan sleutels is** (nagelopen op 2026-11-03):
+- de Claude- en de Gemini-sleutel, met de gekozen aanbieder en modellen (in
+  localStorage);
+- BMW: de tokens in localStorage; de client ID, de doorgeefroute, de VIN en de
+  gegevensset stonden al in Drive (`kilometerState.bmw`);
+- Google (Drive, Gmail, Agenda): die tokens geeft Google zelf, per apparaat of
+  tabblad en hooguit een uur geldig. Er is in de browser geen refreshtoken om
+  te bewaren;
+- de links onder Externe tools en de agendabronnen hebben geen sleutel en
+  staan al in `rawState`.
+
+**Overwogen en niet gedaan.**
+- **Een echte keyvault** (Google Secret Manager, Azure Key Vault). Daarvoor
+  heeft de browser een Google-toegang nodig die veel ruimer is dan dit
+  probleem (`cloud-platform`), plus een cloudproject met facturering.
+- **Een wachtwoord over de sleutels.** Dat is de pincode die op 2026-08-16 is
+  afgeschaft. Het beschermt alleen tegen iemand die al in je Google-account
+  zit, en die ziet dan je hele administratie toch al.
+- **De wachtwoordmanager van Chrome** (Credential Management API). Die
+  synchroniseert via Google, maar werkt niet in Safari (iPhone) en Firefox.
+- **In `rawState`.** Dan komt een sleutel in de lokale back-up, de
+  versiegeschiedenis, de kopie bij een conflict en een gedownloade back-up
+  (zie 2026-10-11).
+
+**Beslissing.**
+- **Een eigen bestand in de verborgen app-map**: `sleutels.json`
+  (`SLEUTEL_BESTAND`), naast `herling-analytics.json` en
+  `ai-gesprekken.json`. De vorm is `{versie:1, waarden:{naam:{w, op}}}`: per
+  sleutel de waarde en het tijdstip waarop hij veranderde.
+- **Wat meegaat** staat in `SLEUTEL_SOORTEN`:
+  - `claude` en `gemini` (de sleutels);
+  - `aanbieder`, `claudeModel` en `geminiModel` (die horen bij de sleutel);
+  - `bmw`: alleen access, accessTot, refresh en refreshTot.
+
+  De rit die op je wacht (met positie), de geleerde plekken, de dagteller en
+  het verbruik blijven op het apparaat.
+- **Samenvoegen** (`sleutelsSamen`, puur). De nieuwste wint, van welk
+  apparaat ook.
+  - Weghalen laat `{w:null, op}` achter, zodat de sleutel niet terugkomt van
+    een apparaat dat de oude nog had.
+  - Een sleutel van vóór deze versie (zonder tijdstip) gaat mee als Drive er
+    nog geen heeft. Heeft Drive er wel een, dan wint Drive.
+  - `herling_sleutels` (`LS_SLEUTELS`) onthoudt per apparaat wanneer elke
+    sleutel hier veranderde (`op`), en of hij gelijk is aan Drive (`indrive`).
+- **Wanneer.**
+  - Na de eerste keer Drive lezen (`driveProbeerLaden` →
+    `sleutelsNaLezen`), en na een mislukte poging bij de volgende.
+  - Na elke wijziging hier, 1,5 s later (`sleutelBij`). De aanroepen staan in
+    `aiSleutelBewaar`, `aiSleutelWeg`, `aiZetAanbieder`, `claudeZetModel`,
+    `geminiZetModel` (alleen bij een echte wijziging), `kmBmwTokensZet` en
+    `kmBmwVergeet`.
+  - Als de app terug in beeld komt, hooguit eens per 5 minuten.
+
+  Er loopt er hooguit één tegelijk. Zonder Drive wacht alles tot Drive er is.
+- **Uitloggen** (`logUit` → `sleutelsVanApparaat`) haalt van het apparaat
+  wat ook in Drive staat. Wat nog niet in Drive staat, blijft. Na het
+  inloggen komt de rest terug. Het venster bij Uitloggen zegt dat.
+- **BMW verversen** (`kmBmwVervers`). Weigert BMW de refreshtoken, of is hij
+  hier al verlopen, dan:
+  1. kijkt de app eerst in Drive; een ander apparaat kan intussen verversd
+     hebben;
+  2. probeert hij het met een nieuwere één keer opnieuw;
+  3. is de koppeling pas daarna verlopen. Weggehaald op al je apparaten als
+     Drive dat bevestigde (`sleutelsStand==='klaar'`), anders alleen hier
+     (`kmBmwVergeet(false)`). Zo kan een apparaat dat Drive niet bereikt
+     geen geldige koppeling van een ander apparaat wissen.
+- **Teksten.**
+  - Een sleutel verwijderen geldt voor *al je apparaten*, en Ontkoppelen bij
+    BMW ook.
+  - Het koppelvenster zegt dat je één keer koppelt.
+  - De groep AI op Instellingen zegt waar de sleutels staan.
+  - Is er nog geen sleutel terwijl hij uit Drive komt, dan zegt de app *komen
+    nog*.
+- Dit herziet twee eerdere keuzes. *Een API-key hoort niet in Drive*
+  (2026-10-11): hij staat nog steeds niet in `rawState`. En *Koppelen per
+  apparaat, tokens nooit in Drive* (v3.12, hierboven).
+
+**Waarom, en hoe veilig.**
+- **Het slot is hetzelfde als voor de administratie.** De `appDataFolder` is
+  alleen te lezen met een token voor deze OAuth-client en Franks account
+  (Workspace, met tweestapsverificatie). Wie dat heeft, ziet ook al zijn
+  facturen en IBAN's.
+- **XSS** verandert niets: een script op de pagina kon de sleutels in
+  localStorage toch al lezen.
+- **Wat wel verandert:** een apparaat waar je inlogt, krijgt de sleutels ook
+  als je ze daar nooit invulde. Daarom haalt uitloggen ze eraf.
+- **Wat een lek kost.**
+  - Een uitgelekte Claude-sleutel kost geld; de bestedingslimiet in de
+    Console begrenst dat.
+  - Een uitgelekt BMW-token geeft de positie van de auto. Dat trek je in door
+    de client in het CarData-portaal te verwijderen.
+
+**Nog niet bewezen, stand bij overdracht (2026-11-03).**
+- Gebouwd op branch `sleutels-google-account`, niet live.
+- `node validate.mjs` is groen.
+- `test.html` is **niet gedraaid**. De run met Chrome zonder venster liep op
+  de werklaptop vast en is gestopt; op die laptop geen Chrome zonder venster
+  en geen lokale server meer.
+  - De drie nieuwe tests (*Sleutels in je Google-account: …*) hebben dus
+    nooit gelopen.
+  - De bestaande 303 zijn na deze wijziging niet opnieuw gedraaid.
+- Volgende stappen, op een andere laptop:
+  1. `git fetch origin && git checkout sleutels-google-account`;
+  2. de lokale server starten en `test.html` draaien: 306 tests, alles
+     groen;
+  3. een PR naar `main` openen;
+  4. na samenvoegen twee keer Ctrl+Shift+R;
+  5. met twee apparaten nalopen:
+     - een sleutel invullen op A; na herladen staat hij op B;
+     - uitloggen op B; de sleutel is weg en komt na inloggen terug;
+     - BMW koppelen op A; B haalt een rit op zonder te koppelen.
+- Om op te letten:
+  - of BMW bij elk verversen een nieuwe refreshtoken geeft en de oude
+    ongeldig maakt (de code vangt beide op);
+  - een klokverschil tussen apparaten, want de nieuwste wint op tijdstip.
+
+**Bestanden.**
+- `index.html`:
+  - het blok *SLEUTELS IN JE GOOGLE-ACCOUNT* (na `aiNaarSleutel`);
+  - de aanroepen hierboven, `kmBmwVervers`, `logUit` en
+    `driveProbeerLaden`;
+  - de teksten.
+- `test.html`: drie tests met een nep-Drive (`sleutelOpslag`) en een
+  nagebootste BMW; `herling_sleutels` staat na de hele suite terug.
+- `privacy.html`, `CLAUDE.md`.
+- `sw.js`: v313.
+
+**Niet doen.**
+- Sleutels in `rawState` zetten.
+- De Google-tokens meenemen: die horen per apparaat, en zonder die tokens is
+  het bestand juist dicht.
+- Coördinaten in `sleutels.json` zetten (ook niet de wachtende rit).
+- Bij een geweigerde BMW-token meteen overal ontkoppelen zonder eerst in Drive
+  te kijken.
