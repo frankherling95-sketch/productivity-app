@@ -587,7 +587,7 @@ async function runChecks() {
         knop.click();
         await new Promise(r => setTimeout(r, 50));
         const vink = d.querySelector('#instBody [data-action="instModel"][aria-checked="true"]');
-        const ok = zichtbaar && kop.join('|') === 'AI|Agenda en mail|Weergave|Facturen en klanten|Uren en opdrachten|Gegevens en opslag|Meldingen|Account en app' &&
+        const ok = zichtbaar && kop.join('|') === 'AI|Agenda en mail|Weergave|Facturen en klanten|Uren, kilometers en opdrachten|Gegevens en opslag|Meldingen|Account en app' &&
           w.aiModel() === 'claude-opus-5-5' && vink && vink.dataset.arg1 === 'claude-opus-5-5';
         w.switchModule(terugNaar || 'dashboard');
         return ok;
@@ -5138,6 +5138,187 @@ async function runChecks() {
             const vorm = w.eval('Array.isArray(kilometerState.ritten)&&Array.isArray(kilometerState.vast)');
             return verzameld && omvang && samen && vorm;
           } finally { terug(oud); }
+        }],
+        /* ── Kilometers: kilometerstand en BMW (2026-11-03) ──
+           Verzonnen standen en een nagebootste BMW; er gaat niets naar
+           buiten. kmBmw (de koppeling op dit apparaat) staat na afloop
+           terug, net als herling_km_bmw en herling_km_plekken. */
+        ['Kilometers: de kilometerstand als keten — een gat tussen twee ritten, 1 km is afronding, privé sluit het gat (ook in delen)', () => {
+          const oud = bewaar();
+          try {
+            leeg('kilometerState.ritten=' + JSON.stringify([
+              {id: 'k1', datum: '2026-11-02', van: 'Thuis', naar: 'Kantoor', km: 24, standBegin: 45210, standEind: 45234, createdAt: 1},
+              {id: 'k2', datum: '2026-11-02', van: 'Kantoor', naar: 'Thuis', km: 24, standBegin: 45235, standEind: 45258, createdAt: 2},
+              {id: 'k3', datum: '2026-11-04', van: 'Thuis', naar: 'Gemeente Puren', km: 31, standBegin: 45305, standEind: 45336, createdAt: 3},
+              {id: 'k4', datum: '2026-11-03', van: 'Thuis', naar: 'Bibliotheek Noordstad', km: 12, createdAt: 4}]) + ';kilometerState.prive=[];');
+            const g = w.kmGaten();
+            const een = g.length === 1 && g[0].b === 45258 && g[0].e === 45305 && g[0].km === 47 && g[0].datumVan === '2026-11-02' &&
+              g[0].datumTot === '2026-11-04' && g[0].los === 1 && g[0].losKm === 12;
+            const maand = w.kmMaandData('2026-11').gaten.length === 1 && w.kmMaandData('2026-10').gaten.length === 0 &&
+              /1 gat van 47 km/.test(w.kmGatenTekst(w.kmMaandData('2026-11').gaten));
+            w.eval('kilometerState.prive=[{id:"p1",datum:"2026-11-03",standBegin:45258,standEind:45290,km:32,bron:"gat"}]');
+            const rest = w.kmGaten();
+            const deels = rest.length === 1 && rest[0].b === 45290 && rest[0].km === 15;
+            w.eval('kilometerState.prive.push({id:"p2",datum:"2026-11-04",standBegin:45290,standEind:45305,km:15,bron:"gat"})');
+            const dicht = w.kmGaten().length === 0 && w.kmMaandData('2026-11').km === 91;
+            return een && maand && deels && dicht;
+          } finally { terug(oud); }
+        }],
+        ['Kilometers: BMW-gegevens lezen — de rit sluit aan op de vorige stand, ziet een gat ervoor; een rit die al vastligt of nog rijdt komt niet', () => {
+          const oud = bewaar();
+          try {
+            const t = (stand, km, eind, extra) => ({telematicData: Object.assign({
+              'vehicle.vehicle.travelledDistance': {value: String(stand), unit: 'km', timestamp: '2026-11-03T14:05:00Z'},
+              'vehicle.trip.segment.end.travelledDistance': {value: String(km), unit: 'km', timestamp: eind},
+              'vehicle.trip.segment.end.time': {value: eind, unit: '', timestamp: eind},
+              'vehicle.cabin.infotainment.navigation.currentLocation.latitude': {value: '52.1', unit: 'degrees'},
+              'vehicle.cabin.infotainment.navigation.currentLocation.longitude': {value: '5.1', unit: 'degrees'},
+              'vehicle.isMoving': {value: 'false'}}, extra || {})});
+            const eind = '2026-11-03T14:02:00Z';
+            const wa = w.kmBmwWaarden(t(45281.6, 23.4, eind));
+            const lees = wa.stand === 45281.6 && wa.ritKm === 23.4 && wa.ritEind === Date.parse(eind) && wa.positie.lat === 52.1 && !wa.rijdt;
+            const meter = w.kmBmwWaarden({telematicData: {'vehicle.trip.segment.end.travelledDistance': {value: '1500', unit: 'm'}}}).ritKm === 1.5 &&
+              w.kmBmwTijd('1762178520') === 1762178520000;
+            leeg('kilometerState.ritten=' + JSON.stringify([{id: 'b1', datum: '2026-11-03', van: 'Thuis', naar: 'Kantoor', km: 24,
+              standBegin: 45234, standEind: 45258, createdAt: 1}]) + ';kilometerState.prive=[];');
+            const r = w.kmBmwRitUit(wa);
+            const aansluit = r.standEind === 45282 && r.standBegin === 45258 && r.km === 24 && !r.gatVoor && r.vorige && r.vorige.naar === 'Kantoor' &&
+              r.datum === w.dateStr(new Date(Date.parse(eind)));
+            const metGat = w.kmBmwRitUit(w.kmBmwWaarden(t(45330, 20, '2026-11-04T09:00:00Z')));
+            const gat = metGat.standBegin === 45310 && !!metGat.gatVoor && metGat.gatVoor.km === 52 && !metGat.vorige;
+            w.eval('kilometerState.ritten.push({id:"b2",datum:"2026-11-03",van:"Kantoor",naar:"Thuis",km:24,standBegin:45258,standEind:45282,bmwEind:' +
+              Date.parse(eind) + ',createdAt:2})');
+            const al = w.kmBmwRitUit(wa).al === true;
+            const rijdt = !!w.kmBmwRitUit(w.kmBmwWaarden(t(45290, 5, '2026-11-03T15:00:00Z', {'vehicle.isMoving': {value: 'true'}}))).fout;
+            const zonder = w.kmBmwRitUit({stand: 45300, ritKm: null, ritEind: null, standTijd: 1, positie: null, rijdt: false});
+            const alleenStand = zonder.alleenStand && zonder.standBegin === 45282 && zonder.km === 18;
+            return lees && meter && aansluit && gat && al && rijdt && alleenStand;
+          } finally { terug(oud); }
+        }],
+        ['Kilometers: herkennen — bekende rit heen of terug op afstand en vertrekplek; een plek op dit apparaat wint; een gat kan heen en terug zijn', () => metKlant(() => {
+          const oud = bewaar();
+          try {
+            const k = w.eval('kanbanState.clients[0].id');
+            leeg('kilometerState.vast=[{id:"hv1",naam:"Klant Noord",van:"Thuis",naar:"Kantoor Klant Noord",km:24,retour:true,clientId:"' + k +
+              '",projectId:null,doel:"Werkdag"},{id:"hv2",naam:"Bibliotheek",van:"Thuis",naar:"Bibliotheek Zuidstad",km:23,retour:false,clientId:null,projectId:null,doel:""}];');
+            const afstand = w.kmHerken({km: 23.6});
+            const op = afstand.vastId === 'hv1' && afstand.zeker === 'afstand' && afstand.clientId === k && /kijk van en naar na/.test(w.kmHerkenTekst(afstand));
+            const terugRit = w.kmHerken({km: 24, vorige: {soort: 'rit', naar: 'Kantoor Klant Noord'}});
+            const t1 = terugRit.van === 'Kantoor Klant Noord' && terugRit.naar === 'Thuis' && terugRit.zeker === 'hoog' && /terug/.test(terugRit.naam);
+            const plek = w.kmHerken({km: 24, positie: {lat: 52.2005, lon: 5.2}, vorige: {soort: 'rit', naar: 'Thuis'}}, null,
+              [{tekst: 'Bibliotheek Zuidstad', lat: 52.2, lon: 5.2}]);
+            const t2 = plek.naar === 'Bibliotheek Zuidstad' && plek.van === 'Thuis' && plek.vastId === 'hv2' && plek.redenen.some(x => /geparkeerd/.test(x));
+            const niets = w.kmHerken({km: 80, vorige: {soort: 'rit', naar: 'Gemeente Puren'}});
+            const t3 = !niets.vastId && niets.van === 'Gemeente Puren' && niets.naar === '' && niets.zeker === 'plek';
+            const gat = w.kmHerken({km: 48, vorige: {soort: 'rit', naar: 'Thuis'}, volgende: {soort: 'rit', van: 'Thuis'}, retour: true});
+            const t4 = gat.vastId === 'hv1' && gat.retour === true && gat.van === 'Thuis';
+            return op && t1 && t2 && t3 && t4;
+          } finally { terug(oud); }
+        })],
+        ['Kilometers: een rit uit je BMW — Zakelijk vult het venster, opslaan legt bmwEind vast en leert de plek alleen op dit apparaat; een gat wordt privé', () =>
+          metKlant(() => metLS({herling_km_bmw: null, herling_km_plekken: null}, () => {
+          const oud = bewaar(), oudBmw = w.eval('JSON.stringify(kmBmw)');
+          try {
+            leeg('kilometerState.ritten=' + JSON.stringify([{id: 'u1', datum: '2026-11-02', van: 'Thuis', naar: 'Kantoor Klant Noord', km: 24,
+              standBegin: 45210, standEind: 45234, createdAt: 1}]) + ';kilometerState.prive=[];kmMaand="2026-11";' +
+              'kilometerState.vast=[{id:"uv",naam:"Klant Noord",van:"Thuis",naar:"Kantoor Klant Noord",km:24,retour:true,clientId:null,projectId:null,doel:"Werkdag"}];');
+            const eind = Date.parse('2026-11-02T17:30:00');
+            w.eval('kmBmw={wacht:' + JSON.stringify({eindTijd: eind, datum: '2026-11-02', km: 24, standBegin: 45234, standEind: 45258,
+              positie: {lat: 52.3, lon: 5.3}, vorige: {soort: 'rit', id: 'u1', naar: 'Kantoor Klant Noord'}, gatVoor: null}) + '}');
+            w.switchModule('kilometers');
+            const kaart = d.querySelector('#kmBody .km-gps[data-stand="bmw"]');
+            const toont = !!kaart && /24 km/.test(kaart.textContent) && /Kantoor Klant Noord → Thuis/.test(kaart.textContent);
+            kaart.querySelector('[data-action="kmBmwZakelijk"]').click();
+            const rk = d.getElementById('kmRitReken').textContent;
+            const venster = d.getElementById('kmRitModal').classList.contains('open') && d.getElementById('kmRitVan').value === 'Kantoor Klant Noord' &&
+              d.getElementById('kmRitNaar').value === 'Thuis' && d.getElementById('kmRitStandB').value === '45234' &&
+              d.getElementById('kmRitAfstand').disabled && /Uit je BMW/.test(rk) && /bekende rit Klant Noord \(terug\)/.test(rk);
+            d.querySelector('#kmRitModal [data-action="kmRitOpslaan"]').click();
+            const r = w.eval('kilometerState.ritten.find(x=>x.bron==="bmw")||null');
+            const bewaard = !!r && r.km === 24 && r.bmwEind === eind && r.standEind === 45258 && r.doel === 'Werkdag' &&
+              w.eval('kmBmw.wacht') == null && !d.querySelector('#kmBody .km-gps[data-stand="bmw"]');
+            const plekken = JSON.parse(w.localStorage.getItem('herling_km_plekken') || '[]');
+            const geleerd = plekken.length === 1 && plekken[0].tekst === 'Thuis' && !w.eval('JSON.stringify(kilometerState)').includes('52.3');
+            w.eval('kilometerState.ritten.push({id:"u3",datum:"2026-11-04",van:"Thuis",naar:"Gemeente Puren",km:31,standBegin:45305,standEind:45336,createdAt:5});' +
+              'kmMaand="2026-11";renderKilometersModule()');
+            const gatRij = d.querySelector('#kmBody .km-gat');
+            const gatZichtbaar = !!gatRij && /47 km/.test(gatRij.textContent) && /gat van 47 km/.test(d.querySelector('#kmBody .km-totaal').textContent);
+            gatRij.click();
+            d.querySelector('#kmMenuPop [data-action="kmGatPrive"]').click();
+            const prive = w.eval('kilometerState.prive.length') === 1 && !d.querySelector('#kmBody .km-gat') && !!d.querySelector('#kmBody .km-prive');
+            d.getElementById('undoToastUndoBtn').click();
+            const terugGat = w.eval('kilometerState.prive.length') === 0 && !!d.querySelector('#kmBody .km-gat');
+            return toont && venster && bewaard && geleerd && gatZichtbaar && prive && terugGat;
+          } finally { w.eval('kmBmw=' + oudBmw); terug(oud); }
+        }))],
+        ['Kilometers: je BMW koppelen (nagebootst) — client ID, code, wachten op je bevestiging; tokens alleen op dit apparaat, auto en gegevensset in Drive', () =>
+          metLS({herling_km_bmw: null, herling_km_plekken: null}, async () => {
+          const oud = bewaar(), oudBmw = w.eval('JSON.stringify(kmBmw)');
+          const echteFetch = w.fetch, verzoeken = [];
+          let tokenVragen = 0;
+          const antwoord = (status, body) => Promise.resolve(new w.Response(JSON.stringify(body), {status, headers: {'Content-Type': 'application/json'}}));
+          w.fetch = (url, opt) => {
+            url = String(url);
+            verzoeken.push(url + ' ' + ((opt && opt.method) || 'GET'));
+            if (url.endsWith('/gcdm/oauth/device/code'))
+              return antwoord(200, {device_code: 'dc1', user_code: 'ABCD1234', verification_uri: 'https://customer.bmwgroup.com/oneid/link', interval: 5, expires_in: 300});
+            if (url.endsWith('/gcdm/oauth/token')) {
+              tokenVragen++;
+              return tokenVragen < 2 ? antwoord(403, {error: 'authorization_pending'})
+                : antwoord(200, {access_token: 'at1', refresh_token: 'rt1', id_token: 'it', gcid: 'g', expires_in: 3599});
+            }
+            if (url.endsWith('/customers/vehicles/mappings')) return antwoord(200, [{vin: 'WBA00000000TEST01', mappingType: 'PRIMARY'}]);
+            if (url.endsWith('/customers/containers')) return opt && opt.method === 'POST' ? antwoord(200, {containerId: 'cont1', state: 'ACTIVE'}) : antwoord(200, {containers: []});
+            if (url.includes('/telematicData')) return antwoord(200, {telematicData: {
+              'vehicle.vehicle.travelledDistance': {value: '45258', unit: 'km'},
+              'vehicle.trip.segment.end.travelledDistance': {value: '24', unit: 'km', timestamp: '2026-11-02T16:30:00Z'},
+              'vehicle.trip.segment.end.time': {value: '2026-11-02T16:30:00Z'},
+              'vehicle.isMoving': {value: 'false'}}});
+            return echteFetch(url, opt);
+          };
+          const wacht = ms => new Promise(res => setTimeout(res, ms));
+          try {
+            leeg('kilometerState.prive=[];kilometerState.bmw={};kmBmw={};');
+            w.switchModule('kilometers');
+            d.querySelector('#kmBody [data-action="kmBmwOpen"]').click();
+            const open = d.getElementById('kmBmwModal').classList.contains('open') && !!d.getElementById('kmBmwClient');
+            d.getElementById('kmBmwClient').value = 'niet goed';
+            d.getElementById('kmBmwVerder').click();
+            const tegen = /client ID/.test(d.getElementById('kmBmwInhoud').textContent) && verzoeken.length === 0;
+            d.getElementById('kmBmwClient').value = '1a2b3c4d-1111-2222-3333-444455556666';
+            d.getElementById('kmBmwVerder').click();
+            await wacht(120);
+            const knop = d.querySelector('#kmBmwInhoud a.btn');
+            const code = /ABCD1234/.test(d.getElementById('kmBmwInhoud').textContent) && d.getElementById('kmBmwVerder').style.display === 'none' &&
+              !!knop && /user_code=ABCD1234/.test(knop.href);
+            w.eval('kmBmwKoppel.interval=0.02;kmBmwPeil(kmBmwKoppel)');
+            await wacht(400);
+            const ls = JSON.parse(w.localStorage.getItem('herling_km_bmw') || '{}');
+            const klaar = w.eval('kmBmwKoppel&&kmBmwKoppel.stap') === 'klaar' && ls.refresh === 'rt1' && ls.access === 'at1' &&
+              w.eval('kilometerState.bmw.clientId') === '1a2b3c4d-1111-2222-3333-444455556666' &&
+              w.eval('kilometerState.bmw.vin') === 'WBA00000000TEST01' && w.eval('kilometerState.bmw.containerId') === 'cont1' &&
+              !w.eval('JSON.stringify(kilometerState)').includes('rt1') && w.eval('kmBmwGekoppeld()') === true &&
+              verzoeken.some(x => /\/customers\/containers POST/.test(x));
+            const nVoor = w.eval('kmBmwTeller().n');
+            d.getElementById('kmBmwVerder').click();
+            await wacht(200);
+            const opgehaald = w.eval('kmBmwTeller().n') === nVoor + 1 && w.eval('kmBmw.wacht&&kmBmw.wacht.km') === 24 &&
+              !!d.querySelector('#kmBody .km-gps[data-stand="bmw"]') && !d.getElementById('kmBmwModal').classList.contains('open') &&
+              verzoeken.filter(x => /\/telematicData\?containerId=cont1 GET/.test(x)).length >= 1;
+            return open && tegen && code && klaar && opgehaald;
+          } finally {
+            w.fetch = echteFetch;
+            try { w.kmBmwSluit(); } catch (_) {}
+            w.eval('kmBmw=' + oudBmw); terug(oud);
+          }
+        })],
+        ['Kilometers: privéstukken en de BMW-koppeling in Drive — samenvoegen en tellen', () => {
+          const {state} = w.voegStateSamen(
+            {kilometers: {ritten: [], vast: [], prive: [{id: 'p1', km: 5}], bmw: {clientId: 'c', relay: 'r'}}},
+            {kilometers: {ritten: [], vast: [], prive: [{id: 'p2', km: 3}], bmw: {clientId: 'c', vin: 'V'}}});
+          const samen = state.kilometers.prive.length === 2 && state.kilometers.bmw.relay === 'r' && state.kilometers.bmw.vin === 'V';
+          const omvang = w.stateOmvang({kilometers: {ritten: [{}], vast: [], prive: [{}, {}]}}) === 3;
+          return samen && omvang;
         }]
       ];
     })(),
