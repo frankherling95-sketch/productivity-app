@@ -9883,7 +9883,7 @@ body.aic-open .aic-kop .sp-k { animation: sp-twinkel calc(var(--duur) * 3) var(-
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v3.12</span>
+        <span class="app-versie" title="Appversie">v3.13</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -20188,6 +20188,10 @@ function voegStateSamen(oud,nu){
    uit.kilometers.prive=((nu.kilometers||{}).prive||[]).concat(
      JSON.parse(JSON.stringify(((oud.kilometers||{}).prive||[]).filter(x=>x&&x.id&&!ids.has(x.id)))));}
   uit.kilometers.bmw={...((oud.kilometers||{}).bmw||{}),...((nu.kilometers||{}).bmw||{})};
+  /* De laatste rit uit je BMW: de verste stand wint, anders komt een rit
+     die de andere kant al afhandelde opnieuw. */
+  {const a=((oud.kilometers||{}).bmw||{}).laatste, b=((nu.kilometers||{}).bmw||{}).laatste;
+   if(a&&isFinite(a.stand)&&!(b&&b.stand>=a.stand))uit.kilometers.bmw.laatste=JSON.parse(JSON.stringify(a));}
   uit.tasks={...(uit.tasks||{}),
     clients:vulAan((oud.tasks||{}).clients,(nu.tasks||{}).clients,'klanten')};
   return {state:uit,rapport};
@@ -43991,7 +43995,9 @@ Object.assign(APP_ACTIONS,{
                     .tarieven {jaar: € per km; ontbreekt = het maximum van
                     dat jaar}, .uitbetaald {'JJJJ-MM': datum}, .prive[]
                     (stukken van de teller die je privé noemde), .bmw
-                    {clientId, relay, vin, containerId}.
+                    {clientId, relay, vin, containerId, laatste {stand,
+                    eindTijd, datum}: de laatste rit uit je BMW die je
+                    afhandelde}.
                     kmWeergave, kmMaand, kmJaar: per sessie.
                     Een lopende gps-rit (kmGps) staat alleen op dit apparaat
                     (LS_KM_GPS), nooit in Drive. Net zo de BMW-tokens en een
@@ -44051,6 +44057,8 @@ const KM_BMW_AUTH='https://customer.bmwgroup.com/gcdm/oauth/';
 const KM_BMW_API='https://api-cardata.bmwgroup.com';
 const KM_BMW_SCOPE='authenticate_user openid cardata:api:read';
 const KM_BMW_CONTAINER='Herling Kilometers';
+/* ritKm heet zo, maar een echte BMW geeft er de stand bij aankomst, niet de
+   lengte van de rit: zie kmBmwWaarden. */
 const KM_BMW_SLEUTEL={
   stand:'vehicle.vehicle.travelledDistance',
   ritEind:'vehicle.trip.segment.end.time',
@@ -44552,10 +44560,11 @@ function kmPlekLeer(tekst,pos){
 }
 
 /* ── BMW (2026-11-03) ──
-   Na een rit haal je de laatste rit op: de afstand en het eindtijdstip die
-   de auto zelf doorgeeft, de kilometerstand en waar hij nu staat. BMW kent
-   geen rittenlijst, alleen de laatste rit; mis je er een, dan zie je dat
-   als gat in de kilometerstand.
+   Na een rit haal je de laatste rit op: het eindtijdstip dat de auto zelf
+   doorgeeft, de kilometerstand en waar hij nu staat. De lengte van de rit
+   geeft hij niet (v3.13): de rit is het verschil met de vorige stand. BMW
+   kent geen rittenlijst, alleen de laatste rit; mis je er een, dan zie je
+   dat als gat in de kilometerstand.
    - Koppelen gaat per apparaat (device code + PKCE). De tokens staan alleen
      hier (LS_KM_BMW); de client ID, de doorgeefroute, de auto en de
      gegevensset staan in Drive (kilometerState.bmw), zodat een tweede
@@ -44716,47 +44725,82 @@ function kmBmwWaarden(data){
   };
   const lat=getal('lat'), lon=getal('lon');
   const rijdt=e('rijdt');
-  return {stand:getal('stand'),standTijd:kmBmwTijd(e('stand')&&e('stand').timestamp),ritKm:getal('ritKm'),
+  /* segment.end.travelledDistance is de stand bij aankomst, zoals end.time
+     de tijd bij aankomst is (gezien 2026-11-03: de app bood de hele teller
+     aan als rit). Een "afstand" van meer dan de helft van de teller is dus
+     een stand; dan rekent de app met het verschil in stand. Een model dat
+     wel de lengte doorgeeft, blijft zo ook werken. */
+  let stand=getal('stand'), ritKm=getal('ritKm');
+  if(ritKm!=null&&stand!=null&&ritKm>=stand/2){
+    if(ritKm>stand)stand=ritKm;
+    ritKm=null;
+  }
+  return {stand,standTijd:kmBmwTijd(e('stand')&&e('stand').timestamp),ritKm,
     ritEind:kmBmwTijd(e('ritEind')&&e('ritEind').value)||kmBmwTijd(e('ritKm')&&e('ritKm').timestamp),
     positie:lat!=null&&lon!=null&&(lat!==0||lon!==0)?{lat,lon}:null,
     rijdt:!!rijdt&&/^(true|1)$/i.test(String(rijdt.value))};
 }
+/* De laatste rit uit je BMW die je afhandelde (vastgelegd, privé of
+   overgeslagen), in Drive: {stand, eindTijd, datum}. De volgende rit sluit
+   aan op die stand, ook als hij niet in de keten staat. Zo blijft een
+   overgeslagen rit een gat, en hoeft de eerste beginstand maar één keer. */
+function kmBmwLaatste(st){
+  const l=((st||kilometerState).bmw||{}).laatste;
+  return l&&typeof l==='object'&&isFinite(l.stand)?l:null;
+}
+/* Afhandelen zet de stand vast; terug geeft wat er stond, voor ongedaan maken. */
+function kmBmwLaatsteZet(w){
+  const oud=kmBmwInst().laatste||null;
+  if(!(oud&&oud.stand>w.standEind))kmBmwInstZet({laatste:{stand:w.standEind,eindTijd:w.eindTijd||null,datum:w.datum}});
+  return oud;
+}
+function kmBmwAl(st,eindTijd,standEind){
+  const l=kmBmwLaatste(st);
+  return (st.ritten||[]).concat(st.prive||[]).some(x=>x&&eindTijd&&x.bmwEind===eindTijd)||
+    kmKeten(st).some(d=>Math.abs(d.e-standEind)<=1)||!!(l&&Math.abs(l.stand-standEind)<=1);
+}
 /* Van wat de auto doorgeeft een rit maken die aansluit op de keten. De
-   eindstand is de teller nu; de beginstand is die min de afstand van de
-   rit, en valt hij binnen 1 km van waar de vorige rit eindigde, dan sluit
-   hij daar precies op aan. Zo tellen de ritten samen altijd op tot de
-   teller, ook al rondt die af op hele kilometers. */
+   eindstand is de teller nu. De auto geeft geen lengte van de rit (zie
+   kmBmwWaarden), dus de rit loopt vanaf de vorige stand: waar de keten
+   eindigt, of de laatste rit uit je BMW als die verder was. Zonder
+   vorige stand (de eerste keer) vul je de beginstand zelf in. Geeft een
+   model wel een lengte door, dan is de beginstand de teller min die
+   lengte; binnen 1 km van de vorige stand sluit hij daar precies op aan. */
 function kmBmwRitUit(w,st){
   st=st||kilometerState;
   if(w.stand==null)return {fout:'Je BMW gaf geen kilometerstand door.'};
   if(w.rijdt)return {fout:'De auto rijdt nog. Haal de rit op als hij geparkeerd staat.'};
   const standEind=Math.round(w.stand);
   const eindTijd=w.ritEind||w.standTijd||null;
-  const keten=kmKeten(st);
-  const al=(st.ritten||[]).concat(st.prive||[]).some(x=>x&&eindTijd&&x.bmwEind===eindTijd)||
-    keten.some(d=>Math.abs(d.e-standEind)<=1);
-  if(al)return {al:true,eindTijd,standEind};
+  if(kmBmwAl(st,eindTijd,standEind))return {al:true,eindTijd,standEind};
+  const datum=dateStr(new Date(eindTijd||Date.now()));
   let vorige=null;
-  keten.forEach(d=>{if(d.e<=standEind+1&&(!vorige||d.e>vorige.e))vorige=d;});
+  kmKeten(st).forEach(d=>{if(d.e<=standEind+1&&(!vorige||d.e>vorige.e))vorige=d;});
+  const l=kmBmwLaatste(st);
+  const sinds=l&&l.stand<=standEind+1&&(!vorige||l.stand>vorige.e)?l:null;
+  const start=sinds?sinds.stand:vorige?vorige.e:null;
   let km=w.ritKm>0?w.ritKm:null, alleenStand=false;
   if(km==null){
-    if(!vorige||standEind-vorige.e<KM_GAT_MIN)return {fout:'Je BMW gaf geen laatste rit door, en sinds de vorige kilometerstand is er niets bij gekomen.'};
-    km=standEind-vorige.e;alleenStand=true;
+    if(start==null)return {eerste:true,eindTijd,datum,km:null,standBegin:null,standEind,positie:w.positie||null,
+      vorige:null,gatVoor:null,alleenStand:true};
+    km=standEind-start;alleenStand=true;
   }
   let standBegin=Math.round(standEind-km);
-  if(vorige&&(Math.abs(standBegin-vorige.e)<=1||standBegin<vorige.e))standBegin=vorige.e;
+  if(start!=null&&(Math.abs(standBegin-start)<=1||standBegin<start))standBegin=start;
   if(standBegin>=standEind)standBegin=standEind-1;
   const gatVoor=vorige&&standBegin-vorige.e>=KM_GAT_MIN?{km:standBegin-vorige.e,b:vorige.e,e:standBegin,datum:vorige.datum}:null;
-  return {eindTijd,datum:dateStr(new Date(eindTijd||Date.now())),km:standEind-standBegin,standBegin,standEind,
-    positie:w.positie||null,vorige:vorige&&!gatVoor?{soort:vorige.soort,id:vorige.id,naar:vorige.naar||''}:null,gatVoor,alleenStand};
+  return {eindTijd,datum,km:standEind-standBegin,standBegin,standEind,
+    positie:w.positie||null,vorige:vorige&&!gatVoor?{soort:vorige.soort,id:vorige.id,naar:vorige.naar||''}:null,gatVoor,alleenStand,
+    sindsDatum:alleenStand?(sinds?sinds.datum:vorige.datum)||null:null};
 }
-/* Een wachtende rit vervalt als hij al vastligt (ook op een ander apparaat). */
+/* Een wachtende rit vervalt als hij al vastligt (ook op een ander apparaat).
+   Een rit van meer dan de helft van de teller is er een van vóór v3.13,
+   toen de app de stand bij aankomst als lengte las: weg ermee. */
 function kmBmwWachtGeldig(){
   const w=kmBmw.wacht;
   if(!w||w.standEind==null)return null;
-  const al=(kilometerState.ritten||[]).concat(kilometerState.prive||[]).some(x=>x&&w.eindTijd&&x.bmwEind===w.eindTijd)||
-    kmKeten().some(d=>Math.abs(d.e-w.standEind)<=1);
-  if(al){kmBmw.wacht=null;kmBmwBewaar();return null;}
+  const mis=w.standBegin!=null&&w.standEind-w.standBegin>w.standEind/2;
+  if(mis||kmBmwAl(kilometerState,w.eindTijd,w.standEind)){kmBmw.wacht=null;kmBmwBewaar();return null;}
   return w;
 }
 async function kmBmwHaal(o){
@@ -44787,7 +44831,6 @@ async function kmBmwHaal(o){
     const rit=kmBmwRitUit(w);
     if(rit.fout){kmBmw.wacht=null;melding=rit.fout;}
     else if(rit.al){kmBmw.wacht=null;melding='Geen nieuwe rit'+(rit.eindTijd?' sinds '+kmTijdTekst(rit.eindTijd):'')+'.';}
-    else if(o.stil&&kmBmw.overgeslagen&&kmBmw.overgeslagen===rit.eindTijd)kmBmw.wacht=null;
     else kmBmw.wacht=rit;
   }catch(e){
     kmBmw.fout=kmBmwFoutTekst(e);fout=true;
@@ -44812,12 +44855,22 @@ document.addEventListener('visibilitychange',()=>{
 });
 function kmBmwVoorstel(w){
   const h=kmHerken({km:w.km,vorige:w.vorige,positie:w.positie},kilometerState,kmPlekkenLees());
-  const uitleg=['Uit je BMW: '+(w.eindTijd?kmTijdTekst(w.eindTijd):kmDatumKort(w.datum))+', stand '+kmFmt(w.standBegin)+' → '+kmFmt(w.standEind)+'.'];
+  const wanneer=w.eindTijd?kmTijdTekst(w.eindTijd):kmDatumKort(w.datum);
+  const uitleg=[w.eerste?'Uit je BMW: '+wanneer+', stand bij aankomst '+kmFmt(w.standEind)+'. Vul de beginstand of de afstand in; daarna sluit elke rit vanzelf aan op de vorige.'
+    :'Uit je BMW: '+wanneer+', stand '+kmFmt(w.standBegin)+' → '+kmFmt(w.standEind)+'.'];
   const t=kmHerkenTekst(h);
   if(t)uitleg.push(t);
   if(w.gatVoor)uitleg.push('Daarvoor is '+kmFmt(w.gatVoor.km)+' km niet vastgelegd; dat blijft als gat in de lijst staan.');
+  else if(w.alleenStand&&!w.eerste)uitleg.push(kmBmwSindsTekst(w));
   return {h,voorstel:{titel:'Rit uit je BMW',datum:w.datum,van:h.van,naar:h.naar,retour:false,standBegin:w.standBegin,standEind:w.standEind,
-    clientId:h.clientId,projectId:h.projectId,doel:h.doel,vastId:h.vastId,bron:'bmw',bmwEind:w.eindTijd||null,positie:w.positie||null,uitleg}};
+    clientId:h.clientId,projectId:h.projectId,doel:h.doel,vastId:h.vastId,bron:'bmw',bmwEind:w.eindTijd||null,bmwStand:w.standEind,
+    positie:w.positie||null,uitleg}};
+}
+/* De auto geeft alleen standen: wat sinds de vorige stand bij kwam, is één
+   rit, tenzij je er zelf een stuk af haalt. */
+function kmBmwSindsTekst(w){
+  return 'Dit is alles sinds je vorige kilometerstand'+(w.sindsDatum?' ('+kmDatumKort(w.sindsDatum)+')':'')+
+    '. Reed je daartussen nog iets anders, verhoog dan de beginstand; de rest blijft een gat.';
 }
 function kmBmwZakelijk(){
   const w=kmBmwWachtGeldig();
@@ -44838,33 +44891,47 @@ function kmBmwPrive(){
   const w=kmBmwWachtGeldig();
   if(!w)return;
   kmBmw.wacht=null;kmBmwBewaar();
+  const oud=kmBmwLaatsteZet(w);
+  const terug=()=>{kmBmw.wacht=w;kmBmwBewaar();kmBmwInstZet({laatste:oud});};
+  /* De eerste keer is er geen beginstand: dan valt er geen stuk van de
+     teller privé te noemen, alleen een stand om op aan te sluiten. */
+  if(w.eerste){
+    renderKilometersModule();
+    appToast('Privé. De volgende rit sluit aan op stand '+kmFmt(w.standEind)+'.',
+      {undo:()=>{terug();renderKilometersModule();}});
+    return;
+  }
   kmPriveErbij({id:uid(),datum:w.datum,standBegin:w.standBegin,standEind:w.standEind,km:w.standEind-w.standBegin,
     bron:'bmw',bmwEind:w.eindTijd||null,createdAt:Date.now()},
-    'Privé: '+kmFmt(w.standEind-w.standBegin)+' km, telt niet mee',()=>{kmBmw.wacht=w;kmBmwBewaar();});
+    'Privé: '+kmFmt(w.standEind-w.standBegin)+' km, telt niet mee',terug);
 }
 function kmBmwOverslaan(){
   const w=kmBmwWachtGeldig();
   if(!w)return;
-  kmBmw.overgeslagen=w.eindTijd||null;kmBmw.wacht=null;kmBmwBewaar();
+  kmBmw.wacht=null;kmBmwBewaar();
+  const oud=kmBmwLaatsteZet(w);
   renderKilometersModule();
-  appToast('Overgeslagen. Leg je daarna weer een rit vast, dan staan deze kilometers in de lijst als gat.',
-    {undo:()=>{kmBmw.wacht=w;kmBmw.overgeslagen=null;kmBmwBewaar();renderKilometersModule();}});
+  appToast(w.eerste?'Overgeslagen. De volgende rit sluit aan op stand '+kmFmt(w.standEind)+'.'
+    :'Overgeslagen. Leg je daarna weer een rit vast, dan staan deze kilometers in de lijst als gat.',
+    {undo:()=>{kmBmw.wacht=w;kmBmwBewaar();kmBmwInstZet({laatste:oud});renderKilometersModule();}});
 }
 function kmBmwHtml(){
   const w=kmBmwWachtGeldig();
   if(w){
     const {h}=kmBmwVoorstel(w);
     const titel=h.van&&h.naar?h.van+' → '+h.naar:h.naar?'Naar '+h.naar:h.van?'Van '+h.van:'';
-    const meta=[titel?(h.zeker==='afstand'?'Lijkt op ':'')+titel:'Nog niet herkend','stand '+kmFmt(w.standBegin)+' → '+kmFmt(w.standEind)].join(' · ');
+    const meta=[titel?(h.zeker==='afstand'?'Lijkt op ':'')+titel:'Nog niet herkend',
+      w.eerste?'stand bij aankomst '+kmFmt(w.standEind):'stand '+kmFmt(w.standBegin)+' → '+kmFmt(w.standEind)].join(' · ');
     const knop=(actie,tekst,primair)=>'<button type="button" class="btn btn-sm'+(primair?' btn-primary':'')+'" data-action="'+actie+'">'+tekst+'</button>';
     return '<div class="inst-kaart km-gps" data-stand="bmw">'+
       '<div class="km-gps-kop"><span class="km-gps-stip" aria-hidden="true"></span><b>Rit uit je BMW</b><span>'+
       escapeHtml(w.eindTijd?kmTijdTekst(w.eindTijd):kmDatumKort(w.datum))+'</span></div>'+
-      '<div class="km-gps-km">'+escapeHtml(kmFmt(w.km))+' km</div>'+
+      (w.eerste?'':'<div class="km-gps-km">'+escapeHtml(kmFmt(w.km))+' km</div>')+
       '<p class="km-gps-meta">'+escapeHtml(meta)+'</p>'+
       (w.gatVoor?'<p class="fac-btw-let km-gps-gat">'+escapeHtml('Daarvoor is '+kmFmt(w.gatVoor.km)+' km niet vastgelegd'+
         (w.gatVoor.datum?', sinds '+kmDatumKort(w.gatVoor.datum):'')+'. Na deze rit staat dat in de lijst als gat; maak er een rit van als er iets zakelijks bij zat.')+'</p>':'')+
-      (w.alleenStand?'<p class="km-gps-uitleg">Je BMW gaf geen losse rit door; dit is het verschil met de vorige kilometerstand.</p>':'')+
+      (w.eerste?'<p class="km-gps-uitleg">Je BMW geeft de kilometerstand door, niet de lengte van de rit. Vul bij vastleggen de beginstand of de afstand in; daarna sluit elke rit vanzelf aan op de vorige.</p>'
+        :w.alleenStand&&!w.gatVoor?'<p class="km-gps-uitleg">'+escapeHtml(kmBmwSindsTekst(w))+'</p>':'')+
       '<div class="km-gps-knoppen">'+knop('kmBmwOverslaan','Overslaan')+knop('kmBmwPrive','Privé')+knop('kmBmwZakelijk','Zakelijk vastleggen',true)+'</div></div>';
   }
   if(!kmBmwGekoppeld()){
@@ -45441,7 +45508,7 @@ function kmRitOpen(id,o){
     retour:r?!!r.retour:v?!!v.retour:false,clientId:r?(r.clientId||''):v?(v.clientId||''):'',projectId:r?(r.projectId||''):v?(v.projectId||''):'',bewaar:false,
     gps:g?{km:kmRond(g.meters/1000),gatTijd:g.gatTijd,gatMeters:g.gatMeters}:null,voorstel:v};
   const zet=(el,val)=>{const x=document.getElementById(el);if(x)x.value=val==null?'':val;};
-  const afstand=r?(r.retour?kmRond(r.km/2):r.km):g?kmRond(g.meters/1000):v?v.standEind-v.standBegin:'';
+  const afstand=r?(r.retour?kmRond(r.km/2):r.km):g?kmRond(g.meters/1000):v&&v.standBegin!=null&&v.standEind!=null?v.standEind-v.standBegin:'';
   zet('kmRitDatum',r?r.datum:g?dateStr(new Date(g.start)):v?v.datum:opdVandaag());
   zet('kmRitVan',r?r.van:v?v.van:'');
   zet('kmRitNaar',r?r.naar:v?v.naar:'');
@@ -45619,6 +45686,10 @@ function kmRitReken(){
 function kmRitOpslaan(){
   if(!kmForm)return;
   const r=kmRitLees();
+  const v=kmForm.id?null:kmForm.voorstel;
+  /* De eerste rit uit je BMW kent alleen de stand bij aankomst. Typte je de
+     afstand, dan volgt de beginstand, zodat de rit in de keten staat. */
+  if(v&&v.bron==='bmw'&&r.standBegin==null&&r.standEind!=null&&r.km>=1)r.standBegin=Math.round(r.standEind-r.km);
   if(!/^\d{4}-\d{2}-\d{2}$/.test(r.datum)){appToast('Kies een datum',{type:'error'});return;}
   if(!r.van||!r.naar){
     appToast('Vul in waar je vandaan kwam en waar je heen ging',{type:'error'});
@@ -45635,7 +45706,6 @@ function kmRitOpslaan(){
     const i=kilometerState.ritten.findIndex(x=>x.id===kmForm.id);
     if(i>=0)kilometerState.ritten[i]={...kilometerState.ritten[i],...rit,updatedAt:nu};
   }else{
-    const v=kmForm.voorstel;
     /* bmwEind: welke rit van de auto dit was, zodat hij niet nog eens wordt
        aangeboden (ook niet op een ander apparaat). */
     kilometerState.ritten.push({id:uid(),...rit,bron:kmForm.bron,vastId:kmForm.vastId||null,
@@ -45643,6 +45713,9 @@ function kmRitOpslaan(){
     if(v){
       if(v.positie)kmPlekLeer(r.naar,v.positie);
       if(v.priveId)kilometerState.prive=(kilometerState.prive||[]).filter(x=>x.id!==v.priveId);
+      /* De stand van de auto, niet die je typte: haal je er een stuk af,
+         dan blijft dat een gat. */
+      if(v.bmwStand!=null)kmBmwLaatsteZet({standEind:v.bmwStand,eindTijd:v.bmwEind,datum:v.datum});
       if(v.bmwEind&&kmBmw.wacht&&kmBmw.wacht.eindTijd===v.bmwEind){kmBmw.wacht=null;kmBmwBewaar();}
     }
     if(kmForm.bewaar){

@@ -9402,3 +9402,70 @@ Vallen die tegen, dan werkt de rest (kilometerstand, gaten) nog wel.
   antwoord blokkeert. BMW verwerkt het verzoek wel; als het het token
   vervangt, ben je de koppeling kwijt zonder het nieuwe te zien.
 - Vaker dan nodig ophalen: 50 per dag geldt voor alle apparaten samen.
+
+## 2026-11-03 · BMW: de stand bij aankomst is geen afstand (v3.13)
+
+**Probleem.** De eerste echte rit uit Franks BMW kwam binnen als een rit van
+de hele teller: *45.282 km, stand 0 → 45.282*. De app las
+`vehicle.trip.segment.end.travelledDistance` als de lengte van de laatste
+rit. Bij deze auto is het de **kilometerstand aan het eind van de rit**, net
+zoals `segment.end.time` de tijd bij aankomst is en `segment.end.…hvSoc` de
+accu bij aankomst. Het overzicht van een community-integratie noemt de
+sleutel "Last trip distance", zonder eenheid. BMW beschrijft hem niet
+openbaar. De tests bootsten een afstand na en slaagden dus.
+
+Erger dan wat zichtbaar was: zodra er één rit met standen is, schoof de app
+de beginstand naar de vorige eindstand. Een overgeslagen of privérit
+daartussen telde dan stil mee in de volgende zakelijke rit, zonder gat en
+zonder melding. *Overslaan* beloofde juist een gat.
+
+**Beslissing.**
+- **Een waarde van meer dan de helft van de teller is een stand**, geen
+  afstand (`kmBmwWaarden`). Dan rekent de app met het verschil in stand.
+  Een model dat wel een afstand stuurt, blijft werken.
+- **De rit loopt vanaf de vorige stand** (`kmBmwRitUit`): waar de keten
+  eindigt, of de laatste rit uit je BMW die je afhandelde als die verder
+  was. Die laatste staat in Drive, `kilometerState.bmw.laatste`
+  `{stand, eindTijd, datum}`. Vastleggen, *Privé* en *Overslaan* zetten
+  hem (`kmBmwLaatsteZet`), en ongedaan maken zet hem terug. Bij vastleggen
+  telt de stand van de auto, niet die je typte: haal je er een stuk af, dan
+  blijft dat een gat. Bij samenvoegen wint de verste stand.
+- **Een overgeslagen rit blijft een gat.** De volgende rit begint bij de
+  stand van de overgeslagen rit, dus het stuk ervoor blijft open in de
+  keten. Dezelfde rit wordt niet opnieuw aangeboden, ook niet op een ander
+  apparaat (`kmBmwAl`). Daarom is `kmBmw.overgeslagen` (per apparaat) weg.
+- **De eerste keer** is er geen vorige stand. Het blok toont dan de stand
+  bij aankomst, zonder kilometers, en vraagt om de beginstand of de
+  afstand. Typ je de afstand, dan volgt de beginstand (`kmRitOpslaan`),
+  zodat de rit in de keten staat. *Privé* en *Overslaan* zetten dan alleen
+  de stand waar de volgende rit op aansluit.
+- **Wat er sinds de vorige stand bijkwam, is één rit.** Het blok zegt dat
+  (*Dit is alles sinds je vorige kilometerstand (ma 2 nov)*). Reed je
+  daartussen nog iets anders, dan verhoog je de beginstand, en de rest
+  blijft een gat. Dat de app vanzelf ophaalt als je Kilometers opent, maakt
+  dat zeldzaam.
+- **Een wachtende rit van vóór v3.13** met meer dan de halve teller vervalt
+  vanzelf (`kmBmwWachtGeldig`).
+
+**Waarom.** De teller is de enige bron die nooit iets mist. Zonder lengte
+per rit kan de app twee ritten tussen twee keer ophalen niet uit elkaar
+halen. Wel kan hij zorgen dat niets ongemerkt in een zakelijke rit belandt:
+wat je oversloeg of privé noemde, blijft buiten de volgende rit.
+
+**Bestanden.**
+- `index.html`: `kmBmwWaarden`, `kmBmwRitUit`, `kmBmwLaatste`,
+  `kmBmwLaatsteZet`, `kmBmwAl`, `kmBmwWachtGeldig`, `kmBmwVoorstel`,
+  `kmBmwSindsTekst`, `kmBmwPrive`, `kmBmwOverslaan`, `kmBmwHtml`,
+  `kmRitOpen`, `kmRitOpslaan` en `voegStateSamen`.
+- `test.html`: 2 nieuwe tests. Ze bootsen na wat de auto echt stuurt: de
+  eerste rit, het verschil in stand, overslaan, samenvoegen en een oude
+  wachtende rit.
+- `sw.js`: v313.
+
+**Niet doen.**
+- Een waarde uit de auto als afstand gebruiken zonder te kijken of het de
+  teller is.
+- De beginstand naar de keten schuiven zonder te kijken wat je
+  oversloeg: dan verdwijnt een privérit in een zakelijke.
+- `laatste` alleen op het apparaat bewaren: dan biedt een tweede apparaat
+  een overgeslagen rit opnieuw aan, of plakt hij hem aan de volgende.
