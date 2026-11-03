@@ -9602,3 +9602,65 @@ kolombreedtes; `.ctr-drop` ook als knop), `test.html` (vijf tests erbij),
 - Een extra aflossing pas vanaf de maand erna laten tellen: dan klopt de stand op 31 december niet.
 - Een lening bij een bank meetellen voor excessief lenen, of er stukken bij maken.
 - De pijl → in een PDF-tekst: die staat niet in de standaardletters van jsPDF (gebruik ›).
+
+## 2026-11-03 · BMW: de koppeling woont in je script (v3.17)
+
+**Probleem.** Na v3.14 kwam de echte reden boven: verversen gaf elke keer
+`invalid_request` ("missing a required parameter, … repeats a parameter, …"),
+en dan was de koppeling weg. Het verzoek zelf klopte (zelfde velden als de
+documentatie van BMW en de Home Assistant-koppelingen). BMW geeft die
+algemene melding ook voor een verversingssleutel die al gebruikt is: bij
+elke keer verversen komt er een nieuwe en vervalt de oude. De sleutel lag op
+elk apparaat in localStorage, en elk venster hield een eigen kopie in het
+geheugen. Ververste het ene venster (of een ander apparaat met een eigen
+koppeling), dan probeerde het andere het daarna met de oude, kreeg
+`invalid_request`, en wiste bij het opruimen ook de nieuwe. In Home
+Assistant werkte het wel: daar staat de sleutel op één plek, met een slot,
+en wordt hij op tijd ververst.
+
+**Beslissing.** Het Apps Script is niet langer een doorgeefroute maar houdt
+de koppeling zelf (`kmBmwScriptTekst`):
+- Het doet het hele inloggen (device code met PKCE) en bewaart de sleutels in
+  zijn Script Properties, in Franks eigen Google-account. De app krijgt alleen
+  een toegangssleutel van een uur (`doe: token`, `kmBmwToken`); de
+  verversingssleutel komt nooit meer in de browser.
+- Verversen doet alleen het script, onder `LockService` (nooit twee
+  tegelijk), en één keer per dag vanzelf met een trigger (`dagelijks`), zodat
+  de koppeling niet na twee weken verloopt. Werkt de trigger niet (geen
+  toestemming), dan zegt het koppelvenster hoe je `inrichten` één keer met
+  de hand draait.
+- Het script laat alleen jou binnen: de app stuurt zijn Drive-token mee
+  (`kmBmwRoute`), het script vraagt Drive `about` van wie dat is en vergelijkt
+  met `EIGENAAR`. Dat adres zet de app bij het tonen van het script erin, uit
+  de login; het staat niet in de code van de site.
+- Gekoppeld is nu één feit voor al je apparaten: `kilometerState.bmw.gekoppeld`
+  (wanneer) in Drive. Zegt het script `verlopen` of `los`, dan gaat dat
+  terug naar null (`kmBmwLos`). Ontkoppelen geldt overal en wist ook het
+  script.
+- Een 401 van de API: één keer opnieuw met een verse sleutel (`vers: 1`).
+- Elk antwoord van het nieuwe script heeft `v: 2`. De oude doorgeefroute
+  antwoordt met `{status, body}`: dan vraagt het venster om de code te
+  vervangen (`script-oud`). Een refreshtoken van vóór v3.17 in
+  `herling_km_bmw` gaat bij het laden weg (`kmBmwLees`).
+- De rechtstreekse weg naar het inloggen van BMW is weg: die werkt in een
+  browser toch niet (CORS).
+
+**Waarom.** Eén eigenaar van de sleutel is de enige manier waarop BMW's
+draaiende verversingssleutel goed gaat. Een slot tussen tabbladen
+(`navigator.locks`) had alleen dit apparaat geholpen; het script helpt ook
+tussen apparaten, en houdt de koppeling vast als je de app twee weken niet
+opent. De ritten zelf blijven rechtstreeks van `api-cardata.bmwgroup.com`
+komen, met hetzelfde dagelijkse maximum.
+
+**Bestanden.** `index.html` (`kmBmwScriptTekst`, `kmBmwRoute`, `kmBmwToken`,
+`kmBmwApi`, `kmBmwLees`, `kmBmwGekoppeld`, `kmBmwLos`, `kmBmwOntkoppel`,
+`kmBmwFoutTekst`, het koppelvenster; weg: `kmBmwAuth`, `kmPkce`, `kmB64url`,
+`kmBmwTokensZet`, `KM_BMW_SCRIPT`), `test.html` (de twee nagebootste
+koppeltests herschreven), `CLAUDE.md`, `sw.js`: v317. Het script is los
+nagespeeld in Node met een nagemaakte Apps Script-omgeving (koppelen,
+verversen, trigger, vreemde weigeren, verlopen).
+
+**Niet doen.**
+- De verversingssleutel weer naar de browser halen, ook niet "alleen even".
+- Het script openzetten zonder de controle op het Google-account: de URL alleen is geen slot.
+- Bij een 400 op verversen opnieuw proberen met dezelfde sleutel: die is op.

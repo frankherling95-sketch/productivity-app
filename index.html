@@ -9885,7 +9885,7 @@ body.aic-open .aic-kop .sp-k { animation: sp-twinkel calc(var(--duur) * 3) var(-
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v3.16</span>
+        <span class="app-versie" title="Appversie">v3.17</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -19850,7 +19850,7 @@ function instGroepWerk(){
       instRij({doe:'instDoe',arg:'urenSjablonen',label:'Uren-sjablonen en herhaling',
         hint:'Vaste regels die je met één klik invult'}),
       instRij({doe:'instDoe',arg:'kmBmw',label:'Ritten uit je BMW',
-        hint:bmw?'De laatste rit ophalen in Kilometers; de koppeling geldt per apparaat':'Kilometers en kilometerstand ophalen na een rit',
+        hint:bmw?'De laatste rit ophalen in Kilometers; de koppeling geldt op al je apparaten':'Kilometers en kilometerstand ophalen na een rit',
         waarde:bmw?'Gekoppeld':'',toon:'aan'})
     ]));
 }
@@ -44594,9 +44594,17 @@ const LS_KM_BMW='herling_km_bmw', LS_KM_PLEKKEN='herling_km_plekken';
    een device code en PKCE op customer.bmwgroup.com; de gegevens komen van
    api-cardata.bmwgroup.com. Die laatste mag een webapp rechtstreeks
    aanroepen, de inlogserver niet (getest 2026-11-03: alleen het eigen
-   portaal van BMW krijgt het antwoord te zien). Daarom kan het inloggen via
-   een doorgeefroute: een Google Apps Script in je eigen account
-   (KM_BMW_SCRIPT). */
+   portaal van BMW krijgt het antwoord te zien). Daarom loopt de koppeling
+   via een Google Apps Script in je eigen account (kmBmwScriptTekst).
+
+   Dat script houdt sinds v3.17 de koppeling zelf: het bewaart de
+   verversingssleutel van BMW en is de enige die hem ververst, met een slot
+   en één keer per dag vanzelf. De app vraagt er alleen een toegangssleutel
+   van een uur. Daarvoor lag de sleutel op elk apparaat, en BMW geeft bij
+   elke keer verversen een nieuwe en maakt de oude ongeldig: een tweede
+   venster of apparaat met de oude kreeg "invalid_request" en de koppeling
+   was weg. Het script laat alleen jou binnen: de app stuurt zijn
+   Drive-token mee, het script vraagt Google van wie dat is. */
 const KM_BMW_AUTH='https://customer.bmwgroup.com/gcdm/oauth/';
 const KM_BMW_API='https://api-cardata.bmwgroup.com';
 const KM_BMW_SCOPE='authenticate_user openid cardata:api:read';
@@ -44616,24 +44624,153 @@ const KM_BMW_SLEUTEL={
    zodat er altijd ruimte blijft om zelf op te halen. */
 const KM_BMW_PER_DAG=50, KM_BMW_AUTO_MAX=30, KM_BMW_AUTO_MS=10*60000;
 const KM_BMW_RELAY_RE=/^https:\/\/script\.google\.com\/(a\/macros\/[^/]+|macros)\/s\/[\w-]+\/exec$/;
-const KM_BMW_SCRIPT=[
-  '// Herling Analytics: doorgeefroute voor het inloggen bij BMW CarData.',
-  '// Geeft alleen het inloggen en verversen door; je ritten gaan hier niet langs.',
+/* Het script voor je Apps Script. Het e-mailadres komt uit je login, niet
+   uit deze code: alleen dat Google-account mag de koppeling gebruiken. Elk
+   antwoord heeft v: 2; de doorgeefroute van vóór v3.17 antwoordt met
+   {status, body} en is daaraan te herkennen. */
+function kmBmwScriptTekst(){
+  const eigenaar=(ingelogdeGebruiker()||{}).email||'';
+  return [
+  '// Herling Analytics: je koppeling met BMW CarData.',
+  '// Dit script bewaart de sleutel die BMW na het koppelen geeft, in je eigen',
+  '// Google-account, en is de enige die hem ververst: elke dag één keer, zodat',
+  '// de koppeling blijft staan. De app vraagt hier een toegangssleutel van een',
+  '// uur en haalt daarmee zelf je ritten bij BMW; die gaan hier niet langs.',
+  'var EIGENAAR = '+JSON.stringify(eigenaar)+'; // alleen dit Google-account mag erbij',
+  'var BMW = '+JSON.stringify(KM_BMW_AUTH)+';',
+  'var SCOPE = '+JSON.stringify(KM_BMW_SCOPE)+';',
+  '',
   'function doPost(e) {',
   '  var p = (e && e.parameter) || {};',
-  "  var pad = p.pad === 'device/code' || p.pad === 'token' ? p.pad : '';",
-  "  if (!pad) return antwoord({ status: 400, body: '{\"error\":\"pad\"}' });",
-  '  var velden = {};',
-  "  Object.keys(p).forEach(function (k) { if (k !== 'pad') velden[k] = p[k]; });",
-  "  var r = UrlFetchApp.fetch('https://customer.bmwgroup.com/gcdm/oauth/' + pad,",
-  "    { method: 'post', payload: velden, muteHttpExceptions: true });",
-  '  return antwoord({ status: r.getResponseCode(), body: r.getContentText() });',
+  '  var slot = LockService.getScriptLock();',
+  '  try {',
+  "    if (!vanJou(p.google)) return antwoord({ fout: 'wie' });",
+  '    slot.waitLock(25000);',
+  "    if (p.doe === 'start') return antwoord(start(p.client));",
+  "    if (p.doe === 'wacht') return antwoord(wacht());",
+  "    if (p.doe === 'token') return antwoord(token(p.vers === '1'));",
+  "    if (p.doe === 'los') return antwoord(los());",
+  "    return antwoord({ fout: 'doe' });",
+  '  } catch (err) {',
+  "    return antwoord({ fout: 'script', reden: String((err && err.message) || err).slice(0, 160) });",
+  '  } finally {',
+  '    slot.releaseLock();',
+  '  }',
   '}',
+  '',
+  '// Het token van de app hoort bij jouw Google-account: Google zegt van wie het is.',
+  'function vanJou(google) {',
+  '  if (!google || !EIGENAAR) return false;',
+  '  var cache = CacheService.getScriptCache();',
+  "  var sleutel = 'g' + Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, google));",
+  '  if (cache.get(sleutel)) return true;',
+  "  var r = UrlFetchApp.fetch('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)',",
+  "    { headers: { Authorization: 'Bearer ' + google }, muteHttpExceptions: true });",
+  '  if (r.getResponseCode() !== 200) return false;',
+  '  var wie = String((JSON.parse(r.getContentText()).user || {}).emailAddress || \'\');',
+  '  if (wie.toLowerCase() !== EIGENAAR.toLowerCase()) return false;',
+  "  cache.put(sleutel, '1', 1800);",
+  '  return true;',
+  '}',
+  '',
+  'function start(client) {',
+  "  if (!/^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i.test(client || '')) return { fout: 'client' };",
+  "  var verifier = (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, '');",
+  '  var challenge = Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,',
+  "    verifier, Utilities.Charset.US_ASCII)).replace(/=+$/, '');",
+  "  var r = bmw('device/code', { client_id: client, response_type: 'device_code', scope: SCOPE,",
+  "    code_challenge: challenge, code_challenge_method: 'S256' });",
+  "  if (!r.data.device_code || !r.data.user_code) return { fout: 'bmw', status: r.status, error: r.data.error || '', reden: reden(r.data) };",
+  '  eigen().setProperties({ nieuwClient: client, nieuwCode: r.data.device_code, nieuwVerifier: verifier });',
+  "  return { code: r.data.user_code, uri: r.data.verification_uri_complete || '', basis: r.data.verification_uri || '',",
+  '    interval: Number(r.data.interval) || 5, over: Number(r.data.expires_in) || 300 };',
+  '}',
+  '',
+  'function wacht() {',
+  '  var p = eigen().getProperties();',
+  "  if (!p.nieuwCode) return { fout: 'bmw', error: 'expired_token', reden: '' };",
+  "  var r = bmw('token', { client_id: p.nieuwClient, device_code: p.nieuwCode,",
+  "    grant_type: 'urn:ietf:params:oauth:grant-type:device_code', code_verifier: p.nieuwVerifier });",
+  '  var d = r.data;',
+  "  if (!d.access_token && (d.error === 'authorization_pending' || d.error === 'slow_down')) return { wacht: d.error };",
+  "  ['nieuwClient', 'nieuwCode', 'nieuwVerifier'].forEach(function (k) { eigen().deleteProperty(k); });",
+  "  if (!d.access_token) return { fout: 'bmw', status: r.status, error: d.error || '', reden: reden(d) };",
+  '  bewaar(d, p.nieuwClient);',
+  '  return { klaar: true, access_token: d.access_token, over: Number(d.expires_in) || 3600, dagelijks: zorgVoorDagelijks() };',
+  '}',
+  '',
+  'function token(vers) {',
+  '  var p = eigen().getProperties();',
+  "  if (!p.refresh) return { fout: 'los', reden: p.fout || '' };",
+  '  var over = Math.floor((Number(p.accessTot) - Date.now()) / 1000);',
+  '  if (!vers && p.access && over > 300) return { access_token: p.access, over: over };',
+  "  var r = bmw('token', { grant_type: 'refresh_token', refresh_token: p.refresh, client_id: p.client });",
+  '  if (r.data.access_token) {',
+  '    bewaar(r.data, p.client);',
+  '    return { access_token: r.data.access_token, over: Number(r.data.expires_in) || 3600 };',
+  '  }',
+  '  // Een 400 of 401 op verversen: deze sleutel werkt niet meer. Opnieuw koppelen.',
+  "  if (r.status === 400 || r.status === 401) {",
+  "    ['access', 'accessTot', 'refresh'].forEach(function (k) { eigen().deleteProperty(k); });",
+  "    eigen().setProperty('fout', reden(r.data) || String(r.status));",
+  "    return { fout: 'verlopen', reden: reden(r.data) };",
+  '  }',
+  "  return { fout: 'bmw', status: r.status, reden: reden(r.data) };",
+  '}',
+  '',
+  'function bewaar(d, client) {',
+  '  var p = { client: client, access: d.access_token, ververst: String(Date.now()),',
+  '    accessTot: String(Date.now() + (Number(d.expires_in) || 3600) * 1000) };',
+  '  if (d.refresh_token) p.refresh = d.refresh_token;',
+  '  eigen().setProperties(p);',
+  "  eigen().deleteProperty('fout');",
+  '}',
+  '',
+  'function los() {',
+  '  eigen().deleteAllProperties();',
+  '  ScriptApp.getProjectTriggers().forEach(function (t) {',
+  "    if (t.getHandlerFunction() === 'dagelijks') ScriptApp.deleteTrigger(t);",
+  '  });',
+  '  return { los: true };',
+  '}',
+  '',
+  '// Elke dag één keer verversen: zo verloopt de koppeling niet (BMW: na twee weken).',
+  'function dagelijks() {',
+  '  var slot = LockService.getScriptLock();',
+  '  slot.waitLock(30000);',
+  "  try { if (eigen().getProperty('refresh')) token(true); } finally { slot.releaseLock(); }",
+  '}',
+  'function zorgVoorDagelijks() {',
+  '  try {',
+  "    var er = ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'dagelijks'; });",
+  "    if (!er) ScriptApp.newTrigger('dagelijks').timeBased().everyDays(1).create();",
+  '    return true;',
+  '  } catch (x) {',
+  '    return false;',
+  '  }',
+  '}',
+  '// Met de hand uitvoeren als de app zegt dat het dagelijks verversen nog niet aanstaat.',
+  'function inrichten() {',
+  "  Logger.log(zorgVoorDagelijks() ? 'Het dagelijks verversen staat aan.' : 'Dat lukte niet.');",
+  '}',
+  '',
+  'function bmw(pad, velden) {',
+  "  var r = UrlFetchApp.fetch(BMW + pad, { method: 'post', payload: velden, muteHttpExceptions: true });",
+  '  var data = {};',
+  '  try { data = JSON.parse(r.getContentText()) || {}; } catch (x) {}',
+  '  return { status: r.getResponseCode(), data: data };',
+  '}',
+  'function reden(d) {',
+  "  var id = String(d.error || '').trim(), msg = String(d.error_description || '').trim();",
+  '  return (id && msg && id !== msg ? id + \': \' + msg : id || msg).slice(0, 160);',
+  '}',
+  'function eigen() { return PropertiesService.getScriptProperties(); }',
   'function antwoord(o) {',
-  '  return ContentService.createTextOutput(JSON.stringify(o))',
-  '    .setMimeType(ContentService.MimeType.JSON);',
+  '  o.v = 2;',
+  '  return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);',
   '}'
-].join('\n');
+  ].join('\n');
+}
 const KM_IC={
   vastleggen:'<path d="M3 9.5 4.3 5.9A1.3 1.3 0 0 1 5.5 5h5a1.3 1.3 0 0 1 1.2.9L13 9.5"/><rect x="2" y="9.5" width="12" height="3" rx="1"/><line x1="4" y1="12.5" x2="4" y2="14"/><line x1="12" y1="12.5" x2="12" y2="14"/>',
   ritten:'<circle cx="4" cy="3.8" r="1.6"/><circle cx="12" cy="12.2" r="1.6"/><path d="M5.6 3.8H10a2.2 2.2 0 0 1 0 4.4H6a2.2 2.2 0 0 0 0 4.4h4.4"/>',
@@ -45115,17 +45252,31 @@ function kmPlekLeer(tekst,pos){
      apparaat alleen nog de code hoeft te bevestigen.
    - Een opgehaalde rit wacht op jou (kmBmw.wacht, ook alleen hier, want er
      zit een positie in): zakelijk, privé of overslaan. */
+/* Een verversingssleutel van vóór v3.17 hoort hier niet meer: die houdt
+   nu het script. Weg bij het laden. */
 function kmBmwLees(){
-  try{const v=JSON.parse(localStorage.getItem(LS_KM_BMW)||'null');return v&&typeof v==='object'?v:{};}catch(_){return {};}
+  try{
+    const v=JSON.parse(localStorage.getItem(LS_KM_BMW)||'null');
+    if(!v||typeof v!=='object')return {};
+    if('refresh' in v||'refreshTot' in v||'koppelTijd' in v){
+      ['refresh','refreshTot','koppelTijd'].forEach(k=>{delete v[k];});
+      localStorage.setItem(LS_KM_BMW,JSON.stringify(v));
+    }
+    return v;
+  }catch(_){return {};}
 }
 function kmBmwBewaar(){try{localStorage.setItem(LS_KM_BMW,JSON.stringify(kmBmw||{}));}catch(_){}}
 function kmBmwInst(){const b=kilometerState.bmw;return b&&typeof b==='object'?b:{};}
 function kmBmwInstZet(o){kilometerState.bmw={...kmBmwInst(),...o};scheduleSave();}
-function kmBmwGekoppeld(){return !!(kmBmw.refresh&&(kmBmw.refreshTot||0)>Date.now()&&kmBmwInst().clientId);}
+/* Gekoppeld = je script houdt een koppeling (gekoppeld: wanneer, in Drive),
+   dus op al je apparaten tegelijk. */
+function kmBmwGekoppeld(){const i=kmBmwInst();return !!(i.gekoppeld&&i.relay);}
 function kmBmwVergeet(){
-  ['access','accessTot','refresh','refreshTot','koppelTijd','wacht'].forEach(k=>{delete kmBmw[k];});
+  ['access','accessTot','wacht'].forEach(k=>{delete kmBmw[k];});
   kmBmwBewaar();
 }
+/* Het script heeft geen werkende koppeling meer: op alle apparaten los. */
+function kmBmwLos(){kmBmwVergeet();if(kmBmwInst().gekoppeld)kmBmwInstZet({gekoppeld:null});}
 /* BMW telt per dag (UTC); dit apparaat telt mee om de grens niet te raken. */
 function kmBmwTeller(){
   const dag=new Date().toISOString().slice(0,10), t=kmBmw.teller; /* utc-bedoeld: BMW telt per UTC-dag */
@@ -45143,9 +45294,14 @@ function kmBmwReden(d){
 }
 function kmBmwFoutTekst(e){
   const s=e&&e.soort, waarom=e&&e.reden?' (BMW: '+e.reden+')':'';
-  return s==='cors'?'BMW laat de app niet rechtstreeks inloggen. Zet de doorgeefroute op; dat is eenmalig.'
-    :s==='relay'?'De doorgeefroute antwoordt niet zoals verwacht. Kijk de URL na, en of de web-app voor iedereen openstaat.'
-    :s==='verlopen'?'De koppeling met BMW is verlopen'+waarom+'. Koppel opnieuw; haal je minstens eens per twee weken op, dan blijft hij staan.'
+  return s==='route'?'Zet eerst het script in je Google-account op; dat is eenmalig.'
+    :s==='relay'?'Je script antwoordt niet zoals verwacht. Kijk de URL na, en of de web-app voor iedereen openstaat.'
+    :s==='script-oud'?'Je script is nog de oude doorgeefroute. Vervang de code door de nieuwe en maak een nieuwe versie; daarna koppel je één keer opnieuw.'
+    :s==='wie'?'Je script herkent je niet. Staat bij EIGENAAR in het script het e-mailadres waarmee je in de app inlogt?'
+    :s==='google'?'De app kon zich niet bij Google melden. Herlaad de app en probeer het opnieuw.'
+    :s==='script'?'Je script gaf een fout'+(e.reden?' ('+e.reden+')':'')+'.'
+    :s==='verlopen'?'De koppeling met BMW werkt niet meer'+waarom+'. Koppel opnieuw; daarna ververst je script hem elke dag.'
+    :s==='los'?'Je script heeft geen koppeling met BMW'+waarom+'. Koppel opnieuw.'
     :s==='limiet'?'BMW staat '+KM_BMW_PER_DAG+' keer ophalen per dag toe. Morgen kan het weer.'
     :s==='toegang'?'BMW weigert de gegevens'+waarom+'. Staat CarData API aan bij je client, en ben je de hoofdgebruiker van de auto?'
     :s==='auto'?'BMW geeft geen toegang tot deze auto'+waarom+'. Kijk in het CarData-portaal of hij erbij staat en of er nog iets te bevestigen is.'
@@ -45160,66 +45316,44 @@ function kmTijdTekst(ms){
   const tijd=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
   return (dag===opdVandaag()?'vandaag':kmDatumKort(dag))+' '+tijd;
 }
-/* Inloggen: rechtstreeks, of via je doorgeefroute als die er staat. Die
-   krijgt dezelfde velden plus het pad, en geeft {status, body} terug. */
-async function kmBmwAuth(pad,velden){
+/* Een vraag aan je script (doe: start, wacht, token, los), met je
+   Drive-token erbij: daaraan ziet het script dat jij het bent. */
+async function kmBmwRoute(doe,velden){
   const relay=String(kmBmwInst().relay||'').trim();
-  const body=new URLSearchParams(velden);
-  if(relay){
-    body.set('pad',pad);
-    let o=null;
-    try{const r=await fetch(relay,{method:'POST',body});o=await r.json();}catch(_){throw kmBmwFout('relay');}
-    if(!o||typeof o.status!=='number')throw kmBmwFout('relay');
-    let data={};
-    try{data=JSON.parse(o.body||'{}')||{};}catch(_){}
-    return {status:o.status,data};
-  }
-  let r;
-  /* Een geweigerd antwoord (CORS) en geen netwerk zien er in een browser
-     hetzelfde uit; online betekent dus: BMW laat ons niet binnen. */
-  try{r=await fetch(KM_BMW_AUTH+pad,{method:'POST',body});}
-  catch(_){throw kmBmwFout(navigator.onLine===false?'net':'cors');}
-  let data={};
-  try{data=await r.json()||{};}catch(_){}
-  return {status:r.status,data};
+  if(!KM_BMW_RELAY_RE.test(relay))throw kmBmwFout('route');
+  let google;
+  try{google=await driveVraagToken(false);}catch(_){throw kmBmwFout('google');}
+  if(!google)throw kmBmwFout('google');
+  const body=new URLSearchParams({...(velden||{}),doe,google});
+  let o=null;
+  try{const r=await fetch(relay,{method:'POST',body});o=await r.json();}
+  catch(_){throw kmBmwFout(navigator.onLine===false?'net':'relay');}
+  if(!o||typeof o!=='object')throw kmBmwFout('relay');
+  /* De doorgeefroute van vóór v3.17 antwoordt met {status, body}. */
+  if(o.v!==2)throw kmBmwFout(typeof o.status==='number'?'script-oud':'relay');
+  if(o.fout==='doe')throw kmBmwFout('script-oud');
+  if(o.fout==='wie'||o.fout==='script')throw kmBmwFout(o.fout,{reden:o.reden||''});
+  return o;
 }
-function kmB64url(bytes){
-  let s='';
-  bytes.forEach(b=>{s+=String.fromCharCode(b);});
-  return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-}
-async function kmPkce(){
-  const verifier=kmB64url(crypto.getRandomValues(new Uint8Array(32)));
-  const hash=new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(verifier)));
-  return {verifier,challenge:kmB64url(hash)};
-}
-function kmBmwTokensZet(d){
-  const nu=Date.now();
-  kmBmw.access=d.access_token;
-  kmBmw.accessTot=nu+Math.max(60,Number(d.expires_in)||3600)*1000;
-  /* Elke keer verversen geeft een nieuwe, weer twee weken geldig. */
-  if(d.refresh_token){kmBmw.refresh=d.refresh_token;kmBmw.refreshTot=nu+14*86400000;}
-  kmBmwBewaar();
-}
-async function kmBmwToken(){
-  if(kmBmw.access&&(kmBmw.accessTot||0)>Date.now()+60000)return kmBmw.access;
-  if(!kmBmw.refresh||(kmBmw.refreshTot||0)<=Date.now())throw kmBmwFout('verlopen');
+/* Een toegangssleutel van een uur. Die mag op het apparaat staan (een
+   tweede venster met dezelfde kan geen kwaad); verversen doet alleen het
+   script. vers: het script moet echt een nieuwe halen. */
+async function kmBmwToken(vers){
+  if(!vers&&kmBmw.access&&(kmBmw.accessTot||0)>Date.now()+60000)return kmBmw.access;
   if(!kmBmwTokenBezig)kmBmwTokenBezig=(async()=>{
-    const {status,data}=await kmBmwAuth('token',{grant_type:'refresh_token',refresh_token:kmBmw.refresh,client_id:kmBmwInst().clientId});
-    if(data&&data.access_token){kmBmwTokensZet(data);return data.access_token;}
-    /* "pad" is de doorgeefroute zelf, niet BMW. */
-    if(data&&data.error==='pad')throw kmBmwFout('relay');
-    /* Een 400 op verversen is nooit van voorbijgaande aard (OAuth: de
-       koppeling deugt niet meer); opnieuw koppelen is de weg terug. */
-    if(status===400||status===401||['invalid_grant','invalid_token','expired_token','invalid_client'].includes(data&&data.error)){
-      kmBmwVergeet();
-      throw kmBmwFout('verlopen',{reden:kmBmwReden(data)});
+    const o=await kmBmwRoute('token',vers?{vers:'1'}:{});
+    if(o.access_token){
+      kmBmw.access=o.access_token;
+      kmBmw.accessTot=Date.now()+Math.max(60,Number(o.over)||3600)*1000;
+      kmBmwBewaar();
+      return o.access_token;
     }
-    throw kmBmwFout('bmw',{status,reden:kmBmwReden(data),stap:'het verversen van de koppeling'});
+    if(o.fout==='verlopen'||o.fout==='los')throw kmBmwFout(o.fout,{reden:o.reden||''});
+    throw kmBmwFout('bmw',{status:o.status,reden:o.reden||'',stap:'het verversen van de koppeling'});
   })().finally(()=>{kmBmwTokenBezig=null;});
   return kmBmwTokenBezig;
 }
-async function kmBmwApi(pad,body){
+async function kmBmwApi(pad,body,opnieuw){
   const token=await kmBmwToken();
   kmBmwTel();
   let r;
@@ -45231,6 +45365,9 @@ async function kmBmwApi(pad,body){
   let data=null;
   try{data=await r.json();}catch(_){}
   if(r.ok)return data;
+  /* Een sleutel die BMW niet meer kent (het script ververste intussen):
+     één keer met een verse. */
+  if(r.status===401&&!opnieuw){kmBmw.access=null;kmBmw.accessTot=0;await kmBmwToken(true);return kmBmwApi(pad,body,true);}
   const id=String(data&&data.exveErrorId||'');
   const stap=/telematicData/.test(pad)?'het ophalen':/containers/.test(pad)?(body?'het aanmaken van de gegevensset':'het opvragen van de gegevenssets')
     :/mappings/.test(pad)?'het opzoeken van je auto':'';
@@ -45400,7 +45537,7 @@ async function kmBmwHaal(o){
     else kmBmw.wacht=rit;
   }catch(e){
     kmBmw.fout=kmBmwFoutTekst(e);fout=true;
-    if(e.soort==='verlopen')kmBmwVergeet();
+    if(e.soort==='verlopen'||e.soort==='los')kmBmwLos();
     melding=kmBmw.fout;
   }finally{
     kmBmwBezig=false;
@@ -45502,7 +45639,7 @@ function kmBmwHtml(){
   }
   if(!kmBmwGekoppeld()){
     return '<div class="inst-kaart">'+instRij({label:'Ritten uit je BMW',doe:'kmBmwOpen',
-      hint:kmBmwInst().clientId?kmBmw.fout||'Niet gekoppeld op dit apparaat. Koppel opnieuw om je laatste rit op te halen.'
+      hint:kmBmwInst().clientId?kmBmw.fout||'Niet gekoppeld. Koppel opnieuw; daarna houdt je script de koppeling vast, op al je apparaten.'
         :'Koppel je auto, dan haal je na een rit de kilometers en de kilometerstand op met één tik.'})+'</div>';
   }
   const hint=kmBmwBezig?'Ophalen bij BMW…':kmBmw.fout?kmBmw.fout
@@ -45513,20 +45650,26 @@ function kmBmwHtml(){
     '<button type="button" class="klant-wissel-oog km-meer" data-action="kmBmwMenu" aria-haspopup="menu" aria-expanded="false" '+
     'aria-label="Meer voor je BMW" title="Meer">'+KM_IC_MEER+'</button></div></div>';
 }
+function kmBmwSinds(){const g=kmBmwInst().gekoppeld;return g?opdFmtDatum(dateStr(new Date(g))):'';}
 function kmBmwMenu(knop){
-  const tot=kmBmw.refreshTot?opdFmtDatum(dateStr(new Date(kmBmw.refreshTot))):'';
+  const sinds=kmBmwSinds();
   kmMenu(knop,'<div class="uren-menu-lab">Je BMW</div>'+
-    kmMenuItem('kmBmwOpen','⚙','Koppeling',tot?'Geldig tot '+tot+'; ophalen verlengt hem':null)+
+    kmMenuItem('kmBmwOpen','⚙','Koppeling',sinds?'Sinds '+sinds+'; je script ververst hem elke dag':null)+
     '<div class="uren-menu-sep"></div>'+
-    kmMenuItem('kmBmwOntkoppel','✕','Ontkoppelen','Op dit apparaat',null,true));
+    kmMenuItem('kmBmwOntkoppel','✕','Ontkoppelen','Op al je apparaten',null,true));
 }
-function kmBmwOntkoppel(){
+/* Ontkoppelen gaat in de app altijd door; antwoordt het script niet, dan
+   staat de sleutel daar nog en zegt de melding dat. */
+async function kmBmwOntkoppel(){
   kmSluitMenu();
-  kmBmwVergeet();
+  let script=true;
+  try{await kmBmwRoute('los');}catch(_){script=false;}
+  kmBmwLos();
   kmBmw.fout='';kmBmwBewaar();
   if(kmBmwKoppel){kmBmwKoppel.stap='start';kmBmwKoppel.melding='';kmBmwToon();}
   if(activeModule==='kilometers')renderKilometersModule();
-  appToast('BMW ontkoppeld op dit apparaat',{type:'success'});
+  appToast(script?'BMW ontkoppeld':'BMW ontkoppeld in de app; je script antwoordde niet, dus daar staat de sleutel nog',
+    {type:script?'success':'warning'});
 }
 
 /* ── Gaten en privé in de lijst ── */
@@ -45593,9 +45736,10 @@ function kmPriveWeg(id){
 }
 
 /* ── Venster: je BMW koppelen ──
-   Stappen in kmBmwKoppel.stap: start (client ID) → [route: de
-   doorgeefroute opzetten, alleen als BMW de app niet binnenlaat] → code
-   (bevestigen bij BMW; de app vraagt intussen om de tokens) → klaar. */
+   Stappen in kmBmwKoppel.stap: start (client ID) → [route: het script
+   opzetten of bijwerken, als er nog geen staat of het de oude
+   doorgeefroute is] → code (bevestigen bij BMW; het script vraagt intussen
+   om de sleutels) → klaar. */
 function kmBmwOpen(){
   kmSluitMenu();
   kmBmwKoppel={stap:kmBmwGekoppeld()?'klaar':'start',melding:''};
@@ -45623,19 +45767,22 @@ function kmBmwToon(){
       '<li>Maak onder <i>API Clients</i> een <b>CarData Client</b> aan en zet <i>CarData API</i> aan.</li>'+
       '<li>Kopieer de client ID; BMW toont hem maar één keer.</li></ol>'+
       veld('kmBmwClient','Client ID',inst.clientId,' placeholder="Bijvoorbeeld 1a2b3c4d-…"')+
-      (inst.relay?veld('kmBmwRelay','Doorgeefroute',inst.relay,' placeholder="Leeg = rechtstreeks naar BMW"'):'')+
-      '<small class="opd-hint">Daarna toont de app een code die je bij BMW bevestigt. De koppeling geldt op dit apparaat; '+
-      'de client ID onthoudt de app voor je andere apparaten.</small>'+melding;
+      (inst.relay?veld('kmBmwRelay','URL van je script',inst.relay,' placeholder="https://script.google.com/macros/s/…/exec"'):'')+
+      '<small class="opd-hint">Daarna toont de app een code die je bij BMW bevestigt. De koppeling staat dan in je script '+
+      'en geldt op al je apparaten.</small>'+melding;
     knop='Koppelen';
   }else if(k.stap==='route'){
-    titel='Doorgeefroute opzetten';
-    html='<p class="km-bmw-tekst">BMW laat een webapp niet rechtstreeks inloggen; alleen zijn eigen site mag dat. Een klein script in je eigen '+
-      'Google-account geeft het inloggen door. Dat zet je één keer op; je ritten gaan er niet langs.</p>'+
+    titel='Script opzetten';
+    html='<p class="km-bmw-tekst">BMW laat een webapp niet zelf inloggen. Een klein script in je eigen Google-account houdt de '+
+      'koppeling bij: het bewaart de sleutel van BMW en ververst hem elke dag, zodat je niet opnieuw hoeft te koppelen. '+
+      'Je ritten gaan er niet langs.</p>'+
       '<ol class="km-bmw-stappen">'+
-      '<li>Open <a href="https://script.google.com/create" target="_blank" rel="noopener noreferrer">een nieuw Apps Script</a> en vervang de inhoud door dit script.</li>'+
-      '<li>Kies <i>Implementeren → Nieuwe implementatie → Web-app</i>. Uitvoeren als: <b>ikzelf</b>. Toegang: <b>Iedereen</b>.</li>'+
+      '<li>Open <a href="https://script.google.com/create" target="_blank" rel="noopener noreferrer">een nieuw Apps Script</a>, '+
+      'of je bestaande doorgeefroute, en vervang de inhoud door dit script.</li>'+
+      '<li>Nieuw: kies <i>Implementeren → Nieuwe implementatie → Web-app</i>. Uitvoeren als: <b>ikzelf</b>. Toegang: <b>Iedereen</b>. '+
+      'Bestaand: kies <i>Implementeren → Implementaties beheren</i>, het potlood, en bij Versie <b>Nieuwe versie</b>; de URL blijft dan dezelfde.</li>'+
       '<li>Geef toestemming en kopieer de URL van de web-app (die eindigt op <i>/exec</i>).</li></ol>'+
-      '<pre class="km-bmw-script" id="kmBmwScript">'+escapeHtml(KM_BMW_SCRIPT)+'</pre>'+
+      '<pre class="km-bmw-script" id="kmBmwScript">'+escapeHtml(kmBmwScriptTekst())+'</pre>'+
       '<div class="km-bmw-knoppen"><button type="button" class="btn btn-sm" data-action="kmBmwKopieer">Script kopiëren</button></div>'+
       veld('kmBmwRelay','URL van de web-app',inst.relay,' placeholder="https://script.google.com/macros/s/…/exec"')+melding;
     knop='Verder';
@@ -45654,13 +45801,12 @@ function kmBmwToon(){
     html='<p class="km-gps-meta">'+(k.stap==='bezig'?'Even geduld…':'Gekoppeld. De app zoekt je auto en richt de gegevens in…')+'</p>';
   }else{
     titel='Je BMW';
-    const n=kmPlekkenLees().length, t=kmBmwTeller();
+    const n=kmPlekkenLees().length, t=kmBmwTeller(), sinds=kmBmwSinds();
     html=instKaart([
       instRij({soort:'info',label:'Auto',waarde:inst.vin?'VIN …'+String(inst.vin).slice(-6):'nog niet bekend'}),
-      instRij({soort:'info',label:'Koppeling op dit apparaat',hint:'Elke keer ophalen verlengt hem met twee weken',
-        waarde:kmBmw.refreshTot?'tot '+opdFmtDatum(dateStr(new Date(kmBmw.refreshTot))):'',toon:'aan'}),
-      instRij({soort:'info',label:'Vandaag opgehaald',hint:'BMW staat '+KM_BMW_PER_DAG+' keer per dag toe',waarde:t.n+' keer'}),
-      instRij({soort:'info',label:'Inloggen',waarde:inst.relay?'via je doorgeefroute':'rechtstreeks'})
+      instRij({soort:'info',label:'Koppeling',hint:'Je script ververst hem elke dag; hij geldt op al je apparaten',
+        waarde:sinds?'sinds '+sinds:'',toon:'aan'}),
+      instRij({soort:'info',label:'Vandaag opgehaald',hint:'BMW staat '+KM_BMW_PER_DAG+' keer per dag toe',waarde:t.n+' keer'})
     ])+(n?instKaart([instRij({doe:'kmBmwPlekkenWeg',label:'Geleerde plekken wissen',gevaar:true,
       hint:n+' '+(n===1?'plek':'plekken')+' op dit apparaat, om ritten te herkennen'})]):'')+melding;
     knop='Laatste rit ophalen';
@@ -45686,7 +45832,7 @@ function kmBmwVerder(){
     const nieuw={clientId:id};
     if(document.getElementById('kmBmwRelay')){
       const r=lees('kmBmwRelay');
-      if(r&&!KM_BMW_RELAY_RE.test(r)){k.melding='De doorgeefroute is de URL van je web-app; die eindigt op /exec.';kmBmwToon();return;}
+      if(r&&!KM_BMW_RELAY_RE.test(r)){k.melding='De URL van je script eindigt op /exec.';kmBmwToon();return;}
       nieuw.relay=r;
     }
     kmBmwInstZet(nieuw);
@@ -45706,75 +45852,77 @@ async function kmBmwStart(){
   const k=kmBmwKoppel;
   if(!k)return;
   clearTimeout(k.timer);
+  if(!KM_BMW_RELAY_RE.test(String(kmBmwInst().relay||'').trim())){k.stap='route';k.melding='';kmBmwToon();return;}
   k.stap='bezig';k.melding='';
   kmBmwToon();
-  let res;
-  try{
-    const pk=await kmPkce();
-    k.verifier=pk.verifier;
-    res=await kmBmwAuth('device/code',{client_id:kmBmwInst().clientId,response_type:'device_code',scope:KM_BMW_SCOPE,
-      code_challenge:pk.challenge,code_challenge_method:'S256'});
-  }catch(e){
+  let d;
+  try{d=await kmBmwRoute('start',{client:kmBmwInst().clientId});}
+  catch(e){
     if(kmBmwKoppel!==k)return;
-    if(e.soort==='cors'){k.stap='route';k.melding='';}
-    else{k.stap=kmBmwInst().relay&&e.soort==='relay'?'route':'start';k.melding=kmBmwFoutTekst(e);}
+    /* Aan het script zelf ligt het: terug naar de stap met het script. */
+    k.stap=['route','relay','script-oud','wie'].includes(e.soort)?'route':'start';
+    k.melding=kmBmwFoutTekst(e);
     kmBmwToon();
     return;
   }
   if(kmBmwKoppel!==k)return;
-  const d=res.data||{};
-  if(!d.device_code||!d.user_code){
+  if(!d.code){
     k.stap='start';
-    k.melding=d.error==='invalid_client'||res.status===401?'BMW kent deze client ID niet. Kijk hem na in het CarData-portaal.'
-      :d.error?'BMW: '+(d.error_description||d.error):kmBmwFoutTekst({status:res.status});
+    k.melding=d.error==='invalid_client'||d.status===401||d.fout==='client'?'BMW kent deze client ID niet. Kijk hem na in het CarData-portaal.'
+      :d.reden?'BMW: '+d.reden:kmBmwFoutTekst({status:d.status});
     kmBmwToon();
     return;
   }
   /* Sommige antwoorden hebben geen kant-en-klare link: dan zelf maken. */
-  const uri=d.verification_uri_complete||(d.verification_uri?d.verification_uri+(d.verification_uri.includes('?')?'&':'?')+
-    'user_code='+encodeURIComponent(d.user_code):'');
-  Object.assign(k,{stap:'code',device:d.device_code,code:d.user_code,uri,
-    interval:Math.max(5,Number(d.interval)||5),tot:Date.now()+(Number(d.expires_in)||300)*1000});
+  const uri=d.uri||(d.basis?d.basis+(d.basis.includes('?')?'&':'?')+'user_code='+encodeURIComponent(d.code):'');
+  Object.assign(k,{stap:'code',code:d.code,uri,
+    interval:Math.max(5,Number(d.interval)||5),tot:Date.now()+(Number(d.over)||300)*1000});
   kmBmwToon();
   kmBmwPeil(k);
 }
-/* Om de zoveel seconden vragen of je al bevestigde (zo vaak als BMW zegt). */
+/* Om de zoveel seconden vragen of je al bevestigde (zo vaak als BMW zegt).
+   Het script vraagt het BMW; lukt het, dan bewaart het de sleutels zelf en
+   krijgt de app alleen een toegangssleutel. */
 function kmBmwPeil(k){
   clearTimeout(k.timer);
   k.timer=setTimeout(async()=>{
     if(kmBmwKoppel!==k||k.stap!=='code')return;
     if(Date.now()>k.tot){k.stap='verlopen';k.melding='';kmBmwToon();return;}
-    let res;
-    try{
-      res=await kmBmwAuth('token',{client_id:kmBmwInst().clientId,device_code:k.device,
-        grant_type:'urn:ietf:params:oauth:grant-type:device_code',code_verifier:k.verifier});
-    }catch(e){
+    let d;
+    try{d=await kmBmwRoute('wacht');}
+    catch(e){
       if(kmBmwKoppel!==k)return;
       k.melding=kmBmwFoutTekst(e);kmBmwToon();kmBmwPeil(k);return;
     }
     if(kmBmwKoppel!==k||k.stap!=='code')return;
-    const d=res.data||{};
-    if(d.access_token){
+    if(d.klaar&&d.access_token){
       kmBmwVergeet();
-      kmBmw.koppelTijd=Date.now();kmBmw.fout='';
-      kmBmwTokensZet(d);
+      kmBmw.fout='';
+      kmBmw.access=d.access_token;
+      kmBmw.accessTot=Date.now()+Math.max(60,Number(d.over)||3600)*1000;
+      kmBmwBewaar();
+      kmBmwInstZet({gekoppeld:Date.now()});
       k.stap='inrichten';k.melding='';kmBmwToon();
       try{await kmBmwInrichten();}catch(e){k.melding=kmBmwFoutTekst(e);}
+      /* Zonder dagelijks verversen verloopt de koppeling na twee weken niet
+         ophalen; dat kan het script pas na je toestemming. */
+      if(d.dagelijks===false&&!k.melding)
+        k.melding='Gekoppeld, maar het dagelijks verversen staat nog niet aan. Open je script, kies bovenin de functie inrichten en klik op Uitvoeren.';
       k.stap='klaar';
       if(kmBmwKoppel===k)kmBmwToon();
       if(activeModule==='kilometers')renderKilometersModule();
       return;
     }
-    if(d.error==='authorization_pending'){if(k.melding){k.melding='';kmBmwToon();}kmBmwPeil(k);return;}
-    if(d.error==='slow_down'){k.interval+=5;kmBmwPeil(k);return;}
+    if(d.wacht==='authorization_pending'){if(k.melding){k.melding='';kmBmwToon();}kmBmwPeil(k);return;}
+    if(d.wacht==='slow_down'){k.interval+=5;kmBmwPeil(k);return;}
     k.stap=d.error==='access_denied'?'start':'verlopen';
     k.melding=d.error==='access_denied'?'Je hebt de toegang bij BMW geweigerd.':d.error==='expired_token'?''
-      :'BMW: '+(d.error_description||d.error||res.status);
+      :'BMW: '+(d.reden||d.error||d.status||'onbekende fout');
     kmBmwToon();
   },k.interval*1000);
 }
 function kmBmwKopieer(){
-  const tekst=KM_BMW_SCRIPT;
+  const tekst=kmBmwScriptTekst();
   const gelukt=()=>appToast('Script gekopieerd',{type:'success'});
   if(navigator.clipboard&&navigator.clipboard.writeText)
     navigator.clipboard.writeText(tekst).then(gelukt,()=>kmBmwSelecteer());
@@ -45994,7 +46142,7 @@ function kmToggleMenu(knop){
     kmMenuItem('kmExport','↧','Jaaroverzicht '+(kmWeergave==='ritten'?maand.slice(0,4):jaar),'Alle ritten en de vergoeding per maand',['jaar',kmWeergave==='ritten'?maand.slice(0,4):jaar])+
     '<div class="uren-menu-sep"></div>'+
     kmMenuItem('kmVastNieuw','+','Bekende rit toevoegen','Daarna met één tik vastgelegd')+
-    kmMenuItem('kmBmwOpen','⚙','Je BMW',kmBmwGekoppeld()?'Gekoppeld op dit apparaat':'Ritten ophalen uit je auto')+
+    kmMenuItem('kmBmwOpen','⚙','Je BMW',kmBmwGekoppeld()?'Gekoppeld':'Ritten ophalen uit je auto')+
     kmMenuItem('kmTariefOpen','€','Vergoeding per km',kmTariefFmt(t)+(t===kmMaxTarief(kmWeergave==='overzicht'?jaar:maand.slice(0,4))?' · het onbelaste maximum':'')));
 }
 function kmVastMenu(id,knop){
