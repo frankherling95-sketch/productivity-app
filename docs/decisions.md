@@ -9276,3 +9276,129 @@ kiezen of met de hand invullen.
 - De handtekening op een regel met een andere naam zetten.
 - De handtekening in de code of de repo zetten. Hij staat in de eigen gegevens
   in Drive.
+
+## 2026-11-03 · Kilometers: ritten uit je BMW, gaten in de kilometerstand (v3.12)
+
+**Probleem.** Frank rijdt een BMW (privé, met een kilometervergoeding vanuit
+de BV) en wilde de ritgegevens van de auto in Kilometers. Hij neemt niet
+elke rit mee: soms vergeet hij hem, soms is een rit privé. Dan ontstaat er
+een gat in de registratie, en daar moet de app mee om kunnen. Ritten
+herkennen uit wat de auto doorgeeft vond hij belangrijk.
+
+**Uitgezocht (2026-11-03).**
+- De officiële weg is **BMW CarData** voor klanten (sinds 2025; de oude,
+  onofficiële MyBMW-API is dicht). Je maakt in het CarData-portaal een eigen
+  client ID. Inloggen gaat met een device code plus PKCE op
+  `customer.bmwgroup.com`, de gegevens komen van `api-cardata.bmwgroup.com`.
+  Alleen in de EU, en BMW staat 50 aanroepen per dag toe.
+- **Er is geen rittenlijst.** `telematicData` heeft geen van/tot en geeft per
+  sleutel alleen de laatste waarde (alleen laden heeft een geschiedenis).
+  Wat er wel is: de laatste rit (`vehicle.trip.segment.end.time` en
+  `.travelledDistance`), de kilometerstand (`vehicle.vehicle.travelledDistance`),
+  de positie en of de auto rijdt.
+- **CORS, gemeten.** De API laat elke herkomst toe (`*`), ook bij een 401. De
+  inlogserver beantwoordt de preflight voor iedereen, maar zet bij het echte
+  antwoord `Access-Control-Allow-Origin` alleen voor zijn eigen portaal
+  (`bmw-cardata.bmwgroup.com` wel, `app.herling-analytics.nl` niet). Een
+  browser kan het token dus niet lezen.
+- Live streamen (MQTT) kan alleen met iets dat altijd luistert. Een browser
+  kan dat niet, en de app heeft geen server.
+
+**Beslissing.**
+- **Laatste rit ophalen.** Dat gebeurt met één tik, en vanzelf als je
+  Kilometers opent of de app terug in beeld komt: hooguit eens per 10
+  minuten en tot 30 keer per dag, zodat er ruimte blijft. De rit wacht op je
+  als blok bovenaan *Rit vastleggen*. Je kiest:
+  - *Zakelijk vastleggen*: het rittenvenster opent ingevuld, met de standen;
+  - *Privé*;
+  - *Overslaan*.
+  Rijdt de auto nog, dan biedt de app niets aan.
+- **De keten van kilometerstanden** (`kmKeten`). Ritten met een begin- en
+  eindstand plus de stukken die je privé noemde (`kilometerState.prive`)
+  horen op elkaar aan te sluiten.
+  - Wat ontbreekt, vanaf 2 km, is een **gat** (`kmGaten`): een regel *Niet
+    vastgelegd* in de lijst van de maand, met een oranje stip. Die maak je
+    een rit (ook voor een deel, door de standen aan te passen) of privé.
+  - Het totaal van de maand en het overzicht noemen het aantal gaten. Ritten
+    zonder stand in de dagen van een gat staan erbij, want misschien zit het
+    gat daarin.
+  - Een privéstuk telt nergens mee. Het staat stiller in de lijst en kan
+    *Toch zakelijk* worden.
+- **Aansluiten op de teller.** De eindstand is de teller nu, de beginstand
+  die min de afstand van de rit. Ligt de beginstand binnen 1 km van waar de
+  vorige rit eindigde, dan sluit hij daar precies op aan. De kilometers per
+  rit zijn dan het verschil in stand (hele km), en samen tellen ze op tot de
+  teller. Geeft de auto geen losse rit door, dan wordt het verschil met de
+  vorige stand voorgesteld.
+- **Herkennen** (`kmHerken`). Kandidaten zijn:
+  - bekende ritten, heen en terug (bij een gat ook heen en terug als één
+    stuk);
+  - eerdere ritten.
+
+  Wat telt:
+  - de afstand (binnen 8%, minstens 1,5 km);
+  - of hij vertrok waar de vorige rit eindigde;
+  - of hij eindigde op een plek die dit apparaat kent, of waar de volgende
+    rit begon.
+
+  Een andere plek dan verwacht telt tegen. Het venster zegt waarom
+  (*Herkend als bekende rit Klant Noord (terug): zelfde afstand, vertrokken
+  waar je vorige rit eindigde*). Klopt alleen de afstand, dan vraagt het om
+  na te kijken.
+- **Plekken leren**, alleen op het apparaat (`herling_km_plekken`). Bij een
+  BMW-rit onthoudt de app wat je bij Naar typte, plus de positie van de
+  auto. Is de auto de volgende keer binnen 250 m, dan staat die naam er.
+  Plekken zijn te wissen in het BMW-venster. Een gps-rit leert niets, zoals
+  beloofd: na vastleggen staat er geen locatie van op het apparaat.
+- **Koppelen per apparaat.**
+  - De tokens staan in `herling_km_bmw`, nooit in Drive. Het refreshtoken
+    is twee weken geldig en elke keer ophalen verlengt het.
+  - In Drive staan de client ID, de doorgeefroute, de VIN en de gegevensset
+    (`kilometerState.bmw`), zodat een tweede apparaat alleen de code hoeft
+    te bevestigen.
+  - De gegevensset ("Herling Kilometers") maakt de app één keer aan. Is hij
+    weg, dan maakt de app hem opnieuw.
+- **De doorgeefroute.** Een Google Apps Script in Franks eigen account
+  (`KM_BMW_SCRIPT`, in het venster te kopiëren) stuurt alleen `device/code`
+  en `token` door naar BMW. De app probeert eerst rechtstreeks. Lukt dat
+  niet vanwege CORS, dan vraagt het venster om de web-app-URL. De ritgegevens
+  gaan er niet langs.
+- **Instellingen.** De groep *Uren en opdrachten* heet nu *Uren, kilometers
+  en opdrachten*, met een regel *Ritten uit je BMW*.
+
+**Waarom.**
+- Een rittenlijst bestaat niet bij BMW. Met *laatste rit ophalen* en
+  *zichtbare gaten* klopt de registratie toch: niets valt stil weg, en
+  privé hoeft bij een privéauto niet in de lijst.
+- De teller is de enige bron die nooit iets mist. Door de ritten op de
+  teller te laten aansluiten wordt elk gat vanzelf zichtbaar.
+- Apps Script blijft binnen Google en draait onder Franks eigen account,
+  zonder nieuwe aanbieder en zonder server van de app zelf. Het script ziet
+  alleen de inlog en geen ritten.
+
+**Nog niet bewezen.** Niets hiervan is getest tegen een echte auto; de tests
+bootsen BMW na. Drie dingen blijken pas bij de eerste koppeling:
+- of BMW het inloggen via de servers van Google accepteert;
+- of Franks model `vehicle.trip.segment.end.*` doorgeeft;
+- of één segment één rit is.
+
+Vallen die tegen, dan werkt de rest (kilometerstand, gaten) nog wel.
+
+**Bestanden.**
+- `index.html`:
+  - functies `kmKeten`, `kmGaten`, `kmHerken`, `kmPlek*` en `kmBmw*`, en de
+    menu's van een gat en een privéstuk;
+  - `#kmBmwModal`;
+  - `kmRitOpen` met een voorstel, `kmRitOpslaan` (`bmwEind`, plek leren);
+  - hydratie, `voegStateSamen`, `stateOmvang`, en de regel op Instellingen.
+- `test.html`: 6 tests; de groepsnaam op Instellingen.
+- `sw.js`: v312.
+
+**Niet doen.**
+- Ritten als compleet beschouwen zonder kilometerstand: dan zie je een
+  vergeten rit nooit.
+- Coördinaten in Drive zetten, ook niet van geleerde plekken.
+- Een refreshtoken rechtstreeks verversen als bekend is dat CORS het
+  antwoord blokkeert. BMW verwerkt het verzoek wel; als het het token
+  vervangt, ben je de koppeling kwijt zonder het nieuwe te zien.
+- Vaker dan nodig ophalen: 50 per dag geldt voor alle apparaten samen.

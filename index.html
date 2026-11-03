@@ -2442,7 +2442,7 @@ button.uren-mpiv-row:active{background:var(--surface2)}
    het blok van een lopende gps-rit en de totaalregel onder een maand. */
 #mod-kilometers{flex-direction:column;--uren-ui:12.5px}
 #mod-kilometers .uren-content{padding:var(--sp-5) var(--sp-5) var(--sp-6)}
-#mod-kilometers [hidden],#kmRitModal [hidden],#kmVastModal [hidden]{display:none}
+#mod-kilometers [hidden],#kmRitModal [hidden],#kmVastModal [hidden],#kmBmwModal [hidden]{display:none}
 #mod-kilometers .uren-kpis{max-width:1040px;padding:var(--sp-4) var(--sp-5) 0;box-sizing:border-box}
 .km-vast{display:flex;align-items:center;padding-right:6px}
 .km-vast > .inst-rij{flex:1;min-width:0}
@@ -2454,6 +2454,9 @@ button.uren-mpiv-row:active{background:var(--surface2)}
 .km-totaal .inst-tekst b{font-weight:700}
 .km-totaal .inst-waarde{color:var(--text);font-weight:600;max-width:55%}
 .km-leeg{min-height:0}
+/* Een stuk dat je privé noemde: in de lijst zodat de kilometerstand
+   aansluit, maar stiller, want het telt niet mee. */
+.km-prive .inst-tekst b{color:var(--text-muted)}
 /* Een lopende gps-rit: de kilometers groot (het KPI-cijfer), daaronder de
    stand van het signaal en de knoppen. De stip ademt zolang hij meet. */
 .km-gps{display:flex;flex-direction:column;gap:var(--sp-2);padding:14px}
@@ -2462,13 +2465,30 @@ button.uren-mpiv-row:active{background:var(--surface2)}
 .km-gps-stip{flex-shrink:0;width:8px;height:8px;border-radius:50%;background:var(--text-hint)}
 .km-gps[data-stand="meet"] .km-gps-stip{background:var(--success);animation:km-adem calc(6*var(--duur)) var(--ease) infinite}
 .km-gps[data-stand="gestopt"] .km-gps-stip{background:var(--warning)}
+/* Een opgehaalde rit uit de BMW: zelfde blok, de stip in mint (wacht op jou). */
+.km-gps[data-stand="bmw"] .km-gps-stip{background:var(--mint)}
 @keyframes km-adem{50%{opacity:.3}}
 .km-gps-km{font-family:var(--font-cijfer);font-size:var(--fs-cijfer);font-weight:600;font-variant-numeric:tabular-nums;color:var(--text)}
 .km-gps-meta,.km-gps-uitleg{margin:0;font-size:var(--fs-klein);color:var(--text-muted);line-height:1.45}
 .km-gps-uitleg{color:var(--text-hint)}
 .km-gps-gat{margin:0}
 .km-gps-stand{max-width:280px}
-.km-gps-knoppen{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.km-gps-knoppen,.km-bmw-knoppen{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+/* Bevestigen bij BMW is een link (nieuw tabblad) in de vorm van een knop. */
+.km-bmw-knoppen a.btn{text-decoration:none}
+/* Het koppelvenster van de BMW: de stappen als genummerde lijst in de
+   bijregelmaat, de code van BMW groot (als een pincodeveld: mono), en het
+   script voor de doorgeefroute als codeblok dat zelf scrolt. */
+.km-bmw-tekst,.km-bmw-stappen{margin:0;font-size:var(--fs-klein);color:var(--text-muted);line-height:1.5}
+.km-bmw-stappen{padding-left:20px}
+.km-bmw-stappen li+li{margin-top:4px}
+.km-bmw-tekst b,.km-bmw-stappen b{color:var(--text);font-weight:600}
+.km-bmw-stappen a{color:var(--accent)}
+.km-bmw-code{font-family:var(--font-mono);font-size:var(--fs-cijfer);font-weight:600;letter-spacing:.12em;
+  text-align:center;color:var(--text);padding:var(--sp-3) 0;background:var(--surface2);border-radius:var(--radius-md)}
+.km-bmw-script{margin:0;padding:10px 12px;max-height:180px;overflow:auto;white-space:pre;
+  font-family:var(--font-mono);font-size:var(--fs-micro);line-height:1.5;color:var(--text);
+  background:var(--surface2);border-radius:var(--radius-md)}
 @media (max-width:768px){
   /* De brede knop gaat uit (de ronde + doet hetzelfde); het ⋯ staat vast
      rechtsboven, de periode blijft in de balk, zoals bij Uren. */
@@ -2477,7 +2497,7 @@ button.uren-mpiv-row:active{background:var(--surface2)}
   #mod-kilometers .uren-content{padding:var(--sp-3) var(--sp-3) 96px}
   #mod-kilometers .uren-kpis{padding:10px 12px 0}
   .km-gps-stand{max-width:none}
-  .km-gps-knoppen .btn{flex:1 1 auto;min-height:var(--tap)}
+  .km-gps-knoppen .btn,.km-bmw-knoppen .btn{flex:1 1 auto;min-height:var(--tap)}
 }
 .fis-terug.km-meer-knop{margin:0;align-self:flex-start}
 
@@ -9863,7 +9883,7 @@ body.aic-open .aic-kop .sp-k { animation: sp-twinkel calc(var(--duur) * 3) var(-
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v3.11</span>
+        <span class="app-versie" title="Appversie">v3.12</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -11234,6 +11254,26 @@ body.aic-open .aic-kop .sp-k { animation: sp-twinkel calc(var(--duur) * 3) var(-
       <div class="modal-footer-right">
         <button class="btn btn-sm modal-annuleer" data-action="kmTariefSluit">Annuleren</button>
         <button class="btn btn-sm btn-primary" data-action="kmTariefOpslaan">Opslaan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Kilometers: je BMW koppelen (2026-11-03) ──
+     Eén venster met stappen (kmBmwToon): client ID, zo nodig de
+     doorgeefroute, de code die je bij BMW bevestigt, en daarna de stand van
+     de koppeling op dit apparaat. -->
+<div class="modal-bg" id="kmBmwModal" onclick="if(event.target===this)kmBmwSluit()">
+  <div class="modal" style="max-width:640px;padding:20px 22px">
+    <h3 id="kmBmwTitel" style="font-size:18px;font-weight:700;margin:0 0 16px">Je BMW koppelen</h3>
+    <div class="uren-form" id="kmBmwInhoud"></div>
+    <div class="modal-footer" style="margin-top:20px">
+      <div class="modal-footer-left">
+        <button class="btn btn-sm btn-danger" id="kmBmwOntkoppel" data-action="kmBmwOntkoppel" style="display:none">Ontkoppelen</button>
+      </div>
+      <div class="modal-footer-right">
+        <button class="btn btn-sm modal-annuleer" data-action="kmBmwSluit">Sluiten</button>
+        <button class="btn btn-sm btn-primary" id="kmBmwVerder" data-action="kmBmwVerder">Koppelen</button>
       </div>
     </div>
   </div>
@@ -12764,8 +12804,10 @@ let contractState={contracten:[],opruimen:[]};
 let fiscaalState={gegevens:{},dividenden:[],leningen:[]};
 /* Kilometers (2026-11-02): ritten met je eigen auto, bekende ritten, een
    eigen tarief per jaar en welke maanden de BV al uitbetaalde -- zie
-   MODULE: KILOMETERS. */
-let kilometerState={ritten:[],vast:[],tarieven:{},uitbetaald:{}};
+   MODULE: KILOMETERS. Sinds 2026-11-03 ook de stukken die je privé noemde
+   (prive) en de koppeling met je BMW (bmw: client ID, doorgeefroute, auto,
+   gegevensset; de tokens staan alleen op het apparaat). */
+let kilometerState={ritten:[],vast:[],tarieven:{},uitbetaald:{},prive:[],bmw:{}};
 let urenView='reg';              /* reg | klant | week | maand */
 let urenRegScope='week';         /* week | month — periodebreedte van de registratie-tab */
 let urenOffset={week:0,month:0,year:0};
@@ -12941,6 +12983,7 @@ function stateOmvang(st){
   ((st.fiscaal||{}).leningen||[]).forEach(l=>{n+=((l&&l.allonges)||[]).length;});
   n+=((st.kilometers||{}).ritten||[]).length;
   n+=((st.kilometers||{}).vast||[]).length;
+  n+=((st.kilometers||{}).prive||[]).length;
   n+=((st.tasks||{}).clients||[]).length;
   Object.values((st.tasks||{}).projects||{}).forEach(p=>{
     (p&&p.columns||[]).forEach(c=>{n+=(c.items||[]).length;});
@@ -13207,11 +13250,13 @@ function hydrateerStateIntern(){
   if(fiscaalState.gegevens.handtekening&&!fisHandtekening(fiscaalState.gegevens))delete fiscaalState.gegevens.handtekening;
   /* Kilometers (2026-11-02): ritten, bekende ritten, tarief per jaar en
      de uitbetaalde maanden. */
-  kilometerState=rawState.kilometers||{ritten:[],vast:[],tarieven:{},uitbetaald:{}};
+  kilometerState=rawState.kilometers||{ritten:[],vast:[],tarieven:{},uitbetaald:{},prive:[],bmw:{}};
   if(!Array.isArray(kilometerState.ritten))kilometerState.ritten=[];
   if(!Array.isArray(kilometerState.vast))kilometerState.vast=[];
   if(!kilometerState.tarieven||typeof kilometerState.tarieven!=='object')kilometerState.tarieven={};
   if(!kilometerState.uitbetaald||typeof kilometerState.uitbetaald!=='object')kilometerState.uitbetaald={};
+  if(!Array.isArray(kilometerState.prive))kilometerState.prive=[];
+  if(!kilometerState.bmw||typeof kilometerState.bmw!=='object'||Array.isArray(kilometerState.bmw))kilometerState.bmw={};
   if(!rawState.settings)rawState.settings={};
   /* Restant van de afgeschafte pincode: staat de vlag er nog maar is er
      geen versleuteld blok meer, dan valt er niets te ontgrendelen. Weg
@@ -19272,12 +19317,16 @@ function instGroepFacturen(){
     ]));
 }
 function instGroepWerk(){
-  return instGroep('werk','','Uren en opdrachten','',
+  const bmw=kmBmwGekoppeld();
+  return instGroep('werk','','Uren, kilometers en opdrachten','',
     instKaart([
       instRij({doe:'instDoe',arg:'vrijeDagen',label:'Vrije dagen en feestdagen',
         hint:'Telt mee in het vooruitzicht van je opdrachten'}),
       instRij({doe:'instDoe',arg:'urenSjablonen',label:'Uren-sjablonen en herhaling',
-        hint:'Vaste regels die je met één klik invult'})
+        hint:'Vaste regels die je met één klik invult'}),
+      instRij({doe:'instDoe',arg:'kmBmw',label:'Ritten uit je BMW',
+        hint:bmw?'De laatste rit ophalen in Kilometers; de koppeling geldt per apparaat':'Kilometers en kilometerstand ophalen na een rit',
+        waarde:bmw?'Gekoppeld':'',toon:'aan'})
     ]));
 }
 function instGroepAccount(){
@@ -19330,6 +19379,7 @@ const INST_DOEN={
   klantNieuw:()=>openNewClientModal(),
   vrijeDagen:()=>opdVrijOpen(),
   urenSjablonen:()=>openUrenTemplatesModal(),
+  kmBmw:()=>kmBmwOpen(),
   externeTools:()=>extToolsBewerk(),
   sneltoetsen:()=>openShortcutsOverlay(),
   herladen:()=>location.reload(),
@@ -20132,6 +20182,12 @@ function voegStateSamen(oud,nu){
      JSON.parse(JSON.stringify(((oud.kilometers||{}).vast||[]).filter(x=>x&&x.id&&!ids.has(x.id)))));}
   uit.kilometers.tarieven={...((oud.kilometers||{}).tarieven||{}),...((nu.kilometers||{}).tarieven||{})};
   uit.kilometers.uitbetaald={...((oud.kilometers||{}).uitbetaald||{}),...((nu.kilometers||{}).uitbetaald||{})};
+  /* Privéstukken aanvullen op id, zonder te tellen (zoals de bekende
+     ritten); de BMW-koppeling van de nieuwe kant, aangevuld met de oude. */
+  {const ids=new Set(((nu.kilometers||{}).prive||[]).map(x=>x&&x.id));
+   uit.kilometers.prive=((nu.kilometers||{}).prive||[]).concat(
+     JSON.parse(JSON.stringify(((oud.kilometers||{}).prive||[]).filter(x=>x&&x.id&&!ids.has(x.id)))));}
+  uit.kilometers.bmw={...((oud.kilometers||{}).bmw||{}),...((nu.kilometers||{}).bmw||{})};
   uit.tasks={...(uit.tasks||{}),
     clients:vulAan((oud.tasks||{}).clients,(nu.tasks||{}).clients,'klanten')};
   return {state:uit,rapport};
@@ -43933,15 +43989,20 @@ Object.assign(APP_ACTIONS,{
    ───────────────────────────────────────────────────
      ═══ STATE ═══  kilometerState.ritten[] en .vast[] (rawState.kilometers),
                     .tarieven {jaar: € per km; ontbreekt = het maximum van
-                    dat jaar}, .uitbetaald {'JJJJ-MM': datum}.
+                    dat jaar}, .uitbetaald {'JJJJ-MM': datum}, .prive[]
+                    (stukken van de teller die je privé noemde), .bmw
+                    {clientId, relay, vin, containerId}.
                     kmWeergave, kmMaand, kmJaar: per sessie.
                     Een lopende gps-rit (kmGps) staat alleen op dit apparaat
-                    (LS_KM_GPS), nooit in Drive.
+                    (LS_KM_GPS), nooit in Drive. Net zo de BMW-tokens en een
+                    opgehaalde rit die nog op je wacht (kmBmw, LS_KM_BMW) en
+                    de plekken die de app leerde (LS_KM_PLEKKEN).
      ═══ LOGIC ═══  kmMaxTarief, kmTarief, kmRitKm, kmGpsVerwerk, kmMaandData,
-                    kmJaarData, kmExportData -- zuiver, getest in test.html.
+                    kmJaarData, kmExportData, kmKeten, kmGaten, kmHerken,
+                    kmBmwWaarden, kmBmwRitUit -- zuiver, getest in test.html.
      ═══ VIEW  ═══  renderKilometersModule → kmRittenHtml / kmOverzichtHtml;
                     kmRitOpen / kmRitOpslaan (venster), kmVastOpen (een
-                    bekende rit), kmTariefOpen.
+                    bekende rit), kmTariefOpen, kmBmwOpen (koppelen).
 
    Waarvoor. De ritten met je privéauto waarvoor de BV je per kilometer
    betaalt. Tot het maximum is dat onbelast (een gerichte vrijstelling):
@@ -43975,6 +44036,52 @@ const LS_KM_GPS='herling_km_gps';
    toch kilometers op. Sneller dan 70 m/s (250 km/u) is een sprong. Een
    minuut zonder punt is een gat: dat stuk telt als rechte lijn. */
 const KM_GPS_NAUWKEURIG=50, KM_GPS_RUIS=10, KM_GPS_MAX_MS=70, KM_GPS_GAT=60000;
+/* Een verschil van 1 km in de kilometerstand is afronding van de teller;
+   vanaf 2 km is het een gat. Een plek herkent de app binnen 250 m. */
+const KM_GAT_MIN=2, KM_PLEK_STRAAL=250;
+const LS_KM_BMW='herling_km_bmw', LS_KM_PLEKKEN='herling_km_plekken';
+/* BMW CarData (de officiële weg voor klanten, sinds 2025). Inloggen gaat met
+   een device code en PKCE op customer.bmwgroup.com; de gegevens komen van
+   api-cardata.bmwgroup.com. Die laatste mag een webapp rechtstreeks
+   aanroepen, de inlogserver niet (getest 2026-11-03: alleen het eigen
+   portaal van BMW krijgt het antwoord te zien). Daarom kan het inloggen via
+   een doorgeefroute: een Google Apps Script in je eigen account
+   (KM_BMW_SCRIPT). */
+const KM_BMW_AUTH='https://customer.bmwgroup.com/gcdm/oauth/';
+const KM_BMW_API='https://api-cardata.bmwgroup.com';
+const KM_BMW_SCOPE='authenticate_user openid cardata:api:read';
+const KM_BMW_CONTAINER='Herling Kilometers';
+const KM_BMW_SLEUTEL={
+  stand:'vehicle.vehicle.travelledDistance',
+  ritEind:'vehicle.trip.segment.end.time',
+  ritKm:'vehicle.trip.segment.end.travelledDistance',
+  lat:'vehicle.cabin.infotainment.navigation.currentLocation.latitude',
+  lon:'vehicle.cabin.infotainment.navigation.currentLocation.longitude',
+  rijdt:'vehicle.isMoving'
+};
+/* BMW staat 50 aanroepen per dag toe. Vanzelf ophalen (als je Kilometers
+   opent) doet de app hooguit eens per 10 minuten en tot 30 keer per dag,
+   zodat er altijd ruimte blijft om zelf op te halen. */
+const KM_BMW_PER_DAG=50, KM_BMW_AUTO_MAX=30, KM_BMW_AUTO_MS=10*60000;
+const KM_BMW_RELAY_RE=/^https:\/\/script\.google\.com\/(a\/macros\/[^/]+|macros)\/s\/[\w-]+\/exec$/;
+const KM_BMW_SCRIPT=[
+  '// Herling Analytics: doorgeefroute voor het inloggen bij BMW CarData.',
+  '// Geeft alleen het inloggen en verversen door; je ritten gaan hier niet langs.',
+  'function doPost(e) {',
+  '  var p = (e && e.parameter) || {};',
+  "  var pad = p.pad === 'device/code' || p.pad === 'token' ? p.pad : '';",
+  "  if (!pad) return antwoord({ status: 400, body: '{\"error\":\"pad\"}' });",
+  '  var velden = {};',
+  "  Object.keys(p).forEach(function (k) { if (k !== 'pad') velden[k] = p[k]; });",
+  "  var r = UrlFetchApp.fetch('https://customer.bmwgroup.com/gcdm/oauth/' + pad,",
+  "    { method: 'post', payload: velden, muteHttpExceptions: true });",
+  '  return antwoord({ status: r.getResponseCode(), body: r.getContentText() });',
+  '}',
+  'function antwoord(o) {',
+  '  return ContentService.createTextOutput(JSON.stringify(o))',
+  '    .setMimeType(ContentService.MimeType.JSON);',
+  '}'
+].join('\n');
 const KM_IC={
   vastleggen:'<path d="M3 9.5 4.3 5.9A1.3 1.3 0 0 1 5.5 5h5a1.3 1.3 0 0 1 1.2.9L13 9.5"/><rect x="2" y="9.5" width="12" height="3" rx="1"/><line x1="4" y1="12.5" x2="4" y2="14"/><line x1="12" y1="12.5" x2="12" y2="14"/>',
   ritten:'<circle cx="4" cy="3.8" r="1.6"/><circle cx="12" cy="12.2" r="1.6"/><path d="M5.6 3.8H10a2.2 2.2 0 0 1 0 4.4H6a2.2 2.2 0 0 0 0 4.4h4.4"/>',
@@ -43989,6 +44096,9 @@ let kmForm=null, kmVastForm=null;
 /* De lopende gps-rit. Bij het laden staat hij er nog als de app tijdens een
    rit dicht ging; meten begint dan pas weer na een klik (Verder meten). */
 let kmGps=kmGpsLees(), kmGpsWatch=null, kmGpsSlot=null, kmGpsTik=null, kmGpsMelding='';
+/* De koppeling met je BMW op dit apparaat: tokens, de laatste keer ophalen,
+   een opgehaalde rit die op je wacht. kmBmwKoppel is het koppelvenster. */
+let kmBmw=kmBmwLees(), kmBmwBezig=false, kmBmwTokenBezig=null, kmBmwKoppel=null;
 
 /* ── Rekenen ── */
 function kmMaxTarief(jaar){
@@ -44039,7 +44149,14 @@ function kmSom(lijst){return kmRond(lijst.reduce((s,r)=>s+(Number(r.km)||0),0));
 function kmMaandData(maand){
   const ritten=kmRittenIn(maand);
   const km=kmSom(ritten), tarief=kmTarief(maand.slice(0,4));
-  return {maand,ritten,km,tarief,bedrag:kmEuro(km,tarief),uitbetaald:(kilometerState.uitbetaald||{})[maand]||null};
+  /* Gaten in de kilometerstand tellen niet mee, maar horen bij de maand:
+     voor je declareert zie je of er iets vergeten is. */
+  return {maand,ritten,km,tarief,bedrag:kmEuro(km,tarief),uitbetaald:(kilometerState.uitbetaald||{})[maand]||null,
+    gaten:kmGatenIn(maand)};
+}
+function kmGatenTekst(gaten){
+  if(!gaten||!gaten.length)return '';
+  return gaten.length+' '+(gaten.length===1?'gat':'gaten')+' van '+kmFmt(gaten.reduce((s,g)=>s+g.km,0))+' km';
 }
 function kmJaarData(jaar){
   const maanden=[];
@@ -44276,6 +44393,777 @@ function kmGpsHtml(){
     '<div class="km-gps-knoppen">'+knoppen+'</div></div>';
 }
 
+/* ── Kilometerstand: de keten en de gaten (2026-11-03) ──
+   Elke rit met een begin- en eindstand en elk stuk dat je privé noemde is
+   een stuk van de teller. Achter elkaar gelegd horen ze aan te sluiten; wat
+   ertussen ontbreekt is een gat: kilometers die je reed maar niet vastlegde.
+   Bij een privéauto mag dat (privé hoeft niet in de lijst), maar je ziet
+   het, zodat een vergeten zakelijke rit niet stil wegvalt. Een gat wordt
+   een rit of privé, en is dan weg. Ritten zonder stand doen niet mee; die in
+   de dagen van een gat noemt de app erbij, want misschien zit het gat
+   daarin. */
+function kmKeten(st){
+  st=st||kilometerState;
+  const delen=[];
+  (st.ritten||[]).forEach(r=>{
+    if(r&&r.standBegin!=null&&r.standEind!=null&&r.standEind>r.standBegin)
+      delen.push({soort:'rit',id:r.id,b:r.standBegin,e:r.standEind,datum:r.datum,datumVan:r.datum,van:r.van||'',naar:r.naar||''});
+  });
+  (st.prive||[]).forEach(p=>{
+    if(p&&p.standBegin!=null&&p.standEind!=null&&p.standEind>p.standBegin)
+      delen.push({soort:'prive',id:p.id,b:p.standBegin,e:p.standEind,datum:p.datum,datumVan:p.datumVan||p.datum});
+  });
+  return delen.sort((a,b)=>a.b-b.b||a.e-b.e);
+}
+function kmGaten(st){
+  st=st||kilometerState;
+  const gaten=[];
+  let vorig=null;
+  kmKeten(st).forEach(d=>{
+    if(vorig&&d.b-vorig.e>=KM_GAT_MIN){
+      const a=String(vorig.datum||''), z=String(d.datumVan||d.datum||'');
+      const datumVan=a<=z?a:z, datumTot=a<=z?z:a;
+      const los=(st.ritten||[]).filter(r=>r&&(r.standBegin==null||r.standEind==null)&&r.datum>=datumVan&&r.datum<=datumTot);
+      gaten.push({id:'g'+vorig.e+'-'+d.b,b:vorig.e,e:d.b,km:d.b-vorig.e,datumVan,datumTot,voor:vorig,na:d,los:los.length,losKm:kmSom(los)});
+    }
+    if(!vorig||d.e>vorig.e)vorig=d;
+  });
+  return gaten;
+}
+/* Een gat hoort bij elke maand die het raakt: het kan je declaratie van
+   die maand schelen. */
+function kmGatenIn(maand,st){
+  return kmGaten(st).filter(g=>kmMaandVan(g.datumVan)<=maand&&kmMaandVan(g.datumTot)>=maand);
+}
+function kmPriveIn(maand,st){
+  return ((st||kilometerState).prive||[]).filter(p=>p&&kmMaandVan(p.datum)===maand);
+}
+
+/* ── Herkennen ──
+   Een opgehaalde rit (of een gat) naast wat je eerder reed leggen: de
+   bekende ritten, heen en terug, en de ritten die je al vastlegde. Wat
+   telt: de afstand (binnen 8%, minstens 1,5 km), of hij vertrok waar je
+   vorige rit eindigde, en of hij eindigde op een plek die dit apparaat kent
+   (of waar je volgende rit begon). Een andere plek dan verwacht telt tegen.
+   Het resultaat vult het venster; jij kijkt het na. */
+function kmNorm(s){return String(s||'').trim().toLowerCase().replace(/\s+/g,' ');}
+function kmHerken(o,st,plekken){
+  st=st||kilometerState;
+  const km=Number(o.km)||0;
+  const vanKeten=o.vorige&&o.vorige.soort==='rit'?o.vorige.naar||'':'';
+  const naarKeten=o.volgende&&o.volgende.soort==='rit'?o.volgende.van||'':'';
+  const plek=o.positie?kmPlekBij(o.positie,plekken||[]):null;
+  const kand=[];
+  (st.vast||[]).forEach(v=>{
+    const vkm=Number(v&&v.km)||0;
+    if(!(vkm>0)||!v.van||!v.naar)return;
+    const basis={vastId:v.id,clientId:v.clientId||null,projectId:v.projectId||null,doel:v.doel||'',naam:v.naam||v.naar,bron:'vast'};
+    kand.push({...basis,van:v.van,naar:v.naar,km:vkm,retour:false});
+    kand.push({...basis,van:v.naar,naar:v.van,km:vkm,retour:false,terug:true});
+    if(o.retour)kand.push({...basis,van:v.van,naar:v.naar,km:vkm*2,retour:true});
+  });
+  const gezien=new Set();
+  (st.ritten||[]).slice().sort((a,b)=>String(b.datum).localeCompare(String(a.datum))||(b.createdAt||0)-(a.createdAt||0)).forEach(r=>{
+    const rkm=Number(r&&r.km)||0;
+    if(!(rkm>0)||!r.van||!r.naar)return;
+    const basis={clientId:r.clientId||null,projectId:r.projectId||null,doel:r.doel||'',bron:'rit'};
+    const sleutel=kmNorm(r.van)+'|'+kmNorm(r.naar);
+    if(!gezien.has(sleutel)){gezien.add(sleutel);kand.push({...basis,van:r.van,naar:r.naar,km:r.retour?rkm/2:rkm,retour:false});}
+    if(o.retour&&r.retour&&!gezien.has(sleutel+'|r')){gezien.add(sleutel+'|r');kand.push({...basis,van:r.van,naar:r.naar,km:rkm,retour:true});}
+  });
+  let beste=null;
+  kand.forEach(k=>{
+    const tol=Math.max(1.5,k.km*0.08), af=Math.abs(k.km-km);
+    /* Heen en terug eindigt waar hij begon. */
+    const eind=k.retour?k.van:k.naar;
+    const vanKlopt=!!vanKeten&&kmNorm(k.van)===kmNorm(vanKeten);
+    const plekKlopt=!!plek&&kmNorm(eind)===kmNorm(plek.tekst);
+    const naarKlopt=!!naarKeten&&kmNorm(eind)===kmNorm(naarKeten);
+    if(af>(plekKlopt||naarKlopt?3*tol:tol))return;
+    let score=Math.max(0,1-af/(2*tol));
+    if(vanKeten)score+=vanKlopt?1.5:-1;
+    if(plek)score+=plekKlopt?2:-1;
+    if(naarKeten)score+=naarKlopt?1.5:-1;
+    if(k.bron==='vast')score+=0.2;
+    if(score<=0.3)return;
+    if(!beste||score>beste.score)beste={...k,score,af,tol,vanKlopt,plekKlopt,naarKlopt};
+  });
+  const redenen=[];
+  if(beste){
+    redenen.push(beste.af<=beste.tol?'zelfde afstand':'de afstand wijkt af');
+    if(beste.vanKlopt)redenen.push('vertrokken waar je vorige rit eindigde');
+    if(beste.plekKlopt)redenen.push('geparkeerd bij '+plek.tekst);
+    if(beste.naarKlopt)redenen.push('je volgende rit begon daar');
+    return {van:beste.van,naar:beste.naar,retour:!!beste.retour,vastId:beste.vastId||null,clientId:beste.clientId,
+      projectId:beste.projectId,doel:beste.doel,naam:beste.bron==='vast'?beste.naam+(beste.terug?' (terug)':''):'',
+      zeker:beste.vanKlopt||beste.plekKlopt||beste.naarKlopt?'hoog':'afstand',redenen};
+  }
+  if(vanKeten)redenen.push('vertrokken waar je vorige rit eindigde');
+  if(plek)redenen.push('geparkeerd bij '+plek.tekst);
+  else if(naarKeten)redenen.push('je volgende rit begon daar');
+  return {van:vanKeten,naar:plek?plek.tekst:naarKeten,retour:false,vastId:null,clientId:null,projectId:null,doel:'',naam:'',
+    zeker:redenen.length?'plek':'geen',redenen};
+}
+function kmHerkenTekst(h){
+  if(!h||h.zeker==='geen')return '';
+  const waarom=h.redenen.join(', ');
+  if(h.naam)return 'Herkend als bekende rit '+h.naam+': '+waarom+'.'+(h.zeker==='afstand'?' Alleen de afstand klopt; kijk van en naar na.':'');
+  if(h.zeker==='plek')return 'Ingevuld uit de keten: '+waarom+'.';
+  return 'Lijkt op een eerdere rit: '+waarom+'.'+(h.zeker==='afstand'?' Alleen de afstand klopt; kijk van en naar na.':'');
+}
+
+/* ── Plekken op dit apparaat ──
+   Waar de auto stond als je een rit uit je BMW vastlegde, met wat je bij
+   Naar typte. Zo herkent de app de volgende keer "Kantoor Klant Noord" aan
+   de plek. Alleen op dit apparaat (LS_KM_PLEKKEN), nooit in Drive, en te
+   wissen in het koppelvenster. Een nieuwe naam op dezelfde plek vervangt de
+   oude. */
+function kmPlekkenLees(){
+  try{
+    const v=JSON.parse(localStorage.getItem(LS_KM_PLEKKEN)||'[]');
+    return Array.isArray(v)?v.filter(p=>p&&p.tekst&&isFinite(p.lat)&&isFinite(p.lon)):[];
+  }catch(_){return [];}
+}
+function kmPlekBij(pos,lijst){
+  if(!pos||!isFinite(pos.lat)||!isFinite(pos.lon))return null;
+  let best=null;
+  (lijst||[]).forEach(p=>{
+    const d=kmAfstand(pos,p);
+    if(d<=KM_PLEK_STRAAL&&(!best||d<best.afstand))best={tekst:p.tekst,afstand:d};
+  });
+  return best;
+}
+function kmPlekLeer(tekst,pos){
+  tekst=String(tekst||'').trim();
+  if(!tekst||!pos||!isFinite(pos.lat)||!isFinite(pos.lon))return;
+  const r5=n=>Math.round(n*1e5)/1e5;
+  let lijst=kmPlekkenLees();
+  let zelfde=lijst.find(p=>kmNorm(p.tekst)===kmNorm(tekst));
+  /* Ligt dezelfde naam ver weg, dan is het een andere plek geworden. */
+  if(zelfde&&kmAfstand(zelfde,pos)>KM_PLEK_STRAAL*4){lijst=lijst.filter(p=>p!==zelfde);zelfde=null;}
+  lijst=lijst.filter(p=>p===zelfde||kmAfstand(p,pos)>KM_PLEK_STRAAL/2);
+  if(zelfde){
+    const n=Math.min(zelfde.n||1,9);
+    zelfde.lat=r5((zelfde.lat*n+pos.lat)/(n+1));zelfde.lon=r5((zelfde.lon*n+pos.lon)/(n+1));
+    zelfde.n=n+1;zelfde.t=Date.now();
+  }else lijst.push({tekst,lat:r5(pos.lat),lon:r5(pos.lon),n:1,t:Date.now()});
+  lijst.sort((a,b)=>(b.t||0)-(a.t||0));
+  try{localStorage.setItem(LS_KM_PLEKKEN,JSON.stringify(lijst.slice(0,200)));}catch(_){}
+}
+
+/* ── BMW (2026-11-03) ──
+   Na een rit haal je de laatste rit op: de afstand en het eindtijdstip die
+   de auto zelf doorgeeft, de kilometerstand en waar hij nu staat. BMW kent
+   geen rittenlijst, alleen de laatste rit; mis je er een, dan zie je dat
+   als gat in de kilometerstand.
+   - Koppelen gaat per apparaat (device code + PKCE). De tokens staan alleen
+     hier (LS_KM_BMW); de client ID, de doorgeefroute, de auto en de
+     gegevensset staan in Drive (kilometerState.bmw), zodat een tweede
+     apparaat alleen nog de code hoeft te bevestigen.
+   - Een opgehaalde rit wacht op jou (kmBmw.wacht, ook alleen hier, want er
+     zit een positie in): zakelijk, privé of overslaan. */
+function kmBmwLees(){
+  try{const v=JSON.parse(localStorage.getItem(LS_KM_BMW)||'null');return v&&typeof v==='object'?v:{};}catch(_){return {};}
+}
+function kmBmwBewaar(){try{localStorage.setItem(LS_KM_BMW,JSON.stringify(kmBmw||{}));}catch(_){}}
+function kmBmwInst(){const b=kilometerState.bmw;return b&&typeof b==='object'?b:{};}
+function kmBmwInstZet(o){kilometerState.bmw={...kmBmwInst(),...o};scheduleSave();}
+function kmBmwGekoppeld(){return !!(kmBmw.refresh&&(kmBmw.refreshTot||0)>Date.now()&&kmBmwInst().clientId);}
+function kmBmwVergeet(){
+  ['access','accessTot','refresh','refreshTot','koppelTijd','wacht'].forEach(k=>{delete kmBmw[k];});
+  kmBmwBewaar();
+}
+/* BMW telt per dag (UTC); dit apparaat telt mee om de grens niet te raken. */
+function kmBmwTeller(){
+  const dag=new Date().toISOString().slice(0,10), t=kmBmw.teller; /* utc-bedoeld: BMW telt per UTC-dag */
+  return t&&t.dag===dag?t:{dag,n:0};
+}
+function kmBmwTel(){const t=kmBmwTeller();kmBmw.teller={dag:t.dag,n:t.n+1};kmBmwBewaar();}
+function kmBmwFout(soort,extra){const e=new Error(soort);e.soort=soort;return Object.assign(e,extra||{});}
+function kmBmwFoutTekst(e){
+  const s=e&&e.soort;
+  return s==='cors'?'BMW laat de app niet rechtstreeks inloggen. Zet de doorgeefroute op; dat is eenmalig.'
+    :s==='relay'?'De doorgeefroute antwoordt niet zoals verwacht. Kijk de URL na, en of de web-app voor iedereen openstaat.'
+    :s==='verlopen'?'De koppeling met BMW is verlopen. Koppel opnieuw; haal je minstens eens per twee weken op, dan blijft hij staan.'
+    :s==='limiet'?'BMW staat '+KM_BMW_PER_DAG+' keer ophalen per dag toe. Morgen kan het weer.'
+    :s==='toegang'?'BMW weigert de gegevens. Staat CarData API aan bij je client, en ben je de hoofdgebruiker van de auto?'
+    :s==='geen-auto'?'Er staat geen auto op je BMW-account.'
+    :s==='container'?'BMW maakte de gegevensset niet aan. Probeer het later nog eens.'
+    :s==='net'?'Geen verbinding met BMW.'
+    :'BMW gaf een fout'+(e&&e.status?' ('+e.status+')':'')+'.';
+}
+function kmTijdTekst(ms){
+  const d=new Date(ms), dag=dateStr(d);
+  const tijd=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  return (dag===opdVandaag()?'vandaag':kmDatumKort(dag))+' '+tijd;
+}
+/* Inloggen: rechtstreeks, of via je doorgeefroute als die er staat. Die
+   krijgt dezelfde velden plus het pad, en geeft {status, body} terug. */
+async function kmBmwAuth(pad,velden){
+  const relay=String(kmBmwInst().relay||'').trim();
+  const body=new URLSearchParams(velden);
+  if(relay){
+    body.set('pad',pad);
+    let o=null;
+    try{const r=await fetch(relay,{method:'POST',body});o=await r.json();}catch(_){throw kmBmwFout('relay');}
+    if(!o||typeof o.status!=='number')throw kmBmwFout('relay');
+    let data={};
+    try{data=JSON.parse(o.body||'{}')||{};}catch(_){}
+    return {status:o.status,data};
+  }
+  let r;
+  /* Een geweigerd antwoord (CORS) en geen netwerk zien er in een browser
+     hetzelfde uit; online betekent dus: BMW laat ons niet binnen. */
+  try{r=await fetch(KM_BMW_AUTH+pad,{method:'POST',body});}
+  catch(_){throw kmBmwFout(navigator.onLine===false?'net':'cors');}
+  let data={};
+  try{data=await r.json()||{};}catch(_){}
+  return {status:r.status,data};
+}
+function kmB64url(bytes){
+  let s='';
+  bytes.forEach(b=>{s+=String.fromCharCode(b);});
+  return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+async function kmPkce(){
+  const verifier=kmB64url(crypto.getRandomValues(new Uint8Array(32)));
+  const hash=new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(verifier)));
+  return {verifier,challenge:kmB64url(hash)};
+}
+function kmBmwTokensZet(d){
+  const nu=Date.now();
+  kmBmw.access=d.access_token;
+  kmBmw.accessTot=nu+Math.max(60,Number(d.expires_in)||3600)*1000;
+  /* Elke keer verversen geeft een nieuwe, weer twee weken geldig. */
+  if(d.refresh_token){kmBmw.refresh=d.refresh_token;kmBmw.refreshTot=nu+14*86400000;}
+  kmBmwBewaar();
+}
+async function kmBmwToken(){
+  if(kmBmw.access&&(kmBmw.accessTot||0)>Date.now()+60000)return kmBmw.access;
+  if(!kmBmw.refresh||(kmBmw.refreshTot||0)<=Date.now())throw kmBmwFout('verlopen');
+  if(!kmBmwTokenBezig)kmBmwTokenBezig=(async()=>{
+    const {status,data}=await kmBmwAuth('token',{grant_type:'refresh_token',refresh_token:kmBmw.refresh,client_id:kmBmwInst().clientId});
+    if(data&&data.access_token){kmBmwTokensZet(data);return data.access_token;}
+    if(status===401||['invalid_grant','invalid_token','expired_token','invalid_client'].includes(data&&data.error)){
+      kmBmwVergeet();
+      throw kmBmwFout('verlopen');
+    }
+    throw kmBmwFout('bmw',{status});
+  })().finally(()=>{kmBmwTokenBezig=null;});
+  return kmBmwTokenBezig;
+}
+async function kmBmwApi(pad,body){
+  const token=await kmBmwToken();
+  kmBmwTel();
+  let r;
+  try{
+    r=await fetch(KM_BMW_API+pad,{method:body?'POST':'GET',
+      headers:Object.assign({Authorization:'Bearer '+token,'x-version':'v1',Accept:'application/json'},body?{'Content-Type':'application/json'}:{}),
+      body:body?JSON.stringify(body):undefined});
+  }catch(_){throw kmBmwFout('net');}
+  let data=null;
+  try{data=await r.json();}catch(_){}
+  if(r.ok)return data;
+  const id=String(data&&data.exveErrorId||'');
+  throw kmBmwFout(r.status===429||/429/.test(id)?'limiet':r.status===401||r.status===403?'toegang':r.status===404?'weg':'bmw',{status:r.status});
+}
+/* De auto (de VIN waarvan je hoofdgebruiker bent) en een gegevensset met de
+   sleutels hierboven. Allebei één keer; daarna staan ze in Drive. */
+async function kmBmwInrichten(){
+  const inst=kmBmwInst();
+  let vin=inst.vin||null, containerId=inst.containerId||null;
+  if(!vin){
+    const m=await kmBmwApi('/customers/vehicles/mappings');
+    const lijst=Array.isArray(m)?m:Array.isArray(m&&m.mappings)?m.mappings:m&&m.vin?[m]:[];
+    const auto=lijst.find(x=>x&&x.vin&&x.mappingType==='PRIMARY')||lijst.find(x=>x&&x.vin);
+    if(!auto)throw kmBmwFout('geen-auto');
+    vin=auto.vin;
+  }
+  if(!containerId){
+    const c=await kmBmwApi('/customers/containers');
+    const lijst=Array.isArray(c&&c.containers)?c.containers:Array.isArray(c)?c:[];
+    const er=lijst.find(x=>x&&x.name===KM_BMW_CONTAINER&&x.state!=='DELETED');
+    containerId=er?er.containerId:null;
+    if(!containerId){
+      const n=await kmBmwApi('/customers/containers',{name:KM_BMW_CONTAINER,purpose:'Ritten voor de kilometerregistratie',
+        technicalDescriptors:Object.values(KM_BMW_SLEUTEL)});
+      containerId=n&&n.containerId||null;
+    }
+    if(!containerId)throw kmBmwFout('container');
+  }
+  if(vin!==inst.vin||containerId!==inst.containerId)kmBmwInstZet({vin,containerId});
+}
+/* Een tijdstip van BMW: ISO, of seconden of milliseconden sinds 1970. */
+function kmBmwTijd(v){
+  if(v==null||String(v).trim()==='')return null;
+  const s=String(v).trim();
+  if(/^\d+(\.\d+)?$/.test(s)){const n=Number(s);return Math.round(n<1e12?n*1000:n);}
+  const t=Date.parse(s);
+  return isFinite(t)?t:null;
+}
+/* Het antwoord van telematicData lezen: {telematicData: {sleutel: {value,
+   unit, timestamp}}}. Afstanden in km (een m of mijl rekent hij om). */
+function kmBmwWaarden(data){
+  const t=(data&&data.telematicData)||{};
+  const e=k=>{const x=t[KM_BMW_SLEUTEL[k]];return x&&x.value!=null&&String(x.value).trim()!==''?x:null;};
+  const getal=k=>{
+    const x=e(k);
+    if(!x)return null;
+    const n=parseFloat(String(x.value).replace(',','.'));
+    if(!isFinite(n))return null;
+    const u=String(x.unit||'').toLowerCase();
+    return u==='m'?n/1000:u==='mi'||u==='miles'?n*1.609344:n;
+  };
+  const lat=getal('lat'), lon=getal('lon');
+  const rijdt=e('rijdt');
+  return {stand:getal('stand'),standTijd:kmBmwTijd(e('stand')&&e('stand').timestamp),ritKm:getal('ritKm'),
+    ritEind:kmBmwTijd(e('ritEind')&&e('ritEind').value)||kmBmwTijd(e('ritKm')&&e('ritKm').timestamp),
+    positie:lat!=null&&lon!=null&&(lat!==0||lon!==0)?{lat,lon}:null,
+    rijdt:!!rijdt&&/^(true|1)$/i.test(String(rijdt.value))};
+}
+/* Van wat de auto doorgeeft een rit maken die aansluit op de keten. De
+   eindstand is de teller nu; de beginstand is die min de afstand van de
+   rit, en valt hij binnen 1 km van waar de vorige rit eindigde, dan sluit
+   hij daar precies op aan. Zo tellen de ritten samen altijd op tot de
+   teller, ook al rondt die af op hele kilometers. */
+function kmBmwRitUit(w,st){
+  st=st||kilometerState;
+  if(w.stand==null)return {fout:'Je BMW gaf geen kilometerstand door.'};
+  if(w.rijdt)return {fout:'De auto rijdt nog. Haal de rit op als hij geparkeerd staat.'};
+  const standEind=Math.round(w.stand);
+  const eindTijd=w.ritEind||w.standTijd||null;
+  const keten=kmKeten(st);
+  const al=(st.ritten||[]).concat(st.prive||[]).some(x=>x&&eindTijd&&x.bmwEind===eindTijd)||
+    keten.some(d=>Math.abs(d.e-standEind)<=1);
+  if(al)return {al:true,eindTijd,standEind};
+  let vorige=null;
+  keten.forEach(d=>{if(d.e<=standEind+1&&(!vorige||d.e>vorige.e))vorige=d;});
+  let km=w.ritKm>0?w.ritKm:null, alleenStand=false;
+  if(km==null){
+    if(!vorige||standEind-vorige.e<KM_GAT_MIN)return {fout:'Je BMW gaf geen laatste rit door, en sinds de vorige kilometerstand is er niets bij gekomen.'};
+    km=standEind-vorige.e;alleenStand=true;
+  }
+  let standBegin=Math.round(standEind-km);
+  if(vorige&&(Math.abs(standBegin-vorige.e)<=1||standBegin<vorige.e))standBegin=vorige.e;
+  if(standBegin>=standEind)standBegin=standEind-1;
+  const gatVoor=vorige&&standBegin-vorige.e>=KM_GAT_MIN?{km:standBegin-vorige.e,b:vorige.e,e:standBegin,datum:vorige.datum}:null;
+  return {eindTijd,datum:dateStr(new Date(eindTijd||Date.now())),km:standEind-standBegin,standBegin,standEind,
+    positie:w.positie||null,vorige:vorige&&!gatVoor?{soort:vorige.soort,id:vorige.id,naar:vorige.naar||''}:null,gatVoor,alleenStand};
+}
+/* Een wachtende rit vervalt als hij al vastligt (ook op een ander apparaat). */
+function kmBmwWachtGeldig(){
+  const w=kmBmw.wacht;
+  if(!w||w.standEind==null)return null;
+  const al=(kilometerState.ritten||[]).concat(kilometerState.prive||[]).some(x=>x&&w.eindTijd&&x.bmwEind===w.eindTijd)||
+    kmKeten().some(d=>Math.abs(d.e-w.standEind)<=1);
+  if(al){kmBmw.wacht=null;kmBmwBewaar();return null;}
+  return w;
+}
+async function kmBmwHaal(o){
+  o=o||{};
+  if(!o.stil)kmSluitMenu();
+  if(kmBmwBezig)return;
+  if(!kmBmwGekoppeld()){if(!o.stil)kmBmwOpen();return;}
+  kmBmwBezig=true;
+  kmBmw.probeerTijd=Date.now();
+  if(activeModule==='kilometers')renderKilometersModule();
+  let melding='', fout=false;
+  try{
+    await kmBmwInrichten();
+    const haal=()=>{const i=kmBmwInst();
+      return kmBmwApi('/customers/vehicles/'+encodeURIComponent(i.vin)+'/telematicData?containerId='+encodeURIComponent(i.containerId));};
+    let data;
+    try{data=await haal();}
+    catch(e){
+      /* De gegevensset is weg (BMW ruimt er na een tijd een op): opnieuw. */
+      if(e.soort!=='weg')throw e;
+      kmBmwInstZet({containerId:null});
+      await kmBmwInrichten();
+      data=await haal();
+    }
+    const w=kmBmwWaarden(data);
+    kmBmw.haalTijd=Date.now();kmBmw.fout='';
+    if(w.stand!=null)kmBmw.stand=Math.round(w.stand);
+    const rit=kmBmwRitUit(w);
+    if(rit.fout){kmBmw.wacht=null;melding=rit.fout;}
+    else if(rit.al){kmBmw.wacht=null;melding='Geen nieuwe rit'+(rit.eindTijd?' sinds '+kmTijdTekst(rit.eindTijd):'')+'.';}
+    else if(o.stil&&kmBmw.overgeslagen&&kmBmw.overgeslagen===rit.eindTijd)kmBmw.wacht=null;
+    else kmBmw.wacht=rit;
+  }catch(e){
+    kmBmw.fout=kmBmwFoutTekst(e);fout=true;
+    if(e.soort==='verlopen')kmBmwVergeet();
+    melding=kmBmw.fout;
+  }finally{
+    kmBmwBezig=false;
+    kmBmwBewaar();
+    if(activeModule==='kilometers')renderKilometersModule();
+  }
+  if(melding&&!o.stil)appToast(melding,fout?{type:'error'}:{});
+}
+/* Vanzelf ophalen als je Kilometers opent of de app terug in beeld komt:
+   na het parkeren staat de rit er dan al. */
+function kmBmwAutoHaal(){
+  if(!kmBmwGekoppeld()||kmBmwBezig||document.visibilityState==='hidden')return;
+  if(Date.now()-(kmBmw.probeerTijd||0)<KM_BMW_AUTO_MS||kmBmwTeller().n>=KM_BMW_AUTO_MAX)return;
+  kmBmwHaal({stil:true});
+}
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'&&activeModule==='kilometers'&&kmWeergave==='ritten')kmBmwAutoHaal();
+});
+function kmBmwVoorstel(w){
+  const h=kmHerken({km:w.km,vorige:w.vorige,positie:w.positie},kilometerState,kmPlekkenLees());
+  const uitleg=['Uit je BMW: '+(w.eindTijd?kmTijdTekst(w.eindTijd):kmDatumKort(w.datum))+', stand '+kmFmt(w.standBegin)+' → '+kmFmt(w.standEind)+'.'];
+  const t=kmHerkenTekst(h);
+  if(t)uitleg.push(t);
+  if(w.gatVoor)uitleg.push('Daarvoor is '+kmFmt(w.gatVoor.km)+' km niet vastgelegd; dat blijft als gat in de lijst staan.');
+  return {h,voorstel:{titel:'Rit uit je BMW',datum:w.datum,van:h.van,naar:h.naar,retour:false,standBegin:w.standBegin,standEind:w.standEind,
+    clientId:h.clientId,projectId:h.projectId,doel:h.doel,vastId:h.vastId,bron:'bmw',bmwEind:w.eindTijd||null,positie:w.positie||null,uitleg}};
+}
+function kmBmwZakelijk(){
+  const w=kmBmwWachtGeldig();
+  if(w)kmRitOpen(null,{voorstel:kmBmwVoorstel(w).voorstel});
+}
+function kmPriveErbij(p,melding,terug){
+  if(!Array.isArray(kilometerState.prive))kilometerState.prive=[];
+  kilometerState.prive.push(p);
+  scheduleSave();
+  renderKilometersModule();
+  appToast(melding,{type:'success',undo:()=>{
+    kilometerState.prive=(kilometerState.prive||[]).filter(x=>x.id!==p.id);
+    if(terug)terug();
+    scheduleSave();renderKilometersModule();
+  }});
+}
+function kmBmwPrive(){
+  const w=kmBmwWachtGeldig();
+  if(!w)return;
+  kmBmw.wacht=null;kmBmwBewaar();
+  kmPriveErbij({id:uid(),datum:w.datum,standBegin:w.standBegin,standEind:w.standEind,km:w.standEind-w.standBegin,
+    bron:'bmw',bmwEind:w.eindTijd||null,createdAt:Date.now()},
+    'Privé: '+kmFmt(w.standEind-w.standBegin)+' km, telt niet mee',()=>{kmBmw.wacht=w;kmBmwBewaar();});
+}
+function kmBmwOverslaan(){
+  const w=kmBmwWachtGeldig();
+  if(!w)return;
+  kmBmw.overgeslagen=w.eindTijd||null;kmBmw.wacht=null;kmBmwBewaar();
+  renderKilometersModule();
+  appToast('Overgeslagen. Leg je daarna weer een rit vast, dan staan deze kilometers in de lijst als gat.',
+    {undo:()=>{kmBmw.wacht=w;kmBmw.overgeslagen=null;kmBmwBewaar();renderKilometersModule();}});
+}
+function kmBmwHtml(){
+  const w=kmBmwWachtGeldig();
+  if(w){
+    const {h}=kmBmwVoorstel(w);
+    const titel=h.van&&h.naar?h.van+' → '+h.naar:h.naar?'Naar '+h.naar:h.van?'Van '+h.van:'';
+    const meta=[titel?(h.zeker==='afstand'?'Lijkt op ':'')+titel:'Nog niet herkend','stand '+kmFmt(w.standBegin)+' → '+kmFmt(w.standEind)].join(' · ');
+    const knop=(actie,tekst,primair)=>'<button type="button" class="btn btn-sm'+(primair?' btn-primary':'')+'" data-action="'+actie+'">'+tekst+'</button>';
+    return '<div class="inst-kaart km-gps" data-stand="bmw">'+
+      '<div class="km-gps-kop"><span class="km-gps-stip" aria-hidden="true"></span><b>Rit uit je BMW</b><span>'+
+      escapeHtml(w.eindTijd?kmTijdTekst(w.eindTijd):kmDatumKort(w.datum))+'</span></div>'+
+      '<div class="km-gps-km">'+escapeHtml(kmFmt(w.km))+' km</div>'+
+      '<p class="km-gps-meta">'+escapeHtml(meta)+'</p>'+
+      (w.gatVoor?'<p class="fac-btw-let km-gps-gat">'+escapeHtml('Daarvoor is '+kmFmt(w.gatVoor.km)+' km niet vastgelegd'+
+        (w.gatVoor.datum?', sinds '+kmDatumKort(w.gatVoor.datum):'')+'. Na deze rit staat dat in de lijst als gat; maak er een rit van als er iets zakelijks bij zat.')+'</p>':'')+
+      (w.alleenStand?'<p class="km-gps-uitleg">Je BMW gaf geen losse rit door; dit is het verschil met de vorige kilometerstand.</p>':'')+
+      '<div class="km-gps-knoppen">'+knop('kmBmwOverslaan','Overslaan')+knop('kmBmwPrive','Privé')+knop('kmBmwZakelijk','Zakelijk vastleggen',true)+'</div></div>';
+  }
+  if(!kmBmwGekoppeld()){
+    return '<div class="inst-kaart">'+instRij({label:'Ritten uit je BMW',doe:'kmBmwOpen',
+      hint:kmBmwInst().clientId?'Niet gekoppeld op dit apparaat. Koppel opnieuw om je laatste rit op te halen.'
+        :'Koppel je auto, dan haal je na een rit de kilometers en de kilometerstand op met één tik.'})+'</div>';
+  }
+  const hint=kmBmwBezig?'Ophalen bij BMW…':kmBmw.fout?kmBmw.fout
+    :kmBmw.haalTijd?'Opgehaald '+kmTijdTekst(kmBmw.haalTijd)+(kmBmw.stand!=null?' · stand '+kmFmt(kmBmw.stand)+' km':'')
+    :'Na het parkeren: de kilometers en de stand van je auto';
+  return '<div class="inst-kaart"><div class="km-vast">'+
+    instRij({label:'Laatste rit uit je BMW',hint,doe:'kmBmwHaal',waarde:kmBmw.fout&&!kmBmwBezig?'mislukt':'',toon:'uit'})+
+    '<button type="button" class="klant-wissel-oog km-meer" data-action="kmBmwMenu" aria-haspopup="menu" aria-expanded="false" '+
+    'aria-label="Meer voor je BMW" title="Meer">'+KM_IC_MEER+'</button></div></div>';
+}
+function kmBmwMenu(knop){
+  const tot=kmBmw.refreshTot?opdFmtDatum(dateStr(new Date(kmBmw.refreshTot))):'';
+  kmMenu(knop,'<div class="uren-menu-lab">Je BMW</div>'+
+    kmMenuItem('kmBmwOpen','⚙','Koppeling',tot?'Geldig tot '+tot+'; ophalen verlengt hem':null)+
+    '<div class="uren-menu-sep"></div>'+
+    kmMenuItem('kmBmwOntkoppel','✕','Ontkoppelen','Op dit apparaat',null,true));
+}
+function kmBmwOntkoppel(){
+  kmSluitMenu();
+  kmBmwVergeet();
+  kmBmw.fout='';kmBmwBewaar();
+  if(kmBmwKoppel){kmBmwKoppel.stap='start';kmBmwKoppel.melding='';kmBmwToon();}
+  if(activeModule==='kilometers')renderKilometersModule();
+  appToast('BMW ontkoppeld op dit apparaat',{type:'success'});
+}
+
+/* ── Gaten en privé in de lijst ── */
+function kmGatMenu(id,knop){
+  const g=kmGaten().find(x=>x.id===id);
+  if(!g)return;
+  kmMenu(knop,'<div class="uren-menu-lab">'+escapeHtml(kmFmt(g.km)+' km niet vastgelegd')+'</div>'+
+    kmMenuItem('kmGatRit','+','Zakelijke rit vastleggen','Met de kilometerstand; een deel kan ook',[id])+
+    kmMenuItem('kmGatPrive','–','Privé','Telt niet mee; het gat is dan weg',[id]));
+}
+function kmGatRit(id){
+  kmSluitMenu();
+  const g=kmGaten().find(x=>x.id===id);
+  if(!g)return;
+  const h=kmHerken({km:g.km,vorige:g.voor,volgende:g.na,retour:true});
+  const uitleg=['Niet vastgelegd '+(g.datumTot!==g.datumVan?'tussen '+kmDatumKort(g.datumVan)+' en '+kmDatumKort(g.datumTot):'op '+kmDatumKort(g.datumVan))+
+    ': stand '+kmFmt(g.b)+' → '+kmFmt(g.e)+'.'];
+  const t=kmHerkenTekst(h);
+  if(t)uitleg.push(t);
+  uitleg.push('Was maar een deel zakelijk? Pas de standen aan; de rest blijft als gat staan.');
+  kmRitOpen(null,{voorstel:{titel:'Gat vastleggen als rit',datum:g.datumVan,van:h.van,naar:h.naar,retour:h.retour,
+    standBegin:g.b,standEind:g.e,clientId:h.clientId,projectId:h.projectId,doel:h.doel,vastId:h.vastId,bron:'hand',uitleg}});
+}
+function kmGatPrive(id){
+  kmSluitMenu();
+  const g=kmGaten().find(x=>x.id===id);
+  if(!g)return;
+  kmPriveErbij({id:uid(),datumVan:g.datumVan,datum:g.datumTot,standBegin:g.b,standEind:g.e,km:g.km,bron:'gat',createdAt:Date.now()},
+    kmFmt(g.km)+' km als privé gemarkeerd');
+}
+function kmPriveMenu(id,knop){
+  const p=(kilometerState.prive||[]).find(x=>x.id===id);
+  if(!p)return;
+  kmMenu(knop,'<div class="uren-menu-lab">'+escapeHtml('Privé · '+kmFmt(p.km)+' km')+'</div>'+
+    kmMenuItem('kmPriveRit','+','Toch zakelijk','Vastleggen als rit, met deze standen',[id])+
+    '<div class="uren-menu-sep"></div>'+
+    kmMenuItem('kmPriveWeg','✕','Niet meer privé','Dan staat het weer als gat',[id],true));
+}
+function kmPriveRit(id){
+  kmSluitMenu();
+  const p=(kilometerState.prive||[]).find(x=>x.id===id);
+  if(!p)return;
+  const keten=kmKeten();
+  const vorige=keten.filter(d=>d.id!==p.id&&Math.abs(d.e-p.standBegin)<=1).pop()||null;
+  const volgende=keten.find(d=>d.id!==p.id&&Math.abs(d.b-p.standEind)<=1)||null;
+  const h=kmHerken({km:p.standEind-p.standBegin,vorige,volgende,retour:p.bron==='gat'});
+  const t=kmHerkenTekst(h);
+  kmRitOpen(null,{voorstel:{titel:'Toch zakelijk',datum:p.datumVan||p.datum,van:h.van,naar:h.naar,retour:h.retour,
+    standBegin:p.standBegin,standEind:p.standEind,clientId:h.clientId,projectId:h.projectId,doel:h.doel,vastId:h.vastId,
+    bron:p.bron==='bmw'?'bmw':'hand',bmwEind:p.bmwEind||null,priveId:p.id,uitleg:['Was privé: stand '+kmFmt(p.standBegin)+' → '+kmFmt(p.standEind)+'.'].concat(t?[t]:[])}});
+}
+function kmPriveWeg(id){
+  kmSluitMenu();
+  const i=(kilometerState.prive||[]).findIndex(x=>x.id===id);
+  if(i<0)return;
+  const weg=kilometerState.prive[i];
+  kilometerState.prive.splice(i,1);
+  scheduleSave();
+  renderKilometersModule();
+  appToast('Niet meer privé; het staat weer als gat',{type:'success',undo:()=>{
+    kilometerState.prive.splice(Math.min(i,kilometerState.prive.length),0,weg);
+    scheduleSave();renderKilometersModule();
+  }});
+}
+
+/* ── Venster: je BMW koppelen ──
+   Stappen in kmBmwKoppel.stap: start (client ID) → [route: de
+   doorgeefroute opzetten, alleen als BMW de app niet binnenlaat] → code
+   (bevestigen bij BMW; de app vraagt intussen om de tokens) → klaar. */
+function kmBmwOpen(){
+  kmSluitMenu();
+  kmBmwKoppel={stap:kmBmwGekoppeld()?'klaar':'start',melding:''};
+  kmBmwToon();
+  document.getElementById('kmBmwModal').classList.add('open');
+  setTimeout(()=>document.getElementById('kmBmwClient')?.focus(),60);
+}
+function kmBmwSluit(){
+  if(kmBmwKoppel)clearTimeout(kmBmwKoppel.timer);
+  kmBmwKoppel=null;
+  document.getElementById('kmBmwModal').classList.remove('open');
+  if(activeModule==='kilometers')renderKilometersModule();
+}
+function kmBmwToon(){
+  const k=kmBmwKoppel, box=document.getElementById('kmBmwInhoud');
+  if(!k||!box)return;
+  const inst=kmBmwInst();
+  const veld=(id,label,waarde,extra)=>'<div class="uren-fld"><label for="'+id+'">'+label+'</label>'+
+    '<input type="text" class="inp" id="'+id+'" autocomplete="off" spellcheck="false" value="'+escapeHtml(waarde||'')+'"'+(extra||'')+'/></div>';
+  const melding=k.melding?'<div class="opd-reken"><p class="opd-reken-fout">'+escapeHtml(k.melding)+'</p></div>':'';
+  let html='', knop='', titel='Je BMW koppelen';
+  if(k.stap==='start'){
+    html='<ol class="km-bmw-stappen">'+
+      '<li>Log in op de MyBMW-site van BMW, kies je auto en open <b>BMW CarData</b>.</li>'+
+      '<li>Maak onder <i>API Clients</i> een <b>CarData Client</b> aan en zet <i>CarData API</i> aan.</li>'+
+      '<li>Kopieer de client ID; BMW toont hem maar één keer.</li></ol>'+
+      veld('kmBmwClient','Client ID',inst.clientId,' placeholder="Bijvoorbeeld 1a2b3c4d-…"')+
+      (inst.relay?veld('kmBmwRelay','Doorgeefroute',inst.relay,' placeholder="Leeg = rechtstreeks naar BMW"'):'')+
+      '<small class="opd-hint">Daarna toont de app een code die je bij BMW bevestigt. De koppeling geldt op dit apparaat; '+
+      'de client ID onthoudt de app voor je andere apparaten.</small>'+melding;
+    knop='Koppelen';
+  }else if(k.stap==='route'){
+    titel='Doorgeefroute opzetten';
+    html='<p class="km-bmw-tekst">BMW laat een webapp niet rechtstreeks inloggen; alleen zijn eigen site mag dat. Een klein script in je eigen '+
+      'Google-account geeft het inloggen door. Dat zet je één keer op; je ritten gaan er niet langs.</p>'+
+      '<ol class="km-bmw-stappen">'+
+      '<li>Open <a href="https://script.google.com/create" target="_blank" rel="noopener noreferrer">een nieuw Apps Script</a> en vervang de inhoud door dit script.</li>'+
+      '<li>Kies <i>Implementeren → Nieuwe implementatie → Web-app</i>. Uitvoeren als: <b>ikzelf</b>. Toegang: <b>Iedereen</b>.</li>'+
+      '<li>Geef toestemming en kopieer de URL van de web-app (die eindigt op <i>/exec</i>).</li></ol>'+
+      '<pre class="km-bmw-script" id="kmBmwScript">'+escapeHtml(KM_BMW_SCRIPT)+'</pre>'+
+      '<div class="km-bmw-knoppen"><button type="button" class="btn btn-sm" data-action="kmBmwKopieer">Script kopiëren</button></div>'+
+      veld('kmBmwRelay','URL van de web-app',inst.relay,' placeholder="https://script.google.com/macros/s/…/exec"')+melding;
+    knop='Verder';
+  }else if(k.stap==='code'){
+    const tot=new Date(k.tot);
+    html='<p class="km-bmw-tekst">Bevestig bij BMW met deze code: log in met je MyBMW-account en sta de toegang toe. '+
+      'Daarna gaat het hier vanzelf verder.</p>'+
+      '<div class="km-bmw-code">'+escapeHtml(k.code)+'</div>'+
+      '<div class="km-bmw-knoppen"><a class="btn btn-sm btn-primary" href="'+escapeHtml(k.uri)+'" target="_blank" rel="noopener noreferrer">Bevestigen bij BMW</a></div>'+
+      '<p class="km-gps-meta">Wachten op je bevestiging · de code verloopt om '+String(tot.getHours()).padStart(2,'0')+':'+
+      String(tot.getMinutes()).padStart(2,'0')+'</p>'+melding;
+  }else if(k.stap==='verlopen'){
+    html='<p class="km-bmw-tekst">De code is verlopen voordat BMW hem kreeg. Vraag een nieuwe aan.</p>'+melding;
+    knop='Nieuwe code';
+  }else if(k.stap==='bezig'||k.stap==='inrichten'){
+    html='<p class="km-gps-meta">'+(k.stap==='bezig'?'Even geduld…':'Gekoppeld. De app zoekt je auto en richt de gegevens in…')+'</p>';
+  }else{
+    titel='Je BMW';
+    const n=kmPlekkenLees().length, t=kmBmwTeller();
+    html=instKaart([
+      instRij({soort:'info',label:'Auto',waarde:inst.vin?'VIN …'+String(inst.vin).slice(-6):'nog niet bekend'}),
+      instRij({soort:'info',label:'Koppeling op dit apparaat',hint:'Elke keer ophalen verlengt hem met twee weken',
+        waarde:kmBmw.refreshTot?'tot '+opdFmtDatum(dateStr(new Date(kmBmw.refreshTot))):'',toon:'aan'}),
+      instRij({soort:'info',label:'Vandaag opgehaald',hint:'BMW staat '+KM_BMW_PER_DAG+' keer per dag toe',waarde:t.n+' keer'}),
+      instRij({soort:'info',label:'Inloggen',waarde:inst.relay?'via je doorgeefroute':'rechtstreeks'})
+    ])+(n?instKaart([instRij({doe:'kmBmwPlekkenWeg',label:'Geleerde plekken wissen',gevaar:true,
+      hint:n+' '+(n===1?'plek':'plekken')+' op dit apparaat, om ritten te herkennen'})]):'')+melding;
+    knop='Laatste rit ophalen';
+  }
+  document.getElementById('kmBmwTitel').textContent=titel;
+  box.innerHTML=html;
+  const verder=document.getElementById('kmBmwVerder');
+  verder.textContent=knop;
+  verder.style.display=knop?'':'none';
+  document.getElementById('kmBmwOntkoppel').style.display=k.stap==='klaar'&&kmBmwGekoppeld()?'':'none';
+}
+function kmBmwVerder(){
+  const k=kmBmwKoppel;
+  if(!k)return;
+  const lees=id=>String(document.getElementById(id)?.value||'').trim();
+  if(k.stap==='klaar'){kmBmwSluit();kmBmwHaal();return;}
+  if(k.stap==='start'){
+    const id=lees('kmBmwClient');
+    if(!/^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i.test(id)){
+      k.melding='Plak de client ID uit het CarData-portaal: 32 tekens met streepjes, zoals 1a2b3c4d-….';
+      kmBmwToon();document.getElementById('kmBmwClient')?.focus();return;
+    }
+    const nieuw={clientId:id};
+    if(document.getElementById('kmBmwRelay')){
+      const r=lees('kmBmwRelay');
+      if(r&&!KM_BMW_RELAY_RE.test(r)){k.melding='De doorgeefroute is de URL van je web-app; die eindigt op /exec.';kmBmwToon();return;}
+      nieuw.relay=r;
+    }
+    kmBmwInstZet(nieuw);
+    kmBmwStart();
+    return;
+  }
+  if(k.stap==='route'){
+    const r=lees('kmBmwRelay');
+    if(!KM_BMW_RELAY_RE.test(r)){k.melding='Plak de URL van de web-app; die begint met https://script.google.com en eindigt op /exec.';kmBmwToon();return;}
+    kmBmwInstZet({relay:r});
+    kmBmwStart();
+    return;
+  }
+  if(k.stap==='verlopen')kmBmwStart();
+}
+async function kmBmwStart(){
+  const k=kmBmwKoppel;
+  if(!k)return;
+  clearTimeout(k.timer);
+  k.stap='bezig';k.melding='';
+  kmBmwToon();
+  let res;
+  try{
+    const pk=await kmPkce();
+    k.verifier=pk.verifier;
+    res=await kmBmwAuth('device/code',{client_id:kmBmwInst().clientId,response_type:'device_code',scope:KM_BMW_SCOPE,
+      code_challenge:pk.challenge,code_challenge_method:'S256'});
+  }catch(e){
+    if(kmBmwKoppel!==k)return;
+    if(e.soort==='cors'){k.stap='route';k.melding='';}
+    else{k.stap=kmBmwInst().relay&&e.soort==='relay'?'route':'start';k.melding=kmBmwFoutTekst(e);}
+    kmBmwToon();
+    return;
+  }
+  if(kmBmwKoppel!==k)return;
+  const d=res.data||{};
+  if(!d.device_code||!d.user_code){
+    k.stap='start';
+    k.melding=d.error==='invalid_client'||res.status===401?'BMW kent deze client ID niet. Kijk hem na in het CarData-portaal.'
+      :d.error?'BMW: '+(d.error_description||d.error):kmBmwFoutTekst({status:res.status});
+    kmBmwToon();
+    return;
+  }
+  /* Sommige antwoorden hebben geen kant-en-klare link: dan zelf maken. */
+  const uri=d.verification_uri_complete||(d.verification_uri?d.verification_uri+(d.verification_uri.includes('?')?'&':'?')+
+    'user_code='+encodeURIComponent(d.user_code):'');
+  Object.assign(k,{stap:'code',device:d.device_code,code:d.user_code,uri,
+    interval:Math.max(5,Number(d.interval)||5),tot:Date.now()+(Number(d.expires_in)||300)*1000});
+  kmBmwToon();
+  kmBmwPeil(k);
+}
+/* Om de zoveel seconden vragen of je al bevestigde (zo vaak als BMW zegt). */
+function kmBmwPeil(k){
+  clearTimeout(k.timer);
+  k.timer=setTimeout(async()=>{
+    if(kmBmwKoppel!==k||k.stap!=='code')return;
+    if(Date.now()>k.tot){k.stap='verlopen';k.melding='';kmBmwToon();return;}
+    let res;
+    try{
+      res=await kmBmwAuth('token',{client_id:kmBmwInst().clientId,device_code:k.device,
+        grant_type:'urn:ietf:params:oauth:grant-type:device_code',code_verifier:k.verifier});
+    }catch(e){
+      if(kmBmwKoppel!==k)return;
+      k.melding=kmBmwFoutTekst(e);kmBmwToon();kmBmwPeil(k);return;
+    }
+    if(kmBmwKoppel!==k||k.stap!=='code')return;
+    const d=res.data||{};
+    if(d.access_token){
+      kmBmwVergeet();
+      kmBmw.koppelTijd=Date.now();kmBmw.fout='';
+      kmBmwTokensZet(d);
+      k.stap='inrichten';k.melding='';kmBmwToon();
+      try{await kmBmwInrichten();}catch(e){k.melding=kmBmwFoutTekst(e);}
+      k.stap='klaar';
+      if(kmBmwKoppel===k)kmBmwToon();
+      if(activeModule==='kilometers')renderKilometersModule();
+      return;
+    }
+    if(d.error==='authorization_pending'){if(k.melding){k.melding='';kmBmwToon();}kmBmwPeil(k);return;}
+    if(d.error==='slow_down'){k.interval+=5;kmBmwPeil(k);return;}
+    k.stap=d.error==='access_denied'?'start':'verlopen';
+    k.melding=d.error==='access_denied'?'Je hebt de toegang bij BMW geweigerd.':d.error==='expired_token'?''
+      :'BMW: '+(d.error_description||d.error||res.status);
+    kmBmwToon();
+  },k.interval*1000);
+}
+function kmBmwKopieer(){
+  const tekst=KM_BMW_SCRIPT;
+  const gelukt=()=>appToast('Script gekopieerd',{type:'success'});
+  if(navigator.clipboard&&navigator.clipboard.writeText)
+    navigator.clipboard.writeText(tekst).then(gelukt,()=>kmBmwSelecteer());
+  else kmBmwSelecteer();
+}
+function kmBmwSelecteer(){
+  const pre=document.getElementById('kmBmwScript');
+  if(!pre)return;
+  const r=document.createRange();r.selectNodeContents(pre);
+  const s=window.getSelection();s.removeAllRanges();s.addRange(r);
+  appToast('Kopiëren lukte niet; het script is geselecteerd',{type:'warning'});
+}
+function kmBmwPlekkenWeg(){
+  const oud=localStorage.getItem(LS_KM_PLEKKEN);
+  try{localStorage.removeItem(LS_KM_PLEKKEN);}catch(_){}
+  kmBmwToon();
+  appToast('Geleerde plekken gewist',{type:'success',undo:()=>{
+    try{if(oud)localStorage.setItem(LS_KM_PLEKKEN,oud);}catch(_){}
+    kmBmwToon();
+  }});
+}
+
 /* ── Weergave ── */
 function kmGroep(id,tint,titel,uitleg,inhoud){
   return '<section class="inst-groep" aria-labelledby="kmKop-'+id+'"'+(tint?' data-inst-tint="'+tint+'"':'')+'>'+
@@ -44297,6 +45185,7 @@ function renderKilometersModule(){
   const kpis=document.getElementById('kmKpis');
   if(kpis)kpis.innerHTML=kmWeergave==='overzicht'?kmKpiTegels():'';
   body.innerHTML=kmWeergave==='overzicht'?kmOverzichtHtml():kmRittenHtml();
+  if(kmWeergave==='ritten'&&activeModule==='kilometers')setTimeout(kmBmwAutoHaal,0);
 }
 function kmZetWeergave(v){
   kmWeergave=v==='overzicht'?'overzicht':'ritten';
@@ -44338,9 +45227,13 @@ function kmRittenHtml(){
     instRij(vast.length?{label:'Bekende rit toevoegen',doe:'kmVastNieuw'}
       :{label:'Bekende ritten',hint:'Een rit die je vaker maakt, zoals naar een klant. Daarna leg je hem met één tik vast, met de terugrit erbij als je wilt.',doe:'kmVastNieuw'})+'</div>';
   const los='<div class="inst-kaart">'+instRij({label:'Losse rit',hint:'Datum, van, naar en het aantal kilometers',doe:'kmRitNieuw'})+'</div>';
+  /* Wat op je wacht staat bovenaan (een lopende gps-rit, een opgehaalde rit
+     uit de BMW); een gekoppelde BMW komt na de bekende ritten, een nog niet
+     gekoppelde helemaal onderaan. */
+  const bmw=kmBmwHtml(), bmwWacht=!!kmBmwWachtGeldig(), bmwAan=kmBmwGekoppeld();
   const vastleggen=kmGroep('vastleggen','mint','Rit vastleggen',
     'Een bekende rit staat er met één tik in, voor vandaag. Tel alleen zakelijke kilometers: woon-werk wel, omrijden voor iets privé niet.',
-    (kmGps?kmGpsHtml()+bekend:bekend+kmGpsHtml())+los);
+    (bmwWacht?bmw:'')+(kmGps?kmGpsHtml()+bekend:bekend)+(!bmwWacht&&bmwAan?bmw:'')+(kmGps?'':kmGpsHtml())+los+(!bmwWacht&&!bmwAan?bmw:''));
   const maand=kmMaand||kmDezeMaand();
   const d=kmMaandData(maand);
   const rij=r=>{
@@ -44353,12 +45246,33 @@ function kmRittenHtml(){
       '<span class="inst-tekst"><b>'+escapeHtml((r.van||'?')+' → '+(r.naar||'?'))+'</b><small>'+delen.join(' · ')+'</small></span>'+
       '<span class="inst-waarde">'+escapeHtml(kmFmt(r.km))+' km</span>'+INST_PIJL+'</button>';
   };
+  const standen=(b,e)=>'stand '+kmFmt(b)+' → '+kmFmt(e);
+  /* Een gat opent een menu (rit of privé); een privéstuk ook (toch zakelijk,
+     of niet meer privé). */
+  const gatRij=g=>'<button type="button" class="inst-rij km-gat" data-action="kmGatMenu" data-arg1="'+escapeHtml(g.id)+'" aria-haspopup="menu" aria-expanded="false">'+
+    '<span class="inst-tekst"><b>Niet vastgelegd</b><small>'+escapeHtml([
+      g.datumTot!==g.datumVan?'tussen '+kmDatumKort(g.datumVan)+' en '+kmDatumKort(g.datumTot):kmDatumKort(g.datumVan),
+      standen(g.b,g.e),g.los?g.los+' '+(g.los===1?'rit':'ritten')+' zonder stand in die dagen':''].filter(Boolean).join(' · '))+'</small></span>'+
+    '<span class="inst-waarde is-uit">'+escapeHtml(kmFmt(g.km))+' km</span>'+INST_PIJL+'</button>';
+  const priveRij=p=>'<button type="button" class="inst-rij km-prive" data-action="kmPriveMenu" data-arg1="'+escapeHtml(p.id)+'" aria-haspopup="menu" aria-expanded="false">'+
+    '<span class="inst-tekst"><b>Privé</b><small>'+escapeHtml([kmDatumKort(p.datum),p.bron==='bmw'?'uit je BMW':p.bron==='gat'?'was niet vastgelegd':'',
+      standen(p.standBegin,p.standEind)].filter(Boolean).join(' · '))+'</small></span>'+
+    '<span class="inst-waarde">'+escapeHtml(kmFmt(p.km))+' km</span>'+INST_PIJL+'</button>';
+  /* Op datum, nieuwste boven; op één dag volgt de lijst de teller, zodat een
+     gat tussen de twee ritten staat waar het zit. Ritten zonder stand gaan
+     op die dag voor. */
+  const regels=d.ritten.map(r=>({datum:r.datum,stand:r.standEind!=null?r.standEind:null,t:r.createdAt||0,html:rij(r)}))
+    .concat(kmPriveIn(maand).map(p=>({datum:p.datum,stand:p.standEind,t:p.createdAt||0,html:priveRij(p)})))
+    .concat(d.gaten.map(g=>({datum:g.datumTot,stand:g.e-0.5,t:0,html:gatRij(g)})))
+    .sort((a,b)=>String(b.datum).localeCompare(String(a.datum))||
+      ((a.stand==null)!==(b.stand==null)?(a.stand==null?-1:1):a.stand!=null?b.stand-a.stand:b.t-a.t));
   const naam=kmMaandLabel(maand);
   const totaal=d.ritten.length?'<div class="inst-rij km-totaal"><span class="inst-tekst"><b>Totaal '+escapeHtml(naam.split(' ')[0])+'</b><small>'+
     d.ritten.length+' '+(d.ritten.length===1?'rit':'ritten')+' · '+escapeHtml(kmTariefFmt(d.tarief))+' per km'+
-    (d.uitbetaald?' · uitbetaald op '+escapeHtml(opdFmtDatum(d.uitbetaald)):'')+'</small></span>'+
+    (d.uitbetaald?' · uitbetaald op '+escapeHtml(opdFmtDatum(d.uitbetaald)):'')+
+    (d.gaten.length?' · '+escapeHtml(kmGatenTekst(d.gaten))+' in de kilometerstand':'')+'</small></span>'+
     '<span class="inst-waarde">'+escapeHtml(kmFmt(d.km))+' km · '+escapeHtml(factuurFmtBedrag(d.bedrag))+'</span></div>':'';
-  const lijst='<div class="inst-kaart">'+(d.ritten.length?d.ritten.map(rij).join('')+totaal
+  const lijst='<div class="inst-kaart">'+(regels.length?regels.map(x=>x.html).join('')+totaal
     :'<div class="inst-rij km-leeg"><span class="inst-tekst"><small>Nog geen ritten in '+escapeHtml(naam)+'.</small></span></div>')+'</div>';
   return '<div class="inst-kolommen"><div class="inst-kolom">'+vastleggen+'</div><div class="inst-kolom">'+
     kmGroep('ritten','info','Ritten in '+naam,null,lijst)+'</div></div>';
@@ -44382,7 +45296,8 @@ function kmOverzichtHtml(){
   const maandRijen=d.maanden.map(m=>{
     const naam=FIS_MAANDEN[Number(m.maand.slice(5))-1];
     const sub=m.ritten.length+' '+(m.ritten.length===1?'rit':'ritten')+' · '+kmFmt(m.km)+' km · '+
-      (m.uitbetaald?'uitbetaald op '+opdFmtDatum(m.uitbetaald):'nog uit te betalen');
+      (m.uitbetaald?'uitbetaald op '+opdFmtDatum(m.uitbetaald):'nog uit te betalen')+
+      (m.gaten.length?' · '+kmGatenTekst(m.gaten):'');
     return '<button type="button" class="inst-rij" data-action="kmMaandMenu" data-arg1="'+m.maand+'" aria-haspopup="menu" aria-expanded="false">'+
       '<span class="inst-tekst"><b>'+escapeHtml(naam.charAt(0).toUpperCase()+naam.slice(1))+'</b><small>'+escapeHtml(sub)+'</small></span>'+
       '<span class="inst-waarde '+(m.uitbetaald?'is-aan':'is-uit')+'">'+escapeHtml(factuurFmtBedrag(m.bedrag))+'</span>'+INST_PIJL+'</button>';
@@ -44446,6 +45361,7 @@ function kmToggleMenu(knop){
     kmMenuItem('kmExport','↧','Jaaroverzicht '+(kmWeergave==='ritten'?maand.slice(0,4):jaar),'Alle ritten en de vergoeding per maand',['jaar',kmWeergave==='ritten'?maand.slice(0,4):jaar])+
     '<div class="uren-menu-sep"></div>'+
     kmMenuItem('kmVastNieuw','+','Bekende rit toevoegen','Daarna met één tik vastgelegd')+
+    kmMenuItem('kmBmwOpen','⚙','Je BMW',kmBmwGekoppeld()?'Gekoppeld op dit apparaat':'Ritten ophalen uit je auto')+
     kmMenuItem('kmTariefOpen','€','Vergoeding per km',kmTariefFmt(t)+(t===kmMaxTarief(kmWeergave==='overzicht'?jaar:maand.slice(0,4))?' · het onbelaste maximum':'')));
 }
 function kmVastMenu(id,knop){
@@ -44518,20 +45434,23 @@ function kmRitOpen(id,o){
   const r=id?(kilometerState.ritten||[]).find(x=>x.id===id):null;
   if(id&&!r)return;
   const g=o.gps&&kmGps?kmGps:null;
-  kmForm={id:r?r.id:null,bron:r?(r.bron||'hand'):g?'gps':'hand',vastId:r?(r.vastId||null):null,
-    retour:r?!!r.retour:false,clientId:r?(r.clientId||''):'',projectId:r?(r.projectId||''):'',bewaar:false,
-    gps:g?{km:kmRond(g.meters/1000),gatTijd:g.gatTijd,gatMeters:g.gatMeters}:null};
+  /* Een voorstel: een rit uit je BMW, een gat of een privéstuk dat toch
+     zakelijk was. Alles is ingevuld (met de standen), jij kijkt het na. */
+  const v=!r&&!g&&o.voorstel?o.voorstel:null;
+  kmForm={id:r?r.id:null,bron:r?(r.bron||'hand'):g?'gps':v?(v.bron||'hand'):'hand',vastId:r?(r.vastId||null):v?(v.vastId||null):null,
+    retour:r?!!r.retour:v?!!v.retour:false,clientId:r?(r.clientId||''):v?(v.clientId||''):'',projectId:r?(r.projectId||''):v?(v.projectId||''):'',bewaar:false,
+    gps:g?{km:kmRond(g.meters/1000),gatTijd:g.gatTijd,gatMeters:g.gatMeters}:null,voorstel:v};
   const zet=(el,val)=>{const x=document.getElementById(el);if(x)x.value=val==null?'':val;};
-  const afstand=r?(r.retour?kmRond(r.km/2):r.km):g?kmRond(g.meters/1000):'';
-  zet('kmRitDatum',r?r.datum:g?dateStr(new Date(g.start)):opdVandaag());
-  zet('kmRitVan',r?r.van:'');
-  zet('kmRitNaar',r?r.naar:'');
+  const afstand=r?(r.retour?kmRond(r.km/2):r.km):g?kmRond(g.meters/1000):v?v.standEind-v.standBegin:'';
+  zet('kmRitDatum',r?r.datum:g?dateStr(new Date(g.start)):v?v.datum:opdVandaag());
+  zet('kmRitVan',r?r.van:v?v.van:'');
+  zet('kmRitNaar',r?r.naar:v?v.naar:'');
   zet('kmRitAfstand',afstand===''?'':String(afstand).replace('.',','));
-  zet('kmRitDoel',r?r.doel:'');
+  zet('kmRitDoel',r?r.doel:v?v.doel:'');
   zet('kmRitRoute',r?r.route:'');
-  zet('kmRitStandB',r&&r.standBegin!=null?r.standBegin:g&&g.standBegin!=null?g.standBegin:'');
-  zet('kmRitStandE',r&&r.standEind!=null?r.standEind:'');
-  document.getElementById('kmRitTitel').textContent=r?'Rit bewerken':g?'Gemeten rit vastleggen':'Nieuwe rit';
+  zet('kmRitStandB',r&&r.standBegin!=null?r.standBegin:g&&g.standBegin!=null?g.standBegin:v?v.standBegin:'');
+  zet('kmRitStandE',r&&r.standEind!=null?r.standEind:v?v.standEind:'');
+  document.getElementById('kmRitTitel').textContent=r?'Rit bewerken':g?'Gemeten rit vastleggen':v?(v.titel||'Rit vastleggen'):'Nieuwe rit';
   document.getElementById('kmRitWeg').style.display=r?'':'none';
   /* Een bekende rit kiezen kan alleen bij een nieuwe rit. */
   const vast=(kilometerState.vast||[]).slice().sort((a,b)=>String(a.naam||'').localeCompare(String(b.naam||''),'nl'));
@@ -44540,7 +45459,7 @@ function kmRitOpen(id,o){
   document.getElementById('kmRitVast').innerHTML='<option value="">Zelf invullen</option>'+
     vast.map(v=>'<option value="'+escapeHtml(v.id)+'">'+escapeHtml(v.naam||v.naar||'Rit')+' · '+kmFmt(v.km)+' km</option>').join('');
   document.getElementById('kmRitBewaarVeld').hidden=!!r||!!o.vastId;
-  const meer=!!(r&&(r.route||r.standBegin!=null||r.standEind!=null))||!!(g&&g.standBegin!=null);
+  const meer=!!(r&&(r.route||r.standBegin!=null||r.standEind!=null))||!!(g&&g.standBegin!=null)||!!v;
   kmRitMeerZet(meer);
   kmRitPlekken();
   kmRitRetourHtml();
@@ -44552,7 +45471,7 @@ function kmRitOpen(id,o){
     kmRitKiesVast(o.vastId);
   }
   kmRitReken();
-  setTimeout(()=>document.getElementById(r||g||o.vastId?'kmRitDoel':'kmRitVan')?.focus(),60);
+  setTimeout(()=>document.getElementById(v?(!v.van?'kmRitVan':!v.naar?'kmRitNaar':'kmRitDoel'):r||g||o.vastId?'kmRitDoel':'kmRitVan')?.focus(),60);
 }
 function kmRitSluit(){
   document.getElementById('kmRitModal').classList.remove('open');
@@ -44629,8 +45548,11 @@ function kmRitBewaarToggle(){
 function kmRitKiesVast(id){
   if(!kmForm)return;
   const v=(kilometerState.vast||[]).find(x=>x.id===id);
+  /* Een voorstel met standen (BMW, gat) houdt zijn bron en zijn stuk van de
+     teller; de bekende rit vult alleen van, naar en waarvoor. */
+  const metStand=!!(kmForm.voorstel&&kmForm.voorstel.standBegin!=null);
   kmForm.vastId=v?v.id:null;
-  kmForm.bron=v?'vast':'hand';
+  kmForm.bron=kmForm.voorstel?(kmForm.voorstel.bron||'hand'):v?'vast':'hand';
   /* Uit een bekende rit valt er niets meer als bekende rit te bewaren. */
   document.getElementById('kmRitBewaarVeld').hidden=!!v;
   if(v)kmForm.bewaar=false;
@@ -44639,7 +45561,8 @@ function kmRitKiesVast(id){
     zet('kmRitVan',v.van);zet('kmRitNaar',v.naar);
     zet('kmRitAfstand',String(kmRond(v.km)).replace('.',','));
     zet('kmRitDoel',v.doel);
-    kmForm.retour=!!v.retour;kmForm.clientId=v.clientId||'';kmForm.projectId=v.projectId||'';
+    if(!metStand)kmForm.retour=!!v.retour;
+    kmForm.clientId=v.clientId||'';kmForm.projectId=v.projectId||'';
     kmRitRetourHtml();kmRitKlantHtml();
   }
   kmRitReken();
@@ -44682,6 +45605,7 @@ function kmRitReken(){
     regels.push((r.uitStand?'Volgens de kilometerstand ':r.retour&&afstand?'Heen en terug: 2 × '+kmFmt(afstand)+' = ':'')+
       '<b>'+kmFmt(r.km)+' km</b> · vergoeding <b>'+factuurFmtBedrag(kmEuro(r.km,t))+'</b> ('+kmTariefFmt(t)+' per km)');
   }
+  if(kmForm.voorstel)(kmForm.voorstel.uitleg||[]).forEach(t=>regels.push(escapeHtml(t)));
   if(kmForm.gps){
     regels.push('Gemeten met gps: '+kmFmt(kmForm.gps.km)+' km');
     const gat=kmGpsGatTekst({gatTijd:kmForm.gps.gatTijd,gatMeters:kmForm.gps.gatMeters});
@@ -44711,7 +45635,16 @@ function kmRitOpslaan(){
     const i=kilometerState.ritten.findIndex(x=>x.id===kmForm.id);
     if(i>=0)kilometerState.ritten[i]={...kilometerState.ritten[i],...rit,updatedAt:nu};
   }else{
-    kilometerState.ritten.push({id:uid(),...rit,bron:kmForm.bron,vastId:kmForm.vastId||null,createdAt:nu,updatedAt:nu});
+    const v=kmForm.voorstel;
+    /* bmwEind: welke rit van de auto dit was, zodat hij niet nog eens wordt
+       aangeboden (ook niet op een ander apparaat). */
+    kilometerState.ritten.push({id:uid(),...rit,bron:kmForm.bron,vastId:kmForm.vastId||null,
+      ...(v&&v.bmwEind?{bmwEind:v.bmwEind}:{}),createdAt:nu,updatedAt:nu});
+    if(v){
+      if(v.positie)kmPlekLeer(r.naar,v.positie);
+      if(v.priveId)kilometerState.prive=(kilometerState.prive||[]).filter(x=>x.id!==v.priveId);
+      if(v.bmwEind&&kmBmw.wacht&&kmBmw.wacht.eindTijd===v.bmwEind){kmBmw.wacht=null;kmBmwBewaar();}
+    }
     if(kmForm.bewaar){
       if(!Array.isArray(kilometerState.vast))kilometerState.vast=[];
       kilometerState.vast.push({id:uid(),naam:kmKlantNaam(r.clientId)||r.naar,van:r.van,naar:r.naar,
@@ -44961,7 +45894,24 @@ Object.assign(APP_ACTIONS,{
   kmVastKiesRetour:(el,e,v)=>kmVastKiesRetour(v),
   kmTariefOpen:()=>kmTariefOpen(),
   kmTariefSluit:()=>kmTariefSluit(),
-  kmTariefOpslaan:()=>kmTariefOpslaan()
+  kmTariefOpslaan:()=>kmTariefOpslaan(),
+  kmBmwOpen:()=>kmBmwOpen(),
+  kmBmwSluit:()=>kmBmwSluit(),
+  kmBmwVerder:()=>kmBmwVerder(),
+  kmBmwHaal:()=>{kmBmwHaal();},
+  kmBmwMenu:(el)=>kmBmwMenu(el),
+  kmBmwOntkoppel:()=>kmBmwOntkoppel(),
+  kmBmwKopieer:()=>kmBmwKopieer(),
+  kmBmwPlekkenWeg:()=>kmBmwPlekkenWeg(),
+  kmBmwZakelijk:()=>kmBmwZakelijk(),
+  kmBmwPrive:()=>kmBmwPrive(),
+  kmBmwOverslaan:()=>kmBmwOverslaan(),
+  kmGatMenu:(el,e,id)=>kmGatMenu(id,el),
+  kmGatRit:(el,e,id)=>kmGatRit(id),
+  kmGatPrive:(el,e,id)=>kmGatPrive(id),
+  kmPriveMenu:(el,e,id)=>kmPriveMenu(id,el),
+  kmPriveRit:(el,e,id)=>kmPriveRit(id),
+  kmPriveWeg:(el,e,id)=>kmPriveWeg(id)
 });
 Object.assign(APP_CHANGE_ACTIONS,{
   kmGpsStandZet:(el)=>kmGpsStandZet(el.value),
@@ -44974,7 +45924,7 @@ Object.assign(APP_CHANGE_ACTIONS,{
 /* Beide vensters rekenen mee terwijl je typt; Enter in een veld = Opslaan. */
 document.getElementById('kmRitModal')?.addEventListener('input',()=>kmRitReken());
 document.getElementById('kmVastModal')?.addEventListener('input',()=>kmVastReken());
-[['kmRitModal',kmRitOpslaan],['kmVastModal',kmVastOpslaan],['kmTariefModal',kmTariefOpslaan]].forEach(([id,fn])=>{
+[['kmRitModal',kmRitOpslaan],['kmVastModal',kmVastOpslaan],['kmTariefModal',kmTariefOpslaan],['kmBmwModal',kmBmwVerder]].forEach(([id,fn])=>{
   document.getElementById(id)?.addEventListener('keydown',e=>{
     if(e.key==='Enter'&&e.target.matches('input.inp')&&!e.isComposing){e.preventDefault();fn();}
   });
