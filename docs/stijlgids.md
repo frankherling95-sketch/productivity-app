@@ -906,8 +906,8 @@ op hun vaste plek (§8).
 | totaal | een regel op `--surface2`: *Totaal november* (700), het aantal ritten en het tarief; rechts km · bedrag in `--text` / 600 |
 | gps-blok | kop *Rit loopt* (`--fs-basis` / 600) met een stip van 8px die ademt (6 × `--duur`, alleen zolang hij meet; gestopt oranje) en *sinds 14:05*; de kilometers in `--fs-cijfer`; de stand van het signaal en de uitleg in `--fs-klein`; een gat als meldingsblok (§12); de knoppen `.btn-sm`, primair rechts, op een telefoon vullend en `var(--tap)` hoog |
 | overzicht | drie KPI-tegels: km, *nog uit te betalen*, *uitbetaald* (die twee sluiten elkaar uit, dus geen totaal ernaast); per maand een regel met het bedrag als stand (stip groen = uitbetaald, oranje = nog niet) die een menu opent |
-| rit uit je BMW (2026-11-03) | het gps-blok (`.km-gps[data-stand="bmw"]`) met een stip in `--mint` die niet ademt: *Rit uit je BMW* en de tijd, de kilometers in `--fs-cijfer` (bij de eerste rit niet: dan de stand bij aankomst in de regel eronder en een uitleg in `.km-gps-uitleg`), daaronder van → naar en de standen; een gat ervoor als meldingsblok; knoppen *Overslaan*, *Privé*, *Zakelijk vastleggen* (primair) |
-| gekoppelde BMW | een regel *Laatste rit uit je BMW* met de rij-actie ⋯ van een bekende rit (`.km-vast`); bij een fout de stand *mislukt* met een oranje stip. Niet gekoppeld: een gewone regel onderaan de groep |
+| rit uit je BMW (2026-11-03) | het gps-blok (`.km-gps[data-stand="bmw"]`) met een stip in `--mint` die niet ademt: *Rit uit je BMW* en de tijd (wachten er meer: *· nog 2*), de kilometers in `--fs-cijfer` (bij de eerste rit niet: dan de stand bij aankomst in de regel eronder en een uitleg in `.km-gps-uitleg`), daaronder van → naar en de standen, en de adressen als tweede `.km-gps-meta` (`.km-gps-adres`, v3.18); een gat ervoor als meldingsblok; knoppen *Overslaan*, *Privé*, *Zakelijk vastleggen* (primair) |
+| gekoppelde BMW | een regel *Ritten uit je BMW* (wanneer je script laatst ophaalde, de stand) met de rij-actie ⋯ van een bekende rit (`.km-vast`; daarin *Nu ophalen*, *Ophalen pauzeren*, *Koppeling*, *Ontkoppelen*); bij een fout de stand *mislukt* met een oranje stip, gepauzeerd de stand *gepauzeerd*. Niet gekoppeld: een gewone regel onderaan de groep |
 | gat in de lijst | `.inst-rij.km-gat`: *Niet vastgelegd*, daaronder de dagen en de standen; rechts de km met een oranje stip (`is-uit`); opent een menu (rit of privé) |
 | privé in de lijst | `.inst-rij.km-prive`: het label in `--text-muted` (telt niet mee), verder als een rit; opent een menu |
 | koppelvenster | `#kmBmwModal`, 640, opbouw van het contractvenster. Stappen als `ol.km-bmw-stappen` in `--fs-klein` muted; de code van BMW in `.km-bmw-code` (mono, `--fs-cijfer`, op `--surface2`, zoals een pincodeveld); het script als `pre.km-bmw-script` (mono, `--fs-micro`, scrolt zelf, max. 180px); *Bevestigen bij BMW* is een link in de vorm van `.btn-primary`, op een telefoon `var(--tap)` hoog. Gekoppeld: info-regels (`instRij` soort *info*) |
@@ -915,9 +915,10 @@ op hun vaste plek (§8).
 Het venster van een rit (`#kmRitModal`, 640) heeft de opbouw van het
 contractvenster. Eerst komt wat elke rit nodig heeft: datum (met ‹ › zoals bij
 Uren), van en naar, afstand met de keuzechips *Enkele reis* / *Heen en
-terug*, klant en project, en doel. Route en kilometerstand staan achter een
-tekstknop (`.fis-terug.km-meer-knop`, *+ Route of kilometerstand*), want
-die heb je zelden nodig. Met beide standen is de afstand niet te typen: die
+terug*, klant en project, en doel. Adres, route en kilometerstand staan achter een
+tekstknop (`.fis-terug.km-meer-knop`, *+ Adres, route of kilometerstand*), want
+die typ je zelden zelf; bij een rit uit je BMW staat dat deel open en zijn de
+adressen ingevuld (twee velden in `.opd-velden2`, zoals Van en Naar). Met beide standen is de afstand niet te typen: die
 volgt dan de teller.
 
 ## 16. Herling AI

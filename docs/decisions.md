@@ -9664,3 +9664,70 @@ verversen, trigger, vreemde weigeren, verlopen).
 - De verversingssleutel weer naar de browser halen, ook niet "alleen even".
 - Het script openzetten zonder de controle op het Google-account: de URL alleen is geen slot.
 - Bij een 400 op verversen opnieuw proberen met dezelfde sleutel: die is op.
+
+## 2026-11-04 · BMW: alle ritten, met vertrek- en aankomstadres (v3.18)
+
+**Probleem.** Frank heeft voor elke zakelijke rit de plaats van vertrek en
+aankomst nodig; zonder die adressen is de registratie voor hem niet bruikbaar.
+BMW CarData geeft geen rittenlijst en geen adres: alleen de laatste rit (de
+eindtijd en de kilometerstand bij aankomst), waar de auto nu staat (als
+coördinaten) en of hij rijdt. De app haalde alleen op als je hem opende, dus
+een rit waarna je de app niet opende, ging verloren, en een vertrekplek was
+er nooit.
+
+**Beslissing.** Je script (sinds v3.17 de houder van de koppeling) haalt zelf
+op, en de app maakt van wat het vond de ritten:
+- Elk half uur van 6 tot 23 uur (`elkHalfUur`, een trigger), hooguit 44 keer
+  per dag (BMW staat er 50 toe), niet als de auto rijdt. Is de stand
+  opgelopen, dan bewaart het een plek: `{eind, stand, lat, lon, adres, op}`,
+  coördinaten afgerond op 4 decimalen (~11 m), het adres van de kaartdienst
+  van Google in Apps Script (`Maps.newGeocoder().reverseGeocode`, geen
+  sleutel, geen nieuwe partij). Lukt het adres even niet, dan later alsnog.
+- *Nu ophalen* in de app laat het script meteen bij BMW kijken (`ritten`
+  met `nu`); Kilometers openen leest alleen wat er al is, dus dat kost geen
+  aanroep bij BMW. Pauzeren kan (`dienst` met `aan: 0`).
+- Elke plek is het eind van de ene rit en het begin van de volgende. De app
+  neemt de oudste plek die nog niet is afgehandeld als wachtende rit
+  (`kmBmwVolgende`): vertrekadres van de plek ervoor (of het anker: de
+  laatste die je afhandelde), aankomstadres van deze. Een plek die dit
+  apparaat kent geeft de naam ("Thuis"); anders staat het adres in Van/Naar.
+  Het adres zelf gaat altijd mee (`vanAdres`, `naarAdres` op de rit), en staat
+  in de Excel-declaratie.
+- Afgehandeld zie je aan de ritten zelf (`kmBmwPlekAf`: een rit of privé met
+  die eindtijd, de laatste stand uit je BMW, of een stuk van de keten), dus
+  ook op een ander apparaat. Pas bij de volgende keer ophalen gaan die plekken
+  uit het script (`weg`); zo werkt ongedaan maken nog. De nieuwste blijft als
+  anker.
+- Een gegevensset die BMW weigert (CU-105/121, 404) wordt een nieuwe, hooguit
+  eens per uur. Een fout bij het zelf ophalen staat in het BMW-blok tot het
+  weer lukt.
+- Het script van v3.17 antwoordt `v: 2` en kent `ritten` niet: dan opent het
+  venster bij het script met *bijwerken, opnieuw koppelen hoeft niet*
+  (`script-bij`); Verder haalt daarna meteen op.
+
+**Waarom.** Polling vanuit het script is de enige manier zonder eigen server
+die ook werkt als de app dicht is. Een half uur past binnen het maximum van
+BMW met ruimte voor Nu ophalen; een klantbezoek duurt langer. De adressen
+komen van Google, dat Franks Drive en mail al heeft, in zijn eigen account.
+
+**Privacy.** Coördinaten nooit in Drive: in het script tot de rit is
+afgehandeld (hooguit 14 dagen; het anker is één plek), op het apparaat in
+`herling_km_bmw`. In Drive alleen het adres van een rit die je vastlegt, zoals
+wanneer je het zelf typte. Een privérit krijgt geen adres. 's Nachts haalt het
+script niet op.
+
+**Bestanden.** `index.html` (het script: `dienst`, `ritten`, `weg`, `ophalen`,
+`elkHalfUur`, `waarden`, `adres`, `plekken`, `opruimen`, `teller`, `status`,
+`zorgVoorOphalen`, antwoord `v: 3`, gemaakt uit een tekst met `__NAAM__`-plekken;
+de app: `kmBmwPlekAf`, `kmBmwVolgende`, `kmBmwDienstZet`, `kmBmwDienstWissel`,
+`kmBmwHaal`, `kmBmwVoorstel`, `kmBmwHtml`, het menu, het venster, `kmRitOpen`,
+`kmRitLees`, `kmRitOpslaan`, `kmExportData`, de adresvelden in `#kmRitModal`),
+`test.html` (koppeltest en fouttest herschreven, een test voor alle ritten,
+de exporttest), `CLAUDE.md`, `docs/stijlgids.md`, `sw.js`: v318. Het script is
+nagespeeld in Node (26 gevallen: ophalen, rijden, nacht, pauze, adres later,
+401, fout, limiet, nieuwe dag, meters, 14 dagen, verlopen, los).
+
+**Niet doen.**
+- Coördinaten in `kilometerState` zetten: dat gaat mee in elke back-up op elk apparaat.
+- De app zelf laten pollen bij BMW naast het script: dan is het maximum van 50 per dag snel op.
+- Plekken in het script weggooien zodra de app ze ziet: dan werkt ongedaan maken niet, en mist een ander apparaat ze.

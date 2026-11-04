@@ -5162,7 +5162,7 @@ async function runChecks() {
             const vorig = v.km === 10 && v.bedrag === 2.3;
             const x = w.kmExportData('maand', '2026-10'), voet = x.bladen[0].voet;
             const excel = x.bladen[0].rijen.length === 2 && x.bladen[0].rijen[0][0] === '05/10/2026' &&
-              voet[0][10] === 79.4 && voet[1][10] === 0.25 && voet[2][10] === 19.85;
+              voet[0][12] === 79.4 && voet[1][12] === 0.25 && voet[2][12] === 19.85 && x.bladen[0].kop[3] === 'Adres vertrek';
             const xj = w.kmExportData('jaar', '2026');
             const excelJaar = xj.bladen.length === 2 && xj.bladen[0].rijen.length === 2 && xj.bladen[0].rijen[0][5] === '01/10/2026' &&
               xj.bladen[0].voet[0][4] === 31.85 && xj.bladen[1].rijen.length === 3;
@@ -5436,7 +5436,7 @@ async function runChecks() {
             return toont && venster && bewaard && over && terugGezet && weg;
           } finally { try { w.appToastHide(); } catch (_) {} w.eval('kmBmw=' + oudBmw); terug(oud); }
         })],
-        ['Kilometers: je BMW koppelen via je script (nagebootst) — client ID, script, code, wachten op je bevestiging; de sleutel van BMW komt nooit in de app', () =>
+        ['Kilometers: je BMW koppelen via je script (nagebootst) — client ID, script, code, wachten op je bevestiging; daarna zet het script het ophalen aan; de sleutel van BMW komt nooit in de app', () =>
           metLogin(() => metLS({herling_km_bmw: JSON.stringify({refresh: 'oud-rt', refreshTot: 1, teller: {dag: '2000-01-01', n: 0}}), herling_km_plekken: null}, async () => {
           const oud = bewaar(), oudBmw = w.eval('JSON.stringify(kmBmw)'), echtToken = w.driveVraagToken;
           const echteFetch = w.fetch, verzoeken = [], RELAY = 'https://script.google.com/macros/s/TESTSCRIPT123/exec';
@@ -5448,22 +5448,22 @@ async function runChecks() {
             verzoeken.push(url + ' ' + ((opt && opt.method) || 'GET'));
             if (url === RELAY) {
               const p = new URLSearchParams(String(opt.body));
-              verzoeken.push('script ' + p.get('doe') + ' ' + p.get('google'));
+              verzoeken.push('script ' + p.get('doe') + (p.get('nu') ? ' nu' : '') + (p.get('container') ? ' ' + p.get('container') + ' ' + p.get('aan') : '') + ' ' + p.get('google'));
               /* De doorgeefroute van vóór v3.17 kent "doe" niet. */
               if (oudScript) return antwoord(200, {status: 400, body: '{"error":"pad"}'});
-              if (p.get('doe') === 'start') return antwoord(200, {v: 2, code: 'ABCD1234', uri: '', basis: 'https://customer.bmwgroup.com/oneid/link', interval: 5, over: 300});
-              if (p.get('doe') === 'wacht') return antwoord(200, ++wachtVragen < 2 ? {v: 2, wacht: 'authorization_pending'}
-                : {v: 2, klaar: true, access_token: 'at1', over: 3599, dagelijks: true});
-              if (p.get('doe') === 'token') return antwoord(200, {v: 2, access_token: 'at1', over: 3000});
+              if (p.get('doe') === 'start') return antwoord(200, {v: 3, code: 'ABCD1234', uri: '', basis: 'https://customer.bmwgroup.com/oneid/link', interval: 5, over: 300});
+              if (p.get('doe') === 'wacht') return antwoord(200, ++wachtVragen < 2 ? {v: 3, wacht: 'authorization_pending'}
+                : {v: 3, klaar: true, access_token: 'at1', over: 3599, dagelijks: true});
+              if (p.get('doe') === 'token') return antwoord(200, {v: 3, access_token: 'at1', over: 3000});
+              if (p.get('doe') === 'dienst') return antwoord(200, {v: 3, status: {aan: true, op: Date.now(), fout: '', vandaag: 1, max: 44, stand: 45258, van: 6, tot: 23, trigger: true}});
+              if (p.get('doe') === 'ritten') return antwoord(200, {v: 3, net: p.get('nu') ? 'zelfde' : '',
+                ritten: [{eind: Date.parse('2026-11-02T16:30:00Z'), stand: 45258, lat: 52.0907, lon: 5.1214, adres: 'Kerkplein 3, Noordstad', op: 1}],
+                anker: {eind: Date.parse('2026-11-02T15:30:00Z'), stand: 45234, lat: 52.3731, lon: 4.8908, adres: 'Stationsstraat 12, Puren'},
+                status: {aan: true, op: Date.now(), fout: '', vandaag: 2, max: 44, stand: 45258, van: 6, tot: 23}});
             }
-            if (/bmwgroup\.com\/gcdm\//.test(url)) return antwoord(500, {});
+            if (/bmwgroup\.com\/gcdm\//.test(url) || /telematicData/.test(url)) return antwoord(500, {});
             if (url.endsWith('/customers/vehicles/mappings')) return antwoord(200, [{vin: 'WBA00000000TEST01', mappingType: 'PRIMARY'}]);
             if (url.endsWith('/customers/containers')) return opt && opt.method === 'POST' ? antwoord(200, {containerId: 'cont1', state: 'ACTIVE'}) : antwoord(200, {containers: []});
-            if (url.includes('/telematicData')) return antwoord(200, {telematicData: {
-              'vehicle.vehicle.travelledDistance': {value: '45258', unit: 'km'},
-              'vehicle.trip.segment.end.travelledDistance': {value: '24', unit: 'km', timestamp: '2026-11-02T16:30:00Z'},
-              'vehicle.trip.segment.end.time': {value: '2026-11-02T16:30:00Z'},
-              'vehicle.isMoving': {value: 'false'}}});
             return echteFetch(url, opt);
           };
           const wacht = ms => new Promise(res => setTimeout(res, ms));
@@ -5481,10 +5481,11 @@ async function runChecks() {
             const tegen = /client ID/.test(inhoud()) && verzoeken.length === 0;
             d.getElementById('kmBmwClient').value = '1a2b3c4d-1111-2222-3333-444455556666';
             d.getElementById('kmBmwVerder').click();
-            /* Nog geen script: eerst dat, met je e-mailadres erin. */
+            /* Nog geen script: eerst dat, met je e-mailadres erin en alles ingevuld. */
+            const tekst = d.getElementById('kmBmwScript').textContent;
             const script = d.getElementById('kmBmwTitel').textContent === 'Script opzetten' && verzoeken.length === 0 &&
-              /var EIGENAAR = "test@herling-analytics\.nl"/.test(d.getElementById('kmBmwScript').textContent) &&
-              /function doPost/.test(d.getElementById('kmBmwScript').textContent);
+              /var EIGENAAR = "test@herling-analytics\.nl"/.test(tekst) && /function doPost/.test(tekst) && /function elkHalfUur/.test(tekst) &&
+              /reverseGeocode/.test(tekst) && !/__[A-Z]+__/.test(tekst) && /"vehicle\.vehicle\.travelledDistance"/.test(tekst);
             d.getElementById('kmBmwRelay').value = 'https://example.com/exec';
             d.getElementById('kmBmwVerder').click();
             const urlTegen = /script\.google\.com/.test(inhoud()) && verzoeken.length === 0;
@@ -5507,14 +5508,17 @@ async function runChecks() {
               w.eval('kilometerState.bmw.vin') === 'WBA00000000TEST01' && w.eval('kilometerState.bmw.containerId') === 'cont1' &&
               !w.eval('JSON.stringify(kilometerState)').includes('at1') && w.eval('kmBmwGekoppeld()') === true &&
               verzoeken.some(x => /\/customers\/containers POST/.test(x)) &&
+              verzoeken.includes('script dienst cont1 1 gtok') && /Zelf ophalen/.test(inhoud()) && /Elk half uur van 6 tot 23 uur/.test(inhoud()) &&
               verzoeken.filter(x => /^script /.test(x)).every(x => / gtok$/.test(x)) &&
               !verzoeken.some(x => /bmwgroup\.com\/gcdm\//.test(x));
-            const nVoor = w.eval('kmBmwTeller().n');
+            /* Nu ophalen: het script kijkt bij BMW, de app niet zelf. */
             d.getElementById('kmBmwVerder').click();
             await wacht(200);
-            const opgehaald = w.eval('kmBmwTeller().n') === nVoor + 1 && w.eval('kmBmw.wacht&&kmBmw.wacht.km') === 24 &&
-              !!d.querySelector('#kmBody .km-gps[data-stand="bmw"]') && !d.getElementById('kmBmwModal').classList.contains('open') &&
-              verzoeken.filter(x => /\/telematicData\?containerId=cont1 GET/.test(x)).length >= 1;
+            const wt = w.eval('kmBmw.wacht');
+            const opgehaald = verzoeken.includes('script ritten nu gtok') && !verzoeken.some(x => /telematicData/.test(x)) &&
+              wt && wt.eerste === true && wt.standEind === 45258 && wt.naarAdres === 'Kerkplein 3, Noordstad' && wt.vanAdres === 'Stationsstraat 12, Puren' &&
+              !!d.querySelector('#kmBody .km-gps[data-stand="bmw"]') && /Kerkplein 3, Noordstad/.test(d.querySelector('#kmBody .km-gps-adres').textContent) &&
+              !d.getElementById('kmBmwModal').classList.contains('open');
             return oudWeg && open && tegen && script && urlTegen && oudHerkend && code && klaar && opgehaald;
           } finally {
             w.fetch = echteFetch;
@@ -5523,12 +5527,83 @@ async function runChecks() {
             w.eval('kmBmw=' + oudBmw); terug(oud);
           }
         }))],
-        ['Kilometers: een fout van BMW (nagebootst) — de melding zegt wat BMW zegt; een gegevensset die weigert wordt een nieuwe; een sleutel die BMW niet kent wordt één keer ververst; verversen dat faalt is opnieuw koppelen', () =>
+        ['Kilometers: alle ritten uit je script (nagebootst) — de oudste eerst, met vertrek- en aankomstadres; een bekende plek geeft de naam; afgehandeld gaat uit het script; in Drive alleen adressen, geen coördinaten', () =>
+          metKlant(() => metLS({herling_km_bmw: null, herling_km_plekken: JSON.stringify([{tekst: 'Thuis', lat: 52.3731, lon: 4.8908, n: 3, t: 1}])}, async () => {
+          const oud = bewaar(), oudBmw = w.eval('JSON.stringify(kmBmw)'), echtToken = w.driveVraagToken;
+          const echteFetch = w.fetch, verzoeken = [], RELAY = 'https://script.google.com/macros/s/TESTSCRIPT123/exec';
+          const t = u => Date.parse('2026-11-04T' + u + ':00Z');
+          let lijst = [
+            {eind: t('08:30'), stand: 45258, lat: 52.0907, lon: 5.1214, adres: 'Kerkplein 3, Noordstad', op: 1},
+            {eind: t('12:10'), stand: 45270, lat: 52.0001, lon: 5.0002, adres: 'Marktweg 8, Zuidstad', op: 2},
+            {eind: t('17:45'), stand: 45294, lat: 52.3731, lon: 4.8908, adres: 'Stationsstraat 12, Puren', op: 3}];
+          const anker = {eind: t('07:50'), stand: 45234, lat: 52.3731, lon: 4.8908, adres: 'Stationsstraat 12, Puren'};
+          const antwoord = body => Promise.resolve(new w.Response(JSON.stringify(body), {status: 200, headers: {'Content-Type': 'application/json'}}));
+          w.driveVraagToken = async () => 'gtok';
+          w.fetch = (url, opt) => {
+            url = String(url);
+            if (url === RELAY) {
+              const p = new URLSearchParams(String(opt.body));
+              verzoeken.push(p.get('doe') + (p.get('eind') ? ' ' + p.get('eind') : ''));
+              if (p.get('doe') === 'weg') { const weg = p.get('eind').split(',').map(Number); lijst = lijst.filter(x => !weg.includes(x.eind)); return antwoord({v: 3, weg: weg.length}); }
+              if (p.get('doe') === 'ritten') return antwoord({v: 3, net: '', ritten: lijst, anker,
+                status: {aan: true, op: t('17:50'), fout: '', vandaag: 20, max: 44, stand: 45294, van: 6, tot: 23}});
+            }
+            return echteFetch(url, opt);
+          };
+          try {
+            const k = w.eval('kanbanState.clients[0].id');
+            leeg('kilometerState.prive=[];kilometerState.bmw={clientId:"c1",relay:"' + RELAY + '",gekoppeld:1,vin:"WBA00000000TEST01",containerId:"cont1",' +
+              'laatste:{stand:45234,eindTijd:' + anker.eind + ',datum:"2026-11-04"}};kmBmw={};kmMaand="2026-11";');
+            await w.kmBmwHaal({stil: true});
+            w.switchModule('kilometers');
+            const w1 = w.eval('kmBmw.wacht'), blok = d.querySelector('#kmBody .km-gps[data-stand="bmw"]');
+            const eerste = w1 && w1.km === 24 && w1.standBegin === 45234 && w1.vanAdres === 'Stationsstraat 12, Puren' && w1.naarAdres === 'Kerkplein 3, Noordstad' &&
+              w.eval('kmBmw.nog') === 2 && /nog 2/.test(blok.querySelector('.km-gps-kop').textContent) &&
+              /Stationsstraat 12, Puren → Kerkplein 3, Noordstad/.test(blok.textContent);
+            /* Zakelijk: van is de bekende plek, naar het adres; beide adressen in het venster. */
+            blok.querySelector('[data-action="kmBmwZakelijk"]').click();
+            const v = id => d.getElementById(id);
+            const venster = v('kmRitVan').value === 'Thuis' && v('kmRitNaar').value === 'Kerkplein 3, Noordstad' &&
+              v('kmRitVanAdres').value === 'Stationsstraat 12, Puren' && v('kmRitNaarAdres').value === 'Kerkplein 3, Noordstad' && !v('kmRitMeerVelden').hidden;
+            v('kmRitNaar').value = 'Kantoor Klant Noord';
+            v('kmRitDoel').value = 'Overleg';
+            w.kmRitKiesKlant(k);
+            d.querySelector('#kmRitModal [data-action="kmRitOpslaan"]').click();
+            const rit = w.eval('kilometerState.ritten.find(r=>r.bmwEind===' + t('08:30') + ')');
+            const opgeslagen = rit && rit.van === 'Thuis' && rit.naar === 'Kantoor Klant Noord' && rit.vanAdres === 'Stationsstraat 12, Puren' &&
+              rit.naarAdres === 'Kerkplein 3, Noordstad' && rit.km === 24 && rit.standBegin === 45234 && rit.standEind === 45258 &&
+              JSON.parse(w.localStorage.getItem('herling_km_plekken')).some(p => p.tekst === 'Kantoor Klant Noord');
+            /* De volgende: vertrokken waar de vorige eindigde. */
+            const w2 = w.eval('kmBmw.wacht');
+            const tweede = w2 && w2.km === 12 && w2.standBegin === 45258 && w2.vanAdres === 'Kerkplein 3, Noordstad' && w2.naarAdres === 'Marktweg 8, Zuidstad' &&
+              w.eval('kmBmw.nog') === 1;
+            d.querySelector('#kmBody [data-action="kmBmwPrive"]').click();
+            const pr = w.eval('kilometerState.prive.find(p=>p.bmwEind===' + t('12:10') + ')');
+            const prive = pr && pr.km === 12 && !Object.keys(pr).some(x => /adres|lat|lon/i.test(x)) && w.eval('kmBmw.wacht&&kmBmw.wacht.km') === 24;
+            d.querySelector('#kmBody [data-action="kmBmwOverslaan"]').click();
+            const klaar = w.eval('kmBmw.wacht') == null && !d.querySelector('#kmBody .km-gps[data-stand="bmw"]');
+            try { w.appToastHide(); } catch (_) {}
+            /* Bij de volgende keer ophalen gaan de drie uit het script. */
+            await w.kmBmwHaal({stil: true});
+            const weg = verzoeken.includes('weg ' + [t('08:30'), t('12:10'), t('17:45')].join(',')) && lijst.length === 0 && w.eval('kmBmw.lijst.length') === 0;
+            /* De declaratie heeft de adressen; Drive geen coördinaten. */
+            const x = w.kmExportData('maand', '2026-11'), r0 = x.bladen[0].rijen.find(r => r[2] === 'Kantoor Klant Noord');
+            const export_ = r0 && r0[3] === 'Stationsstraat 12, Puren' && r0[4] === 'Kerkplein 3, Noordstad';
+            const drive = !/"lat"|"lon"|52\.09/.test(w.eval('JSON.stringify(kilometerState)'));
+            return eerste && venster && opgeslagen && tweede && prive && klaar && weg && export_ && drive;
+          } finally {
+            w.fetch = echteFetch;
+            w.driveVraagToken = echtToken;
+            try { w.kmRitSluit(); } catch (_) {}
+            w.eval('kmBmw=' + oudBmw); terug(oud);
+          }
+        }))],
+        ['Kilometers: een fout bij je script of BMW (nagebootst) — de melding zegt wat er misging; een gegevensset die weigert wordt een nieuwe; een sleutel die BMW niet kent wordt één keer ververst; een script van v3.17 vraagt om bijwerken', () =>
           metLS({herling_km_bmw: null, herling_km_plekken: null}, async () => {
           const oud = bewaar(), oudBmw = w.eval('JSON.stringify(kmBmw)'), echtToken = w.driveVraagToken;
           const echteFetch = w.fetch, verzoeken = [], RELAY = 'https://script.google.com/macros/s/TESTSCRIPT123/exec';
-          let telematic = () => ({status: 200, body: {}});
-          let token = () => ({v: 2, access_token: 'at2', over: 3599});
+          let ritten = () => ({v: 3, net: '', ritten: [], anker: null, status: {aan: true, fout: '', vandaag: 1, max: 44}});
+          let token = () => ({v: 3, access_token: 'at2', over: 3599}), container = '';
           const antwoord = o => Promise.resolve(new w.Response(JSON.stringify(o.body), {status: o.status, headers: {'Content-Type': 'application/json'}}));
           w.driveVraagToken = async () => 'gtok';
           w.fetch = (url, opt) => {
@@ -5536,57 +5611,72 @@ async function runChecks() {
             verzoeken.push(url + ' ' + ((opt && opt.method) || 'GET'));
             if (url === RELAY) {
               const p = new URLSearchParams(String(opt.body));
-              verzoeken.push('script ' + p.get('doe') + (p.get('vers') ? ' vers' : ''));
+              verzoeken.push('script ' + p.get('doe') + (p.get('vers') ? ' vers' : '') + (p.get('nu') ? ' nu' : ''));
               if (p.get('doe') === 'token') return antwoord({status: 200, body: token(p)});
+              if (p.get('doe') === 'dienst') { container = p.get('container'); return antwoord({status: 200, body: {v: 3, status: {aan: true, fout: '', vandaag: 1, max: 44}}}); }
+              if (p.get('doe') === 'ritten') return antwoord({status: 200, body: ritten(p)});
+              if (p.get('doe') === 'weg') return antwoord({status: 200, body: {v: 3, weg: 0}});
             }
+            if (url.endsWith('/customers/vehicles/mappings'))
+              return antwoord(opt.headers.Authorization === 'Bearer at1' ? {status: 401, body: {}} : {status: 200, body: [{vin: 'WBA00000000TEST01', mappingType: 'PRIMARY'}]});
             if (url.endsWith('/customers/containers')) return opt && opt.method === 'POST' ? antwoord({status: 200, body: {containerId: 'nieuw'}})
               : antwoord({status: 200, body: {containers: [{name: 'Herling Kilometers', containerId: 'oud', state: 'ACTIVE'}]}});
-            if (url.includes('/telematicData')) return antwoord(telematic(url, opt));
             return echteFetch(url, opt);
           };
-          const gekoppeld = () => w.eval('kmBmw={access:"at1",accessTot:Date.now()+36e5};' +
-            'kilometerState.bmw={clientId:"c1",relay:"' + RELAY + '",gekoppeld:1,vin:"WBA00000000TEST01",containerId:"oud"};');
-          const stand = {status: 200, body: {telematicData: {'vehicle.vehicle.travelledDistance': {value: '45282', unit: 'km'}, 'vehicle.isMoving': {value: 'false'}}}};
+          const gekoppeld = vin => w.eval('kmBmw={access:"at1",accessTot:Date.now()+36e5};' +
+            'kilometerState.bmw={clientId:"c1",relay:"' + RELAY + '",gekoppeld:1,' + (vin ? 'vin:"WBA00000000TEST01",' : '') + 'containerId:"oud"};');
+          const plek = {eind: Date.parse('2026-11-04T10:00:00Z'), stand: 45282, lat: 52.1, lon: 5.1, adres: 'Kerkplein 3, Noordstad'};
           try {
             leeg('kilometerState.prive=[];');
-            gekoppeld();
-            /* CU-105: de gegevensset hoort niet bij deze koppeling. Een nieuwe, niet dezelfde uit de lijst. */
-            telematic = url => /containerId=oud/.test(url)
-              ? {status: 400, body: {exveErrorId: 'CU-105', exveErrorMsg: 'No permission for specified containerId'}} : stand;
+            /* 401: de sleutel kent BMW niet meer; het script haalt er één keer een verse. */
+            gekoppeld(false);
             await w.kmBmwHaal({stil: true});
-            const nieuw = w.eval('kilometerState.bmw.containerId') === 'nieuw' && !w.eval('kmBmw.fout') && w.eval('kmBmw.wacht&&kmBmw.wacht.eerste') === true &&
-              verzoeken.some(x => /\/customers\/containers POST/.test(x)) && !verzoeken.some(x => /^script /.test(x));
-            /* CU-400: de melding noemt de stap en wat BMW zei. */
-            telematic = () => ({status: 400, body: {exveErrorId: 'CU-400', exveErrorMsg: 'Bad request'}});
+            const vers = w.eval('kilometerState.bmw.vin') === 'WBA00000000TEST01' && w.eval('kmBmw.access') === 'at2' &&
+              verzoeken.includes('script token vers') && !w.eval('kmBmw.fout');
+            /* CU-105: de gegevensset hoort niet bij deze koppeling. Een nieuwe, niet dezelfde uit de lijst, en die krijgt het script. */
+            gekoppeld(true);
+            ritten = p => container === 'nieuw' ? {v: 3, net: p.get('nu') ? 'nieuw' : '', ritten: [plek], anker: null, status: {aan: true, fout: '', vandaag: 3, max: 44}}
+              : {v: 3, net: '', ritten: [], anker: null, status: {aan: true, fout: '400 CU-105', vandaag: 2, max: 44}};
+            await w.kmBmwHaal({stil: true});
+            const nieuw = w.eval('kilometerState.bmw.containerId') === 'nieuw' && container === 'nieuw' && !w.eval('kmBmw.fout') &&
+              w.eval('kmBmw.wacht&&kmBmw.wacht.eerste') === true && verzoeken.some(x => /\/customers\/containers POST/.test(x));
+            /* CU-400 bij het zelf ophalen: de melding noemt de stap en wat BMW zei, en blijft in het blok staan. */
+            ritten = () => ({v: 3, net: '', ritten: [], anker: null, status: {aan: true, fout: '400 CU-400', vandaag: 4, max: 44}});
+            w.eval('kmBmw.wacht=null;kmBmw.lijst=[]');
             await w.kmBmwHaal({stil: true});
             const f = String(w.eval('kmBmw.fout'));
-            const zegt = /bij het ophalen \(400, CU-400: Bad request\)/.test(f) && /CarData-portaal/.test(f) && w.eval('kmBmwGekoppeld()') === true;
-            /* 401: de sleutel kent BMW niet meer; het script haalt er één keer een verse. */
-            verzoeken.length = 0;
-            telematic = (url, opt) => opt.headers.Authorization === 'Bearer at1' ? {status: 401, body: {}} : stand;
-            await w.kmBmwHaal({stil: true});
-            const vers = !w.eval('kmBmw.fout') && w.eval('kmBmw.access') === 'at2' && verzoeken.includes('script token vers') &&
-              verzoeken.filter(x => /telematicData/.test(x)).length === 2;
-            /* Verversen lukt het script niet meer: de koppeling is weg, op alle apparaten, met de reden erbij. */
-            gekoppeld();
-            w.eval('kmBmw.accessTot=0');
-            token = () => ({v: 2, fout: 'verlopen', reden: 'invalid_request: Refresh not allowed'});
+            w.switchModule('kilometers');
+            const zegt = /bij het ophalen \(400 CU-400\)/.test(f) && /CarData-portaal/.test(f) && w.eval('kmBmwGekoppeld()') === true &&
+              /CU-400/.test(d.getElementById('kmBody').textContent);
+            /* De koppeling in het script werkt niet meer: los, op alle apparaten, met de reden erbij. */
+            ritten = () => ({v: 3, fout: 'los', reden: 'invalid_request: Refresh not allowed'});
             await w.kmBmwHaal({stil: true});
             const v = String(w.eval('kmBmw.fout'));
-            const verlopen = /werkt niet meer/.test(v) && /invalid_request: Refresh not allowed/.test(v) && w.eval('kmBmwGekoppeld()') === false &&
-              w.eval('kilometerState.bmw.gekoppeld') == null && w.eval('kmBmw.access') == null;
-            w.switchModule('kilometers');
-            const inBeeld = /invalid_request/.test(d.getElementById('kmBody').textContent);
+            const los = /geen koppeling met BMW/.test(v) && /invalid_request: Refresh not allowed/.test(v) && w.eval('kmBmwGekoppeld()') === false &&
+              w.eval('kilometerState.bmw.gekoppeld') == null;
             /* Een script dat je niet herkent: dat zegt de melding. */
-            gekoppeld();
-            w.eval('kmBmw.accessTot=0');
-            token = () => ({v: 2, fout: 'wie'});
+            gekoppeld(true);
+            ritten = () => ({v: 3, fout: 'wie'});
             await w.kmBmwHaal({stil: true});
             const wie = /herkent je niet/.test(String(w.eval('kmBmw.fout'))) && w.eval('kmBmwGekoppeld()') === true;
-            return nieuw && zegt && vers && verlopen && inBeeld && wie;
+            /* Het script van v3.17 koppelt wel, maar haalt niet zelf op: bijwerken, niet opnieuw koppelen. Met de hand opent het venster bij het script. */
+            ritten = () => ({v: 2, fout: 'doe'});
+            await w.kmBmwHaal();
+            const bij = /haalt nog niet zelf op/.test(String(w.eval('kmBmw.fout'))) && d.getElementById('kmBmwModal').classList.contains('open') &&
+              d.getElementById('kmBmwTitel').textContent === 'Script opzetten' && /opnieuw koppelen hoeft niet/.test(d.getElementById('kmBmwInhoud').textContent);
+            /* Bijgewerkt: Verder haalt meteen op, zonder nieuwe koppeling. */
+            ritten = () => ({v: 3, net: 'zelfde', ritten: [], anker: null, status: {aan: true, fout: '', vandaag: 5, max: 44}});
+            verzoeken.length = 0;
+            d.getElementById('kmBmwVerder').click();
+            await new Promise(res => setTimeout(res, 150));
+            const bijgewerkt = !d.getElementById('kmBmwModal').classList.contains('open') && verzoeken.includes('script ritten nu') &&
+              !verzoeken.some(x => /script start/.test(x)) && !w.eval('kmBmw.fout') && w.eval('kmBmwGekoppeld()') === true;
+            try { w.appToastHide(); } catch (_) {}
+            return vers && nieuw && zegt && los && wie && bij && bijgewerkt;
           } finally {
             w.fetch = echteFetch;
             w.driveVraagToken = echtToken;
+            try { w.kmBmwSluit(); } catch (_) {}
             w.eval('kmBmw=' + oudBmw); terug(oud);
           }
         })],
