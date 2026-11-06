@@ -3157,6 +3157,162 @@ async function runChecks() {
         }))]
       ];
     })(),
+    /* ── Fiscaal: voorbeeld en tekst aanpassen (2026-11-06) ──
+       Verzonnen gegevens. Na afloop staat fiscaalState terug, is het venster
+       dicht en is er niets gedownload. */
+    ...(() => {
+      const G = {werkNaam: 'Voorbeeld B.V.', werkKvk: '12345678', werkPlaats: 'Puren', werkAdres: 'Werkstraat 1, 1234 AB Puren', werkRsin: '001122334',
+        holdingNaam: 'Voorbeeld Holding B.V.', holdingKvk: '87654321', holdingPlaats: 'Puren', holdingAdres: 'Holdingweg 2, 1234 AB Puren', holdingRsin: '998877665',
+        aanhef: 'de heer', vertegenwoordiger: 'Jan Jansen', bestuurder: 'holding', bestuurderNaam: '', priveAdres: 'Dorpsstraat 3, 1234 CD Puren', geboortedatum: '1990-05-01'};
+      const L = {id: 'tvb1', nummer: 'Z-003', geldgever: 'holding', doel: 'oversluiten', omschrijving: '', woningAdres: 'Dorpsstraat 3, 1234 CD Puren',
+        bedrag: 40000, datum: '2026-06-16', plaats: 'Puren', oudGeldgever: 'Voorbeeld Bank', oudStart: '2021-03-01', aflossing: 'annuitair', looptijd: 297,
+        rente: 4.4, renteVast: null, ijkRente: 4.2, ijkDatum: '2026-06-10', ijkBron: 'de rentetabel van Voorbeeld Bank', ijkWat: 'een hypotheek 30 jaar vast zonder NHG',
+        zekerheid: 'verklaring', partner: '', uitbetaalAan: 'oud', uitbetaalDatum: null, betaling: 'incasso', iban: 'NL00TEST0123456789', kas: 90000, afgelostOp: null,
+        allonges: [], getekend: [], tekenMails: [], aanpassingen: [], aflossingen: [], documenten: []};
+      const D = {id: 'tvd1', datum: '2026-11-02', plaats: 'Puren', boekjaar: '2025', bedrag: 10000, tenLaste: 'winst of overige reserves', betaaldatum: null,
+        peildatum: '2026-10-31', ev: 50000, reserves: 0, kas: 30000, schulden: 5000, kasstroom: 10000, vrijstelling: true, getekend: [], tekenMails: [], aanpassingen: []};
+      const metVb = async fn => {
+        const oud = w.eval('JSON.stringify(fiscaalState)'), oudMod = w.eval('activeModule');
+        const echtPdf = w.fisPdfDoc, bewaard = [], gemaakt = [];
+        /* Geen download: wat de app zou opslaan en welke blokken hij kreeg, onthouden we. */
+        w.fisPdfDoc = bl => { gemaakt.push(bl); const doc = echtPdf(bl); if (doc) doc.save = naam => { bewaard.push(naam); return doc; }; return doc; };
+        w.eval('fiscaalState=' + JSON.stringify({gegevens: G, dividenden: [D], leningen: [L]}));
+        try { return await fn(bewaard, gemaakt); }
+        finally {
+          w.fisPdfDoc = echtPdf;
+          try { w.eval('fisVbTerug=null'); w.fisVbSluit(); w.fisLenSluit(); w.fisMenuDicht(); w.appToastHide(); } catch (_) {}
+          w.eval('fiscaalState=' + oud); w.eval('fisWeergave="kies"');
+          try { w.switchModule(oudMod); } catch (_) {}
+        }
+      };
+      const tekst = (bl, re) => bl.find(b => b.soort === 'tekst' && re.test(b.tekst)).tekst;
+      const zet = (t, v) => { t.value = v; t.dispatchEvent(new w.Event('input', {bubbles: true})); };
+      const veld = re => [...d.querySelectorAll('#fisVbBewerk textarea[data-vb]')].find(t => re.test(t.value));
+      return [
+        ['Voorbeeld: een tekstaanpassing vervangt alleen haar eigen alinea, leeg haalt hem weg; slotzin en schema blijven, en wat niet meer past wordt gezien', () => {
+          const kaal = w.fisLenBlokken('overeenkomst', L, G);
+          const alinea = tekst(kaal, /zakelijke voorwaarden/), overeen = tekst(kaal, /^komen het volgende overeen/), regel = kaal.find(b => b.soort === 'regels').regels[1];
+          const item = {...L, aanpassingen: [
+            {soort: 'overeenkomst', extra: '', van: alinea, naar: 'Anders verwoord.'},
+            {soort: 'overeenkomst', extra: '', van: overeen, naar: ''},
+            {soort: 'overeenkomst', extra: '', van: regel, naar: 'Datum: zestien juni 2026'},
+            {soort: 'overeenkomst', extra: '', van: 'Een zin die er niet meer staat.', naar: 'x'},
+            {soort: 'besluit', extra: '', van: alinea, naar: 'hoort bij een ander stuk'}]};
+          const met = w.fisMetAanpassingen(item, 'overeenkomst', '', kaal), teksten = met.filter(b => b.soort === 'tekst').map(b => b.tekst);
+          const vervangen = teksten.includes('Anders verwoord.') && !teksten.includes(alinea) && !teksten.includes(overeen) && met.length === kaal.length - 1 &&
+            met.find(b => b.soort === 'regels').regels[1] === 'Datum: zestien juni 2026' && !teksten.includes('hoort bij een ander stuk');
+          const blijft = met.find(b => b.slot).tekst === kaal.find(b => b.slot).tekst && w.fisAanpasbaar(kaal.find(b => b.slot)) === false &&
+            JSON.stringify(met.filter(b => b.soort === 'kolommen' || b.soort === 'handtekening')) === JSON.stringify(kaal.filter(b => b.soort === 'kolommen' || b.soort === 'handtekening'));
+          const vervallen = w.fisAanpassingenVervallen(item, 'overeenkomst', '', kaal);
+          const zonder = w.fisMetAanpassingen({...L}, 'overeenkomst', '', kaal) === kaal;
+          return vervangen && blijft && vervallen.length === 1 && vervallen[0].naar === 'x' && zonder;
+        }],
+        ['Voorbeeld: een stuk uit het menu opent eerst het voorbeeld; Aanpassen en Klaar bewaren de tekst, ongedaan maken zet hem terug, Beide documenten downloadt meteen', () => metVb(async (bewaard, gemaakt) => {
+          w.switchModule('fiscaal'); w.fisOpen('lening');
+          const rij = () => d.querySelector('#fisBody [data-action="fisLenMenu"][data-arg1="tvb1"]');
+          rij().click();
+          d.querySelector('#fisMenu [data-arg1="pdf"][data-arg3="overeenkomst"]').click();
+          const m = d.getElementById('fisVbModal'), sub = () => d.getElementById('fisVbSub').textContent;
+          const opties = [...d.getElementById('fisVbKeuze').options].map(o => o.textContent);
+          const open = m.classList.contains('open') && d.getElementById('fisVbTitel').textContent === 'Overeenkomst met aflossingsschema' && sub() === 'Lening Z-003' &&
+            /^blob:/.test(d.getElementById('fisVbFrame').getAttribute('src') || '') && bewaard.length === 0 &&
+            opties[0] === 'Overeenkomst met aflossingsschema' && opties.includes('Besluit aandeelhouder') && opties.some(o => /^Jaaroverzicht \d{4}$/.test(o));
+          d.querySelector('#fisVbVoet [data-action="fisVbAanpassen"]').click();
+          const bewerk = !d.getElementById('fisVbBewerk').hidden && d.getElementById('fisVbVlak').hidden && !d.getElementById('fisVbBewerkVoet').hidden &&
+            d.querySelectorAll('#fisVbBewerk .fis-vb-vast').length >= 3 && !d.querySelector('#fisVbBewerk .fis-vb-blok.is-anders');
+          const a = veld(/zakelijke voorwaarden/), r = veld(/een rente verschuldigd van 4,40%/);
+          zet(a, a.value.replace('zouden gelden', 'gebruikelijk zijn'));
+          zet(r, r.value.replace('4,40%', '4,30%'));
+          const stand = a.closest('.fis-vb-blok').classList.contains('is-anders') && !a.closest('.fis-vb-blok').querySelector('.fis-vb-let') &&
+            !!r.closest('.fis-vb-blok').querySelector('.fis-vb-let');
+          /* Terugzetten per veld, en weer aanpassen. */
+          r.closest('.fis-vb-blok').querySelector('[data-action="fisVbVeldTerug"]').click();
+          const terugVeld = !r.closest('.fis-vb-blok').classList.contains('is-anders') && /4,40%/.test(r.value);
+          d.querySelector('#fisVbBewerkVoet [data-action="fisVbBewerkKlaar"]').click();
+          const l = () => w.eval('fiscaalState.leningen[0]');
+          const bewaardTekst = l().aanpassingen.length === 1 && /gebruikelijk zijn;$/.test(l().aanpassingen[0].naar) && sub() === 'Lening Z-003 · 1 tekstaanpassing' &&
+            !d.getElementById('fisVbVlak').hidden && gemaakt[gemaakt.length - 1].some(b => /gebruikelijk zijn/.test(b.tekst || ''));
+          /* Ondertekenen gebruikt dezelfde tekst. */
+          const teken = w.fisTekenBron('len', 'tvb1').stukken[0].blokken().some(b => /gebruikelijk zijn/.test(b.tekst || ''));
+          d.querySelector('#fisVbVoet [data-action="fisVbOpslaan"]').click();
+          const opgeslagen = bewaard.join() === 'Overeenkomst_Geldlening_Z-003.pdf';
+          d.getElementById('undoToastUndoBtn').click();
+          const undo = l().aanpassingen.length === 0 && sub() === 'Lening Z-003';
+          d.querySelector('#fisVbVoet [data-action="fisVbSluit"]').click();
+          const dicht = !m.classList.contains('open');
+          /* Beide documenten: meteen downloaden, zonder voorbeeld. */
+          rij().click();
+          const beide = d.querySelector('#fisMenu [data-arg1="pdf"][data-arg3="alle"]');
+          const hint = /Meteen downloaden/.test(beide.textContent);
+          gemaakt.length = 0; bewaard.length = 0;
+          w.eval('fiscaalState.leningen[0].aanpassingen=[{soort:"besluit",extra:"",van:' + JSON.stringify(tekst(w.fisLenBlokken('besluit', L, G), /besluit tot het verstrekken/)) + ',naar:"Ander besluit."}]');
+          beide.click();
+          for (let i = 0; i < 40 && bewaard.length < 2; i++) await new Promise(x => setTimeout(x, 50));
+          const meteen = !m.classList.contains('open') && bewaard.join() === 'Overeenkomst_Geldlening_Z-003.pdf,Besluit_AVA_Lening_Z-003.pdf' &&
+            gemaakt[1].some(b => b.tekst === 'Ander besluit.');
+          return open && bewerk && stand && terugVeld && bewaardTekst && teken && opgeslagen && undo && dicht && hint && meteen;
+        })],
+        ['Voorbeeld: Gegevens aanpassen opent de lening en komt daarna terug; een aanpassing die niet meer past wordt genoemd en gaat bij Klaar weg', () => metVb(async () => {
+          const r0 = tekst(w.fisLenBlokken('overeenkomst', L, G), /een rente verschuldigd van 4,40%/);
+          w.eval('fiscaalState.leningen[0].aanpassingen=[{soort:"overeenkomst",extra:"",van:' + JSON.stringify(r0) + ',naar:' + JSON.stringify(r0.replace('4,40%', '4,30%')) + '}]');
+          w.switchModule('fiscaal'); w.fisOpen('lening');
+          d.querySelector('#fisBody [data-action="fisLenMenu"][data-arg1="tvb1"]').click();
+          d.querySelector('#fisMenu [data-arg1="pdf"][data-arg3="overeenkomst"]').click();
+          d.querySelector('#fisVbVoet [data-action="fisVbAanpassen"]').click();
+          d.querySelector('#fisVbBewerkVoet [data-action="fisVbGegevens"]').click();
+          const naar = d.getElementById('fisLenModal').classList.contains('open') && !d.getElementById('fisVbModal').classList.contains('open');
+          const rente = d.getElementById('fisLenRente');
+          zet(rente, '4,5');
+          d.querySelector('#fisLenModal [data-action="fisLenOpslaan"]').click();
+          await new Promise(x => setTimeout(x, 60));
+          const terug = d.getElementById('fisVbModal').classList.contains('open') && w.eval('fiscaalState.leningen[0].rente') === 4.5 &&
+            /1 aanpassing past niet meer/.test(d.getElementById('fisVbSub').textContent) && d.getElementById('fisVbTitel').textContent === 'Overeenkomst met aflossingsschema';
+          d.querySelector('#fisVbVoet [data-action="fisVbAanpassen"]').click();
+          const melding = /past niet meer/.test((d.querySelector('#fisVbBewerk .opd-reken-fout') || {}).textContent || '');
+          d.querySelector('#fisVbBewerkVoet [data-action="fisVbBewerkKlaar"]').click();
+          const weg = w.eval('fiscaalState.leningen[0].aanpassingen.length') === 0 && d.getElementById('fisVbSub').textContent === 'Lening Z-003';
+          /* Annuleren in de lening brengt je ook terug. */
+          d.querySelector('#fisVbVoet [data-action="fisVbAanpassen"]').click();
+          d.querySelector('#fisVbBewerkVoet [data-action="fisVbGegevens"]').click();
+          d.querySelector('#fisLenModal .modal-annuleer').click();
+          await new Promise(x => setTimeout(x, 60));
+          const annuleer = d.getElementById('fisVbModal').classList.contains('open') && !d.getElementById('fisLenModal').classList.contains('open');
+          return naar && terug && melding && weg && annuleer;
+        })],
+        ['Voorbeeld: ook bij een uitkering; Alle drie neemt de aanpassingen mee, en de state laadt ook zonder', () => metVb(async (bewaard, gemaakt) => {
+          w.switchModule('fiscaal'); w.fisOpen('dividend');
+          const rij = () => d.querySelector('#fisBody [data-action="fisDivMenu"][data-arg1="tvd1"]');
+          rij().click();
+          d.querySelector('#fisMenu [data-arg1="pdf"][data-arg3="nota"]').click();
+          const open = d.getElementById('fisVbModal').classList.contains('open') && d.getElementById('fisVbTitel').textContent === 'Dividendnota' &&
+            d.getElementById('fisVbKeuze').options.length === 3 && bewaard.length === 0;
+          d.getElementById('fisVbKeuze').value = '0';
+          d.getElementById('fisVbKeuze').dispatchEvent(new w.Event('change', {bubbles: true}));
+          const kies = d.getElementById('fisVbTitel').textContent === 'Notulen AVA';
+          d.querySelector('#fisVbVoet [data-action="fisVbAanpassen"]').click();
+          const s = veld(/sluit de vergadering/);
+          zet(s, 'De voorzitter sluit de vergadering om 10.15 uur.');
+          d.querySelector('#fisVbBewerkVoet [data-action="fisVbBewerkKlaar"]').click();
+          d.querySelector('#fisVbVoet [data-action="fisVbSluit"]').click();
+          gemaakt.length = 0;
+          rij().click();
+          d.querySelector('#fisMenu [data-arg1="pdf"][data-arg3="alle"]').click();
+          for (let i = 0; i < 60 && bewaard.length < 3; i++) await new Promise(x => setTimeout(x, 50));
+          const alle = bewaard.length === 3 && gemaakt[0].some(b => b.tekst === 'De voorzitter sluit de vergadering om 10.15 uur.') &&
+            !gemaakt[1].some(b => /10\.15 uur/.test(b.tekst || ''));
+          const bewaar = JSON.stringify(w.huidigeStateSnapshot());
+          let laadt = false;
+          try {
+            w.eval('rawState=' + bewaar);
+            const {aanpassingen: x1, ...kaalL} = L, {aanpassingen: x2, ...kaalD} = D;
+            w.eval('rawState.fiscaal=' + JSON.stringify({gegevens: G, dividenden: [kaalD], leningen: [kaalL]}));
+            w.hydrateerState();
+            laadt = w.eval('Array.isArray(fiscaalState.leningen[0].aanpassingen)&&Array.isArray(fiscaalState.dividenden[0].aanpassingen)');
+          } finally { w.eval('rawState=' + bewaar); w.hydrateerState(); }
+          return open && kies && alle && laadt;
+        })]
+      ];
+    })(),
     ['Uren-analyse: Nog niet gefactureerd krijgt een totaal eronder (vanaf twee klanten), met dezelfde som als de tegel', () => {
       const twee = w.urenAnOpenstaand({klanten: [{naam: 'Klant A', open: 2, openEuro: 200}, {naam: 'Klant B', open: 1.5, openEuro: 150}], open: 3.5, openEuro: 350});
       const doos = d.createElement('div'); doos.innerHTML = twee;
