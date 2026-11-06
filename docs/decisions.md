@@ -9731,3 +9731,60 @@ nagespeeld in Node (26 gevallen: ophalen, rijden, nacht, pauze, adres later,
 - Coördinaten in `kilometerState` zetten: dat gaat mee in elke back-up op elk apparaat.
 - De app zelf laten pollen bij BMW naast het script: dan is het maximum van 50 per dag snel op.
 - Plekken in het script weggooien zodra de app ze ziet: dan werkt ongedaan maken niet, en mist een ander apparaat ze.
+
+## 2026-11-06 · Uren op een verstuurde factuur staan weer op gefactureerd (v3.19)
+
+**Probleem.** Boven de facturenlijst bleef *Uit oktober 2026 staan nog 189,00 u
+open bij 5 klanten* staan, met *Uren factureren*, terwijl oktober al
+gefactureerd was: vier facturen van 1 november, drie verstuurd (gemaild) en
+één definitief. De 189 u was precies de som van de drie verstuurde facturen
+(alle drie aan een tussenpartij); de uren van de definitieve factuur telden
+niet mee.
+
+**Oorzaak.** Elke weg naar definitief koppelt de uren (`factuurMarkeerDefinitief`
+→ `factuurUrenKoppelen`: `status:'invoiced'` en `factuurId`), en de melding
+(`facMaandHint` → `facMaandVoorstel` → `factuurUrenVoorKlant`) telt een uur als
+open zolang dat er niet op staat. Wat de koppeling kan kwijtraken is het
+samenvoegen bij een schrijfbotsing (`saveGistIntern` → `voegStateSamen`, ook
+*Ontbrekende items aanvullen* bij de versies): per id wint de kant van dít
+venster. Schrijft een venster dat nog van vóór het factureren is (een ander
+apparaat, een oud tabblad), dan komen de facturen van de andere kant erbij,
+maar blijven hun uren zoals dat venster ze kende: open. Een factuur die op dat
+moment nog concept was, werd daarna gewoon definitief en kreeg zijn uren wél --
+vandaar dat de definitieve factuur goed stond en de drie verstuurde niet.
+
+**Beslissing.**
+- `factuurUrenHerstel()`: de factuur is de bron. Een uur dat in de regels
+  (`urenIds`) van een factuur staat die geen concept is, maar zelf geen factuur
+  heeft (of een die niet meer bestaat), wordt weer gefactureerd en aan die
+  factuur gekoppeld.
+- Draait in `hydrateerStateIntern`, na `factuurStatussenBij`: dus bij elk laden
+  én na elk samenvoegen (dat hydrateert altijd, vóór het wegschrijven). Heeft
+  het iets gedaan, dan bewaart het en zegt een melding hoeveel uur het was.
+- Alleen koppelen, nooit losmaken. Een uur met een factuur die bestaat blijft
+  van die factuur, ook als je het in Uren zelf op open zette. Concepten tellen
+  niet mee: die houden hun uren vast zonder ze te markeren.
+- Een uur dat echt nog open staat (op geen factuur, geen concept) houdt de
+  melding, zoals altijd.
+
+**Waarom.** Factuur en uren staan in twee lijsten die apart worden
+samengevoegd; de koppeling ertussen staat aan beide kanten (`urenIds` op de
+regel, `factuurId` op het uur). Eén kant als bron nemen en de andere daaruit
+rechtzetten is eenvoudiger en vollediger dan het samenvoegen voor deze ene
+relatie slimmer maken: het herstelt ook wat er al mis stond in Drive.
+
+**Staat de melding na deze versie nog?** Dan staan die uren niet in de regels
+van de factuur: hij is met de hand opgebouwd (een kopie van vorige maand, of
+regels zelf getypt). Open de factuur: onder een regel met uren hoort
+*↳ n urenregistraties gekoppeld* te staan. Zonder die regel weet de app niet
+welke uren erbij horen; zet ze dan in Uren op *Gefactureerd*.
+
+**Bestanden.** `index.html` (`factuurUrenHerstel`, `hydrateerStateIntern`,
+`pinZetGeheimenTerug`, commentaar bij `voegStateSamen`), `test.html` (1 nieuwe
+test: twee vensters, samenvoegen, hydrateren), `sw.js`: v319, `CLAUDE.md`.
+
+**Niet doen.**
+- Uren losmaken omdat ze níet in een factuur staan: een uur kan zonder factuur
+  op gefactureerd staan (de selectiebalk in Uren), dat is jouw keuze.
+- De melding laten raden welke uren bij een factuur zonder `urenIds` horen
+  (klant plus maand): dan verdwijnt hij ook als er echt nog uren open staan.

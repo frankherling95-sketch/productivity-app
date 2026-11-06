@@ -1007,6 +1007,79 @@ async function runChecks() {
           w.switchModule(terugNaar || 'dashboard');
         }
       }],
+    /* Uren factureren bleef zeggen dat een maand nog open stond, terwijl de
+       facturen al verstuurd waren (2026-11-06). Een venster van vóór het
+       factureren schreef, botste en voegde samen: de facturen kwamen van de
+       andere kant, de uren bleven zoals dat venster ze kende. Hier precies dat
+       pad: voegStateSamen zoals saveGistIntern het doet, dan hydrateren.
+       `scenario` controleert dat het samenvoegen de uren echt open liet; gaat
+       dat ooit anders, dan test dit de herstelstap niet meer en hoort hij
+       herschreven te worden. */
+    ['Factureren: na samenvoegen met een venster van vóór het factureren staan de uren weer op gefactureerd, en de melding noemt alleen wat echt open is',
+      async () => {
+        const bewaar = JSON.stringify(w.huidigeStateSnapshot());
+        const terugNaar = w.eval('activeModule');
+        const standaard = w.facMaandStandaard;
+        try {
+          w.eval(`(function(){
+            kanbanState.clients.push(
+              {id:'tP',name:'Acme Data B.V.',colorIdx:0,tarief:100,adres:'Straat 1',postcode:'1000 AA',plaats:'Puren',email:'iemand@voorbeeld.nl'},
+              {id:'tA',name:'Klant Noord',colorIdx:1,factuurPartijId:'tP'},
+              {id:'tB',name:'Klant Zuid',colorIdx:2,factuurPartijId:'tP',factuurApart:true},
+              {id:'tC',name:'Klant Oost',colorIdx:3,factuurPartijId:'tP'},
+              {id:'tD',name:'Klant West',colorIdx:4,tarief:100,adres:'Weg 2',postcode:'2000 BB',plaats:'Noordstad',email:'iemand@voorbeeld.nl'});
+            [['tA','2031-01-06',4],['tB','2031-01-08',2],['tC','2031-01-09',1],['tD','2031-01-10',3]]
+              .forEach(([c,d,h])=>urenAddEntry({date:d,clientId:c,hours:h,description:'test'}));
+          })()`);
+          /* De melding kijkt naar de maand die je nu zou afsluiten; hier januari 2031. */
+          w.facMaandStandaard = () => '2031-01';
+          const hintVoor = /staan nog <b>10,00 u<\/b> open bij 4 klanten/.test(w.facMaandHint());
+          /* Venster B: nog van vóór het factureren. */
+          const vensterB = JSON.parse(JSON.stringify(w.huidigeStateSnapshot()));
+          /* Venster A: Uren factureren; Acme Data (samen en apart) definitief en
+             gemaild, Klant West nog een concept. */
+          w.facMaandStart('2031-01');
+          await new Promise(r => setTimeout(r, 30));
+          d.getElementById('facMaandMaakBtn').click();
+          await new Promise(r => setTimeout(r, 60));
+          const nieuw = () => w.eval('factuurState.invoices').filter(f => f.urenPeriode && f.urenPeriode.from === '2031-01-01');
+          nieuw().filter(f => f.clientId === 'tP').forEach(f => { w.factuurMarkeerDefinitief(f.id); w.factuurMarkeerVerstuurd(f.id, 'mail'); });
+          const inA = w.facMaandHint() === '';
+          const vensterA = JSON.parse(JSON.stringify(w.huidigeStateSnapshot()));
+          /* B schrijft en botst: samenvoegen met A, B wint per id. */
+          const samen = w.voegStateSamen(vensterA, vensterB).state;
+          const jan = lijst => lijst.filter(e => e.date >= '2031-01-01' && e.date <= '2031-01-31');
+          const scenario = samen.facturen.invoices.filter(f => f.clientId === 'tP' && f.status === 'verstuurd').length === 2 &&
+            jan(samen.uren.entries).filter(e => e.clientId !== 'tD' && e.status === 'open' && !e.factuurId).length === 3;
+          w.eval('rawState=' + JSON.stringify(samen));
+          w.hydrateerState();
+          const fac = id => w.eval('factuurState.invoices').find(f => f.id === id);
+          const na = jan(w.eval('urenState.entries'));
+          const gekoppeld = na.filter(e => e.clientId !== 'tD').length === 3 &&
+            na.filter(e => e.clientId !== 'tD').every(e => e.status === 'invoiced' && fac(e.factuurId) &&
+              fac(e.factuurId).status === 'verstuurd' && w.factuurUrenIds(fac(e.factuurId)).includes(e.id));
+          /* Het concept houdt zijn uren vast, maar markeert ze niet. */
+          const westConcept = na.filter(e => e.clientId === 'tD').every(e => e.status === 'open' && !e.factuurId);
+          const v = w.facMaandVoorstel('2031-01', {});
+          const stil = v.groepen.length === 0 && v.opConcept === 3 && w.facMaandHint() === '';
+          const eenmalig = w.factuurUrenHerstel().n === 0;
+          /* Klant West daarna definitief: gewoon gekoppeld, zoals altijd. */
+          const west = nieuw().find(f => f.clientId === 'tD');
+          w.factuurMarkeerDefinitief(west.id);
+          const westKlaar = jan(w.eval('urenState.entries')).filter(e => e.clientId === 'tD')
+            .every(e => e.status === 'invoiced' && e.factuurId === west.id);
+          /* Een uur dat echt nog open staat, houdt de melding. */
+          w.eval(`urenAddEntry({date:'2031-01-20',clientId:'tC',hours:2,description:'test'})`);
+          const echtOpen = /staan nog <b>2,00 u<\/b> open bij 1 klant\b/.test(w.facMaandHint()) &&
+            w.facMaandVoorstel('2031-01', {}).groepen.length === 1;
+          return hintVoor && inA && scenario && gekoppeld && westConcept && stil && eenmalig && westKlaar && echtOpen;
+        } finally {
+          w.facMaandStandaard = standaard;
+          w.eval('rawState=' + bewaar);
+          w.hydrateerState();
+          w.switchModule(terugNaar || 'dashboard');
+        }
+      }],
     ['Factureren: uren op een concept zijn niet meer open, behalve voor dat concept zelf', () => {
       const voor = w.eval('JSON.stringify({c:kanbanState.clients,u:urenState.entries,f:factuurState.invoices})');
       try {

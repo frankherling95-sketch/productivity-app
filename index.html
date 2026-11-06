@@ -9885,7 +9885,7 @@ body.aic-open .aic-kop .sp-k { animation: sp-twinkel calc(var(--duur) * 3) var(-
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v3.18</span>
+        <span class="app-versie" title="Appversie">v3.19</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -12756,6 +12756,7 @@ function pinZetGeheimenTerug(geheim){
     if(!urenState.entries)urenState.entries=[];
     if(!urenState.templates)urenState.templates=[];
   }
+  if(geheim.facturen||geheim.uren)factuurUrenHerstel();
   Object.entries(geheim.klanten||{}).forEach(([id,stuk])=>{
     const c=(kanbanState.clients||[]).find(x=>x.id===id);
     if(c)Object.assign(c,stuk);
@@ -13281,6 +13282,14 @@ function hydrateerStateIntern(){
   factuurSettings();
   factuurMailsAanvullen();
   factuurStatussenBij();
+  /* Na factuurStatussenBij: die zet de status recht waar dit op kijkt. En
+     na urenState hierboven, want dit schrijft in de uren. */
+  {const h=factuurUrenHerstel();
+   if(h.n){scheduleSave();
+     console.warn('Uren weer aan hun factuur gekoppeld:',h);
+     setTimeout(()=>appToast(urenFmt(h.uren)+' u ('+h.n+(h.n===1?' registratie':' registraties')+
+       ') stond op een factuur, maar zelf nog op open — weer als gefactureerd gemarkeerd',
+       {type:'info',duration:8000}),900);}}
   opdrachtState=rawState.opdrachten||{opdrachten:[]};
   if(!Array.isArray(opdrachtState.opdrachten))opdrachtState.opdrachten=[];
   /* Vrije dagen (2026-10-03): vakantieperiodes, en welke feestdagen je vrij
@@ -20674,6 +20683,9 @@ function voegStateSamen(oud,nu){
   {const ids=new Set(((nu.checklist||{}).projects||[]).map(x=>x.id));
    uit.checklist.projects=((nu.checklist||{}).projects||[]).concat(
      JSON.parse(JSON.stringify(((oud.checklist||{}).projects||[]).filter(x=>x&&x.id&&!ids.has(x.id)))));}
+  /* Een factuur die alleen aan de oude kant staat komt erbij, maar zijn uren
+     staan hier nog zoals dit venster ze kende: open. De koppeling zet
+     factuurUrenHerstel() terug, bij het hydrateren na het samenvoegen. */
   uit.uren={...(uit.uren||{}),
     entries:vulAan((oud.uren||{}).entries,(nu.uren||{}).entries,'uren')};
   uit.facturen={...(uit.facturen||{}),
@@ -30844,6 +30856,42 @@ function factuurUrenLoskoppelen(f){
     const e=urenEntry(id);
     if(e&&e.factuurId===f.id){e.status='open';delete e.factuurId;e.updatedAt=Date.now();}
   });
+}
+/* Uren die op een definitieve factuur staan maar zelf nog op open staan,
+   weer aan die factuur koppelen (2026-11-06). De factuur is de bron: zijn
+   regels zeggen welke uren hij factureert (urenIds), en zo wordt het ook
+   gekoppeld en losgemaakt (factuurSyncUren).
+
+   Dat het uit elkaar kon lopen, komt door het samenvoegen bij een
+   schrijfbotsing (voegStateSamen): per id wint de kant van dit venster. Een
+   venster dat nog van vóór het factureren was, had de uren als open; de
+   facturen had het niet. Na het samenvoegen stonden de facturen er wel
+   (aangevuld van de andere kant), maar hun uren nog op open -- en Uren
+   factureren bleef zeggen dat de maand nog open stond.
+
+   Alleen koppelen, nooit losmaken. Een uur dat al een factuur heeft die
+   bestaat, blijft van die factuur, ook als je hem in Uren zelf op open
+   zette. Concepten tellen niet: die houden hun uren vast zonder ze te
+   markeren (factuurUrenInConcepten). Draait bij elk laden en na elk
+   samenvoegen (hydrateerStateIntern); wat al klopt, blijft staan. */
+function factuurUrenHerstel(){
+  const uit={n:0,uren:0};
+  const facturen=factuurState.invoices||[];
+  const bestaat=new Set(facturen.map(f=>f&&f.id));
+  const vanFactuur=new Map();
+  facturen.forEach(f=>{
+    if(!f||f.status==='concept')return;
+    factuurUrenIds(f).forEach(id=>{if(!vanFactuur.has(id))vanFactuur.set(id,f);});
+  });
+  if(!vanFactuur.size)return uit;
+  (urenState.entries||[]).forEach(e=>{
+    const f=e&&vanFactuur.get(e.id);
+    if(!f||(e.factuurId&&bestaat.has(e.factuurId)))return;
+    e.status='invoiced';e.factuurId=f.id;e.updatedAt=Date.now();
+    uit.n++;uit.uren+=Number(e.hours||0);
+  });
+  uit.uren=Math.round(uit.uren*100)/100;
+  return uit;
 }
 
 /* Definitief maken bevriest de factuur: nummer vastzetten en uren
