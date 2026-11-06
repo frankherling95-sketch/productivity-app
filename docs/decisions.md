@@ -9788,3 +9788,62 @@ test: twee vensters, samenvoegen, hydrateren), `sw.js`: v319, `CLAUDE.md`.
   op gefactureerd staan (de selectiebalk in Uren), dat is jouw keuze.
 - De melding laten raden welke uren bij een factuur zonder `urenIds` horen
   (klant plus maand): dan verdwijnt hij ook als er echt nog uren open staan.
+
+## 2026-11-06 · Fiscaal: eerst een voorbeeld, en de tekst nog aanpassen (v3.20)
+
+**Probleem.** Een stuk uit het menu van een uitkering of lening werd meteen
+gedownload. Wat erin stond zag je pas in de PDF, en een zin anders
+verwoorden kon niet: de teksten komen uit de app.
+
+**Beslissing.**
+- Een stuk uit het menu opent eerst als voorbeeld (`fisVbOpen`): de echte PDF
+  in een kader. Het venster is dat van de PDF van een contract en het
+  voorbeeld van een factuur (960 breed, 94vh, `.ctr-pdf-vlak` en
+  `.ctr-pdf-voet`). Bovenin staat de naam van het stuk. In de voet staan een
+  keuze tussen de stukken van die uitkering of lening (ook de
+  jaaroverzichten), *Aanpassen*, *Openen in nieuw tabblad*, *PDF opslaan* en
+  *Sluiten*.
+- *Aanpassen* toont de tekst per alinea, als een veld zoals in de andere
+  vensters. Wat de app rekent (bedragen, het schema, de handtekeningen, de
+  slotzin) staat ertussen als gestippelde regel en is niet te wijzigen.
+- Een aanpassing wordt bewaard bij de uitkering of lening (`aanpassingen[]`:
+  `{soort, extra, van, naar}`). Ze geldt voor elke PDF van dat stuk:
+  - het voorbeeld;
+  - *Alle drie* / *Beide documenten* (die downloaden meteen, zonder
+    voorbeeld);
+  - het ondertekenen.
+
+  Is het stuk al getekend, dan zegt het menu *daarna gewijzigd*. Ongedaan
+  maken kan.
+- Een aanpassing hangt aan de tekst die de app maakte (`van`), niet aan een
+  positie. Verandert die tekst doordat de gegevens veranderen, dan past de
+  aanpassing niet meer. Het voorbeeld zegt dat, en bij *Klaar* gaat ze weg.
+- Is een getal anders dan in de tekst van de app, dan krijgt dat veld een
+  waarschuwing. *Gegevens aanpassen* opent het venster van de uitkering,
+  lening of allonge en komt daarna terug bij het voorbeeld.
+
+**Waarom.**
+- Het voorbeeld is de echte PDF, geen nagebouwde weergave. Wat je ziet is wat
+  je opslaat, met de pagina's zoals ze vallen, net als bij een factuur.
+- Aanpassingen per alinea houden de rest van het stuk zoals de app het
+  maakt. Het schema, de bedragen en de fiscale toetsen blijven gerekend.
+- Hangen aan de tekst in plaats van aan een plek voorkomt dat een oude
+  aanpassing ongemerkt op de verkeerde alinea belandt als het stuk verandert.
+- Zoomen staat aan bij de PDF, maar uit in de bewerkstand. Anders zoomt een
+  iPhone in zodra je in een veld tikt.
+
+**Bestanden.**
+- `index.html`:
+  - nieuw: `#fisVbModal`, `fisVb*`, `fisMetAanpassingen`, `fisAanpassingenVervallen`;
+  - gewijzigd: `fisTekenBron` (`kaal` naast `blokken`), `fisLenPdf`,
+    `fisDivPdf`, de menu-acties en de hydratie.
+- `test.html`: 4 tests.
+
+**Niet doen.**
+- Bedragen of het schema als tekst laten wijzigen. Die horen in de gegevens,
+  anders klopt het stuk niet meer met de toetsen.
+- Een aanpassing op positie bewaren (de vijfde alinea). Na een wijziging van
+  de gegevens schuift alles.
+- Op een iPhone een eigen weergave van de PDF bouwen. Een PDF in een kader
+  blijft daar leeg, en *Openen in nieuw tabblad* is de weg eromheen, zoals
+  bij facturen en contracten.

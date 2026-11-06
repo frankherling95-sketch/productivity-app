@@ -891,6 +891,28 @@ In de PDF staat de handtekening boven de stippellijn, er iets overheen
 (hooguit 17mm hoog, één keer ingesloten). Een lege datum is een stippellijn
 van 30mm na de plaats.
 
+**Voorbeeld** (2026-11-06). Een stuk uit het menu opent eerst in
+`#fisVbModal`. Dat venster is het venster van de PDF van een contract en
+het voorbeeld van een factuur: 960 breed, 94vh, een `.modal-kop` met de naam
+van het stuk en eronder de uitkering of lening (en het aantal
+tekstaanpassingen), de PDF in `.ctr-pdf-vlak`, en de voet `.ctr-pdf-voet`.
+In de voet staan:
+- links de keuze tussen de stukken (`.ctr-pdf-keuze`), *Aanpassen* en
+  *Openen in nieuw tabblad*;
+- rechts *↧ PDF opslaan* en *Sluiten* als primaire knop (`.uren-btn`).
+
+De PDF krijgt de naam van het stuk als titel, zodat de viewer die toont.
+*Aanpassen* vervangt het vlak door de tekst (`.fis-vb-bewerk`, een kolom van
+hooguit 720px). Elke alinea is een `.uren-fld` met een `textarea.inp` die
+meegroeit, minstens `var(--tap)` hoog. Koppen staan vet. Een gewijzigd veld
+krijgt een mint rand en een regel eronder in `--fs-micro` muted: *Aangepast*
+(of *Deze alinea gaat eruit*), een waarschuwing in `--warning` als er een
+getal veranderde, en *Terugzetten* (`.btn-xs`). Wat de app rekent staat als
+`.fis-vb-vast` ertussen: `--fs-klein` muted, met een gestippelde rand van
+0,5px. De voet heeft dan *Gegevens aanpassen* en *Alles terugzetten* links,
+en rechts *Annuleren* en *Klaar*. In het menu krijgt *Alle drie* / *Beide
+documenten* de bijregel *Meteen downloaden, zonder voorbeeld*.
+
 ### Kilometers
 
 Dezelfde opbouw als Fiscaal: groepen met een getint icoon (`kmGroep`),

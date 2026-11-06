@@ -2535,7 +2535,23 @@ button.uren-mpiv-row:active{background:var(--surface2)}
 /* Velden die bij een keuze horen (lening: doel, zekerheid, betaling; je
    gegevens: de bestuurder) gaan weg met hidden -- .uren-fld is flex, dus
    dat moet hier gezegd, zoals bij Contracten. */
-#fisLenModal [hidden],#fisGegModal [hidden],#fisAllModal [hidden],#fisTekenModal [hidden]{display:none}
+#fisLenModal [hidden],#fisGegModal [hidden],#fisAllModal [hidden],#fisTekenModal [hidden],#fisVbModal [hidden]{display:none}
+/* Voorbeeld van een stuk (2026-11-06): het venster van de PDF van een
+   contract (.ctr-pdf-vlak, .ctr-pdf-voet). Met Aanpassen wordt het vlak de
+   tekst van het stuk: per alinea een veld zoals in de andere vensters
+   (.uren-fld), in de volgorde van het stuk. Wat de app rekent (bedragen,
+   het schema, de handtekeningen) staat ertussen als gestippelde regel. */
+.fis-vb-bewerk{flex:1;min-height:0;overflow-y:auto;padding:var(--sp-4) var(--sp-5)}
+.fis-vb-vel{max-width:720px;margin:0 auto}
+.fis-vb-blok textarea.inp{min-height:var(--tap);resize:none;overflow:hidden;font-size:var(--fs-basis);line-height:1.55}
+.fis-vb-blok.is-kop textarea.inp{font-weight:700}
+.fis-vb-blok.is-anders textarea.inp{border-color:var(--mint)}
+.fis-vb-blok-voet{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:var(--fs-micro);color:var(--text-muted)}
+.fis-vb-blok-voet:empty{display:none}
+.fis-vb-blok-voet .fis-vb-let{color:var(--warning);font-weight:600}
+.fis-vb-vast{padding:8px 12px;border:0.5px dashed var(--border-strong);border-radius:var(--radius);
+  font-size:var(--fs-klein);color:var(--text-muted)}
+@media (max-width:768px){.fis-vb-bewerk{padding:var(--sp-3)}}
 /* Je handtekening (2026-11-02): een vel papier, ook in donker, want daar
    komt hij ook op te staan. Tekenen met vinger of muis op een canvas, met
    een stippellijn als houvast; een foto van een handtekening op wit papier
@@ -9885,7 +9901,7 @@ body.aic-open .aic-kop .sp-k { animation: sp-twinkel calc(var(--duur) * 3) var(-
         <!-- Het cijfer achter de punt is de release-teller uit sw.js
              (CACHE_NAME). validate.mjs bewaakt dat die twee gelijk blijven,
              zodat hier nooit een verouderd nummer kan blijven staan. -->
-        <span class="app-versie" title="Appversie">v3.19</span>
+        <span class="app-versie" title="Appversie">v3.20</span>
       </div>
       <!-- De streep draagt de inklapknop: die staat half over de rand van de
            zijbalk, zoals in het voorbeeld. -->
@@ -11359,6 +11375,45 @@ body.aic-open .aic-kop .sp-k { animation: sp-twinkel calc(var(--duur) * 3) var(-
      doel, de zekerheid en de betaling (fisLenVelden); het rekenvak onderaan
      rekent mee terwijl je typt (fisLenReken). -->
 <input type="file" id="fisLenDocInput" accept="application/pdf,.pdf" data-change="fisLenDocGekozen" hidden/>
+<!-- ── Fiscaal: een stuk eerst bekijken, en de tekst nog aanpassen ──
+     De echte PDF in een kader, zoals het voorbeeld van een factuur en de PDF
+     van een contract. Aanpassen toont de tekst per alinea; wat je wijzigt
+     wordt bewaard bij de uitkering of lening en komt in elke PDF van dat
+     stuk, ook als je hem tekent. -->
+<div class="modal-bg" id="fisVbModal">
+  <div class="modal" style="max-width:960px;padding:0;display:flex;flex-direction:column;height:94vh;max-height:94vh">
+    <div class="modal-kop" style="display:flex;align-items:center;gap:12px;flex-shrink:0">
+      <div style="flex:1;min-width:0">
+        <h3 style="font-size:17px;font-weight:700;margin:0" id="fisVbTitel">Voorbeeld</h3>
+        <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0" id="fisVbSub"></p>
+      </div>
+      <button data-action="fisVbSluit" aria-label="Sluiten"
+        style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--text-muted);padding:4px 8px;border-radius:var(--radius)">✕</button>
+    </div>
+    <div class="ctr-pdf-vlak" id="fisVbVlak">
+      <iframe id="fisVbFrame" title="Voorbeeld van het stuk"></iframe>
+      <div class="ctr-pdf-status" id="fisVbStatus" hidden></div>
+    </div>
+    <div class="fis-vb-bewerk" id="fisVbBewerk" hidden></div>
+    <div class="ctr-pdf-voet" id="fisVbVoet">
+      <!-- Een PDF in een iframe blijft leeg op iOS; daar is Openen in nieuw tabblad de weg eromheen. -->
+      <select class="inp ctr-pdf-keuze" id="fisVbKeuze" data-change="fisVbKies" aria-label="Welk stuk"></select>
+      <button class="uren-btn" data-action="fisVbAanpassen">Aanpassen</button>
+      <button class="uren-btn" data-action="fisVbNieuwTab">Openen in nieuw tabblad</button>
+      <div class="ctr-vul"></div>
+      <button class="uren-btn" data-action="fisVbOpslaan">↧ PDF opslaan</button>
+      <button class="uren-btn uren-btn-primary" data-action="fisVbSluit">Sluiten</button>
+    </div>
+    <div class="ctr-pdf-voet" id="fisVbBewerkVoet" hidden>
+      <button class="uren-btn" data-action="fisVbGegevens">Gegevens aanpassen</button>
+      <button class="uren-btn" id="fisVbTerugBtn" data-action="fisVbAllesTerug">Alles terugzetten</button>
+      <div class="ctr-vul"></div>
+      <button class="uren-btn" data-action="fisVbBewerkStop">Annuleren</button>
+      <button class="uren-btn uren-btn-primary" data-action="fisVbBewerkKlaar">Klaar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="fisLenModal" onclick="if(event.target===this)fisLenSluit()">
   <div class="modal" style="max-width:640px;padding:20px 22px">
     <h3 id="fisLenTitel" style="font-size:18px;font-weight:700;margin:0 0 16px">Nieuwe lening</h3>
@@ -13312,6 +13367,8 @@ function hydrateerStateIntern(){
     if(!x||typeof x!=='object')return;
     if(!Array.isArray(x.getekend))x.getekend=[];
     if(!Array.isArray(x.tekenMails))x.tekenMails=[];
+    /* Tekstaanpassingen per stuk (2026-11-06), uit het voorbeeld. */
+    if(!Array.isArray(x.aanpassingen))x.aanpassingen=[];
   });
   if(fiscaalState.gegevens.handtekening&&!fisHandtekening(fiscaalState.gegevens))delete fiscaalState.gegevens.handtekening;
   /* Kilometers (2026-11-02): ritten, bekende ritten, tarief per jaar en
@@ -16944,7 +17001,7 @@ async function fisDivPdf(id,soort){
   if(!st.klaar){appMelding('Nog niet klaar',st.reden);return;}
   const soorten=soort==='alle'?['ava','bestuur','nota']:[soort];
   for(const s of soorten){
-    const doc=fisPdfDoc(fisDivBlokken(s,d,fiscaalState.gegevens));
+    const doc=fisPdfDoc(fisMetAanpassingen(d,s,'',fisDivBlokken(s,d,fiscaalState.gegevens)));
     if(!doc){appToast('De PDF-maker is niet geladen. Controleer je verbinding en probeer het opnieuw.',{type:'error'});return;}
     doc.save(fisDivBestandsnaam(s,d));
     /* Drie downloads achter elkaar: even ruimte, anders houdt de browser er een tegen. */
@@ -16970,7 +17027,7 @@ function fisDivMenu(id,knop){
     item('pdf','ava',FIS_DOCS.ava.naam,!st.klaar)+
     item('pdf','bestuur',FIS_DOCS.bestuur.naam,!st.klaar)+
     item('pdf','nota',FIS_DOCS.nota.naam,!st.klaar)+
-    item('pdf','alle','Alle drie',!st.klaar,st.klaar?'':st.reden)+
+    item('pdf','alle','Alle drie',!st.klaar,st.klaar?'Meteen downloaden, zonder voorbeeld':st.reden)+
     '<div class="uren-menu-sep"></div>'+fisTekenMenuItems('div',id,item)+
     '<div class="uren-menu-sep"></div>'+
     item('bewerk','','Bewerken')+
@@ -17028,6 +17085,7 @@ function fisDivOpen(id){
 function fisDivSluit(){
   document.getElementById('fisDivModal').classList.remove('open');
   fisDivForm=null;
+  fisVbNaVenster();
 }
 /* Wat er in het venster staat, als uitkering. */
 function fisDivUitForm(){
@@ -18145,7 +18203,8 @@ async function fisLenPdf(id,soort,extra){
   if(soort==='jaar'){const uit=fisLenJaarUit(l,g);if(uit){appMelding('Nog niet klaar',uit);return;}}
   const soorten=soort==='alle'?fisLenSoorten(l):[soort];
   for(const s of soorten){
-    const doc=fisPdfDoc(a?fisAllBlokken(s,l,a,g):fisLenBlokken(s,l,g,extra));
+    /* Met je tekstaanpassingen, zoals in het voorbeeld. */
+    const doc=fisPdfDoc(fisMetAanpassingen(l,s,a?a.id:s==='jaar'?String(extra):'',a?fisAllBlokken(s,l,a,g):fisLenBlokken(s,l,g,extra)));
     if(!doc){appToast('De PDF-maker is niet geladen. Controleer je verbinding en probeer het opnieuw.',{type:'error'});return;}
     doc.save(fisLenBestandsnaam(s,l,a?a.nummer:extra));
     if(soorten.length>1)await new Promise(r=>setTimeout(r,400));
@@ -18251,7 +18310,7 @@ function fisLenMenu(id,knop){
   const extern=l.geldgever==='extern',docs=l.documenten||[];
   m.innerHTML='<div class="uren-menu-lab">Lening '+escapeHtml(String(l.nummer||'').trim()||String(l.externNaam||'').trim()||fisBedrag(l.bedrag))+'</div>'+
     (extern?'':soorten.map(s=>item('pdf',s,FIS_LEN_DOCS[s].naam,!stO.klaar)).join('')+
-      item('pdf','alle',soorten.length===3?'Alle drie documenten':'Beide documenten',!stO.klaar,stO.klaar?'':stO.reden)+
+      item('pdf','alle',soorten.length===3?'Alle drie documenten':'Beide documenten',!stO.klaar,stO.klaar?'Meteen downloaden, zonder voorbeeld':stO.reden)+
       allonges.map(a=>{
         const sa=fisLenDocStatus(l,'allonge',a.id,g);
         return '<div class="uren-menu-sep"></div>'+
@@ -18332,6 +18391,7 @@ function fisLenOpen(id,extern){
 function fisLenSluit(){
   document.getElementById('fisLenModal').classList.remove('open');
   fisLenForm=null;
+  fisVbNaVenster();
 }
 /* Wat er in het venster staat, als lening. */
 function fisLenUitForm(){
@@ -18789,6 +18849,7 @@ function fisAllOpen(lenId,id){
 function fisAllSluit(){
   document.getElementById('fisAllModal').classList.remove('open');
   fisAllForm=null;
+  fisVbNaVenster();
 }
 /* Wat er in het venster staat, als allonge. Alleen wat is aangevinkt of bij
    de gekozen fout hoort, telt; de rest is null. */
@@ -18949,9 +19010,11 @@ Object.assign(APP_ACTIONS,{
   fisLenOpen:()=>fisLenOpen(null),
   fisLenMenu:(el,e,id)=>{if(e)e.stopPropagation();fisLenMenu(id,el);},
   fisLenActie:(el,e,actie,id,extra)=>{
-    if(actie==='pdf')fisLenPdf(id,extra);
-    else if(actie==='jaar')fisLenPdf(id,'jaar',Number(extra));
-    else if(actie==='allonge'||actie==='abesluit')fisLenPdf(id,actie,extra);
+    /* Eén stuk: eerst het voorbeeld; alle stukken samen: meteen downloaden. */
+    if(actie==='pdf'&&extra==='alle')fisLenPdf(id,'alle');
+    else if(actie==='pdf')fisVbOpen('len',id,extra,'');
+    else if(actie==='jaar')fisVbOpen('len',id,'jaar',extra);
+    else if(actie==='allonge'||actie==='abesluit')fisVbOpen('len',id,actie,extra);
     else if(actie==='teken')fisTekenOpen('len',id);
     else if(actie==='getekend')fisGetekendDownload('len',id,extra);
     else if(actie==='anieuw')fisAllOpen(id,null);
@@ -18982,7 +19045,8 @@ Object.assign(APP_ACTIONS,{
   fisDivOpen:()=>fisDivOpen(null),
   fisDivMenu:(el,e,id)=>{if(e)e.stopPropagation();fisDivMenu(id,el);},
   fisDivActie:(el,e,actie,id,soort)=>{
-    if(actie==='pdf')fisDivPdf(id,soort);
+    if(actie==='pdf'&&soort==='alle')fisDivPdf(id,'alle');
+    else if(actie==='pdf')fisVbOpen('div',id,soort,'');
     else if(actie==='teken')fisTekenOpen('div',id);
     else if(actie==='getekend')fisGetekendDownload('div',id,soort);
     else if(actie==='bewerk')fisDivOpen(id);
@@ -19187,17 +19251,19 @@ function fisTekenBron(bron,id){
     const st=fisDivStatus(d,g);
     return {item:d,titel:'Dividend '+fisBedrag(d.bedrag)+(String(d.boekjaar||'').trim()?', boekjaar '+String(d.boekjaar).trim():''),
       stukken:['ava','bestuur','nota'].map(s=>({soort:s,extra:'',naam:FIS_DOCS[s].naam,bestand:fisDivBestandsnaam(s,d),
-        klaar:st.klaar,reden:st.reden,plaats:d.plaats,blokken:()=>fisDivBlokken(s,d,g)}))};
+        klaar:st.klaar,reden:st.reden,plaats:d.plaats,kaal:()=>fisDivBlokken(s,d,g),blokken:()=>fisMetAanpassingen(d,s,'',fisDivBlokken(s,d,g))}))};
   }
   const l=(fiscaalState.leningen||[]).find(x=>x.id===id);
   if(!l)return null;
   const stO=fisLenStatus(fisLenTot(l),g);
+  /* kaal: zoals de app het stuk maakt; blokken: met jouw tekstaanpassingen. */
   const stukken=fisLenSoorten(l).map(s=>({soort:s,extra:'',naam:FIS_LEN_DOCS[s].naam,bestand:fisLenBestandsnaam(s,l),
-    klaar:stO.klaar,reden:stO.reden,plaats:l.plaats,blokken:()=>fisLenBlokken(s,l,g)}));
+    klaar:stO.klaar,reden:stO.reden,plaats:l.plaats,kaal:()=>fisLenBlokken(s,l,g),blokken:()=>fisMetAanpassingen(l,s,'',fisLenBlokken(s,l,g))}));
   fisLenAllonges(l).forEach(a=>{
     const sa=fisLenDocStatus(l,'allonge',a.id,g);
     ['allonge','abesluit'].forEach(s=>stukken.push({soort:s,extra:a.id,naam:(s==='allonge'?'Allonge ':'Besluit bij allonge ')+a.nummer,
-      bestand:fisLenBestandsnaam(s,l,a.nummer),klaar:sa.klaar,reden:sa.reden,plaats:a.plaats||l.plaats,blokken:()=>fisAllBlokken(s,l,a,g)}));
+      bestand:fisLenBestandsnaam(s,l,a.nummer),klaar:sa.klaar,reden:sa.reden,plaats:a.plaats||l.plaats,
+      kaal:()=>fisAllBlokken(s,l,a,g),blokken:()=>fisMetAanpassingen(l,s,a.id,fisAllBlokken(s,l,a,g))}));
   });
   return {item:l,titel:'Lening '+(String(l.nummer||'').trim()||fisBedrag(l.bedrag)),stukken};
 }
@@ -19485,6 +19551,287 @@ Object.assign(APP_CHANGE_ACTIONS,{
   fisTekenVelden:()=>fisTekenVelden(),
   fisTekenBestand:el=>fisTekenBestand(el)
 });
+
+/* ══ Voorbeeld en tekst aanpassen (2026-11-06) ══
+   Een stuk uit het menu opent eerst als voorbeeld: de echte PDF in een
+   kader, zoals bij een factuur. Met Aanpassen pas je de tekst nog aan, per
+   alinea. Zo'n aanpassing ({soort, extra, van, naar}) wordt bewaard bij de
+   uitkering of lening en vervangt die alinea in elke PDF van het stuk: in
+   het voorbeeld, bij "Alle drie" en bij ondertekenen. Ze hangt aan de tekst
+   die de app maakte (van). Verandert die doordat je de gegevens wijzigt,
+   dan past de aanpassing niet meer en zegt het venster dat. Getallen in
+   je tekst rekent de app niet na: die horen in de gegevens. */
+function fisAanpassingen(item,soort,extra){
+  return ((item&&item.aanpassingen)||[]).filter(a=>a&&a.soort===soort&&String(a.extra||'')===String(extra||''));
+}
+/* Wat je kunt aanpassen: titel, koppen en alinea's, en de regels bovenaan.
+   De slotzin niet, want die volgt de datum van het ondertekenen. */
+function fisAanpasbaar(b){return (b.soort==='titel'||b.soort==='kop'||(b.soort==='tekst'&&!b.slot))&&typeof b.tekst==='string';}
+/* De blokken met je aanpassingen; een lege aanpassing haalt de alinea weg. */
+function fisMetAanpassingen(item,soort,extra,blokken){
+  const lijst=fisAanpassingen(item,soort,extra);
+  if(!lijst.length)return blokken;
+  const naar=t=>{const a=lijst.find(x=>x.van===t);return a?a.naar:t;};
+  return blokken.map(b=>{
+    if(fisAanpasbaar(b)){const t=naar(b.tekst);return t===b.tekst?b:{...b,tekst:t};}
+    if(b.soort==='regels'&&Array.isArray(b.regels)){
+      const r=b.regels.map(naar);
+      return r.some((x,i)=>x!==b.regels[i])?{...b,regels:r.filter(x=>x!=='')}:b;
+    }
+    return b;
+  }).filter(b=>!(fisAanpasbaar(b)&&b.tekst===''));
+}
+/* Aanpassingen waarvan de tekst niet meer in het stuk staat (blokken: kaal). */
+function fisAanpassingenVervallen(item,soort,extra,blokken){
+  const teksten=new Set();
+  blokken.forEach(b=>{
+    if(fisAanpasbaar(b))teksten.add(b.tekst);
+    if(b.soort==='regels')(b.regels||[]).forEach(r=>teksten.add(r));
+  });
+  return fisAanpassingen(item,soort,extra).filter(a=>!teksten.has(a.van));
+}
+/* De stukken om te bekijken: wat je tekent, en bij een lening ook de
+   jaaroverzichten (die tekent niemand). */
+function fisVbBron(bron,id){
+  const b=fisTekenBron(bron,id);
+  if(!b||bron!=='len'||b.item.geldgever==='extern')return b;
+  const l=b.item,g=fiscaalState.gegevens||{},st=fisLenStatus(l,g),uit=fisLenJaarUit(l,g);
+  fisLenJaren(l).forEach(j=>b.stukken.push({soort:'jaar',extra:String(j),naam:'Jaaroverzicht '+j,bestand:fisLenBestandsnaam('jaar',l,j),
+    klaar:st.klaar&&!uit,reden:st.klaar?uit:st.reden,plaats:l.plaats,
+    kaal:()=>fisLenBlokken('jaar',l,g,j),blokken:()=>fisMetAanpassingen(l,'jaar',String(j),fisLenBlokken('jaar',l,g,j))}));
+  return b;
+}
+
+/* ── Het venster ── */
+let fisVb=null;       /* {bron,id,i,url,los,bewerk} zolang het venster open is */
+let fisVbTerug=null;  /* na Gegevens aanpassen: terug naar dit voorbeeld */
+function fisVbOpen(bron,id,soort,extra){
+  fisMenuDicht();
+  const b=fisVbBron(bron,id);
+  if(!b||!b.stukken.length)return;
+  let i=b.stukken.findIndex(s=>s.soort===soort&&String(s.extra||'')===String(extra||''));
+  if(i<0)i=Math.max(0,b.stukken.findIndex(s=>s.klaar));
+  fisVb={bron,id,i,url:null,los:false,bewerk:null};
+  const m=document.getElementById('fisVbModal');
+  if(!m.classList.contains('open')){m.classList.add('open');zetPaginaZoom(true);}
+  fisVbToon();
+}
+function fisVbHuidig(){
+  const b=fisVb&&fisVbBron(fisVb.bron,fisVb.id),s=b&&b.stukken[fisVb.i];
+  return s?{b,s}:null;
+}
+function fisVbVrijgeven(){
+  if(fisVb&&fisVb.url&&!fisVb.los)URL.revokeObjectURL(fisVb.url);
+  if(fisVb)fisVb.url=null;
+}
+function fisVbModus(bewerk){
+  /* Zoomen mag bij de PDF, niet bij de velden: anders zoomt een iPhone in zodra je in een veld tikt. */
+  zetPaginaZoom(!bewerk);
+  document.getElementById('fisVbVlak').hidden=bewerk;
+  document.getElementById('fisVbBewerk').hidden=!bewerk;
+  document.getElementById('fisVbVoet').hidden=bewerk;
+  document.getElementById('fisVbBewerkVoet').hidden=!bewerk;
+}
+/* Het stuk tonen: de kop, de keuze, en de PDF in het kader. */
+function fisVbToon(){
+  const h=fisVbHuidig();
+  if(!h){fisVbSluit();return;}
+  const {b,s}=h;
+  fisVb.bewerk=null;
+  fisVbModus(false);
+  const n=fisAanpassingen(b.item,s.soort,s.extra).length,weg=s.klaar?fisAanpassingenVervallen(b.item,s.soort,s.extra,s.kaal()).length:0,actief=n-weg;
+  document.getElementById('fisVbTitel').textContent=s.naam;
+  document.getElementById('fisVbSub').textContent=[b.titel,actief?actief+(actief===1?' tekstaanpassing':' tekstaanpassingen'):'',
+    weg?weg+(weg===1?' aanpassing past':' aanpassingen passen')+' niet meer':''].filter(Boolean).join(' · ');
+  const sel=document.getElementById('fisVbKeuze');
+  sel.innerHTML=b.stukken.map((x,j)=>'<option value="'+j+'"'+(x.klaar?'':' disabled')+'>'+escapeHtml(x.naam)+'</option>').join('');
+  sel.value=String(fisVb.i);
+  sel.hidden=b.stukken.length<2;
+  document.querySelectorAll('#fisVbVoet [data-action="fisVbAanpassen"],#fisVbVoet [data-action="fisVbNieuwTab"],#fisVbVoet [data-action="fisVbOpslaan"]')
+    .forEach(x=>{x.disabled=!s.klaar;});
+  const frame=document.getElementById('fisVbFrame'),status=document.getElementById('fisVbStatus');
+  fisVbVrijgeven();
+  frame.removeAttribute('src');
+  const zeg=(kop,t)=>{status.innerHTML='<b>'+escapeHtml(kop)+'</b><span>'+escapeHtml(t||'')+'</span>';status.hidden=false;};
+  if(!s.klaar){zeg('Nog niet klaar',s.reden);return;}
+  const doc=fisPdfDoc(s.blokken());
+  if(!doc){zeg('De PDF-maker is niet geladen','Controleer je verbinding en probeer het opnieuw.');return;}
+  /* De naam van het stuk bovenin de PDF-viewer, in plaats van een willekeurige code. */
+  doc.setProperties({title:s.naam+' · '+b.titel});
+  fisVb.url=URL.createObjectURL(doc.output('blob'));
+  fisVb.los=false;
+  frame.src=fisVb.url;
+  status.hidden=true;
+}
+function fisVbSluit(){
+  const m=document.getElementById('fisVbModal');
+  if(!m||!m.classList.contains('open'))return;
+  m.classList.remove('open');
+  zetPaginaZoom(false);
+  document.getElementById('fisVbFrame').removeAttribute('src');
+  fisVbVrijgeven();
+  fisVb=null;
+}
+function fisVbKies(el){
+  if(!fisVb)return;
+  fisVb.i=Number(el.value)||0;
+  fisVbToon();
+}
+function fisVbNieuwTab(){
+  if(!fisVb||!fisVb.url)return;
+  fisVb.los=true;
+  window.open(fisVb.url,'_blank','noopener');
+}
+function fisVbOpslaan(){
+  const h=fisVbHuidig();
+  if(!h||!h.s.klaar)return;
+  const doc=fisPdfDoc(h.s.blokken());
+  if(!doc){appToast('De PDF-maker is niet geladen. Controleer je verbinding en probeer het opnieuw.',{type:'error'});return;}
+  doc.save(h.s.bestand);
+}
+
+/* ── Aanpassen ── */
+/* Wat je typt zoals het in de PDF komt: een bedrag breekt niet tussen € en
+   het getal, en witruimte aan het eind telt niet. */
+function fisVbNorm(t){return String(t||'').replace(/\r\n?/g,'\n').replace(/€ /g,'€ ').replace(/\s+$/,'');}
+/* De tekst van het stuk: per alinea een veld met wat er nu staat (je
+   aanpassing, anders de tekst van de app). Wat de app rekent ertussen. */
+function fisVbAanpassen(){
+  const h=fisVbHuidig();
+  if(!h||!h.s.klaar)return;
+  const kaal=h.s.kaal(),lijst=fisAanpassingen(h.b.item,h.s.soort,h.s.extra);
+  const nu=t=>{const a=lijst.find(x=>x.van===t);return a?a.naar:t;};
+  const velden=[],html=[];
+  const vast=t=>html.push('<div class="fis-vb-vast">'+escapeHtml(t)+'</div>');
+  const veld=(van,kop)=>{
+    const i=velden.length;
+    /* norm: om te vergelijken; niet elke regel van de app heeft een vaste spatie na €. */
+    velden.push({van,norm:fisVbNorm(van)});
+    html.push('<div class="uren-fld fis-vb-blok'+(kop?' is-kop':'')+'"><textarea class="inp" rows="1" data-vb="'+i+'" aria-label="'+(kop?'Kop':'Tekst')+'">'+
+      escapeHtml(nu(van))+'</textarea><div class="fis-vb-blok-voet"></div></div>');
+  };
+  html.push('<p class="opd-hint" style="margin:0">De app rekent je tekst niet na. Bedragen, rente, looptijd en datums pas je aan met <b>Gegevens aanpassen</b>: '+
+    'dan klopt de rest van het stuk ook. Maak je een veld leeg, dan gaat die alinea eruit.</p>');
+  const weg=fisAanpassingenVervallen(h.b.item,h.s.soort,h.s.extra,kaal);
+  if(weg.length)html.push('<p class="opd-reken-fout">'+(weg.length===1?'Eén aanpassing past':weg.length+' aanpassingen passen')+
+    ' niet meer, omdat de tekst van de app is veranderd ('+weg.map(a=>'"'+escapeHtml(a.naar.length>60?a.naar.slice(0,57)+'…':a.naar)+'"').join(', ')+'). Bij Klaar gaan '+(weg.length===1?'die':'ze')+' weg.</p>');
+  kaal.forEach(b=>{
+    if(b.soort==='titel'||b.soort==='kop')veld(b.tekst,true);
+    else if(b.soort==='tekst'){if(b.slot)vast('Slotzin: volgt de plaats en datum bij het ondertekenen');else veld(b.tekst,false);}
+    else if(b.soort==='regels')(b.regels||[]).forEach(r=>veld(r,false));
+    else if(b.soort==='tabel')vast('Bedragen: '+b.rijen.map(r=>r.label).join(', ').toLowerCase()+'. Die rekent de app.');
+    else if(b.soort==='kolommen')vast('Tabel: '+b.koppen.join(', ').toLowerCase()+'. Die rekent de app.');
+    else if(b.soort==='handtekening')vast('Handtekening'+(b.naast?'en':'')+': '+[b,b.naast].filter(Boolean).map(k=>k.naam).join(' en '));
+    else if(b.soort==='pagina')vast('Nieuwe pagina');
+  });
+  fisVb.bewerk={velden};
+  const box=document.getElementById('fisVbBewerk');
+  box.innerHTML='<div class="uren-form fis-vb-vel">'+html.join('')+'</div>';
+  fisVbModus(true);
+  box.querySelectorAll('textarea[data-vb]').forEach(t=>{fisVbHoogte(t);fisVbVeldStand(t);});
+  box.scrollTop=0;
+}
+function fisVbHoogte(t){t.style.height='auto';t.style.height=(t.scrollHeight+2)+'px';}
+/* Onder een veld: aangepast of weg, of er een getal veranderde, en terugzetten. */
+function fisVbVeldStand(t){
+  const v=fisVb&&fisVb.bewerk&&fisVb.bewerk.velden[Number(t.dataset.vb)];
+  if(!v)return;
+  const blok=t.closest('.fis-vb-blok'),voet=blok.querySelector('.fis-vb-blok-voet');
+  const nu=fisVbNorm(t.value),anders=nu!==v.norm;
+  const getallen=s=>(String(s).match(/\d+(?:[.,]\d+)*/g)||[]).join('|');
+  blok.classList.toggle('is-anders',anders);
+  voet.innerHTML=!anders?'':'<span>'+(nu===''?'Deze alinea gaat eruit':'Aangepast')+'</span>'+
+    (nu!==''&&getallen(nu)!==getallen(v.van)?'<span class="fis-vb-let">Een getal is anders dan wat de app rekent</span>':'')+
+    '<button type="button" class="btn btn-xs" data-action="fisVbVeldTerug" data-arg1="'+t.dataset.vb+'">Terugzetten</button>';
+}
+document.addEventListener('input',e=>{
+  const t=e.target;
+  if(t&&t.matches&&t.matches('#fisVbBewerk textarea[data-vb]')){fisVbHoogte(t);fisVbVeldStand(t);}
+});
+function fisVbVeldTerug(i){
+  const t=document.querySelector('#fisVbBewerk textarea[data-vb="'+i+'"]'),v=fisVb&&fisVb.bewerk&&fisVb.bewerk.velden[Number(i)];
+  if(!t||!v)return;
+  t.value=v.van;fisVbHoogte(t);fisVbVeldStand(t);
+}
+function fisVbAllesTerug(){
+  document.querySelectorAll('#fisVbBewerk textarea[data-vb]').forEach(t=>fisVbVeldTerug(t.dataset.vb));
+}
+/* De velden bewaren als aanpassingen van dit stuk; geeft {voor} als er iets
+   veranderde (om ongedaan te maken), anders null. Wat niet meer past, gaat weg. */
+function fisVbBewaarVelden(){
+  const h=fisVbHuidig();
+  if(!h||!fisVb.bewerk)return null;
+  const item=h.b.item,soort=h.s.soort,extra=String(h.s.extra||''),nieuw=[];
+  document.querySelectorAll('#fisVbBewerk textarea[data-vb]').forEach(t=>{
+    const v=fisVb.bewerk.velden[Number(t.dataset.vb)],naar=fisVbNorm(t.value);
+    if(v&&naar!==v.norm&&!nieuw.some(a=>a.van===v.van))nieuw.push({soort,extra,van:v.van,naar});
+  });
+  const oud=fisAanpassingen(item,soort,extra);
+  if(oud.length===nieuw.length&&oud.every(a=>nieuw.some(x=>x.van===a.van&&x.naar===a.naar)))return null;
+  const voor=(item.aanpassingen||[]).slice();
+  item.aanpassingen=voor.filter(a=>!(a&&a.soort===soort&&String(a.extra||'')===extra)).concat(nieuw);
+  item.updatedAt=Date.now();
+  scheduleSave();
+  return {voor};
+}
+function fisVbBewerkStop(){
+  if(!fisVb)return;
+  fisVb.bewerk=null;
+  fisVbModus(false);
+}
+function fisVbBewerkKlaar(){
+  const h=fisVbHuidig();
+  if(!h)return;
+  const r=fisVbBewaarVelden(),item=h.b.item,{bron,id}=fisVb;
+  fisVbToon();
+  if(!r)return;
+  renderFiscaalModule();
+  /* Al getekend: die versie heeft nog de oude tekst. */
+  const t=fisGetekend(item,h.s.soort,h.s.extra),na=fisVbHuidig();
+  const oud=t&&na&&fisGetekendGewijzigd(t,na.s);
+  appToast(oud?'Tekst aangepast. De getekende versie heeft nog de oude tekst; teken opnieuw als dit de bedoeling is.':'Tekst aangepast; het voorbeeld is bijgewerkt',
+    {type:oud?'warning':'success',duration:oud?9000:undefined,undo:()=>{
+      item.aanpassingen=r.voor;
+      scheduleSave();renderFiscaalModule();
+      if(fisVb&&fisVb.bron===bron&&fisVb.id===id&&!fisVb.bewerk)fisVbToon();
+    }});
+}
+/* De gegevens zelf aanpassen: eerst bewaren wat je typte, dan het venster
+   van de uitkering, lening of allonge; daarna terug naar dit voorbeeld. */
+function fisVbGegevens(){
+  const h=fisVbHuidig();
+  if(!h)return;
+  fisVbBewaarVelden();
+  const {bron,id}=fisVb,{soort,extra}=h.s;
+  fisVbSluit();
+  fisVbTerug={bron,id,soort,extra};
+  if(bron==='div')fisDivOpen(id);
+  else if(soort==='allonge'||soort==='abesluit')fisAllOpen(id,extra);
+  else fisLenOpen(id);
+}
+/* Bewaard of niet: zodra dat venster dicht is, weer het voorbeeld. */
+function fisVbNaVenster(){
+  if(!fisVbTerug)return;
+  const t=fisVbTerug;
+  fisVbTerug=null;
+  setTimeout(()=>fisVbOpen(t.bron,t.id,t.soort,t.extra),0);
+}
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Escape'||!fisVb)return;
+  if(fisVb.bewerk)fisVbBewerkStop();else fisVbSluit();
+});
+Object.assign(APP_ACTIONS,{
+  fisVbSluit:()=>fisVbSluit(),
+  fisVbAanpassen:()=>fisVbAanpassen(),
+  fisVbNieuwTab:()=>fisVbNieuwTab(),
+  fisVbOpslaan:()=>fisVbOpslaan(),
+  fisVbGegevens:()=>fisVbGegevens(),
+  fisVbAllesTerug:()=>fisVbAllesTerug(),
+  fisVbBewerkStop:()=>fisVbBewerkStop(),
+  fisVbBewerkKlaar:()=>fisVbBewerkKlaar(),
+  fisVbVeldTerug:(el,e,i)=>fisVbVeldTerug(i)
+});
+Object.assign(APP_CHANGE_ACTIONS,{fisVbKies:el=>fisVbKies(el)});
 
 /* ─ Event delegation registrations (Dashboard + Sidebar clients) ─ */
 Object.assign(APP_ACTIONS,{
